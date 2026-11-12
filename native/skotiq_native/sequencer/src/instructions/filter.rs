@@ -5,8 +5,6 @@
 
 use super::*;
 
-// Filter change instruction
-
 /// Default timeout for filter wheel change operations (in seconds)
 pub(crate) const DEFAULT_FILTER_WHEEL_TIMEOUT_SECS: u64 = 120;
 
@@ -97,7 +95,10 @@ async fn execute_filter_change_holding_train(
     }
     let position = match move_filter_wheel(ctx, &fw_id, target, Some(timeout)).await {
         Ok(position) => position,
-        Err(e) => return InstructionResult::failure(e),
+        Err(e) => {
+            return InstructionResult::failure(format!("Filter change failed: {e}"))
+                .caused_by(&e.error)
+        }
     };
 
     // Filter-specific focus offsets compensate for the differing optical path
@@ -108,7 +109,8 @@ async fn execute_filter_change_holding_train(
         return InstructionResult::failure(format!(
             "Focus offset failed for filter \"{}\": {}",
             config.filter_name, e
-        ));
+        ))
+        .caused_by(&e);
     }
     if config.filter_index.is_some() {
         if let Some(cb) = progress_callback {
@@ -136,7 +138,7 @@ pub(crate) async fn apply_filter_focus_offset(
     filter_name: &str,
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     let focuser_id = match ctx.run.rig.focuser_id.as_deref() {
         Some(id) if !id.is_empty() => id,
         _ => return Ok(()),
@@ -192,7 +194,7 @@ pub(crate) async fn apply_filter_focus_offset(
     let current_pos = match ctx.run.device_ops.focuser_get_position(focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
-            return Err(format!("failed to read focuser position: {}", e));
+            return Err(e.context("failed to read focuser position"));
         }
     };
 
@@ -211,7 +213,7 @@ pub(crate) async fn apply_filter_focus_offset(
         .focuser_move_to(focuser_id, target_pos)
         .await
     {
-        return Err(format!("failed to move focuser: {}", e));
+        return Err(e.context("failed to move focuser"));
     }
 
     // 60 polls × 500 ms = 30 s — enough for typical filter-offset moves
@@ -229,27 +231,29 @@ pub(crate) async fn apply_filter_focus_offset(
             }
             Ok(true) => continue,
             Err(e) => {
-                return Err(format!("failed while checking focuser movement: {}", e));
+                return Err(e.context("failed while checking focuser movement"));
             }
         }
     }
 
     if !reached_target {
-        return Err("focuser did not report completion before the timeout window".to_string());
+        return Err(DeviceError::Timeout(
+            "focuser did not report completion before the timeout window".to_string(),
+        ));
     }
 
     let final_pos = match ctx.run.device_ops.focuser_get_position(focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
-            return Err(format!("failed to verify final focuser position: {}", e));
+            return Err(e.context("failed to verify final focuser position"));
         }
     };
 
     if final_pos != target_pos {
-        return Err(format!(
+        return Err(DeviceError::Failed(format!(
             "target focuser position {} but actual position is {}",
             target_pos, final_pos
-        ));
+        )));
     }
 
     // Record the offset now embodied in the focuser position so the NEXT

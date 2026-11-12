@@ -27,6 +27,7 @@ import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/preflight_providers.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/preflight_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/equipment_health_service.dart';
 import 'package:skotiq_core/src/services/time_sync_service.dart';
@@ -372,7 +373,7 @@ void main() {
 
       expect(issues, isNotEmpty);
       expect(issues.first.title, 'Missing Dark Frames');
-      expect(issues.first.description, contains('temp=15.0C'));
+      expect(issues.first.description, contains(', 15.0°C, binning'));
       expect(
         issues.first.description,
         contains('Temperatures are the setpoints this sequence cools to.'),

@@ -75,6 +75,7 @@ fn frame_headers_sum_into_total_integration_and_earliest_date_obs() {
         provenance.fold(&FrameProvenance {
             exposure_secs: Some(120.0),
             date_obs: Some(date_obs.to_string()),
+            filter: None,
         });
     }
 
@@ -104,6 +105,7 @@ fn partial_frame_headers_report_how_many_frames_were_counted() {
     provenance.fold(&FrameProvenance {
         exposure_secs: Some(60.0),
         date_obs: Some("2026-08-14T03:22:30".to_string()),
+        filter: None,
     });
     provenance.fold(&FrameProvenance::unknown());
 

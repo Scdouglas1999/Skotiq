@@ -55,7 +55,9 @@ Future<void> _pumpToolbar(
     size: const Size(1600, 900),
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider.overrideWith((ref) => executionState),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: executionState)),
+      ),
     ],
   );
 }

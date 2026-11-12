@@ -30,7 +30,7 @@ pub(crate) fn load_optional_flat(path: &Option<String>) -> Result<Option<FlatMas
     let image = read_image(Path::new(p))
         .map_err(|e| format!("failed to read flat master '{p}': {e}"))?
         .image;
-    let header = read_fits_header(Path::new(p)).ok();
+    let header = read_frame_header(Path::new(p)).ok();
     let pedestal = flat_pedestal_state(&image, header.as_ref());
     Ok(Some(FlatMaster { image, pedestal }))
 }
@@ -631,21 +631,13 @@ pub(crate) fn build_master_header(
 /// Best-effort by construction: a reference that is not a FITS file, is
 /// unreadable, or simply carries no astrometry yields `None` — integration still
 /// produces a master, just without a stamped WCS (the stitcher then gates that
-/// panel out). Mirrors the stitcher's `mosaic::wcs_from_header`: prefer an
-/// explicit `CD1_1..CD2_2` matrix, fall back to the older `CDELT1/2` (+ optional
-/// `CROTA2`) convention, and default `CRPIX` to the geometric centre.
+/// panel out). The header is read by [`skotiq_imaging::SipWcs::from_header`].
 pub(crate) fn reference_wcs_from_fits(path: &str) -> Option<WcsInfo> {
-    // Only FITS carries a typed WCS header through this reader path; other
-    // formats (XISF/RAW) flatten keywords lossily, so we don't attempt them.
-    let ext = Path::new(path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    if ext != "fits" && ext != "fit" && ext != "fts" {
+    let path = Path::new(path);
+    if !skotiq_imaging::is_frame_path(path) {
         return None;
     }
-    let (_image, header) = read_fits(Path::new(path)).ok()?;
+    let header = read_frame_header(path).ok()?;
 
     skotiq_imaging::SipWcs::from_header(&header).map(|wcs| wcs.cd_only())
 }

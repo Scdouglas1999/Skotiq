@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -29,7 +30,7 @@ class DiskSpaceInfo {
 
   @override
   String toString() =>
-      'DiskSpaceInfo(path=$path, free=${freeBytes ~/ (1024 * 1024)}MB, total=${totalBytes ~/ (1024 * 1024)}MB)';
+      'DiskSpaceInfo(path=$path, free=${ByteFormat.size(freeBytes)}, total=${ByteFormat.size(totalBytes)})';
 }
 
 /// Thrown when the disk-space query fails. No fallback value is substituted:

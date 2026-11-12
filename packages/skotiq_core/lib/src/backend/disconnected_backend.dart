@@ -31,6 +31,9 @@ class DisconnectedBackend implements SkotiqBackend {
   Stream<SkotiqEvent> get eventStream => _eventController.stream;
 
   @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes => const {};
+
+  @override
   Stream<Map<String, dynamic>> get polarAlignmentEvents =>
       _polarAlignController.stream;
 

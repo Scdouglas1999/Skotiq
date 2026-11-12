@@ -142,8 +142,9 @@ void main() {
       jsonDecode(snapshotJson) as Map<String, dynamic>,
     );
 
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     expect(
       () => container
@@ -153,8 +154,9 @@ void main() {
     );
 
     // Idle is editable, which is the window the resume path now uses.
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.idle;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.idle);
     container
         .read(currentSequenceProvider.notifier)
         .loadSequence(sequence, discardUnsaved: true);

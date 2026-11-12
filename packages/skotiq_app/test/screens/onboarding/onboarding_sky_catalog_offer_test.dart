@@ -101,7 +101,7 @@ void main() {
     );
     expect(offer, findsOneWidget);
     expect(tester.widget<SkotiqSwitchRow>(offer).value, isFalse);
-    expect(find.textContaining('about 60 MB'), findsOneWidget);
+    expect(find.textContaining('about 60 MiB'), findsOneWidget);
 
     await tester.tap(find.text('Save profile'));
     await tester.pump();
@@ -110,7 +110,7 @@ void main() {
     expect(installed, isEmpty, reason: 'nothing is downloaded unasked');
     // The next step still offers it.
     expect(
-      find.widgetWithText(SkotiqButton, 'Download catalogs (60 MB)'),
+      find.widgetWithText(SkotiqButton, 'Download catalogs (60 MiB)'),
       findsOneWidget,
     );
     expect(

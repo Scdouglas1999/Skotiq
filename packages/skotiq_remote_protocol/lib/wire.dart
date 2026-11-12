@@ -10,6 +10,7 @@ export 'src/server_compatibility.dart';
 export 'src/server_identity.dart';
 
 export 'src/wire/api_error.dart';
+export 'src/wire/wire_time.dart';
 export 'src/wire/api_route.dart';
 export 'src/wire/api_route_index.dart';
 export 'src/wire/api_routes.dart';

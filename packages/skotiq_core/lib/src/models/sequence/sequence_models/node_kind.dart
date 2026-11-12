@@ -116,6 +116,10 @@ final class NodeKind<N extends SequenceNode> {
 
   /// [node] with every filter it names replaced as [renames] says. Its name
   /// follows when it only said its filter (see [nameAfterEdit]).
+  ///
+  /// A renamed filter loses its wheel slot: the slot was the old name's, and
+  /// the run moves the wheel by slot when a step carries one. Without it the
+  /// run finds the slot of the new name.
   N renameFilters(N node, Map<String, String> renames) {
     final rename = _renameFilter;
     if (rename == null || !filtersOf(node).any(renames.containsKey)) {

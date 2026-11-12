@@ -99,8 +99,9 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
                 serde_json::json!({ "trigger_id": trigger_id }),
             );
             tracing::warn!("[DRIFT] {}", continuation.operator_message);
-            decisions.send(continuation.decision);
-            run.warning(continuation.operator_message);
+            let (decision, line) = continuation.split();
+            decisions.send(decision);
+            run.send(line.into_event());
         }
     } else {
         tracing::warn!(
@@ -108,7 +109,7 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
             result.message
         );
         run.pause(None);
-        run.error(format!(
+        run.held(format!(
             "DriftLimit recenter failed: {}",
             result.message.unwrap_or_default()
         ));

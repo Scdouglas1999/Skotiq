@@ -38,9 +38,12 @@ List<Override> _overrides(SequenceRunStats stats) {
   notifier.state = _seedSequence();
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.failed),
-    liveSequenceStatsProvider.overrideWith((ref) => stats),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(
+        ref,
+        RunRecord(lifecycle: SequenceExecutionState.failed, stats: stats),
+      ),
+    ),
     // The Ledger's minute clock is a periodic timer that outlives the test
     // body; the banner does not read it.
     ledgerClockProvider

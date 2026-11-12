@@ -4,7 +4,6 @@ import 'package:csv/csv.dart';
 import 'package:file_selector/file_selector.dart' show XTypeGroup;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -187,7 +186,6 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
     final sessionsReady = sessionsAsync.hasValue &&
         !sessionsAsync.isLoading &&
         !sessionsAsync.hasError;
-    final dateFormat = DateFormat('yyyy-MM-dd');
 
     // First Light transient detections: prefer the caller's snapshot, else the
     // global newest-first feed.
@@ -280,7 +278,7 @@ class _ScienceExportHubState extends ConsumerState<ScienceExportHub>
                         sessionsAsync,
                         sessions,
                       );
-                      final dates = _buildDateFilters(colors, dateFormat);
+                      final dates = _buildDateFilters(colors);
                       if (constraints.maxWidth < 560) {
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -13,11 +13,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'settings_widgets.dart';
 
 class AdaptiveConditionsSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const AdaptiveConditionsSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -48,11 +45,8 @@ class _AdaptiveConditionsSettingsState
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -68,12 +62,9 @@ class _AdaptiveConditionsSettingsState
           title: 'Adaptive conditions',
           description:
               'Defaults for sky-conditions target swapping in new scheduler nodes',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'Swap defaults',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.toggleLeft,
@@ -89,7 +80,6 @@ class _AdaptiveConditionsSettingsState
                       },
                     ),
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.gauge,
@@ -107,10 +97,8 @@ class _AdaptiveConditionsSettingsState
                     onChanged: (value) async {
                       await notifier.setAdaptiveSwapDefaultThreshold(value);
                     },
-                    isMobile: widget.isMobile,
                   ),
-                  isMobile: widget.isMobile,
-                  stackOnMobile: true,
+                  stackWhenNarrow: true,
                 ),
                 SettingRow(
                   icon: LucideIcons.timerReset,
@@ -130,10 +118,8 @@ class _AdaptiveConditionsSettingsState
                       await notifier
                           .setAdaptiveSwapDefaultHysteresisSecs(value);
                     },
-                    isMobile: widget.isMobile,
                   ),
-                  isMobile: widget.isMobile,
-                  stackOnMobile: true,
+                  stackWhenNarrow: true,
                   isLast: true,
                 ),
               ],
@@ -141,7 +127,6 @@ class _AdaptiveConditionsSettingsState
             const SizedBox(height: 28),
             SettingsSection(
               title: 'Score weights',
-              isMobile: widget.isMobile,
               children: [
                 _WeightRow(
                   key: const ValueKey('adaptiveSwapTransparencyWeightRow'),
@@ -155,7 +140,6 @@ class _AdaptiveConditionsSettingsState
                   authoritativeValue:
                       settings.conditionsScoreWeights['transparency'] ?? 0,
                   authorityKey: authority,
-                  isMobile: widget.isMobile,
                   onChanged: (value) =>
                       _setWeight(notifier, settings, 'transparency', value),
                 ),
@@ -169,7 +153,6 @@ class _AdaptiveConditionsSettingsState
                   authoritativeValue:
                       settings.conditionsScoreWeights['seeing'] ?? 0,
                   authorityKey: authority,
-                  isMobile: widget.isMobile,
                   onChanged: (value) =>
                       _setWeight(notifier, settings, 'seeing', value),
                 ),
@@ -182,7 +165,6 @@ class _AdaptiveConditionsSettingsState
                   authoritativeValue:
                       settings.conditionsScoreWeights['cloud'] ?? 0,
                   authorityKey: authority,
-                  isMobile: widget.isMobile,
                   onChanged: (value) =>
                       _setWeight(notifier, settings, 'cloud', value),
                 ),
@@ -196,7 +178,6 @@ class _AdaptiveConditionsSettingsState
                   authoritativeValue:
                       settings.conditionsScoreWeights['wind'] ?? 0,
                   authorityKey: authority,
-                  isMobile: widget.isMobile,
                   onChanged: (value) =>
                       _setWeight(notifier, settings, 'wind', value),
                   isLast: true,
@@ -261,7 +242,6 @@ class _WeightRow extends StatelessWidget {
   final ValueKey<String> inputKey;
   final double authoritativeValue;
   final Object authorityKey;
-  final bool isMobile;
 
   /// Returns a future so a refused write (see `_setWeight`) propagates back
   /// into [SettingsNumberInput], which rolls the field back to the stored
@@ -279,7 +259,6 @@ class _WeightRow extends StatelessWidget {
     required this.inputKey,
     required this.authoritativeValue,
     required this.authorityKey,
-    required this.isMobile,
     required this.onChanged,
     this.isLast = false,
   });
@@ -300,10 +279,8 @@ class _WeightRow extends StatelessWidget {
         max: 10,
         decimals: 2,
         onChanged: onChanged,
-        isMobile: isMobile,
       ),
-      isMobile: isMobile,
-      stackOnMobile: true,
+      stackWhenNarrow: true,
       isLast: isLast,
     );
   }

@@ -28,9 +28,14 @@ pub enum IndiEvent {
         delay_secs: f64,
     },
     /// Reader task restarted successfully after failure
-    ReaderRestarted { attempts_used: u32 },
+    ReaderRestarted {
+        attempts_used: u32,
+    },
     /// Reader task restart failed after max attempts
-    ReaderRestartFailed { attempts: u32, last_error: String },
+    ReaderRestartFailed {
+        attempts: u32,
+        last_error: String,
+    },
     ReaderHealthChanged {
         healthy: bool,
         status: ReaderStatus,

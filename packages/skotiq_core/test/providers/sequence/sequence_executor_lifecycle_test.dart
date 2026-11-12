@@ -234,7 +234,7 @@ void main() {
       final stats = SequenceRunStats()
         ..recordWarning('No focuser connected — autofocus was skipped.')
         ..recordWarning('Filter "Ha" could not be matched.');
-      container.read(liveSequenceStatsProvider.notifier).state = stats;
+      container.read(runRecordProvider.notifier).setStats(stats);
 
       executor.captureSessionEndHooksForTest();
 

@@ -685,7 +685,7 @@ class _SequenceTreeState extends ConsumerState<SequenceTree> {
   @override
   Widget build(BuildContext context) {
     final sequence = ref.watch(currentSequenceProvider);
-    final progress = ref.watch(sequenceProgressProvider);
+    final progress = ref.watch(sequenceStepProgressProvider);
     final validation = ref.watch(liveValidationProvider);
     final density = effectiveSequencerDensity(
       ref.watch(sequencerDensityProvider),

@@ -32,6 +32,5 @@ pub trait DomeOps: Send + Sync {
     /// Park dome
     async fn dome_park(&self, dome_id: &str) -> DeviceResult<()>;
 
-    /// Get dome status (shutter status)
     async fn dome_get_shutter_status(&self, dome_id: &str) -> DeviceResult<String>;
 }

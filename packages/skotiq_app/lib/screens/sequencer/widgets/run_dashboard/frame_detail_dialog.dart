@@ -313,16 +313,10 @@ class _ImagePreview extends ConsumerWidget {
   /// alongside each FITS. Convention: same basename with the
   /// FITS extension swapped for `.preview.png`.
   File? _resolvePreviewFile(String rejectPath) {
-    final lower = rejectPath.toLowerCase();
-    for (final ext in ['.fits', '.fit', '.fts', '.xisf']) {
-      if (lower.endsWith(ext)) {
-        final preview =
-            File('${rejectPath.substring(0, rejectPath.length - ext.length)}'
-                '.preview.png');
-        if (_safeExists(preview)) return preview;
-      }
-    }
-    return null;
+    if (!FrameFiles.isFrame(rejectPath)) return null;
+    final dot = rejectPath.lastIndexOf('.');
+    final preview = File('${rejectPath.substring(0, dot)}.preview.png');
+    return _safeExists(preview) ? preview : null;
   }
 }
 

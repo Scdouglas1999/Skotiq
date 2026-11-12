@@ -85,6 +85,8 @@ void main() {
   late StreamController<SkotiqEvent> events;
   late Directory outputDir;
   late List<String> writtenPaths;
+  // Whether each save asked for the camera's raw file to be kept.
+  late List<bool> keptCameraFiles;
 
   setUpAll(() {
     registerMocktailFallbackValues();
@@ -100,6 +102,7 @@ void main() {
   setUp(() {
     outputDir = Directory.systemTemp.createTempSync('sk_loop_retention');
     writtenPaths = <String>[];
+    keptCameraFiles = <bool>[];
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => events.stream);
@@ -141,12 +144,15 @@ void main() {
         deviceId: any(named: 'deviceId'),
         filePath: any(named: 'filePath'),
         headerData: any(named: 'headerData'),
+        keepCameraFile: any(named: 'keepCameraFile'),
       ),
     ).thenAnswer((invocation) async {
       final path = invocation.namedArguments[#filePath] as String;
       writtenPaths.add(path);
+      keptCameraFiles.add(invocation.namedArguments[#keepCameraFile] as bool);
       // The real Rust save leaves a file behind; the DB insert path stats it.
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
     });
   });
 
@@ -217,6 +223,7 @@ void main() {
       expect(writtenPaths.toSet(), hasLength(1));
       expect(p.basename(writtenPaths.first), startsWith('liveview_'));
       expect(outputDir.listSync(recursive: true), isEmpty);
+      expect(keptCameraFiles, everyElement(isFalse));
     },
   );
 
@@ -268,6 +275,8 @@ void main() {
       reason: 'an explicit opt-in must keep behaving like Snapshot',
     );
     expect(writtenPaths.toSet(), hasLength(2));
+    // Saved or not, loop frames are framing aids: no camera raw file.
+    expect(keptCameraFiles, [false, false]);
   });
 
   test('a single Snapshot still goes to the image folder', () async {
@@ -286,5 +295,25 @@ void main() {
 
     expect(writtenPaths, hasLength(1));
     expect(p.isWithin(outputDir.path, writtenPaths.single), isTrue);
+    // A Snapshot the operator keeps follows the camera-file setting.
+    expect(keptCameraFiles, [true]);
+  });
+
+  test('a plate-solve or focus frame never keeps the camera file', () async {
+    final container = buildContainer();
+    await settleSettings(container);
+
+    await container
+        .read(imagingServiceProvider)
+        .captureUtilityFrame(
+          settings: const ExposureSettings(
+            exposureTime: 1,
+            gain: 100,
+            offset: 10,
+          ),
+          purpose: FramePurpose.plateSolve,
+        );
+
+    expect(keptCameraFiles, [false]);
   });
 }

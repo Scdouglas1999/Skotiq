@@ -8,6 +8,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as path;
 
+import 'startup_timeline.dart';
+
 /// Pre-Riverpod boot artifacts captured during early initialisation so they
 /// can be reused later by Riverpod-aware services without round-tripping
 /// through `path_provider` a second time.
@@ -171,12 +173,14 @@ Future<AppVersionInfo> loadDesktopAppVersion() async {
 Future<DesktopBootPaths> initialiseDesktopLogging() async {
   final (dataRoot: dataRoot, logDirectory: logDir) =
       await prepareDesktopLogDirectory();
+  startupTimeline.mark('data directories');
 
   // Ensure libraw.dll and other deps next to skotiq_bridge.dll resolve when
   // the process working directory is not the Release folder (e.g. shortcuts).
   configureWindowsNativeDllSearchPath();
 
   await bridge.NativeBridge.init(logDirectory: logDir);
+  startupTimeline.mark('native bridge');
   if (!bridge.NativeBridge.isNativeAvailable) {
     // Name the CURRENT platform's library and layout, so the hint points at a
     // path that exists on the operator's machine.
@@ -209,6 +213,7 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
   await Directory(profileDir).create(recursive: true);
   bridge.apiInitProfileStorage(storagePath: profileDir);
   bridge.apiInitSettingsStorage(storagePath: profileDir);
+  startupTimeline.mark('native profile storage');
 
   return DesktopBootPaths(
     logDirectory: logDir,

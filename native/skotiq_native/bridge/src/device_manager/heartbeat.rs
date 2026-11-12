@@ -180,21 +180,8 @@ impl DeviceManager {
         device_type: &DeviceType,
         driver_type: &DriverType,
     ) -> Result<bool, String> {
-        // INDI devices are checked through the shared server connection,
-        // which that check also recovers.
-        if *driver_type != DriverType::Indi {
-            if let Some(handle) = self.handles.get(device_id) {
-                return Ok(match handle.accessory().heartbeat().await {
-                    Ok(()) => {
-                        tracing::trace!("{} heartbeat: healthy", device_id);
-                        true
-                    }
-                    Err(e) => {
-                        tracing::debug!("{} heartbeat failed: {}", device_id, e);
-                        false
-                    }
-                });
-            }
+        if let Some(handle) = self.handles.get(device_id) {
+            return handle.heartbeat(device_id).await;
         }
         match driver_type {
             DriverType::Alpaca => {
@@ -243,23 +230,11 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{
-            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
-            get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
-            get_sim_switch, get_sim_weather,
-        };
+        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_mount};
 
         let connected = match device_type {
             DeviceType::Camera => get_sim_camera_for(device_id).read().await.status.connected,
             DeviceType::Mount => get_sim_mount().read().await.status.connected,
-            DeviceType::Focuser => get_sim_focuser().read().await.status.connected,
-            DeviceType::FilterWheel => get_sim_filterwheel().read().await.status.connected,
-            DeviceType::Rotator => get_sim_rotator().read().await.status.connected,
-            DeviceType::Dome => get_sim_dome().read().await.status.connected,
-            DeviceType::Weather => get_sim_weather().read().await.connected,
-            DeviceType::SafetyMonitor => get_sim_safety_monitor().read().await.status.connected,
-            DeviceType::Switch => get_sim_switch().read().await.connected,
-            DeviceType::CoverCalibrator => get_sim_cover_calibrator().read().await.connected,
             other => {
                 return Err(format!(
                     "simulator health check: no simulator implementation for device type {:?} (id '{}')",
@@ -270,9 +245,6 @@ impl DeviceManager {
 
         Ok(connected)
     }
-
-    // perform_alpaca_health_check / perform_ascom_health_check /
-    // perform_indi_health_check moved to crate::dispatch::{alpaca,ascom,indi}.
 
     /// Start heartbeat monitoring for a device with default configuration
     ///
@@ -296,7 +268,6 @@ impl DeviceManager {
             }
         };
 
-        // Get device-type specific heartbeat configuration
         let mut config = policy(device_type).heartbeat;
 
         // Allow interval override if provided (non-zero)
@@ -345,7 +316,6 @@ impl DeviceManager {
             config.auto_reconnect
         );
 
-        // Emit heartbeat started event
         self.app_state.publish_equipment_event(
             EquipmentEvent::HeartbeatStarted {
                 device_type: device_type_str.clone(),
@@ -355,7 +325,6 @@ impl DeviceManager {
             EventSeverity::Info,
         );
 
-        // Mark heartbeat as active
         {
             let mut devices = self.devices.write().await;
             if let Some(device) = devices.get_mut(device_id) {
@@ -417,7 +386,6 @@ impl DeviceManager {
             }),
         );
 
-        // Store the task handle
         {
             let mut tasks = self.heartbeat_tasks.write().await;
             tasks.insert(device_id.to_string(), task);
@@ -446,7 +414,6 @@ impl DeviceManager {
         // per episode instead of on every failing poll (avoids toast spam).
         let mut was_degraded = false;
         loop {
-            // Wait for interval
             tokio::time::sleep(current_interval).await;
 
             // Skip the poll while a blocking operation (e.g. a focuser move) is
@@ -476,9 +443,7 @@ impl DeviceManager {
             // operation: just wait for the next poll at the base cadence. The
             // camera's and mount's own heartbeats are deliberately NOT
             // suppressed (the camera is the one we most need to keep watching).
-            if policy(device_type).yields_to_camera_usb
-                && manager.is_usb_contended()
-            {
+            if policy(device_type).yields_to_camera_usb && manager.is_usb_contended() {
                 current_interval = Duration::from_secs(config.base_interval_secs);
                 if consecutive_failures == 0 {
                     manager.note_heartbeat_deferred(&device_id_clone).await;
@@ -525,7 +490,6 @@ impl DeviceManager {
                     was_degraded = false;
                     current_interval = Duration::from_secs(config.base_interval_secs);
 
-                    // Update last successful communication time
                     {
                         let mut devices = manager.devices.write().await;
                         if let Some(device) = devices.get_mut(&device_id_clone) {
@@ -711,7 +675,6 @@ impl DeviceManager {
             Err(_) => tracing::debug!("Heartbeat task aborted for {}", device_id),
         }
 
-        // Emit heartbeat stopped event
         if let Some(device_type) = device_type_str {
             self.app_state.publish_equipment_event(
                 EquipmentEvent::HeartbeatStopped {
@@ -722,7 +685,6 @@ impl DeviceManager {
             );
         }
 
-        // Mark heartbeat as inactive
         {
             let mut devices = self.devices.write().await;
             if let Some(device) = devices.get_mut(device_id) {

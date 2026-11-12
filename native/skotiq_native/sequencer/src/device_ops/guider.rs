@@ -3,7 +3,6 @@
 use super::{DeviceError, DeviceResult};
 use async_trait::async_trait;
 
-/// Guiding status
 #[derive(Debug, Clone)]
 pub struct GuidingStatus {
     pub is_guiding: bool,
@@ -111,7 +110,6 @@ pub struct GuidingCalibration {
 
 #[async_trait]
 pub trait GuiderOps: Send + Sync {
-    /// Start dithering
     async fn guider_dither(
         &self,
         pixels: f64,
@@ -121,7 +119,6 @@ pub trait GuiderOps: Send + Sync {
         ra_only: bool,
     ) -> DeviceResult<()>;
 
-    /// Get guiding status
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus>;
 
     /// Whether the guider may move the mount now: guiding, and also
@@ -138,12 +135,10 @@ pub trait GuiderOps: Send + Sync {
     /// that as "validation unavailable", not as a calibration failure.
     async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
         Err(DeviceError::unsupported(
-            "guider_get_calibration",
             "guider_get_calibration not supported by this driver",
         ))
     }
 
-    /// Start guiding
     async fn guider_start(
         &self,
         settle_pixels: f64,
@@ -174,7 +169,6 @@ pub trait GuiderOps: Send + Sync {
         Ok(None)
     }
 
-    /// Stop guiding
     async fn guider_stop(&self) -> DeviceResult<()>;
 
     /// Record why the run holds the guider stopped, before it stops it, so

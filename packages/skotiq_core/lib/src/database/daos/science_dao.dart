@@ -561,15 +561,62 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }
 
   @override
-  Stream<List<ScienceTileMetricRow>> watchTileMetricsForSession(int sessionId) {
-    return (select(scienceTileMetrics)
-          ..where((tbl) => tbl.sessionId.equals(sessionId))
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.timestamp),
-            (tbl) => OrderingTerm.asc(tbl.tileRow),
-            (tbl) => OrderingTerm.asc(tbl.tileCol),
-          ]))
-        .watch();
+  Stream<List<ScienceTileMetricRow>> watchFrameTileMetrics(
+    int sessionId, {
+    int? capturedImageId,
+  }) {
+    final t = scienceTileMetrics;
+    final inSession = t.sessionId.equals(sessionId);
+    Expression<int> frameWhere(
+      Expression<bool> where,
+      List<OrderingTerm> order,
+    ) => subqueryExpression<int>(
+      selectOnly(t)
+        ..addColumns([t.capturedImageId])
+        ..where(inSession & where)
+        ..orderBy(order)
+        ..limit(1),
+    );
+    final tileOrder = [
+      OrderingTerm.asc(t.tileRow),
+      OrderingTerm.asc(t.tileCol),
+    ];
+    final newest = subqueryExpression<DateTime>(
+      selectOnly(t)
+        ..addColumns([t.timestamp.max()])
+        ..where(inSession),
+    );
+    final frame = coalesce<int>([
+      if (capturedImageId != null)
+        frameWhere(t.capturedImageId.equals(capturedImageId), const []),
+      // The newest row of the session, found on the session index alone.
+      frameWhere(
+        t.capturedImageId.isNotNull() & t.timestamp.equalsExp(newest),
+        tileOrder,
+      ),
+      // Only reached when the session's newest rows belong to no frame.
+      frameWhere(t.capturedImageId.isNotNull(), [
+        OrderingTerm.desc(t.timestamp),
+        ...tileOrder,
+      ]),
+    ]);
+    return selectExpressions([frame]).watchSingle().asyncMap((row) {
+      final frameId = row.read(frame);
+      return (select(t)
+            ..where(
+              (tbl) =>
+                  inSession &
+                  (frameId == null
+                      ? const Constant(true)
+                      : tbl.capturedImageId.equals(frameId)),
+            )
+            ..orderBy([
+              (tbl) => OrderingTerm.desc(tbl.timestamp),
+              (tbl) => OrderingTerm.asc(tbl.tileRow),
+              (tbl) => OrderingTerm.asc(tbl.tileCol),
+            ]))
+          .get();
+    });
   }
 
   Future<List<ScienceTileMetricRow>> getTileMetricsForSession(

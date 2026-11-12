@@ -268,7 +268,6 @@ impl ScriptedDeviceOps {
         *self.sim_mount.lock().unwrap() = Some(mount);
     }
 
-    /// The simulated mount as it is now.
     pub(crate) fn sim_mount(&self) -> Option<SimMount> {
         self.sim_mount.lock().unwrap().clone()
     }
@@ -655,11 +654,11 @@ impl FrameStoreOps for ScriptedDeviceOps {
         self.saved_frames.lock().unwrap().push(f.to_string());
         self.inner.save_fits(d, f, ctx).await
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(d).await
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(d).await
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
+        self.inner.measure_light_frame(d).await
     }
 }
 
@@ -2119,16 +2118,24 @@ async fn stopping_during_recovery_is_a_stop_not_a_give_up() {
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     executor.set_dome(Some("dome-1".to_string()));
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 60.0,
-            max_duration_secs: 3600.0,
-            park_and_close_when_recovery_gives_up: true,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 60.0,
+                max_duration_secs: 3600.0,
+                park_and_close_when_recovery_gives_up: true,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
@@ -2206,15 +2213,27 @@ async fn weather_turning_unsafe_during_recovery_is_still_acted_on() {
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
-    executor.set_safety_check_interval_secs(5).await;
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 600.0,
-            max_duration_secs: 5400.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| config.safety_check_interval_secs = 5)
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 600.0,
+                max_duration_secs: 5400.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
@@ -2278,14 +2297,22 @@ pub(crate) async fn start_run_in_guide_star_recovery(
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // A lost guide star holds the run for its recovery only when the operator
     // asked quality problems to stop the run.
-    executor.set_stop_on_quality_problems(true).await;
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs,
-            max_duration_secs: 5400.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs,
+                max_duration_secs: 5400.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let executor = start_long_run(executor, ops.clone()).await;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while ops.call_count("guider_get_status") < 2 {
@@ -2333,7 +2360,8 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
         while let Ok(event) = events.try_recv() {
             match event {
                 super::ExecutorEvent::TriggerFired { trigger_id, .. } => fired.push(trigger_id),
-                super::ExecutorEvent::Warning { message } => warnings.push(message),
+                super::ExecutorEvent::Warning { message }
+                | super::ExecutorEvent::NoticedWarning { message, .. } => warnings.push(message),
                 _ => {}
             }
         }
@@ -2342,7 +2370,9 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
     // Long enough for a recovery to have frozen the run, as it did on the rig.
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -2406,7 +2436,9 @@ async fn a_transparency_drop_with_no_backup_plan_notifies_and_keeps_imaging() {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while warnings.is_empty() && tokio::time::Instant::now() < deadline {
         while let Ok(event) = events.try_recv() {
-            if let super::ExecutorEvent::Warning { message } = event {
+            if let super::ExecutorEvent::Warning { message }
+            | super::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 if message.starts_with("Transparency Dropped") {
                     warnings.push(message);
                 }
@@ -2493,14 +2525,22 @@ async fn a_guide_star_give_up_leaves_tracking_on_and_says_nothing_about_it() {
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
-    executor.set_stop_on_quality_problems(true).await;
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 1.0,
-            max_duration_secs: 2.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 1.0,
+                max_duration_secs: 2.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
@@ -2596,7 +2636,11 @@ async fn start_park_policy_run(
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
     if let Some(policy) = policy {
-        executor.set_park_policy(policy).await;
+        executor
+            .handle()
+            .update_run_config(|config| config.park_policy = policy)
+            .await
+            .unwrap();
     }
     start_long_run(executor, ops).await
 }
@@ -2672,7 +2716,11 @@ async fn unsafe_weather_holds_without_parking_when_the_operator_turned_parking_o
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
-    executor.set_park_policy(WEATHER_OFF).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = WEATHER_OFF)
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -2735,18 +2783,30 @@ async fn unsafe_weather_during_recovery_does_not_park_when_parking_is_off() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     ops.guider_start_fails.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
-    executor.set_park_policy(WEATHER_OFF).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = WEATHER_OFF)
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     executor.set_dome(Some("dome-1".to_string()));
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 600.0,
-            max_duration_secs: 5400.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 600.0,
+                max_duration_secs: 5400.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
     ops.guiding.store(false, Ordering::SeqCst);
@@ -2769,7 +2829,11 @@ async fn turning_weather_parking_off_mid_run_takes_effect() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_park_policy_run(ops.clone(), None).await;
     wait_for_monitor(&ops).await;
-    executor.set_park_policy(WEATHER_OFF).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = WEATHER_OFF)
+        .await
+        .unwrap();
 
     executor.update_weather_verdict(Some(true)).await;
     let _ = wait_for_state(&executor, std::time::Duration::from_secs(10), |s| {
@@ -2818,7 +2882,11 @@ async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off(
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
-    executor.set_park_policy(DAWN_OFF).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = DAWN_OFF)
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -2883,7 +2951,11 @@ async fn start_capture_run(
     executor.set_devices(Some("cam-1".to_string()), None, None, None, None);
     executor.set_save_path(Some(dir.clone()));
     if let Some(policy) = policy {
-        executor.set_device_retry_policy(policy).await;
+        executor
+            .handle()
+            .update_run_config(|config| config.device_retry = policy)
+            .await
+            .unwrap();
     }
     executor.set_device_ops(ops as SharedDeviceOps);
     let mut sequence = SequenceDefinition::new("Retry run".to_string());
@@ -2911,7 +2983,9 @@ fn retry_warnings(
 ) -> Vec<String> {
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             if message.contains("Retrying in") {
                 warnings.push(message);
             }
@@ -2932,7 +3006,7 @@ async fn one_failed_download_is_retried_and_the_run_completes() {
     ]);
     let executor = super::SequenceExecutor::new();
     assert_eq!(
-        executor.run_config().device_retry,
+        executor.handle().run_config().device_retry,
         crate::instructions::DeviceRetryPolicy::default(),
         "an executor the app has not configured yet retries 3 times, the setting's default"
     );
@@ -3077,7 +3151,11 @@ async fn recovery_leaves_tracking_on_while_the_mount_slews() {
     let mut executor = super::SequenceExecutor::new();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut executor = start_long_run(executor, ops.clone()).await;
 
@@ -3118,14 +3196,22 @@ async fn start_weather_run(
     ops.safety_absent.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor
-        .set_safety_fail_mode(crate::SafetyFailMode::FailOpen)
-        .await;
+        .handle()
+        .update_run_config(|config| config.safety_fail_mode = crate::SafetyFailMode::FailOpen)
+        .await
+        .unwrap();
     if let Some(policy) = policy {
-        executor.set_park_policy(policy).await;
+        executor
+            .handle()
+            .update_run_config(|config| config.park_policy = policy)
+            .await
+            .unwrap();
     }
     executor
-        .set_weather_resume_after_safe_secs(resume_after_secs)
-        .await;
+        .handle()
+        .update_run_config(|config| config.weather_resume_after_safe_secs = Some(resume_after_secs))
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor.set_dome(Some("dome-1".to_string()));
     executor.set_cover_calibrator(Some("cover-1".to_string()));
@@ -3233,16 +3319,22 @@ async fn a_weather_hold_never_runs_out_and_fails_the_run() {
     ops.safety_absent.store(true, Ordering::SeqCst);
     let mut executor = super::SequenceExecutor::new();
     executor
-        .set_safety_fail_mode(crate::SafetyFailMode::FailOpen)
-        .await;
+        .handle()
+        .update_run_config(|config| config.safety_fail_mode = crate::SafetyFailMode::FailOpen)
+        .await
+        .unwrap();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 1.0,
-            max_duration_secs: 2.0,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 1.0,
+                max_duration_secs: 2.0,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
 
@@ -3294,9 +3386,9 @@ async fn the_operator_clear_sky_override_resumes_a_held_run_now() {
 async fn a_stale_unsafe_verdict_is_set_aside_under_fail_open() {
     let ops = Arc::new(ScriptedDeviceOps::new());
     let mut executor = start_weather_run(ops.clone(), Some(WEATHER_OFF), 0).await;
-    let mut config = executor.run_config();
+    let mut config = executor.handle().run_config();
     config.weather_verdict_staleness_secs = 30;
-    executor.apply_run_config(config).await;
+    executor.handle().apply_run_config(config).await.unwrap();
     let mut events = executor.subscribe();
 
     executor.update_weather_verdict_from(Some(true), true).await;
@@ -3312,7 +3404,9 @@ async fn a_stale_unsafe_verdict_is_set_aside_under_fail_open() {
     let _ = executor.stop().await;
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -3345,19 +3439,27 @@ async fn a_cloud_that_loses_the_guide_star_holds_tracking_and_resumes_when_stars
     let mut events = executor.subscribe();
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     // The shipped interval is 10 min; the hold looks for the star at least
     // every GUIDE_STAR_RECHECK_SECS. A short interval keeps the test short.
     executor
-        .update_recovery_config(crate::recovery::RecoveryRuntimeConfig {
-            retry_interval_secs: 3.0,
-            max_duration_secs: 600.0,
-            // Even an operator who asked for tracking to stop during
-            // recovery keeps it for a lost guide star.
-            stop_tracking_during_recovery: true,
-            ..crate::recovery::RecoveryRuntimeConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.recovery = crate::recovery::RecoveryRuntimeConfig {
+                retry_interval_secs: 3.0,
+                max_duration_secs: 600.0,
+                // Even an operator who asked for tracking to stop during
+                // recovery keeps it for a lost guide star.
+                stop_tracking_during_recovery: true,
+                ..crate::recovery::RecoveryRuntimeConfig::default()
+            }
         })
-        .await;
+        .await
+        .unwrap();
     let mut executor = start_long_run(executor, ops.clone()).await;
     wait_for_monitor(&ops).await;
 

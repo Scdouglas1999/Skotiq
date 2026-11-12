@@ -167,8 +167,6 @@
   "n-LiveStacking": {
     "authToken": null,
     "broadcastEnabled": true,
-    "broadcastPath": "/broadcast",
-    "broadcastPort": 8081,
     "childIds": [],
     "comment": null,
     "id": "n-LiveStacking",

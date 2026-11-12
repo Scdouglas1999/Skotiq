@@ -162,8 +162,7 @@ SettingsSectionDef _sectionDef(
           'defaults',
           'time format',
         ],
-        build: (context) =>
-            GeneralSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const GeneralSettings(),
       ),
     SettingsSectionId.appearance => SettingsSectionDef(
         id: id,
@@ -177,8 +176,7 @@ SettingsSectionDef _sectionDef(
           'sidebar',
           'font',
         ],
-        build: (context) =>
-            AppearanceSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const AppearanceSettings(),
       ),
     SettingsSectionId.location => SettingsSectionDef(
         id: id,
@@ -193,8 +191,7 @@ SettingsSectionDef _sectionDef(
           'observing site',
           'coordinates',
         ],
-        build: (context) => LocationSettingsPage(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const LocationSettingsPage(),
       ),
     SettingsSectionId.filesStorage => SettingsSectionDef(
         id: id,
@@ -221,8 +218,7 @@ SettingsSectionDef _sectionDef(
           'free space',
           'storage location',
         ],
-        build: (context) => FilesAndStorageSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const FilesAndStorageSettings(),
       ),
     SettingsSectionId.help => SettingsSectionDef(
         id: id,
@@ -235,8 +231,7 @@ SettingsSectionDef _sectionDef(
           'walkthrough',
           'onboarding',
         ],
-        build: (context) => HelpTutorialsSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const HelpTutorialsSettings(),
       ),
     SettingsSectionId.about => SettingsSectionDef(
         id: id,
@@ -249,8 +244,7 @@ SettingsSectionDef _sectionDef(
           'updates',
           'build',
         ],
-        build: (context) =>
-            AboutSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const AboutSettings(),
       ),
     SettingsSectionId.connection => SettingsSectionDef(
         id: id,
@@ -266,8 +260,7 @@ SettingsSectionDef _sectionDef(
           'host',
           'port',
         ],
-        build: (context) =>
-            ConnectionSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const ConnectionSettings(),
       ),
     SettingsSectionId.equipmentProfiles => SettingsSectionDef(
         id: id,
@@ -296,8 +289,7 @@ SettingsSectionDef _sectionDef(
           'rms',
           'star lost',
         ],
-        build: (context) => Phd2GuidingSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const Phd2GuidingSettings(),
       ),
     SettingsSectionId.plateSolving => SettingsSectionDef(
         id: id,
@@ -312,8 +304,7 @@ SettingsSectionDef _sectionDef(
           'center',
           'wcs',
         ],
-        build: (context) => PlateSolvingSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const PlateSolvingSettings(),
       ),
     SettingsSectionId.autofocus => SettingsSectionDef(
         id: id,
@@ -331,8 +322,7 @@ SettingsSectionDef _sectionDef(
           'per-filter',
           'backlash',
         ],
-        build: (context) => AutofocusMergedSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const AutofocusMergedSettings(),
       ),
     SettingsSectionId.calibration => SettingsSectionDef(
         id: id,
@@ -350,8 +340,7 @@ SettingsSectionDef _sectionDef(
           'temperature tolerance',
           'defect map',
         ],
-        build: (context) => CalibrationSettingsRedirect(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const CalibrationSettingsRedirect(),
       ),
     SettingsSectionId.imaging => SettingsSectionDef(
         id: id,
@@ -366,8 +355,7 @@ SettingsSectionDef _sectionDef(
           'fits',
           'frame naming',
         ],
-        build: (context) =>
-            ImagingSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const ImagingSettings(),
       ),
     SettingsSectionId.adaptiveExposure => SettingsSectionDef(
         id: id,
@@ -380,8 +368,7 @@ SettingsSectionDef _sectionDef(
           'optimization',
           'sky brightness',
         ],
-        build: (context) => AdaptiveExposureSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const AdaptiveExposureSettings(),
       ),
     SettingsSectionId.imageGrading => SettingsSectionDef(
         id: id,
@@ -395,8 +382,7 @@ SettingsSectionDef _sectionDef(
           'quality',
           'grading thresholds',
         ],
-        build: (context) => ImageGradingSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const ImageGradingSettings(),
       ),
     SettingsSectionId.annotations => SettingsSectionDef(
         id: id,
@@ -410,8 +396,7 @@ SettingsSectionDef _sectionDef(
           'grid',
           'constellation',
         ],
-        build: (context) => AnnotationSettingsPage(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const AnnotationSettingsPage(),
       ),
     SettingsSectionId.catalogs => SettingsSectionDef(
         id: id,
@@ -425,8 +410,7 @@ SettingsSectionDef _sectionDef(
           'database',
           'download',
         ],
-        build: (context) => CatalogSettingsScreen(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const CatalogSettingsScreen(),
       ),
     SettingsSectionId.sequencer => SettingsSectionDef(
         id: id,
@@ -440,8 +424,7 @@ SettingsSectionDef _sectionDef(
           'recovery',
           'behavior tree',
         ],
-        build: (context) =>
-            SequencerSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const SequencerSettings(),
       ),
     SettingsSectionId.preflight => SettingsSectionDef(
         id: id,
@@ -454,8 +437,7 @@ SettingsSectionDef _sectionDef(
           'startup checks',
           'safety',
         ],
-        build: (context) =>
-            PreflightSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const PreflightSettings(),
       ),
     SettingsSectionId.weatherSafety => SettingsSectionDef(
         id: id,
@@ -470,8 +452,7 @@ SettingsSectionDef _sectionDef(
           'roof',
           'abort',
         ],
-        build: (context) => WeatherSafetySettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const WeatherSafetySettings(),
       ),
     SettingsSectionId.adaptiveConditions => SettingsSectionDef(
         id: id,
@@ -484,8 +465,7 @@ SettingsSectionDef _sectionDef(
           'adaptive',
           'sky quality',
         ],
-        build: (context) => AdaptiveConditionsSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const AdaptiveConditionsSettings(),
       ),
     SettingsSectionId.endOfNightCalibration => SettingsSectionDef(
         id: id,
@@ -503,8 +483,7 @@ SettingsSectionDef _sectionDef(
           'warm up',
           'unattended',
         ],
-        build: (context) => EndOfNightCalibrationSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const EndOfNightCalibrationSettings(),
       ),
     SettingsSectionId.darkroom => SettingsSectionDef(
         id: id,
@@ -524,8 +503,7 @@ SettingsSectionDef _sectionDef(
           'night end',
           'unattended',
         ],
-        build: (context) => DarkroomAutopilotSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const DarkroomAutopilotSettings(),
       ),
     SettingsSectionId.delivery => SettingsSectionDef(
         id: id,
@@ -543,8 +521,7 @@ SettingsSectionDef _sectionDef(
           'peer',
           'pull',
         ],
-        build: (context) =>
-            DeliverySettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const DeliverySettings(),
       ),
     SettingsSectionId.science => SettingsSectionDef(
         id: id,
@@ -558,8 +535,7 @@ SettingsSectionDef _sectionDef(
           'variable stars',
           'science frames',
         ],
-        build: (context) => ScienceSettingsPage(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const ScienceSettingsPage(),
       ),
     SettingsSectionId.observationLog => SettingsSectionDef(
         id: id,
@@ -604,8 +580,7 @@ SettingsSectionDef _sectionDef(
         // NotificationSettings already embeds the per-event routing matrix
         // (NotificationRoutingSettings), so the `notification-routing` alias
         // resolves here and the page surfaces both — no second stack needed.
-        build: (context) => NotificationSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const NotificationSettings(),
       ),
     SettingsSectionId.integrations => SettingsSectionDef(
         id: id,
@@ -619,8 +594,7 @@ SettingsSectionDef _sectionDef(
           'webhook',
           'third-party',
         ],
-        build: (context) => IntegrationsSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const IntegrationsSettings(),
       ),
     SettingsSectionId.remoteAccess => SettingsSectionDef(
         id: id,
@@ -639,8 +613,7 @@ SettingsSectionDef _sectionDef(
           'encryption',
           'companion',
         ],
-        build: (context) => RemoteAccessSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const RemoteAccessSettings(),
       ),
     SettingsSectionId.logs => SettingsSectionDef(
         id: id,
@@ -653,8 +626,7 @@ SettingsSectionDef _sectionDef(
           'errors',
           'verbosity',
         ],
-        build: (context) =>
-            LogViewer(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const LogViewer(),
       ),
     SettingsSectionId.backup => SettingsSectionDef(
         id: id,
@@ -684,8 +656,7 @@ SettingsSectionDef _sectionDef(
           'rollback',
           'appliance',
         ],
-        build: (context) =>
-            UpdateSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const UpdateSettings(),
       ),
     SettingsSectionId.rigCatalogs => SettingsSectionDef(
         id: id,
@@ -700,8 +671,7 @@ SettingsSectionDef _sectionDef(
           'appliance',
           'rig',
         ],
-        build: (context) =>
-            RigCatalogSettings(isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const RigCatalogSettings(),
       ),
     SettingsSectionId.capturedImages => SettingsSectionDef(
         id: id,
@@ -716,8 +686,7 @@ SettingsSectionDef _sectionDef(
           'photos',
           'appliance',
         ],
-        build: (context) => CapturedImagesSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const CapturedImagesSettings(),
       ),
     SettingsSectionId.replayDebug => SettingsSectionDef(
         id: id,
@@ -730,8 +699,7 @@ SettingsSectionDef _sectionDef(
           'recording',
           'developer',
         ],
-        build: (context) => ReplayDebugSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => const ReplayDebugSettings(),
       ),
   };
 }

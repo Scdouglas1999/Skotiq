@@ -165,16 +165,8 @@ final filePathSettingsWriterProvider = Provider<FilePathSettingsWriter>((ref) {
 });
 
 class FilePathSettings extends ConsumerWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view / header (embedded in a
-  /// merged section's single outer scroll).
-  final bool embedded;
-
   const FilePathSettings({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   Future<void> _selectPath(
@@ -183,7 +175,7 @@ class FilePathSettings extends ConsumerWidget {
     String settingKey,
     String currentPath,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final isRemoteMode = ref.read(isRemoteModeProvider);
     // Only `image_output_path` is carried by the remote wire model; the three
     // infra paths (sequences/database/logs) are excluded from partial
@@ -203,7 +195,7 @@ class FilePathSettings extends ConsumerWidget {
       );
 
       if (!context.mounted || result == null) return;
-      if (!identical(ref.read(backendProvider), authority)) {
+      if (host.isStale) {
         context.showWarningSnackBar(
           'The imaging host changed while choosing that folder. Choose it '
           'again for the current host.',
@@ -212,8 +204,7 @@ class FilePathSettings extends ConsumerWidget {
       }
 
       await ref.read(filePathSettingsWriterProvider)(settingKey, result);
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+      if (!context.mounted || host.isStale) {
         return;
       }
       if (settingKey == 'sequences') {
@@ -224,8 +215,9 @@ class FilePathSettings extends ConsumerWidget {
         );
       }
     } catch (e) {
-      if (context.mounted && identical(ref.read(backendProvider), authority)) {
-        context.showErrorSnackBar('Could not update the storage path: ${userFacingError(e)}');
+      if (context.mounted && host.isCurrent) {
+        context.showErrorSnackBar(
+            'Could not update the storage path: ${userFacingError(e)}');
       }
     }
   }
@@ -245,7 +237,7 @@ class FilePathSettings extends ConsumerWidget {
     String settingKey,
     String typed,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final isRemoteMode = ref.read(isRemoteModeProvider);
     final path = typed.trim();
 
@@ -270,8 +262,7 @@ class FilePathSettings extends ConsumerWidget {
 
     if (!isRemoteMode) {
       final problem = await ref.read(storageDirectoryProbeProvider)(path);
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+      if (!context.mounted || host.isStale) {
         return;
       }
       if (problem != null) {
@@ -286,14 +277,14 @@ class FilePathSettings extends ConsumerWidget {
         );
         if (!useAnyway ||
             !context.mounted ||
-            !identical(ref.read(backendProvider), authority)) {
+            host.isStale) {
           return;
         }
       }
     }
 
     await ref.read(filePathSettingsWriterProvider)(settingKey, path);
-    if (!context.mounted || !identical(ref.read(backendProvider), authority)) {
+    if (!context.mounted || host.isStale) {
       return;
     }
     context.showSuccessSnackBar(
@@ -313,10 +304,8 @@ class FilePathSettings extends ConsumerWidget {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () =>
-          SettingsLoadingState(isMobile: isMobile, scrollable: !embedded),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -330,30 +319,25 @@ class FilePathSettings extends ConsumerWidget {
           description: isRemoteMode
               ? 'Storage locations on the connected imaging host'
               : 'Configure storage locations',
-          isMobile: isMobile,
-          hideHeader: embedded,
-          scrollable: !embedded,
           children: [
             SettingsSection(
               title: 'Storage',
               children: [
                 SettingRow(
-                  isMobile: isMobile,
                   // A path is long and the input is a fixed-width control, so
                   // side-by-side it collided with the (wrapping) title: on a
                   // 411dp phone the Storage card overflowed RIGHT by 66px, a
                   // visible hazard stripe over the card edge. Stacked, the
                   // input gets the row's full width and the path ellipsizes
                   // inside it instead of pushing past the card.
-                  stackOnMobile: true,
+                  stackWhenNarrow: true,
                   icon: LucideIcons.image,
                   title: 'Image output$hostHint',
                   subtitle: settings.imageOutputPath.isEmpty
                       ? 'Not configured'
                       : settings.imageOutputPath,
                   trailing: SettingsPathInput(
-                    isMobile: isMobile,
-                    flexible: isMobile,
+                    fillWhenNarrow: true,
                     path: settings.imageOutputPath,
                     authorityKey: authority,
                     onBrowse: () => _selectPath(
@@ -363,16 +347,14 @@ class FilePathSettings extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  isMobile: isMobile,
-                  stackOnMobile: true,
+                  stackWhenNarrow: true,
                   icon: LucideIcons.listOrdered,
                   title: 'Sequences$hostHint',
                   subtitle: settings.sequencesPath.isEmpty
                       ? 'Not configured'
                       : settings.sequencesPath,
                   trailing: SettingsPathInput(
-                    isMobile: isMobile,
-                    flexible: isMobile,
+                    fillWhenNarrow: true,
                     path: settings.sequencesPath,
                     authorityKey: authority,
                     onBrowse: () => _selectPath(
@@ -389,11 +371,11 @@ class FilePathSettings extends ConsumerWidget {
               ],
             ),
             if (!isRemoteMode)
-              SettingsSection(
+              const SettingsSection(
                 title: 'Application data',
                 children: [
-                  _AppDataFolderRow(isMobile: isMobile),
-                  _BackupFolderRow(isMobile: isMobile),
+                  _AppDataFolderRow(),
+                  _BackupFolderRow(),
                 ],
               ),
           ],
@@ -405,9 +387,7 @@ class FilePathSettings extends ConsumerWidget {
 
 /// Names the folder the database, logs and crash reports live in.
 class _AppDataFolderRow extends ConsumerWidget {
-  const _AppDataFolderRow({required this.isMobile});
-
-  final bool isMobile;
+  const _AppDataFolderRow();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -451,8 +431,7 @@ class _AppDataFolderRow extends ConsumerWidget {
       icon: LucideIcons.database,
       title: 'Database and logs',
       subtitle: subtitle,
-      isMobile: isMobile,
-      stackOnMobile: isMobile,
+      stackWhenNarrow: true,
       trailing: Wrap(
         spacing: SkotiqTokens.spaceSm,
         runSpacing: SkotiqTokens.spaceXs,
@@ -507,9 +486,7 @@ class _AppDataFolderRow extends ConsumerWidget {
 
 /// Names the folder automatic backups are written to — and pruned from.
 class _BackupFolderRow extends ConsumerWidget {
-  const _BackupFolderRow({required this.isMobile});
-
-  final bool isMobile;
+  const _BackupFolderRow();
 
   /// Apply [directoryPath] (null = back to the default) and refresh the two
   /// providers that describe the folder, so the row re-reads the service rather
@@ -534,7 +511,8 @@ class _BackupFolderRow extends ConsumerWidget {
       // an unmounted or read-only volume must not be accepted here and then
       // discovered at 3am when the scheduled backup fires.
       if (context.mounted) {
-        context.showErrorSnackBar('Could not use that backup folder: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not use that backup folder: ${userFacingError(e)}');
       }
     }
   }
@@ -564,8 +542,7 @@ class _BackupFolderRow extends ConsumerWidget {
       icon: LucideIcons.archive,
       title: 'Backups',
       subtitle: subtitle,
-      isMobile: isMobile,
-      stackOnMobile: isMobile,
+      stackWhenNarrow: true,
       isLast: true,
       trailing: Wrap(
         spacing: SkotiqTokens.spaceSm,

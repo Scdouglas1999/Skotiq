@@ -317,10 +317,6 @@ class FakePostSessionSeam implements PostSessionSeam {
     };
   }
 
-  @override
-  Future<String> combineChannels(Map<String, dynamic> args) async =>
-      args['outputFits'] as String? ?? args['outputPath'] as String? ?? '';
-
   /// Records every [stitchMosaic] invocation's args.
   final List<Map<String, dynamic>> stitchCalls = [];
 

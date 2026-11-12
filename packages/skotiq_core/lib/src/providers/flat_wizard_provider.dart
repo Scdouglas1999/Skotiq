@@ -14,11 +14,13 @@ import '../utils/host_paths.dart';
 import '../backend/network_backend.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/flat_wizard/flat_capture_config.dart';
+import '../models/imaging/imaging_models.dart' show FrameType;
 import '../models/flat_wizard/flat_wizard_state.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
 import '../services/flat_exposure_calculator.dart';
 import '../services/calibration_backlog_service.dart';
 import '../services/flat_exposure_follower.dart';
+import '../services/frame_identity.dart';
 import 'settings_provider.dart';
 import '../services/flat_wizard_service.dart';
 import '../services/sky_brightness_tracker.dart';
@@ -27,6 +29,7 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'flat_wizard_output.dart';
 import 'profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 
 part 'flat_wizard/flat_output_paths.dart';
 part 'flat_wizard/flat_camera_config.dart';
@@ -86,10 +89,6 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   /// Null in production — behaviour is unchanged.
   @visibleForTesting
   void Function(Object error)? debugRemoteFaultSink;
-
-  /// Settings key the persisted global-settings JSON blob lives under (the six
-  /// user-facing fields — save path, targets, frame count, subfolder toggles).
-  static const String _globalSettingsKey = 'flat_wizard_global_settings';
 
   /// Bumped on every user settings edit. The async hydrate captures this before
   /// its DB read and re-checks it afterward; a hydrate that resolves AFTER the

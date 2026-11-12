@@ -1,7 +1,5 @@
 use super::*;
 
-// Mount capabilities
-
 /// Capabilities of a mount/telescope device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MountCapabilities {
@@ -61,8 +59,6 @@ pub struct MountCapabilities {
 }
 
 // TrackingRate is imported from crate::device
-
-// Camera capabilities
 
 /// Capabilities of a camera device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -195,8 +191,6 @@ impl From<skotiq_device::CameraRecommendedSettings> for CameraRecommendedSetting
     }
 }
 
-// Focuser capabilities
-
 /// Capabilities of a focuser device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FocuserCapabilities {
@@ -284,8 +278,6 @@ pub fn focuser_capabilities_from_ascom(r: AscomFocuserReadings) -> FocuserCapabi
     }
 }
 
-// Filter wheel capabilities
-
 /// Capabilities of a filter wheel device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FilterWheelCapabilities {
@@ -304,8 +296,6 @@ pub struct FilterWheelCapabilities {
     /// Whether focus offsets can be set
     pub can_set_focus_offsets: bool,
 }
-
-// Rotator capabilities
 
 /// Capabilities of a rotator device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -337,8 +327,6 @@ pub struct RotatorCapabilities {
     /// range. `None` means the range is implicit/unknown.
     pub max_angle_deg: Option<f64>,
 }
-
-// Dome capabilities
 
 /// Capabilities of a dome device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -392,8 +380,6 @@ impl Default for ShutterStatus {
     }
 }
 
-// Cover calibrator capabilities
-
 /// Capabilities of a cover calibrator device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CoverCalibratorCapabilities {
@@ -414,8 +400,6 @@ pub struct CoverCalibratorCapabilities {
 // CoverState is imported from crate::device
 
 // CalibratorState is imported from crate::device
-
-// Weather capabilities
 
 /// Capabilities of a weather/observing conditions device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -461,8 +445,6 @@ pub struct SafetyMonitorCapabilities {
     pub safety_description: Option<String>,
 }
 
-// Switch capabilities
-
 /// Capabilities of a switch device
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SwitchCapabilities {
@@ -495,7 +477,6 @@ pub struct SwitchInfo {
     pub value: f64,
 }
 
-/// Unified device capabilities enum
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DeviceCapabilities {
     Mount(MountCapabilities),

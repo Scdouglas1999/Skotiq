@@ -64,9 +64,9 @@ void main() {
         );
 
         expect(notes, isNotEmpty);
-        expect(notes.first, contains('duration=${expectedDuration}s'));
+        expect(notes.first, startsWith('$expectedDuration s darks at '));
         if (expectedDuration != '120') {
-          expect(notes.first, isNot(contains('duration=120s')));
+          expect(notes.first, isNot(startsWith('120 s darks')));
         }
       },
     );

@@ -15,7 +15,6 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
-/// Global application state singleton
 static APP_STATE: OnceLock<SharedAppState> = OnceLock::new();
 
 /// Get or initialize the global application state
@@ -24,7 +23,6 @@ pub fn get_state() -> &'static SharedAppState {
     APP_STATE.get_or_init(AppState::new)
 }
 
-/// Global device manager singleton
 static DEVICE_MANAGER: OnceLock<Arc<DeviceManager>> = OnceLock::new();
 
 /// Get or initialize the global device manager
@@ -106,21 +104,14 @@ pub(crate) fn create_unique_temp_fits_path(prefix: &str) -> std::path::PathBuf {
     ))
 }
 
-/// Invalidate the per-(type, driver) discovery cache, forcing fresh discovery
-/// on the next call. Also invalidates the native SDK discovery cache so vendor
-/// SDKs are re-queried. Called when the user explicitly requests a rescan and
-/// when the hot-plug watcher observes an arrival/removal.
-///
-/// Note: there is intentionally no separate capability-cache invalidation
-/// here. The `device_capabilities` module re-queries each device per call
-/// rather than caching, so dropping a cache that does not exist would be a
-/// silent no-op — and silent no-ops mask real bugs. If a
-/// capability cache is added later, invalidate it explicitly here.
+/// Forget every discovery result: the per-(type, driver) cache, the Alpaca
+/// sweep and the native SDK enumeration, so the next discovery asks every
+/// backend again. Called when the user explicitly requests a rescan, when the
+/// hot-plug watcher observes an arrival/removal, and when a device turns out
+/// not to be where the last enumeration put it.
 pub async fn api_invalidate_discovery_cache() {
-    // Invalidate every per-pair entry.
-    let mut cache = get_discovery_cache().lock().await;
-    cache.clear();
-    // Also invalidate the native vendor SDK cache so it re-queries all SDKs.
+    get_discovery_cache().lock().await.clear();
+    discovery::forget_alpaca_sweep().await;
     skotiq_native::invalidate_discovery_cache().await;
     tracing::info!("Discovery cache invalidated");
 }
@@ -138,6 +129,7 @@ pub mod event_stream;
 pub mod finishing_analyze;
 pub mod finishing_combine;
 pub mod finishing_enhance;
+pub mod guiding;
 pub(crate) mod heartbeat;
 // `pub(crate)` not `pub`: keep this submodule's name out of the crate-root
 // glob (`pub use api::*` in lib.rs) so it doesn't shadow `crate::hotplug`,
@@ -174,6 +166,7 @@ pub use event_stream::*;
 pub use finishing_analyze::*;
 pub use finishing_combine::*;
 pub use finishing_enhance::*;
+pub use guiding::*;
 pub use heartbeat::*;
 // Re-export the hotplug FFI function explicitly rather than glob-importing
 // the submodule — `crate::hotplug` (the listener / poll implementation) is

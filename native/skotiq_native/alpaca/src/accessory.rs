@@ -50,9 +50,15 @@ alpaca_accessory!(AlpacaSafetyMonitor, heartbeat);
 alpaca_accessory!(AlpacaCoverCalibrator, connected);
 
 /// A capability read the dome status cannot do without, worded with the
-/// capability that failed.
+/// capability that failed. A failure of a named kind (not connected, timeout)
+/// stays that kind.
 fn capability(name: &str, err: crate::AlpacaError) -> DriverError {
-    DriverError::Backend(format!("Failed to query Alpaca dome {name}: {err}").into())
+    let detail = format!("Failed to query Alpaca dome {name}: {err}");
+    match DriverError::from(err) {
+        DriverError::Backend(_) => DriverError::Backend(detail.into()),
+        DriverError::Timeout(_) => DriverError::Timeout(detail),
+        kind => kind,
+    }
 }
 
 #[async_trait]

@@ -7,10 +7,10 @@
 /// See `skotiq_core.dart` for the `hide` clauses that motivate these.
 library;
 
-import 'providers/settings_provider.dart' as settings_provider;
+import 'models/site/site_horizon_profile.dart' as site_horizon;
 
 /// Legacy 8-point compass horizon profile exposed from
-/// `src/providers/settings_provider.dart`. The barrel hides the original
+/// `src/models/site/site_horizon_profile.dart`. The barrel hides the original
 /// `HorizonProfile` because the scheduler's samples-based profile (the
 /// `src/services/scheduler/horizon_profile.dart` class of the same name) is
 /// the canonical public class.
@@ -19,4 +19,4 @@ import 'providers/settings_provider.dart' as settings_provider;
 /// `app_settings.horizon_profile_json` and consumed by the settings UI and
 /// `target_suggestion_service.dart`. Callers that need the legacy compass
 /// profile import this alias.
-typedef LegacyHorizonProfile = settings_provider.HorizonProfile;
+typedef LegacyHorizonProfile = site_horizon.HorizonProfile;

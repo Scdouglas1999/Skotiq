@@ -13,9 +13,8 @@ use super::*;
 /// where Dart rejects and the native gate allows, and the Sun in civil
 /// twilight is far too bright for science LIGHT frames.
 ///
-/// The Dart side can push a tighter or looser value at session start via
-/// `SequenceExecutor::update_max_sun_altitude`; this constant is the floor
-/// used when nothing was pushed, or when a non-finite value is seen.
+/// The run config's `max_sun_altitude_degrees` can set a tighter or looser
+/// value; this constant is used when it sets none, or a non-finite one.
 pub const DEFAULT_MAX_SUN_ALTITUDE_DEGREES: f64 = -12.0;
 
 /// Structural gate on pointing inherited from a `TargetHeader` that still
@@ -292,8 +291,19 @@ pub(crate) fn validate_exposure_filter_request(
 /// configured name. An unknown filter must stay unknown; inventing "L" would
 /// mis-label narrowband frames as luminance.
 pub(crate) async fn observed_wheel_filter(ctx: &InstructionContext) -> Option<(String, i32)> {
-    let fw_id = ctx.run.rig.filterwheel_id.as_deref()?;
-    let position = match ctx.run.device_ops.filterwheel_get_position(fw_id).await {
+    wheel_observed_filter(
+        ctx.run.device_ops.as_ref(),
+        ctx.run.rig.filterwheel_id.as_deref(),
+    )
+    .await
+}
+
+async fn wheel_observed_filter(
+    device_ops: &dyn DeviceOps,
+    filterwheel_id: Option<&str>,
+) -> Option<(String, i32)> {
+    let fw_id = filterwheel_id?;
+    let position = match device_ops.filterwheel_get_position(fw_id).await {
         Ok(position) if position >= 0 => position,
         Ok(position) => {
             tracing::debug!(
@@ -310,7 +320,7 @@ pub(crate) async fn observed_wheel_filter(ctx: &InstructionContext) -> Option<(S
             return None;
         }
     };
-    let name = wheel_filter_name_at(ctx, position).await?;
+    let name = wheel_name_at(device_ops, filterwheel_id, position).await?;
     Some((name, position))
 }
 
@@ -322,11 +332,24 @@ pub(crate) async fn wheel_filter_name_at(
     ctx: &InstructionContext,
     position: i32,
 ) -> Option<String> {
-    let fw_id = ctx.run.rig.filterwheel_id.as_deref()?;
+    wheel_name_at(
+        ctx.run.device_ops.as_ref(),
+        ctx.run.rig.filterwheel_id.as_deref(),
+        position,
+    )
+    .await
+}
+
+async fn wheel_name_at(
+    device_ops: &dyn DeviceOps,
+    filterwheel_id: Option<&str>,
+    position: i32,
+) -> Option<String> {
+    let fw_id = filterwheel_id?;
     if position < 0 {
         return None;
     }
-    let names = match ctx.run.device_ops.filterwheel_get_names(fw_id).await {
+    let names = match device_ops.filterwheel_get_names(fw_id).await {
         Ok(names) => names,
         Err(e) => {
             tracing::debug!(
@@ -356,12 +379,25 @@ pub(crate) async fn wheel_filter_name_at(
 /// left behind — one frame described by two filters, which is the same
 /// disagreement the name resolution was added to end.
 pub(crate) async fn wheel_filter_index_of(ctx: &InstructionContext, name: &str) -> Option<i32> {
-    let fw_id = ctx.run.rig.filterwheel_id.as_deref()?;
+    wheel_index_of(
+        ctx.run.device_ops.as_ref(),
+        ctx.run.rig.filterwheel_id.as_deref(),
+        name,
+    )
+    .await
+}
+
+async fn wheel_index_of(
+    device_ops: &dyn DeviceOps,
+    filterwheel_id: Option<&str>,
+    name: &str,
+) -> Option<i32> {
+    let fw_id = filterwheel_id?;
     let wanted = name.trim();
     if wanted.is_empty() {
         return None;
     }
-    let names = match ctx.run.device_ops.filterwheel_get_names(fw_id).await {
+    let names = match device_ops.filterwheel_get_names(fw_id).await {
         Ok(names) => names,
         Err(e) => {
             tracing::debug!(
@@ -375,6 +411,30 @@ pub(crate) async fn wheel_filter_index_of(ctx: &InstructionContext, name: &str) 
         .iter()
         .position(|slot| slot.trim().eq_ignore_ascii_case(wanted))?;
     i32::try_from(position).ok()
+}
+
+/// The filter a frame taken outside a run is recorded under, as one
+/// (name, slot) pair: the name the capture was set to with the slot the wheel
+/// holds it in, or, with no name set, what the wheel reports it is parked on.
+/// The same lookups a burst's frames get from [`resolve_burst_filter`].
+pub async fn resolve_capture_filter(
+    device_ops: &dyn DeviceOps,
+    filterwheel_id: Option<&str>,
+    configured_name: Option<&str>,
+) -> (Option<String>, Option<i32>) {
+    match configured_name
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        Some(name) => (
+            Some(name.to_string()),
+            wheel_index_of(device_ops, filterwheel_id, name).await,
+        ),
+        None => match wheel_observed_filter(device_ops, filterwheel_id).await {
+            Some((name, index)) => (Some(name), Some(index)),
+            None => (None, None),
+        },
+    }
 }
 
 /// Outcome of [`resolve_burst_filter`].

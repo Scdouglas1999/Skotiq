@@ -9,7 +9,7 @@ use crate::instructions::{
     execute_autofocus, notify_autofocus_failed_continuing, AutofocusProgress, Setback,
 };
 use crate::node::context::ExecutionContext;
-use crate::node::instructions::autofocus::refocus_detail;
+use crate::node::instructions::autofocus::autofocus_detail;
 use crate::node::logic::sequential::execute_children_sequential;
 use crate::node::progress::ProgressUpdate;
 use crate::node::runtime::{Node, RuntimeNode};
@@ -89,11 +89,10 @@ pub async fn execute_recovery(
                         serde_json::json!({ "node_id": node.id() }),
                     );
                     tracing::warn!("{}", continuation.operator_message);
-                    context.run.emit_decision(continuation.decision);
+                    let (decision, line) = continuation.split();
+                    context.run.emit_decision(decision);
                     if let Some(tx) = &context.run.event_tx {
-                        let _ = tx.send(ExecutorEvent::Warning {
-                            message: continuation.operator_message,
-                        });
+                        let _ = tx.send(line.into_event());
                     }
                     NodeStatus::Success
                 }
@@ -204,7 +203,7 @@ pub async fn execute_recovery(
                             progress_node_id.clone(),
                             "Autofocus",
                             percent,
-                            refocus_detail(progress, total_steps),
+                            autofocus_detail(progress, total_steps),
                         ));
                     }
                 };

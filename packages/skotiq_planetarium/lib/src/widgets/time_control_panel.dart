@@ -2,7 +2,7 @@ import 'package:skotiq_design/skotiq_design.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:intl/intl.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../providers/planetarium_providers.dart';
 
@@ -58,7 +58,12 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final timeState = ref.watch(observationTimeProvider);
+    // A panel on a hidden tab (TickerMode off) does not follow the 1 Hz clock:
+    // each tick would rebuild it, and every rebuild costs a frame nobody sees.
+    // It reads the time afresh when the tab is shown again.
+    final timeState = TickerMode.valuesOf(context).enabled
+        ? ref.watch(observationTimeProvider)
+        : ref.read(observationTimeProvider);
     final twilight = ref.watch(twilightTimesProvider);
 
     final bgColor = widget.backgroundColor ?? context.skotiqColors.surface;
@@ -271,8 +276,9 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
     Color txtColor, {
     bool showSeconds = true,
   }) {
-    final timeFormat = DateFormat(showSeconds ? 'HH:mm:ss' : 'HH:mm');
-    final displayTime = timeFormat.format(timeState.time);
+    final displayTime = showSeconds
+        ? ClockFormat.hms(timeState.time)
+        : ClockFormat.hm(timeState.time);
 
     return _readoutNode(
       label: 'Sky time $displayTime',
@@ -289,8 +295,6 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
   }
 
   Widget _buildDateButton(DateTime time, Color txtColor) {
-    final dateFormat = DateFormat('MMM d, yyyy');
-
     // A bare InkWell carries no button role and no enabled state, so the chip
     // that opens the date picker was reported as an inert, DISABLED panel.
     return MergeSemantics(
@@ -313,7 +317,7 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
                 Icon(LucideIcons.calendar, size: 14, color: txtColor),
                 const SizedBox(width: 4),
                 Text(
-                  dateFormat.format(time),
+                  ClockFormat.monthDayYear(time),
                   style: TextStyle(
                     color: txtColor,
                     fontSize: SkotiqTypography.fontSize12,

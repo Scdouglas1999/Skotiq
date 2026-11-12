@@ -63,7 +63,6 @@ class IntegrationGoalService {
     }
     final dao = _db.planningDao;
     await _readmitToSchedulerQueue(goal.targetId);
-    await _replaceOldTotalGoal(goal.targetId);
     final existingId = await dao.integrationGoalId(
       targetId: goal.targetId,
       filter: goal.filter,
@@ -75,6 +74,7 @@ class IntegrationGoalService {
         frameCount: goal.frameCount,
         priority: goal.priority,
       );
+      await _replaceOldTotalGoal(goal.targetId);
       _notifyMutated();
       return existingId;
     }
@@ -88,6 +88,7 @@ class IntegrationGoalService {
         createdAt: goal.createdAt.toUtc().millisecondsSinceEpoch ~/ 1000,
       ),
     );
+    await _replaceOldTotalGoal(goal.targetId);
     _notifyMutated();
     return inserted;
   }

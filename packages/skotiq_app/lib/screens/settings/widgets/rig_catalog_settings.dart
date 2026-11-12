@@ -21,9 +21,7 @@ import '../../../router/app_routes.dart';
 /// planetarium catalogs — this page ships on desktop too, so nothing here may
 /// assume the client is a phone.
 class RigCatalogSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const RigCatalogSettings({super.key, this.isMobile = false});
+  const RigCatalogSettings({super.key});
 
   @override
   ConsumerState<RigCatalogSettings> createState() => _RigCatalogSettingsState();
@@ -39,7 +37,10 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
   bool _confirmationOpen = false;
   String? _error;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _loadGeneration = 0;
+
+  /// Catalog list loads (the newest wins) and catalog actions on the host; a
+  /// host change drops what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
   bool get _busy => _actionToken != null;
 
@@ -54,7 +55,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       backendProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
-        _loadGeneration++;
+        _hostScopes.cancelAll();
         setState(() {
           _installed = const [];
           _available = const [];
@@ -80,8 +81,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
   }
 
   Future<void> _refresh() async {
-    final backend = _backend;
-    final generation = ++_loadGeneration;
+    final load = _hostScopes.beginLatest();
+    final backend = load.value.remoteHost;
     if (backend == null) {
       if (!mounted) return;
       setState(() {
@@ -101,7 +102,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
         backend.catalogs.getCatalogStatus(),
         backend.catalogs.listAvailableCatalogs(),
       ]);
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (load.isStale) return;
       final status = responses[0] as RemoteCatalogStatusResponse;
       final available = responses[1] as List<RemoteAvailableCatalog>;
       setState(() {
@@ -114,7 +115,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
         _loading = false;
       });
     } catch (e) {
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (load.isStale) return;
       setState(() {
         _loading = false;
         _error = userFacingError(e);
@@ -122,15 +123,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     }
   }
 
-  bool _isCurrentLoad(RemoteHost backend, int generation) =>
-      mounted &&
-      generation == _loadGeneration &&
-      identical(_backend, backend);
-
-  bool _isCurrentAction(RemoteHost backend, Object token) =>
-      mounted &&
-      identical(_actionToken, token) &&
-      identical(_backend, backend);
+  bool _isCurrentAction(AsyncScope<SkotiqBackend> host, Object token) =>
+      host.isCurrent && identical(_actionToken, token);
 
   Future<void> _run({
     required String actionLabel,
@@ -140,7 +134,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     required Future<void> Function(RemoteHost backend) action,
   }) async {
     if (_busy || _confirmationOpen) return;
-    final backend = _backend;
+    final host = _hostScopes.begin();
+    final backend = host.value.remoteHost;
     if (backend == null) return;
     final token = Object();
     setState(() {
@@ -150,7 +145,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     });
     try {
       await action(backend);
-      if (mounted && _isCurrentAction(backend, token)) {
+      if (mounted && _isCurrentAction(host, token)) {
         final override = successMessageOverride?.call();
         if (override != null) {
           context.showInfoSnackBar(override);
@@ -159,12 +154,12 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
         }
       }
     } catch (e) {
-      if (mounted && _isCurrentAction(backend, token)) {
+      if (mounted && _isCurrentAction(host, token)) {
         context
             .showErrorSnackBar('$actionLabel failed: ${_describeFailure(e)}');
       }
     } finally {
-      if (_isCurrentAction(backend, token)) {
+      if (_isCurrentAction(host, token)) {
         setState(() {
           _actionToken = null;
           _busyAction = null;
@@ -222,7 +217,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       successMessageOverride: () => note,
       action: (backend) async {
         note = null;
-        final results = await backend.catalogs.verifyCatalog(name: catalog.name);
+        final results =
+            await backend.catalogs.verifyCatalog(name: catalog.name);
         final result = results[catalog.name];
         if (result == null) {
           throw StateError('the appliance returned no verification result');
@@ -264,8 +260,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 
   Future<void> _confirmUninstall(RemoteCatalogStatus catalog) async {
     if (_busy || _confirmationOpen) return;
-    final backend = _backend;
-    if (backend == null) return;
+    final host = _hostScopes.begin();
+    if (host.value.remoteHost == null) return;
     setState(() => _confirmationOpen = true);
     final bool confirmed;
     try {
@@ -281,7 +277,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       if (mounted) setState(() => _confirmationOpen = false);
     }
     if (!mounted || !confirmed) return;
-    if (!identical(_backend, backend)) {
+    if (host.isStale) {
       context.showInfoSnackBar('Rig changed; catalog removal canceled');
       return;
     }
@@ -333,12 +329,10 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     return SettingsPage(
       title: 'Appliance catalogs',
       description: 'Download and verify the rig\'s plate-solve / star catalogs',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile,
       children: [
         if (backend == null)
           // Give the disconnected state a direct path to connection setup.
-          _NotConnected(colors: colors, isMobile: widget.isMobile)
+          _NotConnected(colors: colors)
         else ...[
           if (_adminOnlyRefused) ...[
             const AdminOnlyBanner(
@@ -539,9 +533,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 /// platform-neutral terms and offers the one action that can satisfy it.
 class _NotConnected extends StatelessWidget {
   final SkotiqColors colors;
-  final bool isMobile;
-
-  const _NotConnected({required this.colors, required this.isMobile});
+  const _NotConnected({required this.colors});
 
   @override
   Widget build(BuildContext context) {

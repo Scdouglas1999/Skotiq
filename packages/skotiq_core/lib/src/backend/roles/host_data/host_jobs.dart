@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 
 /// Long-running jobs a linked imaging host runs for its clients.
 ///

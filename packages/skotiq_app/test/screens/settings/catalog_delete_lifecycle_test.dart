@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/catalog_settings_screen.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -58,7 +59,7 @@ void main() {
     var deleteCalls = 0;
     await pumpAppScreen(
       tester,
-      const CatalogSettingsScreen(isMobile: true),
+      const SettingsFormScope(narrow: true, child: CatalogSettingsScreen()),
       size: const Size(1000, 1800),
       settle: false,
       extraOverrides: [

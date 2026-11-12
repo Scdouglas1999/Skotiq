@@ -516,7 +516,7 @@ class PlanetariumHandlers implements RouteSource {
         'isAboveHorizon': alt > 0,
         'observerLatitude': location.latitude,
         'observerLongitude': location.longitude,
-        'calculatedAt': now.toIso8601String(),
+        'calculatedAt': now.toWireTime(),
       };
     }
 

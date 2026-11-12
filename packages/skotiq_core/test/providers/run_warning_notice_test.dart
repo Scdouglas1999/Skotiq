@@ -21,14 +21,20 @@ class _FixedBackendNotifier extends BackendNotifier {
 }
 
 /// A sequencer Warning as the bridge publishes it (`ExecutorEvent::Warning`
-/// in `bridge/src/api/sequencer/event_bridge.rs`).
-SkotiqEvent _sequencerWarning(String message) => SkotiqEvent(
-  timestamp: DateTime.now().millisecondsSinceEpoch,
-  severity: EventSeverity.warning,
-  category: EventCategory.sequencer,
-  eventType: 'Error',
-  data: {'message': message},
-);
+/// and `NoticedWarning` in `bridge/src/api/sequencer/event_bridge.rs`). A host
+/// from before the notice field sends none.
+SkotiqEvent _sequencerWarning(String message, {SequencerNotice? notice}) =>
+    SkotiqEvent(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: EventSeverity.warning,
+      category: EventCategory.sequencer,
+      eventType: 'Error',
+      data: {
+        'message': message,
+        'kind': 'advisory',
+        if (notice != null) kSequencerNoticeKey: notice.wireName,
+      },
+    );
 
 /// `quality_problem_continuation` in the native executor, word for word.
 const _continuedProblem =
@@ -70,6 +76,63 @@ void main() {
           'warnings banner lists it',
     );
   });
+
+  for (final (name, message) in [
+    (
+      'an autofocus that did not converge',
+      "Autofocus trigger 'Refocus every 30 min' did not converge (no V-curve "
+          'minimum). The focuser was returned to position 25000 and imaging '
+          'continues on the last-good focus.',
+    ),
+    (
+      'an autofocus that could not return the focuser',
+      'Post-flip autofocus did not converge (too few stars) and the focuser '
+          'could NOT be returned to its pre-autofocus position — it is at '
+          'position 24800. Imaging continues, but check focus before trusting '
+          'these frames.',
+    ),
+    (
+      'a streak of rejected frames',
+      'Image grading: 3 frames in a row rejected (notify limit 3), most '
+          'recently frame 12/40 at alt 45.2°, az 120.0°: HFR 4.10 over 3.50. '
+          'The run continues and every frame is kept; rejects are in the '
+          'Reject folder. Accepted so far: 9, rejected: 3.',
+    ),
+  ]) {
+    test('$name is not toasted a second time', () async {
+      final (container, controller) = await _bridge();
+      addTearDown(container.dispose);
+      addTearDown(controller.close);
+
+      controller.add(_sequencerWarning(message));
+      await pumpEventQueue();
+
+      expect(
+        container.read(uiNotificationProvider),
+        isEmpty,
+        reason: 'the router announces it from the decision row',
+      );
+    });
+  }
+
+  for (final notice in SequencerNotice.values) {
+    test('a Warning marked ${notice.wireName} is not toasted, whatever its '
+        'words', () async {
+      final (container, controller) = await _bridge();
+      addTearDown(container.dispose);
+      addTearDown(controller.close);
+
+      controller.add(
+        _sequencerWarning(
+          'Worded by a newer host in a way no older build wrote.',
+          notice: notice,
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(container.read(uiNotificationProvider), isEmpty);
+    });
+  }
 
   test('another run warning still reaches the operator', () async {
     final (container, controller) = await _bridge();

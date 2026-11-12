@@ -103,7 +103,8 @@ class CapturePanel extends ConsumerWidget {
             : 0.0;
     // Imaging for: from the night's first frame, or the session's start when
     // that is earlier or the night has no frame yet.
-    final sessionDuration = sessionState.isActive ? sessionState.duration : null;
+    final sessionDuration =
+        sessionState.isActive ? sessionState.duration : null;
     final nightSpan = nightCounted
         ? DateTime.now().difference(sessionImages.first.capturedAt)
         : null;
@@ -122,10 +123,9 @@ class CapturePanel extends ConsumerWidget {
         ? exposureSettings.binning
         : binningOptions.first;
 
-    final diskFree = ref.watch(captureDirDiskSpaceProvider).valueOrNull;
     // "252 GiB": the shared size format Tonight uses, split for the readout.
-    final freeText =
-        diskFree == null ? null : ByteFormat.size(diskFree.freeBytes);
+    // Selected as text: the free bytes change on every 10 s sample.
+    final freeText = ref.watch(captureDirDiskSpaceProvider.select(freeSpaceText));
     final freeGap = freeText?.lastIndexOf(' ') ?? -1;
     final freeSize = freeText == null || freeGap < 0
         ? null
@@ -264,7 +264,8 @@ class CapturePanel extends ConsumerWidget {
           FormRow(
             label: 'Format',
             child: ReadOnlyField(
-              value: '$kCaptureImageFormat · $kCaptureBitDepth',
+              value:
+                  '${namingPattern.format.settingsValue} · $kCaptureBitDepth',
             ),
           ),
           const SizedBox(height: FormRow.rowGap),
@@ -375,8 +376,8 @@ class CapturePanel extends ConsumerWidget {
                             context.push(
                                 AppRoutes.sessionReviewOfSession(sessionId));
                           } else {
-                            context.push(AppRoutes.analytics(
-                                tab: AnalyticsTab.session));
+                            context.push(
+                                AppRoutes.analytics(tab: AnalyticsTab.session));
                           }
                         }
                       : null,
@@ -563,7 +564,8 @@ class CapturePanel extends ConsumerWidget {
           logger.error('[Imaging] Session ended but mount park failed: $e',
               source: 'CapturePanel', fields: {'error': e.toString()});
           if (context.mounted) {
-            context.showErrorSnackBar('Session ended, but parking failed: ${userFacingError(e)}');
+            context.showErrorSnackBar(
+                'Session ended, but parking failed: ${userFacingError(e)}');
           }
         }
       }
@@ -572,7 +574,8 @@ class CapturePanel extends ConsumerWidget {
       logger.error('[Imaging] Error ending session: $e',
           source: 'CapturePanel', fields: {'error': e.toString()});
       if (context.mounted) {
-        context.showErrorSnackBar('Failed to end session: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to end session: ${userFacingError(e)}');
       }
       return false;
     }
@@ -603,14 +606,17 @@ class CaptureSavePathButton extends ConsumerStatefulWidget {
 
 class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
   bool _busy = false;
-  int _operationGeneration = 0;
+
+  /// The folder choice in progress; a host change drops it and frees the
+  /// button for the new host.
+  late final _operations = ref.backendScopes(alive: () => mounted);
 
   @override
   Widget build(BuildContext context) {
     ref.watch(backendProvider);
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (_busy && previous != null && !identical(previous, next)) {
-        _operationGeneration++;
+        _operations.cancelAll();
         setState(() => _busy = false);
       }
     });
@@ -637,8 +643,7 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
   }
 
   Future<void> _choosePath() async {
-    final generation = ++_operationGeneration;
-    final authority = ref.read(backendProvider);
+    final operation = _operations.beginLatest();
     // An unset capture directory persists as '.', which the label above
     // already renders as "Not set". Passing it through as a real starting
     // point sent the host picker to the appliance's process working
@@ -653,20 +658,15 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
         isRemote: widget.isRemote,
         initialPath: initialPath,
       );
-      if (result == null || !_isCurrent(generation, authority)) return;
+      if (result == null || operation.isStale) return;
 
       await ref.read(captureSavePathWriterProvider)(result);
     } catch (error) {
-      if (!mounted ||
-          generation != _operationGeneration ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
-      context.showErrorSnackBar('Could not update the capture folder: ${userFacingError(error)}');
+      if (!mounted || operation.isStale) return;
+      context.showErrorSnackBar(
+          'Could not update the capture folder: ${userFacingError(error)}');
     } finally {
-      if (mounted && generation == _operationGeneration) {
-        setState(() => _busy = false);
-      }
+      if (operation.isCurrent) setState(() => _busy = false);
     }
   }
 
@@ -679,12 +679,6 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
     final trimmed = raw.trim();
     if (trimmed.isEmpty || trimmed == '.') return null;
     return trimmed;
-  }
-
-  bool _isCurrent(int generation, SkotiqBackend authority) {
-    return mounted &&
-        generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority);
   }
 }
 

@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
-use skotiq_imaging::{read_fits, write_fits, FitsHeader, ImageData};
+use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData};
 
 use super::{api_darkroom_registry, api_darkroom_render_export, api_darkroom_render_preview};
 
@@ -243,7 +243,7 @@ fn the_composite_renders_in_color_and_exports_its_master() {
         .to_string(),
     )
     .expect("the linear composite exports");
-    let (image, header) = read_fits(&linear).expect("read back");
+    let (image, header) = read_frame(&linear).expect("read back");
     assert_eq!(image.channels, 3);
     assert_eq!(header.get_string("FILTER"), Some("LRGB"));
     let crop = &reply["composite"]["crop"];
@@ -340,6 +340,85 @@ fn a_set_missing_a_primary_is_not_combined_and_says_why() {
     let reason = reply["composite"]["reason"].as_str().unwrap();
     assert!(reason.contains("no B master"), "{reason}");
     assert!(reply.get("draft").is_none() || reply["draft"].is_null());
+}
+
+fn narrowband_masters(dir: &Path) -> Vec<PathBuf> {
+    let stars = field();
+    vec![
+        write_filter(dir, "Ha", &stars, [1.0, 0.0, 0.0], (0.0, 0.0), 800.0, 1),
+        write_filter(dir, "OIII", &stars, [0.5, 0.0, 0.0], (4.2, -3.1), 500.0, 2),
+        write_filter(dir, "SII", &stars, [0.25, 0.0, 0.0], (-2.6, 5.3), 300.0, 3),
+    ]
+}
+
+fn draft_palette(paths: &[PathBuf], composite: Value) -> Value {
+    let mut composite = composite;
+    composite["inputs"] = paths
+        .iter()
+        .map(|p| json!({"path": p.to_string_lossy()}))
+        .collect();
+    let reply =
+        api_darkroom_registry(json!({"recipeId": "mix-test", "composite": composite}).to_string())
+            .expect("the composite drafts");
+    serde_json::from_str(&reply).expect("a JSON reply")
+}
+
+#[test]
+fn a_custom_mix_is_offered_beside_the_narrowband_palettes_and_starts_as_sho() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let paths = narrowband_masters(dir.path());
+
+    let conventional = draft_palette(&paths, json!({}));
+    assert_eq!(conventional["composite"]["palette"], "sho");
+    let offered: Vec<&str> = conventional["composite"]["alternatives"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["palette"].as_str().unwrap())
+        .collect();
+    assert_eq!(offered, ["hoo", "custom"]);
+
+    let custom = draft_palette(&paths, json!({"palette": "custom"}));
+    assert_eq!(custom["composite"]["palette"], "custom");
+    let combine = &custom["draft"]["recipe"]["steps"][0];
+    assert_eq!(combine["opId"], "channel_combine");
+    assert_eq!(
+        combine["params"]["mix"],
+        json!({"red": {"sii": 1.0}, "green": {"hAlpha": 1.0}, "blue": {"oiii": 1.0}})
+    );
+    // The custom draft pins the same star matches the SHO draft does, so
+    // switching between the two in the editor keeps the balance.
+    assert_eq!(
+        combine["params"]["fits"],
+        conventional["draft"]["recipe"]["steps"][0]["params"]["fits"]
+    );
+
+    let mix =
+        json!({"red": {"hAlpha": 0.7, "sii": 0.3}, "green": {"oiii": 1.0}, "blue": {"oiii": 1.2}});
+    let chosen = draft_palette(&paths, json!({"palette": "custom", "mix": mix}));
+    assert_eq!(chosen["draft"]["recipe"]["steps"][0]["params"]["mix"], mix);
+}
+
+#[test]
+fn the_registry_publishes_the_weights_each_narrowband_palette_is() {
+    let reply: Value =
+        serde_json::from_str(&api_darkroom_registry("{}".to_string()).expect("the catalogue"))
+            .expect("a JSON reply");
+    assert_eq!(
+        reply["channelMixes"],
+        json!([
+            {
+                "palette": "sho",
+                "name": "SHO (Hubble palette)",
+                "mix": {"red": {"sii": 1.0}, "green": {"hAlpha": 1.0}, "blue": {"oiii": 1.0}},
+            },
+            {
+                "palette": "hoo",
+                "name": "HOO (bicolor)",
+                "mix": {"red": {"hAlpha": 1.0}, "green": {"oiii": 1.0}, "blue": {"oiii": 1.0}},
+            },
+        ])
+    );
 }
 
 /// A mono master whose sky is `sky(x, y)` under the scene's stars.

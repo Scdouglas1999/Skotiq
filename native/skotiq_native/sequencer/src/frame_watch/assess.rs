@@ -75,10 +75,10 @@ pub async fn measure_saved_frame(
 /// Record the solve in the frame itself, so a stacker or PixInsight can use
 /// the frame without solving it again. A frame that cannot be rewritten keeps
 /// its header; the solve still counts.
-async fn write_solved_wcs(path: &str, wcs: skotiq_imaging::WcsInfo) {
+async fn write_solved_wcs(path: &str, wcs: skotiq_imaging::SipWcs) {
     let owned = std::path::PathBuf::from(path);
     let outcome =
-        tokio::task::spawn_blocking(move || skotiq_imaging::write_wcs_into_fits(&owned, &wcs))
+        tokio::task::spawn_blocking(move || skotiq_imaging::write_wcs_into_frame(&owned, &wcs))
             .await;
     match outcome {
         Ok(Ok(())) => tracing::debug!("[FRAME_WATCH] Wrote the solved WCS into {}", path),
@@ -96,7 +96,7 @@ async fn write_solved_wcs(path: &str, wcs: skotiq_imaging::WcsInfo) {
 }
 
 fn load_frame(path: &str) -> Result<ImageData, String> {
-    let (image, header) = skotiq_imaging::read_fits(std::path::Path::new(path))
+    let (image, header) = skotiq_imaging::read_frame(std::path::Path::new(path))
         .map_err(|e| format!("could not read {path}: {e}"))?;
     let data = image
         .as_u16()
@@ -113,7 +113,8 @@ fn load_frame(path: &str) -> Result<ImageData, String> {
         filter: header.get_string("FILTER").map(|s| s.to_string()),
         timestamp: 0,
         sensor_type: None,
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     })
 }
 

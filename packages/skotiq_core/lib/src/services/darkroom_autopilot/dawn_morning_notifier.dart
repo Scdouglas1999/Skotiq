@@ -21,7 +21,7 @@
 library;
 
 import '../../models/notification/notification_categories.dart';
-import '../../providers/settings_provider.dart';
+import '../../settings/app_settings_state.g.dart';
 import '../notification_service.dart';
 import 'dawn_job_report.dart';
 

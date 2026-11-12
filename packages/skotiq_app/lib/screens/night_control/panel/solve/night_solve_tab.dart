@@ -19,7 +19,7 @@ import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../night_control_contracts.dart';
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import '../mount/night_panel_parts.dart';
+import '../panel_widgets.dart';
 import 'recent_solves_provider.dart';
 import 'solve_sections.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -29,7 +29,7 @@ class NightSolveTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return const NightPanelScroll(
+    return const NightPanelBody(
       children: [
         _LastSolveSection(),
         NightSolveSettingsSection(),
@@ -50,7 +50,6 @@ class _LastSolveSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final solveState = ref.watch(plateSolveStateProvider);
     final result = solveState.lastResult;
     final records = ref.watch(nightRecentSolvesProvider);
@@ -60,13 +59,24 @@ class _LastSolveSection extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     final clock = ref.watch(clockProvider);
 
+    // The operator's last solve pairs with the solver's result; a run's
+    // centering solves arrive as records only.
     NightSolveRecord? lastRecord;
+    NightSolveRecord? newestRunSolve;
     for (final record in records) {
-      if (record.kind == NightSolveKind.solve) {
-        lastRecord = record;
-        break;
+      if (record.kind != NightSolveKind.solve) continue;
+      if (record.byRun) {
+        newestRunSolve ??= record;
+      } else {
+        lastRecord ??= record;
       }
     }
+    final runSolve = newestRunSolve != null &&
+            (result == null ||
+                lastRecord == null ||
+                newestRunSolve.at.isAfter(lastRecord.at))
+        ? newestRunSolve
+        : null;
     final solved = result != null && result.success;
 
     // The solver's own timing pairs with the result shown; the controller's
@@ -77,18 +87,24 @@ class _LastSolveSection extends ConsumerWidget {
         : action.lastSolveDuration;
 
     final String status;
-    final Color statusColor;
+    final MetricTone? statusTone;
     bool inFlight(ManualActionId id) => action.isBusy && action.active == id;
 
     if (solveState.isSolving || inFlight(ManualActionId.solve)) {
       status = l10n.text('nightScopeSolveSolving');
-      statusColor = colors.warning;
+      statusTone = MetricTone.warning;
+    } else if (runSolve != null) {
+      status = [
+        l10n.text('nightScopeSolveSolved'),
+        ClockFormat.hm(clock.toNightClock(runSolve.at)),
+      ].join(' · ');
+      statusTone = MetricTone.good;
     } else if (inputs.solverMissing) {
       status = l10n.text('nightScopeSolverMissing');
-      statusColor = colors.warning;
+      statusTone = MetricTone.warning;
     } else if (result == null) {
       status = l10n.text('nightScopeSolveNone');
-      statusColor = colors.textMuted;
+      statusTone = null;
     } else {
       final parts = <String>[
         l10n.text(solved ? 'nightScopeSolveSolved' : 'nightScopeSolveFailed'),
@@ -98,24 +114,34 @@ class _LastSolveSection extends ConsumerWidget {
           '${(duration.inMilliseconds / 1000).toStringAsFixed(1)} s',
       ];
       status = parts.join(' · ');
-      statusColor = solved ? colors.success : colors.error;
+      statusTone = solved ? MetricTone.good : MetricTone.bad;
     }
 
-    final ra = solved ? _known(result.ra) : null;
-    final dec = solved ? _known(result.dec) : null;
-    final scale = solved ? _known(result.pixelScale, positive: true) : null;
-    final fieldW = solved ? _known(result.fieldWidth, positive: true) : null;
-    final fieldH = solved ? _known(result.fieldHeight, positive: true) : null;
-    final rotation = solved ? _known(result.rotation) : null;
-    final offTarget = ra == null || dec == null || target == null
-        ? null
-        : AstronomyCalculations.angularSeparation(
-              ra1Deg: ra,
-              dec1Deg: dec,
-              ra2Deg: target.raHours * 15,
-              dec2Deg: target.decDegrees,
-            ) *
-            3600;
+    // A run's solve reports its position and its distance from the run's
+    // target; the solver's other measurements stay with the operator's.
+    final fromResult = solved && runSolve == null;
+    final ra = runSolve != null
+        ? runSolve.raDegrees
+        : (fromResult ? _known(result.ra) : null);
+    final dec = runSolve != null
+        ? runSolve.decDegrees
+        : (fromResult ? _known(result.dec) : null);
+    final scale = fromResult ? _known(result.pixelScale, positive: true) : null;
+    final fieldW =
+        fromResult ? _known(result.fieldWidth, positive: true) : null;
+    final fieldH =
+        fromResult ? _known(result.fieldHeight, positive: true) : null;
+    final rotation = fromResult ? _known(result.rotation) : null;
+    final offTarget = runSolve?.offsetArcsec ??
+        (ra == null || dec == null || target == null
+            ? null
+            : AstronomyCalculations.angularSeparation(
+                  ra1Deg: ra,
+                  dec1Deg: dec,
+                  ra2Deg: target.raHours * 15,
+                  dec2Deg: target.decDegrees,
+                ) *
+                3600);
 
     // The controller's gating, so the action bar and this tab never
     // disagree. A solve started elsewhere (the Imaging screen) holds the solver too.
@@ -134,7 +160,7 @@ class _LastSolveSection extends ConsumerWidget {
     return NightPanelSection(
       title: l10n.text('nightScopeSolveLast'),
       trailing: status,
-      trailingColor: statusColor,
+      trailingTone: statusTone,
       children: [
         NightPanelValues(
           columns: 2,
@@ -170,12 +196,15 @@ class _LastSolveSection extends ConsumerWidget {
             ),
           ],
         ),
-        if (result != null && !result.success && result.error != null)
-          NightPanelNote(result.error!, color: colors.error),
+        if (runSolve == null &&
+            result != null &&
+            !result.success &&
+            result.error != null)
+          NightPanelNote(result.error!, tone: MetricTone.bad, maxLines: null),
         if (inputs.solverMissing)
           NightPanelNote(
             l10n.text('nightScopeSolverMissingNote'),
-            color: colors.warning,
+            tone: MetricTone.warning,
           ),
         // Solve & sync on its own row: its label does not fit a third of
         // the panel. Without a solver, setting one up takes its place.

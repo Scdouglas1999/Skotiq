@@ -13,6 +13,7 @@
 // operator as a run warning instead of the zone as an unhandled async error.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -94,7 +95,8 @@ void main() {
   late SkotiqDatabase db;
   late List<String?> pushedSavePaths;
   late List<Map<Symbol, Object?>> pushedDevices;
-  late List<Map<Symbol, Object?>> pushedObserverProfiles;
+  late List<Map<String, dynamic>> pushedObserverProfiles;
+  late bool runConfigRefused;
   late List<int> pushedRunIds;
   ProviderContainer? container;
 
@@ -126,6 +128,7 @@ void main() {
     pushedSavePaths = [];
     pushedDevices = [];
     pushedObserverProfiles = [];
+    runConfigRefused = false;
     pushedRunIds = [];
     backend = _PermissiveBackend();
     eventController = StreamController<bridge_event.SkotiqEvent>.broadcast();
@@ -159,18 +162,14 @@ void main() {
     ).thenAnswer((inv) async {
       pushedDevices.add(inv.namedArguments);
     });
-    when(
-      () => backend.sequencerUpdateObserverProfile(
-        observerName: any(named: 'observerName'),
-        siteElevationM: any(named: 'siteElevationM'),
-        cameraMake: any(named: 'cameraMake'),
-        cameraModel: any(named: 'cameraModel'),
-        telescopeName: any(named: 'telescopeName'),
-        telescopeFocalLengthMm: any(named: 'telescopeFocalLengthMm'),
-        telescopeApertureMm: any(named: 'telescopeApertureMm'),
-      ),
-    ).thenAnswer((inv) async {
-      pushedObserverProfiles.add(inv.namedArguments);
+    when(() => backend.sequencerApplyRunConfig(any())).thenAnswer((inv) async {
+      if (runConfigRefused) throw StateError('backend went away');
+      final config =
+          jsonDecode(inv.positionalArguments.first as String)
+              as Map<String, dynamic>;
+      pushedObserverProfiles.add(
+        config['observer_profile'] as Map<String, dynamic>,
+      );
     });
     when(() => backend.sequencerSetActiveSequenceRunId(any())).thenAnswer((
       inv,
@@ -325,7 +324,7 @@ void main() {
       await executor.start();
       // The headless route calls this directly; it can land on an executor
       // that already has a subscription.
-      await executor.attachHostListenersForNativeRun();
+      await executor.startLoadedRun();
       emitExposureCompleted();
       await pumpEvents();
 
@@ -419,112 +418,64 @@ void main() {
       final executor = c.read(sequenceExecutorProvider);
 
       await executor.start();
-      expect(pushedObserverProfiles, hasLength(1));
+      final seeded = pushedObserverProfiles.last;
 
       settings.push(const AppSettingsState(observerName: 'Grace'));
       await pumpEvents();
 
       expect(
-        pushedObserverProfiles,
-        hasLength(2),
-        reason: 'the observer-name watcher must re-push the profile',
+        pushedObserverProfiles.last['observer_name'],
+        'Grace',
+        reason: 'an observer-name change during the run must be sent',
       );
-      final seeded = pushedObserverProfiles.first;
       final midRun = pushedObserverProfiles.last;
-      expect(seeded[#telescopeApertureMm], 100.0);
-      expect(seeded[#telescopeFocalLengthMm], 550.0);
+      expect(seeded['telescope_aperture_mm'], 100.0);
+      expect(seeded['telescope_focal_length_mm'], 550.0);
       expect(
-        midRun[#telescopeApertureMm],
-        seeded[#telescopeApertureMm],
+        midRun['telescope_aperture_mm'],
+        seeded['telescope_aperture_mm'],
         reason:
             'the aperture fallback was written twice; a fix to one copy left '
             'the other emitting FOCALLEN with no APTDIA',
       );
-      expect(midRun[#telescopeFocalLengthMm], seeded[#telescopeFocalLengthMm]);
-      expect(midRun[#cameraMake], 'ZWO');
-      expect(midRun[#cameraModel], 'ASI2600MM Pro');
-      expect(midRun[#observerName], 'Grace');
+      expect(
+        midRun['telescope_focal_length_mm'],
+        seeded['telescope_focal_length_mm'],
+      );
+      expect(midRun['camera_make'], 'ZWO');
+      expect(midRun['camera_model'], 'ASI2600MM Pro');
+      expect(midRun['observer_name'], 'Grace');
 
       await executor.stop();
     });
   });
 
   group('E. a failed mid-run push reaches the operator', () {
-    test('a rejected location push becomes a run warning', () async {
+    test('a refused settings change becomes a run warning', () async {
       final settings = _MutableSettingsNotifier(
         const AppSettingsState(latitude: 40.0, longitude: -74.0),
       );
-      // Armed only after start: the run-start seed pushes the same call, and
-      // a failure there aborts start() instead of exercising the watcher.
-      var backendGone = false;
-      when(
-        () => backend.sequencerUpdateLocation(
-          latitude: any(named: 'latitude'),
-          longitude: any(named: 'longitude'),
-        ),
-      ).thenAnswer((_) async {
-        if (backendGone) throw StateError('backend went away');
-      });
       final c = buildContainer(settings: () => settings);
       c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
       final executor = c.read(sequenceExecutorProvider);
 
+      // Refused only after start: a refusal there aborts start() instead.
       await executor.start();
-      backendGone = true;
+      runConfigRefused = true;
       settings.push(const AppSettingsState(latitude: 41.0, longitude: -75.0));
       await pumpEvents();
 
-      // A failed mid-run push must reach the operator through the run's
-      // warnings: fire-and-forget makes it an unhandled zone error, and the
-      // run goes on using the stale location for its altitude and flip maths.
+      // A failed send during the run must reach the operator through the
+      // run's warnings: the run goes on using the stale location for its
+      // altitude and flip maths.
       expect(
         c.read(liveSequenceStatsProvider)!.warningMessages,
         contains(
           allOf(
-            contains('the observing location'),
-            contains('still using the previous value'),
+            contains('could not be sent to the sequencer'),
+            contains('previous values'),
           ),
         ),
-      );
-
-      await executor.stop();
-    });
-
-    test('a rejected observer-profile push becomes a run warning', () async {
-      final settings = _MutableSettingsNotifier(
-        const AppSettingsState(observerName: 'Ada'),
-      );
-      var backendGone = false;
-      when(
-        () => backend.sequencerUpdateObserverProfile(
-          observerName: any(named: 'observerName'),
-          siteElevationM: any(named: 'siteElevationM'),
-          cameraMake: any(named: 'cameraMake'),
-          cameraModel: any(named: 'cameraModel'),
-          telescopeName: any(named: 'telescopeName'),
-          telescopeFocalLengthMm: any(named: 'telescopeFocalLengthMm'),
-          telescopeApertureMm: any(named: 'telescopeApertureMm'),
-        ),
-      ).thenAnswer((_) async {
-        if (backendGone) throw StateError('backend went away');
-      });
-      final c = buildContainer(
-        settings: () => settings,
-        profile: _legacyOpticsProfile,
-      );
-      c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
-      final executor = c.read(sequenceExecutorProvider);
-
-      await executor.start();
-      backendGone = true;
-      settings.push(const AppSettingsState(observerName: 'Grace'));
-      await pumpEvents();
-
-      // This one sat inside a try/catch that could never fire, because the
-      // call it guarded was never awaited.
-      expect(
-        c.read(liveSequenceStatsProvider)!.warningMessages,
-        contains(contains('the observer profile')),
       );
 
       await executor.stop();

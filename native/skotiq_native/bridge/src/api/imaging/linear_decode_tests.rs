@@ -1,7 +1,7 @@
 use super::image_data_to_linear_f64;
 use skotiq_imaging::{ImageData, PixelType};
 
-/// The star field survives a write_fits -> read_fits -> decode round trip.
+/// The star field survives a write_fits -> read_frame -> decode round trip.
 /// A big-endian decode passes none of these: 440 ADU reads back as 47105 and
 /// the 40614 ADU star as 42654, inverting the contrast so star detection
 /// finds nothing.
@@ -23,7 +23,7 @@ fn round_trips_u16_fits_pixels_through_the_linear_decoder() {
     let header = skotiq_imaging::FitsHeader::new();
     skotiq_imaging::write_fits(&path, &image, &header).unwrap();
 
-    let (read_back, _) = skotiq_imaging::read_fits(&path).unwrap();
+    let (read_back, _) = skotiq_imaging::read_frame(&path).unwrap();
     let linear = image_data_to_linear_f64(&read_back);
 
     assert_eq!(linear.len(), samples.len());

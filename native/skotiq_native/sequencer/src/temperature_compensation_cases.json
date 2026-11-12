@@ -1,0 +1,476 @@
+[
+  {
+    "name": "the first reading is the reference",
+    "steps_per_degree": -12.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "hold"
+        }
+      }
+    ]
+  },
+  {
+    "name": "a correction under the smallest move waits and is not lost",
+    "steps_per_degree": -12.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.9,
+        "position": 25000,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.7,
+        "position": 25000,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.6,
+        "position": 25000,
+        "expect": {
+          "kind": "move",
+          "target": 25005,
+          "owed": 5
+        }
+      },
+      {
+        "op": "moved_to",
+        "target": 25005
+      },
+      {
+        "op": "step",
+        "temperature": 9.6,
+        "position": 25005,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.0,
+        "position": 25005,
+        "expect": {
+          "kind": "move",
+          "target": 25012,
+          "owed": 7
+        }
+      }
+    ]
+  },
+  {
+    "name": "warming moves the other way",
+    "steps_per_degree": -12.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 11.0,
+        "position": 25000,
+        "expect": {
+          "kind": "move",
+          "target": 24988,
+          "owed": -12
+        }
+      }
+    ]
+  },
+  {
+    "name": "a positive coefficient follows the temperature",
+    "steps_per_degree": 20.0,
+    "min_steps": 1,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 5.0,
+        "position": 1000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 5.05,
+        "position": 1000,
+        "expect": {
+          "kind": "move",
+          "target": 1001,
+          "owed": 1
+        }
+      },
+      {
+        "op": "moved_to",
+        "target": 1001
+      },
+      {
+        "op": "step",
+        "temperature": 5.1,
+        "position": 1001,
+        "expect": {
+          "kind": "move",
+          "target": 1002,
+          "owed": 1
+        }
+      }
+    ]
+  },
+  {
+    "name": "a focuser a step or two off its target is still where it was put",
+    "steps_per_degree": -12.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.0,
+        "position": 25000,
+        "expect": {
+          "kind": "move",
+          "target": 25012,
+          "owed": 12
+        }
+      },
+      {
+        "op": "moved_to",
+        "target": 25012
+      },
+      {
+        "op": "step",
+        "temperature": 9.0,
+        "position": 25010,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 8.5,
+        "position": 25014,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 8.4,
+        "position": 25014,
+        "expect": {
+          "kind": "move",
+          "target": 25019,
+          "owed": 5
+        }
+      }
+    ]
+  },
+  {
+    "name": "a move it did not make is the new reference",
+    "steps_per_degree": -12.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.0,
+        "position": 25400,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": 25000
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.0,
+        "position": 25400,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 8.0,
+        "position": 25400,
+        "expect": {
+          "kind": "move",
+          "target": 25412,
+          "owed": 12
+        }
+      }
+    ]
+  },
+  {
+    "name": "a filter offset keeps the correction owed",
+    "steps_per_degree": -12.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.7,
+        "position": 25000,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "shifted_by",
+        "steps": 30
+      },
+      {
+        "op": "step",
+        "temperature": 9.7,
+        "position": 25030,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.6,
+        "position": 25030,
+        "expect": {
+          "kind": "move",
+          "target": 25035,
+          "owed": 5
+        }
+      },
+      {
+        "op": "moved_to",
+        "target": 25035
+      },
+      {
+        "op": "shifted_by",
+        "steps": -42
+      },
+      {
+        "op": "step",
+        "temperature": 9.6,
+        "position": 24993,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.0,
+        "position": 24993,
+        "expect": {
+          "kind": "move",
+          "target": 25000,
+          "owed": 7
+        }
+      }
+    ]
+  },
+  {
+    "name": "a filter offset before any reading is not a reference",
+    "steps_per_degree": -12.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "shifted_by",
+        "steps": 30
+      },
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25030,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.0,
+        "position": 25030,
+        "expect": {
+          "kind": "move",
+          "target": 25042,
+          "owed": 12
+        }
+      }
+    ]
+  },
+  {
+    "name": "forgetting the reference measures from the next reading",
+    "steps_per_degree": -12.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "forget_reference"
+      },
+      {
+        "op": "step",
+        "temperature": 8.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 8.0,
+        "position": 25000,
+        "expect": {
+          "kind": "hold"
+        }
+      }
+    ]
+  },
+  {
+    "name": "a zero coefficient tracks and never moves",
+    "steps_per_degree": 0.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 0.0,
+        "position": 25000,
+        "expect": {
+          "kind": "hold"
+        }
+      }
+    ]
+  },
+  {
+    "name": "a correction below zero is refused",
+    "steps_per_degree": 50.0,
+    "min_steps": 5,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 100,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 5.0,
+        "position": 100,
+        "expect": {
+          "kind": "refuse",
+          "target": -150
+        }
+      }
+    ]
+  },
+  {
+    "name": "a smallest move of zero acts on one step",
+    "steps_per_degree": -12.0,
+    "min_steps": 0,
+    "ops": [
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "take_reference",
+          "moved_from": null
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 10.0,
+        "position": 25000,
+        "expect": {
+          "kind": "hold"
+        }
+      },
+      {
+        "op": "step",
+        "temperature": 9.9,
+        "position": 25000,
+        "expect": {
+          "kind": "move",
+          "target": 25001,
+          "owed": 1
+        }
+      }
+    ]
+  }
+]

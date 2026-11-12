@@ -33,8 +33,6 @@ List<Override> _overrides() {
   );
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
     ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
   ];
 }

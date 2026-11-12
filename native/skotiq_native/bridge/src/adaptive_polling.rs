@@ -49,8 +49,6 @@
 
 use std::time::{Duration, Instant};
 
-// Poller configuration
-
 /// Configuration for adaptive polling behavior
 #[derive(Debug, Clone)]
 pub struct PollerConfig {
@@ -85,8 +83,6 @@ impl PollerConfig {
         self
     }
 }
-
-// Preset configurations
 
 /// Preset polling configurations for common use cases
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -188,8 +184,6 @@ impl PollerPreset {
     }
 }
 
-// Polling metrics
-
 /// Metrics tracked by the adaptive poller
 #[derive(Debug, Clone, Default)]
 pub struct PollerMetrics {
@@ -272,7 +266,6 @@ impl<T: PartialEq + Clone> AdaptivePoller<T> {
             self.metrics.backoff_count += 1;
             self.consecutive_no_change += 1;
 
-            // Check for auto-reset
             if let Some(reset_after) = self.config.auto_reset_after {
                 if self.consecutive_no_change >= reset_after {
                     self.consecutive_no_change = 0;
@@ -289,7 +282,6 @@ impl<T: PartialEq + Clone> AdaptivePoller<T> {
         self.current_interval = interval;
         self.last_value = Some(current_value.clone());
 
-        // Update metrics
         self.metrics.total_interval_ms += interval.as_millis() as u64;
         if interval > self.metrics.max_interval_used {
             self.metrics.max_interval_used = interval;
@@ -324,7 +316,6 @@ impl<T: PartialEq + Clone> AdaptivePoller<T> {
         &self.metrics
     }
 
-    /// Get the configuration
     pub fn config(&self) -> &PollerConfig {
         &self.config
     }
@@ -420,8 +411,6 @@ impl ConsecutiveFailureBackoff {
             .map(|retry_not_before| retry_not_before.saturating_duration_since(now))
     }
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -555,7 +544,6 @@ mod tests {
 
         assert!(poller.current_interval() > poller.config().base_interval);
 
-        // Reset
         poller.reset();
 
         assert_eq!(poller.current_interval(), poller.config().base_interval);

@@ -108,7 +108,7 @@ class SettingsChoice<T> extends StatefulWidget {
     required this.labelOf,
     required this.onChanged,
     this.width,
-    this.isMobile,
+    this.narrowWidth,
     this.flexible = false,
   });
 
@@ -121,8 +121,8 @@ class SettingsChoice<T> extends StatefulWidget {
 
   final double? width;
 
-  /// Overrides the enclosing [SettingsFormScope].
-  final bool? isMobile;
+  /// [width] in the narrow layout, where it differs.
+  final double? narrowWidth;
 
   /// Let the control take the width its parent offers.
   final bool flexible;
@@ -205,8 +205,10 @@ class _SettingsChoiceState<T> extends State<SettingsChoice<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = widget.isMobile ?? SettingsFormScope.isMobileOf(context);
-    final designWidth = widget.width ?? (isMobile ? 120.0 : 140.0);
+    final narrow = SettingsFormScope.narrowOf(context);
+    final designWidth = narrow
+        ? widget.narrowWidth ?? widget.width ?? 120.0
+        : widget.width ?? 140.0;
     final effectiveWidth = dialogMaxWidth(context, designWidth);
 
     final values = widget.values;
@@ -264,7 +266,10 @@ class SettingsDropdown extends StatelessWidget {
   final List<String> items;
   final FutureOr<void> Function(String) onChanged;
   final double? width;
-  final bool? isMobile;
+
+  /// See [SettingsChoice.narrowWidth].
+  final double? narrowWidth;
+
   final bool flexible;
 
   /// Display labels for [items], same length and order.
@@ -276,7 +281,7 @@ class SettingsDropdown extends StatelessWidget {
     required this.items,
     required this.onChanged,
     this.width,
-    this.isMobile,
+    this.narrowWidth,
     this.flexible = false,
     this.itemLabels,
   });
@@ -295,7 +300,7 @@ class SettingsDropdown extends StatelessWidget {
             },
       onChanged: onChanged,
       width: width,
-      isMobile: isMobile,
+      narrowWidth: narrowWidth,
       flexible: flexible,
     );
   }

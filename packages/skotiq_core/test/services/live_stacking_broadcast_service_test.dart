@@ -13,13 +13,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 // Validation rules are internal — import the implementation path
 // directly. Same convention as the smart_exposure rules tests.
-import 'package:skotiq_core/src/providers/sequence/rules/live_stacking_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/live_stacking_rules.dart';
 
 LiveStackingNode _makeNode({
   String name = 'Live Stacking',
   LiveStackingMode mode = LiveStackingMode.broadcastOnly,
   LiveStackingMethod method = LiveStackingMethod.average,
-  int port = 8081,
   String? token,
   String? watermark,
   int thumbW = 200,
@@ -30,7 +29,6 @@ LiveStackingNode _makeNode({
     name: name,
     mode: mode,
     stackMethod: method,
-    broadcastPort: port,
     authToken: token,
     watermarkText: watermark,
     thumbnailWidth: thumbW,
@@ -73,7 +71,6 @@ void main() {
       final svc = c.read(liveStackingBroadcastServiceProvider);
       svc.activate(
         _makeNode(
-          port: 9090,
           method: LiveStackingMethod.sigma,
           token: 'secret',
           watermark: r'M42 — ${integration.hms}',
@@ -81,7 +78,6 @@ void main() {
       );
       final s = svc.state;
       expect(s.active, isTrue);
-      expect(s.port, 9090);
       expect(s.stackMethod, LiveStackingMethod.sigma);
       expect(s.authToken, 'secret');
       expect(s.isPublic, isFalse);
@@ -230,9 +226,8 @@ void main() {
       final c = _container();
       addTearDown(c.dispose);
       final svc = c.read(liveStackingBroadcastServiceProvider);
-      svc.activate(_makeNode(port: 8081, token: 'one'));
-      svc.activate(_makeNode(port: 9999, token: 'two'));
-      expect(svc.state.port, 9999);
+      svc.activate(_makeNode(token: 'one'));
+      svc.activate(_makeNode(token: 'two'));
       expect(svc.state.authToken, 'two');
       // Counters reset on replacement so the new broadcast starts
       // from frame 0.
@@ -324,8 +319,6 @@ void main() {
         stackMethod: n.stackMethod,
         maxFramesToStack: n.maxFramesToStack,
         broadcastEnabled: n.broadcastEnabled,
-        broadcastPort: n.broadcastPort,
-        broadcastPath: n.broadcastPath,
         watermarkText: n.watermarkText,
         thumbnailWidth: n.thumbnailWidth,
         thumbnailHeight: n.thumbnailHeight,

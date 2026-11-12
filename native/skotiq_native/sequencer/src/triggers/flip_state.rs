@@ -135,7 +135,6 @@ impl MeridianFlipState {
         self.requested = false;
     }
 
-    /// A run is starting.
     pub fn reset_for_new_run(&mut self) {
         *self = Self::default();
     }

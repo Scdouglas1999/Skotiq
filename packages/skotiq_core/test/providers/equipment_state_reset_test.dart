@@ -105,9 +105,16 @@ void main() {
       when(() => backend.sequencerGetStatus()).thenAnswer(
         (_) async => const SequencerStatus(state: 'Idle', progress: 0),
       );
-      when(
-        () => backend.getConnectedDevices(),
-      ).thenAnswer((_) async => const []);
+      // The host holds no device: every device channel says so.
+      when(() => backend.getHostRuntimeState()).thenAnswer(
+        (_) async => [
+          for (final (index, slot) in deviceSlots.indexed)
+            HostRuntimeUpdate(
+              channel: 'device.${slot.wireNames.first}',
+              revision: index + 1,
+            ),
+        ],
+      );
 
       final container = ProviderContainer(
         overrides: [
@@ -140,16 +147,27 @@ void main() {
         when(() => backend.sequencerGetStatus()).thenAnswer(
           (_) async => const SequencerStatus(state: 'Idle', progress: 0),
         );
-        when(() => backend.getConnectedDevices()).thenAnswer(
-          (_) async => const [
-            DeviceInfo(
-              id: 'foc',
-              name: 'EAF',
-              deviceType: DeviceType.focuser,
-              driverType: DriverType.native,
-              description: '',
-              driverVersion: '1.0',
-            ),
+        // The host holds the focuser and the guider, and nothing else.
+        when(() => backend.getHostRuntimeState()).thenAnswer(
+          (_) async => [
+            for (final (index, slot) in deviceSlots.indexed)
+              HostRuntimeUpdate(
+                channel: 'device.${slot.wireNames.first}',
+                revision: index + 1,
+                value: switch (slot.type) {
+                  DeviceType.focuser => const {
+                    'state': 'connected',
+                    'deviceId': 'foc',
+                    'deviceName': 'EAF',
+                  },
+                  DeviceType.guider => const {
+                    'state': 'connected',
+                    'deviceId': 'gdr',
+                    'deviceName': 'Guider',
+                  },
+                  _ => null,
+                },
+              ),
           ],
         );
 
@@ -178,7 +196,8 @@ void main() {
             refreshCurrentFrame: false,
           );
         } catch (_) {
-          // Later hydration steps are not stubbed; the device pass runs first.
+          // Later hydration steps are not stubbed; the device channels are
+          // applied first.
         }
 
         expect(seen, isNot(contains(DeviceConnectionState.disconnected)));
@@ -194,7 +213,7 @@ void main() {
         expect(
           container.read(guiderStateProvider).connectionState,
           DeviceConnectionState.connected,
-          reason: 'the guider is hydrated from phd2/status, not this list',
+          reason: 'the host still holds the guider',
         );
       },
     );

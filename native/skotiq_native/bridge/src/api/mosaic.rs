@@ -26,7 +26,7 @@ use skotiq_imaging::mosaic_stitch::{
     stitch_mosaic, MosaicBlend, MosaicError, MosaicPanel, MosaicStitchConfig,
 };
 use skotiq_imaging::registration::Interpolator;
-use skotiq_imaging::{add_wcs_headers, read_fits, write_fits, FitsHeader, WcsInfo};
+use skotiq_imaging::{add_wcs_headers, read_frame, write_fits, FitsHeader, WcsInfo};
 use std::path::Path;
 
 // JSON contracts
@@ -100,7 +100,6 @@ struct StitchConfigArgs {
     output_pixel_scale_arcsec: Option<f64>,
 }
 
-/// Output target paths.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 #[flutter_rust_bridge::frb(ignore)]
@@ -122,7 +121,6 @@ struct StitchMosaicArgs {
     panels: Vec<PanelArgs>,
     /// Stitch tunables (optional; defaults applied per field).
     config: StitchConfigArgs,
-    /// Output paths.
     output: OutputArgs,
 }
 
@@ -169,8 +167,6 @@ pub fn api_stitch_mosaic(args_json: String) -> Result<String, String> {
     serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
 }
 
-// Implementation
-
 fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, String> {
     if args.panels.is_empty() {
         return Err("no panels supplied to the mosaic stitcher".to_string());
@@ -185,7 +181,7 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
         if pa.fits_path.trim().is_empty() {
             return Err(format!("panel {idx} has an empty fitsPath"));
         }
-        let (image, header) = read_fits(Path::new(&pa.fits_path))
+        let (image, header) = read_frame(Path::new(&pa.fits_path))
             .map_err(|e| format!("failed to read panel '{}': {e:?}", pa.fits_path))?;
         let wcs = match pa.wcs {
             Some(w) => w.into(),
@@ -202,7 +198,6 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
     // Build the stitch config from the JSON args.
     let cfg = build_config(&args.config)?;
 
-    // Stitch.
     let output = stitch_mosaic(&panels, &cfg).map_err(|e| describe_error(&e))?;
 
     // Write the F32 master, stamping the output canvas WCS.
@@ -320,10 +315,8 @@ fn describe_error(e: &MosaicError) -> String {
     }
 }
 
-/// The CD-matrix [`WcsInfo`] a FITS header carries
-/// ([`skotiq_imaging::SipWcs::from_header`]): an explicit CD matrix, or one
-/// synthesised from `CDELT1/2` (+ optional `CROTA2`). `None` if the header has
-/// neither (or no `CRVAL`).
+/// The CD-matrix [`WcsInfo`] a FITS header carries, read by
+/// [`skotiq_imaging::SipWcs::from_header`].
 fn wcs_from_header(header: &FitsHeader) -> Option<WcsInfo> {
     skotiq_imaging::SipWcs::from_header(header).map(|wcs| wcs.cd_only())
 }
@@ -346,8 +339,6 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -470,7 +461,7 @@ mod tests {
         assert!(result.overlap_pairs >= 1, "panels overlap");
 
         // The written master must carry the output canvas WCS.
-        let (master_img, master_hdr) = read_fits(&master_out).unwrap();
+        let (master_img, master_hdr) = read_frame(&master_out).unwrap();
         assert_eq!(master_img.pixel_type, PixelType::F32);
         assert!(master_hdr.get_float("CRVAL1").is_some(), "master has WCS");
         assert_eq!(
@@ -532,7 +523,7 @@ mod tests {
         let resp = api_stitch_mosaic(args).expect("explicit-WCS stitch succeeds");
         let _: StitchMosaicResult = serde_json::from_str(&resp).unwrap();
         // Output WCS should be near the explicit centre, not the wrong header.
-        let (_img, hdr) = read_fits(&master_out).unwrap();
+        let (_img, hdr) = read_frame(&master_out).unwrap();
         let out_ra = hdr.get_float("CRVAL1").unwrap();
         assert!(
             (out_ra - 250.0).abs() < 1.0,

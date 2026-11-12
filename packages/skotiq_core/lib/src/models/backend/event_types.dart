@@ -16,6 +16,10 @@ enum EventSeverity { info, warning, error, critical }
 // `commandId` they received in the POST /api/settings response.
 const String settingsChangedEventType = 'settings.changed';
 
+/// The `key` of a `settings.changed` event whose `value` is the whole settings
+/// document, sent when the host could not diff against the previous one.
+const String settingsSnapshotKey = '__snapshot__';
+
 // Hot-plug discovery event types. The Rust side publishes arrivals/removals
 // as the first-class `EquipmentEvent::DeviceDiscovered` /
 // `EquipmentEvent::DeviceLost` typed FRB variants (see
@@ -116,11 +120,12 @@ class SkotiqEvent {
       'correlatingCommandId': correlatingCommandId,
   };
 
-  /// Return a copy of this event with [seq], [serverInstanceId], and/or
-  /// [correlatingCommandId] overridden. Used by the headless server to
+  /// Return a copy of this event with [data], [seq], [serverInstanceId],
+  /// and/or [correlatingCommandId] overridden. Used by the headless server to
   /// stamp metadata onto events before broadcasting without mutating the
   /// upstream object the FFI bridge handed us.
   SkotiqEvent copyWith({
+    Map<String, dynamic>? data,
     int? seq,
     String? serverInstanceId,
     String? correlatingCommandId,
@@ -130,7 +135,7 @@ class SkotiqEvent {
       severity: severity,
       category: category,
       eventType: eventType,
-      data: data,
+      data: data ?? this.data,
       seq: seq ?? this.seq,
       serverInstanceId: serverInstanceId ?? this.serverInstanceId,
       correlatingCommandId: correlatingCommandId ?? this.correlatingCommandId,

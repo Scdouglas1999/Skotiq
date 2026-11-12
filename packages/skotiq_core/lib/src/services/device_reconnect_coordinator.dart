@@ -35,6 +35,7 @@ class DeviceReconnectCoordinator {
     required Future<void> Function() pauseSequence,
     required void Function(String deviceId, {int attempt, int maxAttempts})
     surfaceReconnecting,
+    required Future<void> Function(DeviceType type, String deviceId) connect,
     List<Duration>? retryDelays,
     Future<void> Function(DeviceType type, String deviceId)? reconnectAttempt,
     Future<String> Function(DeviceType type, String deviceId)? reconnectTarget,
@@ -44,6 +45,7 @@ class DeviceReconnectCoordinator {
        _resumeSequence = resumeSequence,
        _pauseSequence = pauseSequence,
        _surfaceReconnecting = surfaceReconnecting,
+       _connect = connect,
        _retryDelays = retryDelays ?? reconnectDelays,
        _reconnectAttemptOverride = reconnectAttempt,
        _reconnectTarget = reconnectTarget;
@@ -57,6 +59,10 @@ class DeviceReconnectCoordinator {
   bool get _hostOwnsRecovery => _backend.remoteHost != null;
   final Future<void> Function() _resumeSequence;
   final Future<void> Function() _pauseSequence;
+
+  /// The device service's connect: the one writer of a slot during a
+  /// connect. It throws when the connect fails.
+  final Future<void> Function(DeviceType type, String deviceId) _connect;
   final List<Duration> _retryDelays;
   final Future<void> Function(DeviceType type, String deviceId)?
   _reconnectAttemptOverride;
@@ -104,11 +110,6 @@ class DeviceReconnectCoordinator {
   final Set<String> _userInitiatedDisconnects = {};
   Timer? _userDisconnectDebounceTimer;
 
-  /// Devices this app is disconnecting itself because their connect opened
-  /// the driver but never came up, each with the timer that forgets it if
-  /// no Disconnected arrives.
-  final Map<String, Timer> _cleanupDisconnects = {};
-
   /// Set during backend swap so stray Disconnected events cannot
   /// reconnect against a backend that is mid-tear-down.
   bool _suppressAutoReconnect = false;
@@ -117,8 +118,8 @@ class DeviceReconnectCoordinator {
   /// this coordinator must not schedule a reconnect of its own: the two raced
   /// and double-connected the same device. Resuming the sequence after a
   /// native reconnect is handled by [onAuthoritativeDeviceConnected].
-  static bool nativeOwnsReconnect(DeviceType type) =>
-      type.slot.nativeOwnsReconnect;
+  bool nativeOwnsReconnect(DeviceType type) =>
+      _backend.nativeReconnectedDeviceTypes.contains(type);
 
   String _reconnectKey(DeviceType type, String deviceId) =>
       '${type.name}:$deviceId';
@@ -156,27 +157,6 @@ class DeviceReconnectCoordinator {
     return _userInitiatedDisconnects.contains(deviceId);
   }
 
-  /// The app is about to disconnect [deviceId] to let go of a connect that
-  /// opened the driver but did not come up. The Disconnected that follows is
-  /// not a drop. Unlike [markUserInitiatedDisconnect] this leaves the
-  /// reconnect bookkeeping alone: the failed connect may be one of this
-  /// coordinator's own attempts, which has to keep counting.
-  void expectCleanupDisconnect(String deviceId) {
-    _cleanupDisconnects.remove(deviceId)?.cancel();
-    _cleanupDisconnects[deviceId] = Timer(
-      userDisconnectSuppressDuration,
-      () => _cleanupDisconnects.remove(deviceId),
-    );
-  }
-
-  /// Whether a Disconnected for [deviceId] is the clean-up announced with
-  /// [expectCleanupDisconnect]. Answers true once per announcement.
-  bool takeCleanupDisconnect(String deviceId) {
-    final timer = _cleanupDisconnects.remove(deviceId);
-    timer?.cancel();
-    return timer != null;
-  }
-
   /// A disconnect command failed before the backend acknowledged teardown.
   /// Remove the temporary suppression so the still-connected device is not
   /// stranded without reconnect handling for the debounce window.
@@ -210,10 +190,6 @@ class DeviceReconnectCoordinator {
     _userInitiatedDisconnects.clear();
     _userDisconnectDebounceTimer?.cancel();
     _userDisconnectDebounceTimer = null;
-    for (final timer in _cleanupDisconnects.values) {
-      timer.cancel();
-    }
-    _cleanupDisconnects.clear();
   }
 
   /// Re-enable auto-reconnect after a swap. Not currently called (the
@@ -513,10 +489,7 @@ class DeviceReconnectCoordinator {
       readDeviceSlot(_ref, type).autoReconnectEnabled;
 
   Future<void> _performReconnection(DeviceType type, String deviceId) async {
-    await readDeviceConnectionNotifier(
-      _ref,
-      type,
-    ).connect(deviceId, maxRetries: 1);
+    await _connect(type, deviceId);
     final slot = readDeviceSlot(_ref, type);
     validateReconnectOutcome(
       type: type,
@@ -525,10 +498,9 @@ class DeviceReconnectCoordinator {
     );
   }
 
-  /// State notifiers deliberately retain terminal connection failures in
-  /// `lastError` instead of rethrowing them, so awaiting `connect()` alone does
-  /// not prove that reconnection succeeded. Keep the coordinator's retry
-  /// counter honest by requiring the authoritative post-attempt state.
+  /// A connect that returns has not proved the device is back: the slot can
+  /// have been taken by another connect meanwhile. Keep the coordinator's
+  /// retry counter honest by requiring the authoritative post-attempt state.
   static void validateReconnectOutcome({
     required DeviceType type,
     required DeviceConnectionState connectionState,

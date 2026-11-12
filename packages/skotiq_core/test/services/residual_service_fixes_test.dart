@@ -24,7 +24,7 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
     as seq_models;
 import 'package:skotiq_core/src/models/science/science_models.dart' as science;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
-import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
 import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';

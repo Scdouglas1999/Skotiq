@@ -1,4 +1,4 @@
-use super::{frames, put, RawFrame, StoredFrame, STORE_CAPACITY};
+use super::{frames, put, ExposureRecord, RawFrame, StoredFrame, STORE_CAPACITY};
 use crate::api::imaging::{CapturedImageResult, ImageStatsResult};
 
 fn fixture_display() -> CapturedImageResult {
@@ -32,7 +32,17 @@ fn fixture_frame(marker: u16) -> StoredFrame {
             height: 1,
             data: vec![marker],
             bayer_pattern: None,
+            camera_file: None,
+            exposure: ExposureRecord {
+                started_at: chrono::Utc::now(),
+                exposure_secs: 0.1,
+                gain: None,
+                offset: None,
+                temperature: None,
+                bits_per_pixel: 16,
+            },
         },
+        stars: Default::default(),
     }
 }
 

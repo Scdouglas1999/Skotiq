@@ -132,9 +132,7 @@ void main() {
 
     // Never activates and never connects when disabled.
     verifyNever(() => backend.saveProfile(any()));
-    verifyNever(
-      () => ds.connectProfile(any(), source: any(named: 'source')),
-    );
+    verifyNever(() => ds.connectProfile(any(), source: any(named: 'source')));
   });
 
   test(
@@ -152,9 +150,7 @@ void main() {
       await container.read(profileServiceProvider).autoConnectOnStartup();
 
       verifyNever(() => backend.saveProfile(any()));
-      verifyNever(
-      () => ds.connectProfile(any(), source: any(named: 'source')),
-    );
+      verifyNever(() => ds.connectProfile(any(), source: any(named: 'source')));
     },
   );
 
@@ -191,9 +187,7 @@ void main() {
     );
 
     // ...and NOT a single device was connected.
-    verifyNever(
-      () => ds.connectProfile(any(), source: any(named: 'source')),
-    );
+    verifyNever(() => ds.connectProfile(any(), source: any(named: 'source')));
   });
 
   test('attempts every slot (incl. switch + safety monitor) and aggregates '
@@ -252,9 +246,11 @@ void main() {
     expect(caught, isA<ProfileAutoConnectException>());
     final ex = caught! as ProfileAutoConnectException;
     expect(ex.profileName, 'Rig');
-    expect(ex.failures, hasLength(2));
-    expect(ex.failures.join('; '), contains('switch'));
-    expect(ex.failures.join('; '), contains('safety monitor'));
+    expect(ex.described, [
+      'Switch: switch offline',
+      'Safety monitor: safety monitor offline',
+    ]);
+    expect(ex.toString(), contains('ascom:switch:1'));
 
     // Activation happened exactly once, before the connect sweep.
     verify(() => backend.saveProfile(any())).called(1);
@@ -262,10 +258,7 @@ void main() {
     // The full profile (including the switch + safety-monitor slots) was
     // handed to the connector.
     final captured = verify(
-      () => ds.connectProfile(
-        captureAny(),
-        source: 'Startup auto-connect',
-      ),
+      () => ds.connectProfile(captureAny(), source: 'Startup auto-connect'),
     ).captured;
     final passed = captured.single as EquipmentProfileModel;
     expect(passed.switchId, 'ascom:switch:1');

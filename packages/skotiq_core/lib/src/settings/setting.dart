@@ -1,11 +1,11 @@
 /// One declared application setting: its name, where and how it is stored,
 /// its default, its bounds, who owns it when a client is linked to a host, and
-/// which part of the native executor's configuration it feeds.
+/// where the executor's run configuration takes it.
 ///
 /// Everything else about a setting is derived from its declaration in
 /// `app_settings_table.dart`: the field on `AppSettingsState`, the stored row,
-/// the host/client wire value, export and import, the install seed, and the
-/// push to the running executor.
+/// the host/client wire value, export and import, the install seed, and its
+/// place in the run configuration.
 library;
 
 import 'dart:convert';
@@ -25,27 +25,31 @@ enum SettingSync {
   thisComputer,
 }
 
-/// The parts of the native executor's configuration that settings feed. A
-/// setting tagged with one of these is pushed when a run starts and again
-/// whenever it changes during a run.
-enum ExecutorConfig {
-  location,
-  parkPolicy,
-  deviceRetries,
-  qualityPolicy,
-  safetyFailMode,
-  qualityCheck,
-  rejectFolder,
-  observerProfile,
-  adaptiveExposure,
-  filterOffsets,
-}
-
 /// Returned by [Setting.fromJson] for a wire value of the wrong shape.
 const Object invalidWireValue = _InvalidWireValue();
 
 class _InvalidWireValue {
   const _InvalidWireValue();
+}
+
+/// Why a linked client changes a setting only with admin access to the host.
+enum AdminOnly {
+  /// Its value is a credential, such as a webhook URL or an API key. A link
+  /// without admin access also reads only whether it is set.
+  credential,
+
+  /// It says where the host sends a credential it keeps in its keyring: a
+  /// server, an account, a broker. Pointing it elsewhere hands that
+  /// credential over. Its own value is not secret.
+  credentialTarget,
+
+  /// It names a program or script the host runs, or chooses which of them
+  /// run.
+  hostProgram,
+
+  /// It is part of what stays with admin links: the host's backups, where it
+  /// downloads from, and how it is reached.
+  administration,
 }
 
 sealed class Setting<T> {
@@ -56,10 +60,10 @@ sealed class Setting<T> {
     this.sync = SettingSync.host,
     this.wireKey,
     this.clientKeepsOwn = false,
-    this.feeds,
+    this.runConfig,
     this.seed,
     this.seeded = false,
-    this.credential = false,
+    this.adminOnly,
   });
 
   /// Name of the field on `AppSettingsState`.
@@ -80,7 +84,12 @@ sealed class Setting<T> {
   /// database instead of writing the host's.
   final bool clientKeepsOwn;
 
-  final ExecutorConfig? feeds;
+  /// The field of the executor's run configuration (the native `RunConfig`)
+  /// this setting is copied into as it is stored, as a dotted path such as
+  /// `device_retry.camera_retries`. A setting the run configuration takes
+  /// worked out from more than itself (a site, minutes into seconds, two
+  /// settings into one field) has none and is built in `run_config_sync.dart`.
+  final String? runConfig;
 
   /// Row text written at install when it differs from the encoded [fallback].
   final String? seed;
@@ -89,10 +98,9 @@ sealed class Setting<T> {
   /// setting simply reads as [fallback] until it is changed.
   final bool seeded;
 
-  /// It holds a credential, such as a webhook URL or an API key. A linked
-  /// client changes it only with admin access to the host; the host refuses
-  /// the change from any lesser credential.
-  final bool credential;
+  /// Set when a linked client changes it only with admin access to the host,
+  /// and why. The host refuses the change from any lesser link.
+  final AdminOnly? adminOnly;
 
   bool get hasInstallRow => seeded || seed != null;
 
@@ -108,9 +116,17 @@ sealed class Setting<T> {
   /// The rows that store [value].
   Map<String, String> toRows(T value) => {key: encode(value)};
 
+  /// The value held in [rows], or [fallback] when they hold none.
+  T valueIn(Map<String, String> rows) => fromRows(rows, fallback);
+
   T decode(String? raw, T orElse);
 
   String encode(T value);
+
+  /// The value [raw] holds, for a feature that stops rather than run on a row
+  /// it cannot read: no row, or an empty one, reads as [fallback], and text
+  /// that is not a value of this setting throws [FormatException].
+  T decodeStrict(String? raw) => decode(raw, fallback);
 
   Object? toJson(T value) => value;
 
@@ -149,17 +165,40 @@ final class BoolSetting extends Setting<bool> {
     super.field,
     super.key,
     super.fallback, {
+    this.unreadableIsFallback = false,
     super.sync,
     super.wireKey,
     super.clientKeepsOwn,
-    super.feeds,
+    super.runConfig,
     super.seed,
     super.seeded,
+    super.adminOnly,
   });
 
+  /// Text that is neither `true` nor `false` reads as the value given when
+  /// nothing is stored, instead of as off. Set for the switches whose own
+  /// readers, before they were declared here, took anything but `false` as on.
+  final bool unreadableIsFallback;
+
   @override
-  bool decode(String? raw, bool orElse) =>
-      raw == null ? orElse : raw.toLowerCase() == 'true';
+  bool decode(String? raw, bool orElse) {
+    if (raw == null) return orElse;
+    if (!unreadableIsFallback) return raw.toLowerCase() == 'true';
+    return _named(raw) ?? orElse;
+  }
+
+  @override
+  bool decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return fallback;
+    return _named(raw) ??
+        (throw FormatException('$key is "$raw", expected true or false'));
+  }
+
+  static bool? _named(String raw) => switch (raw.trim().toLowerCase()) {
+    'true' => true,
+    'false' => false,
+    _ => null,
+  };
 
   @override
   String encode(bool value) => value.toString();
@@ -181,7 +220,7 @@ final class OptionalBoolSetting extends Setting<bool?> {
     String key, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   }) : super(field, key, null);
 
@@ -216,9 +255,10 @@ final class IntSetting extends Setting<int> {
     this.inputMax,
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seed,
     super.seeded,
+    super.adminOnly,
   });
 
   /// Bounds a stored or received value is held to.
@@ -250,6 +290,15 @@ final class IntSetting extends Setting<int> {
       _bound(raw == null ? orElse : int.tryParse(raw) ?? orElse);
 
   @override
+  int decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return _bound(fallback);
+    return _bound(
+      int.tryParse(raw.trim()) ??
+          (throw FormatException('$key is "$raw", expected a whole number')),
+    );
+  }
+
+  @override
   String encode(int value) => value.toString();
 
   @override
@@ -274,7 +323,7 @@ final class DoubleSetting extends Setting<double> {
     this.inputMax,
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seed,
     super.seeded,
   });
@@ -305,7 +354,21 @@ final class DoubleSetting extends Setting<double> {
 
   @override
   double decode(String? raw, double orElse) =>
-      _bound(raw == null ? orElse : double.tryParse(raw) ?? orElse);
+      _bound(raw == null ? orElse : _finite(raw) ?? orElse);
+
+  @override
+  double decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return _bound(fallback);
+    return _bound(
+      _finite(raw.trim()) ??
+          (throw FormatException('$key is "$raw", expected a number')),
+    );
+  }
+
+  static double? _finite(String raw) {
+    final value = double.tryParse(raw);
+    return value != null && value.isFinite ? value : null;
+  }
 
   @override
   String encode(double value) => value.toString();
@@ -330,7 +393,7 @@ final class OptionalIntSetting extends Setting<int?> {
     super.fallback, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   });
 
@@ -365,7 +428,7 @@ final class OptionalDoubleSetting extends Setting<double?> {
     super.fallback, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   });
 
@@ -404,10 +467,10 @@ final class TextSetting extends Setting<String> {
     super.sync,
     super.wireKey,
     super.clientKeepsOwn,
-    super.feeds,
+    super.runConfig,
     super.seed,
     super.seeded,
-    super.credential,
+    super.adminOnly,
   });
 
   /// When set, any other stored or received text reads as [fallback].
@@ -482,8 +545,9 @@ final class OptionalTextSetting extends Setting<String?> {
     this.unsetText = 'null',
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
+    super.adminOnly,
   }) : super(field, key, null);
 
   /// Row text that stands for "not set": `null` or the empty string.
@@ -519,7 +583,7 @@ final class EnumSetting<E extends Enum> extends Setting<E> {
     this.values, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   });
 
@@ -560,7 +624,7 @@ final class BoolMapSetting extends Setting<Map<String, bool>> {
     String key, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   }) : super(field, key, const {});
 
@@ -615,7 +679,7 @@ final class DoubleMapSetting extends Setting<Map<String, double>> {
     this.fixedKeys = false,
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   }) : super(field, key, entries);
 
@@ -706,11 +770,22 @@ String dartStringLiteral(String value) {
 /// Rows whose keys start with [prefix] and always live on the same machine:
 /// one row per host or per id, or a feature's group of rows.
 final class SettingFamily {
-  const SettingFamily(this.prefix, {required this.sync});
+  const SettingFamily(this.prefix, {required this.sync, this.adminOnly});
 
   final String prefix;
 
   final SettingSync sync;
 
+  /// As [Setting.adminOnly], for every row of the family.
+  final AdminOnly? adminOnly;
+
   bool holds(String key) => key.startsWith(prefix);
+
+  /// The row of this family for [id], holding text or a document.
+  OptionalTextSetting row(String id) => OptionalTextSetting(
+    '$prefix$id',
+    '$prefix$id',
+    unsetText: '',
+    sync: sync,
+  );
 }

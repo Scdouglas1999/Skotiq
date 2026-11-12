@@ -22,7 +22,7 @@ enum Phd2State {
   /// or the process is in an indeterminate phase. Distinct from [stopped] so
   /// the UI never falsely offers "Start" over a possibly-live process — an
   /// unknown state is treated as potentially active (Stop is offered, Start is
-  /// not). See `Phd2Controller._updateStateFromString`.
+  /// not). See `phd2StateAfterEvent`.
   unknown,
 }
 

@@ -9,7 +9,7 @@
 use crate::api::imaging::{CapturedImageResult, ImageStatsResult};
 use crate::error::SkotiqError;
 use skotiq_device::BayerPattern;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
 /// A frame as the camera delivered it.
@@ -20,6 +20,52 @@ pub(crate) struct RawFrame {
     pub data: Vec<u16>,
     /// `None` for a monochrome sensor.
     pub bayer_pattern: Option<BayerPattern>,
+    pub exposure: ExposureRecord,
+    /// The camera's own file for the frame, when it delivered one.
+    pub camera_file: Option<skotiq_device::CameraFile>,
+}
+
+/// What the camera layer recorded about the exposure behind a frame: the
+/// facts a FITS header takes from the camera rather than from the caller.
+#[derive(Debug, Clone)]
+pub(crate) struct ExposureRecord {
+    /// When the exposure was started.
+    pub started_at: chrono::DateTime<chrono::Utc>,
+    /// Seconds, as the camera reported them.
+    pub exposure_secs: f64,
+    pub gain: Option<i32>,
+    pub offset: Option<i32>,
+    /// Sensor temperature in Celsius.
+    pub temperature: Option<f64>,
+    pub bits_per_pixel: u32,
+}
+
+impl RawFrame {
+    /// The frame as the sequencer's device layer hands frames around, for
+    /// the code a manual save shares with a sequence's.
+    pub(crate) fn into_image_data(self) -> skotiq_sequencer::ImageData {
+        let sensor_type = sensor_type(self.bayer_pattern.as_ref());
+        skotiq_sequencer::ImageData {
+            width: self.width,
+            height: self.height,
+            data: self.data,
+            bits_per_pixel: self.exposure.bits_per_pixel,
+            exposure_secs: self.exposure.exposure_secs,
+            gain: self.exposure.gain,
+            offset: self.exposure.offset,
+            temperature: self.exposure.temperature,
+            filter: None,
+            timestamp: self.exposure.started_at.timestamp(),
+            sensor_type,
+            color_filter: self.bayer_pattern,
+            camera_file: self.camera_file,
+        }
+    }
+}
+
+/// The sequencer's `ImageData` sensor type for a frame's color filter.
+pub(crate) fn sensor_type(pattern: Option<&BayerPattern>) -> Option<String> {
+    Some(if pattern.is_some() { "Color" } else { "Monochrome" }.to_string())
 }
 
 /// One camera's last frame: what the screens draw, and the samples it was
@@ -28,6 +74,8 @@ pub(crate) struct RawFrame {
 pub(crate) struct StoredFrame {
     pub display: CapturedImageResult,
     pub raw: RawFrame,
+    /// The detection `display`'s star numbers come from.
+    pub stars: Arc<Vec<skotiq_imaging::DetectedStar>>,
 }
 
 /// How many cameras' frames are kept.
@@ -60,9 +108,13 @@ pub(crate) async fn store(
     raw: RawFrame,
     exposure_secs: f64,
 ) -> Result<(), SkotiqError> {
-    let frame = tokio::task::spawn_blocking(move || StoredFrame {
-        display: measure(&raw, exposure_secs),
-        raw,
+    let frame = tokio::task::spawn_blocking(move || {
+        let (display, stars) = measure(&raw, exposure_secs);
+        StoredFrame {
+            display,
+            raw,
+            stars: Arc::new(stars),
+        }
     })
     .await
     .map_err(|e| SkotiqError::OperationFailed(format!("Image analysis task failed: {}", e)))?;
@@ -70,11 +122,19 @@ pub(crate) async fn store(
     Ok(())
 }
 
-/// What the screens show for one frame.
-pub(crate) fn measure(raw: &RawFrame, exposure_secs: f64) -> CapturedImageResult {
+/// What the screens show for one frame, and the stars detected in it.
+pub(crate) fn measure(
+    raw: &RawFrame,
+    exposure_secs: f64,
+) -> (CapturedImageResult, Vec<skotiq_imaging::DetectedStar>) {
     let image = skotiq_imaging::ImageData::from_u16(raw.width, raw.height, 1, &raw.data);
     let display = match raw.bayer_pattern {
-        Some(pattern) => crate::frame_display::color(&raw.data, raw.width, raw.height, pattern),
+        Some(pattern) => crate::frame_display::color(
+            &raw.data,
+            raw.width,
+            raw.height,
+            crate::frame_display::device_filter(pattern),
+        ),
         None => crate::frame_display::mono(&image),
     };
     // Measured on the sensor's own samples, mosaic included, as the FITS on
@@ -82,25 +142,31 @@ pub(crate) fn measure(raw: &RawFrame, exposure_secs: f64) -> CapturedImageResult
     let stats = skotiq_imaging::calculate_stats_u16(&image);
     let stars =
         skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
-    let stats = frame_stats_result(&stats, &stars);
+    let frame_stats = frame_stats_result(&stats, &stars);
     tracing::info!(
         "Captured {}x{}: {} stars, median HFR {:?}, median eccentricity {:?}",
         raw.width,
         raw.height,
-        stats.star_count,
-        stats.hfr,
-        stats.eccentricity
+        frame_stats.star_count,
+        frame_stats.hfr,
+        frame_stats.eccentricity
     );
-    CapturedImageResult {
+    let display = CapturedImageResult {
         width: raw.width,
         height: raw.height,
         display_data: display.rgba,
         histogram: display.histogram,
-        stats,
+        stats: frame_stats,
         exposure_time: exposure_secs,
-        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        // The end of the exposure: the start the header records as DATE-OBS
+        // plus the commanded time, so a caller that subtracts the exposure
+        // lands on the same start.
+        timestamp: (raw.exposure.started_at
+            + chrono::Duration::microseconds((exposure_secs.max(0.0) * 1e6).round() as i64))
+        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
         is_color: raw.bayer_pattern.is_some(),
-    }
+    };
+    (display, stars)
 }
 
 async fn put(camera_id: &str, frame: StoredFrame) {
@@ -123,9 +189,35 @@ pub(crate) async fn display(camera_id: &str) -> Option<CapturedImageResult> {
         .map(|f| f.display.clone())
 }
 
+/// A copy of `camera_id`'s last frame, display and samples together, for a
+/// caller that both shows the frame and measures it.
+pub(crate) async fn frame(camera_id: &str) -> Option<StoredFrame> {
+    frames().lock().await.get(camera_id).cloned()
+}
+
 /// A copy of `camera_id`'s last frame as the camera delivered it.
 pub(crate) async fn raw(camera_id: &str) -> Option<RawFrame> {
     frames().lock().await.get(camera_id).map(|f| f.raw.clone())
+}
+
+/// The stars the store detected in the frame whose samples are `data`, when
+/// it holds that frame unchanged. Detection is deterministic, so a caller
+/// measuring the same samples again can take these instead of detecting
+/// seconds' worth of stars a second time; a frame changed since it was stored
+/// (a defect map applied, say) finds nothing.
+pub(crate) async fn detected_stars(
+    width: u32,
+    height: u32,
+    data: &[u16],
+) -> Option<Arc<Vec<skotiq_imaging::DetectedStar>>> {
+    frames()
+        .lock()
+        .await
+        .iter()
+        .find(|(_, frame)| {
+            frame.raw.width == width && frame.raw.height == height && frame.raw.data == data
+        })
+        .map(|(_, frame)| frame.stars.clone())
 }
 
 pub(crate) async fn clear(camera_id: &str) {

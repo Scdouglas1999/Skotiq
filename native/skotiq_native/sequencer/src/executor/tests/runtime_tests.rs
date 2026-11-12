@@ -4,7 +4,6 @@ use super::*;
 fn test_executor_state_transitions() {
     let executor = SequenceExecutor::new();
 
-    // Use tokio runtime for async tests
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -95,12 +94,19 @@ fn test_progress_tracking() {
 
 #[tokio::test]
 async fn test_location_configuration() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
-    executor.set_location(Some(45.5), Some(-122.6)).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(45.5);
+            config.longitude = Some(-122.6);
+        })
+        .await
+        .unwrap();
 
-    assert_eq!(executor.run_config().latitude, Some(45.5));
-    assert_eq!(executor.run_config().longitude, Some(-122.6));
+    assert_eq!(executor.handle().run_config().latitude, Some(45.5));
+    assert_eq!(executor.handle().run_config().longitude, Some(-122.6));
 }
 
 /// An unset observing site reaches the executor as `Some(0, 0)` (that is what
@@ -110,21 +116,35 @@ async fn test_location_configuration() {
 /// the altitude limits gate on the wrong sky.
 #[tokio::test]
 async fn null_island_is_an_unset_site_not_a_site_at_0n_0e() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
-    executor.set_location(Some(0.0), Some(0.0)).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(0.0);
+            config.longitude = Some(0.0);
+        })
+        .await
+        .unwrap();
 
-    assert_eq!(executor.run_config().latitude, None);
-    assert_eq!(executor.run_config().longitude, None);
+    assert_eq!(executor.handle().run_config().latitude, None);
+    assert_eq!(executor.handle().run_config().longitude, None);
 }
 
 #[tokio::test]
 async fn update_location_also_rejects_null_island() {
-    let mut executor = SequenceExecutor::new();
-    executor.update_location(Some(0.0), Some(0.0)).await;
+    let executor = SequenceExecutor::new();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(0.0);
+            config.longitude = Some(0.0);
+        })
+        .await
+        .unwrap();
 
-    assert_eq!(executor.run_config().latitude, None);
-    assert_eq!(executor.run_config().longitude, None);
+    assert_eq!(executor.handle().run_config().latitude, None);
+    assert_eq!(executor.handle().run_config().longitude, None);
     let handle = executor.run_config_store();
     let rc = handle.read();
     assert_eq!(rc.latitude, None);
@@ -133,14 +153,16 @@ async fn update_location_also_rejects_null_island() {
 
 #[tokio::test]
 async fn safety_fail_mode_updates_runtime_config() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
     executor
-        .set_safety_fail_mode(crate::SafetyFailMode::WarnOnly)
-        .await;
+        .handle()
+        .update_run_config(|config| config.safety_fail_mode = crate::SafetyFailMode::WarnOnly)
+        .await
+        .unwrap();
 
     assert_eq!(
-        executor.run_config().safety_fail_mode,
+        executor.handle().run_config().safety_fail_mode,
         crate::SafetyFailMode::WarnOnly
     );
     assert_eq!(
@@ -291,15 +313,23 @@ fn weather_verdict_stale_warning_emits_once_then_rearms() {
 
 #[tokio::test]
 async fn safety_check_interval_updates_runtime_config() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
-    executor.set_safety_check_interval_secs(45).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.safety_check_interval_secs = 45)
+        .await
+        .unwrap();
 
     assert_eq!(executor.settings.read().safety_check_interval_secs, 45);
 
-    executor.set_safety_check_interval_secs(3).await;
+    let refused = executor
+        .handle()
+        .update_run_config(|config| config.safety_check_interval_secs = 3)
+        .await;
 
-    assert_eq!(executor.settings.read().safety_check_interval_secs, 5);
+    assert!(refused.is_err(), "a 3 s poll cadence is refused");
+    assert_eq!(executor.settings.read().safety_check_interval_secs, 45);
 }
 
 #[test]
@@ -377,83 +407,74 @@ fn test_executor_state_for_result_keeps_cancelled_distinct() {
     );
 }
 
-#[test]
-fn test_trigger_autofocus_context_preserves_runtime_metadata() {
-    let trigger_context = RunRig {
-        camera_id: Some("camera".to_string()),
-        mount_id: Some("mount".to_string()),
-        focuser_id: Some("focuser".to_string()),
-        filterwheel_id: Some("wheel".to_string()),
-        rotator_id: Some("rotator".to_string()),
-        dome_id: Some("dome".to_string()),
-        cover_calibrator_id: Some("panel".to_string()),
-        save_path: Some(std::path::PathBuf::from("C:/captures")),
-        latitude: Some(45.0),
-        longitude: Some(-122.0),
-        filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
-    };
-    let runtime_config = RunConfigStore::default();
-    let instruction_ctx = trigger_instruction_context(
-        &trigger_context,
-        Some("M31".to_string()),
-        Some(1.25),
-        Some(41.0),
-        Some("Ha".to_string()),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(crate::device_ops::NullDeviceOps),
-        Arc::new(RwLock::new(TriggerState::new())),
-        &runtime_config,
-        None,
-    );
-
-    assert_eq!(instruction_ctx.target_name.as_deref(), Some("M31"));
-    assert_eq!(
-        instruction_ctx.run.rig.save_path,
-        Some(std::path::PathBuf::from("C:/captures"))
-    );
-    assert_eq!(instruction_ctx.run.rig.latitude, Some(45.0));
-    assert_eq!(instruction_ctx.run.rig.longitude, Some(-122.0));
-    assert_eq!(
-        instruction_ctx.run.rig.filter_focus_offsets.get("Ha"),
-        Some(&42)
-    );
+/// An instruction aimed at M42 on a run with this rig.
+fn flip_instruction(rig: RunRig, filter: Option<&str>) -> crate::instructions::InstructionContext {
+    let mut run = crate::instructions::RunShared::new(Arc::new(crate::device_ops::NullDeviceOps));
+    run.rig = rig;
+    crate::instructions::InstructionContext {
+        target_name: Some("M42".to_string()),
+        target_ra: Some(5.5),
+        target_dec: Some(-5.0),
+        current_filter: filter.map(str::to_string),
+        ..crate::instructions::InstructionContext::new(run, Arc::new(AtomicBool::new(false)))
+    }
 }
 
-#[test]
-fn test_trigger_flip_context_keeps_focuser_id() {
-    let trigger_context = RunRig {
-        mount_id: Some("mount".to_string()),
-        camera_id: Some("camera".to_string()),
-        focuser_id: Some("focuser".to_string()),
-        ..RunRig::default()
-    };
-
-    let flip_ctx = build_trigger_flip_context(
-        &trigger_context,
-        TriggerFlipTarget {
-            name: "M42".to_string(),
-            ra_hours: Some(5.5),
-            dec_degrees: Some(-5.0),
+#[tokio::test]
+async fn a_flip_context_keeps_the_runs_focuser() {
+    let ctx = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            camera_id: Some("camera".to_string()),
+            focuser_id: Some("focuser".to_string()),
+            ..RunRig::default()
         },
         None,
-        None,
-        None,
-        None,
-    )
-    .expect("flip context should be created");
+    );
+
+    let flip_ctx = crate::meridian_flip_executor::FlipContext::for_instruction(&ctx, None)
+        .await
+        .expect("flip context should be created");
 
     assert_eq!(flip_ctx.focuser_id.as_deref(), Some("focuser"));
     assert_eq!(flip_ctx.mount_id, "mount");
+    assert_eq!(flip_ctx.target_name, "M42");
 }
 
-#[test]
-fn trigger_flip_context_preserves_real_autofocus_config() {
-    let trigger_context = RunRig {
-        mount_id: Some("mount".to_string()),
-        filterwheel_id: Some("wheel".to_string()),
-        filter_focus_offsets: HashMap::from([("L".to_string(), 0), ("Ha".to_string(), 180)]),
-        ..RunRig::default()
-    };
+#[tokio::test]
+async fn a_flip_context_needs_a_mount_and_target_coordinates() {
+    let no_mount = flip_instruction(RunRig::default(), None);
+    assert!(
+        crate::meridian_flip_executor::FlipContext::for_instruction(&no_mount, None)
+            .await
+            .is_none()
+    );
+    let mut no_target = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            ..RunRig::default()
+        },
+        None,
+    );
+    no_target.target_ra = None;
+    assert!(
+        crate::meridian_flip_executor::FlipContext::for_instruction(&no_target, None)
+            .await
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_flip_context_preserves_the_real_autofocus_config() {
+    let ctx = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            filterwheel_id: Some("wheel".to_string()),
+            filter_focus_offsets: HashMap::from([("L".to_string(), 0), ("Ha".to_string(), 180)]),
+            ..RunRig::default()
+        },
+        Some("L"),
+    );
     let autofocus_config = crate::AutofocusConfig {
         filter: Some("Ha".to_string()),
         step_size: 275,
@@ -462,19 +483,10 @@ fn trigger_flip_context_preserves_real_autofocus_config() {
         ..crate::AutofocusConfig::default()
     };
 
-    let flip_ctx = build_trigger_flip_context(
-        &trigger_context,
-        TriggerFlipTarget {
-            name: "M42".to_string(),
-            ra_hours: Some(5.5),
-            dec_degrees: Some(-5.0),
-        },
-        None,
-        None,
-        Some(autofocus_config),
-        Some("L".to_string()),
-    )
-    .expect("flip context should be created");
+    let flip_ctx =
+        crate::meridian_flip_executor::FlipContext::for_instruction(&ctx, Some(autofocus_config))
+            .await
+            .expect("flip context should be created");
 
     let observed = flip_ctx
         .autofocus_config
@@ -546,7 +558,7 @@ async fn park_and_abort_cancels_and_quiesces_before_safe_state_work() {
 async fn stop_waits_for_executor_cleanup_acknowledgment() {
     let mut executor = SequenceExecutor::new();
     let (command_tx, mut command_rx) = mpsc::channel(1);
-    let (completion_tx, completion_rx) = oneshot::channel();
+    let (completion_tx, completion_rx) = tokio::sync::watch::channel(false);
     let cleanup_confirmed = Arc::new(AtomicBool::new(false));
     executor.command_tx = Some(command_tx);
     executor.run_completion_rx = Some(completion_rx);
@@ -563,7 +575,7 @@ async fn stop_waits_for_executor_cleanup_acknowledgment() {
             "Stop must signal cancellation before the command is handled"
         );
         cleanup_confirmed_for_task.store(true, Ordering::Release);
-        let _ = completion_tx.send(());
+        completion_tx.send_replace(true);
     });
 
     executor.stop().await.expect("Stop should be confirmed");
@@ -574,7 +586,6 @@ async fn stop_waits_for_executor_cleanup_acknowledgment() {
         "stop() must not return before executor cleanup is acknowledged"
     );
     assert!(executor.command_tx.is_none());
-    assert!(executor.run_completion_rx.is_none());
 }
 
 /// `terminate_with` must always set the cancellation flag
@@ -955,16 +966,23 @@ fn trigger_action_quiesce_budget_covers_the_default_retry_ladder() {
     );
 }
 
-/// `update_dither_config` must write through the shared
-/// `runtime_config` Arc so the next dither uses the new pixel count.
-/// A `let _` on the parameters here is a silent fallback: the call is
-/// accepted and nothing changes.
+/// A dither change must reach the shared settings store so the next dither
+/// uses the new pixel count; a change accepted and dropped is a silent
+/// fallback.
 #[tokio::test]
 async fn update_dither_config_writes_through_runtime_config() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
     executor
-        .update_dither_config(7.5, 0.5, 8.0, 60.0, true)
-        .await;
+        .handle()
+        .update_run_config(|config| {
+            config.dither.pixels = 7.5;
+            config.dither.settle_pixels = 0.5;
+            config.dither.settle_time = 8.0;
+            config.dither.settle_timeout = 60.0;
+            config.dither.ra_only = true;
+        })
+        .await
+        .unwrap();
     let handle = executor.run_config_store();
     let rc = handle.read();
     assert!((rc.dither.pixels - 7.5).abs() < f64::EPSILON);
@@ -980,10 +998,17 @@ async fn update_dither_config_writes_through_runtime_config() {
 /// the altitude/dawn/meridian evaluators read.
 #[tokio::test]
 async fn update_location_writes_through_runtime_config() {
-    let mut executor = SequenceExecutor::new();
-    executor.update_location(Some(40.7), Some(-74.0)).await;
-    assert_eq!(executor.run_config().latitude, Some(40.7));
-    assert_eq!(executor.run_config().longitude, Some(-74.0));
+    let executor = SequenceExecutor::new();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(40.7);
+            config.longitude = Some(-74.0);
+        })
+        .await
+        .unwrap();
+    assert_eq!(executor.handle().run_config().latitude, Some(40.7));
+    assert_eq!(executor.handle().run_config().longitude, Some(-74.0));
     {
         let handle = executor.run_config_store();
         let rc = handle.read();
@@ -1075,8 +1100,13 @@ async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs
     }
 
     executor
-        .update_location(Some(NEW_YORK.0), Some(NEW_YORK.1))
-        .await;
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(NEW_YORK.0);
+            config.longitude = Some(NEW_YORK.1);
+        })
+        .await
+        .unwrap();
     let first = wait_for(&executor, "the pushed New York location", |s| {
         s.settings.observer_latitude == Some(NEW_YORK.0)
             && s.telemetry.dawn_time.is_some()
@@ -1085,8 +1115,13 @@ async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs
     .await;
 
     executor
-        .update_location(Some(SYDNEY.0), Some(SYDNEY.1))
-        .await;
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(SYDNEY.0);
+            config.longitude = Some(SYDNEY.1);
+        })
+        .await
+        .unwrap();
     // `dawn_time.is_some()` matters: the push invalidates the cache, and it
     // is the monitor's NEXT tick that recomputes it for the new site.
     // Waiting only for "different" would accept the transient `None`.
@@ -1249,14 +1284,18 @@ async fn the_stall_watchdog_holds_off_while_a_trigger_action_is_in_flight() {
 /// The daylight gate's max Sun altitude must be populated from Dart. With no
 /// setter the field holds the derive-default and the native gate blocks only
 /// above the geometric horizon (0°), opening a twilight gap against the Dart
-/// -12° gate. `update_max_sun_altitude` writes the Dart value through
-/// `runtime_config` AND patches the live trigger state so the gate honours it.
+/// -12° gate. The run config's value reaches the settings store AND the live
+/// trigger state, so the gate honours it.
 #[tokio::test]
 async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
     // A pushed value lands verbatim in the runtime config...
-    executor.update_max_sun_altitude(Some(-6.0)).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.max_sun_altitude_degrees = Some(-6.0))
+        .await
+        .unwrap();
     {
         let handle = executor.run_config_store();
         let rc = handle.read();
@@ -1282,7 +1321,11 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
     // A None / non-finite push resolves to the DEFAULT (-12°) in the live
     // trigger state so the gate is NEVER weaker than the Dart W1 gate, while
     // the runtime config records the raw None (unset).
-    executor.update_max_sun_altitude(None).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.max_sun_altitude_degrees = None)
+        .await
+        .unwrap();
     {
         let handle = executor.run_config_store();
         assert_eq!(handle.read().max_sun_altitude_degrees, None);
@@ -1312,15 +1355,19 @@ fn default_max_sun_altitude_matches_dart_nautical_darkness() {
     );
 }
 
-/// `update_filter_offsets` must propagate to runtime_config
-/// so the next filter change reads the updated map.
+/// A filter-offset change must reach the settings store so the next filter
+/// change reads the updated map.
 #[tokio::test]
 async fn update_filter_offsets_writes_through_runtime_config() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
     let mut offsets = std::collections::HashMap::new();
     offsets.insert("Ha".to_string(), 250);
     offsets.insert("OIII".to_string(), -120);
-    executor.update_filter_offsets(offsets.clone()).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.filter_focus_offsets = offsets.clone())
+        .await
+        .unwrap();
     let handle = executor.run_config_store();
     let rc = handle.read();
     assert_eq!(rc.filter_focus_offsets.get("Ha"), Some(&250));
@@ -1647,26 +1694,6 @@ async fn non_camera_actions_take_no_claim() {
             "{action:?} claimed the camera it never uses"
         );
     }
-}
-
-/// The guard's coverage is only real while it is the ONLY way the trigger
-/// dispatch hands the imaging train back: a hand-placed
-/// `imaging_train.release()` per arm plus a comment claiming every exit is
-/// covered is a claim rather than a check, and one arm goes uncovered.
-///
-/// So check it: a bare release inside the dispatch is a release that some
-/// future early exit will route around.
-#[test]
-fn the_trigger_dispatch_releases_the_camera_only_through_the_guard() {
-    let start_rs = include_str!("../start.rs");
-    let bare_releases = start_rs.matches("imaging_train.release(").count();
-    assert_eq!(
-        bare_releases, 0,
-        "executor/start.rs releases the imaging-train claim directly in {bare_releases} \
-         place(s). Route it through `camera_claim.release().await` instead: a per-arm release \
-         only covers the exits someone remembered, and the autofocus device-missing branch is \
-         what happens when one is forgotten — ten minutes of blocked frames per firing."
-    );
 }
 
 /// The live defect (2026-08-17, D1 sim-night harness, release bundle): the
@@ -2255,7 +2282,11 @@ async fn guiding_this_run_started_arms_star_lost_and_a_later_drop_fires_it() {
     executor.set_device_ops(Arc::new(ops));
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     executor
         .load_sequence(guided_delay_sequence(true))
@@ -2355,10 +2386,14 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
         config[key] = value.clone();
     }
     executor
-        .update_autofocus_config(
-            serde_json::from_value(config).expect("a stored autofocus config deserializes"),
-        )
-        .await;
+        .handle()
+        .update_run_config(|run_config| {
+            run_config.autofocus = Some(
+                serde_json::from_value(config).expect("a stored autofocus config deserializes"),
+            )
+        })
+        .await
+        .unwrap();
     {
         let mut manager = executor.trigger_manager.write().await;
         for id in [
@@ -2414,7 +2449,10 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
                 {
                     return;
                 }
-                Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => warnings.push(message),
                 Ok(ExecutorEvent::Error { message }) => errors.push(message),
                 Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => return,
@@ -2426,7 +2464,9 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
     loop {
         match events.try_recv() {
-            Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+            Ok(
+                ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. },
+            ) => warnings.push(message),
             Ok(ExecutorEvent::Error { message }) => errors.push(message),
             Ok(_) | Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
             Err(_) => break,
@@ -2495,22 +2535,33 @@ async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
             ExecutorState::Running,
             "{persisted}: the run must keep going on the previous focus"
         );
-        assert!(
-            run.decisions
-                .iter()
-                .any(|d| d.summary == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
-            "{persisted}: the operator must be notified (the decision row is what raises the \
-             notification): {:?}",
+        // The decision row is what raises the operator's notification: one
+        // missed focus, one row, one warning.
+        let rows: Vec<_> = run
+            .decisions
+            .iter()
+            .filter(|d| d.summary == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY)
+            .collect();
+        assert_eq!(
+            rows.len(),
+            1,
+            "{persisted}: the missed focus is recorded once: {:?}",
             run.decisions
                 .iter()
                 .map(|d| d.summary.clone())
                 .collect::<Vec<_>>()
         );
-        assert!(
-            run.warnings
-                .iter()
-                .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
-            "{persisted}: the cause goes to the run's warnings: {:?}",
+        assert_eq!(rows[0].details["trigger_id"], "hfr_degraded");
+        assert_eq!(rows[0].details["trigger_name"], "HFR Degradation");
+        let notices: Vec<_> = run
+            .warnings
+            .iter()
+            .filter(|w| w.contains("did not converge") && w.contains("imaging continues"))
+            .collect();
+        assert_eq!(
+            notices.len(),
+            1,
+            "{persisted}: the cause goes to the run's warnings once: {:?}",
             run.warnings
         );
         assert!(
@@ -2527,8 +2578,73 @@ async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
 /// `Failure`, which short-circuits its container: the rest of the target, and
 /// with it the night, ended at the first missed curve fit.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
+    let FailedAutofocusRun {
+        state,
+        completed,
+        warnings,
+        errors,
+        decisions,
+        calls,
+    } = run_a_failing_autofocus_node(true).await;
+    let decisions: Vec<&str> = decisions.iter().map(|d| d.summary.as_str()).collect();
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park")
+            || c.starts_with("cover_close")
+            || c.starts_with("dome_close")),
+        "a failed autofocus node moved or closed hardware: {calls:?}"
+    );
+    assert!(
+        completed
+            .iter()
+            .any(|(id, status)| id == "after" && *status == NodeStatus::Success),
+        "the node after the failed autofocus never ran: {completed:?} errors={errors:?}"
+    );
+    assert_eq!(
+        state,
+        ExecutorState::Completed,
+        "errors={errors:?} warnings={warnings:?}"
+    );
+    assert!(
+        decisions.contains(&super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
+        "the operator must be notified: {decisions:?}"
+    );
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
+        "{warnings:?}"
+    );
+}
+
+/// The operator turned decision logging off: the run keeps no replay rows of
+/// its own, but the row a notification is raised from still goes out, or the
+/// failed autofocus would reach the operator as nothing at all (its warning is
+/// never toasted on its own).
+#[tokio::test]
+async fn a_failed_autofocus_is_told_with_decision_logging_off() {
+    let run = run_a_failing_autofocus_node(false).await;
+    assert_eq!(run.state, ExecutorState::Completed, "{:?}", run.errors);
+    let noticed: Vec<_> = run
+        .decisions
+        .iter()
+        .filter(|d| d.notice == Some(crate::decision::RunNotice::AutofocusContinued))
+        .collect();
+    assert_eq!(noticed.len(), 1, "{:?}", run.decisions);
+}
+
+/// What a run whose Autofocus node fails, followed by a Delay, sent out.
+struct FailedAutofocusRun {
+    state: ExecutorState,
+    completed: Vec<(crate::NodeId, NodeStatus)>,
+    warnings: Vec<String>,
+    errors: Vec<String>,
+    decisions: Vec<crate::decision::DecisionEvent>,
+    calls: Vec<String>,
+}
+
+#[allow(clippy::await_holding_lock)]
+async fn run_a_failing_autofocus_node(decision_logging: bool) -> FailedAutofocusRun {
     let _serial = crate::AF_GATE_TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
@@ -2592,6 +2708,10 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
             manager.remove_trigger(id);
         }
     }
+    executor
+        .update_run_config(|config| config.decision_logging_enabled = decision_logging)
+        .await
+        .expect("decision logging setting applies");
     let mut events = executor.subscribe();
     let mut decision_rx = executor.subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
@@ -2619,7 +2739,9 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
     loop {
         match events.try_recv() {
             Ok(ExecutorEvent::NodeCompleted { id, status }) => completed.push((id, status)),
-            Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+            Ok(
+                ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. },
+            ) => warnings.push(message),
             Ok(ExecutorEvent::Error { message }) => errors.push(message),
             Ok(_) | Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
             Err(_) => break,
@@ -2627,41 +2749,20 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
     }
     let mut decisions = Vec::new();
     while let Ok(decision) = decision_rx.try_recv() {
-        decisions.push(decision.summary);
+        decisions.push(decision);
     }
     let state = executor.get_state().await;
     let calls = ops.calls();
     wait_for_the_autofocus_gate_to_clear().await;
 
-    assert!(
-        !calls.iter().any(|c| c.starts_with("mount_park")
-            || c.starts_with("cover_close")
-            || c.starts_with("dome_close")),
-        "a failed autofocus node moved or closed hardware: {calls:?}"
-    );
-    assert!(
-        completed
-            .iter()
-            .any(|(id, status)| id == "after" && *status == NodeStatus::Success),
-        "the node after the failed autofocus never ran: {completed:?} errors={errors:?}"
-    );
-    assert_eq!(
+    FailedAutofocusRun {
         state,
-        ExecutorState::Completed,
-        "errors={errors:?} warnings={warnings:?}"
-    );
-    assert!(
-        decisions
-            .iter()
-            .any(|s| s == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
-        "the operator must be notified: {decisions:?}"
-    );
-    assert!(
-        warnings
-            .iter()
-            .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
-        "{warnings:?}"
-    );
+        completed,
+        warnings,
+        errors,
+        decisions,
+        calls,
+    }
 }
 
 /// A child that fails every time it runs, standing in for whatever the
@@ -2779,7 +2880,9 @@ async fn a_failed_recovery_autofocus_notifies_and_the_retries_go_on() {
     );
     let mut warned = false;
     while let Ok(event) = events.try_recv() {
-        if let ExecutorEvent::Warning { message } = event {
+        if let ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } =
+            event
+        {
             warned |= message.contains("Recovery autofocus did not converge");
         }
     }
@@ -2837,7 +2940,9 @@ async fn a_failed_exposure_trigger_autofocus_is_a_notice_not_a_failed_run() {
             ExecutorEvent::InstructionFailed { node_name, message } => {
                 errors.push(format!("{node_name}: {message}"))
             }
-            ExecutorEvent::Warning { message } => warnings.push(message),
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
+                warnings.push(message)
+            }
             _ => {}
         }
     }
@@ -2934,7 +3039,9 @@ async fn a_notify_exposure_trigger_tells_once_per_episode_and_never_stops_the_ru
                 action,
                 ..
             } => fired.push(format!("{trigger_name} -> {action}")),
-            ExecutorEvent::Warning { message } => warnings.push(message),
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
+                warnings.push(message)
+            }
             ExecutorEvent::Error { message } => errors.push(message),
             _ => {}
         }
@@ -3062,8 +3169,10 @@ async fn run_with_bad_guiding_trigger(
         );
     }
     executor
-        .set_stop_on_quality_problems(stop_on_quality_problems)
-        .await;
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = stop_on_quality_problems)
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
@@ -3078,7 +3187,10 @@ async fn run_with_bad_guiding_trigger(
                 Ok(ExecutorEvent::TriggerFired {
                     trigger_id, action, ..
                 }) => fired.push(format!("{trigger_id} -> {action}")),
-                Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => warnings.push(message),
                 Ok(ExecutorEvent::RecoveryStarted { .. }) => recovery_started = true,
                 Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => return,
@@ -3181,8 +3293,10 @@ async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecent
         );
     }
     executor
-        .set_stop_on_quality_problems(stop_on_quality_problems)
-        .await;
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = stop_on_quality_problems)
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut decision_rx = executor.subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
@@ -3203,14 +3317,18 @@ async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecent
     let _ = tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             match events.recv().await {
-                Ok(ExecutorEvent::Warning { message }) => {
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => {
                     let done = message.contains("recenter");
                     warnings.push(message);
                     if done {
                         return;
                     }
                 }
-                Ok(ExecutorEvent::Error { message }) => {
+                // Why the run is paused, never an error of the run.
+                Ok(ExecutorEvent::RunHeld { message }) => {
                     let done = message.contains("recenter failed");
                     errors.push(message);
                     if done {
@@ -3332,6 +3450,7 @@ async fn a_recovery_node_set_to_notify_carries_on_and_tells_the_operator() {
     assert_eq!(summaries, vec![super::QUALITY_PROBLEM_CONTINUED_SUMMARY]);
     let warned = std::iter::from_fn(|| events.try_recv().ok()).any(|e| {
         matches!(e, ExecutorEvent::Warning { message }
+            | ExecutorEvent::NoticedWarning { message, .. }
             if message.contains("Recovery 'Protect solve'") && message.contains("failed 2 times"))
     });
     assert!(
@@ -3507,8 +3626,16 @@ fn waiting_sequence() -> SequenceDefinition {
 async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSettle, Vec<String>) {
     let mut events = executor.subscribe();
     executor
-        .update_dither_config(4.0, 0.7, 9.0, 45.0, false)
-        .await;
+        .handle()
+        .update_run_config(|config| {
+            config.dither.pixels = 4.0;
+            config.dither.settle_pixels = 0.7;
+            config.dither.settle_time = 9.0;
+            config.dither.settle_timeout = 45.0;
+            config.dither.ra_only = false;
+        })
+        .await
+        .unwrap();
     let settle = executor
         .trigger_manager
         .read()
@@ -3562,9 +3689,24 @@ async fn a_dither_push_takes_effect_and_is_announced_once_idle_or_running() {
 async fn settings_pushed_while_idle_are_what_the_next_run_starts_with() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
-    executor.update_location(Some(41.5), Some(-71.25)).await;
-    executor.update_max_sun_altitude(Some(-6.0)).await;
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(41.5);
+            config.longitude = Some(-71.25);
+        })
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| config.max_sun_altitude_degrees = Some(-6.0))
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     executor
         .load_sequence(waiting_sequence())
         .expect("sequence loads");

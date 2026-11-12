@@ -24,16 +24,6 @@ part 'guiding_screen_parts/desktop_sections.dart';
 part 'guiding_screen_parts/mobile_sections.dart';
 part 'guiding_screen_parts/actions.dart';
 
-/// Why Pause is unavailable under Skotiq's own guider.
-///
-/// Pause is a PHD2 command, so the built-in guider has none. Without this
-/// reason on screen the button is simply inert — nothing changes in the UI, the
-/// status bar or the log — and the operator cannot tell whether corrections
-/// have been suspended.
-const String kBuiltinGuiderNoPauseReason =
-    'Pause is a PHD2 feature. The built-in guider has no pause — '
-    'use Stop to suspend guiding.';
-
 /// Full guiding interface (06 §Guiding).
 ///
 /// A [PageHeader] over three columns: the guide star, the target display and

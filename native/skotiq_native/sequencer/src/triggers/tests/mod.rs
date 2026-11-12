@@ -322,7 +322,6 @@ async fn test_autofocus_interval_trigger() {
     state.increment_exposure_count();
     assert!(trigger.check(&state).await);
 
-    // Mark autofocus performed
     state.mark_autofocus_performed();
 
     // Should not trigger immediately after autofocus
@@ -397,7 +396,6 @@ async fn test_dither_interval_trigger() {
     // Should trigger after 5 exposures
     assert!(trigger.check(&state).await);
 
-    // Mark dither performed
     state.mark_dither_performed();
 
     // Complete another 5 exposures
@@ -925,7 +923,6 @@ async fn a_firing_that_is_not_dispatched_does_not_start_the_cooldown() {
 async fn test_trigger_manager() {
     let mut manager = TriggerManager::new();
 
-    // Add some triggers
     manager.add_trigger(Trigger::new(
         "hfr",
         "HFR Monitor",
@@ -944,7 +941,6 @@ async fn test_trigger_manager() {
         RecoveryAction::NextTarget,
     ));
 
-    // Set up trigger state
     {
         let state_lock = manager.state();
         let mut state = state_lock.write().await;
@@ -953,7 +949,6 @@ async fn test_trigger_manager() {
         state.target.current_altitude = Some(25.0); // Below limit - should trigger
     }
 
-    // Check all triggers
     let fired = manager.check_all().await;
 
     // Both triggers should have fired
@@ -976,7 +971,6 @@ async fn test_exposure_count_tracking() {
     }
     assert_eq!(state.latches.completed_exposures, 10);
 
-    // Perform autofocus
     state.mark_autofocus_performed();
     assert_eq!(state.latches.last_autofocus_frame, 10);
 
@@ -986,7 +980,6 @@ async fn test_exposure_count_tracking() {
     }
     assert_eq!(state.latches.completed_exposures, 15);
 
-    // Perform dither
     state.mark_dither_performed();
     assert_eq!(state.latches.last_dither_frame, 15);
 }
@@ -1005,13 +998,10 @@ async fn test_hfr_baseline_reset() {
     assert_eq!(state.latches.baseline_hfr, Some(2.5)); // Baseline stays
     assert_eq!(state.latches.current_hfr, Some(3.0));
 
-    // Reset baseline
     state.reset_baseline_hfr();
     assert_eq!(state.latches.baseline_hfr, Some(3.0)); // Baseline updated
     assert_eq!(state.latches.current_hfr, Some(3.0));
 }
-
-// OnTrackingLimitHit trigger tests
 
 /// Helper to create a TriggerState simulating a mount that hit its tracking limit
 fn make_limit_hit_state() -> TriggerState {

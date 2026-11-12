@@ -14,7 +14,7 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
   }) async {
     const fallback = (<_CatalogMatch>[], PhotometricCatalogSource.localHyg);
     try {
-      final fits = await readFitsImageSize(imagePath);
+      final fits = await readFrameImageSize(imagePath);
       if (fits == null) return fallback;
       final radius =
           (math.sqrt(

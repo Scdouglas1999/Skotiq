@@ -39,7 +39,6 @@ pub enum HeartbeatStatus {
     Reconnected,
 }
 
-/// Equipment-specific events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EquipmentEvent {

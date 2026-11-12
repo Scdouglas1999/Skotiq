@@ -11,6 +11,7 @@ import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/services/device_reconnect_coordinator.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
 
+import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
 
 /// Verifies that heartbeat events arriving on the equipment
@@ -38,12 +39,16 @@ void main() {
     when(
       () => mockBackend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
+    when(
+      () => mockBackend.nativeReconnectedDeviceTypes,
+    ).thenReturn(const {DeviceType.mount});
 
     container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith(
           (ref) => _TestBackendNotifier(ref, mockBackend),
         ),
+        inMemoryDatabaseOverride(),
       ],
     );
 
@@ -344,53 +349,31 @@ void main() {
     verifyNever(() => mockBackend.connectDevice(any(), any()));
   });
 
-  group('DeviceReconnectCoordinator.nativeOwnsReconnect policy table', () {
-    // This table MUST mirror the native source of truth exactly:
-    // `DeviceManager::get_heartbeat_config(device_type)` →
-    // `HeartbeatConfig::for_*()` in
-    // native/skotiq_native/bridge/src/device_manager/. A drift here
-    // re-opens the dual-reconnect race (Dart competes with the native
-    // loop) or strands a device with no reconnect engine at all.
-    const nativeOwned = <DeviceType>{
-      DeviceType.mount, // for_mount: auto_reconnect = true
-      DeviceType.dome, // for_dome: auto_reconnect = true
-      DeviceType.weather, // for_weather: auto_reconnect = true
-      DeviceType.guider, // for_guider: auto_reconnect = true
-      DeviceType.coverCalibrator, // for_cover_calibrator: auto_reconnect = true
-    };
-    const dartOwned = <DeviceType>{
-      DeviceType.camera, // for_camera: auto_reconnect = false
-      DeviceType.focuser, // for_focuser: auto_reconnect = false
-      DeviceType.filterWheel, // for_filter_wheel: auto_reconnect = false
-      DeviceType.rotator, // for_rotator: auto_reconnect = false
-      DeviceType.switch_, // for_switch: auto_reconnect = false
-      // for_safety_monitor: auto_reconnect = false. Its heartbeat never
-      // reports a drop; the environment poll hands a monitor whose reads keep
-      // failing to the Dart coordinator.
-      DeviceType.safetyMonitor,
-    };
-
-    test('every DeviceType is classified exactly once', () {
-      // Guards against a new DeviceType being added without a matching
-      // native-ownership decision (the switch in nativeOwnsReconnect would
-      // fail to compile, but the test also documents the full set).
+  // The backend says which types its native side reconnects (the native
+  // policy table, read over the FFI); the coordinator defers exactly those and
+  // keeps every other type for itself.
+  test('the coordinator defers exactly the types the backend reconnects', () {
+    when(
+      () => mockBackend.nativeReconnectedDeviceTypes,
+    ).thenReturn(const {DeviceType.focuser, DeviceType.dome});
+    final coordinator = container.read(
+      Provider(
+        (ref) => DeviceReconnectCoordinator(
+          ref: ref,
+          backend: mockBackend,
+          resumeSequence: () async {},
+          pauseSequence: () async {},
+          surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+          connect: (type, deviceId) async {},
+        ),
+      ),
+    );
+    for (final type in DeviceType.values) {
       expect(
-        {...nativeOwned, ...dartOwned},
-        DeviceType.values.toSet(),
-        reason: 'all DeviceTypes must appear in exactly one ownership set',
+        coordinator.nativeOwnsReconnect(type),
+        type == DeviceType.focuser || type == DeviceType.dome,
+        reason: type.name,
       );
-      expect(nativeOwned.intersection(dartOwned), isEmpty);
-    });
-
-    for (final type in nativeOwned) {
-      test('${type.name} is native-owned', () {
-        expect(DeviceReconnectCoordinator.nativeOwnsReconnect(type), isTrue);
-      });
-    }
-    for (final type in dartOwned) {
-      test('${type.name} is Dart-owned', () {
-        expect(DeviceReconnectCoordinator.nativeOwnsReconnect(type), isFalse);
-      });
     }
   });
 
@@ -436,6 +419,7 @@ void main() {
         resumeSequence: () async {},
         pauseSequence: () async {},
         surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+        connect: (type, deviceId) async {},
         retryDelays: const [
           Duration(milliseconds: 2),
           Duration(milliseconds: 2),
@@ -498,6 +482,7 @@ void main() {
         resumeSequence: () async {},
         pauseSequence: () async {},
         surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+        connect: (type, deviceId) async {},
         retryDelays: const [Duration(milliseconds: 2)],
         reconnectTarget: (type, deviceId) async {
           if (!arrived) {

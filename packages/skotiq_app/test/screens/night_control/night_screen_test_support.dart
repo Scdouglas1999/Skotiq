@@ -29,6 +29,7 @@ import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provide
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/upcoming_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
+import 'package:skotiq_app/screens/night_control/panel/overview/after_run_section.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
@@ -259,6 +260,13 @@ List<Override> nightScreenOverrides(
     nightConditionsProvider.overrideWithValue(board.conditions),
     nightLogProvider.overrideWithValue(board.log),
     nightBeforeYouStartProvider.overrideWithValue(board.checklist),
+    nightAfterRunProvider.overrideWithValue(
+      const NightAfterRunVm(
+        sessionId: 7,
+        mountUnparked: true,
+        coolerOn: true,
+      ),
+    ),
     nightCameraPanelProvider.overrideWithValue(
       running ? PanelFixtures.cameraRunning : PanelFixtures.cameraIdle,
     ),
@@ -290,7 +298,9 @@ List<Override> nightScreenOverrides(
     // Stopped, so the guide-star poll does not start in a widget test.
     phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
     nightGuideSamplesProvider.overrideWith(_GuideSamples.new),
-    sequenceExecutionStateProvider.overrideWith((ref) => runState),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: runState)),
+    ),
   ];
 }
 

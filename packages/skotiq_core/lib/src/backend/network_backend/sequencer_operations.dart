@@ -42,6 +42,19 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     required Duration timeout,
   });
 
+  /// Implemented by [_NetworkBackendRemoteOperations].
+  Future<RemoteJob> awaitJobCompletion(
+    String jobId, {
+    Duration timeout,
+    Duration pollInterval,
+  });
+
+  /// Implemented by [_NetworkBackendRemoteOperations].
+  Map<String, dynamic> finishedJobResult(
+    RemoteJob job, {
+    required String operation,
+  });
+
   @override
   Future<PlateSolveResult> plateSolve({
     required String imagePath,
@@ -57,11 +70,23 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       if (fovDegrees != null) 'fov': fovDegrees,
       if (timeoutSeconds != null) 'timeoutSeconds': timeoutSeconds,
     });
-    final response = await awaitJobResultOrLegacy(
-      start,
-      operation: 'plate solve',
-      timeout: Duration(seconds: (timeoutSeconds ?? 300) + 30),
-    );
+    final jobId = start['jobId'] as String?;
+    final Map<String, dynamic> response;
+    if (jobId == null || jobId.isEmpty) {
+      // A host that solved before answering sent the result itself.
+      response = start;
+    } else {
+      final job = await awaitJobCompletion(
+        jobId,
+        timeout: Duration(seconds: (timeoutSeconds ?? 300) + 30),
+      );
+      // A solve that found nothing ends its job `failed`, with the result
+      // the solver gave (and its reason) as the failure's details. That is
+      // an answer for the caller, not a broken request.
+      response =
+          _unsolvedPlateSolve(job) ??
+          finishedJobResult(job, operation: 'plate solve');
+    }
 
     // CD matrix + SIP distortion terms are enriched by the master
     // (`ImagingHandlers._plateSolveJson`). Tolerate their absence so an older
@@ -100,6 +125,17 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       sipApCoeffs: sipCoeffs('sipApCoeffs'),
       sipBpCoeffs: sipCoeffs('sipBpCoeffs'),
     );
+  }
+
+  /// The solver's own result for a plate-solve job that ended `failed`
+  /// because no solution was found, or null for any other outcome.
+  static Map<String, dynamic>? _unsolvedPlateSolve(RemoteJob job) {
+    final error = job.error;
+    if (job.state != 'failed' || error?['code'] != 'plate_solve_failed') {
+      return null;
+    }
+    final details = error?['details'];
+    return details is Map ? Map<String, dynamic>.from(details) : null;
   }
 
   // Plate solver setup
@@ -260,7 +296,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     String? filterwheelId,
     String? rotatorId,
     List<String>? filterNames,
-    Map<String, int>? filterFocusOffsets,
   }) async {
     await _post('sequencer/devices', {
       'cameraId': cameraId,
@@ -269,45 +304,17 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       'filterwheelId': filterwheelId,
       'rotatorId': rotatorId,
       'filterNames': filterNames,
-      'filterFocusOffsets': filterFocusOffsets,
     });
   }
 
   @override
-  Future<void> sequencerSetSafetyFailMode(String mode) async {
-    await _post('sequencer/safety-fail-mode', {'mode': mode});
-  }
-
-  @override
-  Future<void> sequencerSetStopOnQualityProblems(bool stop) async {
-    await _post('sequencer/quality-policy', {'stopOnQualityProblems': stop});
-  }
-
-  @override
-  Future<void> sequencerSetParkPolicy({
-    required bool parkOnUnsafeWeather,
-    required bool parkBeforeDawn,
-  }) async {
-    await _post('sequencer/park-policy', {
-      'parkOnUnsafeWeather': parkOnUnsafeWeather,
-      'parkBeforeDawn': parkBeforeDawn,
-    });
-  }
-
-  @override
-  Future<void> sequencerSetDeviceRetries({
-    required int cameraRetries,
-    required int filterWheelRetries,
-  }) async {
-    await _post('sequencer/device-retries', {
-      'cameraRetries': cameraRetries,
-      'filterWheelRetries': filterWheelRetries,
-    });
-  }
-
-  @override
-  Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {
-    await _post('sequencer/safety-check-interval', {'seconds': seconds});
+  Future<void> sequencerApplyRunConfig(String runConfigJson) {
+    // The host builds its run configuration from its own settings, which a
+    // linked client changes through the settings it shares with the host.
+    throw UnsupportedError(
+      'The run configuration is applied by the imaging host, not a linked '
+      'client.',
+    );
   }
 
   @override
@@ -325,51 +332,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> sequencerSetDecisionLoggingEnabled(bool enabled) async {
-    await _post('sequencer/decision-logging-enabled', {'enabled': enabled});
-  }
-
-  @override
-  Future<void> sequencerUpdateDitherConfig({
-    required double pixels,
-    required double settlePixels,
-    required double settleTime,
-    required double settleTimeout,
-    required bool raOnly,
-  }) async {
-    await _post('sequencer/update-dither-config', {
-      'pixels': pixels,
-      'settlePixels': settlePixels,
-      'settleTime': settleTime,
-      'settleTimeout': settleTimeout,
-      'raOnly': raOnly,
-    });
-  }
-
-  @override
-  Future<void> sequencerUpdateMeridianFlipConfig(String configJson) async {
-    await _post('sequencer/update-meridian-flip-config', {
-      'configJson': configJson,
-    });
-  }
-
-  @override
-  Future<void> sequencerUpdateLocation({
-    required double latitude,
-    required double longitude,
-  }) async {
-    await _post('sequencer/update-location', {
-      'latitude': latitude,
-      'longitude': longitude,
-    });
-  }
-
-  @override
-  Future<void> sequencerUpdateFilterOffsets(Map<String, int> offsets) async {
-    await _post('sequencer/update-filter-offsets', {'offsets': offsets});
-  }
-
-  @override
   Future<void> sequencerUpdatePendingIntegrationCarryOver(
     Map<String, Map<String, double>> carryOver,
   ) async {
@@ -378,73 +340,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     // surfaced rather than swallowed.
     await _post('sequencer/update-pending-integration-carry-over', {
       'carry_over': carryOver,
-    });
-  }
-
-  @override
-  Future<void> sequencerUpdateAutofocusInterval(int everyNFrames) async {
-    // Forwarded to the remote host's runtime-config update
-    // endpoint. Server side maps to api_sequencer_update_autofocus_interval.
-    await _post('sequencer/update-autofocus-interval', {
-      'everyNFrames': everyNFrames,
-    });
-  }
-
-  @override
-  Future<void> sequencerUpdateAutofocusConfig(String configJson) async {
-    await _post('sequencer/update-autofocus-config', {
-      'configJson': configJson,
-    });
-  }
-
-  @override
-  Future<void> sequencerUpdateDefaultQualityCheck({
-    double? hfrThreshold,
-    double? hfrBaselinePercent,
-    double? eccentricityThreshold,
-    int? starCountMin,
-    required int maxConsecutiveRejects,
-    required bool enabled,
-  }) async {
-    // Forwarded to the remote host. Server side maps to
-    // api_sequencer_update_default_quality_check.
-    await _post('sequencer/update-default-quality-check', {
-      'hfrThreshold': hfrThreshold,
-      'hfrBaselinePercent': hfrBaselinePercent,
-      'eccentricityThreshold': eccentricityThreshold,
-      'starCountMin': starCountMin,
-      'maxConsecutiveRejects': maxConsecutiveRejects,
-      'enabled': enabled,
-    });
-  }
-
-  @override
-  Future<void> sequencerUpdateRejectFolderPath(String? path) async {
-    // Forwarded to the remote host. Server side maps to
-    // api_sequencer_update_reject_folder_path.
-    await _post('sequencer/update-reject-folder-path', {'path': path});
-  }
-
-  @override
-  Future<void> sequencerUpdateObserverProfile({
-    String? observerName,
-    double? siteElevationM,
-    String? cameraMake,
-    String? cameraModel,
-    String? telescopeName,
-    double? telescopeFocalLengthMm,
-    double? telescopeApertureMm,
-  }) async {
-    // Forwarded to the remote host. Server side maps to
-    // api_sequencer_update_observer_profile.
-    await _post('sequencer/update-observer-profile', {
-      'observerName': observerName,
-      'siteElevationM': siteElevationM,
-      'cameraMake': cameraMake,
-      'cameraModel': cameraModel,
-      'telescopeName': telescopeName,
-      'telescopeFocalLengthMm': telescopeFocalLengthMm,
-      'telescopeApertureMm': telescopeApertureMm,
     });
   }
 
@@ -494,11 +389,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> sequencerSetWeatherResumeAfterSafeSecs(int seconds) async {
-    await _post('sequencer/weather-resume-after', {'seconds': seconds});
-  }
-
-  @override
   Future<String?> sequencerGetCloudMotionJson() async {
     // Fetched lazily by the dashboard tick. The remote
     // endpoint mirrors the local FRB call.
@@ -521,33 +411,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       if (error.httpStatus == 404) return null;
       rethrow;
     }
-  }
-
-  /// G2 (remote-only): fetch the master's currently-open editor sequence so a
-  /// slave connecting mid-session can seed its sequencer canvas immediately
-  /// instead of waiting for the master's next edit-triggered mirror frame.
-  ///
-  /// Returns the same payload shape the live editor mirror broadcasts over the
-  /// WS `/events` stream (`{sequence, databaseId?, isDirty}`), suitable for
-  /// feeding straight into `_applySequenceEditorMirror`. Returns `null` when no
-  /// sequence is open host-side (`{open: false}`) or the endpoint is missing on
-  /// an older headless host. Not part of the abstract backend — only a
-  /// NetworkBackend slave ever calls this.
-  Future<Map<String, dynamic>?> getOpenEditorSequence() async {
-    final response = await _get('sequencer/editor-sequence');
-    if (response['open'] != true) return null;
-    final sequence = response['sequence'];
-    if (sequence is! Map) return null;
-    return <String, dynamic>{
-      'sequence': Map<String, dynamic>.from(sequence),
-      if (response['databaseId'] is int) 'databaseId': response['databaseId'],
-      'isDirty': response['isDirty'] == true,
-      // Carry the active-plan owner through to _applySequenceEditorMirror so a
-      // mid-session slave learns who owns the host's plan on connect. Absent on
-      // an older host -> parsed back to manual by ActivePlanOwnerWire.fromWire.
-      if (response['activePlanOwner'] != null)
-        'activePlanOwner': response['activePlanOwner'],
-    };
   }
 
   /// Remote-only: put this client's open plan into the host's sequence
@@ -641,34 +504,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> sequencerUpdateDefaultAdaptiveExposure({
-    required bool enabled,
-    required double targetSnr,
-    required double referenceSkyBrightnessMag,
-    required double minExposureSecs,
-    required double maxExposureSecs,
-    required Map<String, bool> perFilterEnabled,
-    required Map<String, double> perFilterMinSecs,
-    required Map<String, double> perFilterMaxSecs,
-  }) async {
-    await _post('sequencer/update-default-adaptive-exposure', {
-      'enabled': enabled,
-      'targetSnr': targetSnr,
-      'referenceSkyBrightnessMag': referenceSkyBrightnessMag,
-      'minExposureSecs': minExposureSecs,
-      'maxExposureSecs': maxExposureSecs,
-      'perFilterEnabled': perFilterEnabled,
-      'perFilterMinSecs': perFilterMinSecs,
-      'perFilterMaxSecs': perFilterMaxSecs,
-    });
-  }
-
-  @override
-  Future<void> sequencerClearDefaultAdaptiveExposure() async {
-    await _post('sequencer/clear-default-adaptive-exposure', const {});
-  }
-
-  @override
   Future<void> recoveryTryNow() async {
     await _post('sequencer/recovery/try-now', const {});
   }
@@ -676,25 +511,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   @override
   Future<void> recoveryAbort() async {
     await _post('sequencer/recovery/abort', const {});
-  }
-
-  @override
-  Future<void> updateRecoveryConfig({
-    required double retryIntervalSecs,
-    required double maxDurationSecs,
-    required bool stopTrackingDuringRecovery,
-    required bool abortOnMeridian,
-    required bool audibleAlertWhenEntered,
-    required bool parkAndCloseWhenRecoveryGivesUp,
-  }) async {
-    await _post('sequencer/recovery/update-config', {
-      'retryIntervalSecs': retryIntervalSecs,
-      'maxDurationSecs': maxDurationSecs,
-      'stopTrackingDuringRecovery': stopTrackingDuringRecovery,
-      'abortOnMeridian': abortOnMeridian,
-      'audibleAlertWhenEntered': audibleAlertWhenEntered,
-      'parkAndCloseWhenRecoveryGivesUp': parkAndCloseWhenRecoveryGivesUp,
-    });
   }
 
   @override

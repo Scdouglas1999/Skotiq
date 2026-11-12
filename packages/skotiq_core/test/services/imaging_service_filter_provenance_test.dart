@@ -136,8 +136,9 @@ void main() {
         deviceId: any(named: 'deviceId'),
         filePath: any(named: 'filePath'),
         headerData: any(named: 'headerData'),
+        keepCameraFile: any(named: 'keepCameraFile'),
       ),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
   });
 
   tearDown(() => events.close());
@@ -183,6 +184,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: captureAny(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).captured.single
         as FitsWriteHeader;

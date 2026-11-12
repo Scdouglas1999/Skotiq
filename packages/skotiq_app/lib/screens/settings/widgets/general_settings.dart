@@ -7,9 +7,7 @@ import '../../../localization/skotiq_localizations.dart';
 import 'settings_widgets.dart';
 
 class GeneralSettings extends ConsumerWidget {
-  final bool isMobile;
-
-  const GeneralSettings({super.key, this.isMobile = false});
+  const GeneralSettings({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,21 +16,17 @@ class GeneralSettings extends ConsumerWidget {
     final l10n = context.l10n;
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: isMobile),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
       data: (settings) => SettingsPage(
         title: l10n.text('generalTitle'),
         description: l10n.text('generalDescription'),
-        isMobile: isMobile,
-        hideHeader: isMobile,
         children: [
           SettingsSection(
             title: l10n.text('generalStartup'),
-            isMobile: isMobile,
             children: [
               // `start_minimized` is intentionally non-remotable (host-only);
               // hide the row over a remote session so it can't throw.
@@ -49,7 +43,6 @@ class GeneralSettings extends ConsumerWidget {
                           .setStartMinimized(value);
                     },
                   ),
-                  isMobile: isMobile,
                 ),
               SettingRow(
                 icon: LucideIcons.plug,
@@ -64,13 +57,11 @@ class GeneralSettings extends ConsumerWidget {
                   },
                 ),
                 isLast: true,
-                isMobile: isMobile,
               ),
             ],
           ),
           SettingsSection(
             title: l10n.text('generalBehavior'),
-            isMobile: isMobile,
             children: [
               SettingRow(
                 icon: LucideIcons.languages,
@@ -100,7 +91,6 @@ class GeneralSettings extends ConsumerWidget {
                   width: 150,
                 ),
                 isLast: isRemoteMode,
-                isMobile: isMobile,
               ),
               // `confirm_before_closing` is intentionally non-remotable
               // (host-only); hide the row over a remote session.
@@ -118,7 +108,6 @@ class GeneralSettings extends ConsumerWidget {
                     },
                   ),
                   isLast: true,
-                  isMobile: isMobile,
                 ),
             ],
           ),

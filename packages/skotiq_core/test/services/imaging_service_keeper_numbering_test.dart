@@ -166,11 +166,13 @@ void main() {
         deviceId: any(named: 'deviceId'),
         filePath: any(named: 'filePath'),
         headerData: any(named: 'headerData'),
+        keepCameraFile: any(named: 'keepCameraFile'),
       ),
     ).thenAnswer((invocation) async {
       final path = invocation.namedArguments[#filePath] as String;
       writtenPaths.add(path);
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
     });
   });
 

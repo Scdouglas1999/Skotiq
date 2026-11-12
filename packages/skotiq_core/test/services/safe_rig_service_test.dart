@@ -105,7 +105,10 @@ void main() {
             captureBackendNotifier?.call(notifier);
             return notifier;
           }),
-          sequenceExecutionStateProvider.overrideWith((ref) => executionState),
+          runRecordProvider.overrideWith(
+            (ref) =>
+                RunRecordNotifier(ref, RunRecord(lifecycle: executionState)),
+          ),
           cameraStateProvider.overrideWith((ref) {
             final n = CameraStateNotifier(ref);
             if (cameraConnected) {
@@ -153,10 +156,7 @@ void main() {
           safeRigServiceProvider.overrideWith((ref) {
             ref.watch(backendProvider);
             return safeRigBuilder?.call(ref) ??
-                SafeRigService(
-                  ref,
-                  stopSecondaryRig: _noopSecondaryRigStop,
-                );
+                SafeRigService(ref, stopSecondaryRig: _noopSecondaryRigStop);
           }),
         ],
       );
@@ -402,10 +402,8 @@ void main() {
     test('a running secondary rig still has its mount parked', () async {
       final container = makeContainer(
         executionState: SequenceExecutionState.idle,
-        safeRigBuilder: (ref) => SafeRigService(
-          ref,
-          stopSecondaryRig: () async => true,
-        ),
+        safeRigBuilder: (ref) =>
+            SafeRigService(ref, stopSecondaryRig: () async => true),
       );
       addTearDown(container.dispose);
 

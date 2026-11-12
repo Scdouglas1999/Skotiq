@@ -7,7 +7,9 @@ use skotiq_imaging::stack_master::{write_stack_master, FrameProvenance};
 use skotiq_imaging::stacking::{
     debayer_cfa_to_rgb, LiveStackConfig, LiveStacker, SensorMode, StackingStats,
 };
-use skotiq_imaging::{read_image, BayerPattern, DebayerAlgorithm, ImageData, StarDetectionConfig};
+use skotiq_imaging::{
+    read_image, BayerPattern, ColorFilterArray, DebayerAlgorithm, ImageData, StarDetectionConfig,
+};
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
@@ -21,7 +23,7 @@ use std::sync::OnceLock;
 /// channel, byte-for-byte as before OSC support existed.
 #[derive(Debug, Clone, Copy)]
 struct ColorIngest {
-    pattern: BayerPattern,
+    pattern: ColorFilterArray,
     algorithm: DebayerAlgorithm,
 }
 
@@ -34,7 +36,6 @@ struct StackerSession {
     color: Option<ColorIngest>,
 }
 
-/// Global live stacker instance
 static LIVE_STACKER: OnceLock<Mutex<Option<StackerSession>>> = OnceLock::new();
 
 fn get_stacker_lock() -> &'static Mutex<Option<StackerSession>> {
@@ -67,6 +68,12 @@ pub struct LiveStackingStatsApi {
     pub avg_matched_pairs: f64,
     pub avg_alignment_residual: f64,
     pub total_sigma_rejected_pixels: u64,
+    /// Frames left out for being taken through another filter than the stack's.
+    pub other_filter_frames: u32,
+    /// The filter of the most recent such frame.
+    pub last_other_filter: Option<String>,
+    /// The filter the stack is of; `None` when its reference named none.
+    pub filter: Option<String>,
 }
 
 impl From<StackingStats> for LiveStackingStatsApi {
@@ -78,6 +85,9 @@ impl From<StackingStats> for LiveStackingStatsApi {
             avg_matched_pairs: s.avg_matched_pairs,
             avg_alignment_residual: s.avg_alignment_residual,
             total_sigma_rejected_pixels: s.total_sigma_rejected_pixels,
+            other_filter_frames: s.other_filter_frames,
+            last_other_filter: s.last_other_filter,
+            filter: s.filter,
         }
     }
 }
@@ -248,7 +258,7 @@ pub fn stacking_start(
     // Resolve whether this session debayers, and with which pattern/algorithm.
     //
     // The pattern is the config override first, then the reference frame's
-    // effective (offset-corrected) FITS BAYERPAT geometry.
+    // color filter (offset-corrected `BAYERPAT`, Bayer or X-Trans).
     //
     //   * Osc — *must* debayer; an unresolvable pattern is a hard error
     //     (debayering with a guessed mosaic would corrupt colour, and silently
@@ -257,8 +267,10 @@ pub fn stacking_start(
     //     frame carries Bayer geometry); otherwise stack as mono. A missing
     //     pattern is *not* an error.
     //   * Mono — never debayers, regardless of any override.
-    let frame_pattern = read_result.bayer.map(|geo| geo.effective);
-    let resolved_pattern = native_config.bayer_pattern.or(frame_pattern);
+    let resolved_pattern = native_config
+        .bayer_pattern
+        .map(ColorFilterArray::Bayer)
+        .or(read_result.cfa);
 
     let color = match native_config.sensor_mode {
         SensorMode::Osc => match resolved_pattern {
@@ -337,7 +349,7 @@ pub fn stacking_start_from_data(
     //     (there is nothing to auto-detect from a raw u16 buffer).
     //   * Mono — never debayers.
     let color = match native_config.sensor_mode {
-        SensorMode::Osc => match native_config.bayer_pattern {
+        SensorMode::Osc => match native_config.bayer_pattern.map(ColorFilterArray::Bayer) {
             Some(pattern) => Some(ColorIngest {
                 pattern,
                 algorithm: native_config.demosaic_algorithm,
@@ -351,7 +363,7 @@ pub fn stacking_start_from_data(
             }
         },
         SensorMode::Auto => native_config.bayer_pattern.map(|pattern| ColorIngest {
-            pattern,
+            pattern: ColorFilterArray::Bayer(pattern),
             algorithm: native_config.demosaic_algorithm,
         }),
         SensorMode::Mono => None,
@@ -464,7 +476,6 @@ pub fn stacking_add_frame_from_data(
     })
 }
 
-/// Result from adding a frame to the stack
 #[derive(Debug, Clone)]
 pub struct LiveStackingAddFrameResult {
     pub width: u32,
@@ -698,8 +709,6 @@ mod tests {
         data
     }
 
-    // Config From-parse
-
     #[test]
     fn config_parses_valid_demosaic_qualities() {
         for (q, expected) in [
@@ -855,7 +864,7 @@ mod tests {
         // the ingest path debayers with no extra processing on the first frame.
         let reference_rgb = debayer_cfa_to_rgb(
             &ImageData::from_u16(IMG_W, IMG_H, 1, &cfa),
-            BayerPattern::RGGB,
+            ColorFilterArray::Bayer(BayerPattern::RGGB),
             DebayerAlgorithm::Bilinear,
         )
         .expect("reference debayer")
@@ -878,7 +887,7 @@ mod tests {
         let cfa = uniform_rggb_cfa(8, 8);
         let rgb = debayer_cfa_to_rgb(
             &ImageData::from_u16(8, 8, 1, &cfa),
-            BayerPattern::RGGB,
+            ColorFilterArray::Bayer(BayerPattern::RGGB),
             DebayerAlgorithm::Bilinear,
         )
         .expect("debayer")
@@ -1086,7 +1095,7 @@ mod tests {
         assert_eq!(saved.total_integration_secs, 240.0);
         assert_eq!(saved.date_obs, "2026-08-14T03:22:30.000");
 
-        let (image, header) = skotiq_imaging::read_fits(&master).expect("master reads back");
+        let (image, header) = skotiq_imaging::read_frame(&master).expect("master reads back");
         assert_eq!(image.width, IMG_W);
         assert_eq!(header.get_float("EXPTIME"), Some(240.0));
         assert_eq!(
@@ -1094,6 +1103,49 @@ mod tests {
             Some("2026-08-14T03:22:30.000")
         );
         assert_eq!(header.get_int("NFRAMES"), Some(2));
+
+        let _ = stacking_stop();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The file path is how every capture reaches the live stack (a snapshot,
+    /// a sequence frame, the host's own feed), so the frame's `FILTER` header
+    /// is what keeps a frame of another filter out of it.
+    #[test]
+    fn a_frame_file_of_another_filter_does_not_enter_the_stack() {
+        let _g = singleton_guard();
+        let _ = stacking_stop();
+
+        let dir = std::env::temp_dir().join("sk-bridge-stack-filter");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let write = |name: &str, filter: &str| {
+            let path = dir.join(name);
+            let image = ImageData::from_u16(IMG_W, IMG_H, 1, &make_star_plane(IMG_W, IMG_H));
+            let mut header = skotiq_imaging::FitsHeader::new();
+            header.set_float("EXPTIME", 60.0);
+            header.set_string("FILTER", filter);
+            skotiq_imaging::write_fits(&path, &image, &header).expect("light frame written");
+            path.to_string_lossy().to_string()
+        };
+        let reference = write("l1.fits", "L");
+        let same = write("l2.fits", "L");
+        let other = write("r1.fits", "R");
+
+        let started = stacking_start(reference, base_config().clone()).expect("stack started");
+        assert_eq!(started.filter.as_deref(), Some("L"));
+        stacking_add_frame(same).expect("an L frame stacks");
+
+        let refusal = stacking_add_frame(other).expect_err("an R frame is left out");
+        assert!(
+            refusal.starts_with(skotiq_imaging::stacking::OTHER_FILTER_REFUSAL),
+            "unexpected refusal: {refusal}"
+        );
+        let stats = stacking_get_stats().expect("stats");
+        assert_eq!(stats.stacked_frame_count, 2);
+        assert_eq!(stats.total_frames_attempted, 2);
+        assert_eq!(stats.rejected_alignment_failures, 0);
+        assert_eq!(stats.other_filter_frames, 1);
+        assert_eq!(stats.last_other_filter.as_deref(), Some("R"));
 
         let _ = stacking_stop();
         let _ = std::fs::remove_dir_all(&dir);

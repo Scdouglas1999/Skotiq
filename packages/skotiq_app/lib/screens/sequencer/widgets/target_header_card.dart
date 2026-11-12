@@ -5,7 +5,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../framing/altitude_chart.dart';
 import 'notes_panel.dart';
-import '../plan_math.dart';
 import 'target_coordinates.dart';
 
 /// A rich card widget for displaying target header nodes in the sequencer.

@@ -256,12 +256,16 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Without a dark slot in the filter wheel',
   ],
   'equipment-profiles': [
+    'Aperture (mm)',
     'Camera defaults',
-    'Device assignments',
-    'Equipment profiles',
-    'Filter configuration',
-    'Filter focus offsets',
-    'Optical configuration',
+    'Devices',
+    'Focal length (mm)',
+    'Optical train',
+    'Profile identity',
+    'Profiles',
+    'Reducer or barlow factor',
+    'Set as the active profile on startup',
+    'stored in the profile',
   ],
   'files-storage': [
     'Application data',
@@ -353,10 +357,15 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'imaging': [
     'Archive format',
-    'Captured images are saved as lossless 16-bit FITS files',
+    'Camera raw files',
     'File format',
     'File naming pattern',
+    'For DSLR and mirrorless cameras. The raw file is',
     'Imaging',
+    'Smaller files at no cost to the pixels. Byte shuffling helps',
+    'Store a SHA-1 checksum with each frame so damage on disk is',
+    'XISF checksums',
+    'XISF compression',
   ],
   'integrations': [
     'Application token',
@@ -527,9 +536,10 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Use TLS',
     'User key',
     'Username override',
+    'Uses the imaging host\'s MQTT broker and its password.',
     'Weather unsafe',
     'Webhook URL',
-    'When off, no per-category routing fires (legacy push still works)',
+    'When off, nothing is sent to any transport',
     'Which of these decides where an alert goes',
     'Which sound to play when critical events fire',
     'Write-only secret stored on the imaging host.',
@@ -681,7 +691,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Your 3-character MPC observatory code (e.g.,',
     'Your assigned AAVSO observer initials (1-5 chars,',
     'Your Sky atlas',
-    'Your Sky size limit (GB)',
     'Your Sky storage',
     'Your TNS bot id (tns_marker tns_id).',
     'Your TNS bot name (tns_marker name).',
@@ -698,7 +707,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Autofocus cadence (frames)',
     'Average is fastest; Median + Rejection and Sigma',
     'Camera retries',
-    'Default broadcast port',
     'Default per-target imaging budget the wizard uses.',
     'Default stack method',
     'Default thumbnail size',
@@ -740,7 +748,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Plate solve and re-center target after flip',
     'Play sound when flip starts/completes/fails',
     'Polar alignment stale after',
-    'Port used by newly-created LiveStacking nodes.',
     'Prompt for notes after run',
     'Public by default',
     'Push notification',
@@ -954,7 +961,11 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Reject folder path',
   },
   'imaging': {
-    'Captured images are saved as lossless 16-bit FITS files': 'Archive format',
+    'For DSLR and mirrorless cameras. The raw file is': 'Camera raw files',
+    'Smaller files at no cost to the pixels. Byte shuffling helps':
+        'XISF compression',
+    'Store a SHA-1 checksum with each frame so damage on disk is':
+        'XISF checksums',
   },
   'integrations': {
     'Open Skotiq on the rig to enable plugins and enter':
@@ -1021,7 +1032,9 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Webhook URL',
     'This broker is separate from notification MQTT on':
         'Runs on the imaging host',
-    'When off, no per-category routing fires (legacy push still works)':
+    'Uses the imaging host\'s MQTT broker and its password.':
+        'Publish to Home Assistant',
+    'When off, nothing is sent to any transport':
         'Notification routing enabled',
     'Which sound to play when critical events fire': 'Alert sound',
     'Write-only secret stored on the imaging host.': 'Broker password',
@@ -1068,8 +1081,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Deep catalog lookups (APASS DR9)',
     'Generate SII/Ha, OIII/Ha, and SII/OIII products': 'Narrowband line ratios',
     'Map catalog offsets across each solved frame': 'Astrometric residuals',
-    'New frames stop being added to the atlas when it':
-        'Your Sky size limit (GB)',
     'Off unless you turn it on. Stacks each accepted,': 'Your Sky atlas',
     'Reference catalog your solver uses (ADES astCat, e.g.':
         'Astrometric catalog',
@@ -1121,7 +1132,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Park on unsafe weather',
     'Plate solve and re-center target after flip': 'Recenter after flip',
     'Play sound when flip starts/completes/fails': 'Sound alert',
-    'Port used by newly-created LiveStacking nodes.': 'Default broadcast port',
     'Rendered on the broadcast JPEG. Variable interpolation':
         'Default watermark template',
     'Restart autoguider if it was running': 'Resume guiding after flip',

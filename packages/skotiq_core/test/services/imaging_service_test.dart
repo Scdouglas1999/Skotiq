@@ -9,8 +9,9 @@ import 'package:path/path.dart' as path;
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_exception.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
-import 'package:skotiq_core/src/models/equipment_profile.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
+import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
@@ -576,12 +577,12 @@ void main() {
     );
 
     test(
-      'backend switch while loading remote profile prevents retired FITS save',
+      'a backend switch while the profiles load prevents the retired FITS save',
       () async {
         final remoteBackend = _MockNetworkBackend();
         final remoteEvents = StreamController<SkotiqEvent>.broadcast();
         addTearDown(remoteEvents.close);
-        final activeProfile = Completer<EquipmentProfile?>();
+        final profiles = Completer<EquipmentProfilesState>();
         _stubHostRoots(remoteBackend);
 
         when(
@@ -615,9 +616,6 @@ void main() {
           () => remoteBackend.cameraGetLastImage(any()),
         ).thenAnswer((_) async => makeCapturedImageResult());
         when(
-          remoteBackend.getActiveProfile,
-        ).thenAnswer((_) => activeProfile.future);
-        when(
           () => remoteBackend.cameraAbortExposure(any()),
         ).thenAnswer((_) async {});
         when(
@@ -625,8 +623,9 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
         late TestBackendNotifier remoteBackendNotifier;
         final remoteContainer = ProviderContainer(
@@ -650,6 +649,9 @@ void main() {
             scienceProcessingServiceProvider.overrideWith(
               (ref) => _NoOpScienceProcessingService(ref),
             ),
+            equipmentProfilesProvider.overrideWith(
+              () => _PendingProfiles(profiles.future),
+            ),
           ],
         );
         addTearDown(remoteContainer.dispose);
@@ -663,12 +665,17 @@ void main() {
                 offset: 10,
               ),
             );
-        await untilCalled(remoteBackend.getActiveProfile);
+        // The capture has its frame and is waiting on the profiles for the
+        // header when the host changes.
+        await untilCalled(() => remoteBackend.cameraGetLastImage(any()));
+        await pumpEventQueue();
 
         final replacementBackend = MockBackend();
         remoteBackendNotifier.replaceBackend(replacementBackend);
-        activeProfile.complete(
-          const EquipmentProfile(id: 'old', name: 'Old Host Profile'),
+        profiles.complete(
+          const EquipmentProfilesState(
+            activeProfile: EquipmentProfileModel(name: 'Old Host Profile'),
+          ),
         );
 
         expect(await capture, isNull);
@@ -677,6 +684,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         );
         verifyNever(
@@ -684,6 +692,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         );
       },
@@ -725,22 +734,14 @@ void main() {
       when(
         () => remoteBackend.cameraGetLastImage(any()),
       ).thenAnswer((_) async => makeCapturedImageResult());
-      when(remoteBackend.getActiveProfile).thenAnswer(
-        (_) async => const EquipmentProfile(
-          id: 'host-profile',
-          name: 'Remote Rig',
-          telescopeName: 'Remote RC10',
-          focalLength: 2000,
-          aperture: 250,
-        ),
-      );
       when(
         () => remoteBackend.saveFitsFromLastCapture(
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -759,6 +760,21 @@ void main() {
           ),
           scienceProcessingServiceProvider.overrideWith(
             (ref) => _NoOpScienceProcessingService(ref),
+          ),
+          // What the profiles provider holds when linked: the host's profile.
+          equipmentProfilesProvider.overrideWith(
+            () => _PendingProfiles(
+              Future.value(
+                const EquipmentProfilesState(
+                  activeProfile: EquipmentProfileModel(
+                    name: 'Remote Rig',
+                    telescopeName: 'Remote RC10',
+                    focalLength: 2000,
+                    aperture: 250,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       );
@@ -781,6 +797,7 @@ void main() {
                   deviceId: 'remote-camera',
                   filePath: any(named: 'filePath'),
                   headerData: captureAny(named: 'headerData'),
+                  keepCameraFile: any(named: 'keepCameraFile'),
                 ),
               ).captured.single
               as FitsWriteHeader;
@@ -830,8 +847,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       late _RecordingScienceProcessingService science;
       final remoteContainer = ProviderContainer(
@@ -929,8 +947,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -972,6 +991,7 @@ void main() {
           deviceId: 'native:zwo:1',
           filePath: hostPath,
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).called(1);
     });
@@ -1064,9 +1084,11 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async {
         sentPaths.add(invocation.namedArguments[#filePath] as String);
+        return invocation.namedArguments[#filePath] as String;
       });
 
       final remoteContainer = ProviderContainer(
@@ -1229,8 +1251,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final service = container.read(imagingServiceProvider);
       await service.captureImage(settings: settings, targetName: 'M31');
@@ -1285,8 +1308,9 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
         SkotiqEvent completionFrom(String deviceId) => SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -1362,8 +1386,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(
@@ -1419,6 +1444,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenThrow(Exception('disk full'));
 
@@ -1484,6 +1510,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenThrow(Exception('read-only output folder'));
         final errors = <String>[];
@@ -1543,8 +1570,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       // Verify currentImageProvider is null initially
       expect(container.read(currentImageProvider), isNull);
@@ -1737,8 +1765,9 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
         final service = container.read(imagingServiceProvider);
 
@@ -1833,8 +1862,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(settings: settings);
@@ -1892,11 +1922,13 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenAnswer((invocation) async {
           headers.add(
             invocation.namedArguments[#headerData] as FitsWriteHeader,
           );
+          return invocation.namedArguments[#filePath] as String;
         });
 
         final service = container.read(imagingServiceProvider);
@@ -1956,9 +1988,11 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async {
         headers.add(invocation.namedArguments[#headerData] as FitsWriteHeader);
+        return invocation.namedArguments[#filePath] as String;
       });
 
       final service = container.read(imagingServiceProvider);
@@ -2025,8 +2059,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
     }
 
     setUp(() {
@@ -2257,8 +2292,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       const settings = ExposureSettings(
         exposureTime: 5.0,
@@ -2507,8 +2543,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);
@@ -2579,8 +2616,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final capturedImages = <CapturedImageData>[];
       final errors = <String>[];
@@ -2640,8 +2678,9 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);
@@ -3210,4 +3249,14 @@ void main() {
       expect(subs[r'$TIME'], '23-59-59');
     });
   });
+}
+
+/// Profiles that finish loading when [loaded] does.
+class _PendingProfiles extends EquipmentProfilesNotifier {
+  _PendingProfiles(this.loaded);
+
+  final Future<EquipmentProfilesState> loaded;
+
+  @override
+  Future<EquipmentProfilesState> build() => loaded;
 }

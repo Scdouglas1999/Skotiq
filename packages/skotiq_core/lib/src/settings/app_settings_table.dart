@@ -4,10 +4,11 @@
 /// `SKOTIQ_REGENERATE=1 flutter test test/settings/app_settings_generated_test.dart`
 /// in `packages/skotiq_core`. The entry gives `AppSettingsState` its field
 /// (the `///` lines above the entry become the field's documentation), and
-/// the stored row, the install seed, the host/client wire value and the push
-/// to the executor all follow from it. A setting a linked client can change
-/// also needs a field of the same wire name on the wire model
-/// (`models/settings/app_settings.dart`); a test fails if one is missing.
+/// the stored row, the install seed, the host/client wire value and, with a
+/// `runConfig` path, its place in the executor's run configuration all follow
+/// from it. A setting a linked client can change also needs a field of the
+/// same wire name on the wire model (`models/settings/app_settings.dart`); a
+/// test fails if one is missing.
 library;
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
@@ -48,6 +49,7 @@ const List<Setting<Object?>> kAppSettingsTable = [
     true,
     seeded: true,
   ),
+
   /// `dark` or `light`.
   TextSetting('theme', 'theme', 'dark', clientKeepsOwn: true, seeded: true),
 
@@ -88,27 +90,9 @@ const List<Setting<Object?>> kAppSettingsTable = [
     clientKeepsOwn: true,
     seeded: true,
   ),
-  DoubleSetting(
-    'latitude',
-    'observer_latitude',
-    0.0,
-    feeds: ExecutorConfig.location,
-    seeded: true,
-  ),
-  DoubleSetting(
-    'longitude',
-    'observer_longitude',
-    0.0,
-    feeds: ExecutorConfig.location,
-    seeded: true,
-  ),
-  DoubleSetting(
-    'elevation',
-    'observer_elevation',
-    0.0,
-    feeds: ExecutorConfig.observerProfile,
-    seeded: true,
-  ),
+  DoubleSetting('latitude', 'observer_latitude', 0.0, seeded: true),
+  DoubleSetting('longitude', 'observer_longitude', 0.0, seeded: true),
+  DoubleSetting('elevation', 'observer_elevation', 0.0, seeded: true),
   TextSetting('timezone', 'timezone', 'UTC', seeded: true),
   BoolSetting('useSystemTime', 'use_system_time', true, seeded: true),
   TextSetting(
@@ -117,6 +101,30 @@ const List<Setting<Object?>> kAppSettingsTable = [
     kCaptureImageFormat,
     normalize: normalizeCaptureImageFormat,
     seeded: true,
+    runConfig: 'frame_format.format',
+  ),
+
+  /// What a frame from a camera that delivers its own raw file is saved as
+  /// (see [CameraFileSaving]), by sequences and manual captures alike.
+  TextSetting(
+    'cameraFileSaving',
+    'camera_file_saving',
+    'converted',
+    normalize: normalizeCameraFileSaving,
+    runConfig: 'camera_file_saving',
+  ),
+  TextSetting(
+    'xisfCompression',
+    'xisf_compression',
+    kXisfCompressionNone,
+    normalize: normalizeXisfCompression,
+    runConfig: 'frame_format.xisf_compression',
+  ),
+  BoolSetting(
+    'xisfChecksums',
+    'xisf_checksums',
+    false,
+    runConfig: 'frame_format.xisf_checksums',
   ),
   TextSetting(
     'fileNamingPattern',
@@ -136,15 +144,14 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'parkOnUnsafeWeather',
     'park_on_unsafe_weather',
     true,
-    feeds: ExecutorConfig.parkPolicy,
     seeded: true,
   ),
   BoolSetting(
     'parkBeforeDawn',
     'park_before_dawn',
     true,
-    feeds: ExecutorConfig.parkPolicy,
     seeded: true,
+    runConfig: 'park_policy.park_before_dawn',
   ),
 
   /// Whether a quality problem the sequencer judges — guiding RMS over the
@@ -155,8 +162,8 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'stopRunOnQualityProblems',
     'stop_run_on_quality_problems',
     false,
-    feeds: ExecutorConfig.qualityPolicy,
     seeded: true,
+    runConfig: 'stop_on_quality_problems',
   ),
 
   /// A run held by a mount fault solves, syncs and resumes on its own. Off
@@ -181,7 +188,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'useFilterFocusOffsets',
     'use_filter_focus_offsets',
     true,
-    feeds: ExecutorConfig.filterOffsets,
     seeded: true,
   ),
   IntSetting(
@@ -201,8 +207,8 @@ const List<Setting<Object?>> kAppSettingsTable = [
     kDefaultDeviceRetries,
     min: 0,
     max: kMaxDeviceRetries,
-    feeds: ExecutorConfig.deviceRetries,
     seeded: true,
+    runConfig: 'device_retry.camera_retries',
   ),
 
   /// Times a failed filter-wheel move is retried before it counts as a
@@ -213,8 +219,8 @@ const List<Setting<Object?>> kAppSettingsTable = [
     kDefaultDeviceRetries,
     min: 0,
     max: kMaxDeviceRetries,
-    feeds: ExecutorConfig.deviceRetries,
     seeded: true,
+    runConfig: 'device_retry.filter_wheel_retries',
   ),
 
   /// What a run does when safety data is unavailable.
@@ -223,7 +229,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'safety_fail_mode',
     SafetyFailMode.failClosed,
     SafetyFailMode.values,
-    feeds: ExecutorConfig.safetyFailMode,
     seeded: true,
   ),
   // Sequencer editor layout — cross-restart UI persistence.
@@ -284,11 +289,24 @@ const List<Setting<Object?>> kAppSettingsTable = [
     null,
     sync: SettingSync.thisComputer,
   ),
+
   /// The label of the native plate-solver preference, kept as a stored copy
   /// for export. The preference itself is the authority.
   TextSetting('plateSolver', 'plate_solver', 'ASTAP', seed: 'Auto'),
-  TextSetting('astapPath', 'astap_path', '', seeded: true),
-  TextSetting('astrometryPath', 'astrometry_path', '', seeded: true),
+  TextSetting(
+    'astapPath',
+    'astap_path',
+    '',
+    seeded: true,
+    adminOnly: AdminOnly.hostProgram,
+  ),
+  TextSetting(
+    'astrometryPath',
+    'astrometry_path',
+    '',
+    seeded: true,
+    adminOnly: AdminOnly.hostProgram,
+  ),
   IntSetting('plateSolveTimeout', 'plate_solve_timeout', 60, seeded: true),
   DoubleSetting(
     'plateSolveSearchRadius',
@@ -298,7 +316,13 @@ const List<Setting<Object?>> kAppSettingsTable = [
   ),
   BoolSetting('blindSolve', 'blind_solve', false, seeded: true),
   BoolSetting('centeringSyncMount', 'centering_sync_mount', true, seeded: true),
-  TextSetting('phd2Path', 'phd2_path', '', seeded: true),
+  TextSetting(
+    'phd2Path',
+    'phd2_path',
+    '',
+    seeded: true,
+    adminOnly: AdminOnly.hostProgram,
+  ),
   TextSetting('phd2Host', 'phd2_host', 'localhost', seeded: true),
   IntSetting('phd2Port', 'phd2_port', 4400, seeded: true),
   BoolSetting(
@@ -312,21 +336,21 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'discord_webhook',
     '',
     seeded: true,
-    credential: true,
+    adminOnly: AdminOnly.credential,
   ),
   TextSetting(
     'pushoverKey',
     'pushover_key',
     '',
     seeded: true,
-    credential: true,
+    adminOnly: AdminOnly.credential,
   ),
   TextSetting(
     'pushoverUser',
     'pushover_user',
     '',
     seeded: true,
-    credential: true,
+    adminOnly: AdminOnly.credential,
   ),
   BoolSetting(
     'notifyOnSequenceComplete',
@@ -398,13 +422,21 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'catalog_base_url',
     '',
     sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.administration,
   ),
-  BoolSetting('webServerEnabled', 'web_server_enabled', false, seeded: true),
+  BoolSetting(
+    'webServerEnabled',
+    'web_server_enabled',
+    false,
+    seeded: true,
+    adminOnly: AdminOnly.administration,
+  ),
   IntSetting(
     'webServerPort',
     'web_server_port',
     kDefaultHeadlessPort,
     seeded: true,
+    adminOnly: AdminOnly.administration,
   ),
   IntSetting('defaultGain', 'default_gain', 100, seeded: true),
   IntSetting('defaultOffset', 'default_offset', 50, seeded: true),
@@ -513,13 +545,19 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'recoveryStopTrackingDuringRecovery',
     'recovery_stop_tracking_during_recovery_v2',
     false,
+    runConfig: 'recovery.stop_tracking_during_recovery',
   ),
 
   /// When true, an imminent meridian crossing inside the recovery window
   /// aborts the loop instead of trying to retry across the flip. SGP
   /// behaviour: a recovery loop that straddles a flip leaves the rig in
   /// an unpredictable state.
-  BoolSetting('recoveryAbortOnMeridian', 'recovery_abort_on_meridian', true),
+  BoolSetting(
+    'recoveryAbortOnMeridian',
+    'recovery_abort_on_meridian',
+    true,
+    runConfig: 'recovery.abort_on_meridian',
+  ),
 
   /// When true, ring the platform alert sound on recovery entry. Reuses
   /// the existing critical-alert path so the user setting is unified
@@ -528,6 +566,19 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'recoveryAudibleAlertWhenEntered',
     'recovery_audible_alert_when_entered',
     true,
+    runConfig: 'recovery.audible_alert_when_entered',
+  ),
+
+  /// When a recovery that cannot fix the problem gives up, park the mount and
+  /// close the cover and dome before the run fails. Off by default: the run
+  /// fails and the rig is left for the operator. No page offers it; it is an
+  /// explicit choice made in the host's store.
+  BoolSetting(
+    'recoveryParkAndCloseWhenGivesUp',
+    'recovery_park_and_close_when_gives_up',
+    false,
+    sync: SettingSync.hostStore,
+    runConfig: 'recovery.park_and_close_when_recovery_gives_up',
   ),
   TextSetting('afMethod', 'af_method', 'Star HFR', seeded: true),
   TextSetting('afCurveFitting', 'af_curve_fitting', 'Hyperbolic', seeded: true),
@@ -618,32 +669,16 @@ const List<Setting<Object?>> kAppSettingsTable = [
     '',
     seeded: true,
   ),
-  TextSetting(
-    'afFilterSettingsJson',
-    'af_filter_settings',
-    '{}',
-    feeds: ExecutorConfig.filterOffsets,
-    seeded: true,
-  ),
+  TextSetting('afFilterSettingsJson', 'af_filter_settings', '{}', seeded: true),
 
   /// Observer name written into FITS `OBSERVER`. Empty string
   /// (the default) is treated as "no observer" and the keyword is omitted
   /// from FITS rather than emitted with a sentinel.
-  TextSetting(
-    'observerName',
-    'observer_name',
-    '',
-    feeds: ExecutorConfig.observerProfile,
-  ),
+  TextSetting('observerName', 'observer_name', ''),
   // Image grading (live frame Pass/Reject)
   /// Master switch: when false, no grading runs and the executor's
   /// RuntimeConfig.default_quality_check is set to None at start.
-  BoolSetting(
-    'enableImageGrading',
-    'image_grading_enabled',
-    false,
-    feeds: ExecutorConfig.qualityCheck,
-  ),
+  BoolSetting('enableImageGrading', 'image_grading_enabled', false),
 
   /// Reject if HFR exceeds this absolute pixel value. `null` => don't
   /// apply the absolute check.
@@ -651,7 +686,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'imageGradingHfrThresholdPx',
     'image_grading_hfr_threshold_px',
     3.5,
-    feeds: ExecutorConfig.qualityCheck,
   ),
 
   /// Reject if HFR exceeds `baseline * (1 + percent / 100)`. `null` =>
@@ -660,7 +694,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'imageGradingHfrBaselinePercent',
     'image_grading_hfr_baseline_percent',
     50.0,
-    feeds: ExecutorConfig.qualityCheck,
   ),
 
   /// Reject if star eccentricity exceeds this value. `null` => don't apply.
@@ -668,7 +701,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'imageGradingEccentricityThreshold',
     'image_grading_eccentricity_threshold',
     0.8,
-    feeds: ExecutorConfig.qualityCheck,
   ),
 
   /// Reject if detected star count falls below this. `null` => don't apply.
@@ -676,7 +708,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'imageGradingStarCountMin',
     'image_grading_star_count_min',
     10,
-    feeds: ExecutorConfig.qualityCheck,
   ),
 
   /// Notify the operator once when this many frames in a row are rejected
@@ -685,7 +716,6 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'imageGradingMaxConsecutiveRejects',
     'image_grading_max_consecutive_rejects',
     3,
-    feeds: ExecutorConfig.qualityCheck,
   ),
 
   /// Override for the reject folder. `null` => use `<save_path>/Reject/`.
@@ -695,25 +725,19 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'imageGradingRejectFolderPath',
     'image_grading_reject_folder_path',
     unsetText: '',
-    feeds: ExecutorConfig.rejectFolder,
+    runConfig: 'reject_folder_path',
   ),
   // Sky-brightness adaptive exposure (global defaults)
   /// Master switch for the global default adaptive-exposure config.
   /// When false the global default is cleared in the executor and only
   /// per-node overrides apply.
-  BoolSetting(
-    'adaptiveExposureEnabled',
-    'adaptive_exposure_enabled',
-    false,
-    feeds: ExecutorConfig.adaptiveExposure,
-  ),
+  BoolSetting('adaptiveExposureEnabled', 'adaptive_exposure_enabled', false),
 
   /// Target SNR (informational; live math uses background flux ratio).
   DoubleSetting(
     'adaptiveExposureTargetSnr',
     'adaptive_exposure_target_snr',
     30.0,
-    feeds: ExecutorConfig.adaptiveExposure,
     inputMin: 1.0,
   ),
 
@@ -723,46 +747,32 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'adaptiveExposureReferenceMag',
     'adaptive_exposure_reference_mag',
     21.5,
-    feeds: ExecutorConfig.adaptiveExposure,
     inputMin: 14.0,
     inputMax: 24.0,
   ),
 
   /// Global minimum exposure clamp (seconds).
-  DoubleSetting(
-    'adaptiveExposureMinSecs',
-    'adaptive_exposure_min_secs',
-    5.0,
-    feeds: ExecutorConfig.adaptiveExposure,
-  ),
+  DoubleSetting('adaptiveExposureMinSecs', 'adaptive_exposure_min_secs', 5.0),
 
   /// Global maximum exposure clamp (seconds).
-  DoubleSetting(
-    'adaptiveExposureMaxSecs',
-    'adaptive_exposure_max_secs',
-    600.0,
-    feeds: ExecutorConfig.adaptiveExposure,
-  ),
+  DoubleSetting('adaptiveExposureMaxSecs', 'adaptive_exposure_max_secs', 600.0),
 
   /// Per-filter enable map. Empty => apply globally.
   BoolMapSetting(
     'adaptiveExposurePerFilterEnabled',
     'adaptive_exposure_per_filter_enabled',
-    feeds: ExecutorConfig.adaptiveExposure,
   ),
 
   /// Per-filter minimum exposure overrides (seconds).
   DoubleMapSetting(
     'adaptiveExposurePerFilterMinSecs',
     'adaptive_exposure_per_filter_min_secs',
-    feeds: ExecutorConfig.adaptiveExposure,
   ),
 
   /// Per-filter maximum exposure overrides (seconds).
   DoubleMapSetting(
     'adaptiveExposurePerFilterMaxSecs',
     'adaptive_exposure_per_filter_max_secs',
-    feeds: ExecutorConfig.adaptiveExposure,
   ),
   // Pre-flight checks
   /// How aggressively the pre-flight dialog should warn or block on

@@ -133,7 +133,8 @@ fn fixture(name: &str) -> ImageData {
         filter: None,
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -342,18 +343,24 @@ impl FrameStoreOps for ReplayRig {
     ) -> DeviceResult<()> {
         self.inner.save_fits(d, f, ctx).await
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        Ok(shape(d).map(|s| s.hfr))
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<skotiq_sequencer::LightFrameMeasurement> {
         let stars = skotiq_imaging::detect_stars(
             &imaging(d),
             &skotiq_imaging::StarDetectionConfig::default(),
         );
-        Ok(stars.iter().map(|s| (s.x, s.y, s.hfr)).collect())
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        Ok(shape(d).map(|s| s.eccentricity))
+        let shape = shape(d);
+        Ok(skotiq_sequencer::LightFrameMeasurement {
+            hfr: shape.map(|s| s.hfr),
+            star_count: Some(stars.len() as u32),
+            star_shape: shape.map(|s| skotiq_sequencer::FrameStarShape {
+                eccentricity: s.eccentricity,
+                elongation: None,
+            }),
+            trail: None,
+        })
     }
 }
 
@@ -398,21 +405,27 @@ async fn replay(
         None,
     );
     executor
-        .update_autofocus_config(AutofocusConfig {
-            disable_guiding_during_af: true,
-            number_of_attempts: 1,
-            steps_out: 2,
-            exposure_duration: 0.01,
-            focuser_settle_time_ms: 0,
-            // The rig ran with "failure action=PauseAndAlert". There is no
-            // failure action any more: a failed autofocus always notifies and
-            // carries on (owner decision 2026-10-06).
-            ..AutofocusConfig::default()
+        .handle()
+        .update_run_config(|config| {
+            config.autofocus = Some(AutofocusConfig {
+                disable_guiding_during_af: true,
+                number_of_attempts: 1,
+                steps_out: 2,
+                exposure_duration: 0.01,
+                focuser_settle_time_ms: 0,
+                // The rig ran with "failure action=PauseAndAlert". There is no
+                // failure action any more: a failed autofocus always notifies and
+                // carries on (owner decision 2026-10-06).
+                ..AutofocusConfig::default()
+            })
         })
-        .await;
+        .await
+        .unwrap();
     executor
-        .update_default_quality_check(Some(rig_quality_check()))
-        .await;
+        .handle()
+        .update_run_config(|config| config.default_quality_check = Some(rig_quality_check()))
+        .await
+        .unwrap();
     let mut sequence = SequenceDefinition::new("NGC7380".to_string());
     sequence.nodes.push(NodeDefinition {
         id: "lights".to_string(),
@@ -439,9 +452,12 @@ async fn replay(
             loop {
                 match events.recv().await {
                     Ok(ExecutorEvent::Error { message })
-                    | Ok(ExecutorEvent::Warning { message }) => {
-                        messages.lock().unwrap().push(message)
-                    }
+                    | Ok(ExecutorEvent::RunHeld { message })
+                    | Ok(ExecutorEvent::StepProblem { message })
+                    | Ok(
+                        ExecutorEvent::Warning { message }
+                        | ExecutorEvent::NoticedWarning { message, .. },
+                    ) => messages.lock().unwrap().push(message),
                     Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
                     Err(_) => break,
                 }

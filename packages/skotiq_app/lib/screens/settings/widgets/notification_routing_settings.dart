@@ -37,11 +37,8 @@ part 'notification_routing_settings/mqtt_transport_section.dart';
 part 'notification_routing_settings/home_assistant_section.dart';
 
 class NotificationRoutingSettings extends ConsumerWidget {
-  final bool isMobile;
-
   const NotificationRoutingSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -50,9 +47,9 @@ class NotificationRoutingSettings extends ConsumerWidget {
     final backend = ref.watch(backendProvider);
 
     if (backend.remoteHost != null) {
-      return Column(
+      return const Column(
         children: [
-          const SettingsSection(
+          SettingsSection(
             title: 'Notification routing',
             children: [
               SettingRow(
@@ -71,7 +68,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
           // Home Assistant already has strict remote host API parity, so it
           // remains editable from a controller while the other transports are
           // intentionally host-only.
-          _HomeAssistantSection(isMobile: isMobile),
+          _HomeAssistantSection(),
         ],
       );
     }
@@ -162,7 +159,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
               ),
           ],
         ),
-        _TransportsSection(isMobile: isMobile),
+        const _TransportsSection(),
       ],
     );
   }

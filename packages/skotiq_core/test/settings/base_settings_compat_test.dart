@@ -48,6 +48,18 @@ bool _sanitizes(Setting<Object?> setting) => switch (setting) {
 const Set<String> _addedSinceBase = {
   'qhy_discovery_enabled',
   'catalog_base_url',
+  'camera_file_saving',
+  'xisf_compression',
+  'xisf_checksums',
+  'recovery_park_and_close_when_gives_up',
+};
+
+/// Wire fields of settings declared after the base build; the base wire form
+/// is compared without them.
+const Set<String> _wireAddedSinceBase = {
+  'cameraFileSaving',
+  'xisfCompression',
+  'xisfChecksums',
 };
 
 /// [rows] without the settings the base build did not have.
@@ -169,6 +181,16 @@ void main() {
   test('every stored row reads as the base build read it', () {
     (fixture['fullLoad'] as Map<String, dynamic>).forEach((key, perRaw) {
       (perRaw as Map<String, dynamic>).forEach((raw, expected) {
+        // The base build could only save frames as FITS and read every
+        // stored archive format as FITS; XISF is now a format frames are
+        // saved in, so a stored XISF reads as XISF.
+        if (key == 'image_format' && raw.toUpperCase() == 'XISF') {
+          expect(
+            AppSettingsCodec.toRows(AppSettingsCodec.fromRows({key: raw}))[key],
+            'XISF',
+          );
+          return;
+        }
         final got = _changed(
           baseDefaults,
           _baseOnly(
@@ -208,7 +230,8 @@ void main() {
 
   test('the wire form matches the base build', () {
     Map<String, dynamic> plain(models.AppSettings s) =>
-        jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>;
+        (jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>)
+          ..removeWhere((key, _) => _wireAddedSinceBase.contains(key));
     expect(
       plain(AppSettingsCodec.toWire(const AppSettingsState())),
       fixture['wireDefault'],

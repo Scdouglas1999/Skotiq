@@ -7,10 +7,9 @@
 // runtime; this page only tunes the *default* the executor uses when a
 // node has no own block.
 //
-// The settings are persisted via `AppSettingsNotifier.setAdaptiveExposure*`
-// and pushed to the executor via
-// `backend.sequencerUpdateDefaultAdaptiveExposure` (or the clear
-// equivalent when the master toggle is off).
+// The settings are persisted via `AppSettingsNotifier.setAdaptiveExposure*`;
+// the run configuration (`RunConfigSync`) carries them to the executor, as
+// no default at all when the master toggle is off.
 
 import 'dart:async';
 
@@ -23,11 +22,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'settings_widgets.dart';
 
 class AdaptiveExposureSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const AdaptiveExposureSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -75,7 +71,8 @@ class _AdaptiveExposureSettingsState
     } catch (error) {
       if (mounted && generation == _globalBoundsSaveGeneration) {
         setState(() {
-          _globalBoundsError = 'Could not save exposure bounds: ${userFacingError(error)}';
+          _globalBoundsError =
+              'Could not save exposure bounds: ${userFacingError(error)}';
         });
       }
       rethrow;
@@ -92,9 +89,8 @@ class _AdaptiveExposureSettingsState
     // bare Column renders without cards and with its controls sliced off by the
     // window edge.
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: widget.isMobile),
+      loading: () => const SettingsLoadingState(),
       error: (e, _) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: e,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -110,12 +106,9 @@ class _AdaptiveExposureSettingsState
               'roughly constant as conditions change. A capture step that '
               'carries its own adaptive settings always wins; this page sets the '
               'default for steps that do not.',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'Global default',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.barChart3,
@@ -129,7 +122,6 @@ class _AdaptiveExposureSettingsState
                       await notifier.setAdaptiveExposureEnabled(v);
                     },
                   ),
-                  isMobile: widget.isMobile,
                   isLast: !enabled,
                 ),
                 // Target SNR control hidden until the native executor honors
@@ -151,7 +143,6 @@ class _AdaptiveExposureSettingsState
                       decimals: 2,
                       onChanged: notifier.setAdaptiveExposureReferenceMag,
                     ),
-                    isMobile: widget.isMobile,
                   ),
                   SettingRow(
                     icon: LucideIcons.arrowDownNarrowWide,
@@ -168,7 +159,6 @@ class _AdaptiveExposureSettingsState
                       decimals: 1,
                       onChanged: (_) => _commitGlobalBounds(notifier),
                     ),
-                    isMobile: widget.isMobile,
                   ),
                   SettingRow(
                     icon: LucideIcons.arrowUpNarrowWide,
@@ -185,7 +175,6 @@ class _AdaptiveExposureSettingsState
                       decimals: 1,
                       onChanged: (_) => _commitGlobalBounds(notifier),
                     ),
-                    isMobile: widget.isMobile,
                     isLast: true,
                   ),
                 ],
@@ -207,11 +196,12 @@ class _AdaptiveExposureSettingsState
             if (enabled) ...[
               SettingsSection(
                 title: 'Per-filter overrides',
-                isMobile: widget.isMobile,
                 children: [
                   Padding(
                     padding: EdgeInsets.all(
-                      widget.isMobile ? 12 : SkotiqTokens.spaceLg,
+                      SettingsFormScope.narrowOf(context)
+                          ? 12
+                          : SkotiqTokens.spaceLg,
                     ),
                     child: _PerFilterEditor(
                       settings: settings,

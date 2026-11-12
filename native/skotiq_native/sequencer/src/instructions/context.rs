@@ -79,6 +79,19 @@ impl InstructionResult {
         }
     }
 
+    /// This failure came from `error`. A device that is not connected makes
+    /// it a disconnect whatever the instruction was doing: a device that
+    /// dropped is reconnected before anything else is judged.
+    pub fn caused_by(self, error: &crate::device_ops::DeviceError) -> Self {
+        match error {
+            crate::device_ops::DeviceError::NotConnected { .. } => Self {
+                setback: Some(Setback::Disconnected),
+                ..self
+            },
+            _ => self,
+        }
+    }
+
     pub fn cancelled(message: impl Into<String>) -> Self {
         Self {
             status: NodeStatus::Cancelled,
@@ -87,20 +100,10 @@ impl InstructionResult {
         }
     }
 
-    /// Why this result fell short. A failure whose text is a driver's "not
-    /// connected" is a disconnect whatever the instruction was doing: the
-    /// device layer reports that in words, and a device that dropped is
-    /// recovered before anything else is judged.
+    /// Why this result fell short.
     pub fn setback(&self) -> Option<Setback> {
         if self.status != NodeStatus::Failure {
             return None;
-        }
-        if self
-            .message
-            .as_deref()
-            .is_some_and(is_device_disconnected_message)
-        {
-            return Some(Setback::Disconnected);
         }
         self.setback
     }
@@ -357,7 +360,6 @@ pub struct LiveConditions {
     pub cloud_motion: Arc<tokio::sync::RwLock<crate::node::context::CloudMotionSnapshot>>,
     /// km/h.
     pub wind_kph: Arc<tokio::sync::RwLock<Option<f64>>>,
-    /// °C.
     pub sensor_temp_c: Arc<tokio::sync::RwLock<Option<f64>>>,
 }
 
@@ -395,9 +397,50 @@ pub struct RunShared {
     pub dither_barrier: Option<Arc<crate::dual_rig::DitherBarrier>>,
     /// How often a failed camera exposure or filter-wheel move is retried.
     pub device_retry: super::DeviceRetryHandle,
+    /// What a frame from a camera that delivers its own file is saved as.
+    pub camera_file_saving: crate::CameraFileSaving,
+    /// The run's operator settings. The site, the filter offsets, the frame
+    /// identity, the grading defaults and the camera-file choice above are
+    /// taken from it as each step starts ([`Self::take_settings`]); `None`
+    /// for work outside a run, whose values are set where its context is
+    /// built.
+    pub settings: Option<crate::executor::RunConfigStore>,
 }
 
 impl RunShared {
+    /// Take the operator's settings as they stand now, in one read. Done as
+    /// each step of a run starts (a node of the plan, a trigger's action, a
+    /// recovery's recenter), so a change made during the run reaches its next
+    /// step and a step in progress keeps the values it started with.
+    pub fn take_settings(&mut self) {
+        let Some(store) = &self.settings else {
+            return;
+        };
+        let config = store.read();
+        self.rig.latitude = config.latitude;
+        self.rig.longitude = config.longitude;
+        self.rig.filter_focus_offsets = config.filter_focus_offsets.clone();
+        let profile = &config.observer_profile;
+        self.identity.observer_name = profile.observer_name.clone();
+        self.identity.site_elevation_m = profile.site_elevation_m;
+        self.identity.camera_make = profile.camera_make.clone();
+        self.identity.camera_model = profile.camera_model.clone();
+        self.identity.telescope_name = profile.telescope_name.clone();
+        self.identity.telescope_focal_length_mm = profile.telescope_focal_length_mm;
+        self.identity.telescope_aperture_mm = profile.telescope_aperture_mm;
+        self.grading.default_quality_check = config.default_quality_check.clone();
+        self.grading.reject_folder_path = config.reject_folder_path.clone();
+        self.camera_file_saving = config.camera_file_saving;
+    }
+
+    /// This run's shared state for a step starting now; see
+    /// [`Self::take_settings`].
+    pub fn for_step(&self) -> Self {
+        let mut shared = self.clone();
+        shared.take_settings();
+        shared
+    }
+
     /// The shared state of work that runs outside a sequence run (an
     /// Imaging-tab capture, polar alignment, a test): no trigger state, no
     /// channels, one attempt per device call, nothing graded yet.
@@ -418,6 +461,8 @@ impl RunShared {
             defect_map_apply: Arc::default(),
             dither_barrier: None,
             device_retry: super::DeviceRetryHandle::single_attempt(),
+            camera_file_saving: crate::CameraFileSaving::default(),
+            settings: None,
         }
     }
 
@@ -654,11 +699,10 @@ impl InstructionContext {
             serde_json::json!({ "node_id": self.node_id }),
         );
         tracing::warn!("{}", continuation.operator_message);
-        self.run.emit_decision(continuation.decision);
+        let (decision, line) = continuation.split();
+        self.run.emit_decision(decision);
         if let Some(event_tx) = &self.run.event_tx {
-            let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
-                message: continuation.operator_message,
-            });
+            let _ = event_tx.send(line.into_event());
         }
     }
 }
@@ -745,5 +789,51 @@ impl ImagingTrainClaimGuard {
             return;
         };
         trigger_state.write().await.imaging_train.release(token);
+    }
+}
+
+#[cfg(test)]
+mod settings_tests {
+    use super::*;
+
+    /// An exposure already running keeps the grading, reject folder, frame
+    /// identity and camera-file choice it started with; the next one takes
+    /// what the operator saved meanwhile.
+    #[tokio::test]
+    async fn a_step_in_progress_keeps_the_settings_it_started_with() {
+        let executor = crate::executor::SequenceExecutor::new();
+        let mut shared = RunShared::new(Arc::new(crate::device_ops::NullDeviceOps));
+        shared.settings = Some(executor.run_config_store());
+        let exposing = InstructionContext::new(shared.for_step(), Arc::new(AtomicBool::new(false)));
+
+        executor
+            .handle()
+            .update_run_config(|config| {
+                config.reject_folder_path = Some("/rejects".to_string());
+                config.observer_profile.observer_name = Some("Grace".to_string());
+                config.camera_file_saving = crate::CameraFileSaving::Both;
+            })
+            .await
+            .expect("the settings apply");
+
+        assert_eq!(exposing.run.grading.reject_folder_path, None);
+        assert_eq!(exposing.run.identity.observer_name, None);
+        assert_eq!(
+            exposing.run.camera_file_saving,
+            crate::CameraFileSaving::Converted
+        );
+
+        let next = shared.for_step();
+        assert_eq!(next.grading.reject_folder_path.as_deref(), Some("/rejects"));
+        assert_eq!(next.identity.observer_name.as_deref(), Some("Grace"));
+        assert_eq!(next.camera_file_saving, crate::CameraFileSaving::Both);
+    }
+
+    /// Work outside a run keeps the values its context was built with.
+    #[test]
+    fn without_run_settings_a_step_keeps_its_own_values() {
+        let mut shared = RunShared::new(Arc::new(crate::device_ops::NullDeviceOps));
+        shared.rig.latitude = Some(12.0);
+        assert_eq!(shared.for_step().rig.latitude, Some(12.0));
     }
 }

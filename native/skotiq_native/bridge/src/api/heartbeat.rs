@@ -24,6 +24,13 @@ use tokio::sync::RwLock;
 // Sibling-module items via the parent's pub use re-exports.
 use super::*;
 
+/// The device types the native side reconnects by itself once their
+/// heartbeat is lost. A caller that reconnects devices leaves these alone.
+#[flutter_rust_bridge::frb(sync)]
+pub fn api_native_reconnected_device_types() -> Vec<DeviceType> {
+    crate::device_manager::policy::reconnected_by_heartbeat()
+}
+
 /// Start heartbeat monitoring for a device: poll its status every `interval_ms`
 /// (10000 is the usual cadence) and emit a Disconnected event once it stops
 /// answering.
@@ -39,7 +46,6 @@ pub async fn api_start_device_heartbeat(
         interval_ms
     );
 
-    // Validate device type matches
     if let Some(device) = get_device_manager().get_device(&device_id).await {
         if device.info.device_type != device_type {
             return Err(SkotiqError::InvalidParameter(format!(

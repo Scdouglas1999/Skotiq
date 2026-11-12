@@ -9,8 +9,8 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header - hide on mobile since parent shows it
-        if (!widget.isMobile) ...[
+        // The narrow layout's own header already says "Catalogs".
+        if (!_narrow) ...[
           Text(
             'Catalogs',
             style: SkotiqTypography.sectionTitle.copyWith(
@@ -221,7 +221,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
           ),
           const SizedBox(height: 4),
           Text(
-            'About $kInstalledCatalogApproxSizeMB MB on disk.',
+            'About $kInstalledCatalogApproxSizeMB ${ByteFormat.megaUnit} on disk.',
             style: SkotiqTypography.captionSm.copyWith(
               color: colors.textSecondary.withValues(alpha: 0.7),
             ),
@@ -259,7 +259,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
               SkotiqTypography.sectionTitle.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 16),
-        widget.isMobile
+        _narrow
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -456,7 +456,9 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
               alignment: Alignment.centerLeft,
               child: SkotiqButton(
                 label:
-                    'Download ${_selectedAnnotationPackage.displayName} (~${_selectedAnnotationPackage.approximateSizeMB} MB)',
+                    'Download ${_selectedAnnotationPackage.displayName} '
+                    '(~${_selectedAnnotationPackage.approximateSizeMB} '
+                    '${ByteFormat.megaUnit})',
                 icon: SkotiqIcons.download,
                 variant: ButtonVariant.secondary,
                 onPressed: _isDownloading ? null : _downloadAnnotationCatalog,

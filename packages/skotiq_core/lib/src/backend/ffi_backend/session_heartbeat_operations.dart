@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
-
   @override
   Future<List<CapturedImage>> getSessionImages(int sessionId) async {
     if (_database == null) {
@@ -181,23 +180,8 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
     }
   }
 
-  ImageFileFormat _imageFormatFromString(String str) {
-    switch (str.toLowerCase()) {
-      case 'fits':
-        return ImageFileFormat.fits;
-      case 'xisf':
-        return ImageFileFormat.xisf;
-      case 'tiff':
-        return ImageFileFormat.tiff;
-      case 'png':
-        return ImageFileFormat.png;
-      case 'jpeg':
-      case 'jpg':
-        return ImageFileFormat.jpeg;
-      default:
-        return ImageFileFormat.fits;
-    }
-  }
+  ImageFileFormat _imageFormatFromString(String str) =>
+      ImageFileFormat.fromRecord(str) ?? ImageFileFormat.fits;
 
   @override
   Future<void> startDeviceHeartbeat({
@@ -211,6 +195,15 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
       deviceId: deviceId,
       intervalMs: BigInt.from(intervalMs),
     );
+  }
+
+  @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes {
+    if (!bridge.NativeBridge.isNativeAvailable) return const {};
+    return _NativeProcessState.nativeReconnectedDeviceTypes ??= {
+      for (final type in bridge.apiNativeReconnectedDeviceTypes())
+        _fromBridgeDeviceType(type),
+    };
   }
 
   @override

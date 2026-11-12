@@ -4,7 +4,7 @@
 
 use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
-use crate::protocol::standard_properties::*;
+use crate::protocol::names::*;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -22,29 +22,10 @@ impl IndiRotator {
         }
     }
 
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
     pub async fn move_to(&self, angle: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE", angle)
+            .set_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE, angle)
             .await
     }
 
@@ -64,13 +45,13 @@ impl IndiRotator {
         {
             let mut client = self.client.write().await;
             client
-                .set_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE", angle)
+                .set_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE, angle)
                 .await?;
         }
 
         let client = self.client.read().await;
         client
-            .wait_for_property_not_busy(&self.device_name, "ABS_ROTATOR_ANGLE", timeout_duration)
+            .wait_for_property_not_busy(&self.device_name, ABS_ROTATOR_ANGLE, timeout_duration)
             .await
             .map_err(|e| IndiError::Failed {
                 what: format!("Rotator move to angle {:.1} degrees", angle),
@@ -81,7 +62,7 @@ impl IndiRotator {
     pub async fn get_angle(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE")
+            .get_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE)
             .await
             .ok_or_else(|| IndiError::Unavailable("Angle not available".to_string()))
     }
@@ -89,14 +70,14 @@ impl IndiRotator {
     pub async fn abort_motion(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, "ROTATOR_ABORT_MOTION", "ABORT", true)
+            .set_switch(&self.device_name, ROTATOR_ABORT_MOTION, ABORT, true)
             .await
     }
 
     pub async fn is_moving(&self) -> bool {
         let client = self.client.read().await;
         client
-            .is_property_busy(&self.device_name, "ABS_ROTATOR_ANGLE")
+            .is_property_busy(&self.device_name, ABS_ROTATOR_ANGLE)
             .await
     }
 
@@ -104,7 +85,7 @@ impl IndiRotator {
     pub async fn sync(&self, angle: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_number(&self.device_name, SYNC_ROTATOR_ANGLE, "ANGLE", angle)
+            .set_number(&self.device_name, SYNC_ROTATOR_ANGLE, ANGLE, angle)
             .await
     }
 
@@ -112,9 +93,9 @@ impl IndiRotator {
     pub async fn get_mechanical_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         for (property, element) in [
-            (ROTATOR_RAW_ANGLE, "ANGLE"),
-            ("ROTATOR_POSITION", "POSITION"),
-            ("MECHANICAL_POSITION", "POSITION"),
+            (ROTATOR_RAW_ANGLE, ANGLE),
+            (ROTATOR_POSITION, POSITION),
+            (MECHANICAL_POSITION, POSITION),
         ] {
             if let Some(angle) = client
                 .get_number(&self.device_name, property, element)
@@ -132,11 +113,11 @@ impl IndiRotator {
         let mut client = self.client.write().await;
         if reverse {
             client
-                .set_switch(&self.device_name, "ROTATOR_REVERSE", "INDI_ENABLED", true)
+                .set_switch(&self.device_name, ROTATOR_REVERSE, INDI_ENABLED, true)
                 .await
         } else {
             client
-                .set_switch(&self.device_name, "ROTATOR_REVERSE", "INDI_DISABLED", true)
+                .set_switch(&self.device_name, ROTATOR_REVERSE, INDI_DISABLED, true)
                 .await
         }
     }
@@ -149,7 +130,7 @@ impl skotiq_device::RotatorDriver for IndiRotator {
     async fn move_absolute(&self, position_deg: f64) -> Result<(), skotiq_device::DriverError> {
         let mut client = self.client.write().await;
         Ok(client
-            .set_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE", position_deg)
+            .set_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE, position_deg)
             .await?)
     }
 
@@ -157,7 +138,7 @@ impl skotiq_device::RotatorDriver for IndiRotator {
     async fn position(&self) -> Result<f64, skotiq_device::DriverError> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE")
+            .get_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE)
             .await
             .ok_or(skotiq_device::DriverError::NotConnected)
     }
@@ -165,33 +146,29 @@ impl skotiq_device::RotatorDriver for IndiRotator {
     async fn is_moving(&self) -> Result<bool, skotiq_device::DriverError> {
         let client = self.client.read().await;
         Ok(client
-            .is_property_busy(&self.device_name, "ABS_ROTATOR_ANGLE")
+            .is_property_busy(&self.device_name, ABS_ROTATOR_ANGLE)
             .await)
     }
 
     async fn halt(&self) -> Result<(), skotiq_device::DriverError> {
         let mut client = self.client.write().await;
         Ok(client
-            .set_switch(&self.device_name, "ROTATOR_ABORT_MOTION", "ABORT", true)
+            .set_switch(&self.device_name, ROTATOR_ABORT_MOTION, ABORT, true)
             .await?)
     }
 
     async fn sync(&self, position_deg: f64) -> Result<(), skotiq_device::DriverError> {
         let mut client = self.client.write().await;
         Ok(client
-            .set_number(&self.device_name, "SYNC_ROTATOR_ANGLE", "ANGLE", position_deg)
+            .set_number(&self.device_name, SYNC_ROTATOR_ANGLE, ANGLE, position_deg)
             .await?)
     }
 
     async fn set_reverse(&self, reverse: bool) -> Result<(), skotiq_device::DriverError> {
-        let element = if reverse {
-            "INDI_ENABLED"
-        } else {
-            "INDI_DISABLED"
-        };
+        let element = if reverse { INDI_ENABLED } else { INDI_DISABLED };
         let mut client = self.client.write().await;
         Ok(client
-            .set_switch(&self.device_name, "ROTATOR_REVERSE", element, true)
+            .set_switch(&self.device_name, ROTATOR_REVERSE, element, true)
             .await?)
     }
 }

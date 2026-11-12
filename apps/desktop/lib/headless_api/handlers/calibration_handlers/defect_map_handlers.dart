@@ -12,19 +12,10 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     'storedOnDisk': status.storedOnDisk,
   };
 
-  Future<Map<String, dynamic>> _defectMapSettingsJson() async {
-    final stored = await container.read(settingsDaoProvider).getAllSettings();
-    return {
-      'autoApply': stored[DefectMapSettingsKeys.autoApply] == 'true',
-      'method': DefectMapMethod.fromWire(
-        stored[DefectMapSettingsKeys.method],
-      ).wireValue,
-      'kernelDiameter': DefectMapKernelSize.fromDiameter(
-        int.tryParse(stored[DefectMapSettingsKeys.kernel] ?? '') ?? 3,
-      ).diameter,
-      'saveOriginal': stored[DefectMapSettingsKeys.saveOriginal] == 'true',
-    };
-  }
+  Future<Map<String, dynamic>> _defectMapSettingsJson() async =>
+      DefectMapSettings.fromRows(
+        await container.read(settingsDaoProvider).getAllSettings(),
+      ).toRemoteJson();
 
   Future<Response> handleGetDefectMapSettings(Request request) async {
     return jsonOk(await _defectMapSettingsJson());
@@ -33,19 +24,19 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
   Future<Response> handleUpdateDefectMapSettings(Request request) async {
     _logInfo('[API] POST /api/calibration/defect-maps/settings');
     final payload = await readJsonObject(request);
-    final updates = <String, String>{};
+    final updates = <SettingValue<Object?>>[];
 
     if (payload.containsKey('autoApply')) {
-      updates[DefectMapSettingsKeys.autoApply] = requireBool(
-        payload,
-        'autoApply',
-      ).toString();
+      updates.add(
+        StoreSettings.defectMapAutoApply.to(requireBool(payload, 'autoApply')),
+      );
     }
     if (payload.containsKey('saveOriginal')) {
-      updates[DefectMapSettingsKeys.saveOriginal] = requireBool(
-        payload,
-        'saveOriginal',
-      ).toString();
+      updates.add(
+        StoreSettings.defectMapSaveOriginal.to(
+          requireBool(payload, 'saveOriginal'),
+        ),
+      );
     }
     if (payload.containsKey('method')) {
       final value = requireString(payload, 'method');
@@ -56,7 +47,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
           message: 'Unknown defect-map replacement method',
         );
       }
-      updates[DefectMapSettingsKeys.method] = value;
+      updates.add(StoreSettings.defectMapMethod.to(value));
     }
     if (payload.containsKey('kernelDiameter')) {
       final value = requireInt(payload, 'kernelDiameter');
@@ -69,7 +60,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
           message: 'Defect-map kernel must be 3, 5, or 7 pixels',
         );
       }
-      updates[DefectMapSettingsKeys.kernel] = value.toString();
+      updates.add(StoreSettings.defectMapKernelDiameter.to(value));
     }
 
     if (updates.isEmpty) {
@@ -79,7 +70,7 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
         message: 'At least one defect-map setting is required',
       );
     }
-    await container.read(settingsDaoProvider).setSettings(updates);
+    await container.read(settingsDaoProvider).writeAll(updates);
     publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.settings,
@@ -452,7 +443,8 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     });
   }
 
-  /// Enumerate dark-frame files (FITS/XISF) directly under [directoryPath].
+  /// Enumerate dark-frame files (any frame format) directly under
+  /// [directoryPath].
   /// Non-recursive: callers point at the directory that holds the darks.
   Future<List<String>> _enumerateDarkFrames(String directoryPath) async {
     final directory = Directory(directoryPath);
@@ -464,12 +456,9 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
         details: {'darkFramesDirectory': directoryPath},
       );
     }
-    const darkExtensions = {'.fits', '.fit', '.fts', '.xisf'};
     final paths = <String>[];
     await for (final entity in directory.list(followLinks: false)) {
-      if (entity is! File) continue;
-      final ext = p.extension(entity.path).toLowerCase();
-      if (darkExtensions.contains(ext)) {
+      if (entity is File && FrameFiles.isFrame(entity.path)) {
         paths.add(entity.path);
       }
     }

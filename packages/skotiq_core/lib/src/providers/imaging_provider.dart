@@ -12,6 +12,7 @@ import '../services/darkroom_build_service.dart' show observingNight;
 import 'host_settings/host_settings_providers.dart'
     show settingsRowChangesProvider;
 import 'profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import 'session_provider.dart';
 import 'settings_provider.dart';
 import 'runtime_mirror/channels/session_frames_channel.dart'
@@ -112,9 +113,13 @@ void updateManualExposureSettings(Ref ref, ExposureSettings settings) {
 /// changed row is not re-read: it could only bring back an older value.
 final _exposureWritesInFlightProvider = StateProvider<int>((ref) => 0);
 
+/// The row holding [profile]'s manual capture settings.
+Setting<String?> _exposureSettingsRow(EquipmentProfileModel profile) =>
+    StoreSettings.captureSettings.row(_exposureProfileKey(profile));
+
 /// The `app_settings` key holding [profile]'s manual capture settings.
 String exposureSettingsKeyFor(EquipmentProfileModel profile) =>
-    'imaging_capture_settings_profile_${_exposureProfileKey(profile)}';
+    _exposureSettingsRow(profile).key;
 
 /// Façade for callers that own a provider container/ref.
 final manualExposureSettingsUpdaterProvider =
@@ -155,11 +160,10 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
     final revisionAtStart = ref.read(_manualExposureRevisionProvider);
     () async {
       final dao = ref.read(settingsDaoProvider);
-      final key = 'imaging_capture_settings_profile_$profileKey';
       ExposureSettings? saved;
       try {
-        final value = await dao.getSetting(key);
-        if (value != null && value.isNotEmpty) {
+        final value = await dao.read(_exposureSettingsRow(profile));
+        if (value != null) {
           saved = _exposureSettingsFromJson(jsonDecode(value));
         }
       } catch (_) {
@@ -218,8 +222,10 @@ Future<void> _reloadExposureSettings(
     final revisionAtStart = ref.read(_manualExposureRevisionProvider);
     ExposureSettings? stored;
     try {
-      final value = await ref.read(settingsDaoProvider).getSetting(key);
-      if (value != null && value.isNotEmpty) {
+      final value = await ref
+          .read(settingsDaoProvider)
+          .read(_exposureSettingsRow(profile));
+      if (value != null) {
         stored = _exposureSettingsFromJson(jsonDecode(value));
       }
     } on Object catch (error) {
@@ -532,10 +538,9 @@ final namingPatternProvider = Provider<NamingPattern>((ref) {
     return const NamingPattern();
   }
 
-  // Captures are currently persisted through the native FITS writer. This
-  // defensive coercion also protects callers while a legacy/remote settings
-  // snapshot is being migrated by appSettingsProvider.
-  const format = ImageFileFormat.fits;
+  final format = ImageFileFormatSettingsX.fromSettings(
+    normalizeCaptureImageFormat(settings.format),
+  );
   final baseDir = settings.outputPath.isEmpty ? '.' : settings.outputPath;
 
   return NamingPattern(
@@ -757,21 +762,8 @@ FrameType _frameTypeFromDbString(String str) {
   }
 }
 
-ImageFileFormat _imageFormatFromDbString(String str) {
-  switch (str.toLowerCase()) {
-    case 'xisf':
-      return ImageFileFormat.xisf;
-    case 'tiff':
-      return ImageFileFormat.tiff;
-    case 'png':
-      return ImageFileFormat.png;
-    case 'jpeg':
-    case 'jpg':
-      return ImageFileFormat.jpeg;
-    default:
-      return ImageFileFormat.fits;
-  }
-}
+ImageFileFormat _imageFormatFromDbString(String str) =>
+    ImageFileFormat.fromRecord(str) ?? ImageFileFormat.fits;
 
 class TemperaturePoint {
   final double temperature;

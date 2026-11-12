@@ -19,7 +19,6 @@ pub trait CoverCalibratorOps: Send + Sync {
     /// Close the cover (park dust cap)
     async fn cover_calibrator_close_cover(&self, device_id: &str) -> DeviceResult<()>;
 
-    /// Halt cover movement
     async fn cover_calibrator_halt_cover(&self, device_id: &str) -> DeviceResult<()>;
 
     /// Turn on the calibrator (flat panel light) at specified brightness
@@ -38,9 +37,7 @@ pub trait CoverCalibratorOps: Send + Sync {
     /// Get current calibrator state (0=NotPresent, 1=Off, 2=NotReady, 3=Ready, 4=Unknown, 5=Error)
     async fn cover_calibrator_get_calibrator_state(&self, device_id: &str) -> DeviceResult<i32>;
 
-    /// Get current brightness level
     async fn cover_calibrator_get_brightness(&self, device_id: &str) -> DeviceResult<i32>;
 
-    /// Get maximum brightness level
     async fn cover_calibrator_get_max_brightness(&self, device_id: &str) -> DeviceResult<i32>;
 }

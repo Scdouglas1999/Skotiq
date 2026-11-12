@@ -81,7 +81,7 @@ import 'package:flutter/foundation.dart' show ChangeNotifier, immutable;
 import '../../models/framing_plate_scale.dart';
 import '../../models/hips/hips_properties.dart';
 import '../../models/hips/hips_tile_id.dart';
-import '../../providers/framing_provider.dart' show FramingTarget;
+import '../../models/framing_models.dart' show FramingTarget;
 import 'hips_tile_cache.dart';
 import 'hips_tile_fetcher.dart';
 import 'hips_tile_selection.dart';

@@ -656,8 +656,6 @@
       "node_type": {
         "auth_token": "secret-token",
         "broadcast_enabled": false,
-        "broadcast_path": "/live",
-        "broadcast_port": 9090,
         "max_frames_to_stack": 50,
         "mode": "record_and_broadcast",
         "stack_method": "sigma",

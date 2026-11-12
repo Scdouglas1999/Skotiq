@@ -294,7 +294,8 @@ fn render_with_sigma(
         filter: None,
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -1136,7 +1137,8 @@ fn rig_fixture(name: &str) -> ImageData {
         filter: Some("L".to_string()),
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 

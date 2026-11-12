@@ -109,6 +109,25 @@ impl RunCell {
         }
     }
 
+    /// Turn the run `Paused`, with `reason` as its status message when
+    /// given. A run that is already paused takes the new reason and returns
+    /// nothing to announce: one pause is announced once, however many of the
+    /// things that can hold a run ask for it.
+    pub(crate) fn pause(&self, reason: Option<String>) -> Option<Unannounced> {
+        let mut progress = self.inner.progress.write();
+        if let Some(reason) = reason {
+            progress.message = Some(reason);
+        }
+        if progress.state == ExecutorState::Paused {
+            return None;
+        }
+        progress.state = ExecutorState::Paused;
+        Some(Unannounced {
+            events: self.inner.events.clone(),
+            state: ExecutorState::Paused,
+        })
+    }
+
     pub(crate) fn transition(&self, state: ExecutorState) {
         self.store(state, |_| {}).announce();
     }
@@ -139,6 +158,25 @@ impl RunCell {
         }
         let _ = self.inner.events.send(ExecutorEvent::StateChanged(to));
         true
+    }
+
+    /// Turn a run that is under way `Stopping`, announced once however many
+    /// stop requests arrive. A run already at its end keeps its state.
+    pub(crate) fn begin_stopping(&self) {
+        {
+            let mut progress = self.inner.progress.write();
+            if !matches!(
+                progress.state,
+                ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
+            ) {
+                return;
+            }
+            progress.state = ExecutorState::Stopping;
+        }
+        let _ = self
+            .inner
+            .events
+            .send(ExecutorEvent::StateChanged(ExecutorState::Stopping));
     }
 
     /// Back to `Idle` with an empty snapshot, unannounced: the executor is
@@ -174,13 +212,9 @@ impl RunControl {
     /// when given.
     pub(crate) fn pause(&self, reason: Option<String>) {
         self.is_paused.store(true, Ordering::Relaxed);
-        self.state
-            .store(ExecutorState::Paused, |progress| {
-                if let Some(reason) = reason {
-                    progress.message = Some(reason);
-                }
-            })
-            .announce();
+        if let Some(paused) = self.state.pause(reason) {
+            paused.announce();
+        }
     }
 
     /// Freeze the node tree without the rest of a pause.
@@ -202,6 +236,16 @@ impl RunControl {
 
     pub(crate) fn warning(&self, message: String) {
         self.send(ExecutorEvent::Warning { message });
+    }
+
+    /// A step had a problem and the run carries on.
+    pub(crate) fn step_problem(&self, message: String) {
+        self.send(ExecutorEvent::StepProblem { message });
+    }
+
+    /// Why the run is paused for the operator. The pause is a separate call.
+    pub(crate) fn held(&self, message: String) {
+        self.send(ExecutorEvent::RunHeld { message });
     }
 }
 
@@ -261,6 +305,67 @@ mod tests {
             events.try_recv(),
             Ok(ExecutorEvent::StateChanged(ExecutorState::Failed))
         ));
+    }
+
+    fn control(state: RunCell) -> RunControl {
+        RunControl {
+            state,
+            is_cancelled: Arc::new(AtomicBool::new(false)),
+            is_paused: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    fn state_changes(events: &mut broadcast::Receiver<ExecutorEvent>) -> Vec<ExecutorState> {
+        let mut out = Vec::new();
+        while let Ok(event) = events.try_recv() {
+            if let ExecutorEvent::StateChanged(state) = event {
+                out.push(state);
+            }
+        }
+        out
+    }
+
+    /// A runaway that ends in a lost position holds the run twice, and a
+    /// trigger can pause a run the operator already paused. Each used to log
+    /// "Sequence paused" again.
+    #[test]
+    fn pausing_a_paused_run_takes_the_new_reason_and_announces_nothing() {
+        let (state, mut events) = cell();
+        state.transition(ExecutorState::Running);
+        let run = control(state.clone());
+
+        run.pause(Some("Paused: the mount moved on its own".into()));
+        run.pause(None);
+        run.pause(Some("Paused: the mount lost its position".into()));
+
+        assert_eq!(
+            state_changes(&mut events),
+            vec![ExecutorState::Running, ExecutorState::Paused]
+        );
+        assert_eq!(state.get(), ExecutorState::Paused);
+        assert!(run.is_paused.load(Ordering::Relaxed));
+        assert_eq!(
+            state.progress().message.as_deref(),
+            Some("Paused: the mount lost its position")
+        );
+    }
+
+    #[test]
+    fn a_pause_after_a_resume_is_announced_again() {
+        let (state, mut events) = cell();
+        let run = control(state.clone());
+        run.pause(None);
+        state.transition(ExecutorState::Running);
+        run.pause(None);
+
+        assert_eq!(
+            state_changes(&mut events),
+            vec![
+                ExecutorState::Paused,
+                ExecutorState::Running,
+                ExecutorState::Paused
+            ]
+        );
     }
 
     #[test]

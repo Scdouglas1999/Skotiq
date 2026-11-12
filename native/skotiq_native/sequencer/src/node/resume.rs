@@ -20,6 +20,9 @@ struct Record {
     /// Frames each Take Exposures burst has taken so far, kept while the burst
     /// runs and after a stop cuts it short.
     frames_taken: HashMap<NodeId, u32>,
+    /// Frames each Take Exposures step has taken over the whole plan: every
+    /// loop pass, and every earlier run this one continues.
+    frames_done: HashMap<NodeId, u32>,
     /// Nodes inside a loop whose recorded status is from an earlier pass: a
     /// loop starting a new pass runs them again, so that status is not
     /// progress.
@@ -33,8 +36,28 @@ pub struct ResumeRecord(Arc<parking_lot::RwLock<Record>>);
 /// What a checkpoint stores from the record.
 pub struct ResumeSnapshot {
     pub loop_passes_finished: HashMap<NodeId, u32>,
-    pub frames_taken: HashMap<NodeId, u32>,
+    pub frames: BurstFrames,
     pub from_earlier_pass: HashSet<NodeId>,
+}
+
+/// Frames the plan's Take Exposures steps have taken, as a checkpoint keeps
+/// them.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct BurstFrames {
+    /// Frames each burst had taken in its current pass, while it runs or
+    /// after a stop cut it short.
+    pub in_pass: HashMap<NodeId, u32>,
+    /// Frames each step has taken over the whole plan.
+    pub in_plan: HashMap<NodeId, u32>,
+}
+
+impl BurstFrames {
+    pub fn from_checkpoint(checkpoint: &crate::checkpoint::SessionCheckpoint) -> Self {
+        Self {
+            in_pass: checkpoint.exposure_frames_taken.clone(),
+            in_plan: checkpoint.exposure_frames_done.clone(),
+        }
+    }
 }
 
 impl ResumeRecord {
@@ -43,14 +66,15 @@ impl ResumeRecord {
     pub fn new(
         root: &dyn Node,
         loop_passes_finished: HashMap<NodeId, u32>,
-        frames_taken: HashMap<NodeId, u32>,
+        frames: BurstFrames,
     ) -> Self {
         let mut bursts = HashSet::new();
         collect_bursts(root, &mut bursts);
         Self(Arc::new(parking_lot::RwLock::new(Record {
             loop_passes_finished,
             bursts,
-            frames_taken,
+            frames_taken: frames.in_pass,
+            frames_done: frames.in_plan,
             from_earlier_pass: HashSet::new(),
         })))
     }
@@ -98,10 +122,12 @@ impl ResumeRecord {
         self.0.read().frames_taken.get(id).copied().unwrap_or(0)
     }
 
-    pub fn set_frames_taken(&self, id: &str, frames: u32) {
+    /// The burst of `id` took a frame, its `frames_in_pass`th in this pass.
+    pub fn frame_taken(&self, id: &str, frames_in_pass: u32) {
         let mut record = self.0.write();
         if record.bursts.contains(id) {
-            record.frames_taken.insert(id.to_string(), frames);
+            record.frames_taken.insert(id.to_string(), frames_in_pass);
+            *record.frames_done.entry(id.to_string()).or_insert(0) += 1;
         }
     }
 
@@ -115,7 +141,10 @@ impl ResumeRecord {
         let record = self.0.read();
         ResumeSnapshot {
             loop_passes_finished: record.loop_passes_finished.clone(),
-            frames_taken: record.frames_taken.clone(),
+            frames: BurstFrames {
+                in_pass: record.frames_taken.clone(),
+                in_plan: record.frames_done.clone(),
+            },
             from_earlier_pass: record.from_earlier_pass.clone(),
         }
     }
@@ -141,6 +170,28 @@ pub fn imaging_steps(root: &dyn Node) -> HashSet<NodeId> {
     let mut out = HashSet::new();
     collect_imaging_steps(root, &mut out);
     out
+}
+
+/// The finished steps a resume does not run again: the imaging steps, and
+/// the Notification steps. A notification says something happened; saying it
+/// again tells the operator of a second happening that did not take place.
+///
+/// A Run Script step is not here on purpose. A script can prepare the rig
+/// (open a roof, switch power on), the stop may have undone that, and the
+/// steps after it slew the mount: it runs again like the other rig steps.
+pub fn kept_on_resume(root: &dyn Node) -> HashSet<NodeId> {
+    let mut out = imaging_steps(root);
+    collect_notifications(root, &mut out);
+    out
+}
+
+fn collect_notifications(node: &dyn Node, out: &mut HashSet<NodeId>) {
+    if matches!(node.node_type(), NodeType::Notification(_)) {
+        out.insert(node.id().clone());
+    }
+    for child in node.children() {
+        collect_notifications(child.as_ref(), out);
+    }
 }
 
 /// Whether `node` takes frames; collects it and every descendant that does.

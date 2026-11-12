@@ -29,9 +29,24 @@ extension _DeviceServiceConnections on DeviceService {
       final deviceName = await _resolveDeviceDisplayName(type, deviceId);
       await _releaseDisplacedDevice(type, deviceId);
       notifier.setConnecting(deviceId, deviceName);
+      await _attempt(type, deviceId, deviceName, alreadyOpen: false);
+    });
+  }
 
-      var opened = false;
-      try {
+  /// One connect attempt: open the driver (unless a late `Connected` says it
+  /// already is, [alreadyOpen]), bring the device up, and leave the slot
+  /// connected, or showing why not.
+  Future<void> _attempt(
+    DeviceType type,
+    String deviceId,
+    String deviceName, {
+    required bool alreadyOpen,
+  }) async {
+    final slot = type.slot;
+    _attempts.began(deviceId);
+    var opened = alreadyOpen;
+    try {
+      if (!alreadyOpen) {
         await _backend.connectDevice(
           type,
           deviceId,
@@ -40,24 +55,75 @@ extension _DeviceServiceConnections on DeviceService {
               : null,
         );
         opened = true;
-        await _bringUp(type, deviceId, deviceName);
-        if (slot.heartbeat) await _startHeartbeat(type, deviceId);
-      } catch (e) {
-        // The driver opened the device but it never became usable: let go of
-        // it. On a linked client the host owns it and decides.
-        if (opened && !_hostOwnsDevices) {
-          _reconnectCoordinator.expectCleanupDisconnect(deviceId);
-          try {
-            await _backend.disconnectDevice(type, deviceId);
-          } catch (_) {
-            // The bring-up failure is the one to report.
-            _reconnectCoordinator.takeCleanupDisconnect(deviceId);
-          }
-        }
-        notifier.connectFailed(e);
-        rethrow;
       }
-    });
+      await _bringUp(type, deviceId, deviceName);
+      if (slot.heartbeat) await _startHeartbeat(type, deviceId);
+      _attempts.cameUp(deviceId);
+    } catch (e) {
+      // The driver opened the device but it never became usable: let go of
+      // it. On a linked client the host owns it and decides.
+      final releasing = opened && !_hostOwnsDevices;
+      _attempts.failed(deviceId, releasing: releasing);
+      if (releasing) {
+        try {
+          await _backend.disconnectDevice(type, deviceId);
+        } catch (_) {
+          // The bring-up failure is the one to report.
+          _attempts.releaseFailed(deviceId);
+        }
+      }
+      _ref.read(slot.notifier).connectFailed(e);
+      rethrow;
+    }
+  }
+
+  /// A connect this service had reported as failed came up after all (the
+  /// call timed out while the driver was still opening). Finish it, and say
+  /// so once, because the failure has already been told.
+  Future<void> _finishLateConnect(
+    DeviceType type,
+    String deviceId,
+    String deviceName,
+  ) async {
+    final noun = type.noun;
+    try {
+      await _trackInFlight(
+        () => _attempt(type, deviceId, deviceName, alreadyOpen: true),
+      );
+    } catch (e) {
+      if (_disposed) return;
+      _ref
+          .read(uiNotificationProvider.notifier)
+          .showError(
+            'The $noun answered late but did not come up: '
+            '${userFacingError(e)}',
+            title: type.displayName,
+          );
+      return;
+    }
+    if (_disposed) return;
+    // The last sweep's record of this device failing is no longer true.
+    final progress = _ref.read(deviceConnectionProgressProvider);
+    final recorded = progress.byDeviceType[noun];
+    if (recorded != null &&
+        recorded.deviceId == deviceId &&
+        recorded.status == DeviceConnectProgressStatus.failed) {
+      _ref
+          .read(deviceConnectionProgressProvider.notifier)
+          .record(
+            DeviceConnectProgress(
+              deviceType: noun,
+              deviceId: deviceId,
+              status: DeviceConnectProgressStatus.connected,
+            ),
+          );
+    }
+    _ref
+        .read(uiNotificationProvider.notifier)
+        .showSuccess(
+          'The $noun connected after all.',
+          title: type.displayName,
+        );
   }
 
   Future<void> _disconnect(DeviceType type) {

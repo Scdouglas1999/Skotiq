@@ -45,10 +45,19 @@ class _TestBackendNotifier extends BackendNotifier {
 
 /// One wired host per container: the event stream the executor subscribes to
 /// has to be a real Stream, not the permissive `Future<void>` fallback.
-_MockHostBackend _wiredHost() {
+///
+/// The executor starts the loaded run and reads the executor state through the
+/// whole host; both go to [sequencer], where the tests stub and verify them.
+_MockHostBackend _wiredHost(_MockSequencerBackend sequencer) {
   final host = _MockHostBackend();
   when(() => host.eventStream).thenAnswer((_) => const Stream.empty());
   when(() => host.polarAlignmentEvents).thenAnswer((_) => const Stream.empty());
+  when(
+    () => host.sequencerStart(),
+  ).thenAnswer((_) => sequencer.sequencerStart());
+  when(
+    () => host.sequencerGetStatus(),
+  ).thenAnswer((_) => sequencer.sequencerGetStatus());
   return host;
 }
 
@@ -158,7 +167,7 @@ void main() {
         () => sequencer.sequencerSetSimulationMode(any()),
       ).thenAnswer((_) async {});
       when(
-        () => sequencer.sequencerSetSafetyFailMode(any()),
+        () => sequencer.sequencerApplyRunConfig(any()),
       ).thenAnswer((_) async {});
       when(
         () => sequencer.sequencerSetDevices(
@@ -168,7 +177,6 @@ void main() {
           filterwheelId: any(named: 'filterwheelId'),
           rotatorId: any(named: 'rotatorId'),
           filterNames: any(named: 'filterNames'),
-          filterFocusOffsets: any(named: 'filterFocusOffsets'),
         ),
       ).thenAnswer((_) async {});
       when(() => sequencer.sequencerStart()).thenAnswer((_) async {});
@@ -177,7 +185,7 @@ void main() {
       container = createHeadlessTestContainer(
         overrides: [
           backendProvider.overrideWith(
-            (ref) => _TestBackendNotifier(ref, _wiredHost()),
+            (ref) => _TestBackendNotifier(ref, _wiredHost(sequencer)),
           ),
           sequencerBackendProvider.overrideWithValue(sequencer),
           deviceBackendProvider.overrideWithValue(devices),
@@ -408,7 +416,7 @@ void main() {
         () => sequencer.sequencerSetSimulationMode(any()),
       ).thenAnswer((_) async {});
       when(
-        () => sequencer.sequencerSetSafetyFailMode(any()),
+        () => sequencer.sequencerApplyRunConfig(any()),
       ).thenAnswer((_) async {});
       when(
         () => sequencer.sequencerSetDevices(
@@ -418,7 +426,6 @@ void main() {
           filterwheelId: any(named: 'filterwheelId'),
           rotatorId: any(named: 'rotatorId'),
           filterNames: any(named: 'filterNames'),
-          filterFocusOffsets: any(named: 'filterFocusOffsets'),
         ),
       ).thenAnswer((_) async {});
       when(() => sequencer.sequencerStart()).thenAnswer((_) async {});
@@ -427,7 +434,7 @@ void main() {
       container = createHeadlessTestContainer(
         overrides: [
           backendProvider.overrideWith(
-            (ref) => _TestBackendNotifier(ref, _wiredHost()),
+            (ref) => _TestBackendNotifier(ref, _wiredHost(sequencer)),
           ),
           sequencerBackendProvider.overrideWithValue(sequencer),
           deviceBackendProvider.overrideWithValue(devices),
@@ -555,7 +562,7 @@ void main() {
         () => sequencer.sequencerSetSimulationMode(any()),
       ).thenAnswer((_) async {});
       when(
-        () => sequencer.sequencerSetSafetyFailMode(any()),
+        () => sequencer.sequencerApplyRunConfig(any()),
       ).thenAnswer((_) async {});
       when(
         () => sequencer.sequencerSetDevices(
@@ -565,7 +572,6 @@ void main() {
           filterwheelId: any(named: 'filterwheelId'),
           rotatorId: any(named: 'rotatorId'),
           filterNames: any(named: 'filterNames'),
-          filterFocusOffsets: any(named: 'filterFocusOffsets'),
         ),
       ).thenAnswer((_) async {});
       when(() => sequencer.sequencerStart()).thenAnswer((_) async {});
@@ -577,7 +583,7 @@ void main() {
       container = createHeadlessTestContainer(
         overrides: [
           backendProvider.overrideWith(
-            (ref) => _TestBackendNotifier(ref, _wiredHost()),
+            (ref) => _TestBackendNotifier(ref, _wiredHost(sequencer)),
           ),
           sequencerBackendProvider.overrideWithValue(sequencer),
           deviceBackendProvider.overrideWithValue(devices),
@@ -697,7 +703,7 @@ void main() {
         () => sequencer.sequencerSetSimulationMode(any()),
       ).thenAnswer((_) async {});
       when(
-        () => sequencer.sequencerSetSafetyFailMode(any()),
+        () => sequencer.sequencerApplyRunConfig(any()),
       ).thenAnswer((_) async {});
       when(
         () => sequencer.sequencerSetDevices(
@@ -707,7 +713,6 @@ void main() {
           filterwheelId: any(named: 'filterwheelId'),
           rotatorId: any(named: 'rotatorId'),
           filterNames: any(named: 'filterNames'),
-          filterFocusOffsets: any(named: 'filterFocusOffsets'),
         ),
       ).thenAnswer((_) async {});
       when(() => sequencer.sequencerStart()).thenAnswer((_) async {});
@@ -719,7 +724,7 @@ void main() {
       container = createHeadlessTestContainer(
         overrides: [
           backendProvider.overrideWith(
-            (ref) => _TestBackendNotifier(ref, _wiredHost()),
+            (ref) => _TestBackendNotifier(ref, _wiredHost(sequencer)),
           ),
           sequencerBackendProvider.overrideWithValue(sequencer),
           deviceBackendProvider.overrideWithValue(devices),

@@ -54,11 +54,8 @@ pub(crate) const MAD_TO_SIGMA: f64 = 1.4826;
 pub struct GuiderConfig {
     /// Guide camera exposure time in seconds
     pub exposure_secs: f64,
-    /// Guide camera gain
     pub gain: i32,
-    /// Guide camera offset
     pub offset: i32,
-    /// Guide camera binning
     pub binning: i32,
     /// Calibration pulse duration in milliseconds
     pub calibration_ms: u32,

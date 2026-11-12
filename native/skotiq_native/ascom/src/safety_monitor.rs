@@ -3,9 +3,7 @@
 use crate::com::ComDispatch;
 use crate::error::AscomResult;
 
-com_device!(
-    SafetyMonitor
-);
+com_device!(SafetyMonitor);
 
 impl<D: ComDispatch> SafetyMonitor<D> {
     skotiq_device::ascom_safety_monitor_members!(com_member);
@@ -49,6 +47,7 @@ mod tests {
             dispatch: Dispatch::Get,
             member: "IsSafe".to_string(),
             cause: "ASCOM IsSafe COM failure".to_string(),
+            code: None,
         }))
         .expect_err("IsSafe failures must not be swallowed into None")
         .to_string();

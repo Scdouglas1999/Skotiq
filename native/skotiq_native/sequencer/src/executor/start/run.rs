@@ -298,7 +298,6 @@ pub(crate) struct Run {
     pub shared: ExecutorShared,
     pub device_ops: SharedDeviceOps,
     pub triggers: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     pub decisions: DecisionLog,
     pub recovery: RecoveryHandles,
     pub checkpoint: Option<Arc<CheckpointWriter>>,
@@ -320,16 +319,47 @@ pub(crate) struct RunSeed {
 }
 
 impl Run {
+    /// What every instruction of this run shares: the node tree's steps, the
+    /// trigger actions and the recovery driver's moves alike. Built once per
+    /// run, so all of them write to the same decision log, ask the same
+    /// recovery driver, wait at the same dither barrier and stamp frames with
+    /// the same session.
+    pub(super) async fn instruction_shared(
+        &self,
+        recovery_requests: mpsc::Sender<RecoveryCause>,
+    ) -> crate::instructions::RunShared {
+        let slots = self.config.slots();
+        let mut shared = crate::instructions::RunShared::new(self.device_ops.clone());
+        shared.rig = self.rig.clone();
+        shared.trigger_state = Some(self.triggers.read().await.state());
+        shared.event_tx = Some(self.control.state.events().clone());
+        shared.recovery_request_tx = Some(recovery_requests);
+        shared.decision_tx = Some(self.decisions.tx.clone());
+        shared.active_sequence_run_id = self.decisions.run_id.clone();
+        // One id per start, so `SK-SESID` names this run and no other.
+        shared.identity.session_id = uuid::Uuid::new_v4().to_string();
+        shared.settings = Some(self.config.clone());
+        shared.take_settings();
+        shared.conditions.sky_brightness_mag = self.sky.sky_brightness_mag.clone();
+        shared.conditions.cloud_motion = self.sky.cloud_motion.clone();
+        shared.defect_map_apply = self.shared.defect_map_apply.clone();
+        shared.device_retry = slots.device_retry.clone();
+        // A secondary capture loop armed before this start shares its dither
+        // barrier with the run.
+        shared.dither_barrier = crate::dual_rig::active_barrier();
+        shared
+    }
+
     /// The node tree's context, wired to this run.
-    async fn build_context(
+    pub(super) async fn build_context(
         &self,
         started: std::time::Instant,
         recovery_requests: mpsc::Sender<RecoveryCause>,
     ) -> ExecutionContext {
         let config = self.config.snapshot();
         let slots = self.config.slots();
-        let mut context = ExecutionContext::new("root".to_string(), self.device_ops.clone())
-            .with_decision_sender(self.decisions.tx.clone(), self.decisions.run_id.clone());
+        let mut context = ExecutionContext::new("root".to_string(), self.device_ops.clone());
+        context.run = self.instruction_shared(recovery_requests).await;
 
         context.is_cancelled = self.control.is_cancelled.clone();
         context.is_paused = self.control.is_paused.clone();
@@ -338,49 +368,24 @@ impl Run {
         context.skip_to_next_target = self.skip_to_next_target.clone();
         context.skip_to_node = self.skip_to_node.clone();
         context.plugin_node_pending = self.plugin_node_pending.clone();
-        context.run.event_tx = Some(self.control.state.events().clone());
-        context.run.recovery_request_tx = Some(recovery_requests);
         context.recovery_generation = self.recovery.generation.clone();
-        context.run.trigger_state = Some(self.triggers.read().await.state());
         context.budget_registry = self.budget_registry.clone();
         context.smart_exposure_states = self.smart_exposure_states.clone();
         context.resume = self.resume.clone();
 
-        context.run.conditions.sky_brightness_mag = self.sky.sky_brightness_mag.clone();
-        context.run.conditions.cloud_motion = self.sky.cloud_motion.clone();
         context.current_transparency = self.sky.transparency.clone();
         context.transparency_backup_plan = self.sky.transparency_backup.clone();
         context.current_conditions_score = self.sky.conditions_score.clone();
         context.adaptive_swap_state = self.shared.adaptive_swap_state.clone();
-        context.run.defect_map_apply = self.shared.defect_map_apply.clone();
         context.depth_goal_ops = self.shared.depth_goal_ops.clone();
         context.default_adaptive_exposure = slots.default_adaptive_exposure.clone();
         context.safety_fail_mode = slots.safety_fail_mode.clone();
-        context.run.device_retry = slots.device_retry.clone();
-        // A secondary capture loop armed before this start shares its dither
-        // barrier with the run.
-        context.run.dither_barrier = crate::dual_rig::active_barrier();
-
-        context.run.rig = self.rig.clone();
-
-        // One id per start, so `SK-SESID` names this run and no other.
-        context.run.identity.session_id = uuid::Uuid::new_v4().to_string();
         context.max_sun_altitude_degrees = config.max_sun_altitude();
-        context.run.identity.observer_name = config.observer_profile.observer_name.clone();
-        context.run.identity.site_elevation_m = config.observer_profile.site_elevation_m;
-        context.run.identity.camera_make = config.observer_profile.camera_make.clone();
-        context.run.identity.camera_model = config.observer_profile.camera_model.clone();
-        context.run.identity.telescope_name = config.observer_profile.telescope_name.clone();
-        context.run.identity.telescope_focal_length_mm =
-            config.observer_profile.telescope_focal_length_mm;
-        context.run.identity.telescope_aperture_mm = config.observer_profile.telescope_aperture_mm;
-        context.run.grading.default_quality_check = config.default_quality_check.clone();
-        context.run.grading.reject_folder_path = config.reject_folder_path.clone();
 
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),
             // A burst a resume continues has its frames counted already.
-            node_frame_progress: Arc::new(StdRwLock::new(self.resume.snapshot().frames_taken)),
+            node_frame_progress: Arc::new(StdRwLock::new(self.resume.snapshot().frames.in_pass)),
             node_integration_credited: Arc::default(),
             node_names: Arc::new(StdRwLock::new(self.plan.node_display_names.clone())),
             run_state: self.control.state.clone(),
@@ -451,8 +456,13 @@ impl Run {
             )
             .await;
         let (result, unreachable_reason) = self.verdict(tree_result);
+        // The reason is settled by what happened up to here. The shutdown
+        // steps that put the rig away next are cleanup: a Park that succeeds
+        // there does not mean the run carried on past its fault.
+        let failure = failure_collector.finish(unreachable_reason).await;
         self.put_rig_away(result, &side_context).await;
-        self.finalize(result, unreachable_reason, failure_collector, started)
+        let guider_left_running = self.end_the_runs_guiding(result).await;
+        self.finalize(result, failure, started, guider_left_running)
             .await;
     }
 
@@ -478,7 +488,8 @@ impl Run {
         };
         let command_handler = run_command_handler(self.clone(), commands);
         let checkpoint_stream = run_checkpoint_stream(self.clone());
-        let recovery_driver = run_recovery_driver(self.clone(), recovery_rx);
+        let recovery_driver =
+            run_recovery_driver(self.clone(), side_context.run.clone(), recovery_rx);
 
         // A hung poll looks like a healthy monitor to the select below, so
         // the watchdog turns "stalled" into "exited", which fails closed.
@@ -532,7 +543,7 @@ impl Run {
                 monitor_finished = true;
                 // An unattended run depends on the monitor for weather,
                 // altitude and drift limits; without it nothing may expose.
-                if self.triggers_enabled && !is_cancelled.load(Ordering::Relaxed) {
+                if !is_cancelled.load(Ordering::Relaxed) {
                     tracing::error!(
                         "Safety monitoring (trigger monitor) exited unexpectedly! \
                          Cancelling sequence to prevent unmonitored execution."
@@ -596,8 +607,7 @@ impl Run {
 
         // The last science frame can still be queued or solving when its node
         // ends. Its assessment is finished first, with every action disabled.
-        if self.triggers_enabled
-            && !monitor_finished
+        if !monitor_finished
             && result == NodeStatus::Success
             && !is_cancelled.load(Ordering::Acquire)
         {
@@ -687,22 +697,64 @@ impl Run {
         .await;
     }
 
+    /// A stopped run ends the guiding it started. Guiding the run did not
+    /// start (the operator's, from before the run) is not the run's to end.
+    /// A trigger that parked the rig has already stopped the guider. Returns
+    /// what the operator needs to hear about a guider that is still guiding.
+    async fn end_the_runs_guiding(&self, result: NodeStatus) -> Option<String> {
+        if result != NodeStatus::Cancelled || self.teardown.parked_by_trigger() {
+            return None;
+        }
+        let trigger_state = self.triggers.read().await.state();
+        let ours = trigger_state.read().await.guiding.is_enabled();
+        let ops = &self.device_ops;
+        if !ours {
+            let guiding = matches!(ops.guider_get_status().await, Ok(status) if status.is_guiding);
+            return guiding.then(|| {
+                "The guider is still guiding: it was started outside this run.".to_string()
+            });
+        }
+        ops.guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
+            .await;
+        let stopped = ops.guider_stop().await;
+        {
+            let mut state = trigger_state.write().await;
+            state.set_guiding_enabled(false);
+            state.guiding.set_resume_pending(false);
+        }
+        match stopped {
+            Ok(()) | Err(crate::device_ops::DeviceError::NO_GUIDER) => None,
+            Err(error) => {
+                tracing::warn!("[GUIDING] The guider did not stop with the run: {error}");
+                Some(format!(
+                    "The guider did not stop and may still be guiding: {error}."
+                ))
+            }
+        }
+    }
+
     /// The run's one finalization: store the terminal state with the run's
     /// own verdict as its message, close the checkpoint, publish the terminal
-    /// events, and announce the state last.
+    /// events, and announce the state last. `guider_left_running` is added to
+    /// the verdict of a stopped run whose guider still guides.
     async fn finalize(
         &self,
         result: NodeStatus,
-        unreachable_reason: Option<String>,
-        failure_collector: crate::executor::failure_cause::FailureCollector,
+        mut failure: crate::executor::failure_cause::RunFailureReport,
         started: std::time::Instant,
+        guider_left_running: Option<String>,
     ) {
         let state = &self.control.state;
         let final_state = executor_state_for_result(result);
         // The message is composed from the status the root returned, so it
         // cannot disagree with the state: the tree keeps emitting progress
         // after the root is done.
-        let verdict = terminal_verdict_message(result, &self.plan.root_display_name);
+        let mut verdict = terminal_verdict_message(result, &self.plan.root_display_name);
+        if let Some(note) = guider_left_running {
+            // Also told in the run's log, where a client reads how the run ended.
+            self.control.warning(note.clone());
+            verdict = format!("{verdict}. {note}");
+        }
         let terminal = state.store(final_state, |progress| {
             progress.message = Some(verdict);
             progress.elapsed_secs = started.elapsed().as_secs_f64();
@@ -726,23 +778,22 @@ impl Run {
                 // The reason is the structural refusal if there is one, else
                 // the FIRST fault, never a cancelled cleanup step: see
                 // `executor::failure_cause`.
-                let mut report = failure_collector.finish(unreachable_reason).await;
-                if report.cause.is_none() && self.outside_failures.meridian_flip.is_latched() {
-                    report.cause = self.outside_failures.meridian_flip.message();
+                if failure.cause.is_none() && self.outside_failures.meridian_flip.is_latched() {
+                    failure.cause = self.outside_failures.meridian_flip.message();
                 }
-                if report.cascade.len() > 1 {
+                if failure.cascade.len() > 1 {
                     tracing::info!(
                         "Run failure cascade ({} links, cause first): {}",
-                        report.cascade.len(),
-                        report.cascade.join(" | ")
+                        failure.cascade.len(),
+                        failure.cascade.join(" | ")
                     );
                 }
                 // "Failed: <root name>" names a container and gives no
                 // reason; a run that has a reason reports the reason.
-                if let Some(reason) = report.cause.as_deref() {
+                if let Some(reason) = failure.cause.as_deref() {
                     state.set_message(reason);
                 }
-                let error = report
+                let error = failure
                     .cause
                     .unwrap_or_else(|| "Sequence failed".to_string());
                 state.emit(ExecutorEvent::SequenceFailed {
@@ -870,7 +921,6 @@ impl Run {
             },
             device_ops,
             triggers: Arc::new(RwLock::new(TriggerManager::new())),
-            triggers_enabled: true,
             decisions: DecisionLog {
                 tx: decisions,
                 run_id: Arc::default(),

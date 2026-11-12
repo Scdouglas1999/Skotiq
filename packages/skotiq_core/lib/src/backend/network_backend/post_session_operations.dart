@@ -183,19 +183,6 @@ mixin _NetworkBackendPostSessionOperations on _NetworkBackendTransport {
     );
   }
 
-  /// Linearly combine single-channel narrowband masters into an RGB composite
-  /// on the host. [args] is the `CombineChannelsArgs` JSON shape (host paths).
-  /// Returns the `{outputPath}` envelope.
-  Future<Map<String, dynamic>> postSessionCombineChannels(
-    Map<String, dynamic> args,
-  ) {
-    return _runPostSessionJob(
-      'post-session/combine-channels',
-      args,
-      timeout: _postSessionLongTimeout,
-    );
-  }
-
   /// Drive the multi-night accumulating master on the host. [args] carries an
   /// `op` of `create` / `add` / `finalize` / `info` plus that op's fields (host
   /// paths). Returns the `MasterAccumulateResult` envelope.

@@ -51,7 +51,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
   if (profile == null) {
     throw const SmartNightBuildException('Select an equipment profile first.');
   }
-  final backend = ref.read(backendProvider);
+  final host = ref.backendScope();
   final filters = ref.read(effectiveFiltersProvider);
   final camera = ref.read(cameraStateProvider);
   final cameraName = camera.connectionState == DeviceConnectionState.connected
@@ -67,7 +67,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
   final dao = ref.read(settingsDaoProvider);
   final raw = await dao.getSetting(key);
   if (!context.mounted ||
-      (!identical(backend, ref.read(backendProvider)) ||
+      (host.isStale ||
           ref.read(activeEquipmentProfileProvider)?.id != profile.id ||
           ref.read(cameraStateProvider).deviceId != camera.deviceId)) {
     return null;
@@ -89,7 +89,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
     ),
   );
   if (!context.mounted ||
-      (!identical(backend, ref.read(backendProvider)) ||
+      (host.isStale ||
           ref.read(activeEquipmentProfileProvider)?.id != profile.id ||
           ref.read(cameraStateProvider).deviceId != camera.deviceId)) {
     return null;

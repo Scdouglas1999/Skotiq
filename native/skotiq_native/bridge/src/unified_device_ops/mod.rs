@@ -54,10 +54,10 @@
 //!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
 //!   lives.
 
-
 use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
 use crate::api::*;
 use crate::device::DeviceType;
+use crate::dispatch::DeviceOpError;
 use crate::event::*;
 use crate::filter_matching::find_filter_match;
 use crate::state::SharedAppState;
@@ -106,6 +106,29 @@ mod rig_grading_tests;
 pub(crate) use rich_header::*;
 #[cfg(test)]
 mod tests;
+
+/// What the sequencer is told about a failed operation on its `device`: the
+/// same kind of failure, in the device layer's words.
+fn device_error<E: Into<DeviceOpError>>(
+    device: skotiq_sequencer::DeviceKind,
+) -> impl Fn(E) -> DeviceError {
+    move |error| {
+        let error = error.into();
+        let message = error.to_string();
+        match error {
+            DeviceOpError::NotConnected { .. } => DeviceError::NotConnected { device, message },
+            DeviceOpError::Unsupported { .. } => DeviceError::Unsupported(message),
+            DeviceOpError::Timeout { .. } => DeviceError::Timeout(message),
+            DeviceOpError::DeviceNotFound(_)
+            | DeviceOpError::InvalidDeviceId { .. }
+            | DeviceOpError::InvalidParameter { .. }
+            | DeviceOpError::InvalidState { .. } => DeviceError::Rejected(message),
+            DeviceOpError::Hardware { .. } | DeviceOpError::Message(_) => {
+                DeviceError::Failed(message)
+            }
+        }
+    }
+}
 
 /// Unified device operations implementation
 ///

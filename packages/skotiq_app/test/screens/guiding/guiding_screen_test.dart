@@ -195,7 +195,8 @@ void main() {
     final pauseInkWell = tester.widget<InkWell>(
       find.ancestor(of: pause, matching: find.byType(InkWell)).first,
     );
-    expect(pauseInkWell.onTap, isNull);
+    // Pause is the guider's, not PHD2's: the built-in guider pauses too.
+    expect(pauseInkWell.onTap, isNotNull);
 
     await tester.tap(find.text('Disconnect'));
     await tester.pump();

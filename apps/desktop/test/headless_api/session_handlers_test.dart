@@ -89,7 +89,7 @@ void main() {
       'polar Start awaits native admission even when jobs are wired',
       () async {
         final backend = _GatedPolarBackend();
-        final polarContainer = ProviderContainer(
+        final polarContainer = createHeadlessTestContainer(
           overrides: [
             backendProvider.overrideWith(
               (ref) => _TestBackendNotifier(ref, backend),
@@ -138,7 +138,7 @@ void main() {
 
     test('polar Start propagates native admission failure', () async {
       final backend = _GatedPolarBackend();
-      final polarContainer = ProviderContainer(
+      final polarContainer = createHeadlessTestContainer(
         overrides: [
           backendProvider.overrideWith(
             (ref) => _TestBackendNotifier(ref, backend),

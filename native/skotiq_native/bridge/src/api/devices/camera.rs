@@ -25,55 +25,6 @@ use tokio::sync::RwLock;
 use super::super::*;
 use super::*;
 
-// Camera exposure control (real cameras)
-
-/// Start camera exposure
-/// This delegates to api_camera_start_exposure which handles the full exposure
-/// workflow including waiting for completion, image processing, and storage.
-pub async fn start_exposure(
-    device_id: String,
-    duration_secs: f64,
-    gain: i32,
-    offset: i32,
-    bin_x: i32,
-    bin_y: i32,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        "API: start_exposure called for {} duration={}",
-        device_id,
-        duration_secs
-    );
-
-    // Delegate to the full implementation which handles:
-    // - Starting the exposure
-    // - Publishing progress events
-    // - Waiting for completion
-    // - Downloading and processing the image
-    // - Storing the result for get_last_image()
-    api_camera_start_exposure(device_id, duration_secs, gain, offset, bin_x, bin_y).await
-}
-
-/// Abort/cancel camera exposure
-pub async fn cancel_exposure(device_id: String) -> Result<(), SkotiqError> {
-    tracing::info!("API: cancel_exposure called for {}", device_id);
-
-    let mgr = get_device_manager();
-    mgr.camera_abort_exposure(&device_id)
-        .await
-        .map_err(SkotiqError::from)?;
-
-    // Publish ExposureCancelled event
-    let state = get_state();
-    let event = crate::event::create_event_auto_id(
-        crate::event::EventSeverity::Info,
-        crate::event::EventCategory::Imaging,
-        crate::event::EventPayload::Imaging(crate::event::ImagingEvent::ExposureCancelled),
-    );
-    state.event_bus.publish(event);
-
-    Ok(())
-}
-
 /// Get camera status
 pub async fn get_camera_status(device_id: String) -> Result<CameraStatus, SkotiqError> {
     let mgr = get_device_manager();
@@ -103,7 +54,21 @@ pub async fn set_camera_cooler(
         .map_err(SkotiqError::from)
 }
 
-// Camera readout mode
+/// Set camera gain
+pub async fn set_camera_gain(device_id: String, gain: i32) -> Result<(), SkotiqError> {
+    let mgr = get_device_manager();
+    mgr.camera_set_gain(&device_id, gain)
+        .await
+        .map_err(SkotiqError::from)
+}
+
+/// Set camera offset
+pub async fn set_camera_offset(device_id: String, offset: i32) -> Result<(), SkotiqError> {
+    let mgr = get_device_manager();
+    mgr.camera_set_offset(&device_id, offset)
+        .await
+        .map_err(SkotiqError::from)
+}
 
 /// Set camera readout mode by index
 ///
@@ -120,21 +85,6 @@ pub async fn api_camera_set_readout_mode(
     );
     let mgr = get_device_manager();
     mgr.camera_set_readout_mode(&device_id, mode_index)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-// Camera binning (legacy API, kept for compatibility)
-
-/// Set camera binning. Simulators go through the `DeviceManager` like every
-/// other driver, so the change publishes its event whoever asked.
-pub async fn api_set_camera_binning(
-    device_id: String,
-    bin_x: i32,
-    bin_y: i32,
-) -> Result<(), SkotiqError> {
-    get_device_manager()
-        .camera_set_binning(&device_id, bin_x, bin_y)
         .await
         .map_err(SkotiqError::from)
 }

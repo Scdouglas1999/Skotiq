@@ -62,7 +62,7 @@ pub use checkpoint::*;
 // Replay Debug — hoist the decision types so the bridge can use
 // them without pathing through `skotiq_sequencer::decision::…`.
 pub use decision::{
-    emit_decision, DecisionCategory, DecisionEvent, DecisionReceiver, DecisionSender,
+    emit_decision, DecisionCategory, DecisionEvent, DecisionReceiver, DecisionSender, RunNotice,
     DEFAULT_DECISION_CHANNEL_CAPACITY,
 };
 pub use depth_goal::{
@@ -131,17 +131,11 @@ pub enum SafetyFailMode {
 /// Status of a node execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeStatus {
-    /// Node has not started
     Pending,
-    /// Node is currently running
     Running,
-    /// Node completed successfully
     Success,
-    /// Node failed
     Failure,
-    /// Node was skipped
     Skipped,
-    /// Node was cancelled
     Cancelled,
 }
 
@@ -452,8 +446,6 @@ impl NodeType {
         )
     }
 }
-
-// Science: SciencePhotometry configuration
 
 /// Configuration for the [`NodeType::SciencePhotometry`] instruction.
 ///
@@ -798,10 +790,10 @@ impl LiveStackingMode {
 
 /// Configuration for the [`NodeType::LiveStacking`] node.
 ///
-/// All ports / paths are validated by the editor-side validation rules
-/// (see Dart `LiveStackingPortClashRule` / `LiveStackingNoExposureRule`).
-/// The Rust runtime does not re-validate — invalid configs are caught
-/// before the sequence starts.
+/// The broadcast is served by the host's API server under `/broadcast`, on
+/// that server's port; the node carries no address of its own. Sequences
+/// saved while it did (`broadcast_port`, `broadcast_path`) still load: serde
+/// ignores the unknown keys.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LiveStackingConfig {
     /// `BroadcastOnly` or `RecordAndBroadcast`.
@@ -820,17 +812,6 @@ pub struct LiveStackingConfig {
     /// this mid-sequence by editing the node when paused.
     #[serde(default = "default_broadcast_enabled")]
     pub broadcast_enabled: bool,
-    /// TCP port the broadcast service binds. Defaults to 8081 to stay
-    /// out of the headless API server (default 8080) and the web
-    /// dashboard. The Dart `LiveStackingPortClashRule` errors if this
-    /// matches the headless API port.
-    #[serde(default = "default_broadcast_port")]
-    pub broadcast_port: u16,
-    /// HTTP path prefix the broadcast service serves under. Default
-    /// `/broadcast`. Allows the user to host the broadcast under a
-    /// vanity prefix at outreach events.
-    #[serde(default = "default_broadcast_path")]
-    pub broadcast_path: String,
     /// Optional shared secret. When `Some` and non-empty, every
     /// broadcast endpoint requires `?token=…` matching this value.
     /// `None` (or `Some("")`) = public access.
@@ -866,14 +847,6 @@ fn default_broadcast_enabled() -> bool {
     true
 }
 
-fn default_broadcast_port() -> u16 {
-    8081
-}
-
-fn default_broadcast_path() -> String {
-    "/broadcast".to_string()
-}
-
 fn default_thumbnail_width() -> u32 {
     1280
 }
@@ -889,8 +862,6 @@ impl Default for LiveStackingConfig {
             stack_method: StackMethod::default(),
             max_frames_to_stack: 0,
             broadcast_enabled: default_broadcast_enabled(),
-            broadcast_port: default_broadcast_port(),
-            broadcast_path: default_broadcast_path(),
             auth_token: None,
             watermark_text: None,
             thumbnail_width: default_thumbnail_width(),
@@ -898,8 +869,6 @@ impl Default for LiveStackingConfig {
         }
     }
 }
-
-// SmartExposure configuration
 
 /// Configuration for the SmartExposure container instruction.
 ///
@@ -1681,7 +1650,6 @@ pub struct FlatWizardConfig {
     pub tolerance_percent: f64,
     /// Where flats are taken from (panel, dawn sky, dusk sky)
     pub panel_location: PanelLocation,
-    /// Filter to use (optional)
     pub filter: Option<String>,
     /// Filter position (0-based index). When specified, used instead of filter name.
     #[serde(default)]
@@ -2831,7 +2799,6 @@ impl Default for CalibratorOnConfig {
     }
 }
 
-/// Loop conditions
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LoopCondition {
     /// Loop N times (use iterations field)
@@ -2844,7 +2811,6 @@ pub enum LoopCondition {
     AltitudeAbove,
     /// Loop until integration time reached (condition_value = seconds)
     IntegrationTime,
-    /// Loop forever (until stopped)
     Forever,
     /// Loop while sky is dark
     WhileDark,
@@ -2877,17 +2843,14 @@ pub enum LoopCondition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
 pub enum ConditionalCheck {
-    /// Always execute
     Always,
     /// Check if altitude is above threshold
     AltitudeAbove(f64),
-    /// Check if time is after
     TimeAfter(i64),
     /// Check if guiding RMS is below threshold
     GuidingRmsBelow(f64),
     /// Check if HFR is below threshold
     HfrBelow(f64),
-    /// Check if weather is safe
     WeatherSafe,
     /// Check if moon separation is above degrees
     MoonSeparationAbove(f64),
@@ -3210,9 +3173,10 @@ mod live_stacking_config_tests {
 
         let config: LiveStackingConfig = serde_json::from_str(json)
             .expect("legacy config with now-removed OSC keys must still deserialize");
-        // The broadcast-relevant fields still load.
-        assert_eq!(config.broadcast_port, 8081);
-        assert_eq!(config.broadcast_path, "/broadcast");
+        // The fields the broadcast still has load; the port and path a
+        // node once carried are ignored with the rest.
+        assert_eq!(config.mode, crate::LiveStackingMode::RecordAndBroadcast);
+        assert!(config.broadcast_enabled);
     }
 
     /// An empty persisted blob must load entirely via serde defaults.

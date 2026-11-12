@@ -113,7 +113,6 @@ pub fn variable_catalog() -> &'static [VariableEntry] {
             example: "138.2",
             supports_format: true,
         },
-        // Filter
         VariableEntry {
             name: "filter",
             description: "Currently selected filter name",

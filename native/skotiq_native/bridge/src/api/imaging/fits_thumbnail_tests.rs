@@ -193,7 +193,7 @@ fn a_missing_file_reports_the_read_failure() {
 
     let error = generate_fits_thumbnail_jpeg(&missing, 128).expect_err("must fail");
     assert!(
-        format!("{error:?}").contains("Failed to read FITS"),
+        format!("{error:?}").contains("Failed to read the image"),
         "unexpected error: {error:?}"
     );
 }
@@ -243,4 +243,34 @@ async fn concurrent_requests_are_all_served() {
         let bytes = handle.await.expect("join").expect("thumbnail");
         assert_eq!(bytes, expected[index], "frame {index} got the wrong answer");
     }
+}
+
+/// A one-shot-color mosaic is reduced one filter cell at a time. Sampled pixel
+/// by pixel at an even step it would show only the red sites, a different
+/// picture from the frame.
+#[test]
+fn a_color_mosaic_thumbnail_holds_every_filter_color() {
+    let dir = tempfile::tempdir().unwrap();
+    let (width, height) = (64u32, 64u32);
+    let mut samples = Vec::with_capacity((width * height) as usize);
+    for y in 0..height {
+        for x in 0..width {
+            // RGGB with light only on the green sites, brighter to the right.
+            let green = x % 2 != y % 2;
+            samples.push(if green { 2000 + (x * 900) as u16 } else { 1000 });
+        }
+    }
+    let path = dir.path().join("osc.fits");
+    let mut header = FitsHeader::new();
+    header.set_string("BAYERPAT", "RGGB");
+    skotiq_imaging::write_fits(&path, &ImageData::from_u16(width, height, 1, &samples), &header)
+        .unwrap();
+
+    let jpeg = generate_fits_thumbnail_jpeg(path.to_str().unwrap(), 16).expect("thumbnail");
+    let img = image::load_from_memory(&jpeg).unwrap().to_luma8();
+    let (left, right) = (img.get_pixel(1, 8)[0], img.get_pixel(14, 8)[0]);
+    assert!(
+        right as i32 - left as i32 > 64,
+        "the green light is missing from the thumbnail: left {left}, right {right}"
+    );
 }

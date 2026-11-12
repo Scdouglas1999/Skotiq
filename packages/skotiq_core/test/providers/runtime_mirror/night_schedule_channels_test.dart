@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../../harness/in_memory_database.dart';
+
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -32,6 +34,7 @@ ProviderContainer _host() {
   ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
   final container = ProviderContainer(
     overrides: [
+      inMemoryDatabaseOverride(),
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
@@ -59,6 +62,7 @@ ProviderContainer _host() {
   );
   final client = ProviderContainer(
     overrides: [
+      inMemoryDatabaseOverride(),
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),

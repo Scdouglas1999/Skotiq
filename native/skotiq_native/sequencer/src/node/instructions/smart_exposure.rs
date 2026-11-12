@@ -882,8 +882,6 @@ async fn clear_checkpoint(node_id: &str, context: &ExecutionContext) {
     states.remove(node_id);
 }
 
-// Tests
-
 #[cfg(test)]
 mod tests {
     use super::*;

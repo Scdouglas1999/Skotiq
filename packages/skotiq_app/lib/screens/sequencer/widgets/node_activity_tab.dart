@@ -24,7 +24,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../plan_math.dart';
 import 'exposure_node_thumbnail_strip.dart';
 import 'node_progress_panels.dart';
 
@@ -134,14 +133,11 @@ SubtreeActivity subtreeActivityProgress(
   var ran = progress.nodeStatuses[rootId] != null;
   final visited = <String>{rootId};
 
-  int perPassFrames(SequenceNode node) =>
-      node.kind.captures(node).fold(0, (sum, run) => sum + run.count);
-
   void visit(SequenceNode node, bool underRepeat) {
     if (!node.isEnabled) return;
     if (progress.nodeStatuses[node.id] != null) ran = true;
 
-    final frames = perPassFrames(node);
+    final frames = node.framesPerPass;
     if (frames > 0) {
       if (underRepeat) {
         // Per-node statuses reset every pass, so scaling them into a run

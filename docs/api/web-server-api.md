@@ -106,8 +106,8 @@ When authentication is enabled, tokens can be scoped:
 | Scope | Access |
 | --- | --- |
 | `view` | Ordinary read endpoints and WebSocket event subscriptions. |
-| `control` | View access plus imaging and device-control routes, and changing the app settings except credential settings. |
-| `admin` | Full protected API access, including credential settings (a `403` with code `credential_setting` names them otherwise), Home Assistant, self-test, file browsing, backup/restore, plugins and updates. |
+| `control` | View access plus imaging and device-control routes, and changing the app settings except the admin-only ones (see `docs/security.md`). A credential that is set reads as `(set on the imaging host)`, and posting that back leaves it unchanged. |
+| `admin` | Full protected API access, including credential settings (a `403` with code `credential_setting` names them otherwise), the programs the host runs (`host_program_setting`), its backups, catalog source and remote access server (`admin_setting`), Home Assistant, self-test, file browsing, backup/restore, plugins and updates. |
 
 The legacy `--auth-token` and `SKOTIQ_AUTH_TOKEN` values are admin tokens.
 Optional `SKOTIQ_VIEW_TOKEN`, `SKOTIQ_CONTROL_TOKEN`, `--view-token`,
@@ -370,6 +370,45 @@ Disconnect from PHD2.
 ```json
 {
   "status": "disconnected"
+}
+```
+
+## Guiding
+
+`/api/guider/*` drives the host's guider: PHD2 or the built-in multi-star
+guider, whichever the active profile names (a connected guider answers when
+the profile's is not connected). `/api/phd2/*` is only PHD2's connection and
+its own settings (algorithm parameters, clearing and flipping its calibration).
+
+- `POST /api/guider/start-guiding` `{settlePixels, settleTime, settleTimeout}`
+- `POST /api/guider/stop-guiding`
+- `POST /api/guider/dither` `{amount, raOnly, settlePixels, settleTime, settleTimeout}`
+- `POST /api/guider/pause` `{paused}`
+- `POST /api/guider/loop`, `POST /api/guider/find-star`,
+  `POST /api/guider/set-lock-position` `{x, y, exact}`, `GET /api/guider/lock-position`,
+  `POST /api/guider/deselect-star`, `GET /api/guider/star-image?size=50`,
+  `GET /api/guider/calibration`
+
+### GET /api/guider/status
+
+The guider's state and guide error. `deviceId` names the guider answering;
+with no guider the answer is a disconnected status, not an error.
+
+```json
+{
+  "deviceId": "native:builtin_guider:multi_star",
+  "state": "Guiding",
+  "connected": true,
+  "rmsRa": 0.41,
+  "rmsDec": 0.47,
+  "rmsTotal": 0.62,
+  "snr": 24.6,
+  "starMass": 9100.0,
+  "avgDistance": 0.0,
+  "pixelScale": 3.22,
+  "trackedStars": [],
+  "stopReason": null,
+  "stopReasonText": null
 }
 ```
 

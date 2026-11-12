@@ -173,4 +173,39 @@ void main() {
     expect(withFilterGoal.goal.allFilters, isFalse);
     expect(withFilterGoal.goalIntegrationSecs, 3000);
   });
+
+  test('two goals in one filter share that filter\'s time instead of each '
+      'counting all of it', () {
+    final goals = [_goal('Ha', 300, 10), _goal('ha', 600, 10), _goal('L', 300, 4)];
+    final frames = [
+      for (var i = 1; i <= 15; i++) _frame(i, filter: 'Ha', exposure: 300),
+      _frame(20, filter: 'L', exposure: 300),
+    ];
+
+    final progress = service
+        .summarize(
+          targets: [_target(1, 'NGC 7000')],
+          sessions: const [],
+          frames: frames,
+          goals: goals,
+        )
+        .single;
+    expect(progress.goalIntegrationSecs, 3000 + 6000 + 1200);
+    expect(progress.goal.doneSecs, 4500 + 300);
+    expect(progress.goal.isComplete, isFalse);
+
+    final perGoal = acceptedPerGoal(acceptedLightsByFilter(frames), goals);
+    expect(perGoal.map((g) => g.seconds), [3000, 1500, 300]);
+    expect(perGoal.map((g) => g.frames), [10, 5, 1]);
+  });
+
+  test('time beyond a filter\'s goals stays on its last goal', () {
+    final goals = [_goal('Ha', 300, 2), _goal('Ha', 600, 1)];
+    final frames = [
+      for (var i = 1; i <= 6; i++) _frame(i, filter: 'Ha', exposure: 300),
+    ];
+    final perGoal = acceptedPerGoal(acceptedLightsByFilter(frames), goals);
+    expect(perGoal.map((g) => g.seconds), [600, 1200]);
+    expect(perGoal.map((g) => g.frames), [2, 4]);
+  });
 }

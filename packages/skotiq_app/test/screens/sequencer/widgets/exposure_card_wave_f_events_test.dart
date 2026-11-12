@@ -99,7 +99,7 @@ SkotiqEvent _adaptiveExposure(String nodeId) =>
 /// Push one event through the SAME function production calls.
 void _pump(ProviderContainer container, SkotiqEvent event) {
   applySequencerEventToNodeExposureTally(
-    container.read(nodeExposureTallyProvider.notifier),
+    container.read(runRecordProvider.notifier),
     event,
   );
   applySequencerEventToSequenceProviders(container.read, event);

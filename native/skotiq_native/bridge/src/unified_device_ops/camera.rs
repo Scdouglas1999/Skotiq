@@ -50,6 +50,8 @@ impl CameraOps for UnifiedDeviceOps {
             },
         );
 
+        let started_at = chrono::Utc::now();
+
         // Start the exposure. gain/offset are Option<i32>; None means "use the
         // camera's current value, don't change it" and is threaded through to
         // each driver branch so the setter is genuinely skipped — an
@@ -71,10 +73,9 @@ impl CameraOps for UnifiedDeviceOps {
         )
         .await
         .inspect_err(|_e| {
-            // Publish failure event
             exposure.end(false, EventSeverity::Error);
         })
-        .map_err(|e| format!("Exposure failed: {}", e))?;
+        .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
         if let Err(e) = wait_for_camera_exposure_complete(
             camera_id,
@@ -85,7 +86,7 @@ impl CameraOps for UnifiedDeviceOps {
             || async {
                 mgr.camera_is_exposure_complete(camera_id)
                     .await
-                    .map_err(|e| e.to_string())
+                    .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
             },
         )
         .await
@@ -126,7 +127,12 @@ impl CameraOps for UnifiedDeviceOps {
         {
             Ok(inner) => inner.map_err(|e| {
                 exposure.end(false, EventSeverity::Error);
-                format!("Failed to download image: {}", e)
+                match device_error(skotiq_sequencer::DeviceKind::Camera)(e) {
+                    DeviceError::Failed(message) => {
+                        DeviceError::Failed(format!("Failed to download image: {message}"))
+                    }
+                    other => other,
+                }
             })?,
             Err(_) => {
                 exposure.end(false, EventSeverity::Error);
@@ -153,7 +159,6 @@ impl CameraOps for UnifiedDeviceOps {
         // Validate downloaded image data to catch corrupted/bad frames early
         // This prevents cascading failures in autofocus, plate solving, etc.
         {
-            // Convert to skotiq_imaging ImageData for validation
             let img_for_validation = skotiq_imaging::ImageData::from_u16(
                 native_image.width,
                 native_image.height,
@@ -172,7 +177,7 @@ impl CameraOps for UnifiedDeviceOps {
             // driver that cannot answer its own status must not cost us the
             // frame, so failure just leaves the validator on the frame's own
             // clipping evidence.
-            let sensor_max_adu = match api_get_camera_status(camera_id.to_string()).await {
+            let sensor_max_adu = match get_camera_status(camera_id.to_string()).await {
                 Ok(status) => Some(status.max_adu).filter(|&max_adu| max_adu > 0),
                 Err(e) => {
                     tracing::debug!(
@@ -214,6 +219,19 @@ impl CameraOps for UnifiedDeviceOps {
                 return Err(error);
             }
         }
+        let exposure_secs = if native_image.metadata.exposure_time > 0.0 {
+            native_image.metadata.exposure_time
+        } else {
+            duration_secs
+        };
+        // A gain or offset the driver could not read arrives as a placeholder
+        // (Alpaca, INDI); as `None` the commanded value stands in for it.
+        let gain = crate::device_manager::ops::camera::camera_setting_or_unknown(
+            native_image.metadata.gain,
+        );
+        let offset = crate::device_manager::ops::camera::camera_setting_or_unknown(
+            native_image.metadata.offset,
+        );
         // The display, statistics and stars are ready in the store before the
         // exposure is announced complete, so whoever reacts to the event finds them.
         if let Err(e) = crate::last_frame::store(
@@ -223,6 +241,15 @@ impl CameraOps for UnifiedDeviceOps {
                 height: native_image.height,
                 data: native_image.data.clone(),
                 bayer_pattern: native_image.bayer_pattern,
+                camera_file: native_image.metadata.camera_file.clone(),
+                exposure: crate::last_frame::ExposureRecord {
+                    started_at,
+                    exposure_secs,
+                    gain,
+                    offset,
+                    temperature: native_image.metadata.temperature,
+                    bits_per_pixel: native_image.bits_per_pixel,
+                },
             },
             duration_secs,
         )
@@ -232,21 +259,8 @@ impl CameraOps for UnifiedDeviceOps {
             return Err(e.to_string().into());
         }
 
-        // The sequencer's ImageData names the colour filter by its offset.
-        let (sensor_type, bayer_offset) = match native_image.bayer_pattern {
-            Some(pattern) => {
-                let offset = match pattern {
-                    skotiq_device::BayerPattern::Rggb => (0, 0),
-                    skotiq_device::BayerPattern::Grbg => (1, 0),
-                    skotiq_device::BayerPattern::Gbrg => (0, 1),
-                    skotiq_device::BayerPattern::Bggr => (1, 1),
-                };
-                (Some("Color".to_string()), Some(offset))
-            }
-            None => (Some("Monochrome".to_string()), None),
-        };
+        let sensor_type = crate::last_frame::sensor_type(native_image.bayer_pattern.as_ref());
 
-        // Publish success event
         exposure.end(true, EventSeverity::Info);
 
         // Why: log-only formatting; "unknown" when the
@@ -259,34 +273,20 @@ impl CameraOps for UnifiedDeviceOps {
             sensor_type.as_deref().unwrap_or("unknown")
         );
 
-        // Convert to sequencer ImageData
         Ok(ImageData {
             width: native_image.width,
             height: native_image.height,
             data: native_image.data,
             bits_per_pixel: native_image.bits_per_pixel,
-            exposure_secs: if native_image.metadata.exposure_time > 0.0 {
-                native_image.metadata.exposure_time
-            } else {
-                duration_secs
-            },
-            // Blindly wrapping in Some() meant an unreadable gain/offset (which
-            // the Alpaca/INDI paths recorded as a placeholder) presented as a real
-            // measurement and short-circuited `image_data.gain.or(config.gain)`
-            // downstream, so the placeholder beat the operator's configured value
-            // and was written into the frame's FITS header. Mapping the
-            // unknown marker back to None restores the intended fallback.
-            gain: crate::device_manager::ops::camera::camera_setting_or_unknown(
-                native_image.metadata.gain,
-            ),
-            offset: crate::device_manager::ops::camera::camera_setting_or_unknown(
-                native_image.metadata.offset,
-            ),
+            exposure_secs,
+            gain,
+            offset,
             temperature: native_image.metadata.temperature,
             filter: None,
             timestamp: native_image.metadata.timestamp.timestamp(),
             sensor_type,
-            bayer_offset,
+            color_filter: native_image.bayer_pattern,
+            camera_file: native_image.metadata.camera_file,
         })
     }
 
@@ -297,7 +297,7 @@ impl CameraOps for UnifiedDeviceOps {
         get_device_manager()
             .camera_abort_exposure(camera_id)
             .await
-            .map_err(|e| format!("Abort failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
     }
 
     async fn camera_set_cooler(
@@ -314,15 +314,15 @@ impl CameraOps for UnifiedDeviceOps {
         );
 
         // `DeviceManager::camera_set_cooler` publishes the cooling event.
-        api_set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
+        set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
             .await
-            .map_err(|e| format!("Cooler control failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
     }
 
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = api_get_camera_status(camera_id.to_string())
+        let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
         status
             .sensor_temp
@@ -330,9 +330,9 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = api_get_camera_status(camera_id.to_string())
+        let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
         status
             .cooler_power
@@ -340,16 +340,23 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
-        let status = api_get_camera_status(camera_id.to_string())
+        let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
         Ok(Some(status.cooler_on))
     }
 
-    async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
-        let status = api_get_camera_status(camera_id.to_string())
+    async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
+        let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+        Ok(status.target_temp.filter(|_| status.cooler_on))
+    }
+
+    async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
+        let status = get_camera_status(camera_id.to_string())
+            .await
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
         // A driver with nothing to say reports 0.0 here, which is not a pitch —
         // writing it would tell a solver the sensor has zero-sized pixels.

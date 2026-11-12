@@ -1,9 +1,6 @@
 //! Alpaca Switch API implementation
 
-alpaca_device!(
-    AlpacaSwitch,
-    Switch
-);
+alpaca_device!(AlpacaSwitch, Switch);
 
 impl AlpacaSwitch {
     skotiq_device::ascom_switch_members!(alpaca_member);

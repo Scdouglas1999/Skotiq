@@ -221,8 +221,8 @@ class ProfileSidebar extends ConsumerWidget {
         // the "is device X connected for profile Y" matrix.
         final status = ref.watch(profileConnectionStatusProvider(profile));
         final deviceStates = status.coreSlotStates;
-        final connectedCount = status.coreConnectedCount;
-        final totalCount = status.coreTotalCount;
+        final connectedCount = status.assignedConnectedCount;
+        final totalCount = status.assignedCount;
 
         return _ProfileCard(
           key: ValueKey(profile.id),

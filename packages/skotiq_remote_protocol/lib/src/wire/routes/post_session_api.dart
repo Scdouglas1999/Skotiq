@@ -43,12 +43,6 @@ enum PostSessionApi implements ApiEndpoint {
       resource: ApiResource.system,
     ),
   ),
-  combineChannels(
-    ApiRoute.post(
-      '/api/post-session/combine-channels',
-      resource: ApiResource.system,
-    ),
-  ),
   masterAccumulate(
     ApiRoute.post(
       '/api/post-session/master-accumulate',

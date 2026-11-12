@@ -49,8 +49,6 @@ Future<HarnessHandle> _pumpToolbar(
     size: const Size(1600, 900),
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
     ],
   );
 }

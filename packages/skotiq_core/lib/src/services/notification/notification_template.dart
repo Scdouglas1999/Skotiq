@@ -28,6 +28,10 @@ const String kStopCauseContextKey = 'stop.cause';
 /// failure template interpolates it; the classifier fills it from the event.
 const String kFailureReasonContextKey = 'failure.reason';
 
+/// What [kFailureReasonContextKey] holds for a run that failed without
+/// naming a cause.
+const String kUnexplainedFailureReason = 'The log has the reason.';
+
 /// Context key carrying the run id a stop notification belongs to. Not for
 /// display — it is how the router tells one run's stop episode from the next.
 const String kStopRunIdContextKey = 'stop.run_id';

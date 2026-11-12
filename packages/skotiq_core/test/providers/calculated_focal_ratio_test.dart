@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 
 /// A stored profile can still hold optics that cannot describe a real system —
 /// rows written before optical-train validation existed, or restored from a

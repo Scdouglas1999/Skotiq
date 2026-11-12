@@ -36,7 +36,6 @@ pub fn api_init_with_logging(log_directory: Option<String>) -> Result<(), Skotiq
 
     tracing::info!("Skotiq Native API initialized");
 
-    // Initialize the app state
     let _ = get_state();
 
     // Start OS device-change notifications after state/runtime initialization
@@ -47,7 +46,6 @@ pub fn api_init_with_logging(log_directory: Option<String>) -> Result<(), Skotiq
     // Initialize device manager (this will spawn Tokio tasks, so runtime must exist)
     let _ = get_device_manager();
 
-    // Publish system initialized event
     get_state().publish_system_event(SystemEvent::Initialized);
 
     Ok(())

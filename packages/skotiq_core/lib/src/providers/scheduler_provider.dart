@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -46,10 +47,7 @@ import 'planning_provider.dart'
     show activeProjectIdProvider, projectListProvider;
 import 'profiles_provider.dart';
 import 'sequence_provider.dart';
-// Hide settings_provider's legacy 8-compass-point HorizonProfile so the
-// scheduler's samples-based HorizonProfile from services/scheduler/
-// horizon_profile.dart resolves unambiguously below.
-import 'settings_provider.dart' hide HorizonProfile;
+import 'settings_provider.dart';
 // Pull in SkotiqEvent + EventPayload tagged-union subtypes (freezed
 // generates EventPayload_Guiding / EventPayload_Equipment as part-of-library
 // classes, so a plain import surfaces them here).

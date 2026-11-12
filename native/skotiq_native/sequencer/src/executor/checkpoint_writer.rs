@@ -24,7 +24,6 @@ pub(crate) struct CheckpointSources {
     pub rig: RunRig,
     pub settings: RunConfigStore,
     pub trigger_manager: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     pub budget_registry: BudgetRegistry,
     pub smart_exposure_states: Arc<RwLock<HashMap<NodeId, SmartExposureCheckpoint>>>,
     pub resume: ResumeRecord,
@@ -88,12 +87,12 @@ impl CheckpointWriter {
         checkpoint.set_trigger_state(TriggerStateSnapshot::from_state(
             &*trigger_state.read().await,
             config.safety_fail_mode,
-            sources.triggers_enabled,
             config.filter_focus_offsets,
         ));
 
         checkpoint.loop_iterations = resume.loop_passes_finished;
-        checkpoint.exposure_frames_taken = resume.frames_taken;
+        checkpoint.exposure_frames_taken = resume.frames.in_pass;
+        checkpoint.exposure_frames_done = resume.frames.in_plan;
         checkpoint.budget_states = sources.budget_registry.snapshot().await;
         checkpoint.smart_exposure_states = sources.smart_exposure_states.read().await.clone();
         checkpoint

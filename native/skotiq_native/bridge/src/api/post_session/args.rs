@@ -186,7 +186,6 @@ pub(crate) struct IntegrationSettingsArgs {
 pub(crate) struct OutputArgs {
     /// Where to write the 16-bit/float linear FITS master (required).
     pub(crate) master_fits_path: String,
-    /// Optional stretched preview PNG path.
     pub(crate) preview_png_path: Option<String>,
     /// Optional per-pixel rejection-count map FITS path.
     pub(crate) rejection_map_path: Option<String>,

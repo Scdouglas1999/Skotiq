@@ -94,7 +94,9 @@ class _RecordingExecutor extends SequenceExecutor {
       executor = _RecordingExecutor(ref);
       return executor;
     }),
-    sequenceExecutionStateProvider.overrideWith((ref) => state),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
+    ),
   ]);
   // Force the executor override to build so `executor` is captured before any
   // command runs.
@@ -167,8 +169,7 @@ void main() {
     final start = h.service.start();
     // The real executor publishes running during acquisition, exposing Stop
     // on the other playback surfaces before start() has returned.
-    h.container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    h.container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
     final stop = h.service.stop();
 
     expect(h.executor.stopCount, 0);

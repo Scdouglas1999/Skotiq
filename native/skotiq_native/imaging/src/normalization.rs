@@ -97,6 +97,7 @@
 //! always yields the same coefficients — a property the master-accumulation fold
 //! depends on across sessions and processes.
 
+use crate::numeric::LineSums;
 use crate::robust_stats::{mad_sigma, median_in_place};
 
 /// Marks, per pixel, whether a frame contributes a valid sample.
@@ -841,27 +842,11 @@ fn fit_robust_line(pairs: &[(f64, f64)], cfg: &NormalizationConfig) -> Option<(f
 ///
 /// Returns `None` if `x` has no variance (degenerate, slope undetermined).
 fn ordinary_least_squares(pairs: &[(f64, f64)]) -> Option<(f64, f64)> {
-    let n = pairs.len() as f64;
-    if n < 2.0 {
-        return None;
-    }
-    let (mut sx, mut sy, mut sxx, mut sxy) = (0.0, 0.0, 0.0, 0.0);
+    let mut sums = LineSums::default();
     for &(x, y) in pairs {
-        sx += x;
-        sy += y;
-        sxx += x * x;
-        sxy += x * y;
+        sums.add(x, y, 1.0);
     }
-    let denom = n * sxx - sx * sx;
-    if denom.abs() < f64::EPSILON {
-        return None;
-    }
-    let scale = (n * sxy - sx * sy) / denom;
-    let offset = (sy - scale * sx) / n;
-    if !scale.is_finite() || !offset.is_finite() {
-        return None;
-    }
-    Some((scale, offset))
+    sums.solve()
 }
 
 /// Fit a `rows × cols` grid of local `(scale, offset)` coefficients.

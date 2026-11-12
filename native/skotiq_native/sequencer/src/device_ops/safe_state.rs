@@ -356,7 +356,8 @@ mod tests {
                 return Err(format!(
                     "simulated park failure for {} ({} failures remaining)",
                     mount_id, remaining
-                ).into());
+                )
+                .into());
             }
             Ok(())
         }

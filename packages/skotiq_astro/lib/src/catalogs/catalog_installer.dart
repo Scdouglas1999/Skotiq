@@ -1,3 +1,4 @@
+import '../format/byte_format.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
@@ -149,7 +150,7 @@ class CatalogInstaller {
           reclaimed += size;
           _log(
             'removed abandoned download ${entity.path} '
-            '(${(size / 1024 / 1024).toStringAsFixed(1)} MB reclaimed)',
+            '(${ByteFormat.size(size)} reclaimed)',
           );
         } catch (e) {
           // A locked or unreadable leftover is not worth failing startup over.
@@ -530,7 +531,7 @@ class CatalogInstaller {
             totalBytes: contentLength,
             status:
                 'Downloading... '
-                '${(received / 1024 / 1024).toStringAsFixed(1)} MB',
+                '${ByteFormat.size(received)}',
           ),
         );
       }

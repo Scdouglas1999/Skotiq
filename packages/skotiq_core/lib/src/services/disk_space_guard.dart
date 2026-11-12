@@ -280,7 +280,8 @@ class DiskSpaceGuardService {
             '(${ByteFormat.size(projected)} needed, ${ByteFormat.size(free)} available)',
         detail:
             'The capture directory does not have enough free space to finish '
-            'this sequence with a 2 GB safety margin. Free up space, choose a '
+            'this sequence with a ${ByteFormat.size(kSafetyMarginBytes)} safety '
+            'margin. Free up space, choose a '
             'different drive, or shorten the run before starting.',
       );
     }

@@ -1194,7 +1194,7 @@ const CONTROL_BUTTON_FOR_PATH = {
   '/api/sequencer/reset': 'btn-reset',
   '/api/sequencer/checkpoint/resume': 'btn-checkpoint-resume',
   '/api/sequencer/checkpoint/discard': 'btn-checkpoint-discard',
-  '/api/phd2/dither': 'btn-guide-dither',
+  '/api/guider/dither': 'btn-guide-dither',
 };
 
 /// Record that the rig refused [path] for this credential and put the reason
@@ -2439,7 +2439,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const btnDither = $('btn-guide-dither');
   if (btnDither) {
     btnDither.addEventListener('click', () =>
-      sequencerAction('/api/phd2/dither', 'Dither', { amount: 5.0 }));
+      sequencerAction('/api/guider/dither', 'Dither', { amount: 5.0 }));
   }
   const btnCpResume = $('btn-checkpoint-resume');
   if (btnCpResume) {

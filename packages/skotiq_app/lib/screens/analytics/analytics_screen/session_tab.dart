@@ -83,15 +83,15 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
           ? l10n.text(
               'analyticsStarted',
               params: {
-                'time': DateFormat('MMM d, yyyy HH:mm')
-                    .format(sessionState.startTime!),
+                'time': ClockFormat.monthDayYearHm(sessionState.startTime!.toLocal()),
               },
             )
           : l10n.text('analyticsSessionInProgress');
     } else if (reviewSession != null) {
       headerTitle = reviewSession.name ?? l10n.text('analyticsUnnamedSession');
       headerSubtitle =
-          '${DateFormat('EEE MMM d, yyyy · HH:mm').format(reviewSession.startTime)}'
+          '${ClockFormat.weekdayMonthDayYear(reviewSession.startTime.toLocal())} · '
+          '${ClockFormat.hm(reviewSession.startTime.toLocal())}'
           '  ·  ${runStatusLabel(reviewSession.status)}';
     } else if (isStandaloneMode) {
       headerTitle = l10n.text('analyticsQuickCapture');
@@ -727,7 +727,6 @@ class _SessionReviewBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final format = DateFormat('MMM d, yyyy HH:mm');
     final hasSelection =
         (offerQuickCaptures && selectedId == kQuickCaptureSessionSelection) ||
             sessions.any((s) => s.id == selectedId);
@@ -774,7 +773,7 @@ class _SessionReviewBar extends StatelessWidget {
                       value: session.id,
                       child: Text(
                         '${session.name ?? 'Session ${session.id}'}'
-                        '  ·  ${format.format(session.startTime)}'
+                        '  ·  ${ClockFormat.monthDayYearHm(session.startTime.toLocal())}'
                         // Every capture, not the frames kept: the row's
                         // `successful_exposures` ignores the auto-grader, and
                         // "7/8 frames kept" sat over "4/8" (rig, 2026-11-03).

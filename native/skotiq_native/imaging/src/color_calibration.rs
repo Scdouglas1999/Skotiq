@@ -64,6 +64,7 @@
 //! choice of which stars to feed in all live in Dart; this module is the
 //! deterministic, unit-tested numeric core.
 
+use crate::numeric::LineSums;
 use crate::robust_stats::{median_in_place, MAD_TO_SIGMA};
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
@@ -397,11 +398,7 @@ fn irls_refine(points: &[(f64, f64)], a0: f64, b0: f64) -> (f64, f64) {
     let c = 4.685 * sigma;
 
     // Weighted least squares with Tukey-biweight weights.
-    let mut sw = 0.0;
-    let mut swx = 0.0;
-    let mut swy = 0.0;
-    let mut swxx = 0.0;
-    let mut swxy = 0.0;
+    let mut sums = LineSums::default();
     for &(x, y) in points {
         let r = y - (a0 + b0 * x);
         let u = r / c;
@@ -414,25 +411,10 @@ fn irls_refine(points: &[(f64, f64)], a0: f64, b0: f64) -> (f64, f64) {
         if w <= 0.0 {
             continue;
         }
-        sw += w;
-        swx += w * x;
-        swy += w * y;
-        swxx += w * x * x;
-        swxy += w * x * y;
+        sums.add(x, y, w);
     }
-
-    let denom = sw * swxx - swx * swx;
-    if denom.abs() <= f64::EPSILON || sw <= 0.0 {
-        // Not enough x-spread among inliers to refine — keep the robust seed.
-        return (a0, b0);
-    }
-    let b = (sw * swxy - swx * swy) / denom;
-    let a = (swy - b * swx) / sw;
-    if a.is_finite() && b.is_finite() {
-        (a, b)
-    } else {
-        (a0, b0)
-    }
+    // Too little x-spread among the inliers to refine: keep the robust seed.
+    sums.solve().map_or((a0, b0), |(b, a)| (a, b))
 }
 
 /// Apply a solved [`ColorCalibration`] in place, multiplying each channel's

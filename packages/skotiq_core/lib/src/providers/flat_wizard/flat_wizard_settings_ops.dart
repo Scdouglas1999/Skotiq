@@ -5,7 +5,6 @@ part of '../flat_wizard_provider.dart';
 /// Settings, filter-list and one-line state operations for
 /// [FlatWizardNotifier].
 extension FlatWizardSettingsOps on FlatWizardNotifier {
-
   void setMode(FlatWizardMode mode) {
     state = state.copyWith(mode: mode);
   }
@@ -70,8 +69,8 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     try {
       final raw = await ref
           .read(settingsDaoProvider)
-          .getSetting(FlatWizardNotifier._globalSettingsKey);
-      if (raw == null || raw.isEmpty) return;
+          .read(StoreSettings.flatWizard);
+      if (raw == null) return;
       // A run in flight or an eager user edit owns the live settings — never
       // clobber it with the stale on-disk value.
       if (_running || _settingsRevision != revisionAtStart) return;
@@ -128,7 +127,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     unawaited(
       ref
           .read(settingsDaoProvider)
-          .setSetting(FlatWizardNotifier._globalSettingsKey, payload)
+          .write(StoreSettings.flatWizard, payload)
           .catchError((Object e) {
             developer.log(
               'FlatWizard: failed to persist global settings: $e',
@@ -184,7 +183,8 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     final remote = backend.remoteHost?.calibrationFrames;
     final db = ref.read(databaseProvider);
     final profileId = ref.read(activeEquipmentProfileProvider)?.id;
-    final key = _filterPreferencesKey();
+    final row = _filterPreferences();
+    final key = row.key;
     final revision = ++_filterRevision;
     if (_loadedFilterKey != null && _loadedFilterKey != key) {
       state = state.copyWith(filterSettings: const [], currentFilterIndex: 0);
@@ -196,7 +196,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       }
     } else {
       try {
-        final raw = await ref.read(settingsDaoProvider).getSetting(key);
+        final raw = await ref.read(settingsDaoProvider).read(row);
         if (raw != null) {
           for (final entry in jsonDecode(raw) as List) {
             final filter = FlatFilterSettings.fromJson(
@@ -246,7 +246,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
 
     if (_running ||
         revision != _filterRevision ||
-        key != _filterPreferencesKey()) {
+        key != _filterPreferences().key) {
       return;
     }
     _loadedFilterKey = key;
@@ -333,13 +333,20 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     _persistFilterSettings();
   }
 
-  String _filterPreferencesKey() =>
-      'flat_wizard_filters.v1.${jsonEncode([ref.read(activeEquipmentProfileProvider)?.id, ref.read(cameraStateProvider).deviceId, ref.read(filterWheelStateProvider).deviceId])}';
+  /// The row holding the filter choices for the profile, camera and filter
+  /// wheel in use.
+  Setting<String?> _filterPreferences() => StoreSettings.flatWizardFilters.row(
+    jsonEncode([
+      ref.read(activeEquipmentProfileProvider)?.id,
+      ref.read(cameraStateProvider).deviceId,
+      ref.read(filterWheelStateProvider).deviceId,
+    ]),
+  );
 
   void _persistFilterSettings() {
     _filterRevision++;
-    final key = _filterPreferencesKey();
-    _loadedFilterKey = key;
+    final row = _filterPreferences();
+    _loadedFilterKey = row.key;
     // Only user choices survive a restart, never a previous run's progress.
     final payload = jsonEncode([
       for (final f in state.filterSettings)
@@ -358,7 +365,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     ]);
     final dao = ref.read(settingsDaoProvider);
     _filterSettingsWrite = _filterSettingsWrite
-        .then((_) => dao.setSetting(key, payload))
+        .then((_) => dao.write(row, payload))
         .catchError((Object error) {
           developer.log(
             'Could not save flat filter settings: $error',

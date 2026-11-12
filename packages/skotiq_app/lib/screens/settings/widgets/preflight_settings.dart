@@ -32,11 +32,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'settings_widgets.dart';
 
 class PreflightSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const PreflightSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -48,11 +45,8 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, _) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -63,8 +57,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
           title: 'Pre-flight checks',
           description:
               'How strict should Skotiq be about issues raised before a sequence starts?',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             RadioGroup<PreflightStrictness>(
               groupValue: settings.preflightStrictness,
@@ -77,7 +69,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                 title: 'Strictness',
                 children: [
                   _StrictnessOption(
-                    isMobile: widget.isMobile,
                     value: PreflightStrictness.lax,
                     current: settings.preflightStrictness,
                     title: 'Lax',
@@ -90,7 +81,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                     },
                   ),
                   _StrictnessOption(
-                    isMobile: widget.isMobile,
                     value: PreflightStrictness.normal,
                     current: settings.preflightStrictness,
                     title: 'Normal',
@@ -103,7 +93,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                     },
                   ),
                   _StrictnessOption(
-                    isMobile: widget.isMobile,
                     value: PreflightStrictness.strict,
                     current: settings.preflightStrictness,
                     title: 'Strict',
@@ -138,7 +127,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                     onChanged: (value) async {
                       await notifier.setPolarAlignmentMaxAgeDays(value.toInt());
                     },
-                    isMobile: widget.isMobile,
                   ),
                   isLast: true,
                 ),
@@ -157,7 +145,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
 
 /// One radio-style row inside the strictness selector.
 class _StrictnessOption extends StatelessWidget {
-  final bool isMobile;
   final PreflightStrictness value;
   final PreflightStrictness current;
   final String title;
@@ -167,7 +154,6 @@ class _StrictnessOption extends StatelessWidget {
   final bool isLast;
 
   const _StrictnessOption({
-    required this.isMobile,
     required this.value,
     required this.current,
     required this.title,
@@ -193,7 +179,6 @@ class _StrictnessOption extends StatelessWidget {
           value: value,
         ),
         isLast: isLast,
-        isMobile: isMobile,
       ),
     );
   }

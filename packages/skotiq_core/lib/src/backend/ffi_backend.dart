@@ -5,7 +5,36 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:logging/logging.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import '../database/daos/images_dao.dart';
+import '../database/database.dart'
+    hide
+        Target,
+        Sequence,
+        SequenceNode,
+        CapturedImage,
+        EquipmentProfile,
+        DarkroomState;
+import '../models/autofocus_progress.dart';
+import '../models/depthlock/depthlock_models.dart';
+import '../models/equipment_profile.dart';
+import '../models/imaging/imaging_models.dart';
+import '../models/mount_guard.dart';
+import '../models/phd2_models.dart';
+import '../models/plate_solver.dart';
+import '../models/sequence/sequence_models.dart';
+import '../models/site/location_settings.dart';
+import '../services/adaptive_swap_service.dart';
+import '../services/phd2_probe.dart';
+import '../services/phd2_status_poll.dart';
+import '../services/science/fits_header_writer.dart';
+import '../services/stretch_pipeline_service.dart';
+import '../services/thumbnail_sidecar_service.dart';
+import '../utils/device_id.dart';
+import 'bridge_error_message.dart';
+import 'device_connect_exception.dart';
+import 'sequencer_error_kind.dart';
+import 'sequencer_notice.dart';
+import 'skotiq_backend.dart';
 import '../models/settings/app_settings.dart' as models;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
@@ -15,7 +44,7 @@ import '../models/backend/device_types.dart' as dart_types;
 import '../models/errors/skotiq_error.dart' as dart_error;
 import 'bridge_event_mapper.dart' show recoveryFieldsFromTyped;
 import '../services/ip_geolocation.dart';
-import '../utils/device_id.dart' show isPhd2WireToken, kPhd2CanonicalId;
+import 'frame_capture_metadata.dart';
 
 part 'ffi_backend/native_runtime.dart';
 part 'ffi_backend/event_mapping.dart';

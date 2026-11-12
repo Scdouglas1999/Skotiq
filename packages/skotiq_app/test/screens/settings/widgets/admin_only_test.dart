@@ -105,7 +105,7 @@ void main() {
       rig: _rig,
     );
     expect(find.textContaining('Backups are managed there'), findsOneWidget);
-    expect(find.textContaining(adminOnlyAdvice), findsOneWidget);
+    expect(find.textContaining(AdminOnlyBanner.advice), findsOneWidget);
     expect(find.text('Link with admin access'), findsOneWidget);
   });
 }

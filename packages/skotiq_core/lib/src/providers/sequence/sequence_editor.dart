@@ -8,11 +8,10 @@ import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/template_snippet.dart';
 import '../../services/sequence_file_service.dart';
 import '../sequence_provider.dart' show sequenceExecutionStateProvider;
-import 'sequence_editor_exceptions.dart';
+import 'filter_name_matching.dart';
+import '../../models/sequence/sequence_editor_exceptions.dart';
 import 'target_catalog_coordinate_sync.dart';
 import 'sequence_undo_batch.dart';
-
-export 'sequence_editor_exceptions.dart';
 
 part 'sequence_editor/snippet_editing.dart';
 part 'sequence_editor/tree_editing.dart';
@@ -214,17 +213,24 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
   /// description, and whether the row is a template. Leaving the editor on
   /// its pre-save identity makes the next save overwrite the wrong row and
   /// leaves the unsaved-change guard armed even though persistence succeeded.
-  /// [expectedSequenceId] prevents a delayed save from rewriting a different
-  /// document that was opened while the request was in flight.
+  ///
+  /// [savedFrom] is the open document as it was when the save began. A
+  /// different document opened meanwhile is left alone. The same document
+  /// edited meanwhile adopts the row but stays unsaved and keeps its newer
+  /// name and description: those edits are not in the row.
   void applyPersistedSave({
-    required String expectedSequenceId,
+    required Sequence savedFrom,
     required int databaseId,
     required String name,
     required String description,
     required bool isTemplate,
   }) {
     final current = state;
-    if (current == null || current.id != expectedSequenceId) return;
+    if (current == null || current.id != savedFrom.id) return;
+    if (!identical(current, savedFrom)) {
+      state = current.copyWith(databaseId: databaseId, isTemplate: isTemplate);
+      return;
+    }
     state = current.copyWith(
       databaseId: databaseId,
       name: name,
@@ -467,14 +473,20 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
   /// Restores the stashed sequence verbatim — including its dirty flag — so the
   /// operator gets their unsaved work back exactly as it was when the planner
   /// took over. When nothing was stashed (the operator started the planner from
-  /// an empty editor) the canvas is cleared.
+  /// an empty editor) the planner's sequence stays loaded as the operator's:
+  /// there is nothing to give back, and it is the plan the night's results
+  /// belong to. Cleared instead, a stopped one-tap night read "No plan
+  /// loaded" over the frames it had just taken.
   void releaseOwnership() {
     if (_owner == ActivePlanOwner.manual) return;
 
-    _undoStack.clear();
-    _redoStack.clear();
-    state = _stashedManualSequence;
-    _dirty = _stashedManualDirty;
+    final stashed = _stashedManualSequence;
+    if (stashed != null) {
+      _undoStack.clear();
+      _redoStack.clear();
+      state = stashed;
+      _dirty = _stashedManualDirty;
+    }
     _stashedManualSequence = null;
     _stashedManualDirty = false;
     _setOwner(ActivePlanOwner.manual);

@@ -59,8 +59,8 @@ use thiserror::Error;
 use crate::normalization::{
     estimate_normalization, CoverageMask, NormEstimator, NormalizationConfig,
 };
-use crate::numeric::{lanczos3, solve_dense};
-use crate::registration::Interpolator;
+use crate::numeric::solve_dense;
+use crate::resample::Interpolator;
 use crate::robust_stats::median_in_place;
 use crate::{ImageData, SipWcs, WcsInfo};
 
@@ -283,144 +283,11 @@ impl DecodedPanel {
     /// the seam).
     #[inline]
     fn sample(&self, c: usize, sx: f64, sy: f64, interp: Interpolator) -> Option<f64> {
-        sample_plane(
-            &self.data,
-            self.width,
-            self.height,
-            self.channels,
-            c,
-            sx,
-            sy,
-            interp,
-        )
-    }
-}
-
-// Resampling kernels (mirrors registration.rs; private there so reimplemented)
-
-/// Sample channel `c` at fractional `(sx, sy)` in an interleaved `f64` plane.
-///
-/// Mirrors `registration::sample`'s contract (zero-equivalent out-of-bounds →
-/// `None`, separable Lanczos-3 / Catmull-Rom, 2×2 bilinear) but returns `None`
-/// rather than `0.0` when the support window leaves the image, so the mosaic
-/// renderer can *exclude* an uncovered panel from the weighted mean instead of
-/// averaging a fabricated zero into the seam. `registration::sample` is private,
-/// so the kernels are reimplemented here against the same math.
-#[allow(clippy::too_many_arguments)]
-fn sample_plane(
-    src: &[f64],
-    w: usize,
-    h: usize,
-    channels: usize,
-    c: usize,
-    sx: f64,
-    sy: f64,
-    interp: Interpolator,
-) -> Option<f64> {
-    let stride = w * channels;
-    let px = |ix: i64, iy: i64| -> f64 {
-        if ix < 0 || iy < 0 || ix as usize >= w || iy as usize >= h {
-            0.0
-        } else {
-            src[iy as usize * stride + ix as usize * channels + c]
-        }
-    };
-    match interp {
-        Interpolator::Bilinear => {
-            let x0 = sx.floor();
-            let y0 = sy.floor();
-            let ix = x0 as i64;
-            let iy = y0 as i64;
-            if ix < 0 || iy < 0 || (ix + 1) as usize >= w || (iy + 1) as usize >= h {
-                return None;
-            }
-            let dx = sx - x0;
-            let dy = sy - y0;
-            let p00 = px(ix, iy);
-            let p10 = px(ix + 1, iy);
-            let p01 = px(ix, iy + 1);
-            let p11 = px(ix + 1, iy + 1);
-            Some(
-                (1.0 - dx) * (1.0 - dy) * p00
-                    + dx * (1.0 - dy) * p10
-                    + (1.0 - dx) * dy * p01
-                    + dx * dy * p11,
-            )
-        }
-        Interpolator::CatmullRom => separable(&px, w, h, sx, sy, 2, catmull_rom),
-        Interpolator::Lanczos3 => separable(&px, w, h, sx, sy, 3, lanczos3),
-    }
-}
-
-/// Separable interpolation with a 1-D kernel of half-width `radius`; taps span
-/// `[-radius+1, radius]` around the floor. Returns `None` if any tap leaves the
-/// image, so out-of-panel support excludes the sample entirely.
-fn separable<F, K>(
-    px: &F,
-    w: usize,
-    h: usize,
-    sx: f64,
-    sy: f64,
-    radius: i64,
-    kernel: K,
-) -> Option<f64>
-where
-    F: Fn(i64, i64) -> f64,
-    K: Fn(f64) -> f64,
-{
-    let x0 = sx.floor() as i64;
-    let y0 = sy.floor() as i64;
-    let start = -(radius - 1);
-    // Reject if the support window is not fully inside the image.
-    if x0 + start < 0
-        || y0 + start < 0
-        || (x0 + radius) as usize >= w
-        || (y0 + radius) as usize >= h
-    {
-        return None;
-    }
-    let fx = sx - x0 as f64;
-    let fy = sy - y0 as f64;
-    let taps = (2 * radius) as usize;
-    let mut wx = [0.0f64; 6];
-    let mut wy = [0.0f64; 6];
-    let mut sum_wx = 0.0;
-    let mut sum_wy = 0.0;
-    for t in 0..taps {
-        let off = (start + t as i64) as f64;
-        let kx = kernel(fx - off);
-        let ky = kernel(fy - off);
-        wx[t] = kx;
-        wy[t] = ky;
-        sum_wx += kx;
-        sum_wy += ky;
-    }
-    if sum_wx.abs() < f64::EPSILON || sum_wy.abs() < f64::EPSILON {
-        return None;
-    }
-    let mut acc = 0.0;
-    for (ty, &w_y) in wy.iter().enumerate().take(taps) {
-        let iy = y0 + start + ty as i64;
-        let mut row_acc = 0.0;
-        for (tx, &w_x) in wx.iter().enumerate().take(taps) {
-            let ix = x0 + start + tx as i64;
-            row_acc += w_x * px(ix, iy);
-        }
-        acc += w_y * row_acc;
-    }
-    Some(acc / (sum_wx * sum_wy))
-}
-
-/// Catmull-Rom cubic kernel (a = −0.5) — matches `registration::catmull_rom`.
-fn catmull_rom(x: f64) -> f64 {
-    let a = -0.5;
-    let x = x.abs();
-    if x < 1.0 {
-        (a + 2.0) * x.powi(3) - (a + 3.0) * x.powi(2) + 1.0
-    } else if x < 2.0 {
-        a * x.powi(3) - 5.0 * a * x.powi(2) + 8.0 * a * x - 4.0 * a
-    } else {
-        0.0
+        let (data, channels) = (&self.data, self.channels);
+        let stride = self.width * channels;
+        interp
+            .taps(sx, sy, self.width, self.height)
+            .map(|taps| taps.apply(|x, y| data[y * stride + x * channels + c]))
     }
 }
 

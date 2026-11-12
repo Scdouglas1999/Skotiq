@@ -179,12 +179,85 @@ pub struct SensorInfo {
     pub bayer_pattern: Option<BayerPattern>,
 }
 
+/// The color filter over a one-shot-color sensor, as it lies at the frame's
+/// pixel (0, 0). Bayer sensors repeat a 2x2 cell; Fujifilm X-Trans sensors
+/// repeat a 6x6 one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BayerPattern {
     Rggb,
     Grbg,
     Gbrg,
     Bggr,
+    XTrans(XTransCell),
+}
+
+/// A 6x6 X-Trans cell: the letters `R`, `G`, `B` (ASCII) row by row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct XTransCell(pub [[u8; 6]; 6]);
+
+impl XTransCell {
+    /// From the 36 letters row by row; `None` unless every letter is R, G or B.
+    pub fn from_letters(letters: &str) -> Option<Self> {
+        let bytes = letters.as_bytes();
+        if bytes.len() != 36 || !bytes.iter().all(|b| matches!(b, b'R' | b'G' | b'B')) {
+            return None;
+        }
+        let mut cell = [[0u8; 6]; 6];
+        for (i, b) in bytes.iter().enumerate() {
+            cell[i / 6][i % 6] = *b;
+        }
+        Some(Self(cell))
+    }
+}
+
+impl BayerPattern {
+    /// The FITS `BAYERPAT` value: 4 letters for Bayer, 36 for X-Trans.
+    pub fn fits_name(&self) -> String {
+        match self {
+            BayerPattern::Rggb => "RGGB".to_string(),
+            BayerPattern::Grbg => "GRBG".to_string(),
+            BayerPattern::Gbrg => "GBRG".to_string(),
+            BayerPattern::Bggr => "BGGR".to_string(),
+            BayerPattern::XTrans(cell) => cell.0.iter().flatten().map(|&b| b as char).collect(),
+        }
+    }
+
+    /// From a `BAYERPAT` value (case-insensitive for Bayer).
+    pub fn from_fits_name(name: &str) -> Option<Self> {
+        match name.trim().to_ascii_uppercase().as_str() {
+            "RGGB" => Some(BayerPattern::Rggb),
+            "GRBG" => Some(BayerPattern::Grbg),
+            "GBRG" => Some(BayerPattern::Gbrg),
+            "BGGR" => Some(BayerPattern::Bggr),
+            other => XTransCell::from_letters(other).map(BayerPattern::XTrans),
+        }
+    }
+}
+
+/// The file a camera delivered for a frame (a DSLR's or mirrorless body's raw
+/// file), kept so it can be saved exactly as the camera made it.
+#[derive(Clone, PartialEq, Eq)]
+pub struct CameraFile {
+    /// The camera's own name for it (`IMG_0001.CR3`); its extension names the
+    /// format.
+    pub file_name: String,
+    pub bytes: std::sync::Arc<Vec<u8>>,
+}
+
+impl CameraFile {
+    /// The extension the camera gave the file, without the dot.
+    pub fn extension(&self) -> Option<&str> {
+        std::path::Path::new(&self.file_name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .filter(|e| !e.is_empty())
+    }
+}
+
+impl std::fmt::Debug for CameraFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CameraFile({}, {} bytes)", self.file_name, self.bytes.len())
+    }
 }
 
 /// Readout mode (vendor-specific)
@@ -286,6 +359,9 @@ pub struct ImageMetadata {
     pub subframe: Option<SubFrame>,
     pub readout_mode: Option<String>,
     pub vendor_data: VendorFeatures,
+    /// The camera's own file for this frame, when it delivers one.
+    #[serde(skip)]
+    pub camera_file: Option<CameraFile>,
 }
 
 #[cfg(test)]
@@ -323,5 +399,40 @@ mod recommended_settings_tests {
         assert_eq!(back.default_offset, Some(30));
         assert_eq!(back.recommended_cooling_setpoint_c, None);
         assert_eq!(back.notes, "ZWO SDK reports default gain = 100");
+    }
+}
+
+#[cfg(test)]
+mod color_filter_tests {
+    use super::*;
+
+    const XT3: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+
+    #[test]
+    fn every_pattern_round_trips_through_its_bayerpat_spelling() {
+        let xtrans = BayerPattern::XTrans(XTransCell::from_letters(XT3).unwrap());
+        for pattern in [
+            BayerPattern::Rggb,
+            BayerPattern::Grbg,
+            BayerPattern::Gbrg,
+            BayerPattern::Bggr,
+            xtrans,
+        ] {
+            assert_eq!(BayerPattern::from_fits_name(&pattern.fits_name()), Some(pattern));
+        }
+        assert_eq!(xtrans.fits_name(), XT3);
+        assert_eq!(BayerPattern::from_fits_name("rggb"), Some(BayerPattern::Rggb));
+        assert_eq!(BayerPattern::from_fits_name("CMYG"), None);
+        assert_eq!(XTransCell::from_letters(&"GX".repeat(18)), None);
+    }
+
+    #[test]
+    fn a_camera_file_names_its_format_by_the_camera_extension() {
+        let file = CameraFile {
+            file_name: "DSCF0001.RAF".to_string(),
+            bytes: std::sync::Arc::new(vec![0; 3]),
+        };
+        assert_eq!(file.extension(), Some("RAF"));
+        assert_eq!(format!("{file:?}"), "CameraFile(DSCF0001.RAF, 3 bytes)");
     }
 }

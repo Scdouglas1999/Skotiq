@@ -29,11 +29,11 @@ Duration delayToNextBoundary(Duration period, {DateTime? now}) {
 /// the idle frame rate of the app is the number of independently-phased
 /// clocks in the tree, not the rate any one of them runs at.
 ///
-/// This package owns two of Skotiq's three: [ObservationTimeNotifier] and
-/// [WallClockNotifier], each of which armed its `Timer.periodic` at whatever
-/// instant it was first read. Aligning every clock to the same absolute
-/// reference — the epoch-second boundary — makes the ticks land in the same
-/// event-loop turn, so Flutter coalesces them into one frame.
+/// This package's [ObservationTimeNotifier] is one: it armed its
+/// `Timer.periodic` at whatever instant it was first read. Aligning every
+/// clock to the same absolute reference — the epoch-second boundary — makes
+/// the ticks land in the same event-loop turn, so Flutter coalesces them into
+/// one frame.
 ///
 /// Duplicated from `skotiq_core`'s copy on purpose: this package is a leaf
 /// (core depends on *it*, for catalog access), so it cannot import core without

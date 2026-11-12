@@ -15,18 +15,14 @@ impl MountDriver for Lx200Mount {
 
         tracing::info!("Slewing to RA={:.4}h, Dec={:.4}°", ra_hours, dec_degrees);
 
-        let ra_cmd = format!("{}{}#", commands::SET_TARGET_RA, format_ra(ra_hours));
-        if !self.send_command_bool(&ra_cmd)? {
-            return Err(DriverError::SdkError("Failed to set RA target".into()));
-        }
-
-        let dec_cmd = format!("{}{}#", commands::SET_TARGET_DEC, format_dec(dec_degrees));
-        if !self.send_command_bool(&dec_cmd)? {
-            return Err(DriverError::SdkError("Failed to set Dec target".into()));
-        }
+        self.set_target(ra_hours, dec_degrees)?;
 
         if let SlewAck::Refused { code, message } = self.send_slew_command()? {
-            return Err(DriverError::SdkError(slew_refusal_message(code, &message)));
+            return Err(DriverError::SdkError(slew_refusal_message(
+                &self.mount_type,
+                code,
+                &message,
+            )));
         }
 
         *self
@@ -45,8 +41,8 @@ impl MountDriver for Lx200Mount {
         let ra_response = self.send_command(commands::GET_RA)?;
         let dec_response = self.send_command(commands::GET_DEC)?;
 
-        let ra = parse_ra(&ra_response)?;
-        let dec = parse_dec(&dec_response)?;
+        let ra = parse_sexagesimal(&ra_response)?;
+        let dec = parse_sexagesimal(&dec_response)?;
 
         Ok((ra, dec))
     }
@@ -66,17 +62,17 @@ impl MountDriver for Lx200Mount {
         // new one, that is the previous goto's, so syncing anyway moves the
         // mount's idea of where it points to the wrong place and says it
         // worked.
-        let ra_cmd = format!("{}{}#", commands::SET_TARGET_RA, format_ra(ra_hours));
-        if !self.send_command_bool(&ra_cmd)? {
-            return Err(DriverError::SdkError("Mount refused the sync RA".into()));
-        }
+        self.set_target(ra_hours, dec_degrees)?;
 
-        let dec_cmd = format!("{}{}#", commands::SET_TARGET_DEC, format_dec(dec_degrees));
-        if !self.send_command_bool(&dec_cmd)? {
-            return Err(DriverError::SdkError("Mount refused the sync Dec".into()));
+        // Meade answers the name of the object it synced on, OnStep `N/A`;
+        // 10Micron says `Match fail: dist. too large` when it refuses.
+        let reply = self.send_command(commands::SYNC)?;
+        if reply.trim_start().starts_with("Match fail") {
+            return Err(DriverError::SdkError(format!(
+                "Mount refused the sync: {}",
+                reply.trim()
+            )));
         }
-
-        let _ = self.send_command(commands::SYNC)?;
 
         Ok(())
     }
@@ -118,12 +114,7 @@ impl MountDriver for Lx200Mount {
 
         tracing::info!("Unparking mount");
 
-        // OnStep uses :hR# for unpark, standard LX200 uses :PO#
-        if self.mount_type.is_onstep() {
-            self.send_command_no_response(commands::ONSTEP_UNPARK)?;
-        } else {
-            self.send_command_no_response(commands::UNPARK_MEADE)?;
-        }
+        self.send_command_no_response(self.mount_type.unpark_command())?;
 
         *self
             .park_state
@@ -200,31 +191,41 @@ impl MountDriver for Lx200Mount {
             return Ok(is_parked);
         }
 
-        // 2) Meade firmware (LX200GPS / LX200ACF / RCX400) exposes park
-        //    via :GW#. Older Classic firmware ignores or echoes garbage —
-        //    we accept telemetry only when the response shape is one we
-        //    recognise; otherwise we fall through to the persisted cache.
+        // 2) Meade `:GW#` carries no park flag, only whether the mount
+        //    tracks. A tracking mount is not parked; one that does not track
+        //    is parked if we parked it. A mount that answers in the
+        //    documented shape and was never parked by us reads unparked, as
+        //    it always has. Any other answer falls through to the cache.
         if matches!(self.mount_type, Lx200MountType::Meade) {
             if let Ok(status) = self.send_command(commands::MEADE_GET_STATUS) {
-                if let Some(is_parked) = parse_meade_gw_park(&status) {
-                    *self
-                        .park_state
-                        .lock()
-                        .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? =
-                        Some(is_parked);
-                    if let Err(e) = write_persisted_park_state(&self.device_id, is_parked) {
-                        tracing::warn!(
-                            "Persist Meade park telemetry failed for {}: {}",
-                            self.device_id,
-                            e
-                        );
+                match parse_meade_gw_tracking(&status) {
+                    Some(true) => {
+                        *self
+                            .park_state
+                            .lock()
+                            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? =
+                            Some(false);
+                        if let Err(e) = write_persisted_park_state(&self.device_id, false) {
+                            tracing::warn!(
+                                "Persist Meade park telemetry failed for {}: {}",
+                                self.device_id,
+                                e
+                            );
+                        }
+                        return Ok(false);
                     }
-                    return Ok(is_parked);
+                    Some(false) => {
+                        let cached = *self
+                            .park_state
+                            .lock()
+                            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))?;
+                        return Ok(cached.unwrap_or(false));
+                    }
+                    None => tracing::debug!(
+                        "Meade :GW# response {:?} is not <mount><tracking><alignment> — falling back to local cache",
+                        status
+                    ),
                 }
-                tracing::debug!(
-                    "Meade :GW# response {:?} did not encode park state — falling back to local cache",
-                    status
-                );
             }
             // Fall through to persisted-state path on serial error or
             // unparseable response. A connection-level failure has already
@@ -344,22 +345,22 @@ impl MountDriver for Lx200Mount {
             return Err(DriverError::NotConnected);
         }
 
-        // OnStep uses :Te# (enable) and :Td# (disable)
-        if self.mount_type.is_onstep() {
-            if enabled {
-                self.send_command_no_response(commands::ONSTEP_TRACK_ENABLE)?;
-            } else {
-                self.send_command_no_response(commands::ONSTEP_TRACK_DISABLE)?;
+        // Without a tracking-off command the answer is NotSupported, never a
+        // stand-in such as `:Q#`: that stops slews, not tracking, and the
+        // mount would track on while the app reported it stopped.
+        let tracking = self
+            .mount_type
+            .tracking_command(enabled)
+            .ok_or(DriverError::NotSupported)?;
+        if tracking.answers {
+            if !self.send_command_bool(tracking.command)? {
+                return Err(DriverError::SdkError(format!(
+                    "Mount refused to turn tracking {}",
+                    if enabled { "on" } else { "off" }
+                )));
             }
         } else {
-            // Standard LX200
-            if enabled {
-                self.send_command_no_response(commands::SET_TRACK_SIDEREAL)?;
-            } else {
-                // Standard LX200 doesn't have explicit tracking disable
-                // Using stop slew as workaround (not ideal)
-                self.send_command_no_response(commands::STOP_SLEW)?;
-            }
+            self.send_command_no_response(tracking.command)?;
         }
 
         *self
@@ -393,15 +394,24 @@ impl MountDriver for Lx200Mount {
             return Ok(PierSide::Unknown);
         }
 
-        // OnStep can query pier side
-        if self.mount_type.is_onstep() {
-            if let Ok(status) = self.send_command(commands::ONSTEP_GET_STATUS) {
-                let (_, _, _, _, pier_side) = self.parse_onstep_status(&status);
-                return Ok(pier_side);
+        match self.mount_type {
+            Lx200MountType::OnStep => {
+                if let Ok(status) = self.send_command(commands::ONSTEP_GET_STATUS) {
+                    let (_, _, _, _, pier_side) = self.parse_onstep_status(&status);
+                    return Ok(pier_side);
+                }
+                Ok(PierSide::Unknown)
             }
+            Lx200MountType::TenMicron => {
+                let reply = self.send_command(commands::TENMICRON_PIER_SIDE)?;
+                Ok(match reply.trim() {
+                    "East" => PierSide::East,
+                    "West" => PierSide::West,
+                    _ => PierSide::Unknown,
+                })
+            }
+            _ => Ok(PierSide::Unknown),
         }
-
-        Ok(PierSide::Unknown)
     }
 
     async fn get_alt_az(&self) -> Result<(f64, f64), DriverError> {
@@ -412,8 +422,8 @@ impl MountDriver for Lx200Mount {
         let alt_response = self.send_command(commands::GET_ALT)?;
         let az_response = self.send_command(commands::GET_AZ)?;
 
-        let alt = parse_dec(&alt_response)?;
-        let az = parse_dec(&az_response)?;
+        let alt = parse_sexagesimal(&alt_response)?;
+        let az = parse_sexagesimal(&az_response)?;
 
         Ok((alt, az.abs()))
     }
@@ -423,8 +433,8 @@ impl MountDriver for Lx200Mount {
             return Err(DriverError::NotConnected);
         }
 
-        let latitude_deg = parse_dms(&self.send_command(commands::GET_SITE_LATITUDE)?)?;
-        let longitude_wire = parse_dms(&self.send_command(commands::GET_SITE_LONGITUDE)?)?;
+        let latitude_deg = parse_sexagesimal(&self.send_command(commands::GET_SITE_LATITUDE)?)?;
+        let longitude_wire = parse_sexagesimal(&self.send_command(commands::GET_SITE_LONGITUDE)?)?;
 
         if !(-90.0..=90.0).contains(&latitude_deg) {
             return Err(DriverError::SdkError(format!(
@@ -462,16 +472,32 @@ impl MountDriver for Lx200Mount {
             )));
         }
 
-        // Seconds precision only where the firmware is known to take it.
-        // Classic LX200 parses `sDD*MM` and rejects the longer form.
-        let with_seconds = self.mount_type.is_onstep();
-
-        let lat = format_dms(site.latitude_deg, 2, with_seconds);
-        let lon = format_dms(
-            east_positive_to_lx200_longitude(site.longitude_deg),
-            3,
-            with_seconds,
-        );
+        // Seconds only where the firmware is known to take them (OnStep, the
+        // NYX-101). The Meade command set is `sDD*MM` and an unsigned
+        // `DDD*MM`; 10Micron documents `:SgsDDD*MM#` with east negative
+        // (protocol 2.14.11), so it gets the sign rather than 0-360.
+        let (lat, lon) = match self.mount_type {
+            Lx200MountType::OnStep => (
+                format_dms(site.latitude_deg, 2, true),
+                format_dms(
+                    east_positive_to_lx200_longitude(site.longitude_deg),
+                    3,
+                    true,
+                ),
+            ),
+            Lx200MountType::TenMicron => (
+                format_dms(site.latitude_deg, 2, false),
+                format_dms(
+                    east_positive_to_lx200_longitude(site.longitude_deg),
+                    3,
+                    false,
+                ),
+            ),
+            Lx200MountType::Meade | Lx200MountType::Losmandy | Lx200MountType::Generic => (
+                format_dms(site.latitude_deg, 2, false),
+                format_meade_longitude(site.longitude_deg),
+            ),
+        };
         tracing::info!(
             "Writing site to mount: lat {} lon {} (east-positive {:.4})",
             lat,
@@ -518,7 +544,7 @@ impl MountDriver for Lx200Mount {
 
         let (date_text, time_text) =
             format_mount_local_datetime(clock.utc_unix_seconds, clock.utc_offset_hours)?;
-        let offset_text = format_utc_offset(clock.utc_offset_hours);
+        let offset_text = format_utc_offset(clock.utc_offset_hours, &self.mount_type);
 
         tracing::info!(
             "Writing clock to mount: {} {} UTC offset {}",
@@ -551,7 +577,7 @@ impl MountDriver for Lx200Mount {
     }
 
     async fn find_home(&mut self) -> Result<(), DriverError> {
-        // `:hF#` is an OnStep extension. Classic Meade/Losmandy firmware has no
+        // `:hC#` is an OnStep extension. Classic Meade/Losmandy firmware has no
         // home command, and sending one blind would either be ignored or
         // interpreted as something else entirely, so those report NotSupported
         // rather than pretending. Checked BEFORE the connection: a protocol
@@ -566,7 +592,7 @@ impl MountDriver for Lx200Mount {
         }
 
         tracing::info!("Finding home");
-        self.send_command_no_response(commands::ONSTEP_FIND_HOME)?;
+        self.send_command_no_response(commands::ONSTEP_GO_HOME)?;
 
         // Homing is a slew: mark it so callers that poll `is_slewing` wait for
         // the motion instead of reading the mount as idle the instant the
@@ -622,7 +648,7 @@ impl MountDriver for Lx200Mount {
         }
 
         let response = self.send_command(commands::GET_SIDEREAL_TIME)?;
-        parse_ra(&response)
+        parse_sexagesimal(&response)
     }
 
     async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
@@ -683,7 +709,7 @@ impl MountDriver for Lx200Mount {
     }
 
     fn can_find_home(&self) -> bool {
-        // Only OnStep has a home command (`:hF#`); see `find_home`.
+        // Only OnStep has a home command (`:hC#`); see `find_home`.
         self.mount_type.is_onstep()
     }
 

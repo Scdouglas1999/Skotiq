@@ -87,7 +87,27 @@ void main() {
         total: 10,
         durationSecs: 300,
       ),
-      const bridge.SequencerEvent.error(message: 'focuser timeout'),
+      const bridge.SequencerEvent.error(
+        message: 'focuser timeout',
+        kind: bridge.SequencerErrorKind.stepFailed,
+      ),
+      const bridge.SequencerEvent.error(
+        message: 'Trigger asked for an autofocus but no focuser is configured',
+        kind: bridge.SequencerErrorKind.stepProblem,
+      ),
+      const bridge.SequencerEvent.error(
+        message: 'DriftLimit recenter failed',
+        kind: bridge.SequencerErrorKind.runHeld,
+      ),
+      const bridge.SequencerEvent.error(
+        message: 'Autofocus frame not saved',
+        kind: bridge.SequencerErrorKind.standalone,
+      ),
+      const bridge.SequencerEvent.error(
+        message: 'Center: Failed to center. The run continues.',
+        kind: bridge.SequencerErrorKind.advisory,
+        notice: bridge.SequencerNotice.problemNoticed,
+      ),
       const bridge.SequencerEvent.meridianFlipOutcome(
         outcome: 'succeeded',
         targetName: 'M31',
@@ -187,6 +207,14 @@ void main() {
         detailsJson: '{}',
         nodeId: 'n1',
         sequenceRunId: 12,
+      ),
+      const bridge.SequencerEvent.decisionLogged(
+        timestampIso: '2026-10-21T22:04:00Z',
+        category: 'system_event',
+        summary: 'Frames rejected in a row — the run continues',
+        detailsJson: '{"consecutive_rejects":3}',
+        sequenceRunId: 12,
+        notice: bridge.SequencerNotice.rejectStreak,
       ),
     ];
     for (final event in variants) {

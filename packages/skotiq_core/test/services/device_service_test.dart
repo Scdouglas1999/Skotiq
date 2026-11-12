@@ -11,6 +11,7 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/device_heartbeat_health_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/services/device_exceptions.dart';
@@ -149,7 +150,8 @@ void main() {
       },
     );
 
-    test('connectCamera throws and resets state on failure', () async {
+    test('connectCamera throws, and the slot holds no camera but names the '
+        'one that failed', () async {
       const deviceId = TestFixtures.cameraId;
 
       when(() => mockBackend.discoverDevices(DeviceType.camera)).thenAnswer(
@@ -166,7 +168,9 @@ void main() {
       );
 
       final state = container.read(cameraStateProvider);
-      expect(state.connectionState, DeviceConnectionState.disconnected);
+      expect(state.connectionState, DeviceConnectionState.error);
+      expect(state.deviceId, isNull);
+      expect(state.lastError?.deviceId, deviceId);
     });
 
     test('disconnectCamera stops heartbeat and resets state', () async {
@@ -1906,18 +1910,14 @@ void main() {
 
     verifyNever(
       () => mockBackend.guiderStartGuiding(
-        deviceId: any(named: 'deviceId'),
         settlePixels: any(named: 'settlePixels'),
         settleTime: any(named: 'settleTime'),
         settleTimeout: any(named: 'settleTimeout'),
       ),
     );
-    verifyNever(
-      () => mockBackend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-    );
+    verifyNever(() => mockBackend.guiderStopGuiding());
     verifyNever(
       () => mockBackend.guiderDither(
-        deviceId: any(named: 'deviceId'),
         amount: any(named: 'amount'),
         raOnly: any(named: 'raOnly'),
         settlePixels: any(named: 'settlePixels'),

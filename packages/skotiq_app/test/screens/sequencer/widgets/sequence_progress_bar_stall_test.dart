@@ -37,18 +37,17 @@ const _waveFRun = SequenceProgress(
   currentTarget: 'New Target',
 );
 
-class _FixedProgressNotifier extends SequenceProgressNotifier {
-  _FixedProgressNotifier(SequenceProgress initial) {
-    state = initial;
-  }
-}
-
 Widget _harness(SequenceProgress progress) => ProviderScope(
       overrides: [
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.running),
-        sequenceProgressProvider
-            .overrideWith((ref) => _FixedProgressNotifier(progress)),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(
+            ref,
+            RunRecord(
+              lifecycle: SequenceExecutionState.running,
+              progress: progress,
+            ),
+          ),
+        ),
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,

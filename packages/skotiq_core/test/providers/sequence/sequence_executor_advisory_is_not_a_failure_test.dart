@@ -78,10 +78,10 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     return (container, container.read(sequenceExecutorProvider));
   }
 
@@ -161,13 +161,29 @@ void main() {
     },
   );
 
-  test('an error-severity fault still classifies as a failed sequence', () {
-    final classified = NotificationEventClassifier.classify(
-      _sequencerError(
-        'Camera download failed after 3 attempts',
+  // The failed step is told by the run's end, which carries its reason; told
+  // from the step's own error it was a "Sequence failed" for a run recovery
+  // could still save.
+  test('an error-severity fault is told as a failed sequence by the run\'s '
+      'end, not by the step', () {
+    expect(
+      NotificationEventClassifier.classify(
+        _sequencerError(
+          'Camera download failed after 3 attempts',
+          severity: backend_events.EventSeverity.error,
+        ),
+      ),
+      isNull,
+    );
+    final ended = NotificationEventClassifier.classify(
+      backend_events.SkotiqEvent(
+        timestamp: 0,
         severity: backend_events.EventSeverity.error,
+        category: backend_events.EventCategory.sequencer,
+        eventType: 'SequenceFailed',
+        data: const {'error': 'Camera download failed after 3 attempts'},
       ),
     );
-    expect(classified?.category, NotificationCategory.sequenceFailed);
+    expect(ended?.category, NotificationCategory.sequenceFailed);
   });
 }

@@ -103,7 +103,7 @@ struct Loaded {
 }
 
 fn load(args: &DeliverMasterArgs) -> Result<Loaded, String> {
-    let (data, header) = read_fits(Path::new(args.path.trim()))
+    let (data, header) = read_frame(Path::new(args.path.trim()))
         .map_err(|e| format!("cannot read master '{}': {e}", args.path))?;
     let image = OpImage::from_image_data(&data, header)
         .map_err(|e| format!("cannot use master '{}': {e}", args.path))?;
@@ -265,7 +265,7 @@ pub(crate) fn master_deliver(args_json: &str) -> Result<MasterDeliverResult, Str
     // besides the reference.
     let mut offered = Vec::with_capacity(args.masters.len());
     for m in &args.masters {
-        let header = read_fits_header(Path::new(m.path.trim()))
+        let header = read_frame_header(Path::new(m.path.trim()))
             .map_err(|e| format!("cannot read master '{}': {e}", m.path))?;
         let filter = m
             .filter

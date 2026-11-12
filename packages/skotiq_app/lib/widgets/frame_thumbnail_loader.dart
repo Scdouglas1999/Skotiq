@@ -35,24 +35,10 @@ class FrameThumbnailPayload {
   });
 }
 
-/// True for the container formats Flutter's image decoders cannot open.
-///
-/// A FITS/XISF path must never be handed to `Image.file`: it renders as a
-/// broken-image glyph rather than as the frame.
-bool isFitsLikePath(String path) {
-  final lower = path.toLowerCase();
-  return lower.endsWith('.fits') ||
-      lower.endsWith('.fit') ||
-      lower.endsWith('.fts') ||
-      lower.endsWith('.xisf');
-}
-
 /// True for the raster formats `Image.file` can actually decode.
 ///
-/// This is the allowlist, and it is deliberately not `!isFitsLikePath`: the two
-/// disagree on every extension neither names and on extension-less paths, which
-/// is why the same frame used to preview on one surface and show a placeholder
-/// on another. An unknown extension is not evidence that Flutter can decode it.
+/// This is an allowlist: an unknown extension is not evidence that Flutter can
+/// decode it, and a frame file (`FrameFiles.isFrame`) never is.
 bool isDisplayableImagePath(String path) {
   final lower = path.toLowerCase();
   return lower.endsWith('.png') ||

@@ -76,8 +76,6 @@ Future<HarnessHandle> _pumpTree(WidgetTester tester) async {
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // Collapsed ledger rows print a rollup summary naming their children,
       // which collides with this test's "children are gone" assertion — the
       // comfortable card has no such line, so pin it.

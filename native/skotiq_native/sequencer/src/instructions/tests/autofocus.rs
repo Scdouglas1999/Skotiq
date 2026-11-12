@@ -233,7 +233,8 @@ fn synthetic_star_field(width: u32, height: u32, count: usize, sigma: f64) -> Im
         filter: None,
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -294,7 +295,8 @@ fn star_detect_fixture(name: &str) -> ImageData {
         filter: Some("L".to_string()),
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -382,7 +384,8 @@ fn donut_field(radius: f64) -> ImageData {
         filter: Some("L".to_string()),
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -952,4 +955,79 @@ async fn one_failed_download_does_not_fail_the_sweep() {
     let (result, position) = sweep(ops.clone(), 1).await;
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert!((position - 25_075).abs() <= 60, "landed at {position}");
+}
+
+/// What an INDI client says when its server went away.
+fn lost(device: crate::device_ops::DeviceKind) -> DeviceError {
+    DeviceError::NotConnected {
+        device,
+        message: "Not connected to INDI server".to_string(),
+    }
+}
+
+/// A focuser that drops during the sweep is reconnected by the run, as any
+/// lost device is, rather than ending autofocus as a plain failure.
+#[tokio::test]
+async fn autofocus_with_a_dropped_focuser_goes_to_disconnect_recovery() {
+    let ops = Arc::new(
+        defocusing_rig(10_000, 10_000)
+            .failing_focuser_moves(&[lost(crate::device_ops::DeviceKind::Focuser)]),
+    );
+
+    let (result, _) = sweep(ops, 1).await;
+
+    assert_eq!(result.status, NodeStatus::Failure);
+    assert_eq!(
+        result.setback(),
+        Some(Setback::Disconnected),
+        "{:?}",
+        result.message
+    );
+}
+
+/// A camera that drops during a focus exposure is not retried as a fault; the
+/// run reconnects it.
+#[tokio::test]
+async fn autofocus_with_a_dropped_camera_goes_to_disconnect_recovery() {
+    let ops = Arc::new(
+        defocusing_rig(10_000, 10_000)
+            .failing_exposures(&[lost(crate::device_ops::DeviceKind::Camera)]),
+    );
+
+    let (result, _) = sweep(ops.clone(), 1).await;
+
+    assert_eq!(result.status, NodeStatus::Failure);
+    assert_eq!(
+        result.setback(),
+        Some(Setback::Disconnected),
+        "{:?}",
+        result.message
+    );
+}
+
+/// A cover calibrator that drops while the Flat Wizard opens it is a
+/// disconnect too.
+#[tokio::test]
+async fn the_flat_wizard_with_a_dropped_panel_goes_to_disconnect_recovery() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .failing_cover_open(lost(crate::device_ops::DeviceKind::CoverCalibrator)),
+    );
+    let mut ctx = ctx_with_ops(ops).await;
+    ctx.run.rig.mount_id = None;
+    ctx.run.rig.cover_calibrator_id = Some("panel-1".to_string());
+    let config = crate::FlatWizardConfig {
+        panel_location: crate::PanelLocation::FlatPanel,
+        ..Default::default()
+    };
+
+    let result = crate::flat_wizard::execute_flat_wizard(&config, &ctx, None).await;
+
+    assert_eq!(result.status, NodeStatus::Failure);
+    assert_eq!(
+        result.setback(),
+        Some(Setback::Disconnected),
+        "{:?}",
+        result.message
+    );
 }

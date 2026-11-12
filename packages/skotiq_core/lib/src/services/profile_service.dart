@@ -13,6 +13,7 @@ import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/profile_activation_writethrough.dart';
 import 'logging_service.dart';
 import '../providers/settings_provider.dart';

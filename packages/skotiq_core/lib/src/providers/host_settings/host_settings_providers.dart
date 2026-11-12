@@ -82,7 +82,7 @@ final hostSettingsStoreSupportProvider =
     });
 
 /// On a linked client, whether its credential has admin access to the host,
-/// which credential settings need ([isCredentialSettingKey]). Null when this
+/// which the admin-only settings need ([adminOnlyRow]). Null when this
 /// app owns the hardware itself or the host does not say.
 final hostAdminAccessProvider = FutureProvider<bool?>((ref) async {
   final store = ref.watch(hostSettingsStoreProvider);

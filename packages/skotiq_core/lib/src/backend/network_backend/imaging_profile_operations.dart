@@ -1,7 +1,6 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
-
   @override
   Future<List<EquipmentProfile>> getProfiles() async {
     final response = await _get('profiles');
@@ -1084,24 +1083,9 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     }
   }
 
-  ImageFileFormat _parseImageFormat(String str) {
-    switch (str.toLowerCase()) {
-      case 'fits':
-      case 'fit':
-        return ImageFileFormat.fits;
-      case 'xisf':
-        return ImageFileFormat.xisf;
-      case 'tiff':
-        return ImageFileFormat.tiff;
-      case 'png':
-        return ImageFileFormat.png;
-      case 'jpeg':
-      case 'jpg':
-        return ImageFileFormat.jpeg;
-      default:
-        throw FormatException('Unknown captured-image file format: $str');
-    }
-  }
+  ImageFileFormat _parseImageFormat(String str) =>
+      ImageFileFormat.fromRecord(str) ??
+      (throw FormatException('Unknown captured-image file format: $str'));
 
   @override
   Future<void> startDeviceHeartbeat({
@@ -1115,6 +1099,11 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       'interval_ms': intervalMs,
     });
   }
+
+  /// The host reconnects its own devices; a linked client reconnects none
+  /// of them (see `DeviceReconnectCoordinator`), so nothing here is native.
+  @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes => const {};
 
   @override
   Future<void> stopDeviceHeartbeat(String deviceId) async {
@@ -1178,10 +1167,21 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<void> updateFrameCards(
+    String filePath,
+    List<FitsKeywordWrite> cards,
+  ) async {
+    throw UnsupportedError(
+      'Frame metadata is written on the host that keeps the frame.',
+    );
+  }
+
+  @override
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     // Use the optimized endpoint that saves from server-side stored image
     // No raw pixel data needs to be transferred
@@ -1205,6 +1205,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         'deviceId': deviceId,
         'filePath': filePath,
         'headerData': headerData.toJson(),
+        'keepCameraFile': keepCameraFile,
       };
 
       request.write(jsonEncode(body));
@@ -1225,8 +1226,15 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         );
       }
 
-      // Consume response body to complete the request
-      await response.transform(utf8.decoder).join();
+      final reply = jsonDecode(await response.transform(utf8.decoder).join());
+      final saved = reply is Map ? reply['path'] : null;
+      if (saved is! String || saved.isEmpty) {
+        throw const IoException(
+          message: 'imaging/save-fits-from-capture returned no saved path',
+          userMessage: 'The host saved the frame but did not say where',
+        );
+      }
+      return saved;
     });
   }
 

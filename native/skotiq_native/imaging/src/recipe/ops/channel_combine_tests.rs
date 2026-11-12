@@ -487,3 +487,188 @@ fn ha_is_blended_into_red() {
     );
     assert!((patch[1] - sky[1]).abs() < 30.0);
 }
+
+/// The exact LRGB render with flattening on, so a change in the kernels it is
+/// built from (the clamped Lanczos warp, the chroma lattice's bilinear
+/// interpolation, the chromaticity blur) cannot move a pixel unnoticed.
+#[test]
+fn a_flattened_lrgb_render_is_pinned() {
+    let scene = lrgb_scene();
+    let mut params = scene.params.clone();
+    params["flatten"] = json!({"chromaBox": 48});
+    let out = ChannelCombineV1
+        .apply_measured(&scene.base, &params, &ctx(&scene.sources))
+        .expect("combines");
+    let digest = out
+        .image
+        .data()
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325u64, |h, v| {
+            v.to_le_bytes().iter().fold(h, |h, &b| {
+                (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3)
+            })
+        });
+    assert_eq!(format!("{digest:016x}"), "f1b3a6ee9df8ca44");
+}
+
+fn custom(mix: Value) -> (OpImage, Arc<PyramidSources>, Value) {
+    let (base, sources, mut params) = narrowband("sho");
+    params["palette"] = json!("custom");
+    params["mix"] = mix;
+    (base, sources, params)
+}
+
+#[test]
+fn a_custom_mix_with_a_palettes_weights_is_that_palette_bit_for_bit() {
+    let (base, sources, sho) = narrowband("sho");
+    let expected = ChannelCombineV1
+        .apply(&base, &sho, &ctx(&sources))
+        .expect("combines");
+    let (_, _, params) = custom(json!({
+        "red": {"sii": 1.0, "hAlpha": 0.0, "oiii": 0.0},
+        "green": {"hAlpha": 1.0},
+        "blue": {"oiii": 1.0, "sii": 0.0},
+    }));
+    let out = ChannelCombineV1
+        .apply_measured(&base, &params, &ctx(&sources))
+        .expect("combines");
+    assert_eq!(out.image.data(), expected.data());
+    assert_eq!(
+        out.measurement.as_ref().unwrap()["mix"]["red"]["sii"],
+        json!(1.0)
+    );
+}
+
+#[test]
+fn a_custom_mix_weighs_the_matched_lines_into_each_channel() {
+    let (base, sources, params) = custom(json!({
+        "red": {"hAlpha": 0.6, "sii": 0.4},
+        "green": {"hAlpha": 0.3, "oiii": 0.7},
+        "blue": {"oiii": 1.5},
+    }));
+    let out = ChannelCombineV1
+        .apply(&base, &params, &ctx(&sources))
+        .expect("combines");
+    let (_, _, sho) = narrowband("sho");
+    let plain = ChannelCombineV1
+        .apply(&base, &sho, &ctx(&sources))
+        .expect("combines");
+    // In SHO the matched planes are red = SII, green = Ha, blue = OIII, so the
+    // mix is checked against them pixel by pixel. Red and green sum to one and
+    // are the plain weighted sum; blue sums to 1.5 and has half the sky level
+    // taken back off, so its background stays where SHO leaves it.
+    let ha_plane: Vec<f32> = plain.data().iter().skip(1).step_by(3).copied().collect();
+    let sky = crate::recipe::composite::mix::background_and_noise(&ha_plane).0;
+    for (mixed, lines) in out
+        .data()
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .zip(plain.data().as_chunks::<3>().0)
+        .step_by(97)
+    {
+        let [s, ha, o] = lines.map(f64::from);
+        let expected = [0.6 * ha + 0.4 * s, 0.3 * ha + 0.7 * o, 1.5 * o - 0.5 * sky];
+        for (got, want) in mixed.iter().zip(expected) {
+            assert!(
+                (*got as f64 - want).abs() <= want.abs() * 1e-6 + 1e-3,
+                "{got} vs {want}"
+            );
+        }
+    }
+    let background = |image: &OpImage, channel: usize| mean_rgb(image, 10, 300, 20)[channel];
+    assert!(
+        (background(&out, 2) - background(&plain, 2)).abs() < 5.0,
+        "a boosted channel keeps its sky level"
+    );
+    assert_eq!(out.header().get_string("FILTER"), Some("Custom mix"));
+}
+
+#[test]
+fn a_custom_mix_of_two_lines_matches_onto_the_one_that_is_there() {
+    let (_, sources, mut params) = narrowband("sho");
+    // OIII and SII only, SII the reference: no Ha to anchor on.
+    let inputs = params["inputs"].as_array_mut().unwrap();
+    inputs.remove(0);
+    inputs[0]["transform"] = json!(Affine2::IDENTITY.m.to_vec());
+    inputs[1] =
+        json!({"role": "sii", "path": "s.fits", "width": W, "height": H, "reference": true});
+    params["palette"] = json!("custom");
+    params["mix"] = json!({"red": {"sii": 1.0}, "green": {"oiii": 1.0}, "blue": {"oiii": 1.0}});
+    let base = sources.level("s.fits", 0).expect("the SII master");
+    let out = ChannelCombineV1
+        .apply_measured(&base, &params, &ctx(&sources))
+        .expect("combines");
+    let fits = &out.measurement.as_ref().unwrap()["fits"];
+    // OIII stars carry twice the SII flux in this scene.
+    assert!(
+        (fits["oiiiToSii"]["scale"].as_f64().unwrap() - 0.5).abs() < 0.05,
+        "{fits}"
+    );
+}
+
+#[test]
+fn malformed_mixes_are_refused() {
+    let good = json!({"red": {"sii": 1.0}, "green": {"hAlpha": 1.0}, "blue": {"oiii": 1.0}});
+    let (_, _, valid) = custom(good.clone());
+    ChannelCombineV1
+        .validate_params(&valid)
+        .expect("the SHO weights validate as a custom mix");
+
+    let mut cases: Vec<(Value, &str)> = Vec::new();
+    let mut missing = valid.clone();
+    missing.as_object_mut().unwrap().remove("mix");
+    cases.push((missing, "needs 'mix'"));
+
+    let mut empty_row = valid.clone();
+    empty_row["mix"]["green"] = json!({"hAlpha": 0.0});
+    cases.push((empty_row, "green channel has no master"));
+
+    let mut no_row = valid.clone();
+    no_row["mix"].as_object_mut().unwrap().remove("blue");
+    cases.push((no_row, "blue channel has no master"));
+
+    let mut heavy = valid.clone();
+    heavy["mix"]["red"]["sii"] = json!(2.5);
+    cases.push((heavy, "mix.red.sii"));
+
+    let mut negative = valid.clone();
+    negative["mix"]["red"]["hAlpha"] = json!(-0.1);
+    cases.push((negative, "mix.red.hAlpha"));
+
+    let mut broadband = valid.clone();
+    broadband["mix"]["red"]["red"] = json!(1.0);
+    cases.push((broadband, "reads hAlpha, oiii and sii"));
+
+    let mut channel = valid.clone();
+    channel["mix"]["luminance"] = json!({"hAlpha": 1.0});
+    cases.push((channel, "no channel named 'luminance'"));
+
+    let (_, _, mut absent) = narrowband("hoo");
+    absent["palette"] = json!("custom");
+    absent["mix"] = good.clone();
+    cases.push((absent, "no SII master is listed"));
+
+    let (_, _, mut single) = narrowband("hoo");
+    single["inputs"].as_array_mut().unwrap().truncate(1);
+    single["palette"] = json!("custom");
+    single["mix"] =
+        json!({"red": {"hAlpha": 1.0}, "green": {"hAlpha": 1.0}, "blue": {"hAlpha": 1.0}});
+    cases.push((single, "at least two of Ha, OIII and SII"));
+
+    for (params, needle) in cases {
+        let error = ChannelCombineV1
+            .validate_params(&params)
+            .expect_err(needle)
+            .to_string();
+        assert!(error.contains(needle), "expected '{needle}' in: {error}");
+    }
+
+    // A palette with weights of its own ignores a stored mix, the way RGB
+    // ignores an Ha weight.
+    let (_, _, mut sho) = narrowband("sho");
+    sho["mix"] = json!({"red": {"oiii": 2.0}});
+    ChannelCombineV1
+        .validate_params(&sho)
+        .expect("SHO keeps its own weights");
+}

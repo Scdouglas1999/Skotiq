@@ -1,6 +1,10 @@
 part of '../remote_sync_handler.dart';
 
-void _applyHostMutation(Object reader, Map<String, dynamic> data) {
+void _applyHostMutation(
+  Object reader,
+  Map<String, dynamic> data, {
+  required bool onHost,
+}) {
   final entityType = data['entityType'] as String?;
   final action = data['action'] as String?;
   if (entityType == null || action == null) {
@@ -8,14 +12,14 @@ void _applyHostMutation(Object reader, Map<String, dynamic> data) {
   }
 
   switch (entityType) {
+    // A linked client takes the host's devices and guider from the runtime
+    // channels; the host's own window follows what a client did here.
     case HostMutationEntity.equipment:
-      _applyEquipmentMutationFromHost(reader, action, data);
+      if (onHost) _applyEquipmentMutationFromHost(reader, action, data);
     case HostMutationEntity.guider:
-      _applyGuiderMutationFromHost(reader, action, data);
+      if (onHost) _applyGuiderMutationFromHost(reader, action, data);
     case HostMutationEntity.sequencer:
       _applySequencerMutationFromHost(reader, action, data);
-    case HostMutationEntity.sequenceEditor:
-      _applySequenceEditorMirror(reader, action, data);
     case HostMutationEntity.profile:
       _invalidateHostProfiles(reader);
     case HostMutationEntity.settings:
@@ -60,15 +64,19 @@ void _applyEquipmentMutationFromHost(
     return;
   }
 
+  // The guide camera is the guider's: it has no slot, and the imaging
+  // camera's is not its to take or to empty.
+  if (_isHostGuideCamera(reader, parsed, deviceId)) return;
+
+  final notifier = readDeviceConnectionNotifier(reader, parsed);
   switch (action) {
     case HostMutationAction.connected:
-      final notifier = readDeviceConnectionNotifier(reader, parsed);
       if (!_isDeviceAlreadyConnected(reader, parsed, deviceId)) {
         notifier.setConnecting(deviceId, deviceName);
       }
       notifier.setConnected();
     case HostMutationAction.disconnected:
-      readDeviceConnectionNotifier(reader, parsed).setDisconnected();
+      _emptySlotFor(reader, parsed, deviceId);
     default:
       break;
   }

@@ -22,10 +22,7 @@ pub struct SafetyMonitorInfo {
     pub interface_version: i32,
 }
 
-alpaca_device!(
-    AlpacaSafetyMonitor,
-    SafetyMonitor
-);
+alpaca_device!(AlpacaSafetyMonitor, SafetyMonitor);
 
 impl AlpacaSafetyMonitor {
     skotiq_device::ascom_safety_monitor_members!(alpaca_member);

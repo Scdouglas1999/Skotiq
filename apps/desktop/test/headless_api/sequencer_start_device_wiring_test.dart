@@ -66,12 +66,17 @@ void main() {
       when(
         () => host.polarAlignmentEvents,
       ).thenAnswer((_) => const Stream.empty());
+      // The executor starts the loaded run through the whole host; the call
+      // goes to [sequencer], where the tests stub and verify it.
+      when(
+        () => host.sequencerStart(),
+      ).thenAnswer((_) => sequencer.sequencerStart());
 
       when(
         () => sequencer.sequencerSetSimulationMode(any()),
       ).thenAnswer((_) async {});
       when(
-        () => sequencer.sequencerSetSafetyFailMode(any()),
+        () => sequencer.sequencerApplyRunConfig(any()),
       ).thenAnswer((_) async {});
       when(
         () => sequencer.sequencerSetDevices(
@@ -81,7 +86,6 @@ void main() {
           filterwheelId: any(named: 'filterwheelId'),
           rotatorId: any(named: 'rotatorId'),
           filterNames: any(named: 'filterNames'),
-          filterFocusOffsets: any(named: 'filterFocusOffsets'),
         ),
       ).thenAnswer((_) async {});
       when(() => sequencer.sequencerStart()).thenAnswer((_) async {});
@@ -142,7 +146,6 @@ void main() {
           filterwheelId: captureAny(named: 'filterwheelId'),
           rotatorId: captureAny(named: 'rotatorId'),
           filterNames: any(named: 'filterNames'),
-          filterFocusOffsets: any(named: 'filterFocusOffsets'),
         ),
         () => sequencer.sequencerStart(),
       ]);
@@ -183,7 +186,6 @@ void main() {
           filterwheelId: any(named: 'filterwheelId'),
           rotatorId: any(named: 'rotatorId'),
           filterNames: any(named: 'filterNames'),
-          filterFocusOffsets: any(named: 'filterFocusOffsets'),
         ),
       );
     });
@@ -205,7 +207,6 @@ void main() {
           filterwheelId: null,
           rotatorId: null,
           filterNames: any(named: 'filterNames'),
-          filterFocusOffsets: any(named: 'filterFocusOffsets'),
         ),
       ).called(1);
     });
@@ -258,7 +259,6 @@ void main() {
               filterwheelId: null,
               rotatorId: null,
               filterNames: any(named: 'filterNames'),
-              filterFocusOffsets: any(named: 'filterFocusOffsets'),
             ),
           ).called(1);
         },
@@ -282,7 +282,6 @@ void main() {
             filterwheelId: null,
             rotatorId: null,
             filterNames: any(named: 'filterNames'),
-            filterFocusOffsets: any(named: 'filterFocusOffsets'),
           ),
         ).called(1);
       });
@@ -305,7 +304,6 @@ void main() {
             filterwheelId: null,
             rotatorId: null,
             filterNames: any(named: 'filterNames'),
-            filterFocusOffsets: any(named: 'filterFocusOffsets'),
           ),
         ).called(2);
       });
@@ -332,7 +330,6 @@ void main() {
             filterwheelId: null,
             rotatorId: null,
             filterNames: any(named: 'filterNames'),
-            filterFocusOffsets: any(named: 'filterFocusOffsets'),
           ),
         ).called(1);
       });

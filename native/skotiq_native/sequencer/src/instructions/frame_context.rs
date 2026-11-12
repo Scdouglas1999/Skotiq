@@ -1,11 +1,8 @@
-//! `frame_context.rs` — moved verbatim out of the former single-file `instructions.rs`
-//! (release-pass C3 mechanical split). No logic changed; private items were
-//! widened to `pub(crate)` so the sibling modules and the tests module still
-//! see them, and `super::*` supplies the imports the original file had.
+//! What a saved frame records about the rig and the exposure. One sampler,
+//! [`sample_frame_context`], reads the devices for every frame Skotiq saves;
+//! a sequence run adds what ties the frame to the run.
 
 use super::*;
-
-// Frame context builder (Image Grading)
 
 /// The seconds a frame is RECORDED as: the camera's own report of how long it
 /// exposed, bounded by what the sequencer actually waited for.
@@ -30,76 +27,95 @@ pub(crate) fn recorded_exposure_secs(commanded_secs: f64, reported_secs: f64) ->
     }
 }
 
-/// Build the per-frame FITS-header bundle for the current capture.
+/// What the caller of a capture knows about a frame without asking the rig.
+/// A sequence run and the Imaging screen both fill one of these; everything
+/// else in the frame's header is read from the devices by
+/// [`sample_frame_context`].
+#[derive(Debug, Clone, Copy)]
+pub struct CaptureFacts<'a> {
+    /// The devices to read. An id that is `None` leaves that device's cards
+    /// out. `latitude`/`longitude` are the site.
+    pub rig: &'a RunRig,
+    /// Observer, site elevation and equipment names. `session_id` is not
+    /// read here: belonging to a run is the run's to add.
+    pub identity: &'a FrameIdentity,
+    pub commanded_secs: f64,
+    pub commanded_gain: Option<i32>,
+    pub commanded_offset: Option<i32>,
+    pub binning: (u32, u32),
+    /// FITS `IMAGETYP`.
+    pub frame_type: &'a str,
+    /// When the shutter opened.
+    pub exposure_started_at: chrono::DateTime<chrono::Utc>,
+    /// Filter name and slot, as one pair.
+    pub filter: (Option<&'a str>, Option<i32>),
+    pub target_name: Option<&'a str>,
+    /// What the cooler was last set to hold, for a camera that does not
+    /// report its own setpoint.
+    pub set_temp_c: Option<f64>,
+    /// The sensor's color filter pattern when the frame itself does not say.
+    pub bayer_pattern: Option<&'a str>,
+}
+
+/// The longest one device read may hold up a frame's save. A read that takes
+/// longer leaves its cards out, as a failed read does.
+const RIG_READ_LIMIT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// One best-effort device read: an error or an overrun is logged and the
+/// value is left out.
+async fn rig_read<T>(
+    what: &str,
+    read: impl std::future::Future<Output = DeviceResult<T>>,
+) -> Option<T> {
+    match tokio::time::timeout(RIG_READ_LIMIT, read).await {
+        Ok(Ok(value)) => Some(value),
+        Ok(Err(e)) => {
+            tracing::debug!("[CAPTURE] {what} failed; its header cards are omitted: {e}");
+            None
+        }
+        Err(_) => {
+            tracing::warn!(
+                "[CAPTURE] {what} did not answer within {}s; its header cards are omitted",
+                RIG_READ_LIMIT.as_secs()
+            );
+            None
+        }
+    }
+}
+
+/// Everything a saved frame records about the rig and the exposure, read at
+/// one moment: after readout, immediately before the file is written.
 ///
-/// Reads everything the FITS writer needs:
-/// - session-static fields from `InstructionContext` (session_id, observer,
-///   equipment ID, site coords)
-/// - per-target fields from `InstructionContext` (target_name/id, mosaic_panel)
-/// - exposure settings from the active `ExposureConfig`
-/// - live device telemetry by querying the connected focuser / rotator /
-///   guider via `DeviceOps`. Each query is best-effort: a device that fails
-///   to report its state simply omits the corresponding FITS keyword. We
-///   never substitute sentinel values.
-/// - the most recent plate-solve result, if CenterTarget ran for this target
+/// Every frame Skotiq saves goes through here, whoever took it, so two frames
+/// of the same rig carry the same cards. Each device read is best-effort: a
+/// device that is not connected, fails or does not answer in
+/// [`RIG_READ_LIMIT`] leaves its cards out and never fails the save. Nothing
+/// is filled with a placeholder.
 ///
-/// The live-telemetry reads are bounded: the focuser/rotator/guide queries
-/// are simple status reads (no motion commands) and the existing DeviceOps
-/// implementations cache the values, so this adds <10 ms of overhead per
-/// frame — negligible compared to the multi-second exposure.
-pub(crate) async fn build_frame_context_for_save(
-    ctx: &InstructionContext,
-    config: &ExposureConfig,
+/// The result belongs to no run: `session_id` is empty and `frame_index` is 0.
+pub async fn sample_frame_context(
+    device_ops: &dyn DeviceOps,
+    facts: &CaptureFacts<'_>,
     image_data: &ImageData,
-    frame_index: u32,
-    defect_map_outcome: DefectMapOutcome,
-    exposure_started_at: chrono::DateTime<chrono::Utc>,
-    // The burst's (name, slot) pair from `resolve_frame_filter`, passed in
-    // rather than re-derived so the FITS card can never name a different filter
-    // than the file it is written into.
-    frame_filter: (Option<String>, Option<i32>),
 ) -> crate::scheduling::FrameContext {
-    let (bin_x, bin_y) = match config.binning {
-        Binning::One => (1u32, 1u32),
-        Binning::Two => (2, 2),
-        Binning::Three => (3, 3),
-        Binning::Four => (4, 4),
-    };
-
+    let rig = facts.rig;
+    let identity = facts.identity;
     let mut frame_ctx = crate::scheduling::FrameContext::new_light(
-        ctx.run.identity.session_id.clone(),
-        bin_x,
-        bin_y,
-        config.duration_secs,
-        frame_index,
+        "",
+        facts.binning.0,
+        facts.binning.1,
+        facts.commanded_secs,
+        0,
     );
-    frame_ctx.exposure_started_at = Some(exposure_started_at);
+    frame_ctx.exposure_started_at = Some(facts.exposure_started_at);
 
-    // DECISION: the camera's own report of how long it exposed wins over the
-    // commanded duration, but only within the bound below.
-    //
-    // Why the driver and not the plan. `EXPTIME` means the exposure that
-    // happened, not the one that was asked for, and the FITS writer has always
-    // read it straight off `ImageData` — so preferring the plan here would
-    // CHANGE what lands in every FITS file, which is the larger unannounced
-    // change. On a camera with a mechanical shutter the two genuinely differ,
-    // and the measured value is the one a later calibration match wants.
-    //
-    // Why it is bounded. The same field is now also the NOT NULL
-    // `captured_images.exposure_duration` that every integration total sums, so
-    // one lying driver could corrupt a season of totals with nothing
-    // downstream able to tell. The shutter cannot have been open materially
-    // longer than the sequencer waited for it, so an over-report is not a
-    // measurement — it is a fault, and the commanded value is kept instead.
-    // (The grace is shutter/readout latency plus drivers that quantise their
-    // exposure clock coarsely on long subs.)
-    //
-    // The bound is deliberately one-sided. A report SHORTER than commanded is
-    // physically possible — an aborted or truncated exposure really did end
-    // early — and it can only under-count integration, which is the safe
-    // direction and shows up as an obviously short sub rather than as a night
-    // that claims hours it never collected.
-    let commanded_secs = frame_ctx.duration_secs;
+    // `EXPTIME` is the exposure that happened, so the camera's own report
+    // wins over the commanded duration. The same number is the
+    // `captured_images.exposure_duration` every integration total sums, so it
+    // is bounded: the shutter cannot have been open materially longer than
+    // the wait for it, and an over-report is a driver fault that keeps the
+    // commanded value. A shorter report (an aborted exposure) is kept.
+    let commanded_secs = facts.commanded_secs;
     let reported_secs = image_data.exposure_secs;
     let longest_believable = commanded_secs * 1.05 + 1.0;
     frame_ctx.duration_secs = recorded_exposure_secs(commanded_secs, reported_secs);
@@ -119,247 +135,216 @@ pub(crate) async fn build_frame_context_for_save(
         );
     }
 
-    // Honour the node's configured frame type (FITS IMAGETYP). Before this,
-    // every sequencer capture was stamped "Light" — sequenced darks/flats/
-    // bias frames were mislabeled on disk and invisible to calibration
-    // ingest that filters on IMAGETYP.
-    frame_ctx.frame_type = config.frame_type.clone();
+    frame_ctx.frame_type = facts.frame_type.to_string();
+    frame_ctx.target_name = facts.target_name.map(str::to_string);
+    frame_ctx.filter_name = facts.filter.0.map(str::to_string);
+    frame_ctx.filter_index = facts.filter.1;
 
-    frame_ctx.total_planned_frames = Some(config.count);
-
-    // Target identification — use the running target from the executor (not
-    // the synthesized "untargeted" label used for the filename, which is a
-    // legitimate operator-visible signal but should not pollute the FITS
-    // OBJECT keyword).
-    frame_ctx.target_id = ctx.target_id.clone();
-    frame_ctx.target_name = ctx.target_name.clone();
-    frame_ctx.target_ra_hours = ctx.target_ra;
-    frame_ctx.target_dec_degrees = ctx.target_dec;
-
-    // Filter. Name and slot arrive already paired: reading `config` and the
-    // context independently let a burst that named "Ha" but carried no slot be
-    // stamped with whatever slot the previous burst had left behind.
-    (frame_ctx.filter_name, frame_ctx.filter_index) = frame_filter;
-
-    // Camera settings (already on ImageData from the capture).
-    frame_ctx.gain = image_data.gain.or(config.gain);
-    frame_ctx.offset = image_data.offset.or(config.offset);
+    frame_ctx.gain = image_data.gain.or(facts.commanded_gain);
+    frame_ctx.offset = image_data.offset.or(facts.commanded_offset);
     frame_ctx.sensor_temp_c = image_data.temperature;
-    frame_ctx.set_temp_c = ctx.set_temp_c;
+    frame_ctx.set_temp_c = facts.set_temp_c;
 
-    // Cooler duty cycle. Only meaningful on a cooled camera; an uncooled one
-    // (or a driver that will not answer) leaves the column NULL rather than
-    // recording 0 %, which would read as "cooler idle" — the opposite of "no
-    // cooler".
-    if let Some(camera_id) = &ctx.run.rig.camera_id {
-        match ctx.run.device_ops.camera_get_cooler_power(camera_id).await {
-            Ok(power) => frame_ctx.cooler_power_percent = Some(power),
-            Err(e) => tracing::debug!(
-                "[CAPTURE] camera_get_cooler_power failed; cooler power omitted: {}",
-                e
-            ),
-        }
-    }
-
-    // Bayer pattern — prefer the camera-reported sensor type over a stale
-    // ExecutionContext value. A camera reporting "Monochrome" overrides any
-    // stale "RGGB" left from a previous (different-camera) session.
+    // The camera says whether the frame is a color mosaic and where its
+    // pattern starts; the caller's pattern only fills in for a driver that
+    // reports color without an offset. A monochrome frame has none, whatever
+    // an earlier camera left configured.
     frame_ctx.bayer_pattern = match image_data.sensor_type.as_deref() {
         Some(s) if s.eq_ignore_ascii_case("Monochrome") || s.eq_ignore_ascii_case("Mono") => None,
-        _ => ctx.bayer_pattern.clone(),
+        _ => image_data
+            .color_filter
+            .map(|pattern| pattern.fits_name())
+            .or(facts.bayer_pattern.map(str::to_string)),
     };
 
-    // Mosaic panel.
-    frame_ctx.mosaic_panel = ctx.mosaic_panel.clone();
+    frame_ctx.observer_name = identity.observer_name.clone();
+    frame_ctx.site_latitude_deg = rig.latitude;
+    frame_ctx.site_longitude_deg = rig.longitude;
+    frame_ctx.site_elevation_m = identity.site_elevation_m;
+    frame_ctx.camera_make = identity.camera_make.clone();
+    frame_ctx.camera_model = identity.camera_model.clone();
+    frame_ctx.telescope_name = identity.telescope_name.clone();
+    frame_ctx.telescope_focal_length_mm = identity.telescope_focal_length_mm;
+    frame_ctx.telescope_aperture_mm = identity.telescope_aperture_mm;
 
-    // Observer / site.
-    frame_ctx.observer_name = ctx.run.identity.observer_name.clone();
-    frame_ctx.site_latitude_deg = ctx.run.rig.latitude;
-    frame_ctx.site_longitude_deg = ctx.run.rig.longitude;
-    frame_ctx.site_elevation_m = ctx.run.identity.site_elevation_m;
+    if let Some(camera_id) = &rig.camera_id {
+        // Left empty, not 0 %, when the camera has no cooler or will not say:
+        // 0 % would read as an idle cooler.
+        frame_ctx.cooler_power_percent = rig_read(
+            "camera cooler power",
+            device_ops.camera_get_cooler_power(camera_id),
+        )
+        .await;
 
-    // Equipment identification.
-    frame_ctx.camera_make = ctx.run.identity.camera_make.clone();
-    frame_ctx.camera_model = ctx.run.identity.camera_model.clone();
-    // Ask the DRIVER which camera this is when the observer profile does not
-    // say. The profile is a cross-product of app settings and the active
-    // equipment profile, so a rig running without one — which is every
-    // headless run that has not had a profile created, and was exactly the
-    // state of the live rig — wrote frames with no INSTRUME at all. The camera
-    // is connected and has a name; there is no reason for the file not to
-    // carry it. Only fills the gap: a profile that names a camera still wins,
-    // because that is the operator stating what they want in their archive.
-    if frame_ctx.camera_make.is_none() && frame_ctx.camera_model.is_none() {
-        if let Some(camera_id) = &ctx.run.rig.camera_id {
-            match ctx.run.device_ops.camera_get_model(camera_id).await {
-                Ok(Some(model)) => frame_ctx.camera_model = Some(model),
-                Ok(None) => tracing::debug!(
-                    "[CAPTURE] camera {} reports no model name; INSTRUME omitted",
-                    camera_id
-                ),
-                Err(e) => {
-                    tracing::debug!("[CAPTURE] camera_get_model failed; INSTRUME omitted: {}", e)
-                }
-            }
+        // What the cooler is holding now; the caller's record of the last
+        // setpoint stands in for a camera that does not report one.
+        if let Some(setpoint) = rig_read(
+            "camera cooler setpoint",
+            device_ops.camera_get_cooler_setpoint(camera_id),
+        )
+        .await
+        .flatten()
+        {
+            frame_ctx.set_temp_c = Some(setpoint);
         }
-    }
-    // Sensor pixel pitch (FITS XPIXSZ/YPIXSZ). Asked of the driver here rather
-    // than taken from the observer profile, which has no pixel-size field: this
-    // is the only place in a sequenced capture where the number is reachable,
-    // and without it the sub lands on disk with FOCALLEN but no pitch, so no
-    // stacker can derive the plate scale from the file alone. A driver that
-    // will not answer leaves the keywords off rather than inventing a pitch.
-    if let Some(camera_id) = &ctx.run.rig.camera_id {
-        match ctx.run.device_ops.camera_get_pixel_size_um(camera_id).await {
-            Ok(Some((x_um, y_um))) => {
-                frame_ctx.camera_pixel_size_x_um = Some(x_um);
-                frame_ctx.camera_pixel_size_y_um = Some(y_um);
-            }
-            Ok(None) => tracing::debug!(
-                "[CAPTURE] camera {} reports no pixel size; XPIXSZ/YPIXSZ omitted",
-                camera_id
-            ),
-            Err(e) => tracing::debug!(
-                "[CAPTURE] camera_get_pixel_size_um failed; XPIXSZ/YPIXSZ omitted: {}",
-                e
-            ),
-        }
-    }
-    frame_ctx.telescope_name = ctx.run.identity.telescope_name.clone();
-    frame_ctx.telescope_focal_length_mm = ctx.run.identity.telescope_focal_length_mm;
-    frame_ctx.telescope_aperture_mm = ctx.run.identity.telescope_aperture_mm;
 
-    // Live focuser telemetry. We use match arms so a driver error just
-    // omits the keyword — never overrides with a fake value. The focuser
-    // temperature is `Option<f64>` even on success because not every
-    // focuser model has a thermistor.
-    if let Some(focuser_id) = &ctx.run.rig.focuser_id {
-        match ctx.run.device_ops.focuser_get_position(focuser_id).await {
-            Ok(pos) => frame_ctx.focuser_position = Some(pos),
-            Err(e) => tracing::debug!(
-                "[CAPTURE] focuser_get_position failed; FOCUSPOS omitted: {}",
-                e
-            ),
-        }
-        match ctx.run.device_ops.focuser_get_temperature(focuser_id).await {
-            Ok(temp) => frame_ctx.focuser_temperature_c = temp,
-            Err(e) => tracing::debug!(
-                "[CAPTURE] focuser_get_temperature failed; FOCTEMP omitted: {}",
-                e
-            ),
-        }
-    }
-
-    // Live rotator telemetry.
-    if let Some(rotator_id) = &ctx.run.rig.rotator_id {
-        match ctx.run.device_ops.rotator_get_angle(rotator_id).await {
-            Ok(angle) => frame_ctx.rotator_angle_deg = Some(angle),
-            Err(e) => tracing::debug!(
-                "[CAPTURE] rotator_get_angle failed; ROTATPOS omitted: {}",
-                e
-            ),
-        }
-    }
-
-    // Live mount pointing + pier side.
-    //
-    // Where the telescope actually WAS, which is what the FITS `RA`/`DEC`
-    // cards and the `captured_images.mount_*` columns both mean — as opposed
-    // to `target_ra_hours`/`target_dec_degrees`, which are where the sequence
-    // meant to be (an unedited "New Target" sits at 0h/0°). Read HERE, into
-    // the FrameContext both surfaces are stamped from, so the header and the
-    // row cannot disagree.
-    if let Some(mount_id) = &ctx.run.rig.mount_id {
-        match ctx.run.device_ops.mount_get_coordinates(mount_id).await {
-            Ok((ra_hours, dec_degrees)) => {
-                // Stored in J2000, the frame every reader of the FITS `RA`/`DEC`
-                // cards and the `captured_images` row assumes. A JNow mount
-                // reads back of-date coordinates ~20' away (2026), and writing
-                // those as-is put every frame's recorded pointing off target by
-                // the precession offset. Alt/az below still use the of-date
-                // read-back, which is what the hour angle needs.
-                match ctx
-                    .run
-                    .device_ops
-                    .mount_readback_to_j2000(mount_id, ra_hours, dec_degrees)
+        // The equipment profile names the camera the operator wants in the
+        // archive; a rig without one still has a connected camera with a
+        // name, so the driver fills the gap and `INSTRUME` is not lost.
+        if frame_ctx.camera_make.is_none() && frame_ctx.camera_model.is_none() {
+            frame_ctx.camera_model =
+                rig_read("camera model", device_ops.camera_get_model(camera_id))
                     .await
-                {
-                    Ok((ra_j2000, dec_j2000)) => {
-                        frame_ctx.mount_ra_hours = Some(ra_j2000);
-                        frame_ctx.mount_dec_degrees = Some(dec_j2000);
-                    }
-                    Err(e) => tracing::debug!(
-                        "[CAPTURE] mount frame unresolved; RA/DEC omitted rather than \
-                         recorded in the wrong frame: {}",
-                        e
-                    ),
-                }
-                // Alt/az are derived, not read back: `mount_get_status` would
-                // report them but costs a full capability sweep per saved
-                // frame on ASCOM, and the geometry is exact once the site is
-                // known. Both stay None when the observer location is unset
-                // rather than being computed from a guessed site.
-                //
-                // Derived at the EXPOSURE MIDPOINT, not now. This runs after
-                // readout, so `Utc::now()` dated the geometry by the whole
-                // exposure plus download — see `FrameContext::exposure_midpoint`
-                // for what that costs a photometry run. RA/Dec do not need the
-                // same treatment: a tracking mount holds them, and it is only
-                // the horizon frame that turns with the clock.
-                if let (Some(lat), Some(lon)) = (ctx.run.rig.latitude, ctx.run.rig.longitude) {
-                    let when = frame_ctx
-                        .exposure_midpoint()
-                        .unwrap_or_else(chrono::Utc::now);
-                    let (alt, az) =
-                        crate::meridian::calculate_alt_az(ra_hours, dec_degrees, lat, lon, when);
-                    frame_ctx.mount_altitude_deg = Some(alt);
-                    frame_ctx.mount_azimuth_deg = Some(az);
-                }
-            }
-            Err(e) => tracing::debug!(
-                "[CAPTURE] mount_get_coordinates failed; pointing omitted: {}",
-                e
-            ),
+                    .flatten();
         }
-        match ctx.run.device_ops.mount_side_of_pier(mount_id).await {
-            // `Unknown` is dropped rather than recorded: it is indistinguishable
-            // downstream from "no reading was taken", and the column is
-            // nullable precisely so absence can say that.
-            Ok(crate::meridian::PierSide::East) => frame_ctx.pier_side = Some("East".to_string()),
-            Ok(crate::meridian::PierSide::West) => frame_ctx.pier_side = Some("West".to_string()),
-            Ok(crate::meridian::PierSide::Unknown) => {}
-            Err(e) => tracing::debug!(
-                "[CAPTURE] mount_side_of_pier failed; PIERSIDE omitted: {}",
-                e
-            ),
+
+        // The unbinned pixel pitch exists only in the driver. Without it a
+        // frame carries FOCALLEN but no pitch, and no stacker can derive the
+        // plate scale from the file alone.
+        if let Some((x_um, y_um)) = rig_read(
+            "camera pixel size",
+            device_ops.camera_get_pixel_size_um(camera_id),
+        )
+        .await
+        .flatten()
+        {
+            frame_ctx.camera_pixel_size_x_um = Some(x_um);
+            frame_ctx.camera_pixel_size_y_um = Some(y_um);
         }
     }
 
-    // Live guide RMS (PHD2 / built-in guider). The guider may be off (no
-    // guiding for short subs), in which case the keyword is omitted.
-    match ctx.run.device_ops.guider_get_status().await {
-        Ok(status) if status.is_guiding => {
+    if let Some(focuser_id) = &rig.focuser_id {
+        frame_ctx.focuser_position = rig_read(
+            "focuser position",
+            device_ops.focuser_get_position(focuser_id),
+        )
+        .await;
+        // Not every focuser has a thermistor.
+        frame_ctx.focuser_temperature_c = rig_read(
+            "focuser temperature",
+            device_ops.focuser_get_temperature(focuser_id),
+        )
+        .await
+        .flatten();
+    }
+
+    if let Some(rotator_id) = &rig.rotator_id {
+        frame_ctx.rotator_angle_deg =
+            rig_read("rotator angle", device_ops.rotator_get_angle(rotator_id)).await;
+    }
+
+    // Where the telescope was, as distinct from where a sequence meant to be.
+    if let Some(mount_id) = &rig.mount_id {
+        if let Some((ra_hours, dec_degrees)) = rig_read(
+            "mount coordinates",
+            device_ops.mount_get_coordinates(mount_id),
+        )
+        .await
+        {
+            // Recorded in J2000, the frame every reader of the `RA`/`DEC`
+            // cards and of the `captured_images` row assumes. A JNow mount
+            // reads back of-date coordinates about 20' away (2026). When the
+            // mount's frame cannot be resolved the pointing is left out
+            // rather than recorded in the wrong one.
+            if let Some((ra_j2000, dec_j2000)) = rig_read(
+                "mount coordinate frame",
+                device_ops.mount_readback_to_j2000(mount_id, ra_hours, dec_degrees),
+            )
+            .await
+            {
+                frame_ctx.mount_ra_hours = Some(ra_j2000);
+                frame_ctx.mount_dec_degrees = Some(dec_j2000);
+            }
+            // Alt/az are derived from the of-date read-back, which is what
+            // the hour angle needs, at the exposure midpoint: this runs after
+            // readout, and only the horizon frame turns with the clock. Not
+            // derived at all without a site.
+            if let (Some(lat), Some(lon)) = (rig.latitude, rig.longitude) {
+                let when = frame_ctx
+                    .exposure_midpoint()
+                    .unwrap_or_else(chrono::Utc::now);
+                let (alt, az) =
+                    crate::meridian::calculate_alt_az(ra_hours, dec_degrees, lat, lon, when);
+                frame_ctx.mount_altitude_deg = Some(alt);
+                frame_ctx.mount_azimuth_deg = Some(az);
+            }
+        }
+        // `Unknown` is left out: downstream it cannot be told from no reading.
+        frame_ctx.pier_side =
+            match rig_read("mount pier side", device_ops.mount_side_of_pier(mount_id)).await {
+                Some(crate::meridian::PierSide::East) => Some("East".to_string()),
+                Some(crate::meridian::PierSide::West) => Some("West".to_string()),
+                Some(crate::meridian::PierSide::Unknown) | None => None,
+            };
+    }
+
+    // Only while guiding: a connected guider that is idle has no RMS.
+    if let Some(status) = rig_read("guider status", device_ops.guider_get_status()).await {
+        if status.is_guiding {
             frame_ctx.guide_rms_arcsec = Some(status.rms_total);
         }
-        Ok(_) => {
-            // Guider connected but not currently guiding — omit the keyword.
-        }
-        Err(e) => tracing::debug!(
-            "[CAPTURE] guider_get_status failed; GUIDERMS omitted: {}",
-            e
-        ),
     }
 
-    // Plate-solve result (only available once CenterTarget has run for
-    // this target). Stored as Arc<RwLock<_>> so the executor and exposure
-    // share state without cloning.
+    frame_ctx
+}
+
+/// The frame context of one frame of a sequence run: the rig as
+/// [`sample_frame_context`] reads it, plus what says the frame belongs to the
+/// run (session, position in the burst, target, mosaic panel, the target's
+/// last plate solve, the defect-map record).
+pub(crate) async fn build_frame_context_for_save(
+    ctx: &InstructionContext,
+    config: &ExposureConfig,
+    image_data: &ImageData,
+    frame_index: u32,
+    defect_map_outcome: DefectMapOutcome,
+    exposure_started_at: chrono::DateTime<chrono::Utc>,
+    // The burst's (name, slot) pair from `resolve_frame_filter`, passed in
+    // rather than re-derived so the FITS card can never name a different filter
+    // than the file it is written into.
+    frame_filter: (Option<String>, Option<i32>),
+) -> crate::scheduling::FrameContext {
+    let binning = match config.binning {
+        Binning::One => (1u32, 1u32),
+        Binning::Two => (2, 2),
+        Binning::Three => (3, 3),
+        Binning::Four => (4, 4),
+    };
+
+    let mut frame_ctx = sample_frame_context(
+        ctx.run.device_ops.as_ref(),
+        &CaptureFacts {
+            rig: &ctx.run.rig,
+            identity: &ctx.run.identity,
+            commanded_secs: config.duration_secs,
+            commanded_gain: config.gain,
+            commanded_offset: config.offset,
+            binning,
+            frame_type: &config.frame_type,
+            exposure_started_at,
+            filter: (frame_filter.0.as_deref(), frame_filter.1),
+            // The running target, not the "untargeted" label file names use.
+            target_name: ctx.target_name.as_deref(),
+            set_temp_c: ctx.set_temp_c,
+            bayer_pattern: ctx.bayer_pattern.as_deref(),
+        },
+        image_data,
+    )
+    .await;
+
+    frame_ctx.session_id = ctx.run.identity.session_id.clone();
+    frame_ctx.frame_index = frame_index;
+    frame_ctx.total_planned_frames = Some(config.count);
+    frame_ctx.target_id = ctx.target_id.clone();
+    frame_ctx.target_ra_hours = ctx.target_ra;
+    frame_ctx.target_dec_degrees = ctx.target_dec;
+    frame_ctx.mosaic_panel = ctx.mosaic_panel.clone();
+
+    // The target's last plate solve, once CenterTarget has run for it. The
+    // solver reports RA in degrees; the context carries hours.
     {
         let solve_guard = ctx.run.last_plate_solve.read().await;
         if let Some(solve) = solve_guard.as_ref() {
-            // PlateSolveResult stores RA in DEGREES; convert to hours for
-            // the SOLVED-RA keyword (which is FITS-standard in degrees).
-            // Wait — read the spec: api_save_fits writes RA in HOURS for
-            // the RA keyword. Stay consistent: SOLVED-RA in HOURS too.
             frame_ctx.plate_solve_ra_hours = Some(solve.ra_degrees / 15.0);
             frame_ctx.plate_solve_dec_degrees = Some(solve.dec_degrees);
             frame_ctx.plate_solve_pixel_scale_arcsec = Some(solve.pixel_scale);
@@ -367,9 +352,7 @@ pub(crate) async fn build_frame_context_for_save(
         }
     }
 
-    // defect-map correction provenance. Only set when
-    // the correction actually ran; skipped / disabled outcomes leave
-    // the field None and no HISTORY card is emitted by the FITS writer.
+    // Set only when the correction ran.
     frame_ctx.defect_map_correction = defect_map_outcome.into_record();
 
     frame_ctx

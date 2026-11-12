@@ -79,11 +79,8 @@ String _withNote(String base, String? note) =>
     note == null ? base : '$base $note';
 
 class ImageGradingSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const ImageGradingSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -97,11 +94,8 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -113,8 +107,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
           title: 'Image grading',
           description:
               'Auto-reject blurry / trailed / clouded frames at capture time',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'Master toggle',
@@ -255,7 +247,7 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                 ),
               ],
             ),
-            FrameWatchSettingsSection(isMobile: widget.isMobile),
+            const FrameWatchSettingsSection(),
             SettingsSection(
               title: 'Reject folder',
               children: [
@@ -273,7 +265,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                       // setter trims empty input to null.
                       await notifier.setImageGradingRejectFolderPath(value);
                     },
-                    isMobile: widget.isMobile,
                   ),
                   isLast: true,
                 ),
@@ -309,8 +300,9 @@ Widget _gradingField<T>({
         opacity: parts.enabled ? 1.0 : 0.5,
         child: IgnorePointer(
           ignoring: !parts.enabled,
-          child: SizedBox(
-            width: SettingsFormScope.isMobileOf(context) ? 120.0 : 140.0,
+          child: SettingsControlBox(
+            width: 140,
+            narrowWidth: 120,
             child: TextField(
               key: parts.inputKey,
               controller: parts.controller,

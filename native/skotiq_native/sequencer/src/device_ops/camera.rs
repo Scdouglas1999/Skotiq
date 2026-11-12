@@ -18,8 +18,25 @@ pub struct ImageData {
     pub timestamp: i64,
     /// Sensor type: "Monochrome" or "Color"
     pub sensor_type: Option<String>,
-    /// Bayer pattern offset (X, Y) - determines actual pattern based on offsets
-    pub bayer_offset: Option<(i32, i32)>,
+    /// The color filter at the frame's pixel (0, 0); `None` for a mono frame.
+    pub color_filter: Option<skotiq_device::BayerPattern>,
+    /// The camera's own file for this frame (a DSLR's raw file), when it
+    /// delivered one.
+    pub camera_file: Option<skotiq_device::CameraFile>,
+}
+
+impl ImageData {
+    /// The 2x2 Bayer cell for the previews that demosaic a frame; `None` for
+    /// a mono frame and for X-Trans, which they show as luminance.
+    pub fn bayer_cell(&self) -> Option<skotiq_imaging::BayerPattern> {
+        match self.color_filter? {
+            skotiq_device::BayerPattern::Rggb => Some(skotiq_imaging::BayerPattern::RGGB),
+            skotiq_device::BayerPattern::Grbg => Some(skotiq_imaging::BayerPattern::GRBG),
+            skotiq_device::BayerPattern::Gbrg => Some(skotiq_imaging::BayerPattern::GBRG),
+            skotiq_device::BayerPattern::Bggr => Some(skotiq_imaging::BayerPattern::BGGR),
+            skotiq_device::BayerPattern::XTrans(_) => None,
+        }
+    }
 }
 
 /// Binned-pixel camera ROI used for one exposure.
@@ -96,7 +113,6 @@ pub trait CameraOps: Send + Sync {
     /// Take one exposure and return the image data.
     async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData>;
 
-    /// Abort current exposure
     async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()>;
 
     /// Set cooler state and target temperature
@@ -107,10 +123,8 @@ pub trait CameraOps: Send + Sync {
         target_temp: f64,
     ) -> DeviceResult<()>;
 
-    /// Get current sensor temperature
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64>;
 
-    /// Get cooler power percentage
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64>;
 
     /// Whether the camera's cooler is switched on, as the driver reports it.
@@ -118,6 +132,13 @@ pub trait CameraOps: Send + Sync {
     /// `Ok(None)` means the driver gives no reading. Defaulted so test doubles
     /// and the null ops need not answer; the bridge implementation overrides it.
     async fn camera_get_cooler_on(&self, _camera_id: &str) -> DeviceResult<Option<bool>> {
+        Ok(None)
+    }
+
+    /// The temperature the cooler is holding the sensor to, in Celsius, while
+    /// the cooler is on. `Ok(None)` with the cooler off, no cooler, or no
+    /// reading. Defaulted for the same reason as `camera_get_cooler_on`.
+    async fn camera_get_cooler_setpoint(&self, _camera_id: &str) -> DeviceResult<Option<f64>> {
         Ok(None)
     }
 

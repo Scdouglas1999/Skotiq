@@ -382,6 +382,33 @@ enum AppRoute {
     };
   }
 
+  /// The query parameters that pick one of this route's tabs, views or
+  /// sections, each with the test of whether a word names one. A word that
+  /// fails it opens the route on its default instead, so a link carrying one
+  /// is a broken link that still appears to work.
+  Map<String, bool Function(String word)> get queryChoices => switch (this) {
+        planner => {
+            'tab': (word) => PlannerTab.fromQuery(word) != null,
+            'view': (word) => DiscoverView.fromQuery(word) != null,
+          },
+        analytics => {
+            'tab': (word) => AnalyticsTab.fromQuery(word) != null,
+            'view': (word) => ScienceTab.fromQuery(word) != null,
+          },
+        sequencer => {'tab': (word) => SequencerTab.fromQuery(word) != null},
+        settings => {
+            'section': (word) => SettingsSectionId.resolve(word) != null,
+          },
+        darkroom => {
+            'tab': (word) => DarkroomTab.parse(word) != null,
+            'view': (word) =>
+                DarkroomTargetView.values.any((view) => view.name == word),
+          },
+        // Its `?tab=` is a Science view (see [redirect]).
+        science => {'tab': (word) => ScienceTab.fromQuery(word) != null},
+        _ => const {},
+      };
+
   /// The route [location] shows, or null when no route matches it.
   ///
   /// A path below a route that declares no such child (`/planner/queue`)

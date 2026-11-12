@@ -302,12 +302,9 @@ async fn frame_altitude_is_derived_at_the_exposure_midpoint() {
 /// A sequenced sub must reach the FITS writer carrying the sensor's own
 /// pixel pitch.
 ///
-/// `FitsWriteHeaderRich::from_frame_context` hardcoded `pixel_size_x: None`
-/// and nothing upstream ever asked the camera, so every frame a real run
-/// produced landed on disk with FOCALLEN and APTDIA but no XPIXSZ/YPIXSZ —
-/// ASTAP, PixInsight and AstroBin cannot derive the plate scale from such a
-/// file. The manual-snapshot path was fixed to write the pitch, which left
-/// two frames off one rig disagreeing about one sensor.
+/// Without the pitch a frame lands on disk with FOCALLEN and APTDIA but no
+/// XPIXSZ/YPIXSZ, and ASTAP, PixInsight and AstroBin cannot derive the plate
+/// scale from the file. Only the driver knows it, so the capture path asks.
 ///
 /// Asserted at the real call site rather than on a hand-built context:
 /// `execute_exposure` runs, and what is checked is the `FrameContext` the
@@ -563,7 +560,10 @@ mod consecutive_reject_limit {
                 crate::quality::FrameGrade::Pass
             } else {
                 crate::quality::FrameGrade::Reject {
-                    reason: "star count 3 below minimum 20".to_string(),
+                    reason: crate::quality::RejectReason::StarCountBelowMinimum {
+                        count: 3,
+                        minimum: 20,
+                    },
                     hfr: None,
                     eccentricity: None,
                     star_count: Some(3),
@@ -592,7 +592,10 @@ mod consecutive_reject_limit {
             while let Ok(event) = self.events.try_recv() {
                 match event {
                     crate::executor::ExecutorEvent::Error { .. } => seen.errors += 1,
-                    crate::executor::ExecutorEvent::Warning { message } => {
+                    crate::executor::ExecutorEvent::NoticedWarning {
+                        notice: crate::decision::RunNotice::RejectStreak,
+                        message,
+                    } => {
                         assert!(
                             message.contains("in a row") && message.contains("The run continues"),
                             "{message}"
@@ -603,9 +606,13 @@ mod consecutive_reject_limit {
                 }
             }
             while let Ok(decision) = self.decisions.try_recv() {
-                if decision.summary == crate::instructions::IMAGE_GRADING_REJECT_STREAK_SUMMARY {
+                if decision.notice == Some(crate::decision::RunNotice::RejectStreak) {
                     assert_eq!(decision.details["consecutive_rejects"], max);
-                    assert_eq!(decision.details["reason"], "star count 3 below minimum 20");
+                    assert_eq!(
+                        decision.details["reason"],
+                        "star count 3 below minimum 20 (possible obstruction or cloud, or an \
+                         off-target frame)"
+                    );
                     seen.streak_notices += 1;
                 }
             }
@@ -631,27 +638,6 @@ mod consecutive_reject_limit {
         // The rejects are still graded and counted.
         assert_eq!(s.accepted.load(Ordering::Relaxed), 1);
         assert_eq!(s.rejected.load(Ordering::Relaxed), 8);
-    }
-
-    /// The app raises its notifications by matching these summaries
-    /// verbatim, so a reworded summary here would silently stop the operator
-    /// being told.
-    #[test]
-    fn the_app_matches_the_summaries_it_notifies_on() {
-        let classifier = std::fs::read_to_string(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../../packages/skotiq_core/lib/src/services/notification/event_classifier.dart"
-        ))
-        .expect("the app's notification classifier is in the repository");
-        for summary in [
-            crate::instructions::IMAGE_GRADING_REJECT_STREAK_SUMMARY,
-            crate::executor::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY,
-        ] {
-            assert!(
-                classifier.contains(&format!("'{summary}'")),
-                "event_classifier.dart does not match {summary:?}"
-            );
-        }
     }
 
     #[tokio::test]

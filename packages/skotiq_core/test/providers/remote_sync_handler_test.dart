@@ -45,7 +45,174 @@ void main() {
   });
 
   group('applyRemoteSyncEvent', () {
-    test('equipment Connected updates mount chip without hydration', () async {
+    // A linked client's Disconnect all let go of the guide camera first; the
+    // host's notice of that emptied the client's camera slot, so the client
+    // never asked for the imaging camera and the host kept it connected.
+    test('the host letting go of the guide camera leaves the imaging camera '
+        'in its slot', () async {
+      final backend = _connectedBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+          activeEquipmentProfileProvider.overrideWithValue(
+            const EquipmentProfileModel(
+              id: 1,
+              name: 'Sim Rig',
+              cameraId: 'sim_camera_1',
+              guideCameraId: 'sim_camera_2',
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(cameraStateProvider.notifier)
+        ..setConnecting('sim_camera_1', 'Simulated Camera')
+        ..setConnected();
+
+      SkotiqEvent hostSays(String action, String deviceId) => SkotiqEvent(
+        timestamp: 1,
+        severity: EventSeverity.info,
+        category: EventCategory.system,
+        eventType: hostStateChangedEventType,
+        data: {
+          'entityType': HostMutationEntity.equipment,
+          'action': action,
+          'entityId': deviceId,
+          'deviceType': 'camera',
+          'deviceId': deviceId,
+        },
+      );
+
+      await applyRemoteSyncEvent(
+        container,
+        hostSays(HostMutationAction.disconnected, 'sim_camera_2'),
+      );
+      expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
+      expect(
+        container.read(cameraStateProvider).connectionState,
+        DeviceConnectionState.connected,
+      );
+
+      // Another camera's disconnect, guide camera or not, is not this one's.
+      await applyRemoteSyncEvent(
+        container,
+        hostSays(HostMutationAction.disconnected, 'sim_camera_9'),
+      );
+      expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
+
+      await applyRemoteSyncEvent(
+        container,
+        hostSays(HostMutationAction.connected, 'sim_camera_2'),
+      );
+      expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
+
+      await applyRemoteSyncEvent(
+        container,
+        hostSays(HostMutationAction.disconnected, 'sim_camera_1'),
+      );
+      expect(
+        container.read(cameraStateProvider).connectionState,
+        DeviceConnectionState.disconnected,
+      );
+    });
+
+    test('a slot showing a failed connect keeps showing it through the '
+        'host\'s Disconnected', () async {
+      final backend = _connectedBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(focuserStateProvider.notifier)
+        ..setConnecting('sim_focuser_1', 'Simulated Focuser')
+        ..connectFailed(StateError('unplugged'));
+
+      await applyRemoteSyncEvent(
+        container,
+        const SkotiqEvent(
+          timestamp: 1,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'Disconnected',
+          data: {'device_type': 'focuser', 'device_id': 'sim_focuser_1'},
+        ),
+      );
+
+      final slot = container.read(focuserStateProvider);
+      expect(slot.connectionState, DeviceConnectionState.error);
+      expect(slot.retryDeviceId, 'sim_focuser_1');
+    });
+
+    // The host's refusal can reach a client ahead of the host's own
+    // announcement of the connect. The late Connecting then put the failed
+    // slot back to connecting, where nothing ever ended it, and the next
+    // re-read of the host removed the card.
+    test('a host Connecting that arrives behind the refusal of this '
+        'client\'s connect leaves the slot failed', () async {
+      final backend = _connectedBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(
+        () => backend.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      when(
+        () => backend.getConnectedDevices(),
+      ).thenAnswer((_) async => const []);
+      when(
+        () => backend.connectDevice(DeviceType.focuser, 'sim_focuser_1'),
+      ).thenThrow(StateError('unplugged'));
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.focuser, 'sim_focuser_1'),
+        throwsA(isA<StateError>()),
+      );
+      await applyRemoteSyncEvent(
+        container,
+        const SkotiqEvent(
+          timestamp: 1,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'Connecting',
+          data: {
+            'device_type': 'focuser',
+            'device_id': 'sim_focuser_1',
+            'device_name': 'Simulated Focuser',
+          },
+        ),
+      );
+
+      final slot = container.read(focuserStateProvider);
+      expect(slot.connectionState, DeviceConnectionState.error);
+      expect(slot.retryDeviceId, 'sim_focuser_1');
+    });
+
+    test('a device connected through the server shows on the host window', () async {
       final backend = _connectedBackend();
       when(
         () => backend.eventStream,
@@ -76,58 +243,6 @@ void main() {
       expect(mount.connectionState, DeviceConnectionState.connected);
       expect(mount.deviceId, 'ascom:mount:0');
     });
-
-    test(
-      'mirrored camera temperature keeps an absent cooler power unknown',
-      () async {
-        final backend = _connectedBackend();
-        when(
-          () => backend.eventStream,
-        ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-
-        final container = ProviderContainer(
-          overrides: [
-            inMemoryDatabaseOverride(),
-            backendProvider.overrideWith(
-              (ref) => _FixedBackendNotifier(ref, backend),
-            ),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        // A reported power lands on the card as-is.
-        await applyRemoteSyncEvent(
-          container,
-          const SkotiqEvent(
-            timestamp: 1,
-            severity: EventSeverity.info,
-            category: EventCategory.equipment,
-            eventType: 'CameraTemperatureChanged',
-            data: {'temperature': -9.5, 'coolerPower': 42.0},
-          ),
-          networkBackend: backend,
-        );
-        expect(container.read(cameraStateProvider).coolerPower, 42.0);
-
-        // A frame WITHOUT the field must clear it rather than claim 0 %: the
-        // cards branch on `coolerPower != null` to render "unknown".
-        await applyRemoteSyncEvent(
-          container,
-          const SkotiqEvent(
-            timestamp: 2,
-            severity: EventSeverity.info,
-            category: EventCategory.equipment,
-            eventType: 'CameraTemperatureChanged',
-            data: {'temperature': -10.0},
-          ),
-          networkBackend: backend,
-        );
-
-        final camera = container.read(cameraStateProvider);
-        expect(camera.temperature, -10.0);
-        expect(camera.coolerPower, isNull);
-      },
-    );
 
     test('HostStateChanged profile mutation invalidates profiles', () async {
       final backend = _connectedBackend();
@@ -472,7 +587,8 @@ void main() {
       verify(() => backend.listFullSequences()).called(greaterThanOrEqualTo(2));
     });
 
-    test('remoteSessionSyncProvider reacts to live equipment events', () async {
+    test('remoteSessionSyncProvider shows a device the host connects while '
+        'linked', () async {
       final eventController = StreamController<SkotiqEvent>.broadcast();
       final backend = _connectedBackend();
       when(() => backend.eventStream).thenAnswer((_) => eventController.stream);
@@ -480,20 +596,8 @@ void main() {
         (_) async => const SequencerStatus(state: 'Idle', progress: 0),
       );
       when(
-        () => backend.getConnectedDevices(),
+        () => backend.getHostRuntimeState(),
       ).thenAnswer((_) async => const []);
-      when(() => backend.phd2GetStatus()).thenAnswer(
-        (_) async => const Phd2Status(
-          state: 'Stopped',
-          connected: false,
-          rmsRa: 0,
-          rmsDec: 0,
-          rmsTotal: 0,
-          snr: 0,
-          starMass: 0,
-          avgDistance: 0,
-        ),
-      );
 
       final container = ProviderContainer(
         overrides: [
@@ -512,20 +616,36 @@ void main() {
       container.read(remoteSessionSyncProvider);
       await pumpEventQueue();
 
+      // The native event says a camera connected; the host's device channel
+      // says which one the camera slot holds.
       eventController.add(
         const SkotiqEvent(
           timestamp: 2,
           severity: EventSeverity.info,
           category: EventCategory.equipment,
           eventType: 'Connected',
-          data: {'device_type': 'camera', 'device_id': 'asi:0'},
+          data: {'device_type': 'camera', 'device_id': 'guide:0'},
         ),
+      );
+      eventController.add(
+        const HostRuntimeUpdate(
+          channel: 'device.camera',
+          revision: 7,
+          value: {
+            'state': 'connected',
+            'deviceId': 'asi:0',
+            'deviceName': 'ASI',
+            'readings': {'temperature': -10.0},
+          },
+        ).toEvent(),
       );
       await pumpEventQueue();
 
       final camera = container.read(cameraStateProvider);
       expect(camera.connectionState, DeviceConnectionState.connected);
       expect(camera.deviceId, 'asi:0');
+      expect(camera.temperature, -10.0);
+      expect(camera.coolerPower, isNull);
     });
   });
 }

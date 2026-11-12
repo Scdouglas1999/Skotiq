@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide HorizonProfile;
-import 'package:skotiq_core/src/providers/settings_provider.dart'
+import 'package:skotiq_core/src/models/site/site_horizon_profile.dart'
     show HorizonProfile;
 import 'package:skotiq_core/src/database/database.dart'
     show Target, ImagingSession;

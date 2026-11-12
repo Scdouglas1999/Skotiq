@@ -181,7 +181,7 @@ fn a_build_folds_every_night_and_reports_what_it_skipped() {
         .count();
     assert_eq!(flipped, 2, "the meridian-flipped night registers");
 
-    let (image, header) = read_fits(&master).unwrap();
+    let (image, header) = read_frame(&master).unwrap();
     assert_eq!((image.width, image.height), (W, H));
     assert_eq!(header.get_int("NFRAMES"), Some(5));
     assert_eq!(header.get_string("FILTER"), Some("R"));
@@ -270,9 +270,9 @@ fn delivery_puts_every_master_on_the_luminance_grid_and_writes_planar_rgb() {
 
     let rgb_path = result["rgbPath"].as_str().unwrap();
     assert!(rgb_path.ends_with("NGC_891_RGB_linear.fits"), "{rgb_path}");
-    let (rgb, _) = read_fits(Path::new(rgb_path)).unwrap();
+    let (rgb, _) = read_frame(Path::new(rgb_path)).unwrap();
     assert_eq!(rgb.channels, 3);
-    let header = read_fits_header(Path::new(rgb_path)).unwrap();
+    let header = read_frame_header(Path::new(rgb_path)).unwrap();
     assert_eq!(header.get_string("SKLAYOUT"), Some("PLANAR"));
     // The brightest star of the scene, at its L-grid position, is brightest in
     // every plane: the planes are registered and in R, G, B order.
@@ -429,7 +429,7 @@ fn guided_build_handles_bias_float_flat_bad_first_frame_and_common_export() {
     assert!(width < W as u64 && width > W as u64 * 9 / 10);
     assert_eq!(exported["masters"].as_array().unwrap().len(), 2);
     for master in exported["masters"].as_array().unwrap() {
-        let (image, _) = read_fits(Path::new(master["path"].as_str().unwrap())).unwrap();
+        let (image, _) = read_frame(Path::new(master["path"].as_str().unwrap())).unwrap();
         assert_eq!(image.width as u64, width);
         assert!(image_to_f64(&image)
             .iter()
@@ -479,10 +479,10 @@ fn drizzle_build_honors_scales_and_preserves_calibrated_signal() {
         &render(1.0, 900.0, (0.0, 0.0), false, 81),
     );
     let bias = write_u16(&dir.join("bias.fits"), &vec![100.0; (W * H) as usize]);
-    let (raw, mut h) = read_fits(Path::new(&light)).unwrap();
+    let (raw, mut h) = read_frame(Path::new(&light)).unwrap();
     add_wcs_headers(
         &mut h,
-        &WcsInfo::from_plate_solve(35.0, 42.0, 0.0, 1.2, W, H),
+        &skotiq_imaging::SipWcs::from_pointing(35.0, 42.0, 0.0, 1.2, W, H).cd_only(),
     );
     h.set_int("A_ORDER", 2);
     h.set_float("A_2_0", 0.0001);
@@ -503,7 +503,7 @@ fn drizzle_build_honors_scales_and_preserves_calibrated_signal() {
         });
         let result: serde_json::Value =
             serde_json::from_str(&api_master_accumulate(request.to_string()).unwrap()).unwrap();
-        let (image, header) = read_fits(&master).unwrap();
+        let (image, header) = read_frame(&master).unwrap();
         assert_eq!((image.width, image.height), (W * scale, H * scale));
         let background = median(image.as_f32().unwrap().iter().map(|v| *v as f64).collect());
         assert!(
@@ -526,11 +526,11 @@ fn drizzle_build_honors_scales_and_preserves_calibrated_signal() {
         assert_eq!(delivery["width"], W * scale);
         assert_eq!(delivery["height"], H * scale);
         let (delivered, dh) =
-            read_fits(Path::new(delivery["masters"][0]["path"].as_str().unwrap())).unwrap();
+            read_frame(Path::new(delivery["masters"][0]["path"].as_str().unwrap())).unwrap();
         assert!(delivered.as_f32().unwrap().iter().all(|v| v.is_finite()));
         assert_eq!(dh.get_float("CD1_1"), header.get_float("CD1_1"));
 
-        let (coverage, _) = read_fits(&coverage).unwrap();
+        let (coverage, _) = read_frame(&coverage).unwrap();
         assert_eq!(
             (coverage.width, coverage.height),
             (image.width, image.height)
@@ -581,7 +581,7 @@ fn local_drizzle_build_preserves_faint_structure_and_removes_changing_gradients(
         "drizzle": {"scale": 2, "pixfrac": 0.9}, "masterFitsPath": master,
         "coverageFitsPath": dir.join("coverage.fits"), "memoryBudgetMb": 1
     }).to_string()).unwrap()).unwrap();
-    let (image, _) = read_fits(&master).unwrap();
+    let (image, _) = read_frame(&master).unwrap();
     let pixels = image.as_f32().unwrap();
     let sample = |x: u32, y: u32| pixels[(y * 2 * image.width + x * 2) as usize] as f64;
     let empty = |x: u32, y: u32| {

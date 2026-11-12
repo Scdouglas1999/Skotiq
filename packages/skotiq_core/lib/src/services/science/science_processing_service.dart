@@ -9,7 +9,9 @@ import 'package:skotiq_bridge/skotiq_bridge.dart';
 
 import '../../database/database.dart' as db;
 import '../../database/daos/science_dao.dart';
+import '../../models/imaging/frame_files.dart';
 import '../../providers/app_version_provider.dart';
+import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
 import '../imaging_records_repository.dart';
 import '../../providers/science_provider.dart';

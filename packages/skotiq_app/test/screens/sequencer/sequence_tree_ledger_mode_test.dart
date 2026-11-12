@@ -80,7 +80,7 @@ Future<HarnessHandle> _pumpTree(
   WidgetTester tester,
   Sequence sequence, {
   Size size = const Size(1200, 900),
-  SequenceProgressNotifier? progressNotifier,
+  RunRecordNotifier? progressNotifier,
   PreSessionSimulationResult? simulation,
   ThemeData? theme,
 }) async {
@@ -99,14 +99,12 @@ Future<HarnessHandle> _pumpTree(
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The minute clock is a real periodic stream; in the fake-async zone
       // its timer outlives every pump and fails teardown. ETA anchoring is
       // exercised through ledgerEtasFor's fake-clock unit tests instead.
       ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
       if (progressNotifier != null)
-        sequenceProgressProvider.overrideWith((_) => progressNotifier),
+        runRecordProvider.overrideWith((_) => progressNotifier),
       if (simulation != null)
         sequenceTimelineProvider.overrideWithValue(simulation),
       sequencerDensityProvider
@@ -483,7 +481,7 @@ void main() {
       count: 10,
     );
     final built = _threeLevelSequence([exposure]);
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(
       tester,
       built.sequence,
@@ -747,7 +745,7 @@ void main() {
       targetWindows: const {},
       issues: const [],
     );
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     await _pumpTree(
       tester,
       built.sequence,

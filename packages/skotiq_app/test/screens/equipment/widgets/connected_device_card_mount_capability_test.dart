@@ -35,7 +35,9 @@ Future<HarnessHandle> pumpMount(
     backend: backend,
     extraOverrides: [
       mountStateProvider.overrideWith((ref) => _MountNotifier(ref, state)),
-      sequenceExecutionStateProvider.overrideWith((ref) => execution),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: execution)),
+      ),
     ],
   );
 }

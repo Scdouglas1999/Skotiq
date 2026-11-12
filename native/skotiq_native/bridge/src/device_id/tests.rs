@@ -336,6 +336,8 @@ fn native_fujifilm_serial_id() {
     assert_eq!(vendor, "fujifilm");
     assert_eq!(dev, "7CB12345");
     assert_eq!(idx, None);
+    // The body's lens, as a focuser, carries the same serial.
+    assert_native_roundtrip("native:fujifilm_lens:7CB12345", "fujifilm_lens");
 }
 
 #[test]
@@ -443,8 +445,6 @@ fn native_supported_vendors_constant_is_exhaustive() {
     }
 }
 
-// Cache tests
-
 #[test]
 fn test_cached_parse_returns_same_result() {
     let _guard = CACHE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -467,10 +467,8 @@ static CACHE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 #[test]
 fn test_cache_metrics() {
     let _guard = CACHE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    // Reset metrics for a clean test
     reset_device_id_cache_metrics();
 
-    // Clear cache to ensure cache miss
     clear_device_id_cache();
 
     // First call should be a miss
@@ -500,12 +498,10 @@ fn test_cache_invalidation() {
     let _guard = CACHE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let device_id = "alpaca:http://192.168.1.50:11111:focuser:0";
 
-    // Parse and cache
     let _ = parse_device_id_cached(device_id).unwrap();
     let stats_before = get_device_id_cache_stats();
     let _initial_size = stats_before.size;
 
-    // Invalidate
     invalidate_device_id_cache(device_id);
 
     // After invalidation, parsing again should work
@@ -523,11 +519,9 @@ fn test_cache_invalidation() {
 #[test]
 fn test_cache_clear() {
     let _guard = CACHE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    // Parse a few device IDs
     let _ = parse_device_id_cached("native:zwo:1").unwrap();
     let _ = parse_device_id_cached("native:qhy:2").unwrap();
 
-    // Clear the cache
     clear_device_id_cache();
 
     // Cache should be empty

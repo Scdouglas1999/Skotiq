@@ -1,11 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../services/device_service.dart';
-
-const int kDefaultMaxRetries = 3;
-const Duration kDefaultRetryDelay = Duration(seconds: 1);
 
 /// The connection surface of a device slot, as the device table
 /// (`equipment/device_slots.dart`) hands it out.
@@ -16,12 +12,6 @@ abstract interface class DeviceConnectionNotifier {
   DeviceConnectionState get connectionState;
   String? get deviceId;
 
-  /// Connect [deviceId], retrying a recoverable failure up to [maxRetries]
-  /// attempts in total. A failure is left on the slot as `lastError`; this
-  /// does not throw.
-  Future<void> connect(String deviceId, {String? deviceName, int maxRetries});
-
-  Future<void> retryConnection();
   Future<void> disconnect();
   void clearError();
   void setAutoReconnect(bool enabled);
@@ -31,14 +21,29 @@ abstract interface class DeviceConnectionNotifier {
   void setDisconnected();
   void setError(Object error);
 
-  /// A connect attempt on this slot failed with [error]; the slot goes back
-  /// to empty unless the device has a reason to keep showing the failure.
+  /// A connect attempt on this slot failed with [error]. The slot holds no
+  /// device afterwards but shows the failure, naming the device that failed
+  /// so it can be tried again.
   void connectFailed(Object error);
+
+  /// Show the imaging host's state of this slot, on a linked client.
+  ///
+  /// [readings] is the slot's `SlotReadings.decode` bound to the host's
+  /// values, applied in the same state change as the connection half so a
+  /// card rebuilds once per update.
+  void mirrorHost({
+    required DeviceConnectionState connectionState,
+    required String? deviceId,
+    required String? deviceName,
+    required DeviceError? lastError,
+    Object? Function(Object? current)? readings,
+  });
 }
 
-/// The connection half of every device notifier: connect with retry,
-/// disconnect, and the connecting / connected / disconnected / error
-/// transitions. A device's own notifier adds its telemetry on top.
+/// The connection half of every device notifier: disconnect, and the
+/// connecting / connected / disconnected / error transitions that
+/// [DeviceService] writes while it connects a device. A device's own notifier
+/// adds its telemetry on top.
 abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
     extends StateNotifier<S>
     implements DeviceConnectionNotifier {
@@ -49,7 +54,6 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
   final Ref ref;
   final DeviceType deviceType;
   final S _baseline;
-  int _connectionRevision = 0;
 
   @override
   DeviceConnectionState get connectionState => state.connectionState;
@@ -58,51 +62,12 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
   String? get deviceId => state.deviceId;
 
   @override
-  Future<void> connect(
-    String deviceId, {
-    String? deviceName,
-    int maxRetries = kDefaultMaxRetries,
-  }) async {
-    final revision = ++_connectionRevision;
-    for (var attempt = 1; ; attempt++) {
-      setConnecting(deviceId, deviceName ?? deviceId);
-      try {
-        await ref.read(deviceServiceProvider).connect(deviceType, deviceId);
-        if (_isCurrent(revision) && state.deviceId == deviceId) setConnected();
-        return;
-      } catch (e) {
-        if (!_isCurrentAttempt(deviceId, revision)) return;
-        final error = DeviceError.fromException(
-          e,
-          deviceId: deviceId,
-          retryAttempts: attempt,
-        );
-        if (!error.recoverable || attempt >= maxRetries) {
-          state = state.copyWith(
-            connectionState: DeviceConnectionState.error,
-            lastError: error,
-          );
-          return;
-        }
-        state = state.copyWith(lastError: error);
-        await Future<void>.delayed(kDefaultRetryDelay * attempt);
-        if (!_isCurrentAttempt(deviceId, revision)) return;
-      }
-    }
-  }
-
-  @override
-  Future<void> retryConnection() async {
-    final deviceId = state.deviceId;
-    if (deviceId != null) await connect(deviceId);
-  }
-
-  @override
   Future<void> disconnect() async {
-    if (state.deviceId == null) return;
-    final revision = ++_connectionRevision;
+    final released = state.deviceId;
+    if (released == null) return;
     await ref.read(deviceServiceProvider).disconnect(deviceType);
-    if (_isCurrent(revision)) setDisconnected();
+    // A device connected in its place meanwhile keeps the slot.
+    if (mounted && state.deviceId == released) setDisconnected();
   }
 
   @override
@@ -148,16 +113,60 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
   void setError(Object error) {
     state = state.copyWith(
       connectionState: DeviceConnectionState.error,
+      lastError: DeviceError.fromException(
+        error,
+        deviceId: state.retryDeviceId,
+      ),
+    );
+  }
+
+  @override
+  void connectFailed(Object error) {
+    state = _baseline.copyWith(
+      connectionState: DeviceConnectionState.error,
+      deviceName: state.deviceName,
+      autoReconnectEnabled: state.autoReconnectEnabled,
       lastError: DeviceError.fromException(error, deviceId: state.deviceId),
     );
   }
 
   @override
-  void connectFailed(Object error) => setDisconnected();
-
-  bool _isCurrent(int revision) => mounted && revision == _connectionRevision;
-
-  bool _isCurrentAttempt(String deviceId, int revision) =>
-      _isCurrent(revision) &&
-      (state.deviceId == null || state.deviceId == deviceId);
+  void mirrorHost({
+    required DeviceConnectionState connectionState,
+    required String? deviceId,
+    required String? deviceName,
+    required DeviceError? lastError,
+    Object? Function(Object? current)? readings,
+  }) {
+    if (deviceId == null) {
+      // An empty host slot empties this one. A slot already empty keeps what
+      // it shows: a connect tried from here that failed says why.
+      if (state.deviceId != null) setDisconnected();
+      if (lastError == null) return;
+    } else if (state.deviceId != deviceId ||
+        (state.connectionState != connectionState &&
+            connectionState != DeviceConnectionState.error)) {
+      // Through the slot's own transitions, which a device hangs work on.
+      if (state.deviceId != deviceId ||
+          connectionState == DeviceConnectionState.connecting) {
+        setConnecting(deviceId, deviceName);
+      }
+      if (connectionState == DeviceConnectionState.connected) setConnected();
+    }
+    final shown = state.lastError;
+    var next = state.copyWith(
+      connectionState: connectionState,
+      deviceName: deviceName,
+      lastError:
+          shown != null &&
+              lastError != null &&
+              shown.type == lastError.type &&
+              shown.message == lastError.message
+          ? shown
+          : lastError,
+      clearError: lastError == null,
+    );
+    if (readings != null && deviceId != null) next = readings(next) as S;
+    if (next != state) state = next;
+  }
 }

@@ -665,7 +665,7 @@ fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
 /// Returns one slot per requested keyword, in the order asked for; every slot
 /// is empty when the header cannot be read.
 fn fits_header_floats(path: &Path, keys: &[&str]) -> Vec<Option<f64>> {
-    match crate::fits::read_fits_header(path) {
+    match crate::read_frame_header(path) {
         Ok(header) => keys.iter().map(|key| header.get_float(key)).collect(),
         Err(_) => vec![None; keys.len()],
     }
@@ -786,6 +786,40 @@ pub(crate) fn build_astap_args(
     args.push(OsString::from("-sip"));
 
     args
+}
+
+/// A FITS copy of a frame in another format, for solvers that read FITS
+/// (astrometry.net reads only FITS; ASTAP reads only uncompressed XISF and no
+/// camera raw file), removed when dropped.
+struct SolverCopy {
+    path: PathBuf,
+}
+
+impl SolverCopy {
+    /// `None` when the file is FITS (or no frame the app reads) and is
+    /// solved as it is.
+    fn of(image_path: &Path) -> Result<Option<Self>, String> {
+        match crate::frame_format(image_path) {
+            Ok(crate::ImageFormat::Fits) | Err(_) => return Ok(None),
+            Ok(_) => {}
+        }
+        let (image, header) = crate::read_frame(image_path).map_err(|e| e.to_string())?;
+        let path = std::env::temp_dir().join(format!(
+            "skotiq-solve-copy-{}-{}.fits",
+            std::process::id(),
+            SCRATCH_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        crate::write_fits(&path, &image, &header).map_err(|e| {
+            format!("could not prepare the frame for the solver: {e}")
+        })?;
+        Ok(Some(Self { path }))
+    }
+}
+
+impl Drop for SolverCopy {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
 }
 
 /// A private working directory for one solver invocation.
@@ -1038,6 +1072,21 @@ impl AstapSolver {
                 }
             }
         };
+
+        // A frame that is not FITS (an XISF, a camera raw file) is solved
+        // from a FITS copy with the same pixels and cards.
+        let converted = match SolverCopy::of(image_path) {
+            Ok(converted) => converted,
+            Err(error) => {
+                return PlateSolveResult {
+                    success: false,
+                    error: Some(error),
+                    solve_time_secs: start.elapsed().as_secs_f64(),
+                    ..Default::default()
+                }
+            }
+        };
+        let image_path = converted.as_ref().map_or(image_path, |copy| copy.path.as_path());
 
         // ASTAP writes `.ini` / `.wcs` against the base name of the file it is
         // given, so it is given a link inside a directory we own instead of
@@ -1370,10 +1419,8 @@ fn parse_wcs_file_with_image_size(
     let mut cd1_2: Option<f64> = None;
     let mut cd2_1: Option<f64> = None;
     let mut cd2_2: Option<f64> = None;
-    // Image dimensions in pixels. ASTAP writes NAXIS1/NAXIS2 to its .wcs;
-    // astrometry.net writes IMAGEW/IMAGEH. Needed to recover the field size so
-    // the reference pixel (CRPIX) lands on the image centre — without it the WCS
-    // is anchored to the corner, offsetting every pixel<->sky map by half a field.
+    // Image dimensions in pixels, for the field size. ASTAP writes
+    // NAXIS1/NAXIS2 to its .wcs; astrometry.net writes IMAGEW/IMAGEH.
     let mut naxis1: Option<f64> = None;
     let mut naxis2: Option<f64> = None;
     let mut a_order: Option<u32> = None;
@@ -1470,7 +1517,7 @@ fn parse_wcs_file_with_image_size(
         + (cd1_2 * cd1_2 + cd2_2 * cd2_2).sqrt() * 3600.0)
         / 2.0;
     // Field rotation, inverse of the CD-from-rotation convention used when the
-    // CD matrix must be reconstructed (SipWcs/WcsInfo::from_plate_solve):
+    // CD matrix must be reconstructed (SipWcs::from_pointing):
     //   cd1_1 = -scale·cos(rot), cd2_1 = scale·sin(rot)
     // so rot = atan2(cd2_1, -cd1_1). Using atan2(cd2_1, cd1_1) here reports a
     // north-up frame as 180°, disagreeing with the generator and corrupting any
@@ -1492,10 +1539,8 @@ fn parse_wcs_file_with_image_size(
     .to_degrees();
 
     // Field extent in degrees, derived from the image dimensions and pixel
-    // scale. Downstream WCS construction divides field_* back by the pixel
-    // scale to place CRPIX at the image centre, so a zero here would anchor the
-    // reference pixel to the corner. Zero only when neither the `.wcs` nor the
-    // caller knows the frame size.
+    // scale. Zero only when neither the `.wcs` nor the caller knows the frame
+    // size.
     let naxis1 = naxis1.filter(|n| *n > 0.0).or(image_size.map(|s| s.0));
     let naxis2 = naxis2.filter(|n| *n > 0.0).or(image_size.map(|s| s.1));
     let field_width = naxis1.map_or(0.0, |n| n * pixel_scale / 3600.0);
@@ -1940,6 +1985,18 @@ fn solve_with_astrometry(
     // .solved, .new, .wcs) into `--dir`, named after the input frame. Give it
     // a directory we own so none of it lands beside the operator's capture.
     // See `SolveScratch`.
+    let converted = match SolverCopy::of(image_path) {
+        Ok(converted) => converted,
+        Err(error) => {
+            return PlateSolveResult {
+                success: false,
+                error: Some(error),
+                solve_time_secs: start.elapsed().as_secs_f64(),
+                ..Default::default()
+            }
+        }
+    };
+    let image_path = converted.as_ref().map_or(image_path, |copy| copy.path.as_path());
     let scratch = SolveScratch::new(image_path);
     let output_dir = scratch.work_dir().to_path_buf();
     let image_path = scratch.input();
@@ -2056,6 +2113,41 @@ pub fn get_solver_path() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A frame that is not FITS reaches the solver as a FITS copy with the
+    /// same pixels and cards: a zstd-compressed XISF capture (ASTAP reads only
+    /// uncompressed XISF) included. A FITS frame is solved as it is, and the
+    /// copy is removed when the solve is done with it.
+    #[test]
+    fn a_non_fits_frame_is_solved_from_a_fits_copy() {
+        let dir = std::env::temp_dir().join(format!("sk-solver-copy-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let samples: Vec<u16> = (0..64 * 48).map(|i| (i * 7 % 4096) as u16).collect();
+        let image = crate::ImageData::from_u16(64, 48, 1, &samples);
+        let mut header = crate::FitsHeader::new();
+        header.set_string("OBJECT", "M31");
+
+        let xisf = dir.join("light.xisf");
+        let options = crate::FrameWriteOptions {
+            xisf: crate::XisfWriteOptions {
+                compression: crate::XisfCompression::from_name("zstd+sh").unwrap(),
+                ..Default::default()
+            },
+        };
+        crate::write_frame_with(&xisf, &image, &header, &options).unwrap();
+        let copy = super::SolverCopy::of(&xisf).unwrap().expect("an XISF frame is copied");
+        let (copied, copied_header) = crate::read_fits(&copy.path).unwrap();
+        assert_eq!(copied.as_u16().unwrap(), samples);
+        assert_eq!(copied_header.get_string("OBJECT"), Some("M31"));
+        let copy_path = copy.path.clone();
+        drop(copy);
+        assert!(!copy_path.exists());
+
+        let fits = dir.join("light.fits");
+        crate::write_fits(&fits, &image, &header).unwrap();
+        assert!(super::SolverCopy::of(&fits).unwrap().is_none());
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     /// A solver another part of the process already reaped reads as exited,
     /// so the solve goes on to its output files instead of aborting the app.
@@ -2196,9 +2288,9 @@ mod tests {
         let _ = std::fs::remove_file(path);
     }
 
-    /// NAXIS drives the field size so the reconstructed
-    /// WCS anchors CRPIX on the image centre (not the corner at 0.5), and a
-    /// north-up CD matrix parses back as rotation 0°, not 180°.
+    /// NAXIS drives the field size, the WCS of the solved frame anchors CRPIX
+    /// on its centre (not the corner at 0.5), and a north-up CD matrix parses
+    /// back as rotation 0°, not 180°.
     #[test]
     fn parse_wcs_populates_field_size_and_centres_crpix() {
         let mut content = String::new();
@@ -2235,8 +2327,8 @@ mod tests {
         // A north-up solve parses to rotation 0.
         assert!(r.rotation.abs() < 1e-6, "rotation {}", r.rotation);
 
-        // Reconstructed reference pixel is the 1-based image centre, not (0.5,0.5).
-        let wcs = crate::wcs_sip::SipWcs::from_plate_solve(&r).expect("invertible WCS");
+        // The reference pixel is the 1-based image centre, not (0.5,0.5).
+        let wcs = crate::wcs_sip::SipWcs::from_plate_solve(&r, 1000, 800).expect("invertible WCS");
         assert!((wcs.crpix1 - 500.5).abs() < 1e-6, "crpix1 {}", wcs.crpix1);
         assert!((wcs.crpix2 - 400.5).abs() < 1e-6, "crpix2 {}", wcs.crpix2);
     }
@@ -3736,13 +3828,84 @@ mod rig_2026_09_14_tests {
             parse_wcs_file_with_image_size(&wcs, 0.0, Some((4656.0, 3520.0))).expect("parse");
         assert!((sized.field_width - 4656.0 * SCALE / 3600.0).abs() < 1e-3);
         assert!((sized.field_height - 3520.0 * SCALE / 3600.0).abs() < 1e-3);
-        let sip = crate::wcs_sip::SipWcs::from_plate_solve(&sized).expect("buildable");
-        assert!((sip.crpix1 - 2328.5).abs() < 0.6, "crpix1 {}", sip.crpix1);
-        assert!((sip.crpix2 - 1760.5).abs() < 0.6, "crpix2 {}", sip.crpix2);
-        assert!(
-            crate::wcs_sip::SipWcs::from_plate_solve(&bare).is_none(),
-            "no field size must not build a corner-anchored WCS"
-        );
+    }
+
+    /// The WCS written into a solved frame, read back from the file, puts
+    /// every corner where astropy puts it reading the solver's own `.wcs`:
+    /// this ASTAP solve (CD matrix beside CDELT/CROTA, mirrored optics) and
+    /// the shared astrometry.net case with SIP distortion, in FITS and XISF.
+    #[test]
+    fn a_solved_frame_reads_back_the_solvers_own_wcs() {
+        let conformance = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../test_fixtures/wcs_conformance/cases/astrometry_net_sip.wcs");
+        // astropy 8.0.2 `all_pix2world(.., 0)` on each `.wcs`: x, y, RA, Dec.
+        type Corners = [(f64, f64, f64, f64); 5];
+        let solves: [(PathBuf, (u32, u32), Corners); 2] = [
+            (
+                fixture("solve-verify.wcs"),
+                (4656, 3520),
+                [
+                    (0.0, 0.0, 340.64082600536295, 57.957767800206575),
+                    (4655.0, 0.0, 342.42163006631165, 57.589516716113614),
+                    (0.0, 3519.0, 341.15781529447213, 58.678530872369194),
+                    (4655.0, 3519.0, 342.9692200839961, 58.30279687080161),
+                    (2327.5, 1759.5, 341.799384055, 58.13558582293),
+                ],
+            ),
+            (
+                conformance,
+                (1000, 800),
+                [
+                    (0.0, 0.0, 150.14738477008993, 19.88878115234023),
+                    (999.0, 0.0, 149.85202508440113, 19.888780665732668),
+                    (0.0, 799.0, 150.14733298447607, 20.110724817504508),
+                    (999.0, 799.0, 149.8520760373816, 20.110724325861376),
+                    (499.5, 399.5, 150.0, 20.0),
+                ],
+            ),
+        ];
+        let dir = std::env::temp_dir().join(format!("sk-solved-frame-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for (wcs_path, (width, height), corners) in solves {
+            let solve = parse_wcs_file_with_image_size(
+                &wcs_path,
+                0.0,
+                Some((f64::from(width), f64::from(height))),
+            )
+            .expect("parse");
+            let wcs = crate::SipWcs::from_plate_solve(&solve, width, height).expect("a WCS");
+            let image = crate::ImageData::new(width, height, 1, crate::PixelType::U16);
+            for name in ["frame.fits", "frame.xisf"] {
+                let frame = dir.join(name);
+                crate::write_frame_with(
+                    &frame,
+                    &image,
+                    &crate::FitsHeader::new(),
+                    &Default::default(),
+                )
+                .unwrap();
+                crate::write_wcs_into_frame(&frame, &wcs).unwrap();
+                let header = crate::read_frame_header(&frame).unwrap();
+                assert_eq!(
+                    header.get_int("A_ORDER"),
+                    (solve.a_order > 0).then_some(i64::from(solve.a_order)),
+                    "{name}"
+                );
+                let read = crate::SipWcs::from_header(&header).expect("the frame has a WCS");
+                for (x, y, ra, dec) in corners {
+                    let (got_ra, got_dec) = read.pixel_to_world(x, y);
+                    // Header cards carry 11 significant digits (1e-8° at
+                    // CRVAL ~ 340°); the SIP terms here move a corner by 1e-4°.
+                    assert!(
+                        (got_ra - ra).abs() * dec.to_radians().cos() < 1e-7
+                            && (got_dec - dec).abs() < 1e-7,
+                        "{} {name} ({x}, {y}): ({got_ra}, {got_dec}), astropy ({ra}, {dec})",
+                        wcs_path.display()
+                    );
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

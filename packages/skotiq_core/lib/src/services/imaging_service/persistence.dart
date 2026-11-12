@@ -1,136 +1,42 @@
 part of '../imaging_service.dart';
 
 extension _ImagingServicePersistence on ImagingService {
-  Future<void> _saveFitsFile({
+  /// Returns the path the frame is recorded by (see
+  /// [ImagingBackend.saveFitsFromLastCapture]), or null when this backend no
+  /// longer has authority.
+  Future<String?> _saveFitsFile({
     required SkotiqBackend backend,
     required String deviceId,
     required String filePath,
-    required int width,
-    required int height,
-    required CapturedImageResult capturedImage,
     required ExposureSettings exposureSettings,
-    AppSettingsState? appSettings,
     String? targetName,
     required DateTime timestamp,
+    required bool keepCameraFile,
   }) async {
-    if (!_hasBackendAuthority(backend)) return;
+    if (!_hasBackendAuthority(backend)) return null;
 
-    final cameraState = _ref.read(cameraStateProvider);
-    final mountState = _ref.read(mountStateProvider);
-    String? telescope;
-    double? focalLength;
-    double? aperture;
-    if (backend.remoteHost != null) {
-      final activeProfile = await backend.getActiveProfile();
-      if (!_hasBackendAuthority(backend)) return;
-      if (activeProfile != null) {
-        telescope = activeProfile.telescopeName ?? activeProfile.name;
-        focalLength = activeProfile.focalLength > 0
-            ? activeProfile.focalLength
-            : activeProfile.telescopeFocalLength;
-        aperture = activeProfile.aperture > 0
-            ? activeProfile.aperture
-            : activeProfile.telescopeAperture;
-      }
-    } else {
-      final profilesDao = _ref.read(equipmentProfilesDaoProvider);
-      final activeProfile = await profilesDao.getActiveProfile();
-      if (!_hasBackendAuthority(backend)) return;
-      telescope = activeProfile?.telescopeName ?? activeProfile?.name;
-      focalLength = activeProfile?.focalLength;
-      aperture = activeProfile?.aperture;
-    }
-    final hasConfiguredSite = appSettings?.isLocationSet ?? false;
-    final observerName = appSettings?.observerName.trim();
-
-    // XPIXSZ/YPIXSZ describe the detector and the driver is the only place
-    // that knows them — the `equipment_profiles` table has no pixel-size
-    // column. Without them a frame carries FOCALLEN but no pixel pitch, so
-    // ASTAP, PixInsight and AstroBin cannot derive the plate scale from the
-    // file alone.
-    //
-    // The Rust writer multiplies these by XBINNING/YBINNING, so the UNBINNED
-    // sensor pitch is what belongs here. Each axis is written only when the
-    // driver reports a positive value: a camera that reports one axis gets one
-    // card rather than a fabricated square-pixel assumption, and a driver that
-    // reports 0.0 for "unknown" gets none.
-    final (pixelSizeX, pixelSizeY) = await _sensorPixelPitchMicrons(
-      backend: backend,
-      deviceId: deviceId,
-    );
-    if (!_hasBackendAuthority(backend)) return;
-
-    final header = FitsWriteHeader(
+    // The host reads the rig when it writes the file, as it does for a
+    // sequence's frame; this carries only what the devices cannot say.
+    final header = await manualFrameHeader(
+      _ref,
       objectName: targetName,
       exposureTime: exposureSettings.exposureTime,
-      captureTimestamp: timestamp
-          .toUtc()
-          .toIso8601String(), // Use UTC for FITS standard
-      frameType: exposureSettings
-          .frameType
-          .displayName, // Use display name for FITS standard
+      startedAtUtc: timestamp,
+      frameType: exposureSettings.frameType.imageType,
       filter: exposureSettings.filter,
       gain: exposureSettings.gain,
       offset: exposureSettings.offset,
-      ccdTemp: cameraState.temperature,
-      ra: mountState.ra,
-      dec: mountState.dec,
-      altitude: mountState.altitude,
-      telescope: telescope,
-      instrument: cameraState.deviceName, // Use connected camera name
-      observer: observerName == null || observerName.isEmpty
-          ? null
-          : observerName,
       binX: exposureSettings.binningX,
       binY: exposureSettings.binningY,
-      focalLength: focalLength,
-      aperture: aperture,
-      pixelSizeX: pixelSizeX,
-      pixelSizeY: pixelSizeY,
-      siteLatitude: hasConfiguredSite ? appSettings!.latitude : null,
-      siteLongitude: hasConfiguredSite ? appSettings!.longitude : null,
-      // Sea level is real metadata, not an unset sentinel. Once the lat/long
-      // pair establishes a configured site, preserve elevation even at 0 m.
-      siteElevation: hasConfiguredSite ? appSettings!.elevation : null,
     );
 
-    // Use the optimized API that saves directly from Rust-side stored image data
-    // This avoids the expensive raw data roundtrip (Rust -> Dart -> Rust)
-    if (!_hasBackendAuthority(backend)) return;
-    await backend.saveFitsFromLastCapture(
+    if (!_hasBackendAuthority(backend)) return null;
+    return backend.saveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: filePath,
       headerData: header,
+      keepCameraFile: keepCameraFile,
     );
-  }
-
-  /// The connected camera's unbinned pixel pitch in microns, per axis.
-  ///
-  /// A camera that reports nothing yields `(null, null)`. So does a capability
-  /// query that fails here: a genuine driver fault has already aborted the
-  /// exposure at the readout-mode step, so the only way to reach this catch is
-  /// a late invalidation, and by then the FITS is on its way to disk — a
-  /// missing header card must never turn a captured frame into a failed one.
-  Future<(double?, double?)> _sensorPixelPitchMicrons({
-    required SkotiqBackend backend,
-    required String deviceId,
-  }) async {
-    if (deviceId.isEmpty) return (null, null);
-    try {
-      final caps = await _ref.read(
-        equipmentCameraCapabilitiesProvider(deviceId).future,
-      );
-      double? micronsOrNull(double? value) =>
-          value != null && value > 0 ? value : null;
-      return (micronsOrNull(caps?.pixelSizeX), micronsOrNull(caps?.pixelSizeY));
-    } catch (e) {
-      _logger.warning(
-        'Camera $deviceId did not report a pixel size ($e) — the FITS will '
-        'omit XPIXSZ/YPIXSZ',
-        source: 'ImagingService',
-      );
-      return (null, null);
-    }
   }
 
   Future<int?> _saveToDatabase({
@@ -188,7 +94,7 @@ extension _ImagingServicePersistence on ImagingService {
     final companion = CapturedImagesCompanion(
       filePath: drift.Value(filePath),
       fileName: drift.Value(path.basename(filePath)),
-      fileFormat: const drift.Value('fits'),
+      fileFormat: drift.Value(frameFileFormatOf(filePath).recordName),
       fileSize: drift.Value(fileSize),
       sessionId: drift.Value(sessionId),
       targetId: const drift.Value(null), // Link to target if available

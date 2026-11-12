@@ -34,10 +34,14 @@ pub enum CalibrationError {
         actual: PixelType,
         frame_name: String,
     },
-    EmptyFrame { frame_name: String },
+    EmptyFrame {
+        frame_name: String,
+    },
     /// A dark scale that is negative or not finite, or a scaled dark without
     /// a bias to separate its thermal signal from its pedestal.
-    InvalidDarkScale { scale: f64 },
+    InvalidDarkScale {
+        scale: f64,
+    },
     /// The raw data buffer length does not match the expected size for the
     /// frame's dimensions and pixel type (e.g. odd byte count for U16 pixels)
     BufferLengthMismatch {

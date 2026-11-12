@@ -5,6 +5,7 @@
 //! device type). The per-protocol connect and health-check helpers live in
 //! `crate::dispatch`.
 
+pub(crate) mod accessory;
 pub(crate) mod connection;
 pub(crate) mod epoch;
 pub(crate) mod handle;
@@ -14,16 +15,16 @@ pub(crate) mod motion_guard;
 pub(crate) mod ops;
 pub(crate) mod policy;
 pub(crate) mod read_health;
+pub(crate) mod rig;
 pub(crate) mod simulated;
 
 use crate::device::*;
 use crate::state::SharedAppState;
-use skotiq_device::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver, MountDriver};
+use skotiq_device::{CameraDriver, DeviceDriver, MountDriver};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Configuration for automatic reconnection
 #[derive(Debug, Clone)]
 pub struct ReconnectConfig {
     /// Whether auto-reconnection is enabled
@@ -126,63 +127,34 @@ pub struct DeviceManager {
     /// re-enumerates, that is the device that moved away.
     pub(crate) expected_models: std::sync::Mutex<HashMap<String, String>>,
 
-    /// Reconnection configuration
     reconnect_config: ReconnectConfig,
 
     /// Flag to stop the reconnection task
     stop_reconnect: Arc<RwLock<bool>>,
 
-    /// The connected devices that have a handle (the accessory types).
+    /// The connected devices that have a handle: the accessory types and the
+    /// rig types listed in [`rig`].
     pub(crate) handles: handle::Handles,
 
-    /// Active native device instances
     pub(crate) native_devices: RwLock<HashMap<String, Box<dyn DeviceDriver>>>,
 
-    /// Active ASCOM camera wrappers
     #[cfg(windows)]
     pub(crate) ascom_cameras:
         RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::camera::AscomCameraWrapper>>>>,
 
-    /// Active ASCOM mount wrappers
     #[cfg(windows)]
     pub(crate) ascom_mounts:
         RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::mount::AscomMountWrapper>>>>,
 
-    /// Active ASCOM focuser wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_focusers:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::focuser::AscomFocuserWrapper>>>>,
-
-    /// Active ASCOM filter wheel wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_filter_wheels: RwLock<
-        HashMap<String, Arc<RwLock<crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper>>>,
-    >,
-
     /// Active INDI clients (key: "host:port")
     pub(crate) indi_clients: RwLock<HashMap<String, Arc<RwLock<skotiq_indi::IndiClient>>>>,
 
-    /// Active Alpaca camera clients
     pub(crate) alpaca_cameras: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaCamera>>>,
 
-    /// Active Alpaca mount clients
     pub(crate) alpaca_mounts: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaTelescope>>>,
-
-    /// Active Alpaca focuser clients
-    pub(crate) alpaca_focusers: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFocuser>>>,
-
-    /// Active Alpaca filter wheel clients
-    pub(crate) alpaca_filter_wheels: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFilterWheel>>>,
 
     /// Active Native SDK cameras (stored separately for typed access)
     pub(crate) native_cameras: RwLock<HashMap<String, Box<dyn CameraDriver + Send + Sync>>>,
-
-    /// Active Native SDK focusers (stored separately for typed access)
-    pub(crate) native_focusers: RwLock<HashMap<String, Box<dyn FocuserDriver + Send + Sync>>>,
-
-    /// Active Native SDK filter wheels (stored separately for typed access)
-    pub(crate) native_filter_wheels:
-        RwLock<HashMap<String, Box<dyn FilterWheelDriver + Send + Sync>>>,
 
     /// Active Native SDK mounts (stored separately for typed access)
     pub(crate) native_mounts: RwLock<HashMap<String, Box<dyn MountDriver + Send + Sync>>>,
@@ -379,18 +351,10 @@ impl DeviceManager {
             ascom_cameras: RwLock::new(HashMap::new()),
             #[cfg(windows)]
             ascom_mounts: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_focusers: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_filter_wheels: RwLock::new(HashMap::new()),
             indi_clients: RwLock::new(HashMap::new()),
             alpaca_cameras: RwLock::new(HashMap::new()),
             alpaca_mounts: RwLock::new(HashMap::new()),
-            alpaca_focusers: RwLock::new(HashMap::new()),
-            alpaca_filter_wheels: RwLock::new(HashMap::new()),
             native_cameras: RwLock::new(HashMap::new()),
-            native_focusers: RwLock::new(HashMap::new()),
-            native_filter_wheels: RwLock::new(HashMap::new()),
             native_mounts: RwLock::new(HashMap::new()),
             heartbeat_tasks: RwLock::new(HashMap::new()),
             reconnect_cancel_tokens: RwLock::new(HashMap::new()),
@@ -437,20 +401,14 @@ impl DeviceManager {
         of_type
     }
 
-    /// Get a specific device
     pub async fn get_device(&self, device_id: &str) -> Option<ManagedDevice> {
         let devices = self.devices.read().await;
         devices.get(device_id).cloned()
     }
 
-    /// Check if a device is connected
-    ///
-    /// # `unwrap_or` policy
-    ///
-    /// Device-not-registered → "not connected". Same rationale as
-    /// `state::SharedAppState::is_device_connected`: a tri-state return
-    /// (yes/no/unknown) would force every caller to handle an "unknown"
-    /// branch that the UI maps back to "not connected" anyway.
+    /// Whether a device is connected. An id that is not registered is not
+    /// connected: a third answer would only be mapped back to "not connected"
+    /// by every caller.
     pub async fn is_connected(&self, device_id: &str) -> bool {
         let devices = self.devices.read().await;
         devices

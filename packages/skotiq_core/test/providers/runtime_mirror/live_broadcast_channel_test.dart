@@ -17,7 +17,6 @@ LiveStackingNode _node({String? token = 's3cret', bool broadcast = true}) =>
       id: 'ls',
       authToken: token,
       broadcastEnabled: broadcast,
-      broadcastPath: '/my-vanity-path',
       watermarkText: r'${frames} frames',
     );
 

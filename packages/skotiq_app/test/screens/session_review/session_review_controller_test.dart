@@ -100,10 +100,6 @@ class _FakeSeam implements PostSessionSeam {
       throw UnimplementedError();
 
   @override
-  Future<String> combineChannels(Map<String, dynamic> args) async =>
-      throw UnimplementedError();
-
-  @override
   Future<MosaicStitchResult> stitchMosaic(Map<String, dynamic> args) async =>
       throw UnimplementedError();
 
@@ -227,7 +223,8 @@ void main() {
         .sidecarPath!;
   }
 
-  test('with no image folder chosen, an accumulating master goes where '
+  test(
+      'with no image folder chosen, an accumulating master goes where '
       'unattended builds go, not to wherever the app was started from',
       () async {
     final sidecar = await accumulatingSidecar();

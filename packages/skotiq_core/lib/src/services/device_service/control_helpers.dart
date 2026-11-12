@@ -488,6 +488,11 @@ extension _DeviceServiceControlHelpers on DeviceService {
 
       var commandWasSent = false;
       var hardwareStillMoving = false;
+      // Temperature compensation does not judge this move, and afterwards
+      // measures from the shifted position: an offset is not a new focus.
+      final compensation = _ref.read(idleFocusCompensationProvider);
+      var offsetApplied = 0;
+      compensation.beginOffsetMove();
       try {
         if (!_isStillConnectedToFocuser(focuserDeviceId)) {
           throw StateError(
@@ -512,6 +517,7 @@ extension _DeviceServiceControlHelpers on DeviceService {
           generation: verifyGeneration,
         );
         _lastAppliedFilterOffsetByWheel[offsetKey] = newOffset;
+        offsetApplied = delta;
 
         final loggingService = _ref.read(loggingServiceProvider);
         loggingService.info(
@@ -527,6 +533,7 @@ extension _DeviceServiceControlHelpers on DeviceService {
         }
         rethrow;
       } finally {
+        compensation.endOffsetMove(appliedSteps: offsetApplied);
         _isFocuserMoveRunning = false;
         if (!hardwareStillMoving) {
           focuserNotifier.setMoving(false);

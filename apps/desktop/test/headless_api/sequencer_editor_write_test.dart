@@ -110,8 +110,7 @@ void main() {
     container
         .read(currentSequenceProvider.notifier)
         .loadSequence(_plan('Running plan'));
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
 
     final response = await handlers.handleSequencerPutEditorSequence(
       _put({'sequence': files.sequenceToMap(_plan('Client plan'))}),
@@ -123,5 +122,39 @@ void main() {
       'sequence_editor_locked',
     );
     expect(container.read(currentSequenceProvider)?.name, 'Running plan');
+  });
+
+  // A client older than the `openPlan` channel reads the host's plan here on
+  // connect and every 30 s, and writes its own with the PUT above.
+  test('GET serves the open plan in the shape older clients read, and says '
+      'when none is open', () async {
+    final container = createHeadlessTestContainer();
+    addTearDown(container.dispose);
+    final handlers = SequencerHandlers(container);
+    Future<Map<String, dynamic>> read() async {
+      final response = await handlers.handleSequencerEditorSequence(
+        Request(
+          'GET',
+          Uri.parse('http://localhost/api/sequencer/editor-sequence'),
+        ),
+      );
+      expect(response.statusCode, 200);
+      return jsonDecode(await response.readAsString()) as Map<String, dynamic>;
+    }
+
+    expect(await read(), {'open': false});
+
+    container
+        .read(currentSequenceProvider.notifier)
+        .applyPeerEdit(
+          _plan('QA M45 pair').copyWith(databaseId: 4),
+          dirty: true,
+        );
+    final body = await read();
+    expect(body['open'], isTrue);
+    expect((body['sequence'] as Map)['name'], 'QA M45 pair');
+    expect(body['databaseId'], 4);
+    expect(body['isDirty'], isTrue);
+    expect(body['activePlanOwner'], 'manual');
   });
 }

@@ -1,11 +1,64 @@
 part of '../imaging_models.dart';
 
+/// The format of a frame file by its extension: XISF, a camera raw file, or
+/// FITS otherwise.
+ImageFileFormat frameFileFormatOf(String path) {
+  if (path.toLowerCase().endsWith('.xisf')) return ImageFileFormat.xisf;
+  if (FrameFiles.isCameraRaw(path)) return ImageFileFormat.cameraRaw;
+  return ImageFileFormat.fits;
+}
+
 enum ImageFileFormat {
   fits,
   xisf,
   tiff,
   png,
-  jpeg;
+  jpeg,
+
+  /// The camera maker's own raw file (CR2, CR3, NEF, ARW, RAF, ...), kept as
+  /// the camera delivered it. Its extension is the camera's, not one of ours.
+  cameraRaw;
+
+  /// The format a captured-image record names: the `file_format` column and
+  /// the host's records. `null` for a name no record should carry.
+  static ImageFileFormat? fromRecord(String value) {
+    switch (value.toLowerCase()) {
+      case 'fits':
+      case 'fit':
+        return ImageFileFormat.fits;
+      case 'xisf':
+        return ImageFileFormat.xisf;
+      case 'tiff':
+        return ImageFileFormat.tiff;
+      case 'png':
+        return ImageFileFormat.png;
+      case 'jpeg':
+      case 'jpg':
+        return ImageFileFormat.jpeg;
+      case 'raw':
+        return ImageFileFormat.cameraRaw;
+      default:
+        return null;
+    }
+  }
+
+  /// The name [fromRecord] reads back.
+  String get recordName {
+    switch (this) {
+      case ImageFileFormat.fits:
+        return 'fits';
+      case ImageFileFormat.xisf:
+        return 'xisf';
+      case ImageFileFormat.tiff:
+        return 'tiff';
+      case ImageFileFormat.png:
+        return 'png';
+      case ImageFileFormat.jpeg:
+        return 'jpeg';
+      case ImageFileFormat.cameraRaw:
+        return 'raw';
+    }
+  }
 
   String get extension {
     switch (this) {
@@ -19,6 +72,8 @@ enum ImageFileFormat {
         return 'png';
       case ImageFileFormat.jpeg:
         return 'jpg';
+      case ImageFileFormat.cameraRaw:
+        return 'raw';
     }
   }
 
@@ -34,6 +89,8 @@ enum ImageFileFormat {
         return 'PNG';
       case ImageFileFormat.jpeg:
         return 'JPEG';
+      case ImageFileFormat.cameraRaw:
+        return 'Camera raw';
     }
   }
 }
@@ -51,6 +108,8 @@ extension ImageFileFormatSettingsX on ImageFileFormat {
         return 'PNG';
       case ImageFileFormat.jpeg:
         return 'JPEG';
+      case ImageFileFormat.cameraRaw:
+        return 'RAW';
     }
   }
 

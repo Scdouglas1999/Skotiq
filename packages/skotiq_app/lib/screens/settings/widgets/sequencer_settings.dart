@@ -8,9 +8,7 @@ import 'safety_fail_mode_labels.dart';
 import 'settings_widgets.dart';
 
 class SequencerSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const SequencerSettings({super.key, this.isMobile = false});
+  const SequencerSettings({super.key});
 
   @override
   ConsumerState<SequencerSettings> createState() => _SequencerSettingsState();
@@ -64,7 +62,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
             authorityKey: authority,
             hint: 'e.g. M42 — \${integration.hms}',
             designWidth: 240,
-            isMobile: widget.isMobile,
             onChanged: (value) {
               // Persist empty string as cleared (null in memory). The
               // notifier's _sentinel pattern preserves the distinction
@@ -393,11 +390,10 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
       globalMeridianFlipSettingsLoadStateProvider,
     );
     if (flipLoadState.isLoading) {
-      return SettingsLoadingState(isMobile: widget.isMobile);
+      return const SettingsLoadingState();
     }
     if (flipLoadState.hasError) {
       return SettingsErrorState(
-        isMobile: widget.isMobile,
         error: flipLoadState.error!,
         onRetry: () {
           ref.invalidate(globalMeridianFlipSettingsProvider);
@@ -406,9 +402,8 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
     }
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: widget.isMobile),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -424,6 +419,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
             settings.parkOnUnsafeWeather && weatherSettings.autoParkEnabled;
 
         return SettingsPage(
+          hideHeader: false,
           title: 'Sequencer',
           description: 'Automation and sequence settings',
           children: [
@@ -604,12 +600,9 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                     },
                   ),
                 ),
-                // Frames-based AutofocusInterval cadence.
-                // The Rust standard trigger ships with `every_n_frames = 25`
-                // which is wildly wrong for both 5-second and 5-minute subs;
-                // exposing this number directly lets the user tune the
-                // cadence to their actual sub-exposure length. Pushed to the
-                // executor immediately so a mid-sequence change takes effect.
+                // Frames-based AutofocusInterval cadence: the right number
+                // depends on the sub length. The run configuration follows
+                // the saved value, so a running sequence takes the change.
                 SettingRow(
                   icon: LucideIcons.repeat,
                   title: 'Auto focus every N frames',
@@ -624,33 +617,11 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                     max: 9999,
                     decimals: 0,
                     onChanged: (value) async {
-                      final frames = value.toInt();
-                      final sequencerBackend = ref.read(
-                        sequencerBackendProvider,
-                      );
-                      // Persist via SequencerDefaults so the value survives
-                      // restart and is consulted by the executor on start().
                       await ref
                           .read(sequencerDefaultsProvider.notifier)
-                          .updateAutofocusDefaults(intervalFrames: frames);
-                      // Push to the live executor so an in-flight sequence
-                      // honours the new cadence without a reload. The bridge
-                      // function rejects 0, which we already clamp at 1.
-                      try {
-                        if (!identical(ref.read(backendProvider), authority)) {
-                          return;
-                        }
-                        await sequencerBackend.sequencerUpdateAutofocusInterval(
-                          frames,
-                        );
-                      } catch (e) {
-                        // Surfacing the error via a snackbar would be noisy;
-                        // the executor will pick up the persisted value on
-                        // its next start() regardless.
-                        debugPrint(
-                          'Failed to push autofocus interval to executor: $e',
-                        );
-                      }
+                          .updateAutofocusDefaults(
+                            intervalFrames: value.toInt(),
+                          );
                     },
                   ),
                   isLast: true,

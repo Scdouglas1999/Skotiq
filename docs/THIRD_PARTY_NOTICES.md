@@ -63,8 +63,9 @@ the font OFL-1.1 texts are tracked beside the fonts under
 
 The desktop and mobile apps include the OpenNGC database (`NGC.csv`,
 unmodified), licensed CC BY-SA 4.0. The bundled
-`packages/skotiq_core/assets/catalogs/README.md` provides the required
-attribution, source link and license link. That data license does not replace
+`packages/skotiq_core/assets/catalogs/NOTICE.txt` provides the required
+attribution, source link and license link, and the app shows it under
+Settings > About > Open-source licenses. That data license does not replace
 the license for Skotiq's program code. The HYG star database (also CC BY-SA
 4.0) is not bundled; the app downloads it when the user asks.
 

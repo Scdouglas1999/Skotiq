@@ -65,9 +65,7 @@ final horizonImportReaderProvider = Provider<HorizonImportReader>(
 );
 
 class LocationSettingsPage extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const LocationSettingsPage({super.key, this.isMobile = false});
+  const LocationSettingsPage({super.key});
 
   @override
   ConsumerState<LocationSettingsPage> createState() => _LocationSettingsState();
@@ -134,11 +132,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -160,12 +155,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
           key: TourTarget.settingsLocation.key,
           title: 'Location',
           description: 'Observatory location for calculations',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'Coordinates',
-              isMobile: widget.isMobile,
               children: [
                 // A fresh profile seeds observer_latitude/longitude/elevation
                 // at 0.0 before the user has been asked anything, so these
@@ -204,12 +196,12 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   subtitle:
                       'Town or observatory by name. Accurate on a desktop '
                       'with no GPS',
-                  trailing: SizedBox(
-                    width: widget.isMobile ? 180 : 240,
+                  trailing: SettingsControlBox(
+                    width: 240,
+                    narrowWidth: 180,
                     child: PlaceSearchInput(search: _placeSearch),
                   ),
                   controlFlex: 2,
-                  isMobile: widget.isMobile,
                 ),
                 // Only while there is something to show: the section draws a
                 // hairline between children, so an empty one doubled it.
@@ -262,9 +254,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setLatitude(value);
                     },
-                    isMobile: widget.isMobile,
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   key: const ValueKey('site-longitude-row'),
@@ -285,9 +275,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setLongitude(value);
                     },
-                    isMobile: widget.isMobile,
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   key: const ValueKey('site-elevation-row'),
@@ -306,10 +294,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setElevation(value);
                     },
-                    isMobile: widget.isMobile,
                   ),
                   isLast: false,
-                  isMobile: widget.isMobile,
                 ),
                 // Only a remote session HAS a server to read from: over a local
                 // backend `profileSettingsBackendProvider` reads this app's own
@@ -365,13 +351,13 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            context.showErrorSnackBar('Sync failed: ${userFacingError(e)}');
+                            context.showErrorSnackBar(
+                                'Sync failed: ${userFacingError(e)}');
                           }
                         }
                       },
                     ),
                     isLast: false,
-                    isMobile: widget.isMobile,
                   ),
                 SettingRow(
                   icon: LucideIcons.locate,
@@ -401,7 +387,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                         _detecting ? null : () => _detectLocation(settings),
                   ),
                   isLast: !_wifiRadioOffersPrecision,
-                  isMobile: widget.isMobile,
                 ),
                 if (_wifiRadioOffersPrecision)
                   SettingRow(
@@ -423,13 +408,11 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                               ),
                     ),
                     isLast: true,
-                    isMobile: widget.isMobile,
                   ),
               ],
             ),
             SettingsSection(
               title: 'Advanced',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.key,
@@ -440,8 +423,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       'Cloud’s Geolocation API the same list of nearby '
                       'networks goes to a far larger map first. The key is '
                       'stored on this machine and sent only to Google.',
-                  trailing: SizedBox(
-                    width: widget.isMobile ? 180 : 240,
+                  trailing: SettingsControlBox(
+                    width: 240,
+                    narrowWidth: 180,
                     child: SkotiqTextField(
                       controller: _googleKeyController,
                       focusNode: _googleKeyFocus,
@@ -454,13 +438,11 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   ),
                   controlFlex: 2,
                   isLast: true,
-                  isMobile: widget.isMobile,
                 ),
               ],
             ),
             SettingsSection(
               title: 'Observing environment',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.sun,
@@ -478,10 +460,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setBortleClass(int.parse(value));
                     },
-                    width: widget.isMobile ? 200 : 280,
-                    isMobile: widget.isMobile,
+                    width: 280,
+                    narrowWidth: 200,
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.eye,
@@ -494,13 +475,11 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                         .copyWith(color: SkotiqColors.of(context).textPrimary),
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
                 ),
               ],
             ),
             SettingsSection(
               title: 'Local horizon mask',
-              isMobile: widget.isMobile,
               children: [
                 Padding(
                   padding:
@@ -559,10 +538,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                         max: 89,
                         decimals: 0,
                         onChanged: (_) => _updateHorizonProfile(),
-                        isMobile: widget.isMobile,
                       ),
                       isLast: i == horizonDirections.length - 1,
-                      isMobile: widget.isMobile,
                     );
                   }),
                   Padding(
@@ -613,10 +590,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                 ],
               ],
             ),
-            LearnedObstructionsSection(isMobile: widget.isMobile),
+            const LearnedObstructionsSection(),
             SettingsSection(
               title: 'Time',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.clock,
@@ -630,10 +606,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .read(appSettingsProvider.notifier)
                           .setTimezone(value);
                     },
-                    width: widget.isMobile ? 160 : 200,
-                    isMobile: widget.isMobile,
+                    width: 200,
+                    narrowWidth: 160,
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.globe,
@@ -648,7 +623,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     },
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
                 ),
               ],
             ),
@@ -812,7 +786,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnackBar('Could not detect a location: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not detect a location: ${userFacingError(e)}');
       }
     } finally {
       if (mounted) setState(() => _detecting = false);
@@ -884,7 +859,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       }
     } catch (e) {
       if (mounted && _isCurrentHorizonImport(generation, authority)) {
-        context.showErrorSnackBar('Could not import horizon file: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not import horizon file: ${userFacingError(e)}');
       }
     } finally {
       if (_isCurrentHorizonImport(generation, authority)) {
@@ -1037,7 +1013,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
           );
     } catch (error) {
       if (mounted) {
-        context.showErrorSnackBar('Could not reset the horizon mask: ${userFacingError(error)}');
+        context.showErrorSnackBar(
+            'Could not reset the horizon mask: ${userFacingError(error)}');
       }
     }
   }

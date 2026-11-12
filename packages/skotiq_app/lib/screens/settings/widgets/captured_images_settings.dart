@@ -21,9 +21,7 @@ import '../../../utils/image_decode_size.dart';
 /// had shot. This grid fetches thumbnails on demand (cached) and shows frame
 /// metadata. Remote-only; the local desktop has its own image browser.
 class CapturedImagesSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const CapturedImagesSettings({super.key, this.isMobile = false});
+  const CapturedImagesSettings({super.key});
 
   @override
   ConsumerState<CapturedImagesSettings> createState() =>
@@ -37,7 +35,10 @@ class _CapturedImagesSettingsState
   String? _error;
   final Map<int, Uint8List> _thumbCache = {};
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _loadGeneration = 0;
+
+  /// Frame list loads (the newest wins) and thumbnail reads; a host change
+  /// drops what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
   RemoteHost? get _backend {
     return ref.read(backendProvider).remoteHost;
@@ -50,7 +51,7 @@ class _CapturedImagesSettingsState
       backendProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
-        _loadGeneration++;
+        _hostScopes.cancelAll();
         setState(() {
           _rows = const [];
           _thumbCache.clear();
@@ -72,8 +73,8 @@ class _CapturedImagesSettingsState
   }
 
   Future<void> _refresh() async {
-    final backend = _backend;
-    final generation = ++_loadGeneration;
+    final load = _hostScopes.beginLatest();
+    final backend = load.value.remoteHost;
     if (backend == null) {
       if (!mounted) return;
       setState(() {
@@ -90,22 +91,14 @@ class _CapturedImagesSettingsState
     });
     try {
       final rows = await backend.imagingRecords.getAllImageRows();
-      if (!mounted ||
-          generation != _loadGeneration ||
-          !identical(_backend, backend)) {
-        return;
-      }
+      if (load.isStale) return;
       setState(() {
         _rows = rows;
         _thumbCache.clear();
         _loading = false;
       });
     } catch (e) {
-      if (!mounted ||
-          generation != _loadGeneration ||
-          !identical(_backend, backend)) {
-        return;
-      }
+      if (load.isStale) return;
       setState(() {
         _loading = false;
         _error = userFacingError(e);
@@ -144,12 +137,13 @@ class _CapturedImagesSettingsState
   Future<Uint8List> _thumb(int id) async {
     final cached = _thumbCache[id];
     if (cached != null) return cached;
-    final backend = _backend;
+    final read = _hostScopes.begin();
+    final backend = read.value.remoteHost;
     if (backend == null) {
       throw StateError('No remote imaging host is connected');
     }
     final bytes = await backend.imagingRecords.getImageThumbnail(id);
-    if (!mounted || !identical(_backend, backend)) {
+    if (read.isStale) {
       throw StateError('The imaging host changed while loading the thumbnail');
     }
     _thumbCache[id] = bytes;
@@ -164,8 +158,6 @@ class _CapturedImagesSettingsState
     return SettingsPage(
       title: 'Captured images',
       description: 'Browse frames captured on the connected appliance',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile,
       children: [
         if (backend == null)
           _info(colors, LucideIcons.info,
@@ -200,7 +192,8 @@ class _CapturedImagesSettingsState
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: widget.isMobile ? 120 : 160,
+                maxCrossAxisExtent:
+                    SettingsFormScope.narrowOf(context) ? 120 : 160,
                 childAspectRatio: 1,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,

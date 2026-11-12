@@ -49,6 +49,7 @@ abstract class AppSettings with _$AppSettings {
     @Default(0.0) double longitude,
     @Default(0.0) double elevation,
     @Default('') String fileNamingPattern,
+    @Default('converted') String cameraFileSaving,
     @Default(5) int meridianFlipMinutes,
     @Default(60) int autoFocusEveryMinutes,
     @Default(3) int ditherEveryFrames,
@@ -480,8 +481,16 @@ abstract class AppSettings with _$AppSettings {
     /// FITS OBSERVER keyword. DB `observer_name`.
     @Default('') String observerName,
 
-    /// Image format ('FITS' / 'XISF' / 'TIFF'). DB `image_format`.
+    /// Captured-frame file format, 'FITS' or 'XISF'. DB `image_format`.
     @Default('FITS') String imageFormat,
+
+    /// XISF compression of captured frames, as the XISF `compression`
+    /// attribute names it ('none', 'zstd+sh', 'lz4', ...). DB
+    /// `xisf_compression`.
+    @Default('none') String xisfCompression,
+
+    /// Write SHA-1 checksums into captured XISF frames. DB `xisf_checksums`.
+    @Default(false) bool xisfChecksums,
 
     /// Bit depth ('16-bit' / '32-bit'). DB `bit_depth`.
     @Default('16-bit') String bitDepth,

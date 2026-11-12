@@ -1,32 +1,28 @@
 part of '../ffi_backend.dart';
 
 extension _FfiBackendTypeMappers on _FfiBackendBase {
-
   bridge.FitsWriteHeader _toBridgeFitsHeader(FitsWriteHeader h) {
     return bridge.FitsWriteHeader(
       objectName: h.objectName,
       exposureTime: h.exposureTime,
-      captureTimestamp: h.captureTimestamp,
       frameType: h.frameType,
       filter: h.filter,
       gain: h.gain,
       offset: h.offset,
-      ccdTemp: h.ccdTemp,
-      ra: h.ra,
-      dec: h.dec,
-      altitude: h.altitude,
+      binX: h.binX ?? 1,
+      binY: h.binY ?? 1,
       telescope: h.telescope,
       instrument: h.instrument,
       observer: h.observer,
-      binX: h.binX ?? 1, // Default to 1x1 binning
-      binY: h.binY ?? 1,
       focalLength: h.focalLength,
       aperture: h.aperture,
-      pixelSizeX: h.pixelSizeX,
-      pixelSizeY: h.pixelSizeY,
       siteLatitude: h.siteLatitude,
       siteLongitude: h.siteLongitude,
       siteElevation: h.siteElevation,
+      mountId: h.mountId,
+      focuserId: h.focuserId,
+      filterWheelId: h.filterWheelId,
+      rotatorId: h.rotatorId,
     );
   }
 
@@ -277,6 +273,10 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
           dart_error.SkotiqError.notSupported(deviceId, operation),
       deviceBusy: (deviceId, currentOperation) =>
           dart_error.SkotiqError.deviceBusy(deviceId, currentOperation),
+      invalidState: (message) => dart_error.SkotiqError(
+        category: dart_error.BackendErrorCategory.busy,
+        message: message,
+      ),
 
       imageError: (message) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.imaging,

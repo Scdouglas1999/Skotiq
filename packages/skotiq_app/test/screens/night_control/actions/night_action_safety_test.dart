@@ -38,8 +38,7 @@ class _RecordingExecutor extends SequenceExecutor {
   @override
   Future<void> pause() async {
     calls.add('pause');
-    _ref.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.paused;
+    _ref.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.paused);
   }
 
   @override
@@ -47,8 +46,7 @@ class _RecordingExecutor extends SequenceExecutor {
     calls.add('resume');
     final error = resumeError;
     if (error != null) throw error;
-    _ref.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    _ref.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
   }
 
   @override
@@ -89,14 +87,14 @@ void main() {
     addTearDown(container.dispose);
     container.listen(nightActionControllerProvider, (_, __) {});
 
-    final run = container.read(sequenceExecutionStateProvider.notifier);
-    run.state = SequenceExecutionState.running;
+    final run = container.read(runRecordProvider.notifier);
+    run.setLifecycle(SequenceExecutionState.running);
     when(() => sequence.pause()).thenAnswer((_) async {
-      run.state = SequenceExecutionState.paused;
+      run.setLifecycle(SequenceExecutionState.paused);
       return CommandActionResult.ok;
     });
     when(() => sequence.resume()).thenAnswer((_) async {
-      run.state = SequenceExecutionState.running;
+      run.setLifecycle(SequenceExecutionState.running);
       return CommandActionResult.ok;
     });
   });
@@ -187,8 +185,7 @@ void main() {
       addTearDown(real.dispose);
       real.read(sequenceExecutorProvider);
       real.listen(nightActionControllerProvider, (_, __) {});
-      real.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      real.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
     });
 
     test('a failed autofocus pauses, then resumes the run', () async {

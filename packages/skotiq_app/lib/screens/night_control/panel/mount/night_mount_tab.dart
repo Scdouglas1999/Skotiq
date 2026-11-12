@@ -21,9 +21,11 @@ import '../../data/plan/night_plan_inputs.dart';
 import 'mount_actions_section.dart';
 import 'mount_go_to.dart';
 import 'mount_move_pad.dart';
-import 'night_panel_parts.dart';
+import '../../night_control_contracts.dart';
+import '../panel_widgets.dart';
 import '../stale_readings_note.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
+import '../../../../utils/watch_while_shown.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// What every Mount-tab control gates on, read once per build.
@@ -93,8 +95,10 @@ class NightMountFacts {
   }
 }
 
-NightMountFacts watchNightMountFacts(WidgetRef ref) {
-  final mount = ref.watch(mountStateProvider);
+/// The mount's facts, followed only while the tab is shown: its state changes
+/// with every position poll.
+NightMountFacts watchNightMountFacts(WidgetRef ref, BuildContext context) {
+  final mount = ref.watchWhileShown(context, mountStateProvider);
   final deviceId = mount.deviceId;
   // No mount, no capabilities to ask about.
   final caps =
@@ -145,13 +149,13 @@ class _NightMountTabState extends ConsumerState<NightMountTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
 
     // Jogging stays open while the guard refuses automatic moves: moving the
     // mount home by hand is one way to recover it.
     final padReason = facts.baseReason(l10n, allowWhileGuarded: true);
-    return NightPanelScroll(
+    return NightPanelBody(
       children: [
         MountGuardBanner(deviceId: mount.deviceId),
         NightStaleReadingsNote(
@@ -194,13 +198,12 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
     final connected = facts.connected;
     final site = ref.watch(appObserverLocationProvider);
-    final now = ref.watch(nightNowProvider);
-    final countdown = ref.watch(meridianCountdownProvider);
+    final now = ref.watchWhileShown(context, nightNowProvider);
+    final countdown = ref.watchWhileShown(context, meridianCountdownProvider);
     final slew = ref.watch(mountSlewProgressProvider);
     final slewing = mount.isSlewing || slew != null;
 
@@ -218,8 +221,8 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
       _ => null,
     };
 
-    final (status, statusColor) = !connected
-        ? (l10n.text('nightScopeNotConnected'), colors.textMuted)
+    final (status, statusTone) = !connected
+        ? (l10n.text('nightScopeNotConnected'), null)
         : slewing
             ? (
                 slew == null
@@ -230,10 +233,10 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
                           'distance': formatSlewDistance(slew.remainingDegrees),
                         },
                       ),
-                colors.warning,
+                MetricTone.warning,
               )
             : mount.isParked
-                ? (l10n.text('nightScopeParked'), colors.textMuted)
+                ? (l10n.text('nightScopeParked'), null)
                 : mount.isTracking
                     ? (
                         l10n.text(
@@ -242,14 +245,14 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
                             'rate': l10n.text(_rateKey(mount.trackingRate))
                           },
                         ),
-                        colors.success,
+                        MetricTone.good,
                       )
-                    : (l10n.text('nightScopeNotTracking'), colors.warning);
+                    : (l10n.text('nightScopeNotTracking'), MetricTone.warning);
 
     return NightPanelSection(
       title: l10n.text('nightScopePosition'),
       trailing: status,
-      trailingColor: statusColor,
+      trailingTone: statusTone,
       children: [
         NightPanelValues(
           columns: 2,

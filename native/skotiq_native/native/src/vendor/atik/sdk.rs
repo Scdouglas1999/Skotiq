@@ -3,15 +3,16 @@
 use super::*;
 
 pub(crate) type ArtemisDeviceCount = unsafe extern "C" fn() -> c_int;
-// Forces a fresh device re-enumeration and returns the count. Absent on older
-// SDK builds, so it is loaded optionally.
+/// Makes the SDK look for devices plugged in or removed since the last look.
+/// It returns how many times the device lists have changed, not how many
+/// devices there are (the SDK guide says otherwise; the shipped library and
+/// NINA's notes agree on the counter).
 pub(crate) type ArtemisRefreshDevicesCount = unsafe extern "C" fn() -> c_int;
 pub(crate) type ArtemisDevicePresent = unsafe extern "C" fn(device: c_int) -> c_int;
 pub(crate) type ArtemisDeviceName = unsafe extern "C" fn(device: c_int, name: *mut c_char) -> c_int;
 pub(crate) type ArtemisDeviceSerial =
     unsafe extern "C" fn(device: c_int, serial: *mut c_char) -> c_int;
 pub(crate) type ArtemisDeviceIsCamera = unsafe extern "C" fn(device: c_int) -> c_int;
-pub(crate) type ArtemisDeviceHasFilterWheel = unsafe extern "C" fn(device: c_int) -> c_int;
 pub(crate) type ArtemisEFWIsPresent = unsafe extern "C" fn(device: c_int) -> c_int;
 pub(crate) type ArtemisEFWGetDeviceDetails =
     unsafe extern "C" fn(device: c_int, efw_type: *mut c_int, serial: *mut c_char) -> c_int;
@@ -44,12 +45,15 @@ pub(crate) type ArtemisBin =
     unsafe extern "C" fn(handle: ArtemisHandle, x: c_int, y: c_int) -> c_int;
 pub(crate) type ArtemisGetMaxBin =
     unsafe extern "C" fn(handle: ArtemisHandle, x: *mut c_int, y: *mut c_int) -> c_int;
+/// Position and size in unbinned sensor pixels, whatever the binning.
 pub(crate) type ArtemisSubframe =
     unsafe extern "C" fn(handle: ArtemisHandle, x: c_int, y: c_int, w: c_int, h: c_int) -> c_int;
 pub(crate) type ArtemisStartExposure =
     unsafe extern "C" fn(handle: ArtemisHandle, seconds: c_float) -> c_int;
 pub(crate) type ArtemisAbortExposure = unsafe extern "C" fn(handle: ArtemisHandle) -> c_int;
 pub(crate) type ArtemisImageReady = unsafe extern "C" fn(handle: ArtemisHandle) -> c_int;
+pub(crate) type ArtemisImageFailed = unsafe extern "C" fn(handle: ArtemisHandle) -> c_int;
+pub(crate) type ArtemisCameraState = unsafe extern "C" fn(handle: ArtemisHandle) -> c_int;
 pub(crate) type ArtemisExposureTimeRemaining =
     unsafe extern "C" fn(handle: ArtemisHandle) -> c_float;
 pub(crate) type ArtemisGetImageData = unsafe extern "C" fn(
@@ -75,23 +79,39 @@ pub(crate) type ArtemisCoolingInfo = unsafe extern "C" fn(
 pub(crate) type ArtemisCoolerWarmUp = unsafe extern "C" fn(handle: ArtemisHandle) -> c_int;
 pub(crate) type ArtemisTemperatureSensorInfo =
     unsafe extern "C" fn(handle: ArtemisHandle, sensor: c_int, temperature: *mut c_int) -> c_int;
-pub(crate) type ArtemisSetGain = unsafe extern "C" fn(
-    handle: ArtemisHandle,
-    preview: c_int,
-    gain: c_int,
-    offset: c_int,
-) -> c_int;
+/// Only the Sony scientific cameras implement these; every other Atik camera
+/// answers ARTEMIS_INVALID_FUNCTION and takes gain through camera specific
+/// options, or has none.
+pub(crate) type ArtemisSetGain =
+    unsafe extern "C" fn(handle: ArtemisHandle, preview: bool, gain: c_int, offset: c_int) -> c_int;
 pub(crate) type ArtemisGetGain = unsafe extern "C" fn(
     handle: ArtemisHandle,
-    preview: c_int,
+    preview: bool,
     gain: *mut c_int,
     offset: *mut c_int,
 ) -> c_int;
 pub(crate) type ArtemisAPIVersion = unsafe extern "C" fn() -> c_int;
+/// ARTEMIS_INVALID_FUNCTION on a camera without a mechanical shutter.
 pub(crate) type ArtemisSetDarkMode =
-    unsafe extern "C" fn(handle: ArtemisHandle, enable: c_int) -> c_int;
+    unsafe extern "C" fn(handle: ArtemisHandle, enable: bool) -> c_int;
+/// ARTEMIS_INVALID_PARAMETER on a camera without an 8-bit mode.
 pub(crate) type ArtemisEightBitMode =
-    unsafe extern "C" fn(handle: ArtemisHandle, eightbit: c_int) -> c_int;
+    unsafe extern "C" fn(handle: ArtemisHandle, eightbit: bool) -> c_int;
+pub(crate) type ArtemisHasCameraSpecificOption =
+    unsafe extern "C" fn(handle: ArtemisHandle, id: u16) -> bool;
+pub(crate) type ArtemisCameraSpecificOptionGetData = unsafe extern "C" fn(
+    handle: ArtemisHandle,
+    id: u16,
+    data: *mut u8,
+    data_length: c_int,
+    actual_length: *mut c_int,
+) -> c_int;
+pub(crate) type ArtemisCameraSpecificOptionSetData = unsafe extern "C" fn(
+    handle: ArtemisHandle,
+    id: u16,
+    data: *mut u8,
+    data_length: c_int,
+) -> c_int;
 
 /// Candidate paths for the Atik camera SDK, in search order.
 pub(crate) fn atik_candidate_paths() -> Vec<std::path::PathBuf> {
@@ -121,12 +141,6 @@ pub(crate) fn atik_candidate_paths() -> Vec<std::path::PathBuf> {
 
 crate::load_vendor_sdk! {
     /// Atik SDK wrapper with dynamically loaded functions.
-    ///
-    /// `device_has_filter_wheel` is resolved but never read — the filter-wheel
-    /// path keys off `efw_is_present` instead. It is kept so the struct-level
-    /// allow below documents one deliberately unused entry rather than hiding
-    /// a whole class of them.
-    #[allow(dead_code)]
     vendor_name: "Atik",
     sdk_struct: AtikSdk,
     sdk_static: SDK,
@@ -161,11 +175,12 @@ crate::load_vendor_sdk! {
         set_dark_mode: b"ArtemisSetDarkMode\0" => ArtemisSetDarkMode,
         eight_bit_mode: b"ArtemisEightBitMode\0" => ArtemisEightBitMode,
     },
-    // Absent on older SDK builds: discovery falls back to the passive
-    // ArtemisDeviceCount, and the EFW entry points gate the filter-wheel driver.
+    // Absent on older SDK builds. Without them discovery uses the device
+    // count as it stands, the EFW driver is unavailable, the CMOS gain
+    // controls are unavailable, and exposures start without waiting for the
+    // camera to report idle.
     optional_symbols: {
         refresh_devices_count: b"ArtemisRefreshDevicesCount\0" => ArtemisRefreshDevicesCount,
-        device_has_filter_wheel: b"ArtemisDeviceHasFilterWheel\0" => ArtemisDeviceHasFilterWheel,
         efw_is_present: b"ArtemisEFWIsPresent\0" => ArtemisEFWIsPresent,
         efw_get_device_details: b"ArtemisEFWGetDeviceDetails\0" => ArtemisEFWGetDeviceDetails,
         efw_connect: b"ArtemisEFWConnect\0" => ArtemisEFWConnect,
@@ -174,33 +189,64 @@ crate::load_vendor_sdk! {
         efw_nmr_position: b"ArtemisEFWNmrPosition\0" => ArtemisEFWNmrPosition,
         efw_set_position: b"ArtemisEFWSetPosition\0" => ArtemisEFWSetPosition,
         efw_get_position: b"ArtemisEFWGetPosition\0" => ArtemisEFWGetPosition,
+        camera_state: b"ArtemisCameraState\0" => ArtemisCameraState,
+        image_failed: b"ArtemisImageFailed\0" => ArtemisImageFailed,
+        has_camera_specific_option: b"ArtemisHasCameraSpecificOption\0" => ArtemisHasCameraSpecificOption,
+        camera_specific_option_get_data: b"ArtemisCameraSpecificOptionGetData\0" => ArtemisCameraSpecificOptionGetData,
+        camera_specific_option_set_data: b"ArtemisCameraSpecificOptionSetData\0" => ArtemisCameraSpecificOptionSetData,
     }
 }
 
 pub(crate) fn check_artemis_error(result: c_int, operation: &str) -> Result<(), DriverError> {
-    let err = ArtemisError::from_i32(result);
-    if err == ArtemisError::Ok {
-        Ok(())
-    } else {
-        Err(err.to_native_error(operation))
+    match ArtemisError::from_i32(result) {
+        ArtemisError::Ok => Ok(()),
+        error => Err(error.to_native_error(operation)),
     }
 }
 
-pub(crate) fn require_efw_api(sdk: &AtikSdk) -> Result<(), DriverError> {
-    if sdk.efw_is_present.is_some()
-        && sdk.efw_get_device_details.is_some()
-        && sdk.efw_connect.is_some()
-        && sdk.efw_is_connected.is_some()
-        && sdk.efw_disconnect.is_some()
-        && sdk.efw_nmr_position.is_some()
-        && sdk.efw_set_position.is_some()
-        && sdk.efw_get_position.is_some()
-    {
-        Ok(())
-    } else {
-        Err(DriverError::NotSupported)
+/// The external filter wheel entry points, all present or none.
+pub(crate) struct EfwApi {
+    pub(crate) is_present: ArtemisEFWIsPresent,
+    pub(crate) get_device_details: ArtemisEFWGetDeviceDetails,
+    pub(crate) connect: ArtemisEFWConnect,
+    pub(crate) is_connected: ArtemisEFWIsConnected,
+    pub(crate) disconnect: ArtemisEFWDisconnect,
+    pub(crate) nmr_position: ArtemisEFWNmrPosition,
+    pub(crate) set_position: ArtemisEFWSetPosition,
+    pub(crate) get_position: ArtemisEFWGetPosition,
+}
+
+impl AtikSdk {
+    pub(crate) fn efw(&self) -> Result<EfwApi, DriverError> {
+        Ok(EfwApi {
+            is_present: self.efw_is_present.ok_or(DriverError::NotSupported)?,
+            get_device_details: self
+                .efw_get_device_details
+                .ok_or(DriverError::NotSupported)?,
+            connect: self.efw_connect.ok_or(DriverError::NotSupported)?,
+            is_connected: self.efw_is_connected.ok_or(DriverError::NotSupported)?,
+            disconnect: self.efw_disconnect.ok_or(DriverError::NotSupported)?,
+            nmr_position: self.efw_nmr_position.ok_or(DriverError::NotSupported)?,
+            set_position: self.efw_set_position.ok_or(DriverError::NotSupported)?,
+            get_position: self.efw_get_position.ok_or(DriverError::NotSupported)?,
+        })
+    }
+
+    /// How many entries the camera device list has now.
+    pub(crate) fn device_count_now(&self) -> c_int {
+        if let Some(refresh) = self.refresh_devices_count {
+            // SAFETY: takes no arguments; the caller holds the SDK lock and the
+            // library is never unloaded. The return value is a change counter.
+            unsafe { refresh() };
+        }
+        // SAFETY: takes no arguments; same lock and library as above.
+        unsafe { (self.device_count)() }
     }
 }
+
+/// External filter wheels have an index list of their own, with no count
+/// call (INDI probes the first four). A list only grows by plugging wheels in.
+pub(crate) const EFW_INDEX_LIMIT: c_int = 8;
 
 pub(crate) fn atik_efw_type_name(efw_type: c_int) -> String {
     match efw_type {
@@ -223,100 +269,132 @@ pub(crate) fn discovered_efw_serials() -> &'static Mutex<HashMap<c_int, String>>
     DISCOVERED_EFW_SERIALS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
-/// Resolve the live SDK enumeration index for a camera serial.
+/// A NUL-terminated string the SDK wrote into a buffer or struct field. An
+/// empty string is no answer.
+pub(crate) fn c_text(buffer: &[c_char]) -> Option<String> {
+    let bytes: Vec<u8> = buffer
+        .iter()
+        .take_while(|&&c| c != 0)
+        .map(|&c| c as u8)
+        .collect();
+    let text = String::from_utf8_lossy(&bytes).trim().to_string();
+    (!text.is_empty()).then_some(text)
+}
+
+/// The camera at a device index: its name and USB serial, or `None` when the
+/// index holds no camera now.
 ///
-/// # Preconditions
-///
-/// The caller MUST already hold the Atik SDK lock. The Artemis SDK keeps its device
-/// table in process-global state and is not thread-safe, so both the enumeration
-/// and the index-keyed queries below are only coherent (and the index only stays
-/// meaningful between calls) while that lock is held. The sole caller,
-/// `AtikCamera::connect`, takes the lock before calling.
-pub(crate) fn camera_index_for_serial(
-    sdk: &AtikSdk,
-    serial_number: &str,
-) -> Result<c_int, DriverError> {
-    let count = match sdk.refresh_devices_count {
-        // SAFETY: so no other
-        // task is inside the Artemis SDK. ArtemisRefreshDevicesCount takes no
-        // arguments and returns a plain c_int, so there is no pointer to invalidate.
-        // `sdk` is borrowed from the process-lifetime `SDK` OnceLock, whose library
-        // is never unloaded, so the function pointer stays valid for the call.
-        Some(refresh) => unsafe { refresh() },
-        // SAFETY: identical to the refresh arm above — same held lock, same
-        // never-unloaded library, and ArtemisDeviceCount likewise takes no arguments
-        // and returns a c_int.
-        None => unsafe { (sdk.device_count)() },
+/// The caller holds the SDK lock; indices are only meaningful under it.
+pub(crate) fn camera_at(sdk: &AtikSdk, index: c_int) -> Option<(String, Option<String>)> {
+    // SAFETY: plain int argument; the SDK checks the index itself.
+    if unsafe { (sdk.device_present)(index) } == 0 {
+        return None;
+    }
+    // SAFETY: plain int argument, asked only of a present index.
+    if unsafe { (sdk.device_is_camera)(index) } == 0 {
+        return None;
+    }
+    let mut name_buf = [0 as c_char; 100];
+    // SAFETY: the SDK writes at most 100 bytes into the buffer (AtikCameras.h).
+    let name = if unsafe { (sdk.device_name)(index, name_buf.as_mut_ptr()) } != 0 {
+        c_text(&name_buf)
+    } else {
+        None
     };
-
-    for index in 0..count {
-        // SAFETY: `index` comes from `0..count`
-        // where `count` is the SDK's own device count read above under the same
-        // lock, which is exactly the range ArtemisDevicePresent accepts. Only that
-        // c_int is passed; no pointers are involved.
-        if unsafe { (sdk.device_present)(index) } == 0 {
-            continue;
-        }
-        // SAFETY: `index` is in enumeration range
-        // AND was just confirmed present, which is ArtemisDeviceIsCamera's
-        // precondition. This is kept as a separate `if` rather than folded into the
-        // presence check with `||` so the short-circuit survives: an absent slot must
-        // never be asked whether it is a camera.
-        if unsafe { (sdk.device_is_camera)(index) } == 0 {
-            continue;
-        }
-
-        let mut serial_buf = [0 as c_char; 100];
-        // SAFETY: index is present and serial_buf is a valid
-        // 100-byte output buffer.
-        if unsafe { (sdk.device_serial)(index, serial_buf.as_mut_ptr()) } == 0 {
-            continue;
-        }
-        // SAFETY: ArtemisDeviceSerial guarantees NUL-termination on success.
-        let current_serial = unsafe { CStr::from_ptr(serial_buf.as_ptr()) }.to_string_lossy();
-        if current_serial == serial_number {
-            return Ok(index);
-        }
-    }
-
-    Err(DriverError::DeviceNotFound(format!(
-        "Atik camera serial {}",
-        serial_number
-    )))
+    let mut serial_buf = [0 as c_char; 100];
+    // SAFETY: as for the name.
+    let serial = if unsafe { (sdk.device_serial)(index, serial_buf.as_mut_ptr()) } != 0 {
+        c_text(&serial_buf)
+    } else {
+        None
+    };
+    Some((
+        name.unwrap_or_else(|| format!("Atik Camera {index}")),
+        serial,
+    ))
 }
 
-pub(crate) fn efw_index_for_serial(
+/// The device index a camera has now. A camera seen with a serial is found by
+/// it, since indices move when devices are plugged or unplugged; one without
+/// (some USB bodies report none) can only be taken at its index.
+///
+/// The caller holds the SDK lock.
+pub(crate) fn camera_index_now(
     sdk: &AtikSdk,
-    serial_number: &str,
-) -> Result<c_int, DriverError> {
-    let efw_is_present = sdk.efw_is_present.unwrap();
-    let efw_get_device_details = sdk.efw_get_device_details.unwrap();
-
-    // SAFETY: ArtemisDeviceCount takes no arguments.
-    let count = unsafe { (sdk.device_count)() };
-    for index in 0..count {
-        // SAFETY: index is inside the SDK enumeration range.
-        if unsafe { efw_is_present(index) } == 0 {
-            continue;
-        }
-
-        let mut efw_type: c_int = 0;
-        let mut serial_buf = [0 as c_char; 100];
-        // SAFETY: index is present and both out-pointers are valid.
-        if unsafe { efw_get_device_details(index, &mut efw_type, serial_buf.as_mut_ptr()) }
-            != ArtemisError::Ok as c_int
-        {
-            continue;
-        }
-        // SAFETY: ArtemisEFWGetDeviceDetails documents a 100-byte, NUL-terminated serial.
-        let current_serial = unsafe { CStr::from_ptr(serial_buf.as_ptr()) }.to_string_lossy();
-        if current_serial == serial_number {
-            return Ok(index);
-        }
+    seen_index: c_int,
+    serial_number: Option<&str>,
+) -> Result<(c_int, Option<String>), DriverError> {
+    let count = sdk.device_count_now();
+    match serial_number {
+        Some(serial) => (0..count)
+            .find(|&index| {
+                camera_at(sdk, index).is_some_and(|(_, found)| found.as_deref() == Some(serial))
+            })
+            .map(|index| (index, Some(serial.to_string())))
+            .ok_or_else(|| {
+                DriverError::DeviceNotFound(format!(
+                    "the Atik camera with serial {serial} is not plugged in (the SDK lists {count} device(s))"
+                ))
+            }),
+        None => match camera_at(sdk, seen_index) {
+            Some((_, serial)) if seen_index < count => Ok((seen_index, serial)),
+            _ => Err(DriverError::DeviceNotFound(format!(
+                "no Atik camera at device index {seen_index}; search for devices again"
+            ))),
+        },
     }
-
-    Err(DriverError::DeviceNotFound(format!(
-        "Atik EFW serial {}",
-        serial_number
-    )))
 }
+
+/// The details of the external filter wheel at an index, or `None`.
+///
+/// The caller holds the SDK lock.
+pub(crate) fn efw_at(efw: &EfwApi, index: c_int) -> Option<(c_int, Option<String>)> {
+    // SAFETY: plain int argument; the SDK checks the index itself.
+    if unsafe { (efw.is_present)(index) } == 0 {
+        return None;
+    }
+    let mut efw_type: c_int = 0;
+    let mut serial_buf = [0 as c_char; 100];
+    // SAFETY: both out-pointers are valid; the serial buffer has the 100 bytes
+    // the SDK documents.
+    let result = unsafe { (efw.get_device_details)(index, &mut efw_type, serial_buf.as_mut_ptr()) };
+    if result != ArtemisError::Ok as c_int {
+        tracing::warn!(
+            "Atik EFW at index {index}: ArtemisEFWGetDeviceDetails answered {:?}",
+            ArtemisError::from_i32(result)
+        );
+        return None;
+    }
+    Some((efw_type, c_text(&serial_buf)))
+}
+
+/// The index an external filter wheel has now, found by serial when it has one.
+///
+/// The caller holds the SDK lock.
+pub(crate) fn efw_index_now(
+    efw: &EfwApi,
+    seen_index: c_int,
+    serial_number: Option<&str>,
+) -> Result<c_int, DriverError> {
+    match serial_number {
+        Some(serial) => (0..EFW_INDEX_LIMIT)
+            .find(|&index| {
+                efw_at(efw, index).is_some_and(|(_, found)| found.as_deref() == Some(serial))
+            })
+            .ok_or_else(|| {
+                DriverError::DeviceNotFound(format!(
+                    "the Atik filter wheel with serial {serial} is not plugged in"
+                ))
+            }),
+        None => efw_at(efw, seen_index).map(|_| seen_index).ok_or_else(|| {
+            DriverError::DeviceNotFound(format!(
+                "no Atik filter wheel at index {seen_index}; search for devices again"
+            ))
+        }),
+    }
+}
+
+// A child of this module, so the tests can build an `AtikSdk` table of their own.
+#[cfg(test)]
+#[path = "tests.rs"]
+mod driver_tests;

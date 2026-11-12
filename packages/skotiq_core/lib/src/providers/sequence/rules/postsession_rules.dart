@@ -1,6 +1,6 @@
 import '../../../services/optical_train_diagnostics_service.dart';
 import '../../preflight_providers.dart';
-import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 // Post-session diagnostics.
 //

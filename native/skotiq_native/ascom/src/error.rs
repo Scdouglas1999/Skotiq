@@ -18,11 +18,14 @@ pub enum AscomError {
     /// The driver has no member with this name.
     UnknownMember { member: String, cause: String },
     /// The driver refused or failed the call. `cause` is the driver's own
-    /// account when it gave one, otherwise the HRESULT text.
+    /// account when it gave one, otherwise the HRESULT text; `code` is the
+    /// error code it raised (an ASCOM exception's `scode`), otherwise the
+    /// HRESULT.
     Invoke {
         dispatch: Dispatch,
         member: String,
         cause: String,
+        code: Option<i32>,
     },
     /// The driver answered with a VARIANT that does not hold the expected type.
     UnexpectedType {
@@ -86,6 +89,7 @@ impl std::fmt::Display for AscomError {
                 dispatch,
                 member,
                 cause,
+                ..
             } => match dispatch {
                 Dispatch::Get => write!(f, "Failed to get property {member}: {cause}"),
                 Dispatch::Put => write!(f, "Failed to set property {member}: {cause}"),
@@ -145,14 +149,46 @@ impl std::fmt::Display for AscomError {
 
 impl std::error::Error for AscomError {}
 
-// The bridge propagates ASCOM failures with `?` into `Result<_, String>`.
-impl From<AscomError> for String {
-    fn from(err: AscomError) -> String {
-        err.to_string()
+pub type AscomResult<T> = Result<T, AscomError>;
+
+/// COM's own "not implemented" (`E_NOTIMPL`), which some drivers raise in place
+/// of ASCOM's `NotImplementedException`.
+const E_NOTIMPL: i32 = 0x8000_4001_u32 as i32;
+
+/// The kind of failure an ASCOM error names. A failure of no particular kind
+/// stays the protocol's own error, for its wording.
+impl From<AscomError> for skotiq_device::DriverError {
+    fn from(err: AscomError) -> Self {
+        use skotiq_device::DriverError;
+        match err.kind() {
+            Some(kind) => kind,
+            None => DriverError::Backend(Box::new(err)),
+        }
     }
 }
 
-pub type AscomResult<T> = Result<T, AscomError>;
+impl AscomError {
+    fn kind(&self) -> Option<skotiq_device::DriverError> {
+        use skotiq_device::DriverError;
+        match self {
+            AscomError::Invoke {
+                code: Some(E_NOTIMPL),
+                ..
+            }
+            | AscomError::UnknownMember { .. } => Some(DriverError::NotSupported),
+            AscomError::Invoke {
+                code: Some(code),
+                cause,
+                ..
+            } => skotiq_device::ascom::classify_error_number(*code, cause),
+            AscomError::InvalidArgument(message) => {
+                Some(DriverError::InvalidParameter(message.clone()))
+            }
+            AscomError::Context { source, .. } => source.kind(),
+            _ => None,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -163,6 +199,7 @@ mod tests {
             dispatch,
             member: member.to_string(),
             cause: "cause".to_string(),
+            code: None,
         }
         .to_string()
     }
@@ -188,6 +225,48 @@ mod tests {
     }
 
     #[test]
+    fn ascom_errors_reach_drivers_as_the_failure_they_name() {
+        use skotiq_device::DriverError;
+
+        let raised = |code: u32| AscomError::Invoke {
+            dispatch: Dispatch::Method,
+            member: "SlewToCoordinatesAsync".to_string(),
+            cause: "said the driver".to_string(),
+            code: Some(code as i32),
+        };
+        assert!(matches!(
+            DriverError::from(raised(0x8004_0407)),
+            DriverError::NotConnected
+        ));
+        assert!(matches!(
+            DriverError::from(raised(0x8004_0400)),
+            DriverError::NotSupported
+        ));
+        assert!(matches!(
+            DriverError::from(raised(0x8000_4001)),
+            DriverError::NotSupported
+        ));
+        assert!(matches!(
+            DriverError::from(raised(0x8004_0401)),
+            DriverError::InvalidParameter(cause) if cause == "said the driver"
+        ));
+        assert!(matches!(
+            DriverError::from(AscomError::Context {
+                context: "Failed to slew ASCOM mount",
+                source: Box::new(raised(0x8004_0407)),
+            }),
+            DriverError::NotConnected
+        ));
+
+        let parked = DriverError::from(raised(0x8004_0408));
+        assert!(matches!(parked, DriverError::Backend(_)));
+        assert_eq!(
+            parked.to_string(),
+            "Failed to call method SlewToCoordinatesAsync: said the driver"
+        );
+    }
+
+    #[test]
     fn context_prefixes_the_inner_failure() {
         let err = AscomError::Context {
             context: "Failed to set ASCOM dome Slaved",
@@ -195,6 +274,7 @@ mod tests {
                 dispatch: Dispatch::Put,
                 member: "Slaved".to_string(),
                 cause: "cause".to_string(),
+                code: None,
             }),
         };
         assert_eq!(

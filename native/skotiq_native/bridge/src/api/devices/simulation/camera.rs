@@ -1,6 +1,5 @@
 use super::*;
 
-/// Id of the simulated imaging camera.
 pub const SIM_IMAGING_CAMERA_ID: &str = "sim_camera_1";
 /// Id of the simulated guide camera: a small sensor behind a short guide scope,
 /// so the built-in guider has a camera of its own and never exposes on the
@@ -152,7 +151,6 @@ impl SimulatedCamera {
     }
 }
 
-/// The simulated imaging camera.
 #[cfg(test)]
 pub(crate) fn get_sim_camera() -> &'static Arc<RwLock<SimulatedCamera>> {
     get_sim_camera_for(SIM_IMAGING_CAMERA_ID)
@@ -419,46 +417,4 @@ pub(crate) async fn advance_sim_cooler(device_id: &str) {
         // Holding at the setpoint.
         35.0
     });
-}
-
-/// Get camera status
-pub async fn api_get_camera_status(device_id: String) -> Result<CameraStatus, SkotiqError> {
-    crate::api::devices::camera::get_camera_status(device_id).await
-}
-
-/// Set camera cooling target
-pub async fn api_set_camera_cooler(
-    device_id: String,
-    enabled: u8,
-    target_temp: Option<f64>,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        target: "skotiq_bridge::api::devices::camera",
-        "Setting camera cooler for {}: enabled={}, target={:?}",
-        device_id,
-        enabled,
-        target_temp
-    );
-    let mgr = get_device_manager();
-    mgr.camera_set_cooler(&device_id, enabled != 0, target_temp)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Set camera gain
-pub async fn api_set_camera_gain(device_id: String, gain: i32) -> Result<(), SkotiqError> {
-    tracing::info!(target: "skotiq_bridge::api::devices::camera", "Setting camera gain for {}: {}", device_id, gain);
-    let mgr = get_device_manager();
-    mgr.camera_set_gain(&device_id, gain)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Set camera offset
-pub async fn api_set_camera_offset(device_id: String, offset: i32) -> Result<(), SkotiqError> {
-    tracing::info!(target: "skotiq_bridge::api::devices::camera", "Setting camera offset for {}: {}", device_id, offset);
-    let mgr = get_device_manager();
-    mgr.camera_set_offset(&device_id, offset)
-        .await
-        .map_err(SkotiqError::from)
 }

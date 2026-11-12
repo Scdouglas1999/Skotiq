@@ -9,6 +9,7 @@ import 'package:drift/drift.dart' as drift;
 import 'package:path/path.dart' as path;
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart';
+import '../models/imaging/frame_files.dart';
 import '../providers/clock_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/equipment/device_capability_provider.dart';
@@ -36,6 +37,7 @@ import '../providers/thumbnail_sidecar_provider.dart';
 import '../utils/host_paths.dart';
 import '../utils/utc_timestamp.dart';
 import 'calibration_service.dart';
+import 'frame_identity.dart';
 import 'notification_service.dart';
 import 'logging_service.dart';
 import 'science/science_processing_service.dart';
@@ -145,6 +147,7 @@ class ImagingService {
       producingNodeId: producingNodeId,
       producingRunId: producingRunId,
       persistFrame: true,
+      keepsCameraFile: true,
     );
   }
 
@@ -171,6 +174,7 @@ class ImagingService {
       settings: settings,
       targetName: targetName,
       persistFrame: false,
+      keepsCameraFile: false,
       purpose: purpose,
       purposeStep: purposeStep,
       purposeSteps: purposeSteps,
@@ -245,6 +249,9 @@ class ImagingService {
           // progress ring.
           frameNumber: saveFrames ? null : frameNum,
           persistFrame: saveFrames,
+          // Loop frames are framing and focusing aids, kept or not: never
+          // the camera's raw file.
+          keepsCameraFile: false,
         );
 
         if (image != null) {
@@ -656,11 +663,11 @@ final currentImageIsCalibratedProvider = Provider<bool>((ref) {
   if (path == null || path.isEmpty) {
     return false;
   }
-  // The calibration service produces files ending in `_cal.fits` (or
-  // `_cal.fit`). We match either casing on the suffix; the rest of the
-  // pipeline normalises paths but the suffix itself is stable.
+  // The calibration service names its output after the light with `_cal`
+  // before the light's own extension.
   final lower = path.toLowerCase();
-  return lower.endsWith('_cal.fits') || lower.endsWith('_cal.fit');
+  return FrameFiles.isArchive(lower) &&
+      lower.substring(0, lower.lastIndexOf('.')).endsWith('_cal');
 });
 
 /// Live preview histogram: uses host raw pixels when [CapturedImageData.hasRawReady],

@@ -35,16 +35,13 @@ pub async fn api_start_polar_alignment(
         exposure_time, step_size, binning, is_north, manual_rotation, rotate_east
     );
 
-    // Get connected devices using existing API
     let connected = api_get_connected_devices().await;
 
-    // Find connected camera
     let camera_id = connected
         .iter()
         .find(|d| d.device_type == DeviceType::Camera)
         .map(|d| d.id.clone());
 
-    // Find connected mount
     let mount_id = connected
         .iter()
         .find(|d| d.device_type == DeviceType::Mount)
@@ -298,10 +295,13 @@ pub(crate) async fn run_polar_alignment(
             point as i32,
         );
 
-        // Get the captured image
-        let image = api_get_last_image(camera_id.clone())
+        let crate::last_frame::StoredFrame {
+            display: image,
+            raw,
+            ..
+        } = crate::last_frame::frame(&camera_id)
             .await
-            .map_err(|e| format!("Failed to get image: {:?}", e))?;
+            .ok_or_else(|| format!("The camera delivered no frame for point {point}"))?;
 
         // Emit polar alignment image (before plate solve, no coordinates yet)
         emit_polar_image(&image, point as i32, "measuring", None, None);
@@ -310,14 +310,12 @@ pub(crate) async fn run_polar_alignment(
         // binning: a camera that refused the binning request would otherwise
         // have its full-resolution frame downsampled by a rule that thinks it
         // is already binned.
-        let solve_downsample = polar_solve_downsample(image.width, image.height, binning);
+        let solve_downsample = polar_solve_downsample(raw.width, raw.height, binning);
 
-        // Save temp file for plate solving
         let temp_path = create_unique_temp_fits_path(&format!("polar_align_point_{}", point));
         let temp_path_str = temp_path.to_string_lossy().to_string();
 
-        // Write FITS file for plate solving
-        if let Err(e) = write_temp_fits_for_solve(&image, &temp_path_str, &solve_scale.hints) {
+        if let Err(e) = write_polar_solve_frame(raw, &temp_path_str, &solve_scale.hints).await {
             return Err(format!("Failed to write temp FITS: {}", e));
         }
 
@@ -593,12 +591,11 @@ pub(crate) async fn run_polar_alignment(
             }
         }
 
-        // Get the captured image
-        let image = match api_get_last_image(camera_id.clone()).await {
-            Ok(img) => img,
-            Err(e) => {
+        let (image, raw) = match crate::last_frame::frame(&camera_id).await {
+            Some(frame) => (frame.display, frame.raw),
+            None => {
                 consecutive_failures += 1;
-                tracing::warn!("Failed to get image in adjustment loop: {:?}", e);
+                tracing::warn!("The camera delivered no frame in the adjustment loop");
                 emit_polar_status(
                     &format!(
                         "Image retrieval failed (retry {}/{})",
@@ -623,8 +620,9 @@ pub(crate) async fn run_polar_alignment(
 
         let temp_path = create_unique_temp_fits_path("polar_align_adjust");
         let temp_path_str = temp_path.to_string_lossy().to_string();
+        let adjust_downsample = polar_solve_downsample(raw.width, raw.height, adjust_binning);
 
-        if let Err(e) = write_temp_fits_for_solve(&image, &temp_path_str, &adjust_scale.hints) {
+        if let Err(e) = write_polar_solve_frame(raw, &temp_path_str, &adjust_scale.hints).await {
             consecutive_failures += 1;
             tracing::warn!("Failed to write temp FITS: {}", e);
             emit_polar_status(
@@ -661,7 +659,7 @@ pub(crate) async fn run_polar_alignment(
             &temp_path_str,
             adjustment_solve_hint(last_adjust_solve, mount_hint),
             adjust_scale_arcsec_per_px,
-            polar_solve_downsample(image.width, image.height, adjust_binning),
+            adjust_downsample,
             solve_timeout_secs,
         )
         .await;
@@ -873,7 +871,11 @@ pub(crate) fn adjustment_solve_hint(
     }
 }
 
-/// Write the temp FITS a polar-alignment frame is solved from.
+/// Write the frame a polar-alignment point is solved from: the camera's own
+/// samples, through the writer a saved capture takes. The screen's preview is
+/// a stretched 8-bit picture of the same frame; solving that loses the faint
+/// stars the stretch crushes into the background and flattens the bright ones
+/// it clips.
 ///
 /// `hints` carries the field scale (see [`SolveHints`]). No position is
 /// stamped into the header: the position hint polar alignment does have is the
@@ -883,52 +885,21 @@ pub(crate) fn adjustment_solve_hint(
 /// known from the operator's profile and the camera, and without it ASTAP has
 /// to sweep for the field of view on all three measurement frames plus every
 /// frame of the adjustment loop.
-pub(crate) fn write_temp_fits_for_solve(
-    image: &CapturedImageResult,
+pub(crate) async fn write_polar_solve_frame(
+    frame: crate::last_frame::RawFrame,
     path: &str,
     hints: &SolveHints,
-) -> Result<(), String> {
-    use skotiq_imaging::{write_fits, FitsHeader, ImageData, PixelType};
-    use std::path::Path;
-
-    // Convert RGBA display_data to grayscale 16-bit for FITS plate solving.
-    // display_data is always RGBA (4 bytes per pixel).
-    let raw_bytes: Vec<u8> = if image.is_color {
-        // For color RGBA, convert to grayscale (luminance) and scale to 16-bit
-        image
-            .display_data
-            .chunks(4)
-            .flat_map(|rgba| {
-                let lum = ((rgba[0] as u32 + rgba[1] as u32 + rgba[2] as u32) / 3) as u16 * 256;
-                lum.to_le_bytes().to_vec()
-            })
-            .collect()
-    } else {
-        // For grayscale RGBA, take the R channel (all RGB channels are the same) and scale to 16-bit
-        image
-            .display_data
-            .chunks(4)
-            .flat_map(|rgba| {
-                let scaled = (rgba[0] as u16) * 256;
-                scaled.to_le_bytes().to_vec()
-            })
-            .collect()
-    };
-
-    let mut image_data = ImageData::new(
-        image.width as u32,
-        image.height as u32,
-        1, // grayscale
-        PixelType::U16,
-    );
-    image_data.data = raw_bytes;
-
-    let mut header = FitsHeader::new();
-    header.set_float("EXPTIME", image.exposure_time);
-    hints.apply_to_fits_header(&mut header);
-
-    write_fits(Path::new(path), &image_data, &header)
-        .map_err(|e| format!("FITS write error: {:?}", e))
+) -> Result<(), SkotiqError> {
+    let frame = frame.into_image_data();
+    let header = hints.solve_frame_header(&frame);
+    crate::frame_header::write_capture_frame(
+        path.to_string(),
+        frame.width,
+        frame.height,
+        frame.data,
+        header,
+    )
+    .await
 }
 
 #[cfg(test)]

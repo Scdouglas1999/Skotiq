@@ -106,16 +106,8 @@ pub fn measure_frame_shape_from(
     if image.channels != 1 || width == 0 || height == 0 || image.data.len() < width * height * 2 {
         return None;
     }
-    let pixels: Vec<f64> = image
-        .data
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .take(width * height)
-        .map(|c| f64::from(u16::from_le_bytes(*c)))
-        .collect();
     let frame = Frame {
-        pixels: &pixels,
+        samples: &image.data.as_chunks::<2>().0[..width * height],
         width,
         height,
     };
@@ -154,15 +146,19 @@ pub fn measure_frame_shape_from(
     })
 }
 
+/// A mono 16-bit frame read in place: the stars measured are a few thousand
+/// pixels of tens of millions, so no float copy of the frame is made.
 struct Frame<'a> {
-    pixels: &'a [f64],
+    samples: &'a [[u8; 2]],
     width: usize,
     height: usize,
 }
 
 impl Frame<'_> {
     fn at(&self, x: i32, y: i32) -> f64 {
-        self.pixels[y as usize * self.width + x as usize]
+        f64::from(u16::from_le_bytes(
+            self.samples[y as usize * self.width + x as usize],
+        ))
     }
 }
 

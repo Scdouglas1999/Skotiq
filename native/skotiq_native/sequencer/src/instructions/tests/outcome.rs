@@ -22,7 +22,10 @@ async fn settle_with(result: InstructionResult, stop_on_quality_problems: bool) 
     let mut failures = Vec::new();
     while let Ok(event) = events.try_recv() {
         match event {
-            crate::executor::ExecutorEvent::Warning { message } => warnings.push(message),
+            crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } => {
+                warnings.push(message)
+            }
             crate::executor::ExecutorEvent::InstructionFailed { message, .. } => {
                 failures.push(message)
             }
@@ -77,16 +80,21 @@ async fn missed_flats_and_focus_always_carry_on() {
 }
 
 /// A device that dropped is recovered before anything else is judged, so a
-/// driver's "not connected" wins over the setback the instruction named.
+/// lost device wins over the setback the instruction named.
 #[tokio::test]
 async fn a_dropped_device_is_recovered_whatever_the_instruction_said() {
+    let lost = DeviceError::NotConnected {
+        device: crate::device_ops::DeviceKind::Camera,
+        message: "Not connected to INDI server".to_string(),
+    };
     let settled = settle_with(
         InstructionResult::failure_because(
-            "Autofocus exposure failed: camera is not connected",
+            format!("Autofocus exposure failed: {lost}"),
             Setback::FocusNotFound {
                 focuser_before: None,
             },
-        ),
+        )
+        .caused_by(&lost),
         false,
     )
     .await;

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart'
-    show loadedDsosProvider, loadedStarsProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
@@ -128,6 +126,17 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     super.dispose();
   }
 
+  /// The list for [_query] as the last build made it, for the key handler:
+  /// building it again on every key event doubled the cost of a keystroke.
+  ({String query, List<CommandEntry> entries})? _built;
+
+  /// The entries for the query as it stands. A key can arrive before the
+  /// rebuild its predecessor asked for; then the list is made for it here.
+  List<CommandEntry> _currentEntries() {
+    final built = _built;
+    return built != null && built.query == _query ? built.entries : _entries();
+  }
+
   List<CommandEntry> _entries() {
     final all = <CommandEntry>[
       ...buildTargetEntries(ref, _query, inSky: skyIsOnScreen(context, ref)),
@@ -141,10 +150,14 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     final position = <String, int>{
       for (var i = 0; i < matched.length; i++) matched[i].id: i,
     };
+    // Ranked once each: the comparator runs many times per entry.
+    final rank = <String, int>{
+      for (final entry in matched) entry.id: entry.rank(_query),
+    };
     matched.sort((a, b) {
       final byGroup = a.group.index.compareTo(b.group.index);
       if (byGroup != 0) return byGroup;
-      final byRank = a.rank(_query).compareTo(b.rank(_query));
+      final byRank = rank[a.id]!.compareTo(rank[b.id]!);
       if (byRank != 0) return byRank;
       return position[a.id]!.compareTo(position[b.id]!);
     });
@@ -158,16 +171,16 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    final entries = _entries();
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowDown:
-        _move(1, entries.length);
+        _move(1, _currentEntries().length);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowUp:
-        _move(-1, entries.length);
+        _move(-1, _currentEntries().length);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.enter:
       case LogicalKeyboardKey.numpadEnter:
+        final entries = _currentEntries();
         if (entries.isEmpty) return KeyEventResult.handled;
         _invoke(
           entries[_selected.clamp(0, entries.length - 1)],
@@ -221,9 +234,9 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     final colors = SkotiqColors.of(context);
     // The target rows read the catalogs; watching them here loads them and
     // refreshes the list when they arrive.
-    ref.watch(loadedDsosProvider);
-    ref.watch(loadedStarsProvider);
+    ref.watch(targetSearchIndexProvider);
     final entries = _entries();
+    _built = (query: _query, entries: entries);
     final selected =
         _selected.clamp(0, entries.isEmpty ? 0 : entries.length - 1);
 
@@ -322,9 +335,15 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     // Shrink-wrapped so six results make a six-row panel. Without it the
     // list claimed the whole [CommandPalette.maxResultsHeight] whatever it
     // held, and a short result set sat over ~150 px of empty panel.
+    // A shrink-wrapped list builds and lays out every row to learn its own
+    // height: several hundred rows per keystroke for a one-letter query. Rows
+    // that alone overflow the panel leave nothing to wrap, so that list fills
+    // the panel and builds only the rows in view.
+    final fillsPanel = entries.length * _CommandRow.height >=
+        CommandPalette.maxResultsHeight;
     return ListView.builder(
       controller: _scrollController,
-      shrinkWrap: true,
+      shrinkWrap: !fillsPanel,
       padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
       itemCount: entries.length,
       itemBuilder: (context, index) {

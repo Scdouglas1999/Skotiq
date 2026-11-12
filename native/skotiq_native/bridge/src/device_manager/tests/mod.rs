@@ -12,15 +12,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
+mod capabilities;
 mod guards;
 mod heartbeat_config;
 mod heartbeat_events;
 mod identity;
 mod indi_ids;
+mod indi_release;
 mod listing_order;
 mod mount_home;
 mod mount_ops;
 mod mount_set_park;
+mod native_camera_probe;
+mod native_mount_probe;
+mod protocol_errors;
 mod reconnect_state;
 mod simulator;
 mod switch_ops;
@@ -31,6 +36,15 @@ mod switch_ops;
 /// nothing.
 fn simulator_singleton_test_lock() -> &'static Mutex<()> {
     crate::api::devices::simulation::sim_singleton_test_lock()
+}
+
+/// Releases a simulated device the way `disconnect_device` releases its
+/// driver: through the handle when there is one.
+async fn release_simulator(manager: &DeviceManager, info: &DeviceInfo) -> Result<(), String> {
+    match manager.handles.remove(&info.id) {
+        Some(handle) => handle.disconnect().await.map_err(|e| e.to_string()),
+        None => manager.disconnect_simulator(info).await,
+    }
 }
 
 fn build_switch_info(id: &str, driver_type: DriverType) -> DeviceInfo {
@@ -75,18 +89,10 @@ fn build_device_manager() -> DeviceManager {
         ascom_cameras: RwLock::new(HashMap::new()),
         #[cfg(windows)]
         ascom_mounts: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_focusers: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_filter_wheels: RwLock::new(HashMap::new()),
         indi_clients: RwLock::new(HashMap::new()),
         alpaca_cameras: RwLock::new(HashMap::new()),
         alpaca_mounts: RwLock::new(HashMap::new()),
-        alpaca_focusers: RwLock::new(HashMap::new()),
-        alpaca_filter_wheels: RwLock::new(HashMap::new()),
         native_cameras: RwLock::new(HashMap::new()),
-        native_focusers: RwLock::new(HashMap::new()),
-        native_filter_wheels: RwLock::new(HashMap::new()),
         native_mounts: RwLock::new(HashMap::new()),
         heartbeat_tasks: RwLock::new(HashMap::new()),
         reconnect_cancel_tokens: RwLock::new(HashMap::new()),

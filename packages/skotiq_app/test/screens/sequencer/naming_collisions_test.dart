@@ -32,8 +32,6 @@ List<Override> _overrides({SequenceFileService? fileService}) {
   );
   return [
     currentSequenceProvider.overrideWith((_) => editor),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
     allSnippetsProvider.overrideWithValue(const []),
     if (fileService != null)
       sequenceFileServiceProvider.overrideWithValue(fileService),

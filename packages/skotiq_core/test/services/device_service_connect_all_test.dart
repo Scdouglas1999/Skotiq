@@ -22,7 +22,7 @@ import 'package:skotiq_core/src/models/equipment/equipment_models.dart'
 import 'package:skotiq_core/src/providers/device_connection_progress_provider.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
-import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/services/device_exceptions.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
 import 'package:skotiq_core/src/utils/device_id.dart';
@@ -208,11 +208,11 @@ void main() {
       // Critically: the error came from the backend, not from a "device
       // not found" pre-check. Discovery was never invoked.
       verifyNever(() => mockBackend.discoverDevices(any()));
-      // State is rolled back to disconnected.
-      expect(
-        container.read(mountStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
+      // The slot holds no mount, and says which one failed.
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.error);
+      expect(mount.deviceId, isNull);
+      expect(mount.lastError?.deviceId, deviceId);
     });
 
     test('every device-type connect rejects malformed ids', () async {
@@ -545,10 +545,88 @@ void main() {
         container.read(cameraStateProvider).connectionState,
         DeviceConnectionState.connected,
       );
+      // The mount's slot holds nothing but says which mount failed and why.
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.error);
+      expect(mount.deviceId, isNull);
+      expect(mount.lastError?.deviceId, mountId);
+      expect(mount.lastError?.message, contains('Mount driver refused'));
+    });
+
+    test('retryConnect tries the device that failed in the sweep and the '
+        'sweep records the new outcome', () async {
+      const cameraId = 'simulator:cam-1';
+      const mountId = 'simulator:mount-1';
+      var mountAttempts = 0;
+
+      when(
+        () => mockBackend.connectDevice(DeviceType.camera, cameraId),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).thenAnswer((_) async {
+        if (mountAttempts++ == 0) throw Exception('Mount driver refused');
+      });
+      when(
+        () => mockBackend.getMountStatus(mountId),
+      ).thenThrow(Exception('no status in this test'));
+      when(
+        () => mockBackend.startDeviceHeartbeat(
+          deviceType: any(named: 'deviceType'),
+          deviceId: any(named: 'deviceId'),
+          intervalMs: any(named: 'intervalMs'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final service = container.read(deviceServiceProvider);
+      await service.connectProfile(
+        buildProfile(cameraId: cameraId, mountId: mountId),
+        source: 'Test',
+      );
+
+      await service.retryConnect(DeviceType.mount);
+
+      verify(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).called(2);
+      verify(
+        () => mockBackend.connectDevice(DeviceType.camera, cameraId),
+      ).called(1);
       expect(
         container.read(mountStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
+        DeviceConnectionState.connected,
       );
+      final sweep = container.read(deviceConnectionProgressProvider);
+      expect(
+        sweep.byDeviceType['mount']?.status,
+        DeviceConnectProgressStatus.connected,
+      );
+      expect(sweep.connectedCount, 2);
+    });
+
+    test('retryConnect of a device that fails again throws the reason and '
+        'leaves the slot naming it', () async {
+      const mountId = 'simulator:mount-1';
+      when(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).thenThrow(Exception('Mount driver refused'));
+
+      final service = container.read(deviceServiceProvider);
+      await expectLater(
+        service.connect(DeviceType.mount, mountId),
+        throwsA(isA<Exception>()),
+      );
+      await expectLater(
+        service.retryConnect(DeviceType.mount),
+        throwsA(isA<Exception>()),
+      );
+
+      verify(
+        () => mockBackend.connectDevice(DeviceType.mount, mountId),
+      ).called(2);
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.error);
+      expect(mount.lastError?.deviceId, mountId);
     });
 
     test('connectProfile publishes the sweep and retryFailedConnects retries '

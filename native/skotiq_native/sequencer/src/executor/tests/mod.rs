@@ -11,42 +11,25 @@ mod recovery_tests;
 mod resume_tests;
 mod runtime_tests;
 
-/// A failed dither that does not reset the interval leaves the trigger
-/// permanently due for a condition that cannot change mid-run: an unguided
-/// 12-frame dark run logs 12 identical "Trigger-initiated dither failed: No
-/// active guider configured" WARNs, one per exposure.
-#[test]
-fn dither_without_a_guider_is_a_skip_not_a_failure() {
-    assert_eq!(
-        classify_dither_result(
-            NodeStatus::Failure,
-            Some("Dither failed: No active guider configured"),
-        ),
-        DitherTriggerOutcome::SkippedNoGuider,
-    );
-}
-
-#[test]
-fn a_real_dither_failure_still_fails() {
-    for message in [
-        "Dither failed: guide star lost",
-        "Dither failed: settle timed out after 120s",
-        "PHD2 connection refused",
-    ] {
-        assert_eq!(
-            classify_dither_result(NodeStatus::Failure, Some(message)),
-            DitherTriggerOutcome::Failed,
-            "{message} should keep warning and stay due for retry",
-        );
-    }
-}
-
-#[test]
-fn a_failure_with_no_message_still_fails() {
-    assert_eq!(
-        classify_dither_result(NodeStatus::Failure, None),
-        DitherTriggerOutcome::Failed,
-    );
+/// The record a trigger-fired autofocus writes through
+/// `record_autofocus_failed_continuing`.
+fn trigger_continuation(
+    reason: &str,
+    position_before: Option<i32>,
+    position_after: Option<i32>,
+    origin_restored: Option<bool>,
+) -> ContinuedHappening {
+    autofocus_failure_continuation(
+        "Autofocus trigger 'Autofocus Interval'",
+        serde_json::json!({
+            "trigger_id": "autofocus_interval",
+            "trigger_name": "Autofocus Interval",
+        }),
+        reason,
+        position_before,
+        position_after,
+        origin_restored,
+    )
 }
 
 /// Owner decision (2026-08-14): a trigger-fired autofocus that misses its
@@ -54,9 +37,7 @@ fn a_failure_with_no_message_still_fails() {
 /// focus and the replay log says so, naming both positions.
 #[test]
 fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
+    let continuation = trigger_continuation(
         "curve fit R² 0.31 below minimum 0.80",
         Some(21_400),
         Some(21_400),
@@ -70,6 +51,10 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
     assert_eq!(
         continuation.decision.summary,
         "Autofocus failed — continuing with last-good focus"
+    );
+    assert_eq!(
+        continuation.decision.notice,
+        Some(crate::decision::RunNotice::AutofocusContinued)
     );
     assert_eq!(
         continuation.decision.details["focuser_position_before"],
@@ -88,6 +73,14 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
         "the operator must be told the run carried on: {}",
         continuation.operator_message
     );
+    let (_, line) = continuation.split();
+    assert!(matches!(
+        line.into_event(),
+        ExecutorEvent::NoticedWarning {
+            notice: crate::decision::RunNotice::AutofocusContinued,
+            ..
+        }
+    ));
 }
 
 /// A failed RETURN move is a different night: the motor is parked somewhere
@@ -95,14 +88,8 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
 /// continues, but the notice must not claim the focuser came home.
 #[test]
 fn a_failed_position_restore_is_called_out_not_smoothed_over() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
-        "focuser timed out",
-        Some(21_400),
-        Some(19_950),
-        Some(false),
-    );
+    let continuation =
+        trigger_continuation("focuser timed out", Some(21_400), Some(19_950), Some(false));
 
     assert!(
         continuation
@@ -123,9 +110,7 @@ fn a_failed_position_restore_is_called_out_not_smoothed_over() {
 /// restore would warn about focus on a run whose focuser never moved.
 #[test]
 fn an_autofocus_that_never_moved_the_focuser_does_not_warn_about_restore() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
+    let continuation = trigger_continuation(
         "Autofocus is already running on this equipment host",
         Some(21_400),
         Some(21_400),
@@ -142,14 +127,6 @@ fn an_autofocus_that_never_moved_the_focuser_does_not_warn_about_restore() {
     assert_eq!(
         continuation.decision.details["pre_autofocus_position_restored"],
         serde_json::Value::Null
-    );
-}
-
-#[test]
-fn a_successful_dither_is_performed() {
-    assert_eq!(
-        classify_dither_result(NodeStatus::Success, None),
-        DitherTriggerOutcome::Performed,
     );
 }
 
@@ -493,6 +470,94 @@ async fn a_failed_run_reports_the_reason_the_instruction_gave() {
         reason.contains("timeout_secs must be greater than zero"),
         "the terminal event must carry the instruction's real reason, not a \
          placeholder; got: {reason}"
+    );
+}
+
+/// A run that fails inside its target still puts the rig away with the plan's
+/// shutdown steps. Those steps succeeding is cleanup, not the run carrying on,
+/// so the reason stays the fault that ended it. On a GUI host the operator
+/// read "Sequence failed / Sequence failed" for a FITS save failure because
+/// the Park step completed after it.
+#[tokio::test]
+async fn the_shutdown_steps_succeeding_after_a_failure_keep_its_reason() {
+    let mut sequence = SequenceDefinition::new("Fails then parks".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "root".to_string(),
+        name: "Night".to_string(),
+        node_type: crate::NodeType::Loop(crate::LoopConfig {
+            iterations: Some(1),
+            condition: crate::LoopCondition::Count,
+            condition_value: None,
+            horizon_profile: None,
+        }),
+        enabled: true,
+        children: vec!["script".to_string(), "notify".to_string()],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "script".to_string(),
+        name: "Run Script".to_string(),
+        node_type: crate::NodeType::RunScript(crate::ScriptConfig {
+            script_path: "/nonexistent/skotiq-test-script".to_string(),
+            timeout_secs: Some(0),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "notify".to_string(),
+        name: "Tell the operator".to_string(),
+        node_type: crate::NodeType::Notification(crate::NotificationConfig {
+            title: "Night over".to_string(),
+            message: "Rig put away".to_string(),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("root".to_string());
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    executor.load_sequence(sequence).expect("sequence loads");
+    let mut events = executor.subscribe();
+
+    executor.start().await.expect("run starts");
+    for _ in 0..200 {
+        if matches!(
+            executor.get_state().await,
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    executor.stop().await.ok();
+
+    let mut shutdown_step_ran = false;
+    let mut failure_reason = None;
+    while let Ok(event) = events.try_recv() {
+        match event {
+            ExecutorEvent::NodeCompleted { id, status } if id == "notify" => {
+                shutdown_step_ran = status == NodeStatus::Success;
+            }
+            ExecutorEvent::SequenceFailed { error } => failure_reason = Some(error),
+            _ => {}
+        }
+    }
+    assert!(
+        shutdown_step_ran,
+        "the plan's shutdown step runs after the failure (the premise of this test)"
+    );
+    let reason = failure_reason.expect("a failed run must publish a terminal failure reason");
+    assert!(
+        reason.contains("timeout_secs must be greater than zero"),
+        "the shutdown step's success must not erase the fault that ended the run; got: {reason}"
+    );
+    assert_eq!(
+        executor.get_progress().message.as_deref(),
+        Some(reason.as_str()),
+        "the run's own status message carries the same reason"
     );
 }
 
@@ -1734,7 +1799,14 @@ async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
     drop(rx);
     executor.command_tx = Some(tx);
 
-    executor.update_location(Some(39.97), Some(-75.36)).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(39.97);
+            config.longitude = Some(-75.36);
+        })
+        .await
+        .unwrap();
 
     let manager = executor.trigger_manager.read().await;
     let state = manager.state();

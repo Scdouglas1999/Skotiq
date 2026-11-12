@@ -189,9 +189,8 @@ final nextUseCompletedActionsProvider = Provider<Set<NextUseActionId>>((ref) {
   }
 
   // First light: at least one captured image on disk/db.
-  // Loading/error -> valueOrNull null -> empty -> not complete (fail-closed).
-  final imageCount = ref.watch(allDbImagesProvider).valueOrNull?.length ?? 0;
-  if (imageCount > 0) {
+  // Loading/error -> not complete (fail-closed).
+  if (ref.watch(hasCapturedImagesProvider).valueOrNull ?? false) {
     completed.add(NextUseActionId.captureFirstLight);
   }
 

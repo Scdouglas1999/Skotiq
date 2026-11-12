@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/equipment_provider.dart';
+import '../errors/error_text.dart';
+import 'device_service/connect_attempts.dart';
 import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart' show settingsDaoProvider;
 import '../providers/focuser_backlash_provider.dart'
@@ -16,7 +19,7 @@ import '../providers/settings_provider.dart';
 import '../providers/ui_notification_provider.dart';
 import '../providers/operation_progress_provider.dart';
 import '../providers/filter_offset_provider.dart';
-import '../providers/current_screen_provider.dart';
+import '../models/app_screen.dart';
 import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';
@@ -115,6 +118,10 @@ class DeviceService {
   Timer? _focuserMoveSettleWatch;
   late final Phd2Launcher _phd2Launcher;
   late final DeviceReconnectCoordinator _reconnectCoordinator;
+
+  /// Where each of this service's own connects stands; consulted before a
+  /// native connection event writes a slot.
+  final ConnectAttempts _attempts = ConnectAttempts();
   late final DeviceHeartbeatRouter _heartbeat;
   late final SwitchChannelService _switchChannels;
 
@@ -240,6 +247,10 @@ class DeviceService {
   /// The backend whose events this service is listening to.
   SkotiqBackend get eventSource => _backend;
 
+  /// Whether a connect of [deviceId] made through this service is in flight
+  /// or has just failed, so the slot is that connect's to write.
+  bool hasOwnConnectOf(String deviceId) => _attempts.isOwn(deviceId);
+
   /// True on a companion: the imaging host owns every device, so this client
   /// never tears one down to clean up after its own failed request.
   bool get _hostOwnsDevices => _backend.remoteHost != null;
@@ -264,6 +275,7 @@ class DeviceService {
             attempt: attempt,
             maxAttempts: maxAttempts,
           ),
+      connect: _connect,
       reconnectTarget: _reconnectTarget,
     );
     _switchChannels = SwitchChannelService(ref: _ref, backend: _backend);
@@ -398,6 +410,7 @@ class DeviceService {
     _focuserMoveSettleWatch?.cancel();
     _focuserMoveSettleWatch = null;
     _reconnectCoordinator.cancelAll();
+    _attempts.dispose();
   }
 
   /// Discover available devices of a specific type
@@ -511,6 +524,11 @@ class DeviceService {
 
   /// Try again the devices that failed in the last sweep.
   Future<ConnectSweepResult> retryFailedConnects() => _retryFailedConnects();
+
+  /// Try [type]'s device again after it failed: the device its slot holds,
+  /// or the one that last failed to connect there. Throws the failure; the
+  /// slot shows it too.
+  Future<void> retryConnect(DeviceType type) => _retryConnect(type);
 
   Future<DisconnectAllResult> disconnectAll() => _disconnectAll();
 

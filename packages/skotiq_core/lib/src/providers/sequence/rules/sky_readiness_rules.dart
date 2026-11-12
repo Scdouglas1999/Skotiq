@@ -1,4 +1,3 @@
-
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/scheduler/scheduler_status.dart' show SchedulerConfig;
@@ -7,6 +6,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../equipment/mount_state_provider.dart';
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 // Sky-readiness rules — will this run, started right now, actually see sky?
 //

@@ -76,9 +76,7 @@ final aboutLinkLauncherProvider = Provider<ExternalUrlLauncher>(
 );
 
 class AboutSettings extends ConsumerWidget {
-  final bool isMobile;
-
-  const AboutSettings({super.key, this.isMobile = false});
+  const AboutSettings({super.key});
 
   Future<void> _launchUrl(
     BuildContext context,
@@ -101,17 +99,16 @@ class AboutSettings extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final appVersion = ref.watch(appVersionProvider);
+    final narrow = SettingsFormScope.narrowOf(context);
 
     return SettingsPage(
       title: 'About',
       description: 'Application information',
-      isMobile: isMobile,
-      hideHeader: isMobile,
       children: [
         Center(
           child: Column(
             children: [
-              SkotiqLockup(markSize: isMobile ? 28 : 32),
+              SkotiqLockup(markSize: narrow ? 28 : 32),
               const SizedBox(height: 4),
               Text(
                 'Version ${appVersion.version} (build ${appVersion.buildNumber})',
@@ -119,15 +116,15 @@ class AboutSettings extends ConsumerWidget {
                   color: colors.textSecondary,
                 ),
               ),
-              SizedBox(height: isMobile ? 16 : 20),
+              const SettingsGap(),
               Text(
                 'Advanced astrophotography suite',
                 style: SkotiqTypography.bodySm.copyWith(
                   color: colors.textMuted,
                 ),
               ),
-              SizedBox(height: isMobile ? 24 : 32),
-              isMobile
+              const SettingsGap.large(),
+              narrow
                   ? Wrap(
                       alignment: WrapAlignment.center,
                       spacing: 8,
@@ -157,10 +154,9 @@ class AboutSettings extends ConsumerWidget {
                       ],
                     ),
               const SizedBox(height: 32),
-              _SoftwareUpdateCard(isMobile: isMobile),
+              const _SoftwareUpdateCard(),
               const SizedBox(height: 32),
               _LicenseCard(
-                isMobile: isMobile,
                 onOpenUrl: (url) => _launchUrl(context, ref, url),
               ),
               const SizedBox(height: 32),
@@ -312,10 +308,9 @@ class _SystemInformationCard extends ConsumerWidget {
 /// and stopped. Searching for a term that lands on exactly one destination
 /// which then does not have it is the search lying about what the app knows.
 class _LicenseCard extends ConsumerWidget {
-  final bool isMobile;
   final void Function(String url) onOpenUrl;
 
-  const _LicenseCard({required this.isMobile, required this.onOpenUrl});
+  const _LicenseCard({required this.onOpenUrl});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -359,13 +354,17 @@ class _LicenseCard extends ConsumerWidget {
                 // Flutter's own page, fed by LicenseRegistry, so the credits
                 // list is the set of packages actually linked into this build
                 // rather than a hand-maintained list that would drift.
-                onPressed: () => showLicensePage(
-                  context: context,
-                  applicationName: 'Skotiq',
-                  applicationVersion:
-                      'Version ${appVersion.version} (build ${appVersion.buildNumber})',
-                  applicationLegalese: '$kSkotiqCopyright\n$kSkotiqLicenseName',
-                ),
+                onPressed: () {
+                  listBuiltInCatalogLicenses();
+                  showLicensePage(
+                    context: context,
+                    applicationName: 'Skotiq',
+                    applicationVersion:
+                        'Version ${appVersion.version} (build ${appVersion.buildNumber})',
+                    applicationLegalese:
+                        '$kSkotiqCopyright\n$kSkotiqLicenseName',
+                  );
+                },
               ),
             ],
           ),
@@ -390,9 +389,7 @@ class _LicenseCard extends ConsumerWidget {
 /// dialog, which owns download, verification and apply — including the
 /// hardware gate that refuses to swap the binary mid-exposure.
 class _SoftwareUpdateCard extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const _SoftwareUpdateCard({required this.isMobile});
+  const _SoftwareUpdateCard();
 
   @override
   ConsumerState<_SoftwareUpdateCard> createState() =>
@@ -485,7 +482,8 @@ class _SoftwareUpdateCardState extends ConsumerState<_SoftwareUpdateCard> {
           return 'No update check has run yet. '
               'Check now to look for a new version.';
         }
-        final when = RelativeTime.ago(lastCheck, style: RelativeTimeStyle.words);
+        final when =
+            RelativeTime.ago(lastCheck, style: RelativeTimeStyle.words);
         final failure = state.errorMessage;
         if (failure != null && failure.isNotEmpty) {
           return 'The last update check, $when, did not finish: $failure '

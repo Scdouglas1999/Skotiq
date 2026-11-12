@@ -34,6 +34,12 @@ abstract interface class DeviceSlotState<S> {
   });
 }
 
+extension DeviceSlotRetryTarget on DeviceSlotState<Object?> {
+  /// The device a retry connects: the one the slot holds, or the one that
+  /// last failed to connect there (a failed connect leaves the slot empty).
+  String? get retryDeviceId => deviceId ?? lastError?.deviceId;
+}
+
 enum DeviceErrorType {
   connectionFailed,
 

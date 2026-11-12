@@ -106,7 +106,7 @@ Future<HarnessHandle> _pumpTree(
   Sequence sequence, {
   Size size = const Size(1200, 900),
   ThemeData? theme,
-  SequenceProgressNotifier? progressNotifier,
+  RunRecordNotifier? progressNotifier,
   PreSessionSimulationResult? simulation,
 }) async {
   final notifier = CurrentSequenceNotifier();
@@ -131,13 +131,11 @@ Future<HarnessHandle> _pumpTree(
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The minute clock is a real periodic stream; in the fake-async zone its
       // timer outlives every pump and fails teardown.
       ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
       if (progressNotifier != null)
-        sequenceProgressProvider.overrideWith((_) => progressNotifier),
+        runRecordProvider.overrideWith((_) => progressNotifier),
       if (simulation != null)
         sequenceTimelineProvider.overrideWithValue(simulation),
       sequencerDensityProvider
@@ -809,7 +807,7 @@ void main() {
   testWidgets('the 2 px bar shows the run\'s aggregate, not one member\'s',
       (tester) async {
     final built = _runInAlpha();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     await _pumpTree(tester, built.sequence, progressNotifier: progress);
     final colors = SkotiqTheme.dark.extension<SkotiqColors>()!;
 
@@ -867,7 +865,7 @@ void main() {
       targetWindows: const {},
       issues: const [],
     );
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     await _pumpTree(
       tester,
       built.sequence,

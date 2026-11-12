@@ -145,7 +145,7 @@ pub(crate) fn pick_raw_format_choice(choices: &[String]) -> Option<String> {
 /// authority:
 ///
 /// 1. `measured_white_level`: LibRaw `color.maximum` for the last decoded
-///    frame, surfaced as `skotiq_imaging::CfaImage::max_value`. Exact.
+///    frame, surfaced as `skotiq_imaging::RawFrame::white_level`. Exact.
 /// 2. `(1 << bit_depth) - 1` from the model table in
 ///    `detect_sensor_dimensions()`, used only before the first frame has been
 ///    decoded (and clamped to a sane 8..=16 so a corrupt depth cannot panic

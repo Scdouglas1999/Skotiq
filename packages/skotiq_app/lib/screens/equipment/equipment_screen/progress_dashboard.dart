@@ -18,26 +18,25 @@ class _ConnectAllProgressStrip extends ConsumerWidget {
     final colors = SkotiqColors.of(context);
     final state = ref.watch(deviceConnectionProgressProvider);
 
-    if (state.byDeviceType.isEmpty) {
+    final devices = state.byDevice;
+    if (devices.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    // Device-table order, so chips do not move between rebuilds. The guide
-    // camera is the one sweep entry that is not a slot.
+    // Device-table order, so chips do not move between rebuilds. A guide
+    // camera is counted with its guider, so it has a chip of its own only
+    // when the profile names no guider.
     final entries = <DeviceConnectProgress>[
       for (final label in [
         for (final slot in deviceSlots) ...[
-          if (slot.type == DeviceType.guider) 'guide camera',
+          if (slot.type == DeviceType.guider) guideCameraLabel,
           slot.noun,
         ],
       ])
-        if (state.byDeviceType[label] case final event?) event,
+        if (devices[label] case final event?) event,
     ];
 
-    final failed = [
-      for (final event in entries)
-        if (event.status == DeviceConnectProgressStatus.failed) event,
-    ];
+    final failed = state.failures;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
@@ -113,7 +112,7 @@ class _ConnectAllProgressStrip extends ConsumerWidget {
   static String _stripHeadline(DeviceConnectionProgressState state) {
     if (state.isSweeping) return 'Connecting…';
     final scored =
-        '${state.connectedCount} of ${state.byDeviceType.length} succeeded';
+        '${state.connectedCount} of ${state.byDevice.length} succeeded';
     final at = state.finishedAt;
     if (at == null) return '${state.source}: $scored';
     final hh = at.hour.toString().padLeft(2, '0');
@@ -169,7 +168,7 @@ class _ConnectAllProgressChip extends StatelessWidget {
   }
 
   static IconData _iconForDeviceType(String label) {
-    if (label == 'guide camera') return DeviceType.camera.icon;
+    if (label == guideCameraLabel) return DeviceType.camera.icon;
     for (final slot in deviceSlots) {
       if (slot.noun == label) return slot.type.icon;
     }
@@ -177,39 +176,15 @@ class _ConnectAllProgressChip extends StatelessWidget {
   }
 }
 
-/// `[dot] N connected` in the page header — the ONE place this screen states
+/// `[dot] N connected` in the page header: the one place this screen states
 /// how many devices are up.
-/// How many devices are connected right now, across every slot.
-///
-/// Shared so the header chip and the header's "Disconnect all" agree by
-/// construction: an action that disconnects everything must appear exactly when
-/// the chip says there is something to disconnect, and two copies of this list
-/// would drift the first time a slot was added.
-int equipmentConnectedCount(WidgetRef ref) {
-  final connectionStates = <DeviceConnectionState>[
-    ref.watch(cameraStateProvider).connectionState,
-    ref.watch(mountStateProvider).connectionState,
-    ref.watch(focuserStateProvider).connectionState,
-    ref.watch(filterWheelStateProvider).connectionState,
-    ref.watch(guiderStateProvider).connectionState,
-    ref.watch(rotatorStateProvider).connectionState,
-    ref.watch(domeStateProvider).connectionState,
-    ref.watch(weatherStateProvider).connectionState,
-    ref.watch(safetyMonitorStateProvider).connectionState,
-    ref.watch(switchStateProvider).connectionState,
-    ref.watch(coverCalibratorStateProvider).connectionState,
-  ];
-  return connectionStates
-      .where((state) => state == DeviceConnectionState.connected)
-      .length;
-}
-
 class _ConnectionStatusSummary extends ConsumerWidget {
   const _ConnectionStatusSummary();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connectedCount = equipmentConnectedCount(ref);
+    final rig = ref.watch(rigDevicesProvider);
+    final connectedCount = rig.connected;
 
     if (connectedCount == 0) {
       return const SkotiqChip(label: 'Nothing connected', dot: true);
@@ -219,7 +194,7 @@ class _ConnectionStatusSummary extends ConsumerWidget {
     // the header read a green "9 connected" while the persistent bottom status
     // bar read "My Equipment 4/4" — two numbers, one screen, no explanation, and
     // the five extra devices silently vanished on the next launch.
-    final sessionOnly = ref.watch(sessionOnlyConnectedSlotsProvider).length;
+    final sessionOnly = rig.sessionOnly.length;
 
     return Tooltip(
       message: sessionOnly > 0
@@ -257,6 +232,10 @@ class _DeviceDashboard extends ConsumerWidget {
   /// below the shell breakpoint.
   final Widget? header;
 
+  /// Rendered below the grid inside the same scroll view (narrow layout):
+  /// readiness and health, which come after the devices there.
+  final Widget? status;
+
   /// Chrome rendered BELOW the grid, inside the same scroll view. Used for the
   /// discovery drawer on viewports too short to seat it as a sibling (see
   /// [_EquipmentMainColumn._cardsAndDiscovery]).
@@ -267,6 +246,7 @@ class _DeviceDashboard extends ConsumerWidget {
     required this.onConnectAll,
     required this.onEditProfile,
     this.header,
+    this.status,
     this.footer,
   });
 
@@ -286,7 +266,7 @@ class _DeviceDashboard extends ConsumerWidget {
     // the profile is already in scope, and handed to each card as a plain flag —
     // a single card must not depend on the profiles provider (on a remote backend
     // that starts a periodic host poll).
-    final sessionOnlySlots = ref.watch(sessionOnlyConnectedSlotsProvider);
+    final sessionOnlySlots = ref.watch(rigDevicesProvider).sessionOnly;
     bool adHoc(DeviceType slot) => sessionOnlySlots.contains(slot);
 
     final connectedCards = <Widget>[
@@ -309,6 +289,9 @@ class _DeviceDashboard extends ConsumerWidget {
                   },
                   type: slot.type,
                   sessionOnly: adHoc(slot.type),
+                  detail: slot.type == DeviceType.guider
+                      ? _guideCameraDetail(profile)
+                      : null,
                 ),
     ];
 
@@ -323,6 +306,7 @@ class _DeviceDashboard extends ConsumerWidget {
     if (profile == null && (!isRemoteMode || connectedCards.isEmpty)) {
       return _EquipmentEmptyState(
         header: header,
+        status: status,
         footer: _boundedFooter,
         child: EmptyState(
           icon: LucideIcons.layoutGrid,
@@ -347,6 +331,7 @@ class _DeviceDashboard extends ConsumerWidget {
 
       return _EquipmentEmptyState(
         header: header,
+        status: status,
         footer: _boundedFooter,
         child: hasDevicesAssigned
             ? EmptyState(
@@ -394,11 +379,21 @@ class _DeviceDashboard extends ConsumerWidget {
               ],
             ),
           ),
+          if (status != null) status!,
           if (_boundedFooter != null) _boundedFooter!,
         ],
       ),
     );
   }
+}
+
+/// The built-in guider's guide camera, shown on the guider's card: it is
+/// connected and counted with the guider rather than as a device of its own.
+String? _guideCameraDetail(EquipmentProfileModel? profile) {
+  final id = profile?.guideCameraId;
+  if (id == null || id.isEmpty) return null;
+  final name = profile!.guideCameraName?.trim();
+  return 'Guide camera: ${name == null || name.isEmpty ? id : name}';
 }
 
 /// Lays the device panels out in a 3-column grid (2 then 1 as the column
@@ -569,9 +564,15 @@ class _EmptySlotPanel extends ConsumerWidget {
 class _EquipmentEmptyState extends StatelessWidget {
   final Widget child;
   final Widget? header;
+  final Widget? status;
   final Widget? footer;
 
-  const _EquipmentEmptyState({required this.child, this.header, this.footer});
+  const _EquipmentEmptyState({
+    required this.child,
+    this.header,
+    this.status,
+    this.footer,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -617,6 +618,7 @@ class _EquipmentEmptyState extends StatelessWidget {
                   child: Center(child: child),
                 ),
               ),
+              if (status != null) status!,
               if (footer != null) footer!,
             ],
           ),

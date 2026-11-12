@@ -228,7 +228,7 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
     let needs_raster = args
         .outputs
         .iter()
-        .any(|output| !output.format.trim().eq_ignore_ascii_case("fits"));
+        .any(|output| frame_format_of(&output.format).is_none());
     let (raster_image, screen_transfer) = if needs_raster && !stretched_domain {
         if !args.screen_transfer {
             return Err(format!(
@@ -259,17 +259,15 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
         }
         let path = PathBuf::from(path);
         let entry = match format.as_str() {
-            "fits" => {
-                let header = export_header(&image, &stage, &fingerprint, &recipe, &history);
-                let record = write_fits_atomic(&path, &image, &header)?;
-                fits_paths.push(path.clone());
-                record
-            }
             "png" | "tiff" | "jpeg" => write_raster(&path, &raster_image, &format, output.quality)?,
             other => {
-                return Err(format!(
-                    "unknown export format '{other}'; expected fits/png/jpeg/tiff"
-                ))
+                let frame_format = frame_format_of(other).ok_or_else(|| {
+                    format!("unknown export format '{other}'; expected fits/xisf/png/jpeg/tiff")
+                })?;
+                let header = export_header(&image, &stage, &fingerprint, &recipe, &history);
+                let record = write_frame_atomic(frame_format, &path, &image, &header)?;
+                fits_paths.push(path.clone());
+                record
             }
         };
         written.push(entry);
@@ -408,15 +406,29 @@ fn export_header(
     header
 }
 
-/// Write a FITS file atomically: a temporary sibling, then a rename.
-fn write_fits_atomic(path: &Path, image: &OpImage, header: &FitsHeader) -> Result<Value, String> {
+/// The linear frame formats an export can be: FITS or XISF.
+fn frame_format_of(format: &str) -> Option<skotiq_imaging::ImageFormat> {
+    match format.trim().to_ascii_lowercase().as_str() {
+        "fits" => Some(skotiq_imaging::ImageFormat::Fits),
+        "xisf" => Some(skotiq_imaging::ImageFormat::Xisf),
+        _ => None,
+    }
+}
+
+/// Write a linear frame atomically: a temporary sibling, then a rename.
+fn write_frame_atomic(
+    format: skotiq_imaging::ImageFormat,
+    path: &Path,
+    image: &OpImage,
+    header: &FitsHeader,
+) -> Result<Value, String> {
     let data = image.to_image_data();
     let temp = temp_sibling(path);
-    skotiq_imaging::write_fits(&temp, &data, header)
+    skotiq_imaging::write_frame_as(format, &temp, &data, header, &Default::default())
         .map_err(|e| format!("cannot write '{}': {e}", path.display()))?;
     finish_atomic(&temp, path)?;
     Ok(json!({
-        "format": "fits",
+        "format": format.extension(),
         "path": path.to_string_lossy(),
         "bytes": file_size(path),
         "width": image.width(),

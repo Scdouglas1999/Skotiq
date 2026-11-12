@@ -5,10 +5,16 @@
 use super::*;
 use crate::recovery::{HoldKind, OnGiveUp};
 
+/// `instruction_shared` is the run's (see [`Run::instruction_shared`]); the
+/// driver's moves run against it.
 pub(super) async fn run_recovery_driver(
     run: Arc<Run>,
+    mut instruction_shared: crate::instructions::RunShared,
     mut recovery_request_rx: mpsc::Receiver<crate::recovery::RecoveryCause>,
 ) {
+    // The driver ends when the node tree and the monitor drop their senders,
+    // so it must not hold one itself.
+    instruction_shared.recovery_request_tx = None;
     let run_state = run.control.state.clone();
     let event_tx = run_state.events().clone();
     let is_cancelled = run.control.is_cancelled.clone();
@@ -23,7 +29,6 @@ pub(super) async fn run_recovery_driver(
     let device_ops = run.device_ops.clone();
     let runtime = run.config.clone();
     let trigger_mgr = run.triggers.clone();
-    let trigger_context = run.rig.clone();
     let device_ids = run.recovery.reconnect_device_ids.clone();
     let mount_id = run.rig.mount_id.clone();
     let dome_id = run.rig.dome_id.clone();
@@ -507,10 +512,8 @@ pub(super) async fn run_recovery_driver(
             if policy.hold == Some(HoldKind::Weather) && !operator_paused {
                 prepare_imaging_after_weather_hold(WeatherHoldExit {
                     held_secs: ctx.elapsed_secs(chrono::Utc::now()),
-                    device_ops: &device_ops,
+                    shared: &instruction_shared,
                     trigger_mgr: &trigger_mgr,
-                    trigger_context: &trigger_context,
-                    runtime: &runtime,
                     is_cancelled: &is_cancelled,
                     event_tx: &event_tx,
                 })
@@ -761,10 +764,8 @@ pub(super) async fn run_recovery_driver(
 /// What [`prepare_imaging_after_weather_hold`] needs.
 struct WeatherHoldExit<'a> {
     held_secs: f64,
-    device_ops: &'a SharedDeviceOps,
+    shared: &'a crate::instructions::RunShared,
     trigger_mgr: &'a Arc<RwLock<TriggerManager>>,
-    trigger_context: &'a RunRig,
-    runtime: &'a RunConfigStore,
     is_cancelled: &'a Arc<AtomicBool>,
     event_tx: &'a broadcast::Sender<ExecutorEvent>,
 }
@@ -788,8 +789,8 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
     let recenter = exit.held_secs >= WEATHER_HOLD_RECENTER_AFTER_SECS
         && target_ra_hours.is_some()
         && target_dec.is_some()
-        && exit.trigger_context.mount_id.is_some()
-        && exit.trigger_context.camera_id.is_some();
+        && exit.shared.rig.mount_id.is_some()
+        && exit.shared.rig.camera_id.is_some();
     if recenter {
         tracing::info!(
             "[WEATHER] Held for {:.0} min; recentering on the target before imaging again",
@@ -797,18 +798,16 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
         );
         let mut claim =
             TriggerCameraClaim::acquire(&state, exit.is_cancelled, &RecoveryAction::Recenter).await;
-        let ctx = trigger_instruction_context(
-            exit.trigger_context,
-            target_name,
-            target_ra_hours,
+        let ctx = crate::instructions::InstructionContext {
+            target_ra: target_ra_hours,
             target_dec,
+            target_name,
             current_filter,
-            exit.is_cancelled.clone(),
-            exit.device_ops.clone(),
-            state.clone(),
-            exit.runtime,
-            Some(exit.event_tx.clone()),
-        );
+            ..crate::instructions::InstructionContext::new(
+                exit.shared.for_step(),
+                exit.is_cancelled.clone(),
+            )
+        };
         let config = crate::CenterConfig {
             use_target_coords: true,
             custom_ra: None,
@@ -839,7 +838,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
         return;
     }
     let settled = matches!(
-        exit.device_ops.guider_get_status().await,
+        exit.shared.device_ops.guider_get_status().await,
         Ok(status) if guiding_is_settled(&status)
     );
     if settled {
@@ -850,7 +849,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
          fresh star before the next light frame"
     );
     crate::instructions::stop_an_active_guider(
-        exit.device_ops,
+        &exit.shared.device_ops,
         "restart after the weather hold",
         crate::GuidingStopReason::MountMove,
     )
@@ -948,12 +947,10 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
             "imaging_unguided": true,
         }),
     );
-    let mut decision = continuation.decision;
+    let (mut decision, line) = continuation.split();
     decision.sequence_run_id = c.active_run_id;
     let _ = c.decision_tx.send(decision);
-    let _ = c.event_tx.send(ExecutorEvent::Warning {
-        message: continuation.operator_message,
-    });
+    let _ = c.event_tx.send(line.into_event());
 
     // Same ordering as a recovery that succeeded: the generation advances
     // before the node tree is released.
@@ -1035,7 +1032,8 @@ mod tests {
             cover_calibrator_id: Some("cover-1".to_string()),
             ..RunRig::default()
         };
-        let driver = tokio::spawn(run_recovery_driver(Arc::new(run), request_rx));
+        let shared = run.instruction_shared(request_tx.clone()).await;
+        let driver = tokio::spawn(run_recovery_driver(Arc::new(run), shared, request_rx));
 
         if abort_first {
             // `arm()` on recovery entry clears signals left from a previous
@@ -1188,7 +1186,6 @@ mod tests {
         warnings: Vec<String>,
         decisions: Vec<String>,
         trigger_state: crate::triggers::TriggerState,
-        /// The cause the recovery ended as.
         ended_as: Option<RecoveryCause>,
     }
 
@@ -1270,7 +1267,8 @@ mod tests {
             cover_calibrator_id: Some("cover-1".to_string()),
             ..RunRig::default()
         };
-        let driver = tokio::spawn(run_recovery_driver(Arc::new(run), request_rx));
+        let shared = run.instruction_shared(request_tx.clone()).await;
+        let driver = tokio::spawn(run_recovery_driver(Arc::new(run), shared, request_rx));
         request_tx.send(RecoveryCause::GuideStarLost).await.unwrap();
 
         let mut errors = Vec::new();
@@ -1280,7 +1278,10 @@ mod tests {
             loop {
                 match event_rx.recv().await {
                     Ok(ExecutorEvent::Error { message }) => errors.push(message),
-                    Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                    Ok(
+                        ExecutorEvent::Warning { message }
+                        | ExecutorEvent::NoticedWarning { message, .. },
+                    ) => warnings.push(message),
                     Ok(ExecutorEvent::RecoveryGaveUp { context, .. })
                     | Ok(ExecutorEvent::RecoveryCompleted { context }) => {
                         ended_as = Some(context.cause.clone());

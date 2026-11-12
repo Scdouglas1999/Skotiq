@@ -113,11 +113,11 @@ pub struct GPhoto2Camera {
     /// `detect_sensor_dimensions()` — a pre-first-frame ESTIMATE that guesses
     /// 14 for every body libgphoto2 supports but this driver has not tabulated
     /// — and replaced with the decoder's ground truth
-    /// (`skotiq_imaging::CfaImage::bits_per_pixel`) the moment a frame has
+    /// (`skotiq_imaging::RawFrame::bits_per_pixel`) the moment a frame has
     /// been decoded. See `adopt_decoded_depth`.
     pub(crate) bit_depth: u32,
     /// Container full scale measured from the most recently decoded frame:
-    /// LibRaw `color.maximum` surfaced as `skotiq_imaging::CfaImage::max_value`.
+    /// LibRaw `color.maximum` surfaced as `skotiq_imaging::RawFrame::white_level`.
     /// `None` until the first frame is decoded, when `resolve_max_adu` falls
     /// back to the model-table estimate.
     pub(crate) measured_white_level: Option<u32>,
@@ -809,9 +809,9 @@ impl GPhoto2Camera {
 
     /// Adopt the RAW decoder's ground truth for this body's sample depth.
     ///
-    /// `bits` is `skotiq_imaging::CfaImage::bits_per_pixel` (derived from
+    /// `bits` is `skotiq_imaging::RawFrame::bits_per_pixel` (derived from
     /// LibRaw's saturation level) and `white_level` is
-    /// `skotiq_imaging::CfaImage::max_value` — LibRaw `color.maximum`, the
+    /// `skotiq_imaging::RawFrame::white_level` — LibRaw `color.maximum`, the
     /// exact largest value a pixel in the delivered mosaic can take. Both are
     /// measured from the frame in hand and outrank the model table, which only
     /// guesses.
@@ -1099,16 +1099,13 @@ impl GPhoto2Camera {
     /// Decode a raw camera file (CR2, NEF, ARW, etc.) into the single-channel
     /// LINEAR Bayer mosaic that the capture pipeline expects.
     ///
-    /// Uses `read_cfa_mosaic_from_bytes` (unpack + raw2image, NO dcraw_process)
-    /// so the result is the sensor's native linear CFA mosaic — one u16 sample
-    /// per pixel, `data.len() == width*height`, with a valid Bayer pattern —
-    /// NOT a demosaiced/white-balanced/gamma-encoded 3-channel sRGB image.
-    /// Feeding processed RGB into the mono-mosaic contract corrupts every DSLR
-    /// frame (3× oversize, non-linear, double-debayered).
+    /// The result is the sensor's linear mosaic, one sample per pixel
+    /// (`skotiq_imaging::read_raw_bytes`), never a demosaiced RGB rendering.
     pub(crate) fn decode_raw_to_image_data(
         &mut self,
-        raw_bytes: &[u8],
+        camera_file: skotiq_device::CameraFile,
     ) -> Result<ImageData, DriverError> {
+        let raw_bytes = camera_file.bytes.as_slice();
         // Detect the RAW format from magic bytes. If it is NOT a recognised
         // RAW (i.e. the body handed us a JPEG because it is in JPEG-only mode),
         // fail with an actionable message instead of feeding JPEG to LibRaw's
@@ -1122,71 +1119,43 @@ impl GPhoto2Camera {
             ));
         };
 
-        // Decode to the native linear CFA mosaic (single channel, no demosaic).
-        let (cfa, metadata) = skotiq_imaging::read_cfa_mosaic_from_bytes(raw_bytes, extension)
-            .map_err(|e| {
-                DriverError::SdkError(format!("gPhoto2: Failed to decode RAW image: {}", e))
-            })?;
-
-        // Contract guard: the mono mosaic MUST be exactly width*height samples.
-        // A mismatch here means the decode path silently regressed to a
-        // multi-channel buffer — refuse rather than ship corrupt geometry.
-        let expected = (cfa.width as usize) * (cfa.height as usize);
-        if cfa.data.len() != expected {
-            return Err(DriverError::SdkError(format!(
-                "gPhoto2: CFA decode produced {} samples for a {}x{} frame (expected {}) — \
-                 refusing to emit a corrupt frame",
-                cfa.data.len(),
-                cfa.width,
-                cfa.height,
-                expected
-            )));
-        }
+        let frame = skotiq_imaging::read_raw_bytes(raw_bytes).map_err(|e| {
+            DriverError::SdkError(format!("gPhoto2: Failed to decode RAW image: {}", e))
+        })?;
 
         // The decoder knows this body's real numbers; the model table only
-        // guessed. `bits_per_pixel` and `max_value` (LibRaw `color.maximum`)
+        // guessed. `bits_per_pixel` and `white_level` (LibRaw `color.maximum`)
         // become this camera's published depth and container ceiling from here
-        // on. The mosaic is RIGHT-JUSTIFIED at its native depth — the decode is
-        // `unpack` + `raw2image` with no `dcraw_process` (imaging/src/raw.rs
-        // :1097-1108, contract in imaging/src/libraw_shim.c:98-102) — so the
-        // white level IS the container full scale and must not be scaled up.
-        self.adopt_decoded_depth(cfa.bits_per_pixel, cfa.max_value);
+        // on. The mosaic is right-justified at its native depth, so the white
+        // level is the container full scale and must not be scaled up.
+        self.adopt_decoded_depth(frame.bits_per_pixel, frame.white_level);
 
         tracing::info!(
-            "gPhoto2: Decoded RAW mosaic: {}x{}, {}-bit, pattern {:?}, camera: {} {}",
-            cfa.width,
-            cfa.height,
-            cfa.bits_per_pixel,
-            cfa.cfa_pattern,
-            metadata.camera_make,
-            metadata.camera_model,
+            "gPhoto2: Decoded RAW mosaic: {}x{}, {}-bit, filter {}, camera: {} {} ({})",
+            frame.width,
+            frame.height,
+            frame.bits_per_pixel,
+            frame.cfa.letters(),
+            frame.metadata.make,
+            frame.metadata.model,
+            extension,
         );
 
-        // Map the detected 2×2 CFA orientation to our BayerPattern. Canon/Nikon/
-        // Sony DSLRs are always Bayer, so a `None` here (LibRaw failed to
-        // classify the CFA) is unexpected — fall back to RGGB (most common) with
-        // a warning so the frame still debayers to colour.
-        let bayer_pattern = match cfa.cfa_pattern {
-            Some(skotiq_imaging::CfaPattern::Rggb) => Some(BayerPattern::Rggb),
-            Some(skotiq_imaging::CfaPattern::Grbg) => Some(BayerPattern::Grbg),
-            Some(skotiq_imaging::CfaPattern::Gbrg) => Some(BayerPattern::Gbrg),
-            Some(skotiq_imaging::CfaPattern::Bggr) => Some(BayerPattern::Bggr),
-            None => {
-                tracing::warn!(
-                    "gPhoto2: LibRaw did not classify the CFA (color_desc='{}'); \
-                     defaulting to RGGB for this DSLR frame",
-                    metadata.color_desc
-                );
-                Some(BayerPattern::Rggb)
-            }
-        };
+        let bayer_pattern = Some(crate::camera_core::mosaic_bayer_pattern(&frame.cfa));
+        let skotiq_imaging::RawFrame {
+            width,
+            height,
+            data,
+            bits_per_pixel,
+            metadata,
+            ..
+        } = frame;
 
         Ok(ImageData {
-            width: cfa.width,
-            height: cfa.height,
-            data: cfa.data,
-            // Truthful sensor bit depth derived from LibRaw's saturation level.
-            bits_per_pixel: cfa.bits_per_pixel,
+            width,
+            height,
+            data,
+            bits_per_pixel,
             bayer_pattern,
             metadata: ImageMetadata {
                 exposure_time: self.exposure_time,
@@ -1194,7 +1163,7 @@ impl GPhoto2Camera {
                 offset: self.current_offset,
                 bin_x: 1,
                 bin_y: 1,
-                temperature: None, // DSLRs don't report sensor temp
+                temperature: metadata.temperature.map(|t| t.celsius as f64),
                 timestamp: chrono::Utc::now(),
                 subframe: None,
                 readout_mode: None,
@@ -1211,22 +1180,29 @@ impl GPhoto2Camera {
                             "camera_model".to_string(),
                             serde_json::Value::String(self.model_name.clone()),
                         );
-                        if metadata.iso_speed.is_some() {
-                            map.insert(
-                                "exif_iso".to_string(),
-                                serde_json::json!(metadata.iso_speed),
-                            );
+                        if metadata.iso.is_some() {
+                            map.insert("exif_iso".to_string(), serde_json::json!(metadata.iso));
                         }
-                        if metadata.shutter_speed.is_some() {
+                        if metadata.exposure_seconds.is_some() {
                             map.insert(
                                 "exif_shutter".to_string(),
-                                serde_json::json!(metadata.shutter_speed),
+                                serde_json::json!(metadata.exposure_seconds),
                             );
                         }
                         map
                     },
                     ..Default::default()
                 },
+                camera_file: Some(skotiq_device::CameraFile {
+                    // A body that names no file still gets the extension its
+                    // bytes are in.
+                    file_name: if camera_file.extension().is_some() {
+                        camera_file.file_name.clone()
+                    } else {
+                        format!("frame.{extension}")
+                    },
+                    bytes: camera_file.bytes.clone(),
+                }),
             },
         })
     }

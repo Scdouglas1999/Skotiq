@@ -185,8 +185,6 @@
     "properties": {
       "authToken": null,
       "broadcastEnabled": true,
-      "broadcastPath": "/broadcast",
-      "broadcastPort": 8081,
       "maxFramesToStack": 0,
       "mode": "broadcast_only",
       "stackMethod": "average",

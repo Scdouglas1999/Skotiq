@@ -70,8 +70,6 @@ pub async fn api_get_active_profile() -> Result<Option<EquipmentProfile>, Skotiq
     Ok(get_state().get_profile().await)
 }
 
-// Settings & location
-
 /// Initialize settings storage and load observer location into memory
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_init_settings_storage(storage_path: String) -> Result<(), SkotiqError> {

@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../harness/in_memory_database.dart';
+
 // UI state shared between a host and its linked clients through runtime
 // channels: framing rotation and mosaic, the pre-start unpark countdown, the
 // host's manual loop, cover/calibrator and switch readings, and the host
@@ -28,6 +30,7 @@ class _FixedBackendNotifier extends BackendNotifier {
   ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
   final container = ProviderContainer(
     overrides: [
+      inMemoryDatabaseOverride(),
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
@@ -60,6 +63,7 @@ _MockNetworkBackend _clientBackend() {
 
 ProviderContainer _client(_MockNetworkBackend backend) => ProviderContainer(
   overrides: [
+    inMemoryDatabaseOverride(),
     backendProvider.overrideWith((ref) => _FixedBackendNotifier(ref, backend)),
   ],
 );

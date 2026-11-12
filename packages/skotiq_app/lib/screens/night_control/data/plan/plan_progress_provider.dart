@@ -41,24 +41,17 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   }
 
   for (final entry in tree.entries) {
-    switch (entry.node) {
-      case final ExposureNode node when node.frameType == FrameType.light:
-        plan(node.filter, node.count, entry.multiplier, entry.openEnded);
-      // A Smart Exposure plans one row per filter. "Loop until stopped"
-      // ignores the counts and runs until the target's window closes.
-      case final SmartExposureNode node:
-        for (final filterPlan in node.plans) {
-          plan(
-            filterPlan.filterName,
-            filterPlan.count,
-            entry.multiplier,
-            entry.openEnded || node.loopUntilStopped,
-          );
-        }
-      case final SciencePhotometryNode node:
-        plan(node.filter, node.count, entry.multiplier, entry.openEnded);
-      default:
-        break;
+    final node = entry.node;
+    if (node is ExposureNode && node.frameType != FrameType.light) continue;
+    for (final run in node.kind.captures(node)) {
+      plan(run.filter, run.count, entry.multiplier, entry.openEnded);
+    }
+    // Looping until stopped, a Smart Exposure has no count and shoots each of
+    // its filters until the target's window closes.
+    if (node.capturesUntilStopped) {
+      for (final filter in node.kind.filtersOf(node)) {
+        plan(filter, 0, entry.multiplier, true);
+      }
     }
   }
 
@@ -86,6 +79,25 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
       if (since != null && frame.capturedAt.isBefore(since)) continue;
       final key = _filterKey(frame.settings.filter);
       done.update(key, (count) => count + 1, ifAbsent: () => 1);
+    }
+  }
+
+  // A run continued from its checkpoint, ready or under way, already has the
+  // frames its steps took before it.
+  if (phase.isRunLive ||
+      phase == NightRunPhase.finished ||
+      ref.watch(restoredCheckpointProvider) != null) {
+    final before = ref.watch(framesDoneBeforeRunProvider);
+    for (final entry in tree.entries) {
+      final node = entry.node;
+      if (node is! ExposureNode || node.frameType != FrameType.light) continue;
+      final frames = before[node.id];
+      if (frames == null) continue;
+      done.update(
+        _filterKey(node.filter),
+        (count) => count + frames,
+        ifAbsent: () => frames,
+      );
     }
   }
 

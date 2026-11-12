@@ -173,7 +173,7 @@ fn ngc891_cross_filter_registration_across_the_flip() {
     assert!((scale - 120.0 / 90.0).abs() < 1e-6, "dark scale {scale}");
 
     let detection = |path: &std::path::Path| {
-        let (image, _) = read_fits(path).unwrap();
+        let (image, _) = read_frame(path).unwrap();
         let data: Vec<u16> = image_to_f64(&image)
             .iter()
             .map(|v| (v + 100.0).round().clamp(0.0, 65535.0) as u16)

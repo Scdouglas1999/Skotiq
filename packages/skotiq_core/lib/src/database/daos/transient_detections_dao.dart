@@ -1,9 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../tables/transient_detections.dart';
 
@@ -245,7 +243,3 @@ class TransientDetectionsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 }
-
-final transientDetectionsDaoProvider = Provider<TransientDetectionsDao>((ref) {
-  return TransientDetectionsDao(ref.watch(databaseProvider));
-});

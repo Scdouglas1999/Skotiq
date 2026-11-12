@@ -16,6 +16,7 @@ import '../provider_reader.dart';
 import 'camera_state_provider.dart';
 import 'cover_calibrator_state_provider.dart';
 import 'device_connection_notifier.dart';
+import 'device_slot_readings.dart';
 import 'dome_state_provider.dart';
 import 'filter_wheel_state_provider.dart';
 import 'focuser_state_provider.dart';
@@ -33,9 +34,9 @@ class DeviceSlot {
     required this.state,
     required this.notifier,
     this.isCore = false,
-    this.nativeOwnsReconnect = false,
     this.heartbeat = false,
     this.checksModel = false,
+    this.readings,
   });
 
   final DeviceType type;
@@ -54,17 +55,18 @@ class DeviceSlot {
   /// connection dots and a connected/total count.
   final bool isCore;
 
-  /// The native heartbeat reconnects this type itself
-  /// (`HeartbeatConfig::for_*().auto_reconnect`), so Dart must not schedule a
-  /// second reconnect that would race it.
-  final bool nativeOwnsReconnect;
-
   /// Dart starts and stops the native heartbeat around connect / disconnect.
   final bool heartbeat;
 
   /// Connect passes the profile's saved model so a positional id that now
   /// points at different hardware is refused.
   final bool checksModel;
+
+  /// The readings a linked client's card takes from the host with the
+  /// slot's connection state; null for a slot that mirrors its connection
+  /// only. The guider has none: its readings follow the host's guiding
+  /// events, which a client receives itself.
+  final SlotReadings<Object?>? readings;
 }
 
 /// Every device slot, in the order the app lists devices.
@@ -77,6 +79,7 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: cameraReadings,
   ),
   DeviceSlot(
     type: DeviceType.mount,
@@ -84,9 +87,9 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: mountStateProvider,
     notifier: mountStateProvider.notifier,
     isCore: true,
-    nativeOwnsReconnect: true,
     heartbeat: true,
     checksModel: true,
+    readings: mountReadings,
   ),
   DeviceSlot(
     type: DeviceType.focuser,
@@ -96,6 +99,7 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: focuserReadings,
   ),
   DeviceSlot(
     type: DeviceType.filterWheel,
@@ -105,6 +109,7 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: filterWheelReadings,
   ),
   DeviceSlot(
     type: DeviceType.guider,
@@ -112,7 +117,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: guiderStateProvider,
     notifier: guiderStateProvider.notifier,
     isCore: true,
-    nativeOwnsReconnect: true,
   ),
   DeviceSlot(
     type: DeviceType.rotator,
@@ -122,20 +126,19 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: rotatorReadings,
   ),
   DeviceSlot(
     type: DeviceType.dome,
     wireNames: const ['dome'],
     state: domeStateProvider,
     notifier: domeStateProvider.notifier,
-    nativeOwnsReconnect: true,
   ),
   DeviceSlot(
     type: DeviceType.weather,
     wireNames: const ['weather'],
     state: weatherStateProvider,
     notifier: weatherStateProvider.notifier,
-    nativeOwnsReconnect: true,
   ),
   DeviceSlot(
     type: DeviceType.safetyMonitor,
@@ -154,7 +157,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     wireNames: const ['covercalibrator', 'cover calibrator'],
     state: coverCalibratorStateProvider,
     notifier: coverCalibratorStateProvider.notifier,
-    nativeOwnsReconnect: true,
   ),
 ]);
 

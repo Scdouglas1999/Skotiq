@@ -77,7 +77,12 @@ impl CameraOps for RecordingOps {
             filter: None,
             timestamp: 0,
             sensor_type: Some("Monochrome".to_string()),
-            bayer_offset: None,
+            color_filter: None,
+            // As a DSLR delivers it; written only when the run keeps camera files.
+            camera_file: Some(skotiq_device::CameraFile {
+                file_name: "IMG_0001.NEF".to_string(),
+                bytes: Arc::new(b"nef bytes".to_vec()),
+            }),
         })
     }
     async fn camera_abort_exposure(&self, c: &str) -> DeviceResult<()> {
@@ -109,11 +114,11 @@ impl FrameStoreOps for RecordingOps {
             .push((file_path.to_string(), frame_ctx.rig_label.clone()));
         Ok(())
     }
-    async fn calculate_image_hfr(&self, i: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(i).await
-    }
-    async fn detect_stars_in_image(&self, i: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(i).await
+    async fn measure_light_frame(
+        &self,
+        i: &ImageData,
+    ) -> DeviceResult<skotiq_sequencer::LightFrameMeasurement> {
+        self.inner.measure_light_frame(i).await
     }
 }
 
@@ -208,6 +213,33 @@ async fn fixed_frame_count_stops_loop_and_attributes_rig() {
             "frame name should carry target M31: {path}"
         );
     }
+}
+
+/// The secondary camera's frames are the run's frames: with camera files
+/// kept, each lands beside its FITS name with the camera's extension.
+#[tokio::test]
+async fn secondary_frames_keep_the_camera_file_when_the_run_does() {
+    let tmp = temp_dir();
+    let recorder = Arc::new(RecordingOps::new(Duration::from_millis(10)));
+    let ops: Arc<dyn skotiq_sequencer::DeviceOps> = recorder.clone();
+    let barrier = Arc::new(DitherBarrier::new(30.0, InFlightDitherPolicy::CompleteIfShort));
+    let mut config = SecondaryRigConfig::new("cam-secondary", 0.01);
+    config.frame_count = Some(1);
+    config.rig_label = "WideField".to_string();
+    let mut frame_meta = meta(&tmp);
+    frame_meta.camera_file_saving = skotiq_sequencer::CameraFileSaving::Both;
+
+    let rig = SecondaryRig::start(config, ops, barrier, frame_meta);
+    for _ in 0..200 {
+        if rig.status().frames_captured >= 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let saved = recorder.saved_frames();
+    assert_eq!(saved.len(), 1);
+    let camera_path = std::path::Path::new(&saved[0].0).with_extension("NEF");
+    assert_eq!(std::fs::read(&camera_path).unwrap(), b"nef bytes");
 }
 
 #[tokio::test]

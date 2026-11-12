@@ -5,7 +5,84 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
-import 'package:skotiq_core/skotiq_core.dart';
+import '../database/database.dart'
+    hide
+        Target,
+        Sequence,
+        SequenceNode,
+        CapturedImage,
+        EquipmentProfile,
+        DarkroomState;
+import '../models/autofocus_progress.dart';
+import '../models/backend/host_runtime_update.dart';
+import '../models/defect_map.dart';
+import '../models/depthlock/depthlock_models.dart';
+import '../models/equipment_profile.dart';
+import '../models/imaging/imaging_models.dart';
+import '../models/imaging/stack_and_share_models.dart';
+import '../models/live_view/live_view_frame.dart';
+import '../models/meridian_flip_settings.dart';
+import '../models/mount_guard.dart';
+import '../models/notification/transport_configs.dart';
+import '../models/phd2_models.dart';
+import '../models/planning/project.dart';
+import '../models/planning/project_progress.dart';
+import '../models/planning/target_suggestion.dart';
+import '../models/plate_solver.dart';
+import '../models/replay_decision.dart';
+import '../models/scheduler/integration_goal.dart';
+import '../models/scheduler/scheduler_decision.dart';
+import '../models/scheduler/target_constraint.dart';
+import '../models/science/science_models.dart';
+import '../models/sequence/sequence_models.dart';
+import '../models/sequencer/host_scheduled_start.dart';
+import '../models/site/location_settings.dart';
+import '../services/adaptive_swap_service.dart';
+import '../services/disk_space_service.dart';
+import '../services/end_of_night_calibration/eon_service.dart';
+import '../services/endpoint_sanitizer.dart';
+import '../services/home_assistant/home_assistant_discovery_config.dart';
+import '../services/home_assistant/home_assistant_host_settings.dart';
+import '../services/live_stacking_service.dart';
+import '../services/logging_service.dart';
+import '../services/phd2_probe.dart';
+import '../services/scheduler/horizon_profile.dart';
+import '../services/science/fits_header_writer.dart';
+import '../services/sync/sync_service.dart';
+import 'roles/host_data/host_backups.dart';
+import 'roles/host_data/host_calibration_frames.dart';
+import 'roles/host_data/host_calibration_tools.dart';
+import 'roles/host_data/host_catalogs.dart';
+import 'roles/host_data/host_cloud_sync.dart';
+import 'roles/host_data/host_control_session.dart';
+import 'roles/host_data/host_device_control.dart';
+import 'roles/host_data/host_files.dart';
+import 'roles/host_data/host_focus_models.dart';
+import 'roles/host_data/host_history.dart';
+import 'roles/host_data/host_imaging_records.dart';
+import 'roles/host_data/host_jobs.dart';
+import 'roles/host_data/host_link.dart';
+import 'roles/host_data/host_live_stack.dart';
+import 'roles/host_data/host_logs.dart';
+import 'roles/host_data/host_night_control.dart';
+import 'roles/host_data/host_notes.dart';
+import 'roles/host_data/host_notifications.dart';
+import 'roles/host_data/host_planning_data.dart';
+import 'roles/host_data/host_pointing.dart';
+import 'roles/host_data/host_post_session.dart';
+import 'roles/host_data/host_profiles.dart';
+import 'roles/host_data/host_replay_debug.dart';
+import 'roles/host_data/host_rig_settings.dart';
+import 'roles/host_data/host_run_state.dart';
+import 'roles/host_data/host_runtime_mirror.dart';
+import 'roles/host_data/host_science.dart';
+import 'roles/host_data/host_secondary_rig.dart';
+import 'roles/host_data/host_sequence_library.dart';
+import 'roles/host_data/host_sky_atlas.dart';
+import 'roles/host_data/host_transients.dart';
+import 'roles/host_data/host_updates.dart';
+import 'roles/host_data/host_weather.dart';
+import 'skotiq_backend.dart';
 // TailnetDetector is the single source of truth for host reachability
 // classification (LAN vs Tailscale tailnet vs public). Reused here so the
 // scheme/timeout tuning matches the QR/pairing validator exactly.
@@ -15,6 +92,8 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
         TailnetDetector,
         buildSkotiqServerUri,
         kDefaultHeadlessPort;
+import 'package:skotiq_remote_protocol/wire.dart'
+    show WireTime, tryParseWireTime;
 import 'package:path/path.dart' as p;
 import '../models/settings/app_settings.dart' as models;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -28,6 +107,9 @@ import '../models/errors/skotiq_error.dart' as dart_error;
 import 'remote_display_jpeg.dart';
 import 'skotiq_exception.dart'
     show ImagingException, IoException, ValidationException;
+import 'package:skotiq_remote_protocol/wire_models.dart';
+import '../models/calibration/calibration_library_models.dart';
+import '../models/notes/journal_note.dart';
 
 // The rows the host writes and this client reads.
 export 'package:skotiq_remote_protocol/wire_models.dart';
@@ -388,6 +470,12 @@ abstract class _NetworkBackendTransport {
   /// Cleared when the token is swapped or an explicit reconnect is
   /// requested.
   bool get isAuthTokenRejected => _authRejected;
+
+  /// What the host's `/api/info` said about itself at the last handshake:
+  /// every client has to present a pairing credential. Null before the first
+  /// handshake and for a host that does not say.
+  bool? get hostRequiresPairing => _hostRequiresPairing;
+  bool? _hostRequiresPairing;
 
   /// Stream of WebSocket ping/pong round-trip times. Emits a [Duration]
   /// every time the server's pong is received after we send a ping.

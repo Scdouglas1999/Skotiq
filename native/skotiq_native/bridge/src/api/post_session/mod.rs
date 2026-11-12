@@ -53,7 +53,7 @@ use skotiq_imaging::registration::{
 use skotiq_imaging::stacking::{CombineMethod, MasterOutputType};
 use skotiq_imaging::{
     add_wcs_headers, apply_stretch, apply_stretch_rgb_per_channel, auto_stretch_rgb_with_mode,
-    auto_stretch_stf, read_fits, read_fits_header, read_image, write_fits, FitsHeader, ImageData,
+    auto_stretch_stf, read_frame, read_frame_header, read_image, write_fits, FitsHeader, ImageData,
     PixelType, RgbStretchMode, WcsInfo,
 };
 use std::path::Path;

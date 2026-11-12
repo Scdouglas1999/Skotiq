@@ -11,14 +11,15 @@ import '../backend/remote_host.dart';
 import '../backend/roles/host_data/calibration_library.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/daos/calibration_tags_dao.dart';
+import '../providers/database_provider.dart';
 import '../database/daos/flat_library_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/shared_calibration_models.dart';
 import '../models/collaboration/collaboration_models.dart';
+import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
-import '../providers/constellation_provider.dart';
-import '../providers/database_provider.dart';
+import 'constellation/hub_credentials.dart';
 import 'calibration/fits_header_reader.dart';
 import 'calibration/shared_calibration_library.dart';
 import '../utils/skotiq_data_directory.dart';
@@ -54,14 +55,12 @@ class CalibrationLibraryService implements CalibrationLibrary {
     this.headerReader = const FitsHeaderReader(),
     this.thresholds = CalibrationStalenessThresholds.defaults,
     RemoteCalibrationLibrary? remoteLibrary,
-    SkotiqBackend? backend,
     Future<String> Function()? sharedMasterDirResolver,
     DateTime Function()? now,
   }) : _db = db,
        _flatDao = flatLibraryDao,
        _tagsDao = tagsDao,
-       _backend = backend ?? ref?.read(backendProvider),
-       _backendNotifier = ref?.read(backendProvider.notifier),
+       _host = ref?.providerBackendScope(),
        _remoteLibrary = remoteLibrary,
        _sharedMasterDirResolver = sharedMasterDirResolver,
        _now = now ?? DateTime.now;
@@ -69,9 +68,8 @@ class CalibrationLibraryService implements CalibrationLibrary {
   final SkotiqDatabase _db;
   final FlatLibraryDao _flatDao;
   final CalibrationTagsDao _tagsDao;
-  final SkotiqBackend? _backend;
-  final BackendNotifier? _backendNotifier;
-  bool _retired = false;
+  /// The host this service was built for; null in wirings without one.
+  final AsyncScope<SkotiqBackend>? _host;
 
   /// The hub-backed shared calibration library. When set, [match] folds
   /// ranked REMOTE candidates into the local ranking and [acceptRemoteMaster]
@@ -88,13 +86,7 @@ class CalibrationLibraryService implements CalibrationLibrary {
   final CalibrationStalenessThresholds thresholds;
   final DateTime Function() _now;
 
-  bool get _hasAuthority {
-    final backend = _backend;
-    if (backend == null) return true;
-    return !_retired && (_backendNotifier?.isCurrentBackend(backend) ?? false);
-  }
-
-  void retire() => _retired = true;
+  bool get _hasAuthority => _host?.isCurrent ?? true;
 
   void _ensureAuthority() {
     if (_hasAuthority) return;
@@ -561,14 +553,14 @@ final calibrationLibraryProvider = Provider<CalibrationLibrary>(
 final calibrationLibraryServiceProvider = Provider<CalibrationLibraryService>((
   ref,
 ) {
-  final backend = ref.watch(backendProvider);
+  // One service per host: its work goes stale when the host changes.
+  ref.watch(backendProvider);
   final settings = ref.watch(settingsDaoProvider);
   final service = CalibrationLibraryService(
     db: ref.watch(databaseProvider),
     flatLibraryDao: ref.watch(flatLibraryDaoProvider),
     tagsDao: ref.watch(calibrationTagsDaoProvider),
     ref: ref,
-    backend: backend,
     // Fold ranked masters shared on the configured Constellation hub into
     // the local ranking, and download-on-accept. Reuses the same settings-backed
     // hub credentials Pillar C resolves; a no-hub config simply yields no remote
@@ -581,6 +573,5 @@ final calibrationLibraryServiceProvider = Provider<CalibrationLibraryService>((
       return p.join(dir.path, 'shared_calibration');
     },
   );
-  ref.onDispose(service.retire);
   return service;
 });

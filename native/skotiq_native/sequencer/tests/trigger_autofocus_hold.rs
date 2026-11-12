@@ -282,15 +282,19 @@ impl Run {
         // stopped for the sweep (the owner's setting); the failure action and
         // the HFR tolerance stay at their shipped defaults.
         executor
-            .update_autofocus_config(AutofocusConfig {
-                disable_guiding_during_af: true,
-                number_of_attempts: 1,
-                steps_out: 2,
-                exposure_duration,
-                focuser_settle_time_ms: 0,
-                ..AutofocusConfig::default()
+            .handle()
+            .update_run_config(|config| {
+                config.autofocus = Some(AutofocusConfig {
+                    disable_guiding_during_af: true,
+                    number_of_attempts: 1,
+                    steps_out: 2,
+                    exposure_duration,
+                    focuser_settle_time_ms: 0,
+                    ..AutofocusConfig::default()
+                })
             })
-            .await;
+            .await
+            .unwrap();
         let mut sequence = SequenceDefinition::new("Trigger autofocus".to_string());
         sequence.nodes.push(NodeDefinition {
             id: "wait".to_string(),
@@ -318,7 +322,12 @@ impl Run {
                             judged.store(true, Ordering::SeqCst);
                         }
                         Ok(ExecutorEvent::Error { message })
-                        | Ok(ExecutorEvent::Warning { message }) => {
+                        | Ok(ExecutorEvent::RunHeld { message })
+                        | Ok(ExecutorEvent::StepProblem { message })
+                        | Ok(
+                            ExecutorEvent::Warning { message }
+                            | ExecutorEvent::NoticedWarning { message, .. },
+                        ) => {
                             messages.lock().unwrap().push(message);
                         }
                         Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}

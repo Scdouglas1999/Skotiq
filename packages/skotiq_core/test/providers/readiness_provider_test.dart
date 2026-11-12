@@ -13,6 +13,7 @@ import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/profile_connection_status_provider.dart';
 import 'package:skotiq_core/src/providers/plate_solver_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/readiness_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
@@ -144,8 +145,16 @@ ProviderContainer _container({
       offlineProfileDeviceNamesProvider.overrideWithValue(
         offlineProfileDevices,
       ),
-      assignedProfileDeviceTypesProvider.overrideWithValue(
-        assignedProfileSlots,
+      rigDevicesProvider.overrideWithValue(
+        RigDevices([
+          for (final type in assignedProfileSlots)
+            RigDevice(
+              type: type,
+              assigned: true,
+              connected: false,
+              sessionOnly: false,
+            ),
+        ]),
       ),
       cameraStateProvider.overrideWith(
         (ref) =>

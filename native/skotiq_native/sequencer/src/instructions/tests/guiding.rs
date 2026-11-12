@@ -168,7 +168,9 @@ async fn start_guiding_with(
 
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -412,7 +414,9 @@ mod while_imaging_unguided {
     ) -> UnguidedRun {
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let crate::executor::ExecutorEvent::Warning { message } = event {
+            if let crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }
@@ -540,7 +544,9 @@ fn drain_warnings(
 ) -> Vec<String> {
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }

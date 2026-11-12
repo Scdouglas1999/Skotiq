@@ -536,7 +536,11 @@ impl TriggerState {
     /// in the focuser position. Set after a filter-offset move so the next
     /// filter change applies only the delta. See `last_applied_filter_offset`.
     pub fn set_last_applied_filter_offset(&mut self, offset: i32) {
+        let moved = offset - self.latches.last_applied_filter_offset;
         self.latches.last_applied_filter_offset = offset;
+        if let Some(compensation) = self.latches.focus_compensation.as_mut() {
+            compensation.shifted_by(moved);
+        }
     }
 
     /// Store the latest cloud-motion analyzer reading. Every argument is
@@ -702,7 +706,6 @@ impl TriggerState {
         self.tracking.set_expected(expected);
     }
 
-    /// Update dome shutter status
     pub fn update_dome_status(&mut self, status: String) {
         self.telemetry.dome_shutter_status = Some(status);
     }

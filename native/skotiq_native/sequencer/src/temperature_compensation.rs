@@ -23,7 +23,6 @@ pub async fn execute_temperature_compensation(
         Err(e) => return e,
     };
 
-    // Emit initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Starting temperature compensation".to_string());
     }
@@ -34,12 +33,10 @@ pub async fn execute_temperature_compensation(
         config.mode
     );
 
-    // Emit progress for reading temperature
     if let Some(cb) = progress_callback {
         cb(10.0, "Reading focuser temperature...".to_string());
     }
 
-    // Get current focuser temperature
     let current_temp = match ctx
         .run
         .device_ops
@@ -56,13 +53,13 @@ pub async fn execute_temperature_compensation(
             return InstructionResult::failure(format!(
                 "Failed to read focuser temperature: {}",
                 e
-            ));
+            ))
+            .caused_by(&e);
         }
     };
 
     tracing::info!("Current focuser temperature: {:.2}°C", current_temp);
 
-    // Emit progress with temperature reading
     if let Some(cb) = progress_callback {
         cb(
             20.0,
@@ -82,7 +79,6 @@ pub async fn execute_temperature_compensation(
 
     let mut trigger_state = trigger_state_lock.write().await;
 
-    // Get or set baseline temperature
     let baseline_temp = match trigger_state.latches.baseline_temperature {
         Some(temp) => temp,
         None => {
@@ -99,10 +95,8 @@ pub async fn execute_temperature_compensation(
         }
     };
 
-    // Update current temperature in trigger state
     trigger_state.latches.current_temperature = Some(current_temp);
 
-    // Calculate temperature change
     let temp_delta = current_temp - baseline_temp;
 
     tracing::info!(
@@ -112,7 +106,6 @@ pub async fn execute_temperature_compensation(
         current_temp
     );
 
-    // Emit progress for calculating compensation
     if let Some(cb) = progress_callback {
         cb(
             40.0,
@@ -120,7 +113,6 @@ pub async fn execute_temperature_compensation(
         );
     }
 
-    // Check if temperature change exceeds threshold
     if temp_delta.abs() < config.min_temp_change {
         tracing::debug!(
             "Temperature change ({:.2}°C) below threshold ({:.2}°C), no compensation needed",
@@ -171,13 +163,13 @@ pub async fn execute_temperature_compensation(
     let current_position = match ctx.run.device_ops.focuser_get_position(&focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
-            return InstructionResult::failure(format!("Failed to get focuser position: {}", e));
+            return InstructionResult::failure(format!("Failed to get focuser position: {}", e))
+                .caused_by(&e);
         }
     };
 
     tracing::debug!("Current focuser position: {}", current_position);
 
-    // Calculate new position based on mode.
     let new_position = match config.mode {
         CompensationMode::Relative => current_position + position_delta,
         CompensationMode::Absolute => {
@@ -204,7 +196,6 @@ pub async fn execute_temperature_compensation(
         position_delta
     );
 
-    // Emit progress for moving focuser
     if let Some(cb) = progress_callback {
         cb(
             60.0,
@@ -212,7 +203,6 @@ pub async fn execute_temperature_compensation(
         );
     }
 
-    // Check for cancellation
     if let Some(result) = ctx.check_cancelled() {
         return result;
     }
@@ -232,14 +222,14 @@ pub async fn execute_temperature_compensation(
         return stopped;
     }
 
-    // Verify final position
     let final_position = match ctx.run.device_ops.focuser_get_position(&focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
             return InstructionResult::failure(format!(
                 "Failed to verify final focuser position after temperature compensation move: {}",
                 e
-            ));
+            ))
+            .caused_by(&e);
         }
     };
 
@@ -261,7 +251,6 @@ pub async fn execute_temperature_compensation(
         tracing::info!("Temperature baseline reset to {:.2}°C", current_temp);
     }
 
-    // Emit final progress
     if let Some(cb) = progress_callback {
         cb(
             100.0,
@@ -288,10 +277,9 @@ async fn move_focuser_and_wait(
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> Result<(), InstructionResult> {
     if let Err(e) = ctx.run.device_ops.focuser_move_to(focuser_id, target).await {
-        return Err(InstructionResult::failure(format!(
-            "Failed to move focuser: {}",
-            e
-        )));
+        return Err(
+            InstructionResult::failure(format!("Failed to move focuser: {}", e)).caused_by(&e),
+        );
     }
 
     let move_start = std::time::Instant::now();
@@ -416,8 +404,9 @@ const ARRIVAL_TOLERANCE_STEPS: i32 = 2;
 /// out of a run: the reference (temperature, position) stays fixed while it
 /// works, so rounding is never thrown away, and the focuser moves only once
 /// the correction owed reaches the smallest move. A move it did not make (an
-/// autofocus, a filter offset, a jog) is the new focus to hold, so it takes a
-/// new reference instead of undoing it.
+/// autofocus, a jog) is the new focus to hold, so it takes a new reference
+/// instead of undoing it. A filter's focus offset is not a new focus: the
+/// reference moves with it (see [`Self::shifted_by`]).
 #[derive(Debug, Clone)]
 pub struct FocusCompensation {
     settings: FocusCompensationSettings,
@@ -498,6 +487,15 @@ impl FocusCompensation {
             owed,
             degrees_since_reference,
         }
+    }
+
+    /// A filter's focus offset moved the focuser `steps`. The reference moves
+    /// with it, so the correction owed for the temperature so far is kept.
+    pub fn shifted_by(&mut self, steps: i32) {
+        if let Some(reference) = self.reference.as_mut() {
+            reference.position += steps;
+        }
+        self.expected_position += steps;
     }
 
     /// The focuser reached `target`; the reference stays where it is.
@@ -644,7 +642,6 @@ async fn tell_once(ctx: &InstructionContext, message: &str) {
     }
 }
 
-/// Configuration for temperature compensation
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TemperatureCompensationConfig {
     /// Thermal coefficient in steps per degree Celsius
@@ -663,7 +660,6 @@ pub struct TemperatureCompensationConfig {
     #[serde(default = "default_min_step_change")]
     pub min_step_change: i32,
 
-    /// Compensation mode
     #[serde(default)]
     pub mode: CompensationMode,
 
@@ -707,7 +703,6 @@ fn default_timeout_secs() -> u32 {
     120
 }
 
-/// Temperature compensation mode
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
 pub enum CompensationMode {
     /// Move relative to current position based on temp delta
@@ -832,7 +827,7 @@ mod tests {
         );
     }
 
-    /// An autofocus or a filter offset set a new focus: hold that one.
+    /// An autofocus or a jog set a new focus: hold that one.
     #[test]
     fn a_move_it_did_not_make_is_the_new_reference_not_drift_to_undo() {
         let mut compensation = rig_compensation();
@@ -848,6 +843,75 @@ mod tests {
         let _ = compensation.step(8.6, 25_400);
         compensation.moved_to(25_405);
         assert_eq!(compensation.step(8.6, 25_407), CompensationStep::Hold);
+    }
+
+    /// An LRGB plan changes filter every few frames, and each change moves
+    /// the focuser by the filters' offset. Over a 2 °C cooling the focuser
+    /// still ends 25 steps out of where the reference filter started.
+    #[test]
+    fn filter_offsets_between_frames_do_not_drop_the_correction_owed() {
+        let mut state = crate::triggers::TriggerState::new();
+        state.latches.focus_compensation = Some(rig_compensation());
+        let offsets = [0, 30, -12, 18];
+        let mut position = 25_000;
+        for frame in 0..=40 {
+            if frame % 2 == 0 {
+                let offset = offsets[(frame / 2) % offsets.len()];
+                position += offset - state.latches.last_applied_filter_offset;
+                state.set_last_applied_filter_offset(offset);
+            }
+            let temperature = 10.0 - frame as f64 * 0.05;
+            let compensation = state.latches.focus_compensation.as_mut().unwrap();
+            if let CompensationStep::Move { target, .. } = compensation.step(temperature, position)
+            {
+                position = target;
+                compensation.moved_to(target);
+            }
+        }
+
+        assert_eq!(position - state.latches.last_applied_filter_offset, 25_025);
+    }
+
+    /// The app's idle compensator is this rule written again in Dart
+    /// (`FocusCompensationRule`). Both run every case in this file, so the
+    /// two cannot come apart without a test failing on one side.
+    #[test]
+    fn the_rule_gives_what_the_shared_cases_say() {
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("temperature_compensation_cases.json")).unwrap();
+        for case in cases.as_array().unwrap() {
+            let name = case["name"].as_str().unwrap();
+            let mut compensation = FocusCompensation::new(FocusCompensationSettings {
+                steps_per_degree: case["steps_per_degree"].as_f64().unwrap(),
+                min_steps: case["min_steps"].as_u64().unwrap() as u32,
+            });
+            for (index, op) in case["ops"].as_array().unwrap().iter().enumerate() {
+                let int = |key: &str| op[key].as_i64().unwrap() as i32;
+                match op["op"].as_str().unwrap() {
+                    "shifted_by" => compensation.shifted_by(int("steps")),
+                    "moved_to" => compensation.moved_to(int("target")),
+                    "forget_reference" => compensation.forget_reference(),
+                    "step" => {
+                        let step =
+                            compensation.step(op["temperature"].as_f64().unwrap(), int("position"));
+                        let got = match step {
+                            CompensationStep::TakeReference { moved_from } => {
+                                serde_json::json!({ "kind": "take_reference", "moved_from": moved_from })
+                            }
+                            CompensationStep::Hold => serde_json::json!({ "kind": "hold" }),
+                            CompensationStep::Move { target, owed, .. } => {
+                                serde_json::json!({ "kind": "move", "target": target, "owed": owed })
+                            }
+                            CompensationStep::Refuse { target } => {
+                                serde_json::json!({ "kind": "refuse", "target": target })
+                            }
+                        };
+                        assert_eq!(got, op["expect"], "case '{name}', op {index}");
+                    }
+                    other => panic!("case '{name}': unknown op {other}"),
+                }
+            }
+        }
     }
 
     #[test]

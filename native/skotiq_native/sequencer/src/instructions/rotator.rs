@@ -55,10 +55,9 @@ pub(crate) async fn rotator_move_to_verified(
         .rotator_move_to(rotator_id, target_abs)
         .await
     {
-        return Err(InstructionResult::failure(format!(
-            "Rotator move failed: {}",
-            e
-        )));
+        return Err(
+            InstructionResult::failure(format!("Rotator move failed: {}", e)).caused_by(&e),
+        );
     }
 
     let mut elapsed = 0.0_f64;
@@ -72,7 +71,8 @@ pub(crate) async fn rotator_move_to_verified(
                 return Err(InstructionResult::failure(format!(
                     "Failed to read rotator angle during move: {}",
                     e
-                )))
+                ))
+                .caused_by(&e))
             }
         };
         if rotator_angle_diff(current, target_abs).abs() <= ROTATOR_TOLERANCE_DEG {
@@ -97,7 +97,6 @@ pub(crate) async fn rotator_move_to_verified(
 
 // Rotator instruction
 
-/// Execute rotator move
 pub async fn execute_rotator_move(
     config: &RotatorConfig,
     ctx: &InstructionContext,
@@ -114,7 +113,6 @@ pub async fn execute_rotator_move(
         config.relative
     );
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, format!("Moving to {:.1}", config.target_angle));
     }
@@ -129,6 +127,7 @@ pub async fn execute_rotator_move(
                     "Failed to read rotator angle before relative move: {}",
                     e
                 ))
+                .caused_by(&e)
             }
         }
     } else {

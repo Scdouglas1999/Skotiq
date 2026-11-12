@@ -146,8 +146,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
     container.read(scienceProcessingServiceProvider);
     return (container.read(sequenceExecutorProvider), science);
   }

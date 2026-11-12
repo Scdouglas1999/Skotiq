@@ -1,8 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/darkroom/darkroom_job.dart';
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 import '../sqlite_busy.dart';
@@ -334,7 +332,3 @@ class DarkroomJobsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 }
-
-final darkroomJobsDaoProvider = Provider<DarkroomJobsDao>((ref) {
-  return DarkroomJobsDao(ref.watch(databaseProvider));
-});

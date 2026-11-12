@@ -23,7 +23,7 @@ import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import 'night_mount_tab.dart';
-import 'night_panel_parts.dart';
+import '../panel_widgets.dart';
 
 /// An object the Go to field resolved, J2000.
 @immutable
@@ -161,7 +161,7 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final runTarget = ref.watch(nightCenterTargetProvider);
     final coordinates = _coordinates;
     final isRunTarget = coordinates != null &&

@@ -7,15 +7,14 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// "position 6620, 14.5 °C, on 14 September 2026" — the conditions the figure
+/// "position 6620, 14.5 °C, on Sep 14, 2026" — the conditions the figure
 /// belongs to, for the wizard's result panel.
 String backlashConditions(FocuserBacklashCalibration c) {
-  final date = DateFormat('d MMMM yyyy').format(c.takenAt.toLocal());
+  final date = ClockFormat.monthDayYear(c.takenAt.toLocal());
   final temperature = c.temperatureCelsius;
   if (temperature == null) {
     // Not "unknown": the focuser has no probe to ask. Say which it is, because
@@ -29,10 +28,10 @@ String backlashConditions(FocuserBacklashCalibration c) {
       '${formatCelsius(temperature)} on $date';
 }
 
-/// The compact form for a settings sub-line: "measured on 14 Sep 2026 at
+/// The compact form for a settings sub-line: "measured on Sep 14, 2026 at
 /// position 6620".
 String backlashRecordSubLine(FocuserBacklashCalibrationRecord record) {
-  final date = DateFormat('d MMM yyyy').format(record.measuredAt.toLocal());
+  final date = ClockFormat.monthDayYear(record.measuredAt.toLocal());
   return 'measured on $date at position ${record.measuredAtPosition}';
 }
 

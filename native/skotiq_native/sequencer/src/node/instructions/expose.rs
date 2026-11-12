@@ -11,7 +11,7 @@ use crate::instructions::{
     Setback,
 };
 use crate::node::context::ExecutionContext;
-use crate::node::instructions::autofocus::refocus_detail;
+use crate::node::instructions::autofocus::autofocus_detail;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
 use crate::scheduling::{
@@ -149,19 +149,6 @@ impl InstructionNode for ExposeInstruction {
         effective_config.duration_secs = duration_secs;
         let effective_config = effective_config;
 
-        // capture the rejected-frame counter BEFORE the
-        // burst so we can compute the per-burst rejection delta after the
-        // burst returns. `frames_rejected` is a session-wide atomic
-        // incremented from inside `execute_exposure` when grading marks a
-        // frame as Reject; we use the delta (after - before) to determine
-        // how many of *this* burst's frames were rejected so the budget
-        // credit can skip them.
-        let frames_rejected_before = context
-            .run
-            .grading
-            .frames_rejected
-            .load(std::sync::atomic::Ordering::Relaxed);
-
         // build the save-path renderer. Captures a clone of the
         // ExecutionContext and the burst-config so the same per-frame
         // EvaluationFrame can resolve `${frame}`, `${exposure.duration}`,
@@ -218,7 +205,7 @@ impl InstructionNode for ExposeInstruction {
             status: Some(&status_fn),
             frames_taken,
         };
-        let result = {
+        let burst = {
             let _camera_guard = match camera_lock.as_ref() {
                 Some(lock) => Some(lock.lock().await),
                 None => None,
@@ -230,7 +217,7 @@ impl InstructionNode for ExposeInstruction {
                 Some(path_renderer),
                 &control,
                 |current, total, recorded_secs| {
-                    resume.set_frames_taken(node_id, current);
+                    resume.frame_taken(node_id, current);
                     if let Some(cb) = progress_cb {
                         let percent = if total > 0 {
                             100.0 * f64::from(current) / f64::from(total)
@@ -266,6 +253,7 @@ impl InstructionNode for ExposeInstruction {
             )
             .await
         };
+        let result = burst.result;
         if result.status != NodeStatus::Cancelled {
             context.resume.burst_ended(node_id);
         }
@@ -286,9 +274,8 @@ impl InstructionNode for ExposeInstruction {
             // the final stack, so crediting its exposure time against the
             // budget would over-promise progress: the dashboard would
             // show "60/60 L frames complete" while only e.g. 54 are
-            // usable. Compute the per-burst rejected count from the
-            // before/after atomic delta and subtract its time from the
-            // budget credit.
+            // usable. The burst's own rejected frames are subtracted from
+            // the budget credit.
             //
             // Why subtract instead of skipping `record_exposure` entirely
             // when there were rejects: a partial burst (e.g. 8 of 10
@@ -299,14 +286,7 @@ impl InstructionNode for ExposeInstruction {
             // wants to see even for rejected subs. The budget counter
             // measures "integration that contributes to the goal", which
             // is the passed-frames-only quantity.
-            let frames_rejected_after = context
-                .run
-                .grading
-                .frames_rejected
-                .load(std::sync::atomic::Ordering::Relaxed);
-            let rejected_in_burst = frames_rejected_after
-                .saturating_sub(frames_rejected_before)
-                .min(frames_to_take);
+            let rejected_in_burst = burst.frames_rejected;
             let passed_count = frames_to_take.saturating_sub(rejected_in_burst);
             let budget_credit_secs = duration_secs * f64::from(passed_count);
 
@@ -467,6 +447,7 @@ pub(crate) fn build_save_path_renderer(
     let filter_index = config.filter_index;
     let reject_folder_override = context.run.grading.reject_folder_path.clone();
     // ExecutionContext is cheaply Clone-able (every field is `Arc`/`Copy`).
+    let extension = context.run.device_ops.frame_file_extension();
     let mut ctx_snapshot = context.clone();
     // A calibration frame has no target BY NATURE — the shutter is closed or the
     // scope is on a flat panel — so `${target.name}` in the default template
@@ -504,7 +485,8 @@ pub(crate) fn build_save_path_renderer(
             };
             let rendered = interpolate(&effective_template, &ctx_snapshot, &eval)
                 .map_err(|e| e.to_string())?;
-            split_rendered_save_path(&rendered, base_path.as_ref())
+            let (dir, name) = split_rendered_save_path(&rendered, base_path.as_ref())?;
+            Ok((dir, with_frame_extension(&name, extension)))
         };
         let taken = |frame_number: u32| -> Result<bool, String> {
             let (dir, name) = render(frame_number)?;
@@ -532,6 +514,19 @@ pub(crate) fn build_save_path_renderer(
         })?;
         Ok((final_dir, filename))
     }))
+}
+
+/// `name` with the extension of the format frames are saved in. A template
+/// that names a frame format (`.fits`, `.xisf`, ...) or none gets the saved
+/// format's, so the capture format setting decides what lands on disk; any
+/// other extension the user typed is kept and the format's appended.
+fn with_frame_extension(name: &str, extension: &str) -> String {
+    let path = std::path::Path::new(name);
+    if skotiq_imaging::is_frame_path(path) {
+        path.with_extension(extension).to_string_lossy().into_owned()
+    } else {
+        format!("{name}.{extension}")
+    }
 }
 
 /// Split a rendered save path into its directory and filename, resolving a
@@ -1031,7 +1026,7 @@ pub(crate) async fn check_exposure_triggers(
                             progress_node_id.clone(),
                             "Autofocus",
                             percent,
-                            refocus_detail(progress, total_steps),
+                            autofocus_detail(progress, total_steps),
                         ));
                     }
                 };
@@ -1139,79 +1134,6 @@ mod tests {
         );
     }
 
-    // budget x grading coordination.
-    //
-    // The `expose` instruction credits the active target's integration
-    // budget only for frames that passed grading. Rejected frames are
-    // subtracted from the credit so the dashboard's per-filter progress
-    // bar reflects "useful integration", not "shutter-open time".
-    //
-    // We test the coordination by directly exercising BudgetRegistry +
-    // an atomic counter — the same primitives `execute()` uses — so the
-    // test is independent of the camera / FITS-save machinery.
-
-    /// Helper: simulate the per-burst credit logic from `execute()`.
-    /// Returns the actual seconds credited.
-    fn compute_budget_credit_secs(
-        duration_secs: f64,
-        total_count: u32,
-        frames_rejected_before: u32,
-        frames_rejected_after: u32,
-    ) -> f64 {
-        let rejected_in_burst = frames_rejected_after
-            .saturating_sub(frames_rejected_before)
-            .min(total_count);
-        let passed_count = total_count.saturating_sub(rejected_in_burst);
-        duration_secs * f64::from(passed_count)
-    }
-
-    #[test]
-    fn all_frames_pass_credits_full_burst() {
-        // 10 frames × 60s each, 0 rejected → full 600s credit
-        let credit = compute_budget_credit_secs(60.0, 10, 5, 5);
-        assert!(
-            (credit - 600.0).abs() < f64::EPSILON,
-            "expected 600s credit, got {}",
-            credit
-        );
-    }
-
-    #[test]
-    fn partial_burst_rejection_credits_only_passed_frames() {
-        // 10 frames × 60s each, 3 rejected → 7 * 60 = 420s credit
-        let credit = compute_budget_credit_secs(60.0, 10, 12, 15);
-        assert!(
-            (credit - 420.0).abs() < f64::EPSILON,
-            "expected 420s credit (7 passed * 60s), got {}",
-            credit
-        );
-    }
-
-    #[test]
-    fn all_frames_rejected_credits_zero() {
-        // 5 frames × 90s each, all 5 rejected → 0s credit
-        let credit = compute_budget_credit_secs(90.0, 5, 0, 5);
-        assert!(
-            credit.abs() < f64::EPSILON,
-            "expected 0s credit when every frame rejected, got {}",
-            credit
-        );
-    }
-
-    #[test]
-    fn rejected_count_clamped_to_burst_size() {
-        // Defensive: if the atomic delta exceeds the burst total (e.g.
-        // overlapping bursts / counter rollover), the clamp prevents
-        // negative credit. 5-frame burst, atomic delta 8 → all rejected,
-        // 0 credit (not negative).
-        let credit = compute_budget_credit_secs(120.0, 5, 100, 108);
-        assert!(
-            credit.abs() < f64::EPSILON,
-            "expected 0s when delta > total_count (clamped), got {}",
-            credit
-        );
-    }
-
     /// End-to-end through BudgetRegistry: a rejected frame must NOT
     /// increment the budget counter for its filter.
     #[test]
@@ -1233,10 +1155,9 @@ mod tests {
             };
             registry.enter_target("m42", Some(budget)).await;
 
-            // Pretend a 10-frame × 60s L burst happened with 3 frames
-            // rejected — `expose::execute` would compute 7 * 60 = 420
-            // seconds and call `record_exposure("L", 420.0)`.
-            let credit_secs = compute_budget_credit_secs(60.0, 10, 0, 3);
+            // A 10-frame × 60 s L burst with 3 frames rejected credits
+            // 7 * 60 = 420 s.
+            let credit_secs = 420.0;
             let state = registry
                 .record_exposure(Some("L"), credit_secs)
                 .await
@@ -1248,17 +1169,8 @@ mod tests {
                 state.completed_by_filter.get("L")
             );
 
-            // Pretend a second 10-frame burst, this time ALL rejected.
-            // The expose path takes the "skip record_exposure" branch
-            // entirely (credit == 0.0), so the L counter is unchanged.
-            let credit_secs_2 = compute_budget_credit_secs(60.0, 10, 3, 13);
-            assert!(
-                credit_secs_2.abs() < f64::EPSILON,
-                "all-rejected burst should credit 0s"
-            );
-            // The expose path skips `record_exposure` when the credit
-            // is 0; we mirror that — the test would only call it when
-            // > 0. Re-read state to confirm the counter is still 420.
+            // A second burst with every frame rejected skips
+            // `record_exposure`, so the L counter is unchanged.
             let state2 = registry
                 .state_for("m42")
                 .await
@@ -1674,6 +1586,52 @@ mod tests {
         assert!(
             elapsed < std::time::Duration::from_millis(700),
             "separate cameras must still expose concurrently; took {elapsed:?}"
+        );
+    }
+
+    /// A burst credits its target's budget with its own frames that passed.
+    /// Counting this burst's rejects as the change in the run's rejected
+    /// count across it charged it for frames rejected elsewhere meanwhile (a
+    /// Parallel branch, a second camera).
+    #[tokio::test]
+    async fn a_frame_rejected_elsewhere_during_a_burst_does_not_cost_its_budget_credit() {
+        let dir = std::env::temp_dir().join(format!("sk-expose-budget-{}", uuid::Uuid::new_v4()));
+        let mut ctx = ExecutionContext::new_for_test("expose-budget".to_string());
+        ctx.run.rig.camera_id = Some("sim_camera_1".to_string());
+        ctx.current_filter = Some("L".to_string());
+        let budget = crate::IntegrationBudget {
+            total_secs: 3600.0,
+            ..crate::IntegrationBudget::default()
+        };
+        ctx.budget_registry.enter_target("m42", Some(budget)).await;
+        let rejected_elsewhere = ctx.run.grading.frames_rejected.clone();
+        ctx.progress_callback = Some(std::sync::Arc::new(move |update: ProgressUpdate| {
+            if update.current_frame.is_some() {
+                rejected_elsewhere.fetch_add(1, Ordering::Relaxed);
+            }
+        }));
+
+        let node_type = NodeType::TakeExposure(crate::ExposureConfig {
+            count: 3,
+            duration_secs: 0.01,
+            frame_type: "light".to_string(),
+            save_to: Some(format!("{}/${{frame:04}}.fits", dir.display())),
+            dither_every: Some(0),
+            ..Default::default()
+        });
+        let status = ExposeInstruction
+            .execute("expose-budget", &node_type, &mut ctx)
+            .await;
+        let state = ctx.budget_registry.state_for("m42").await;
+        let _ = std::fs::remove_dir_all(&dir);
+
+        assert_eq!(status, NodeStatus::Success);
+        let credited = state
+            .and_then(|state| state.completed_by_filter.get("L").copied())
+            .unwrap_or(0.0);
+        assert!(
+            (credited - 0.03).abs() < 1e-9,
+            "three passed frames of 0.01 s, credited {credited} s"
         );
     }
 

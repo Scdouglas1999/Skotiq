@@ -907,16 +907,6 @@ final _stackBroadcast = NodeField<LiveStackingNode, bool>(
   (n) => n.broadcastEnabled,
   FieldCodec.flag,
 );
-final _stackPort = NodeField<LiveStackingNode, int>(
-  'broadcastPort',
-  (n) => n.broadcastPort,
-  FieldCodec.integer,
-);
-final _stackPath = NodeField<LiveStackingNode, String>(
-  'broadcastPath',
-  (n) => n.broadcastPath,
-  FieldCodec.text,
-);
 final _stackToken = NodeField<LiveStackingNode, String?>(
   'authToken',
   (n) => n.authToken,
@@ -1378,9 +1368,11 @@ abstract final class NodeKinds {
     icon: 'camera',
     category: NodeCategory.instruction,
     filters: (node) => [node.filter],
-    renameFilter: (node, rename) => node.filter == null
-        ? node
-        : node.copyWith(filter: rename(node.filter!)),
+    renameFilter: (node, rename) {
+      final filter = node.filter;
+      if (filter == null || rename(filter) == filter) return node;
+      return node.copyWith(clearFilter: true).copyWith(filter: rename(filter));
+    },
     requiredDevices: const {DeviceType.camera},
     stage: NodeStage.capture,
     create: ExposureNode.new,
@@ -1451,7 +1443,12 @@ abstract final class NodeKinds {
     renameFilter: (node, rename) => node.copyWith(
       plans: [
         for (final plan in node.plans)
-          plan.copyWith(filterName: rename(plan.filterName)),
+          rename(plan.filterName) == plan.filterName
+              ? plan
+              : plan.copyWith(
+                  filterName: rename(plan.filterName),
+                  filterIndex: null,
+                ),
       ],
     ),
     requiredDevices: const {DeviceType.camera, DeviceType.filterWheel},
@@ -1608,9 +1605,20 @@ abstract final class NodeKinds {
     icon: 'circle',
     category: NodeCategory.instruction,
     filters: (node) => [node.filterName],
-    renameFilter: (node, rename) =>
-        node.copyWith(filterName: rename(node.filterName)),
-    autoName: (node) => 'Filter: ${node.filterName}',
+    renameFilter: (node, rename) => rename(node.filterName) == node.filterName
+        ? node
+        : FilterChangeNode(
+            id: node.id,
+            name: node.name,
+            isEnabled: node.isEnabled,
+            childIds: node.childIds,
+            parentId: node.parentId,
+            orderIndex: node.orderIndex,
+            comment: node.comment,
+            filterName: rename(node.filterName),
+          ),
+    autoName: (node) =>
+        node.filterName.trim().isEmpty ? '' : 'Filter: ${node.filterName}',
     requiredDevices: const {DeviceType.filterWheel},
     create: () => FilterChangeNode(filterName: ''),
     fields: [_filterName, _filterPosition],
@@ -1987,8 +1995,6 @@ abstract final class NodeKinds {
       _stackMethod,
       _stackMaxFrames,
       _stackBroadcast,
-      _stackPort,
-      _stackPath,
       _stackToken,
       _stackWatermark,
       _stackThumbWidth,
@@ -1999,8 +2005,6 @@ abstract final class NodeKinds {
       stackMethod: v(_stackMethod),
       maxFramesToStack: v(_stackMaxFrames),
       broadcastEnabled: v(_stackBroadcast),
-      broadcastPort: v(_stackPort),
-      broadcastPath: v(_stackPath),
       authToken: v(_stackToken),
       watermarkText: v(_stackWatermark),
       thumbnailWidth: v(_stackThumbWidth),
@@ -2013,7 +2017,6 @@ abstract final class NodeKinds {
     diff: [
       NodeDiffLine.of(_stackMode, 'Mode', (v) => v.label),
       NodeDiffLine.of(_stackMethod, 'Stack method', (v) => v.label),
-      NodeDiffLine.of(_stackPort, 'Broadcast port'),
       NodeDiffLine.of(_stackBroadcast, 'Broadcast enabled'),
       NodeDiffLine.summary('Public access', (n) => '${n.isPublic}'),
       NodeDiffLine.of(_stackWatermark, 'Watermark', _orNone),

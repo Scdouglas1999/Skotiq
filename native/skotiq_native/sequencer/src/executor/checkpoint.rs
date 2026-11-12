@@ -35,7 +35,7 @@
 //!     that lives in [`crate::checkpoint`]. This file is only the
 //!     executor-side bridge.
 
-use super::{CheckpointSources, CheckpointWriter, RunRig, SequenceExecutor};
+use super::{CheckpointSources, CheckpointWriter, ExecutorState, RunRig, SequenceExecutor};
 use std::sync::Arc;
 
 impl SequenceExecutor {
@@ -102,7 +102,12 @@ impl SequenceExecutor {
             self.filterwheel_id = cp.filterwheel_id.clone();
             self.rotator_id = cp.rotator_id.clone();
 
-            self.set_location(cp.latitude, cp.longitude).await;
+            self.handle()
+                .update_run_config(|config| {
+                    config.latitude = cp.latitude;
+                    config.longitude = cp.longitude;
+                })
+                .await?;
 
             self.save_path = cp.save_path.clone();
 
@@ -131,9 +136,9 @@ impl SequenceExecutor {
 
         let budget_registry = crate::scheduling::integration_budget::BudgetRegistry::new();
         let mut smart_exposure_states = std::collections::HashMap::new();
-        let mut frames_taken = std::collections::HashMap::new();
+        let mut frames = crate::node::resume::BurstFrames::default();
         if let Some(prepared) = &self.current_checkpoint {
-            frames_taken = prepared.exposure_frames_taken.clone();
+            frames = crate::node::resume::BurstFrames::from_checkpoint(prepared);
             budget_registry
                 .restore_snapshot(prepared.budget_states.clone())
                 .await;
@@ -143,7 +148,7 @@ impl SequenceExecutor {
             Some(root) => {
                 let mut passes = std::collections::HashMap::new();
                 root.snapshot_loop_iterations(&mut passes);
-                crate::node::resume::ResumeRecord::new(root.as_ref(), passes, frames_taken)
+                crate::node::resume::ResumeRecord::new(root.as_ref(), passes, frames)
             }
             None => crate::node::resume::ResumeRecord::default(),
         };
@@ -164,7 +169,6 @@ impl SequenceExecutor {
                 },
                 settings: self.settings.clone(),
                 trigger_manager: self.trigger_manager.clone(),
-                triggers_enabled: self.triggers_enabled,
                 budget_registry,
                 smart_exposure_states: Arc::new(tokio::sync::RwLock::new(smart_exposure_states)),
                 resume,
@@ -192,10 +196,9 @@ impl SequenceExecutor {
     /// executor via [`Self::load_checkpoint`]), rebuilds the runtime
     /// node tree from the persisted definition, marks already-Success
     /// nodes on the fresh tree, restores the trigger state snapshot,
-    /// and re-applies safety / triggers-enabled / filter-offsets
-    /// fields. The next `start()` walks the same tree and short-
-    /// circuits the marked nodes — that is what makes resume
-    /// idempotent.
+    /// and re-applies the safety mode and the filter offsets. The next
+    /// `start()` walks the same tree and short-circuits the marked nodes —
+    /// that is what makes resume idempotent.
     ///
     /// Errors when no checkpoint is loaded or when the checkpoint
     /// itself reports `can_resume() == false` (e.g. checkpoint was
@@ -208,6 +211,18 @@ impl SequenceExecutor {
 
         if !checkpoint.can_resume() {
             return Err("Checkpoint cannot be resumed".to_string());
+        }
+
+        // A run that ended in this launch leaves the executor in its terminal
+        // state, and a start recycles such an executor, node tree included.
+        // Recycled here instead, before the tree is marked, the start that
+        // follows finds nothing to wipe: stopping, restoring and starting
+        // again without a restart used to run the whole plan a second time.
+        if matches!(
+            self.run_state.get(),
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            self.reset().await;
         }
 
         self.load_sequence(checkpoint.sequence.clone())?;
@@ -225,8 +240,9 @@ impl SequenceExecutor {
         // short-circuits already-Success nodes.
         if let Some(ref mut root) = self.root_node {
             let imaging = crate::node::resume::imaging_steps(root.as_ref());
+            let kept = crate::node::resume::kept_on_resume(root.as_ref());
             for node_id in checkpoint.get_completed_nodes() {
-                if imaging.contains(&node_id) {
+                if kept.contains(&node_id) {
                     root.mark_completed(&node_id);
                 }
             }
@@ -242,12 +258,12 @@ impl SequenceExecutor {
         if let Some(snapshot) = checkpoint.trigger_state.as_ref() {
             // The interrupted run's settings first, then its trigger state on
             // top, so the trigger state ends as the checkpoint had it.
-            self.update_config(|config| {
-                config.safety_fail_mode = snapshot.safety_fail_mode;
-                config.filter_focus_offsets = snapshot.filter_focus_offsets.clone();
-            })
-            .await;
-            self.triggers_enabled = snapshot.triggers_enabled;
+            self.handle()
+                .update_run_config(|config| {
+                    config.safety_fail_mode = snapshot.safety_fail_mode;
+                    config.filter_focus_offsets = snapshot.filter_focus_offsets.clone();
+                })
+                .await?;
             let trigger_state = {
                 let manager = self.trigger_manager.read().await;
                 manager.state()

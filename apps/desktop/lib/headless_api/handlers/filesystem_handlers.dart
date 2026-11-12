@@ -189,6 +189,8 @@ class FileSystemHandlers implements RouteSource {
         '[API] Validate rejected: $canonicalRequested is not under any '
         'allow-listed root (${roots.map((r) => r.canonicalPath).join(", ")})',
       );
+      // Unlike browse, the refusal does not list the roots: validate answers
+      // about the one folder it was asked about.
       return jsonForbidden({
         'error': 'path_not_allowed',
         'message':
@@ -196,9 +198,6 @@ class FileSystemHandlers implements RouteSource {
         'valid': false,
         'exists': false,
         'writable': false,
-        'allowedRoots': roots
-            .map((r) => {'name': r.label, 'path': r.canonicalPath})
-            .toList(),
       });
     }
 

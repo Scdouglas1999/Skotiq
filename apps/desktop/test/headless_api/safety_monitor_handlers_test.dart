@@ -164,7 +164,7 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['status'], 'acknowledged');
-      expect(body['snoozeUntil'], isA<String>());
+      expect(body['snoozeUntil'], endsWith('Z'));
     });
 
     test('cancel acknowledgement clears the host snooze', () async {
@@ -202,10 +202,7 @@ void main() {
 
 class _NoopSafetyBackend extends DisconnectedBackend {
   @override
-  Future<void> sequencerSetSafetyFailMode(String mode) async {}
-
-  @override
-  Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {}
+  Future<void> sequencerApplyRunConfig(String runConfigJson) async {}
 }
 
 class _TestBackendNotifier extends BackendNotifier {

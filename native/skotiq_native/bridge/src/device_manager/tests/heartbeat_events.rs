@@ -89,7 +89,7 @@ async fn stop_heartbeat_on_registered_but_inactive_device_emits_no_event() {
 // can at least lock down the contract that:
 //   - the helper name we depend on exists and has the expected signature
 //     (this is a compile-time check: a typo would break the build)
-//   - `is_phd2_device_id` recognizes the canonical PHD2 ids the
+//   - `guider::phd2::is_device_id` recognizes the canonical PHD2 ids the
 //     `disconnect_device` arm dispatches on.
 #[tokio::test]
 async fn disconnect_phd2_via_generic_route_calls_phd2_disconnect() {
@@ -100,33 +100,33 @@ async fn disconnect_phd2_via_generic_route_calls_phd2_disconnect() {
     // on them. The `let _ = ...` pattern with explicit return-type
     // bindings forces the compiler to resolve the symbols without
     // actually invoking them.
-    let _is_id_fn: fn(&str) -> bool = crate::api::connection::is_phd2_device_id;
-    // `api_phd2_disconnect` is async; binding the call (not the await)
+    let _is_id_fn: fn(&str) -> bool = crate::guider::phd2::is_device_id;
+    // `guider::phd2::disconnect` is async; binding the call (not the await)
     // produces a future we discard. This both proves the symbol exists
     // AND that its return type unifies with `Result<(), _>` shape.
     let _disconnect_fut = async {
         let _: Result<(), crate::error::SkotiqError> =
-            crate::api::phd2::api_phd2_disconnect().await;
+            crate::guider::phd2::disconnect().await;
     };
 
     // Behavioral check: the id-recognition helper must accept every form
     // a PHD2 device id can take, so the dispatch arm fires for all of
     // them. If a new id format is added, both this list and
-    // `is_phd2_device_id` need to be updated together.
+    // `guider::phd2::is_device_id` need to be updated together.
     for id in ["phd2", "phd2_guider", "phd2:localhost:4400", "phd2://host"] {
         assert!(
-            crate::api::connection::is_phd2_device_id(id),
-            "is_phd2_device_id must recognize {} so disconnect_device dispatches \
+            crate::guider::phd2::is_device_id(id),
+            "guider::phd2::is_device_id must recognize {} so disconnect_device dispatches \
                  PHD2-specific cleanup",
             id
         );
     }
 
     // And a non-PHD2 id must NOT trigger the dispatch arm.
-    assert!(!crate::api::connection::is_phd2_device_id(
+    assert!(!crate::guider::phd2::is_device_id(
         "alpaca:test-guider"
     ));
-    assert!(!crate::api::connection::is_phd2_device_id(
+    assert!(!crate::guider::phd2::is_device_id(
         "phd2x-not-really-phd2"
     ));
 }
@@ -368,5 +368,56 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
     assert_eq!(manager.failing_status_reads(device_id), None);
 
     manager.disconnect_device(device_id).await.unwrap();
+    get_sim_mount().write().await.status.connected = false;
+}
+
+// A lost mount whose reconnect keeps failing told the operator twice per
+// attempt: the failed connect's Error with the reason, and a second
+// "Reconnection attempt N failed" event for the same failure.
+#[tokio::test]
+async fn a_failed_reconnect_attempt_publishes_one_event() {
+    use crate::api::devices::simulation::get_sim_mount;
+    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::event::{EquipmentEvent, EventPayload};
+    use tokio::sync::broadcast::error::TryRecvError;
+
+    let _guard = super::simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let device_id = "sim_mount_1";
+    let info = super::build_sim_info(device_id, DeviceType::Mount);
+    manager.register_device(info.clone(), true).await;
+    sim_faults::arm(
+        "mount.connect",
+        FaultSpec::new(Trigger::Always, Effect::Error("unplugged".into())),
+    );
+    let mut rx = manager.app_state.event_bus.subscribe();
+
+    manager.attempt_reconnect(device_id, &info).await;
+    sim_faults::clear_all();
+
+    let mut errors = Vec::new();
+    loop {
+        match rx.try_recv() {
+            Ok(event) => {
+                if let EventPayload::Equipment(EquipmentEvent::Error {
+                    device_id: id,
+                    message,
+                    ..
+                }) = &event.payload
+                {
+                    if id == device_id {
+                        errors.push(message.clone());
+                    }
+                }
+            }
+            Err(TryRecvError::Lagged(_)) => continue,
+            Err(_) => break,
+        }
+    }
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert!(errors[0].contains("unplugged"), "{errors:?}");
+    let devices = manager.devices.read().await;
+    assert_eq!(devices.get(device_id).unwrap().reconnect_attempts, 1);
+    drop(devices);
     get_sim_mount().write().await.status.connected = false;
 }

@@ -1,6 +1,5 @@
 use super::*;
 
-/// Simulated mount state
 pub(crate) static SIM_MOUNT: OnceLock<Arc<RwLock<SimulatedMount>>> = OnceLock::new();
 
 #[flutter_rust_bridge::frb]
@@ -459,89 +458,4 @@ pub(crate) fn sim_park_position() -> (f64, f64) {
 /// still accepts commands.
 pub(crate) fn sim_home_position() -> (f64, f64) {
     sim_pole_position()
-}
-
-/// Get mount status
-pub async fn api_get_mount_status(device_id: String) -> Result<MountStatus, SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_get_status(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Slew mount to coordinates
-pub async fn api_mount_slew_to_coordinates(
-    device_id: String,
-    ra: f64,
-    dec: f64,
-) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_slew(&device_id, ra, dec)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Sync mount to coordinates
-pub async fn api_mount_sync_to_coordinates(
-    device_id: String,
-    ra: f64,
-    dec: f64,
-) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_sync(&device_id, ra, dec)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Park the mount
-pub async fn api_mount_park(device_id: String) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_park(&device_id).await.map_err(SkotiqError::from)
-}
-
-/// Unpark the mount
-pub async fn api_mount_unpark(device_id: String) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_unpark(&device_id)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Set mount tracking
-pub async fn api_mount_set_tracking(device_id: String, enabled: u8) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_set_tracking(&device_id, enabled != 0)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Pulse guide the mount in a direction for a duration
-pub async fn api_mount_pulse_guide(
-    device_id: String,
-    direction: String,
-    duration_ms: i32,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        target: "skotiq_bridge::api::devices::mount",
-        "Pulse guiding {} for {}ms in direction {}",
-        device_id,
-        duration_ms,
-        direction
-    );
-
-    // Validate direction
-    match direction.to_lowercase().as_str() {
-        "north" | "n" | "south" | "s" | "east" | "e" | "west" | "w" => {}
-        _ => {
-            return Err(SkotiqError::InvalidParameter(format!(
-                "Unknown direction: {}",
-                direction
-            )))
-        }
-    };
-
-    let mgr = get_device_manager();
-    mgr.mount_pulse_guide(&device_id, direction, duration_ms as u32)
-        .await
-        .map_err(SkotiqError::from)
 }

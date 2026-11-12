@@ -1,8 +1,7 @@
 part of '../notification_routing_settings.dart';
 
 class _DiscordRoutingSection extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _DiscordRoutingSection({required this.isMobile});
+  const _DiscordRoutingSection();
 
   @override
   ConsumerState<_DiscordRoutingSection> createState() =>
@@ -70,7 +69,6 @@ class _DiscordRoutingSectionState
                   'The URL itself authenticates the request, so it is stored securely.',
               controller: _url,
               hasStoredValue: cfg.webhookUrl.isNotEmpty,
-              isMobile: widget.isMobile,
               hint: 'https://discord.com/api/webhooks/…',
               onChanged: (_) => _clearWebhook = false,
               onClear: () => setState(() => _clearWebhook = true),
@@ -82,7 +80,6 @@ class _DiscordRoutingSectionState
                 context: context,
                 controller: _user,
                 hint: 'Skotiq',
-                isMobile: widget.isMobile,
               ),
             ),
             SettingRow(

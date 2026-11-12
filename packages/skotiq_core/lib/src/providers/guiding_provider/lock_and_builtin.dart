@@ -36,13 +36,7 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
   Future<void> setLockPosition(double x, double y, {bool exact = false}) async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final guiderId = ref.read(guiderStateProvider).deviceId ?? 'phd2_guider';
-    await backend.guiderSetLockPosition(
-      deviceId: guiderId,
-      x: x,
-      y: y,
-      exact: exact,
-    );
+    await backend.guiderSetLockPosition(x: x, y: y, exact: exact);
     _ensureBackendUnchanged(backend, generation, 'setting the guide star');
     state = (x: x, y: y);
   }
@@ -51,8 +45,7 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
   Future<void> findStar() async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final guiderId = ref.read(guiderStateProvider).deviceId ?? 'phd2_guider';
-    final pos = await backend.guiderFindStar(deviceId: guiderId);
+    final pos = await backend.guiderFindStar();
     _ensureBackendUnchanged(backend, generation, 'finding a guide star');
     state = (x: pos.$1, y: pos.$2);
   }
@@ -60,8 +53,7 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
   Future<void> deselectStar() async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
-    final guiderId = ref.read(guiderStateProvider).deviceId ?? 'phd2_guider';
-    await backend.guiderDeselectStar(deviceId: guiderId);
+    await backend.guiderDeselectStar();
     _ensureBackendUnchanged(backend, generation, 'deselecting the guide star');
     state = null;
   }
@@ -85,9 +77,6 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
     super.dispose();
   }
 }
-
-/// The device ID used by the built-in multi-star guider.
-const String builtinGuiderDeviceId = 'native:builtin_guider:multi_star';
 
 /// Provider that exposes whether the currently connected guider is the built-in
 /// guider (as opposed to PHD2 or another external guider).

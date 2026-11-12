@@ -7,10 +7,8 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_auto_white_balance`, `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `display_data_summary`, `display_data_to_rgba`, `frame_metric_median`, `frame_stats_result`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `get_unified_image_storage`, `image_data_to_linear_f64`, `one_shot_focus_context`, `sanitize_camera_id`, `sim_exposure_cancelled`, `store_captured_image_atomically`, `thumbnail_generation_gate`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CapturedImageData`, `RawImageInfo`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_last_raw_image_info`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `image_data_to_linear_f64`, `one_shot_focus_context`, `sanitize_camera_id`, `thumbnail_generation_gate`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
 Future<AutofocusResultApi> apiRunAutofocus({
@@ -125,25 +123,25 @@ Future<void> apiCameraStartExposureConfigured({
   frameType: frameType,
 );
 
-/// Get the last captured image for a specific device (display-ready format)
-/// Reads from per-device atomic storage to ensure consistency with raw data
+/// The device's last captured frame, display-ready.
 Future<CapturedImageResult> apiGetLastImage({required String deviceId}) =>
     RustLib.instance.api.crateApiImagingApiGetLastImage(deviceId: deviceId);
 
-/// Get the last captured raw image data (u16) for a specific device
-/// This is used for saving FITS files with original bit depth
-/// Reads from per-device atomic storage to ensure consistency with display data
+/// The device's last captured frame as the camera delivered it (u16).
 Future<Uint16List> apiGetLastRawImageData({required String deviceId}) => RustLib
     .instance
     .api
     .crateApiImagingApiGetLastRawImageData(deviceId: deviceId);
 
-/// Clear stored image data for a specific device
-/// This is used to free memory when a camera is disconnected or when explicitly requested
+/// Free the device's stored frame (camera disconnected or on request).
 Future<void> apiClearDeviceImage({required String deviceId}) =>
     RustLib.instance.api.crateApiImagingApiClearDeviceImage(deviceId: deviceId);
 
-/// Cancel current exposure
+/// Cancel current exposure.
+///
+/// The abort generation moves first: it is what stops the exposure waiting
+/// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
+/// the stop, which must not be downloaded as a frame.
 Future<void> apiCameraCancelExposure({required String deviceId}) => RustLib
     .instance
     .api
@@ -227,25 +225,6 @@ Future<Uint8List> apiApplyStretch({
   params: params,
 );
 
-/// Read an XISF file
-Future<XisfReadResult> apiReadXisfFile({required String filePath}) =>
-    RustLib.instance.api.crateApiImagingApiReadXisfFile(filePath: filePath);
-
-/// Save image as XISF
-Future<void> apiSaveXisfFile({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required List<(String, String)> properties,
-}) => RustLib.instance.api.crateApiImagingApiSaveXisfFile(
-  filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  properties: properties,
-);
-
 /// Save image as PNG (16-bit preserving, lossless)
 Future<void> apiSavePngFile({
   required String filePath,
@@ -311,33 +290,56 @@ Future<void> apiSaveRgbaJpegFile({
   quality: quality,
 );
 
-/// Save image data to FITS file
-Future<void> apiSaveFitsFile({
+/// Set cards in a frame file's metadata, FITS or XISF, keeping its pixels and
+/// everything else it holds. The file is replaced whole, never left half
+/// written.
+Future<void> apiUpdateFrameCards({
   required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required FitsWriteHeader headerData,
-}) => RustLib.instance.api.crateApiImagingApiSaveFitsFile(
+  required List<FrameCardUpdate> cards,
+}) => RustLib.instance.api.crateApiImagingApiUpdateFrameCards(
   filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  headerData: headerData,
+  cards: cards,
 );
 
-/// Save the device's last captured frame as FITS, without moving its pixels
-/// across the FFI boundary.
+/// Square cutouts of a mono frame file, `2 * half + 1` pixels on a side,
+/// centered on each (`centers_x[i]`, `centers_y[i]`) (0-based, row 0 = first
+/// stored row), concatenated in that order. A center whose cutout leaves the
+/// image is refused.
+Future<Float64List> apiReadFrameCutouts({
+  required String filePath,
+  required List<int> centersX,
+  required List<int> centersY,
+  required int half,
+}) => RustLib.instance.api.crateApiImagingApiReadFrameCutouts(
+  filePath: filePath,
+  centersX: centersX,
+  centersY: centersY,
+  half: half,
+);
+
+/// Save the device's last captured frame, without moving its pixels across
+/// the FFI boundary: as the archive file (FITS or XISF, the capture format)
+/// at `file_path`, and, when `keep_camera_file` (a frame the operator keeps,
+/// not a live-view or loop scratch frame), the camera's own file beside it as
+/// the camera-file setting says.
 ///
-/// Returns an error if no image has been captured yet for the specified device.
-Future<void> apiSaveFitsFromLastCapture({
+/// The header is the one a sequence's frame gets, less the cards that tie a
+/// frame to a run: the rig is read by `skotiq_sequencer::sample_frame_context`
+/// and the file is written by the same `save_frame`.
+///
+/// Returns the path the frame is recorded by (the archive file when one is
+/// written, else the camera's file), or an error if no image has been
+/// captured yet for the specified device.
+Future<String> apiSaveFitsFromLastCapture({
   required String deviceId,
   required String filePath,
   required FitsWriteHeader headerData,
+  required bool keepCameraFile,
 }) => RustLib.instance.api.crateApiImagingApiSaveFitsFromLastCapture(
   deviceId: deviceId,
   filePath: filePath,
   headerData: headerData,
+  keepCameraFile: keepCameraFile,
 );
 
 /// Auto-stretch image for display
@@ -808,6 +810,15 @@ class ApiLiveStackingStats {
   final double avgAlignmentResidual;
   final BigInt totalSigmaRejectedPixels;
 
+  /// Frames left out for being taken through another filter than the stack's.
+  final int otherFilterFrames;
+
+  /// The filter of the most recent such frame.
+  final String? lastOtherFilter;
+
+  /// The filter the stack is of; `None` when its reference named none.
+  final String? filter;
+
   const ApiLiveStackingStats({
     required this.stackedFrameCount,
     required this.totalFramesAttempted,
@@ -815,6 +826,9 @@ class ApiLiveStackingStats {
     required this.avgMatchedPairs,
     required this.avgAlignmentResidual,
     required this.totalSigmaRejectedPixels,
+    required this.otherFilterFrames,
+    this.lastOtherFilter,
+    this.filter,
   });
 
   @override
@@ -824,7 +838,10 @@ class ApiLiveStackingStats {
       rejectedAlignmentFailures.hashCode ^
       avgMatchedPairs.hashCode ^
       avgAlignmentResidual.hashCode ^
-      totalSigmaRejectedPixels.hashCode;
+      totalSigmaRejectedPixels.hashCode ^
+      otherFilterFrames.hashCode ^
+      lastOtherFilter.hashCode ^
+      filter.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -836,7 +853,10 @@ class ApiLiveStackingStats {
           rejectedAlignmentFailures == other.rejectedAlignmentFailures &&
           avgMatchedPairs == other.avgMatchedPairs &&
           avgAlignmentResidual == other.avgAlignmentResidual &&
-          totalSigmaRejectedPixels == other.totalSigmaRejectedPixels;
+          totalSigmaRejectedPixels == other.totalSigmaRejectedPixels &&
+          otherFilterFrames == other.otherFilterFrames &&
+          lastOtherFilter == other.lastOtherFilter &&
+          filter == other.filter;
 }
 
 /// Autofocus configuration for API
@@ -1223,85 +1243,88 @@ class FitsReadResult {
           bayerPattern == other.bayerPattern;
 }
 
-/// What the Imaging screen knows about a manual capture when it saves it.
-/// The header is built by `crate::frame_header`, the same builder every
-/// sequenced frame goes through; RA is in hours.
+/// What the caller of a manual capture knows about the frame it saves: what
+/// it was told to take, who and where the observer is, and which devices make
+/// up the rig. Everything the devices know (pointing, pier side, focuser,
+/// rotator, temperatures, guiding, the camera's own exposure record) is read
+/// from them when the frame is saved, as it is for a sequence's frame.
 class FitsWriteHeader {
   final String? objectName;
+
+  /// Seconds the exposure was commanded for.
   final double exposureTime;
-  final String captureTimestamp;
   final String frameType;
+
+  /// The filter the capture was set to; `None` records the one the wheel
+  /// reports.
   final String? filter;
+
+  /// Commanded, for a camera that does not report its own.
   final int? gain;
   final int? offset;
-  final double? ccdTemp;
-  final double? ra;
-  final double? dec;
-  final double? altitude;
-  final String? telescope;
-  final String? instrument;
-  final String? observer;
   final int binX;
   final int binY;
+  final String? telescope;
+
+  /// The camera as the equipment profile names it; the driver's model name
+  /// when `None`.
+  final String? instrument;
+  final String? observer;
   final double? focalLength;
   final double? aperture;
-  final double? pixelSizeX;
-  final double? pixelSizeY;
   final double? siteLatitude;
   final double? siteLongitude;
   final double? siteElevation;
+  final String? mountId;
+  final String? focuserId;
+  final String? filterWheelId;
+  final String? rotatorId;
 
   const FitsWriteHeader({
     this.objectName,
     required this.exposureTime,
-    required this.captureTimestamp,
     required this.frameType,
     this.filter,
     this.gain,
     this.offset,
-    this.ccdTemp,
-    this.ra,
-    this.dec,
-    this.altitude,
+    required this.binX,
+    required this.binY,
     this.telescope,
     this.instrument,
     this.observer,
-    required this.binX,
-    required this.binY,
     this.focalLength,
     this.aperture,
-    this.pixelSizeX,
-    this.pixelSizeY,
     this.siteLatitude,
     this.siteLongitude,
     this.siteElevation,
+    this.mountId,
+    this.focuserId,
+    this.filterWheelId,
+    this.rotatorId,
   });
 
   @override
   int get hashCode =>
       objectName.hashCode ^
       exposureTime.hashCode ^
-      captureTimestamp.hashCode ^
       frameType.hashCode ^
       filter.hashCode ^
       gain.hashCode ^
       offset.hashCode ^
-      ccdTemp.hashCode ^
-      ra.hashCode ^
-      dec.hashCode ^
-      altitude.hashCode ^
+      binX.hashCode ^
+      binY.hashCode ^
       telescope.hashCode ^
       instrument.hashCode ^
       observer.hashCode ^
-      binX.hashCode ^
-      binY.hashCode ^
       focalLength.hashCode ^
       aperture.hashCode ^
-      pixelSizeX.hashCode ^
-      pixelSizeY.hashCode ^
       siteLatitude.hashCode ^
       siteLongitude.hashCode ^
-      siteElevation.hashCode;
+      siteElevation.hashCode ^
+      mountId.hashCode ^
+      focuserId.hashCode ^
+      filterWheelId.hashCode ^
+      rotatorId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1310,27 +1333,24 @@ class FitsWriteHeader {
           runtimeType == other.runtimeType &&
           objectName == other.objectName &&
           exposureTime == other.exposureTime &&
-          captureTimestamp == other.captureTimestamp &&
           frameType == other.frameType &&
           filter == other.filter &&
           gain == other.gain &&
           offset == other.offset &&
-          ccdTemp == other.ccdTemp &&
-          ra == other.ra &&
-          dec == other.dec &&
-          altitude == other.altitude &&
+          binX == other.binX &&
+          binY == other.binY &&
           telescope == other.telescope &&
           instrument == other.instrument &&
           observer == other.observer &&
-          binX == other.binX &&
-          binY == other.binY &&
           focalLength == other.focalLength &&
           aperture == other.aperture &&
-          pixelSizeX == other.pixelSizeX &&
-          pixelSizeY == other.pixelSizeY &&
           siteLatitude == other.siteLatitude &&
           siteLongitude == other.siteLongitude &&
-          siteElevation == other.siteElevation;
+          siteElevation == other.siteElevation &&
+          mountId == other.mountId &&
+          focuserId == other.focuserId &&
+          filterWheelId == other.filterWheelId &&
+          rotatorId == other.rotatorId;
 }
 
 /// A single focus data point (position and HFR)
@@ -1360,6 +1380,42 @@ class FocusDataPoint {
           hfr == other.hfr &&
           fwhm == other.fwhm &&
           starCount == other.starCount;
+}
+
+/// One card to set in a frame file's metadata. Exactly one value is given.
+class FrameCardUpdate {
+  final String keyword;
+  final String? stringValue;
+  final PlatformInt64? intValue;
+  final double? doubleValue;
+  final String? comment;
+
+  const FrameCardUpdate({
+    required this.keyword,
+    this.stringValue,
+    this.intValue,
+    this.doubleValue,
+    this.comment,
+  });
+
+  @override
+  int get hashCode =>
+      keyword.hashCode ^
+      stringValue.hashCode ^
+      intValue.hashCode ^
+      doubleValue.hashCode ^
+      comment.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrameCardUpdate &&
+          runtimeType == other.runtimeType &&
+          keyword == other.keyword &&
+          stringValue == other.stringValue &&
+          intValue == other.intValue &&
+          doubleValue == other.doubleValue &&
+          comment == other.comment;
 }
 
 /// Image statistics
@@ -1746,48 +1802,4 @@ class StretchParamsApi {
           shadows == other.shadows &&
           highlights == other.highlights &&
           midtones == other.midtones;
-}
-
-/// XISF file read result
-class XisfReadResult {
-  final int width;
-  final int height;
-  final int channels;
-  final Uint8List displayData;
-  final Uint32List histogram;
-  final ImageStatsResult stats;
-  final List<(String, String)> properties;
-
-  const XisfReadResult({
-    required this.width,
-    required this.height,
-    required this.channels,
-    required this.displayData,
-    required this.histogram,
-    required this.stats,
-    required this.properties,
-  });
-
-  @override
-  int get hashCode =>
-      width.hashCode ^
-      height.hashCode ^
-      channels.hashCode ^
-      displayData.hashCode ^
-      histogram.hashCode ^
-      stats.hashCode ^
-      properties.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is XisfReadResult &&
-          runtimeType == other.runtimeType &&
-          width == other.width &&
-          height == other.height &&
-          channels == other.channels &&
-          displayData == other.displayData &&
-          histogram == other.histogram &&
-          stats == other.stats &&
-          properties == other.properties;
 }

@@ -87,7 +87,8 @@ pub(crate) async fn wait_for_dome_shutter_state(
                 // case for a close.
                 return Err(InstructionResult::failure(format!(
                     "Failed to read dome shutter status while waiting for {target}: {e}"
-                )));
+                ))
+                .caused_by(&e));
             }
         }
 
@@ -111,7 +112,7 @@ pub(crate) async fn wait_for_dome_shutter_state(
             );
             tracing::warn!("{msg}");
             if let Some(event_tx) = &ctx.run.event_tx {
-                let _ = event_tx.send(crate::executor::ExecutorEvent::Error { message: msg });
+                let _ = event_tx.send(crate::executor::ExecutorEvent::StepProblem { message: msg });
             }
             return Ok(DomeShutterWaitOutcome::Unconfirmed);
         }
@@ -137,7 +138,6 @@ async fn expect_shutter_open(ctx: &InstructionContext, open: bool) {
     }
 }
 
-/// Execute open dome
 pub async fn execute_open_dome(
     config: &DomeConfig,
     ctx: &InstructionContext,
@@ -148,7 +148,6 @@ pub async fn execute_open_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Opening dome shutter".to_string());
     }
@@ -165,7 +164,7 @@ pub async fn execute_open_dome(
     }
 
     if let Err(e) = ctx.run.device_ops.dome_open(&dome_id).await {
-        return InstructionResult::failure(format!("Failed to open dome: {}", e));
+        return InstructionResult::failure(format!("Failed to open dome: {}", e)).caused_by(&e);
     }
 
     if !config.shutter_only {
@@ -181,7 +180,6 @@ pub async fn execute_open_dome(
             Err(failure) => return failure,
         };
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome shutter open".to_string());
     }
@@ -200,7 +198,6 @@ pub async fn execute_open_dome(
     }
 }
 
-/// Execute close dome
 pub async fn execute_close_dome(
     _config: &DomeConfig,
     ctx: &InstructionContext,
@@ -211,7 +208,6 @@ pub async fn execute_close_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Closing dome shutter".to_string());
     }
@@ -229,7 +225,7 @@ pub async fn execute_close_dome(
 
     expect_shutter_open(ctx, false).await;
     if let Err(e) = ctx.run.device_ops.dome_close(&dome_id).await {
-        return InstructionResult::failure(format!("Failed to close dome: {}", e));
+        return InstructionResult::failure(format!("Failed to close dome: {}", e)).caused_by(&e);
     }
 
     // Confirm the shutter actually reached Closed — a roof that reports
@@ -241,7 +237,6 @@ pub async fn execute_close_dome(
             Err(failure) => return failure,
         };
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome shutter closed".to_string());
     }
@@ -256,7 +251,6 @@ pub async fn execute_close_dome(
     }
 }
 
-/// Execute park dome
 pub async fn execute_park_dome(
     config: &DomeConfig,
     ctx: &InstructionContext,
@@ -267,7 +261,6 @@ pub async fn execute_park_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Parking dome".to_string());
     }
@@ -285,7 +278,7 @@ pub async fn execute_park_dome(
 
         tracing::info!("Parking dome...");
         if let Err(e) = ctx.run.device_ops.dome_park(&dome_id).await {
-            return InstructionResult::failure(format!("Failed to park dome: {}", e));
+            return InstructionResult::failure(format!("Failed to park dome: {}", e)).caused_by(&e);
         }
     }
 
@@ -302,7 +295,8 @@ pub async fn execute_park_dome(
         return InstructionResult::failure(format!(
             "Dome parked but failed to close shutter: {}",
             e
-        ));
+        ))
+        .caused_by(&e);
     }
 
     // Confirm the shutter reached Closed before claiming the park succeeded.
@@ -312,7 +306,6 @@ pub async fn execute_park_dome(
         return failure;
     }
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome parked".to_string());
     }

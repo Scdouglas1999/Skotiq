@@ -61,6 +61,7 @@ export 'src/models/settings/app_settings.dart';
 export 'src/models/errors/server_error.dart';
 export 'src/errors/error_text.dart';
 export 'src/models/imaging/imaging_models.dart';
+export 'src/models/imaging/frame_files.dart';
 export 'src/models/imaging/camera_preset.dart';
 export 'src/models/imaging/auto_stretch_settings.dart';
 // Stack-and-Share Loop (component C7): config, progress, result, export models.
@@ -147,6 +148,7 @@ export 'src/models/onboarding/next_use_steps.dart';
 export 'src/models/hardware_presets/hardware_preset_models.dart';
 export 'src/models/science/science_models.dart';
 export 'src/models/science/frame_quality_readings.dart';
+export 'src/models/science/frame_science_rows.dart';
 export 'src/models/defect_map.dart';
 export 'src/models/plate_solver.dart';
 export 'src/models/readiness/readiness_models.dart';
@@ -182,11 +184,12 @@ export 'src/providers/host_settings/host_settings_providers.dart';
 export 'src/providers/equipment_provider.dart';
 export 'src/providers/unified_discovery_provider.dart';
 export 'src/providers/event_provider.dart';
-// framing_provider exposes the UI-facing FramingMosaicConfig /
+// framing_models holds the UI-facing FramingMosaicConfig /
 // FramingMosaicPanel (grid-based: columns/rows/overlapPercent). The
 // service-layer MosaicConfig / MosaicPanel in mosaic_service.dart
 // (geometry-flavored: centerRa/panelWidthArcmin/...) live under their
 // canonical names and are now safe to re-export from the barrel.
+export 'src/models/framing_models.dart';
 export 'src/providers/framing_provider.dart';
 // framingImageCacheServiceProvider is the canonical DI handle for the survey
 // snapshot cache; export it so framing UI (action rail, screen) can resolve
@@ -200,10 +203,17 @@ export 'src/providers/hips_framing_provider.dart';
 export 'src/providers/imaging_provider.dart';
 export 'src/providers/imaging_viewer_state_provider.dart';
 export 'src/providers/sequence_provider.dart';
+export 'src/services/sequence_rollup.dart';
+export 'src/models/sequence/validation/structural_rules.dart';
+export 'src/models/sequence/validation/validation_issue.dart';
+export 'src/models/sequence/sequence_editor_exceptions.dart';
 export 'src/providers/sequence/remote_sequence_editor_sync.dart';
+export 'src/providers/sequence/run_config_sync.dart'
+    show runConfigSyncProvider, RunConfigSync;
 export 'src/providers/sequence_stats_provider.dart';
+export 'src/models/sequence/terminal_run_result.dart';
 // The one predicate every surface asks before calling a run's end an error.
-export 'src/providers/sequence/run_stop_classification.dart';
+export 'src/models/sequence/run_stop_classification.dart';
 // The one wording for a target dropped by its own end_when.
 export 'src/providers/sequence/run_dither_event.dart';
 export 'src/providers/sequence/run_frame_assessment.dart';
@@ -228,13 +238,18 @@ export 'src/providers/secondary_rig_provider.dart';
 export 'src/providers/campaign_rollup_provider.dart';
 export 'src/providers/import_provider.dart';
 export 'src/providers/session_provider.dart';
-// Hide settings_provider's legacy HorizonProfile so the scheduler's
-// samples-based HorizonProfile (services/scheduler/horizon_profile.dart) wins
-// at the barrel. Direct importers of settings_provider.dart still see it.
-export 'src/providers/settings_provider.dart' hide HorizonProfile;
+export 'src/providers/settings_provider.dart';
+export 'src/models/site/bortle_scale.dart';
+export 'src/models/site/location_settings.dart';
+// Hide the legacy settings HorizonProfile so the scheduler's samples-based
+// HorizonProfile (services/scheduler/horizon_profile.dart) wins at the barrel.
+// Direct importers of site_horizon_profile.dart still see it.
+export 'src/models/site/site_horizon_profile.dart' hide HorizonProfile;
 export 'src/providers/clock_provider.dart';
+export 'src/models/equipment_profile_model.dart';
 export 'src/providers/profiles_provider.dart';
 export 'src/providers/armed_start_provider.dart';
+export 'src/models/sequencer/host_scheduled_start.dart';
 export 'src/providers/host_scheduled_start_provider.dart';
 export 'src/providers/host_end_of_night_provider.dart';
 export 'src/providers/profile_activation_writethrough.dart';
@@ -262,10 +277,13 @@ export 'src/providers/runtime_mirror/channels/centering_channels.dart';
 export 'src/providers/runtime_mirror/channels/cooler_reading_channel.dart';
 export 'src/providers/runtime_mirror/channels/end_of_night_channel.dart';
 export 'src/providers/runtime_mirror/channels/current_frame_channel.dart';
+export 'src/providers/runtime_mirror/channels/device_slot_channel.dart';
 export 'src/providers/runtime_mirror/channels/environment_channel.dart';
 export 'src/providers/runtime_mirror/channels/frame_solve_channel.dart';
 export 'src/providers/runtime_mirror/channels/framing_geometry_channel.dart';
 export 'src/providers/runtime_mirror/channels/framing_target_channel.dart';
+export 'src/providers/runtime_mirror/channels/guider_status_channel.dart';
+export 'src/providers/runtime_mirror/channels/open_plan_channel.dart';
 export 'src/providers/runtime_mirror/channels/live_broadcast_channel.dart';
 export 'src/providers/runtime_mirror/channels/manual_action_channel.dart';
 export 'src/providers/runtime_mirror/channels/notice_acks_channel.dart';
@@ -283,10 +301,10 @@ export 'src/models/backend/host_runtime_update.dart';
 export 'src/models/depthlock/depthlock_models.dart';
 export 'src/providers/depthlock_provider.dart';
 export 'src/services/host_mutation_event_hub.dart';
-export 'src/providers/simbad_provider.dart';
+export 'src/services/catalog_lookup/simbad_provider.dart';
 export 'src/services/sesame_name_resolver.dart';
-export 'src/providers/exoplanet_provider.dart';
-export 'src/providers/gaia_provider.dart';
+export 'src/services/catalog_lookup/exoplanet_provider.dart';
+export 'src/services/catalog_lookup/gaia_provider.dart';
 export 'src/providers/annotation_settings_provider.dart';
 export 'src/providers/annotation_presets_provider.dart'
     hide AnnotationPreset, annotationPresetsProvider, AnnotationPresetsNotifier;
@@ -302,6 +320,7 @@ export 'src/providers/flat_wizard_provider.dart';
 export 'src/providers/flat_wizard_output.dart';
 export 'src/providers/ui_notification_provider.dart';
 export 'src/providers/operation_progress_provider.dart';
+export 'src/models/app_screen.dart';
 export 'src/providers/current_screen_provider.dart';
 export 'src/providers/polar_alignment_provider.dart';
 export 'src/providers/template_snippet_provider.dart';
@@ -311,6 +330,7 @@ export 'src/providers/transient_alert_provider.dart';
 export 'src/providers/critical_alert_provider.dart';
 export 'src/providers/mount_guard_provider.dart';
 export 'src/providers/catalog_download_source_provider.dart';
+export 'src/models/backend/device_types.dart' show guideCameraLabel;
 export 'src/providers/device_connection_progress_provider.dart';
 // Recovery Mode — providers for the recovery state machine
 // (currentRecoveryProvider, recoveryHistoryProvider, recoveryControlProvider,
@@ -380,6 +400,8 @@ export 'src/providers/async_scope.dart';
 // isCriticalEvent, skotiqEventDisplayTitle/Detail) flows through unprefixed.
 export 'src/backend/bridge_events.dart'
     hide SkotiqEvent, EventCategory, EventSeverity;
+export 'src/backend/sequencer_error_kind.dart';
+export 'src/backend/sequencer_notice.dart';
 // Per-frame capture truth carried on FrameAccepted/FrameRejected. Exported so
 // the surfaces that persist or assert on a sequenced frame read the event's
 // key names from one place rather than re-spelling them.
@@ -416,6 +438,7 @@ export 'src/utils/device_id.dart'
         friendlyNameFromDeviceId,
         kBuiltinGuiderDisplayName,
         kBuiltinGuiderIdPrefix,
+        builtinGuiderDeviceId,
         kSimulatorDeviceDisplayNames,
         kPhd2CanonicalId,
         kPhd2DisplayName;
@@ -468,6 +491,7 @@ export 'src/services/catalog_overlay_service.dart';
 export 'src/providers/catalog_overlay_provider.dart';
 export 'src/providers/current_frame_analysis_provider.dart';
 export 'src/providers/frame_record_updates.dart';
+export 'src/models/site/learned_obstruction.dart';
 export 'src/providers/frame_watch_settings_provider.dart';
 export 'src/services/annotation_service.dart';
 export 'src/services/annotation_export.dart';
@@ -476,8 +500,8 @@ export 'src/services/scheduler/integration_goal_service.dart';
 export 'src/services/scheduler/target_constraint_service.dart';
 export 'src/services/scheduler/scheduler_queue_service.dart';
 // Two HorizonProfile classes exist in the codebase:
-//   * settings_provider.dart::HorizonProfile  - legacy 8-point compass profile
-//     stored as JSON in app_settings.horizon_profile_json
+//   * models/site/site_horizon_profile.dart::HorizonProfile  - legacy 8-point
+//     compass profile stored as JSON in app_settings.horizon_profile_json
 //   * services/scheduler/horizon_profile.dart::HorizonProfile  - newer
 //     samples-based profile persisted in the horizon_profiles table
 // The legacy one is still referenced by target_suggestion_service.dart via a
@@ -553,6 +577,7 @@ export 'src/providers/notification_router_provider.dart';
 //     MQTT broker.
 export 'src/services/home_assistant/home_assistant_discovery_config.dart';
 export 'src/services/home_assistant/home_assistant_discovery_service.dart';
+export 'src/services/home_assistant/home_assistant_host_settings.dart';
 export 'src/services/home_assistant/ha_discovery_payloads.dart';
 export 'src/providers/home_assistant_provider.dart';
 export 'src/services/critical_alert_player.dart';
@@ -719,6 +744,7 @@ export 'src/models/collaboration/collaboration_models.dart';
 export 'src/services/coimaging/coimaging_session_service.dart';
 export 'src/services/constellation/constellation_client.dart';
 export 'src/services/constellation/constellation_service.dart';
+export 'src/services/constellation/hub_credentials.dart';
 export 'src/providers/constellation_provider.dart';
 // Pillar B ("First Light"): difference-imaging transient log + scan service +
 // report export.

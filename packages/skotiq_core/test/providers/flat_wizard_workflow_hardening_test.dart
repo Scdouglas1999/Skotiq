@@ -174,13 +174,15 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
       _image(32768);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     saveCount++;
     onSave?.call();
+    return filePath;
   }
 }
 
@@ -267,12 +269,14 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
       _image(32768);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     savedPaths.add(filePath);
+    return filePath;
   }
 
   @override

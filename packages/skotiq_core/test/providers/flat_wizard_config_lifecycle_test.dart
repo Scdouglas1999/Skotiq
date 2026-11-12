@@ -172,12 +172,14 @@ class _CapAutoBackend extends Mock implements SkotiqBackend {
       _image(imageMean);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     headers.add(headerData);
+    return filePath;
   }
 }
 
@@ -257,12 +259,14 @@ class _GatedBackend extends Mock implements SkotiqBackend {
       _image(32768);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     saveCount++;
+    return filePath;
   }
 }
 

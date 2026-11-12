@@ -24,4 +24,3 @@ final exposureNodeThumbnailsProvider = StreamProvider.autoDispose
       final records = ref.watch(imagingRecordsRepositoryProvider);
       return records.watchImagesByProducingNode(producingNodeId: nodeId);
     });
-

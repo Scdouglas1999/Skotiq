@@ -15,6 +15,9 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     String? producingNodeId,
     String? producingRunId,
     required bool persistFrame,
+    // Whether this is a frame the operator keeps as a frame (a Snapshot), so
+    // the camera's raw file follows the camera-file setting.
+    required bool keepsCameraFile,
     FramePurpose purpose = FramePurpose.capture,
     int? purposeStep,
     int? purposeSteps,
@@ -332,17 +335,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           source: 'ImagingService',
         );
 
-        // FITS DATE-OBS means the START of the observation, and every
-        // photometry, occultation and astrometry tool reads it that way. The
-        // bridge reports when the frame finished downloading, so stamping that
-        // straight into the header made DATE-OBS late by exactly EXPTIME on
-        // every frame the app has ever written (measured: a 30 s exposure
-        // starting 14:04:37 recorded 14:05:09).
-        //
-        // Derived from the camera's own timestamp rather than the host clock on
-        // purpose. The hardware instant is the authoritative one, its timezone
-        // handling is pinned by tests, and using `DateTime.now()` here instead
-        // both bypassed that and left the file disagreeing with the database.
+        // The frame's timestamp is the end of the exposure as the camera layer
+        // recorded it (start plus the commanded time), so this is the start
+        // the host writes as DATE-OBS. The file name and the database row use
+        // it, so they agree with the header.
         final observationStartedAt = captureTimestamp.subtract(
           Duration(microseconds: (settings.exposureTime * 1e6).round()),
         );
@@ -491,19 +487,19 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
           // Call native FITS save API
           // Note: This uses the raw data still in memory on the Rust side
-          await _saveFitsFile(
+          final recordedPath = await _saveFitsFile(
             backend: backend,
             deviceId: deviceId,
             filePath: savedFilePath,
-            width: capturedImage.width,
-            height: capturedImage.height,
-            capturedImage: capturedImage,
             exposureSettings: settings,
-            appSettings: appSettings,
             targetName: targetName,
             timestamp: observationStartedAt,
+            keepCameraFile: keepsCameraFile && !isTempFile,
           );
-          if (!_hasBackendAuthority(backend)) return null;
+          if (recordedPath == null || !_hasBackendAuthority(backend)) {
+            return null;
+          }
+          savedFilePath = recordedPath;
 
           imageData = imageData.copyWith(filePath: savedFilePath);
           final currentPreview = _ref.read(currentImageProvider);

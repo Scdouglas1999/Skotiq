@@ -52,9 +52,6 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     super.dispose();
   }
 
-  bool _isCurrentAuthority(SkotiqBackend authority) =>
-      mounted && identical(ref.read(backendProvider), authority);
-
   @override
   Widget build(BuildContext context) {
     final cameraState = ref.watch(cameraStateProvider);
@@ -256,7 +253,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             !cameraState.isWarming,
                         onTap: () async {
                           if (_isCooling) return;
-                          final authority = ref.read(backendProvider);
+                          final host = ref.backendScope(alive: () => mounted);
                           final service = ref.read(deviceServiceProvider);
                           setState(() => _isCooling = true);
                           try {
@@ -265,7 +262,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                               targetTemp: targetTemp,
                             );
 
-                            if (_isCurrentAuthority(authority)) {
+                            if (host.isCurrent) {
                               ref.read(coolingSettingsProvider.notifier).state =
                                   coolingSettings.copyWith(
                                 enabled: true,
@@ -277,12 +274,12 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             }
                           } catch (e) {
                             if (context.mounted &&
-                                _isCurrentAuthority(authority)) {
+                                host.isCurrent) {
                               context.showErrorSnackBar(
                                   'Failed to set cooling: ${userFacingError(e)}');
                             }
                           } finally {
-                            if (_isCurrentAuthority(authority)) {
+                            if (host.isCurrent) {
                               setState(() => _isCooling = false);
                             }
                           }
@@ -311,7 +308,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             return;
                           }
                           if (_isCooling) return;
-                          final authority = ref.read(backendProvider);
+                          final host = ref.backendScope(alive: () => mounted);
                           setState(() => _isCooling = true);
                           try {
                             // Warm-up is a gradual set-point ramp. Turning
@@ -322,18 +319,18 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                             final message = warmupOutcomeMessage(outcome);
                             if (message != null &&
                                 context.mounted &&
-                                _isCurrentAuthority(authority)) {
+                                host.isCurrent) {
                               context.showSuccessSnackBar(message);
                             }
                           } catch (e) {
                             if (context.mounted &&
-                                _isCurrentAuthority(authority)) {
+                                host.isCurrent) {
                               context.showErrorSnackBar(
                                 'Failed to warm up: ${userFacingError(e)}',
                               );
                             }
                           } finally {
-                            if (_isCurrentAuthority(authority)) {
+                            if (host.isCurrent) {
                               setState(() => _isCooling = false);
                             }
                           }
@@ -416,7 +413,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                               if (idx < 0) return;
                               final deviceId = cameraState.deviceId;
                               if (deviceId == null) return;
-                              final authority = ref.read(backendProvider);
+                              final host = ref.backendScope(alive: () => mounted);
                               final deviceBackend =
                                   ref.read(deviceBackendProvider);
                               final exposureUpdater = ref.read(
@@ -428,7 +425,7 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                                   deviceId,
                                   idx,
                                 );
-                                if (_isCurrentAuthority(authority)) {
+                                if (host.isCurrent) {
                                   final latestSettings =
                                       ref.read(exposureSettingsProvider);
                                   exposureUpdater.update(
@@ -441,13 +438,13 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                                 }
                               } catch (e) {
                                 if (context.mounted &&
-                                    _isCurrentAuthority(authority)) {
+                                    host.isCurrent) {
                                   context.showErrorSnackBar(
                                     'Failed to set read mode: ${userFacingError(e)}',
                                   );
                                 }
                               } finally {
-                                if (_isCurrentAuthority(authority)) {
+                                if (host.isCurrent) {
                                   setState(
                                     () => _isChangingReadoutMode = false,
                                   );

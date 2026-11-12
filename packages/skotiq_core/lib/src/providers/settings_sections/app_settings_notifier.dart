@@ -53,10 +53,13 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// Every `app_settings` key this notifier reads and writes.
   static final Set<String> storedKeys = AppSettingsCodec.storedKeys;
 
-  /// Fields of the host's typed settings that hold a credential, which only a
-  /// credential with admin access to the host may change.
-  static final Set<String> credentialWireKeys =
-      AppSettingsCodec.credentialWireKeys;
+  /// Fields of the host's typed settings that only a link with admin access
+  /// to the host may change, and why.
+  static final Map<String, AdminOnly> adminOnlyWireFields =
+      AppSettingsCodec.adminOnlyWireFields;
+
+  /// Every field of the host's typed settings a setting stands behind.
+  static final Set<String> wireFields = AppSettingsCodec.wireFields;
 
   /// [settings] as the stored rows would hold them.
   Map<String, String> storedRowsOf(AppSettingsState settings) =>
@@ -313,7 +316,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
     // Full-snapshot variant emitted when the host couldn't read the
     // previous settings (first-write / recovery path).
-    if (key == '__snapshot__') {
+    if (key == settingsSnapshotKey) {
       final snapshot = event.data['value'];
       if (snapshot is Map<String, dynamic>) {
         try {

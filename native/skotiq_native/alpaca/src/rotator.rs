@@ -17,10 +17,7 @@ pub struct RotatorCapabilities {
     pub step_size: f64,
 }
 
-alpaca_device!(
-    AlpacaRotator,
-    Rotator
-);
+alpaca_device!(AlpacaRotator, Rotator);
 
 impl AlpacaRotator {
     skotiq_device::ascom_rotator_members!(alpaca_member);

@@ -114,6 +114,34 @@ void main() {
       );
     });
 
+    test('control tokens check a folder but do not list the host\'s '
+        'folders', () {
+      expect(
+        allowsPath(
+          actual: HeadlessTokenScope.control,
+          method: 'POST',
+          path: '/api/files/validate',
+        ),
+        isTrue,
+      );
+      expect(
+        allowsPath(
+          actual: HeadlessTokenScope.view,
+          method: 'POST',
+          path: '/api/files/validate',
+        ),
+        isFalse,
+      );
+      expect(
+        allowsPath(
+          actual: HeadlessTokenScope.control,
+          method: 'GET',
+          path: '/api/files/browse',
+        ),
+        isFalse,
+      );
+    });
+
     // Owner 2026-11-11: a linked app paired the normal way changes the host's
     // app settings mid-session; credentials, backups and the rest stay admin.
     test('control tokens change app settings but not admin-only ones', () {

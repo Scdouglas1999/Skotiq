@@ -85,13 +85,19 @@ class ReplayDebugHandlers implements RouteSource {
   /// that a remote client would read as truth.
   Future<Response> handleGetSettings(Request request) async {
     final dao = container.read(settingsDaoProvider);
-    final enabledRaw = await dao.getSetting(replayDebugEnabledKey);
-    final retentionRaw = await dao.getSetting(replayDebugRetentionDaysKey);
+    final rows = await dao.readRows(const [
+      StoreSettings.replayDebugEnabled,
+      StoreSettings.replayDebugRetentionDays,
+    ]);
     final bool enabled;
     final int retentionDays;
     try {
-      enabled = parseReplayEnabledSetting(enabledRaw);
-      retentionDays = parseReplayRetentionSetting(retentionRaw);
+      enabled = parseReplayEnabledSetting(
+        rows[StoreSettings.replayDebugEnabled.key],
+      );
+      retentionDays = parseReplayRetentionSetting(
+        rows[StoreSettings.replayDebugRetentionDays.key],
+      );
     } on FormatException catch (error, stack) {
       throw HandlerFailure(
         code: 'replay_settings_corrupt',
@@ -111,55 +117,16 @@ class ReplayDebugHandlers implements RouteSource {
 
   /// POST /api/sequencer/replay-debug/settings/enabled  { enabled: bool }
   ///
-  /// Persists the host `replay_debug.enabled` setting AND mirrors the flag
-  /// into the host executor as one authority-preserving operation. If the
-  /// executor update fails the persisted value is rolled back so the DB and
-  /// runtime can never silently disagree (a failure returns non-2xx, never a
-  /// false success).
+  /// Persists the host `replay_debug.enabled` setting; the host's run
+  /// configuration follows it to the executor.
   Future<Response> handleSetEnabled(Request request) async {
     _logInfo('[API] POST /api/sequencer/replay-debug/settings/enabled');
     final payload = await readJsonObject(request);
     final enabled = requireBool(payload, 'enabled');
-    final dao = container.read(settingsDaoProvider);
-    final backend = container.read(sequencerBackendProvider);
-
-    // Snapshot the prior raw value (may be null/absent) so a rollback restores
-    // exactly what was there — not a re-normalized guess.
-    final priorRaw = await dao.getSetting(replayDebugEnabledKey);
-
-    // 1) Persist the new value.
-    await dao.setSetting(replayDebugEnabledKey, enabled.toString());
-
-    // 2) Mirror into the executor; roll the persist back on failure.
-    try {
-      await backend.sequencerSetDecisionLoggingEnabled(enabled);
-    } catch (error, stack) {
-      try {
-        if (priorRaw == null) {
-          await dao.deleteSetting(replayDebugEnabledKey);
-        } else {
-          await dao.setSetting(replayDebugEnabledKey, priorRaw);
-        }
-      } catch (rollbackError) {
-        // Rollback itself failed; the surfaced failure below is still the
-        // primary error the caller must see, but the stranded persisted flag
-        // is a diagnosable condition — record it rather than swallowing.
-        _logger.warning(
-          'Replay-debug rollback failed after sequencer rejection; the '
-          'persisted enabled flag may be stale: $rollbackError',
-          source: 'ReplayDebugHandlers',
-        );
-      }
-      throw HandlerFailure(
-        code: 'replay_set_enabled_failed',
-        message:
-            'Could not apply decision logging to the sequencer; the persisted '
-            'setting was rolled back.',
-        statusCode: 500,
-        cause: error,
-        stackTrace: stack,
-      );
-    }
+    await container
+        .read(settingsDaoProvider)
+        .write(StoreSettings.replayDebugEnabled, enabled);
+    container.invalidate(replayDebugEnabledProvider);
     return jsonOk({'status': 'ok', 'enabled': enabled});
   }
 
@@ -170,9 +137,14 @@ class ReplayDebugHandlers implements RouteSource {
   Future<Response> handleSetRetention(Request request) async {
     _logInfo('[API] POST /api/sequencer/replay-debug/settings/retention');
     final payload = await readJsonObject(request);
-    final days = requireInt(payload, 'days', min: 1, max: 3650);
-    final dao = container.read(settingsDaoProvider);
-    await dao.setSetting(replayDebugRetentionDaysKey, days.toString());
+    const setting = StoreSettings.replayDebugRetentionDays;
+    final days = requireInt(
+      payload,
+      'days',
+      min: setting.inputMin,
+      max: setting.inputMax,
+    );
+    await container.read(settingsDaoProvider).write(setting, days);
     return jsonOk({'status': 'ok', 'retentionDays': days});
   }
 

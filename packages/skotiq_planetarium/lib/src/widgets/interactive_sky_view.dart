@@ -558,7 +558,7 @@ class _InteractiveSkyViewState extends ConsumerState<InteractiveSkyView>
               _stopMomentum();
             },
             onDoubleTapDown: (details) {
-              // Zoom in 2x centered on the double-tap position
+              // Centers the view on the tapped point and animates to a 60° field.
               _stopMomentum();
               _handleDoubleTapZoom(
                 details.localPosition,

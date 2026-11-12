@@ -31,15 +31,14 @@ import 'settings_provider.dart';
 /// failure surfaces as [WeekForecast.unavailable] rather than a fabricated
 /// clear week.
 
-/// `app_settings` key backing [activeProjectIdProvider]. Stored as the decimal
-/// project id; an absent row or an empty string means "no active project".
-const String _activeProjectIdSettingKey = 'planning.active_project_id';
-
-String _activeProjectSettingKeyFor(SkotiqBackend backend) {
+/// The row backing [activeProjectIdProvider]: the decimal project id, with
+/// no row or an empty one meaning no active project. A linked client keeps
+/// one row per host.
+Setting<String?> _activeProjectSettingFor(SkotiqBackend backend) {
   final identity = backend.remoteHost?.link.identity;
-  if (identity == null) return _activeProjectIdSettingKey;
+  if (identity == null) return StoreSettings.activePlanningProject.row('');
   final encoded = base64Url.encode(utf8.encode(identity)).replaceAll('=', '');
-  return '$_activeProjectIdSettingKey.remote.$encoded';
+  return StoreSettings.activePlanningProject.row('.remote.$encoded');
 }
 
 /// Persisted selection of the operator's currently-focused project.
@@ -63,11 +62,11 @@ final activeProjectIdProvider =
 /// State notifier owning the active-project selection and its persistence.
 class ActiveProjectNotifier extends StateNotifier<int?> {
   ActiveProjectNotifier(this._ref) : super(null) {
-    _settingKey = _activeProjectSettingKeyFor(_ref.read(backendProvider));
+    _setting = _activeProjectSettingFor(_ref.read(backendProvider));
   }
 
   final Ref _ref;
-  late String _settingKey;
+  late Setting<String?> _setting;
   int _scopeRevision = 0;
   bool _isLoaded = false;
   Completer<void>? _loadCompleter;
@@ -89,11 +88,11 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
 
   Future<void> _load() async {
     final scopeAtStart = _scopeRevision;
-    final settingKeyAtStart = _settingKey;
+    final settingAtStart = _setting;
     final revisionAtStart = _requestRevision;
     try {
       final settingsDao = _ref.read(settingsDaoProvider);
-      final raw = await settingsDao.getSetting(settingKeyAtStart);
+      final raw = await settingsDao.read(settingAtStart);
       final parsed = _parse(raw);
       if (scopeAtStart == _scopeRevision &&
           revisionAtStart == _requestRevision &&
@@ -103,7 +102,8 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
       }
     } catch (error, stackTrace) {
       developer.log(
-        'Failed to hydrate the active planner project for $settingKeyAtStart',
+        'Failed to hydrate the active planner project for '
+        '${settingAtStart.key}',
         name: 'ActiveProjectNotifier',
         level: 1000,
         error: error,
@@ -122,10 +122,10 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
   }
 
   void _switchBackend(SkotiqBackend backend) {
-    final nextKey = _activeProjectSettingKeyFor(backend);
-    if (nextKey == _settingKey) return;
+    final next = _activeProjectSettingFor(backend);
+    if (next.key == _setting.key) return;
 
-    _settingKey = nextKey;
+    _setting = next;
     _scopeRevision++;
     _requestRevision++;
     _requestedProjectId = null;
@@ -162,15 +162,12 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
 
     _requestedProjectId = id;
     final scopeAtRequest = _scopeRevision;
-    final settingKeyAtRequest = _settingKey;
+    final settingAtRequest = _setting;
     final revision = ++_requestRevision;
     final operation = _writeTail
         .then((_) async {
           final settingsDao = _ref.read(settingsDaoProvider);
-          await settingsDao.setSetting(
-            settingKeyAtRequest,
-            id?.toString() ?? '',
-          );
+          await settingsDao.write(settingAtRequest, id?.toString());
           if (mounted &&
               scopeAtRequest == _scopeRevision &&
               revision == _requestRevision) {

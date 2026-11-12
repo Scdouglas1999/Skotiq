@@ -43,11 +43,8 @@ pub struct EvaluationFrame {
     pub frame: Option<u32>,
     /// Total frames in the current burst.
     pub frame_total: Option<u32>,
-    /// Exposure duration (seconds).
     pub exposure_duration_secs: Option<f64>,
-    /// Exposure gain.
     pub exposure_gain: Option<i32>,
-    /// Exposure offset.
     pub exposure_offset: Option<i32>,
     /// Binning string ("1x1", "2x2", ...).
     pub exposure_binning: Option<String>,
@@ -265,7 +262,6 @@ pub fn resolve_variable(
             frame.frame_total.map(i64::from),
             "frame total is only set inside an exposure burst",
         ),
-        // Session
         "session.id" => Ok(VariableValue::Str(ctx.run.identity.session_id.clone())),
         "session.date" => {
             let dt = frame.session_start.unwrap_or_else(now_utc);
@@ -277,7 +273,6 @@ pub fn resolve_variable(
                 dt.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             ))
         }
-        // Time
         "time.now" => Ok(VariableValue::Str(
             frame
                 .now_override
@@ -301,7 +296,6 @@ pub fn resolve_variable(
                 .format("%Y-%m-%d")
                 .to_string(),
         )),
-        // Moon
         "moon.phase" => float_or_unresolvable(
             name,
             frame
@@ -314,7 +308,6 @@ pub fn resolve_variable(
             ctx.calculate_moon_separation(),
             "moon separation requires target RA/Dec",
         ),
-        // Weather
         "weather.temp_c" => float_or_unresolvable(
             name,
             frame.weather_temp_c,
@@ -330,7 +323,6 @@ pub fn resolve_variable(
             frame.sqm,
             "no SQM reading available (configure a sky-brightness provider)",
         ),
-        // Observer
         "observer.name" => str_or_unresolvable(
             name,
             ctx.run.identity.observer_name.as_deref(),
@@ -347,7 +339,6 @@ pub fn resolve_variable(
             ctx.run.identity.site_elevation_m,
             "observer elevation is unset",
         ),
-        // Equipment
         "equipment.camera" => {
             let camera = match (
                 ctx.run.identity.camera_make.as_deref(),
@@ -379,7 +370,6 @@ pub fn resolve_variable(
             ctx.run.identity.telescope_aperture_mm,
             "telescope aperture is unset in equipment profile",
         ),
-        // Exposure
         "exposure.duration" => float_or_unresolvable(
             name,
             frame.exposure_duration_secs,

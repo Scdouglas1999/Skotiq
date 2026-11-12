@@ -3,6 +3,91 @@
 use super::*;
 
 impl IndiClient {
+    /// One heartbeat for `device` on this shared server connection.
+    ///
+    /// The server connection is checked first and recovered when it is stale
+    /// or its reader stopped. A device the server reads as disconnected is sent
+    /// CONNECT, and the answer is whether it reads connected now: `Ok(false)`
+    /// usually means CONNECT went out and the driver has not answered yet.
+    /// `Err` means the server connection could not be recovered.
+    pub async fn check_device(&mut self, device: &str) -> IndiResult<bool> {
+        let server = format!("{}:{}", self.host, self.port);
+        self.recover_for_check(&server).await?;
+        if !self.is_connected().await {
+            tracing::debug!(
+                "INDI {} heartbeat for {}: server not connected",
+                server,
+                device
+            );
+            return Ok(false);
+        }
+        if self.is_device_connected(device).await {
+            return Ok(true);
+        }
+        tracing::warn!(
+            "INDI {} heartbeat found device '{}' disconnected; reissuing CONNECT",
+            server,
+            device
+        );
+        self.connect_device(device).await.map_err(|e| {
+            IndiError::Unavailable(format!(
+                "INDI {} server is connected but device '{}' reconnect failed: {}",
+                server, device, e
+            ))
+        })?;
+        Ok(self.is_device_connected(device).await)
+    }
+
+    async fn recover_for_check(&mut self, server: &str) -> IndiResult<()> {
+        if self.is_connected().await {
+            if let Err(keepalive_error) = self.check_keepalive().await {
+                tracing::warn!(
+                    "INDI {} keepalive failed; tearing down stale connection before reconnect: {}",
+                    server,
+                    keepalive_error
+                );
+                if let Err(disconnect_error) = self.disconnect().await {
+                    tracing::warn!(
+                        "INDI {} disconnect during keepalive recovery failed: {}",
+                        server,
+                        disconnect_error
+                    );
+                }
+                self.reconnect_with_backoff()
+                    .await
+                    .map_err(|reconnect_error| {
+                        IndiError::Unavailable(format!(
+                            "INDI {} keepalive failed ({}) and reconnect failed: {}",
+                            server, keepalive_error, reconnect_error
+                        ))
+                    })?;
+            }
+            return Ok(());
+        }
+
+        if self.can_reconnect().await {
+            tracing::warn!(
+                "INDI {} reader is disconnected; attempting reader recovery",
+                server
+            );
+            return self.recover_reader().await.map_err(|recovery_error| {
+                IndiError::Unavailable(format!(
+                    "INDI {} server not connected and reader recovery failed: {}",
+                    server, recovery_error
+                ))
+            });
+        }
+
+        Err(IndiError::Unavailable(format!(
+            "INDI {} server not connected and no reconnect is currently allowed \
+             (reader_status={:?}, consecutive_failures={}, reconnecting={})",
+            server,
+            self.reader_status().await,
+            self.reader_consecutive_failures(),
+            self.is_reconnecting()
+        )))
+    }
+
     /// Send keepalive to detect dead connections (atomic operation)
     ///
     /// This method is safe to call concurrently due to atomic guards.

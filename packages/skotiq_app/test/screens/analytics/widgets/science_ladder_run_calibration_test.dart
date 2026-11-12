@@ -110,8 +110,8 @@ Widget _tab() {
       sessionFrameQualityMetricsProvider.overrideWith(
         (ref, id) => Stream.value([_metrics()]),
       ),
-      sessionTileMetricsProvider.overrideWith(
-        (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+      frameTileMetricsProvider.overrideWith(
+        (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
       ),
       dbSessionImagesProvider.overrideWith(
         (ref, id) => Stream.value([_frame()]),

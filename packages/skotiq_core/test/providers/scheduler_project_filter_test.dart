@@ -28,7 +28,9 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
     show ExposureNode, Sequence;
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart'
-    show EquipmentProfileModel, activeEquipmentProfileProvider;
+    show activeEquipmentProfileProvider;
+import 'package:skotiq_core/src/models/equipment_profile_model.dart'
+    show EquipmentProfileModel;
 import 'package:skotiq_core/src/providers/scheduler_provider.dart';
 import 'package:skotiq_core/src/services/planning/project_service.dart';
 import 'package:skotiq_core/src/services/scheduler/integration_goal_service.dart';

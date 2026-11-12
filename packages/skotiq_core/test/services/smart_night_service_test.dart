@@ -1440,7 +1440,7 @@ void main() {
           latitudeDeg: 41.0,
           longitudeDeg: -73.0,
           context: darkGapContext(
-            notes: const ['gain=100, temp=-10C, duration=120s, binning=1x1'],
+            notes: const ['120 s darks at gain 100, offset 10, -10.0°C, binning 1x1'],
             requirements: const [
               DarkFrameRequirement(
                 gain: 100,
@@ -1520,8 +1520,8 @@ void main() {
         longitudeDeg: -73.0,
         context: darkGapContext(
           notes: const [
-            'gain=100, temp=-10C, duration=120s, binning=1x1',
-            'gain=100, temp=-10C, duration=300s, binning=1x1',
+            '120 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
+            '300 s darks at gain 100, offset 10, -10.0°C, binning 1x1',
           ],
           requirements: requirements,
         ),

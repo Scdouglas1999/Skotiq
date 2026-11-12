@@ -35,10 +35,10 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
   // Connection is satisfied ONLY on an explicit `connected` state. Every other
   // state (disconnected / connecting / error) is fail-closed to false.
   final cameraConnected =
-      ref.watch(cameraStateProvider).connectionState ==
+      ref.watch(cameraStateProvider.select((c) => c.connectionState)) ==
       DeviceConnectionState.connected;
   final mountConnected =
-      ref.watch(mountStateProvider).connectionState ==
+      ref.watch(mountStateProvider.select((m) => m.connectionState)) ==
       DeviceConnectionState.connected;
 
   // Location & output path (persisted settings)
@@ -96,7 +96,7 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
   // The assignment SET, not just the offline subset: an empty offline list
   // means "nothing assigned is down", which over an empty profile is vacuous.
   // The profile-devices rule needs the counts to tell those apart.
-  final assignedProfileSlots = ref.watch(assignedProfileDeviceTypesProvider);
+  final assignedProfileSlots = ref.watch(rigDevicesProvider).assigned;
   final otherAssignedProfileSlots = assignedProfileSlots.where(
     (slot) =>
         slot != DeviceType.camera && slot != DeviceType.mount,

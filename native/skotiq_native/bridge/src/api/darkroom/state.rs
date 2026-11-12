@@ -35,7 +35,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
-use skotiq_imaging::read_fits;
+use skotiq_imaging::read_frame;
 use skotiq_imaging::recipe::{
     ImagePyramid, OpImage, OpRegistry, RenderCache, DEFAULT_CACHE_CAPACITY_BYTES,
 };
@@ -296,7 +296,7 @@ pub(crate) fn base_pyramid(path: &Path) -> Result<LoadedMaster, String> {
         render_cache().clear();
     }
 
-    let (image_data, header) = read_fits(path).map_err(|e| {
+    let (image_data, header) = read_frame(path).map_err(|e| {
         format!(
             "cannot read '{}' as FITS: {}",
             path.display(),

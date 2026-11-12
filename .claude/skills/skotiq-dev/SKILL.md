@@ -47,25 +47,32 @@ parallel table, or a special case for one device, caller or mode.
 
 | Fact | Owner |
 | --- | --- |
-| Local host vs linked host vs no host | `packages/skotiq_core/lib/src/backend/remote_host.dart`: `backend.remoteHost` (null when the host is this process), `hasNoHost`, `runsRigHere`, `ownsDeviceBridge`; `isRemoteModeProvider`, `isRemoteClientProvider` in `providers/backend_provider.dart`. The only file that tests a backend's class. |
+| Local host vs linked host vs no host | `packages/skotiq_core/lib/src/backend/remote_host.dart`: `backend.remoteHost` (null when the host is this process), `hasNoHost`, `runsRigHere`, `ownsDeviceBridge`; `isRemoteModeProvider`, `isRemoteClientProvider` in `providers/backend_provider.dart`. Nothing outside the backend files tests a backend's class (section 4). |
 | Host data (both sides) | role interfaces in `packages/skotiq_core/lib/src/backend/roles/host_data/`, remote halves in `backend/network_backend/host_data/`, one getter each on `RemoteHost`. Recipe: section 3.8. |
 | Stale async work after a host switch | `AsyncScopes` / `ref.backendScope()` in `packages/skotiq_core/lib/src/providers/async_scope.dart`; dialogs: `HostBoundDialogState` in `packages/skotiq_app/lib/utils/authority_bound_dialog.dart` |
 | Sequence node types (Dart) | `NodeKind` in `packages/skotiq_core/lib/src/models/sequence/sequence_models/node_kind.dart`, one entry per type in `node_kinds.dart`: wire name, legacy names, icon, category, container flag, required devices, field table, describe, diff, captures. App icon and tint: `packages/skotiq_app/lib/screens/sequencer/widgets/node_appearance.dart`. Palette: `packages/skotiq_core/lib/src/providers/sequence/node_palette.dart`. Tree insert: `packages/skotiq_app/lib/screens/sequencer/widgets/tree_insert.dart`. |
 | Sequence node types (Rust) | `NodeType` in `native/skotiq_native/sequencer/src/lib.rs` (`wire_name`, `display_name`), `instruction_for` in `sequencer/src/node/registry.rs`, node wrapper in `sequencer/src/node/instructions/`, the work in `sequencer/src/instructions/` |
+| Frames a step or a plan takes | `NodeFrames` (`framesPerPass`, `capturesUntilStopped`) and `plannedCaptureUnder` in `packages/skotiq_core/lib/src/models/sequence/sequence_models/planned_capture.dart`, over `NodeKind.captures`. A Smart Exposure looping until stopped has no count, as in the native run (`sequencer/src/executor/loading.rs` `calculate_totals`). |
+| Filter-name matching | `find_filter_match` in `native/skotiq_native/bridge/src/filter_matching.rs` (the wheel) and `matchingFilterIndex` in `packages/skotiq_core/lib/src/providers/sequence/filter_name_matching.dart` (the editor): one rule, both tested against `packages/skotiq_core/test/fixtures/filter_matching_cases.json`. Change both and add a case. |
 | Executor wire (Dart node -> Rust config) | `packages/skotiq_core/lib/src/providers/sequence/sequence_executor/sequence_serializer.dart` |
-| A run | under `sequencer/src/`: `executor/start/run.rs` (`Run`, `Teardown`), state cell `executor/run_state.rs` (`RunCell`, `RunControl`), settings `executor/run_config.rs` (`RunConfig`, `RunConfigStore`), what node contexts share `instructions/context.rs` (`RunShared`, `InstructionContext`, `Setback`, `InstructionResult::settle`), checkpoints `executor/checkpoint_writer.rs`, triggers `triggers/standard.rs`, recovery `recovery/policy.rs`, device access `device_ops/` |
+| The sequence run as the app shows it | `RunRecord` in `packages/skotiq_core/lib/src/providers/sequence/run_record.dart`, one value written only through `RunRecordNotifier`: on the host by the event fold (`foldRunEvent` in `sequence/sequence_progress.dart`) and `SequenceExecutor`, on a linked client by the mirror (`remote_sync/sequencer_mirror.dart` and the `sequenceRun` / `runRecord` channels). `sequenceExecutionStateProvider`, `sequenceProgressProvider`, `nodeExposureTallyProvider` and the other run views are `select`s of it; add a field to the record, never a second provider. |
+| A run | under `sequencer/src/`: `executor/start/run.rs` (`Run`, `Teardown`), state cell `executor/run_state.rs` (`RunCell`, `RunControl`), settings `executor/run_config.rs` (`RunConfig`, `RunConfigStore`; how frames are saved is part of it), status and settings without the executor lock `executor_handle()` (`ExecutorHandle` in `executor/mod.rs`; take `get_executor().write()` only to change what the executor itself holds), what node contexts share `instructions/context.rs` (`RunShared`, `InstructionContext`, `Setback`, `InstructionResult::settle`), checkpoints `executor/checkpoint_writer.rs`, triggers `triggers/standard.rs`, recovery `recovery/policy.rs`, device access `device_ops/` |
 | Device types (Dart) | `DeviceType` (label, noun) in `packages/skotiq_core/lib/src/models/backend/device_types.dart`; per-type slot table `deviceSlots` in `providers/equipment/device_slots.dart`; one connect/disconnect in `services/device_service/connections/device_connections.dart`; icon and accent in `packages/skotiq_app/lib/utils/device_type_ui.dart` |
 | Device vocabulary and drivers (Rust) | `native/skotiq_native/device/src/` (`DeviceKind`, `Vendor`, `DriverError`, driver traits, ASCOM member lists); vendor families `native/src/catalog.rs`; bridge handles and policy `bridge/src/device_manager/` |
-| Settings | `packages/skotiq_core/lib/src/settings/app_settings_table.dart` (each setting once); kinds in `setting.dart`; read `appSettingsProvider` or `AppSettingDefs.<field>`. Settings pages: `packages/skotiq_app/lib/screens/settings/`, sections `settings_sections.dart` (`SettingsSectionId`, `openSettings`), field binding `widgets/settings_widgets/settings_field_binding.dart` |
-| Text for numbers, times, sizes, coordinates, temperatures | `packages/skotiq_astro/lib/format.dart` (`ClockFormat`, `DurationFormat`, `RelativeTime`, `ByteFormat`, `CoordinateFormat`, `AngleFormat`, `QuantityFormat`, `formatCelsius`) |
+| Settings | `packages/skotiq_core/lib/src/settings/app_settings_table.dart` (each setting once); kinds in `setting.dart`; read `appSettingsProvider` or `AppSettingDefs.<field>`. Settings pages: `packages/skotiq_app/lib/screens/settings/`, sections `settings_sections.dart` (`SettingsSectionId`, `openSettings`), field binding `widgets/settings_widgets/settings_field_binding.dart`. Layout class of a settings pane (split view or narrow single pane): `SettingsFormScope.narrow`, set once by `SettingsScreen`; the kit blocks in `widgets/settings_widgets/` read it, pages never take or pass it |
+| Text for numbers, times, sizes, coordinates, temperatures | `packages/skotiq_astro/lib/format.dart` (`ClockFormat`, `DurationFormat`, `RelativeTime`, `ByteFormat`, `CoordinateFormat`, `AngleFormat`, `QuantityFormat`, `formatCelsius`). `ClockFormat` prints the fields it is given: call `.toLocal()` on a stored or wire time first. Binary or decimal size units is the one constant `ByteFormat.units`. |
 | Error text a user sees | `userFacingError`, `failureText`, `describeError` in `packages/skotiq_core/lib/src/errors/error_text.dart`. Never show `$e` or `e.toString()`. |
 | Charts | `SkotiqChart` and `ChartScale` in `packages/skotiq_ui/lib/src/charts/` |
 | Widgets, tokens, look | `package:skotiq_ui/skotiq_ui.dart` (`lib/src/components`, `tokens`, `theme`); design language `docs/design/overhaul/02-design-language.md`, components `05-components.md` |
-| App routes | `packages/skotiq_app/lib/router/app_router.dart` |
+| App routes | `AppRoute` in `packages/skotiq_app/lib/router/app_routes.dart`: one enum value per path (label, icon, rail group, palette words, tour, parent, redirect). Locations with parameters are built by `AppRoutes.*`; a tab a link can name is an enum with `QueryWord` (`router/query_word.dart`). `router/app_router.dart` builds the GoRouter from the table and maps each route to its screen. Core cannot import the table, so the few route strings core models carry are checked by `packages/skotiq_app/test/router/app_routes_test.dart`. |
 | API routes and their policy | one enum per area in `packages/skotiq_remote_protocol/lib/src/wire/routes/*_api.dart`, listed in `src/wire/api_routes.dart` and exported by `lib/wire.dart`; server binding `apps/desktop/lib/headless_api/route_table.dart`; handler classes `apps/desktop/lib/headless_api/handlers/` (barrel `handlers.dart`), built in `apps/desktop/lib/headless_api_server/handler_initialization.dart` |
 | Wire error body and shared DTOs | `ApiErrorBody`, DTOs under `packages/skotiq_remote_protocol/lib/src/wire/` |
 | Host start-up (GUI host and daemon) | steps `apps/desktop/lib/host/host_steps.dart`; always-on services by role `packages/skotiq_app/lib/startup/always_on_services.dart`; start-up prompts `packages/skotiq_app/lib/startup/startup_surface_queue.dart` |
 | Events | Rust `native/skotiq_native/bridge/src/event/` (`EventPayload` in `bus.rs`); Dart `packages/skotiq_core/lib/src/models/backend/event_types.dart`; recipe 3.6 |
+| What a sequencer error means for the run | decided where it happens: `ExecutorEvent::{Warning, StepProblem, RunHeld, Error}` in `sequencer/src/executor/types.rs` (`RunControl::warning/step_problem/held/error` for trigger actions), sent as `SequencerErrorKind` on `SequencerEvent::Error` (`bridge/src/event/sequencer.rs`); Dart reads it with `sequencerErrorKindOf` (`backend/sequencer_error_kind.dart`). Nothing infers it from severity or text. A run's failure is told only by `SequenceFailed`. |
+| A happening the run carries on through and tells once (failed autofocus, reject streak, quality problem) | `RunNotice` in `sequencer/src/decision.rs`, set on its decision row (`ContinuedHappening` in `sequencer/src/executor/mod.rs`) and on its `ExecutorEvent::NoticedWarning`; wire `SequencerNotice` on `DecisionLogged` and `Error`; Dart `sequencerNoticeOf` (`backend/sequencer_notice.dart`). The router notifies from the row, the error bridge never toasts the warning. Summaries and sentences are display text. |
+| Why the grader rejected a frame | `RejectReason` in `sequencer/src/quality/image_grading.rs`; its `Display` is the sentence. Match the variant, never the text. |
+| Temperature compensation rule | a run: `FocusCompensation` in `sequencer/src/temperature_compensation.rs`; idle: its mirror `FocusCompensationRule` in `providers/equipment/focus_compensation_rule.dart`. Both run `sequencer/src/temperature_compensation_cases.json`; change the rule on both sides and add the case there. |
 | Database | drift tables `packages/skotiq_core/lib/src/database/tables/`, `.drift` files in `database/schema/`, registered in `database/database.dart`; DAOs `database/daos/`; migrations `database/database/migration_v<N>.dart` |
 
 ## 3. Recipes
@@ -112,8 +119,13 @@ Read the nearest existing example first and copy its shape. Every recipe ends wi
    binding (write, rollback and bound notice come with it). Then
    `dart run tools/production/settings_search_index_gen.dart`.
 4. Link to it with `openSettings(context, SettingsSectionId.x)`, never a route string.
-5. A run reads settings through `RunConfig`; the push table is `_settingsPushes` in
-   `packages/skotiq_core/lib/src/providers/sequence/sequence_executor/runtime_config_sync.dart`.
+5. A setting the executor reads: add the field to `RunConfig` (and its `Section`) in
+   `sequencer/src/executor/run_config.rs` (a rule that refuses a value goes in `RunConfig::validate`),
+   and give the catalog entry `runConfig: '<field path>'`. A value worked out from more than one
+   setting is built in `RunConfigSync.build` (`providers/sequence/run_config_sync.dart`), the one
+   sender: the whole config goes to the host's executor in one call and follows the settings from
+   start-up; sections a run keeps from its start are `kRunConfigKeptForTheRun`. No FFI function,
+   no API route, no Dart push per setting.
 
 ### 3.4 Device vendor (native SDK or serial protocol)
 1. Driver in `native/skotiq_native/native/src/vendor/<vendor>/` implementing the `skotiq_device`
@@ -130,14 +142,16 @@ Read the nearest existing example first and copy its shape. Every recipe ends wi
    clippy, and the Windows type check (section 6) for anything `#[cfg(windows)]`.
 
 ### 3.5 Screen
-1. Directory `packages/skotiq_app/lib/screens/<feature>/` (desktop-only entry code in `apps/desktop/lib/`),
-   route in `router/app_router.dart`.
+1. Directory `packages/skotiq_app/lib/screens/<feature>/` (desktop-only entry code in `apps/desktop/lib/`).
+   Route: one `AppRoute` value in `router/app_routes.dart` and its arm in `_screen` in
+   `router/app_router.dart` (the switch does not compile without it). Link to it with
+   `AppRoute.x.path` or an `AppRoutes.x(...)` builder, never a path or query written as a string.
 2. Build from `skotiq_ui` components and tokens; charts with `SkotiqChart`; text through
    `skotiq_astro` formatters and `userFacingError`. Every state: loading, empty, error, linked to a
    host, no host, phone width (420 px), red night theme.
 3. Data from providers in `skotiq_core`. Linked mode works by the provider picking the role's side; a
    screen that needs files only the rig has asks `isRemoteClientProvider`.
-4. Launch and drive it (section 5). A screen is not done until you have used it.
+4. Launch and drive it (section 6). A screen is not done until you have used it.
 
 ### 3.6 Event
 1. Rust: the variant in the right enum under `native/skotiq_native/bridge/src/event/`, emitted where
@@ -184,6 +198,11 @@ Copy a converted role: `backend/roles/host_data/observing_lists_store.dart` (loc
 
 - Dependency direction as in section 1; no `package:<other>/src/` imports (import the package's
   library, export the name there if needed).
+- Inside `skotiq_core`, `backend/`, `database/`, `models/` and `services/` do not import
+  `providers/` or the core barrel. A plain value (data class, enum, result type, pure function of
+  values) lives in `models/` or the domain folder that owns it, never in a provider file. A service
+  that needs a Riverpod `Ref` has a `coreLayers` entry in
+  `tools/production/architecture_rules_baseline.json` saying what it reads.
 - No `is`/`as NetworkBackend|FfiBackend|DisconnectedBackend` outside the backend files.
 - Per-type facts live on the tables (`NodeKind`, `NodeType`, `deviceSlots`, `Family`, the settings
   table, the route enums). A switch per type elsewhere is allowed only where the compiler's
@@ -224,7 +243,7 @@ commit instead of hiding it.
 | --- | --- |
 | Any Dart | `dart analyze <changed paths>` (no new issues); `flutter test --concurrency=4` in each changed package (`dart test` in `skotiq_astro`) |
 | Any Rust | in `native/skotiq_native`: `cargo test --release -p <crate>`, `cargo clippy --release -p <crate> --all-targets`; for code Windows uses: `cargo check --release --target x86_64-pc-windows-gnu --workspace --all-targets` |
-| Structure | `melos run audit:architecture` (the rules in section 4; it says where a change goes when it fails) and `audit:bridge-boundary` |
+| Structure | `melos run audit:architecture` (the first four rules in section 4: dependency direction and `src/` imports, core layers below providers, backend class tests, per-node-type dispatch; it says where a change goes when it fails) and `audit:bridge-boundary` |
 | Moved or renamed code | `melos run audit:behavioral:sync` and `audit:placeholders:sync`, then the plain gates `audit:behavioral`, `audit:placeholders`, `audit:fail-closed` |
 | Nodes | node codec goldens (3.1) and `cargo test --release -p skotiq_sequencer` |
 | Settings | `test/settings/` in `skotiq_core` (generated table, base compatibility) |

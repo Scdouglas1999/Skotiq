@@ -16,12 +16,17 @@ import 'src/audit_scope.dart';
 ///   node-dispatch       No new per-node-type dispatch (a switch, `is` chain
 ///                       or Rust `match` naming [_dispatchThreshold] or more
 ///                       node types) outside the node table.
+///   core-layers         skotiq_core's backend/, database/, models/ and
+///                       services/ do not import providers/ or the core
+///                       barrel; a service that needs a Riverpod Ref is
+///                       listed in the baseline with the reason.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
-/// names the package and import (src-import) or the file name and enclosing
-/// declaration (the other two), never a line number, so moving code does not
-/// touch the baseline. Only a count above the baseline fails.
+/// names the package and import (src-import), the layer and file name
+/// (core-layers) or the file name and enclosing declaration (the other two),
+/// never a line number, so moving code does not touch the baseline. Only a
+/// count above the baseline fails.
 ///
 /// Usage (from the repository root):
 ///   dart run tools/production/architecture_rules_audit.dart
@@ -237,6 +242,24 @@ const _dispatchInstead =
     'registry.rs). When the compiler\'s exhaustiveness check is the point '
     '(a widget per type), add the site to the baseline with a reason.';
 
+const _coreLib = 'packages/skotiq_core/lib/';
+const _coreSrc = '${_coreLib}src/';
+
+/// The core barrel re-exports every provider file, so importing it from a
+/// layer below providers/ is the same dependency.
+const _coreBarrel = '${_coreLib}skotiq_core.dart';
+
+/// The layers of skotiq_core that sit below the provider layer.
+const _coreBelowProviders = {'backend', 'database', 'models', 'services'};
+
+const _coreLayersInstead =
+    'Plain values (data classes, enums, result types, pure functions of '
+    'values) live under models/ or the domain folder that owns them, and '
+    'backend/, database/, models/ and services/ import them from there; '
+    'Riverpod providers are declared under providers/. A service that needs '
+    'a Riverpod Ref may import providers/ only with a coreLayers entry in the '
+    'baseline that says what it reads.';
+
 void main(List<String> args) {
   final scope = AuditScope.fromArgs(args);
   final baselinePath = argValue(args, '--baseline') ?? _defaultBaselinePath;
@@ -267,11 +290,13 @@ void main(List<String> args) {
     ..._dartDispatchSites(runtimeDart),
     ..._rustDispatchSites(runtimeRust),
   ];
+  final coreLayerSites = _coreLayerSites(runtimeDart);
 
   final counted = {
     _Rule.backendClass: backendSites,
     _Rule.srcImport: srcImportSites,
     _Rule.nodeDispatch: dispatchSites,
+    _Rule.coreLayers: coreLayerSites,
   };
   final current = <_Rule, Map<String, int>>{};
   for (final MapEntry(key: rule, value: sites) in counted.entries) {
@@ -397,6 +422,11 @@ enum _Rule {
     'node-dispatch',
     'Per-node-type facts live on the node table.',
     _dispatchInstead,
+  ),
+  coreLayers(
+    'core-layers',
+    'Core layers below providers/ do not import the provider layer.',
+    _coreLayersInstead,
   );
 
   const _Rule(this.id, this.summary, this.instead);
@@ -405,7 +435,7 @@ enum _Rule {
   final String summary;
   final String instead;
 
-  static const counted = [backendClass, srcImport, nodeDispatch];
+  static const counted = [backendClass, srcImport, nodeDispatch, coreLayers];
 }
 
 class _Violation {
@@ -654,8 +684,14 @@ List<_Violation> _checkRustDirection() {
 // ---------------------------------------------------------------------------
 // backend-class
 
+const _backendClassNames = 'NetworkBackend|FfiBackend|DisconnectedBackend';
+
+/// A type test, a cast, a pattern (`case NetworkBackend _`, a switch arm
+/// `NetworkBackend() =>`) or a `runtimeType` comparison.
 final _backendClassTest = RegExp(
-  r'\b(is!?|as)\s+(NetworkBackend|FfiBackend|DisconnectedBackend)\b',
+  '\\b(?:is!?|as|case)\\s+(?:$_backendClassNames)\\b'
+  '|\\b(?:$_backendClassNames)\\s*\\(\\s*\\)\\s*(?:=>|when\\b)'
+  '|\\bruntimeType\\s*[!=]=\\s*(?:$_backendClassNames)\\b',
 );
 
 List<_Site> _backendClassSites(List<String> files) {
@@ -672,7 +708,7 @@ List<_Site> _backendClassSites(List<String> files) {
         _Site(
           '${_basename(path)}::${_dartEnclosing(lines, line)}',
           '$path:${line + 1}',
-          '`${m.group(1)} ${m.group(2)}`',
+          '`${m.group(0)!.replaceAll(RegExp(r'\s+'), ' ')}`',
         ),
       );
     }
@@ -701,6 +737,58 @@ List<_Site> _srcImportSites(Map<String, String> packages, List<String> files) {
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// core-layers
+
+final _directiveUri = RegExp(r'''^\s*(?:import|export)\s+['"]([^'"]+)['"]''');
+
+List<_Site> _coreLayerSites(List<String> files) {
+  final out = <_Site>[];
+  for (final path in files) {
+    if (!path.startsWith(_coreSrc)) continue;
+    final layer = path.substring(_coreSrc.length).split('/').first;
+    if (!_coreBelowProviders.contains(layer)) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final m = _directiveUri.firstMatch(lines[i]);
+      if (m == null) continue;
+      final target = _coreTarget(path, m.group(1)!);
+      if (target == null) continue;
+      if (target != _coreBarrel &&
+          !target.startsWith('${_coreSrc}providers/')) {
+        continue;
+      }
+      out.add(
+        _Site(
+          '$layer/${_basename(path)}',
+          '$path:${i + 1}',
+          'imports ${target.substring(_coreLib.length)}',
+        ),
+      );
+    }
+  }
+  return out;
+}
+
+/// The repository path [uri] names when imported from [from], for URIs into
+/// skotiq_core; null for anything else.
+String? _coreTarget(String from, String uri) {
+  if (uri.startsWith('package:skotiq_core/')) {
+    return '$_coreLib${uri.substring('package:skotiq_core/'.length)}';
+  }
+  if (uri.contains(':')) return null;
+  final segments = from.split('/')..removeLast();
+  for (final part in uri.split('/')) {
+    if (part == '..') {
+      segments.removeLast();
+    } else if (part != '.') {
+      segments.add(part);
+    }
+  }
+  final path = segments.join('/');
+  return path.startsWith(_coreLib) ? path : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1135,6 +1223,7 @@ class _Baseline {
     _Rule.backendClass: 'backendClass',
     _Rule.srcImport: 'srcImport',
     _Rule.nodeDispatch: 'nodeDispatch',
+    _Rule.coreLayers: 'coreLayers',
   };
 
   static _Baseline load(String path) {

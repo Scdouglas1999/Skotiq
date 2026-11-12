@@ -27,14 +27,68 @@ part 'settings_widgets/settings_color_and_path_inputs.dart';
 part 'settings_widgets/settings_link_and_info_rows.dart';
 part 'settings_widgets/settings_compact_controls.dart';
 
+/// A fixed-width slot for a control that is not one of the settings inputs:
+/// [width] in the split view, [narrowWidth] in the narrow layout.
+class SettingsControlBox extends StatelessWidget {
+  const SettingsControlBox({
+    super.key,
+    required this.width,
+    required this.narrowWidth,
+    this.height,
+    required this.child,
+  });
+
+  final double width;
+  final double narrowWidth;
+  final double? height;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: SettingsFormScope.narrowOf(context) ? narrowWidth : width,
+      height: height,
+      child: child,
+    );
+  }
+}
+
+/// The size of a labelled action button on a settings page: medium, or small
+/// in the narrow layout.
+ButtonSize settingsActionButtonSize(BuildContext context) =>
+    SettingsFormScope.narrowOf(context) ? ButtonSize.small : ButtonSize.medium;
+
+/// Vertical space between hand-laid blocks on a settings page, a step tighter
+/// in the narrow layout.
+class SettingsGap extends StatelessWidget {
+  /// 20, or 16 narrow.
+  const SettingsGap({super.key})
+      : _wide = 20,
+        _narrow = 16;
+
+  /// 32, or 24 narrow.
+  const SettingsGap.large({super.key})
+      : _wide = 32,
+        _narrow = 24;
+
+  final double _wide;
+  final double _narrow;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: SettingsFormScope.narrowOf(context) ? _narrow : _wide,
+    );
+  }
+}
+
 /// Whether a [SettingRow] trailing control should use flexible width.
 bool settingsTrailingIsNarrow(
   BuildContext context, {
-  bool? isMobile,
   BoxConstraints? constraints,
   double fixedWidth = 260,
 }) {
-  if (isMobile ?? SettingsFormScope.isMobileOf(context)) return true;
+  if (SettingsFormScope.narrowOf(context)) return true;
   if (Responsive.isMobile(context)) return true;
   if (constraints != null &&
       constraints.hasBoundedWidth &&
@@ -48,12 +102,10 @@ bool settingsTrailingIsNarrow(
 ({bool flexible, double? width}) settingsTrailingLayout(
   BuildContext context, {
   double designWidth = 260,
-  bool? isMobile,
   BoxConstraints? constraints,
 }) {
   final narrow = settingsTrailingIsNarrow(
     context,
-    isMobile: isMobile,
     constraints: constraints,
     fixedWidth: designWidth,
   );
@@ -100,7 +152,6 @@ Widget settingsTrailingTextInput({
   String? Function(String text)? validate,
   String? hint,
   double designWidth = 260,
-  bool? isMobile,
   bool obscure = false,
 }) {
   return SettingsTrailing(
@@ -113,7 +164,6 @@ Widget settingsTrailingTextInput({
       width: width,
       flexible: flexible,
       obscure: obscure,
-      isMobile: isMobile,
       onChanged: onChanged,
       validate: validate,
     ),
@@ -127,7 +177,6 @@ Widget settingsTrailingDropdown({
   required List<String> items,
   required FutureOr<void> Function(String) onChanged,
   double designWidth = 200,
-  bool? isMobile,
   List<String>? itemLabels,
 }) {
   return SettingsTrailing(
@@ -139,7 +188,6 @@ Widget settingsTrailingDropdown({
       onChanged: onChanged,
       width: width,
       flexible: flexible,
-      isMobile: isMobile,
     ),
   );
 }

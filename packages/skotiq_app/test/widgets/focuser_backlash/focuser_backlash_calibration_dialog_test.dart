@@ -356,7 +356,7 @@ void main() {
         find.textContaining('Measured at position 6620 at 14.5°C on'),
         findsOneWidget,
       );
-      expect(find.textContaining('14 September 2026'), findsOneWidget);
+      expect(find.textContaining('Sep 14, 2026'), findsOneWidget);
       // Confidence and, verbatim, native's grounds for it.
       expect(find.text('High confidence'), findsOneWidget);
       expect(

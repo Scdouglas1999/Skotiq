@@ -1,8 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/darkroom/delivery.dart';
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
@@ -429,7 +427,3 @@ class DeliveryJournalDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 }
-
-final deliveryJournalDaoProvider = Provider<DeliveryJournalDao>((ref) {
-  return DeliveryJournalDao(ref.watch(databaseProvider));
-});

@@ -3,10 +3,7 @@
 use crate::AlpacaError;
 use skotiq_device::ascom::ShutterStatus;
 
-alpaca_device!(
-    AlpacaDome,
-    Dome
-);
+alpaca_device!(AlpacaDome, Dome);
 
 impl AlpacaDome {
     skotiq_device::ascom_dome_members!(alpaca_member);

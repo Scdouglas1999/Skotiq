@@ -56,12 +56,6 @@ class SafetyMonitorHandlers implements RouteSource {
     _ => SafetyFailMode.failClosed,
   };
 
-  String _failModeToSequencer(SafetyFailMode mode) => switch (mode) {
-    SafetyFailMode.failOpen => 'fail_open',
-    SafetyFailMode.failClosed => 'fail_closed',
-    SafetyFailMode.warnOnly => 'warn_only',
-  };
-
   int _parseIntSetting(Map<String, String> settings, String key, int fallback) {
     final raw = settings[key];
     if (raw == null) return fallback;
@@ -117,7 +111,7 @@ class SafetyMonitorHandlers implements RouteSource {
         'shouldPark': safety.actions.shouldPark,
         'shouldCloseDome': safety.actions.shouldCloseDome,
         'reason': safety.actions.reason,
-        'resumeCheckTime': safety.actions.resumeCheckTime?.toIso8601String(),
+        'resumeCheckTime': safety.actions.resumeCheckTime?.toWireTime(),
         'advisoryOnly': safety.actions.advisoryOnly,
       },
       // Which input decides, and what the run's own frames say: a forecast
@@ -131,15 +125,15 @@ class SafetyMonitorHandlers implements RouteSource {
         final evidence? => {
           'latestStars': evidence.latestStars,
           'typicalStars': evidence.typicalStars,
-          'latestAt': evidence.latestAt.toUtc().toIso8601String(),
+          'latestAt': evidence.latestAt.toWireTime(),
           'clear': evidence.clear,
         },
         null => null,
       },
       'snoozeReason': safety.snoozeReason,
       'failModeWarning': safety.failModeWarning,
-      'lastEvaluation': safety.lastEvaluation?.toIso8601String(),
-      'snoozeUntil': safety.snoozeUntil?.toIso8601String(),
+      'lastEvaluation': safety.lastEvaluation?.toWireTime(),
+      'snoozeUntil': safety.snoozeUntil?.toWireTime(),
     };
   }
 
@@ -204,8 +198,8 @@ class SafetyMonitorHandlers implements RouteSource {
         "deviceId": deviceId,
         "deviceName": monitor.name,
         "isSafe": safetyMonitorState.isSafe,
-        "lastChecked": safetyMonitorState.lastChecked?.toIso8601String(),
-        "lastUpdate": DateTime.now().toIso8601String(),
+        "lastChecked": safetyMonitorState.lastChecked?.toWireTime(),
+        "lastUpdate": DateTime.now().toWireTime(),
       });
     }
 
@@ -220,7 +214,7 @@ class SafetyMonitorHandlers implements RouteSource {
         ..._aggregateSafetyPayload(weatherSafety),
         "monitorsConnected": 0,
         "monitors": <Map<String, dynamic>>[],
-        "lastUpdate": DateTime.now().toIso8601String(),
+        "lastUpdate": DateTime.now().toWireTime(),
       });
     }
 
@@ -236,7 +230,7 @@ class SafetyMonitorHandlers implements RouteSource {
         'connected': isConnected,
         'isSafe': isConnected ? safetyMonitorState.isSafe : null,
         'lastChecked': isConnected
-            ? safetyMonitorState.lastChecked?.toIso8601String()
+            ? safetyMonitorState.lastChecked?.toWireTime()
             : null,
       };
     }).toList();
@@ -245,7 +239,7 @@ class SafetyMonitorHandlers implements RouteSource {
       ..._aggregateSafetyPayload(weatherSafety),
       "monitorsConnected": safetyMonitors.length,
       "monitors": monitorStatuses,
-      "lastUpdate": DateTime.now().toIso8601String(),
+      "lastUpdate": DateTime.now().toWireTime(),
     });
   }
 
@@ -293,7 +287,6 @@ class SafetyMonitorHandlers implements RouteSource {
     optionalInt(payload, 'requiredSafeDurationSeconds', min: 0);
 
     final settingsNotifier = container.read(appSettingsProvider.notifier);
-    final backend = container.read(sequencerBackendProvider);
     final safetyConfig = container.read(safetyConfigStoreProvider);
 
     if (failMode != null) {
@@ -301,7 +294,6 @@ class SafetyMonitorHandlers implements RouteSource {
       // safety_fail_mode is owned by app_settings; the notifier setter is the
       // canonical writer so state + persistence stay in lockstep.
       await settingsNotifier.setSafetyFailMode(mode);
-      await backend.sequencerSetSafetyFailMode(_failModeToSequencer(mode));
     }
 
     final autoParkOnUnsafe = optionalBool(payload, 'autoParkOnUnsafe');
@@ -327,7 +319,6 @@ class SafetyMonitorHandlers implements RouteSource {
 
     final checkInterval = optionalInt(payload, 'checkIntervalSeconds');
     if (checkInterval != null) {
-      await backend.sequencerSetSafetyCheckIntervalSeconds(checkInterval);
       await safetyConfig.setCheckIntervalSeconds(checkInterval);
     }
 
@@ -361,7 +352,7 @@ class SafetyMonitorHandlers implements RouteSource {
       'reason': reason,
       'deviceId': optionalString(payload, 'deviceId'),
       'durationMinutes': durationMinutes,
-      'acknowledgedAt': DateTime.now().toUtc().toIso8601String(),
+      'acknowledgedAt': DateTime.now().toWireTime(),
     };
     await container
         .read(settingsDaoProvider)
@@ -377,8 +368,7 @@ class SafetyMonitorHandlers implements RouteSource {
       'status': 'acknowledged',
       'snoozeUntil': DateTime.now()
           .add(Duration(minutes: durationMinutes))
-          .toUtc()
-          .toIso8601String(),
+          .toWireTime(),
       'warningDelaySeconds': _parseIntSetting(stored, _kWarningDelayKey, 60),
     });
   }

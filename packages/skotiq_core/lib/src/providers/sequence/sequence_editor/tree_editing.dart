@@ -20,10 +20,12 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
   /// starting a sequence first when none is open.
   ///
   /// Without an [index] the editor places the step: after [parentId] when
-  /// that is a step, at the end when it is a container, except that a step
-  /// that aims the telescope or readies the rig goes ahead of the first
-  /// sibling that takes frames, so building a target top to bottom never
-  /// slews after its exposures.
+  /// that is a step, at the end when it is a container, except that the
+  /// first step of its type that aims the telescope or readies the rig goes
+  /// ahead of the first sibling that takes frames, so building a target top
+  /// to bottom never slews after its exposures. A second one (a refocus
+  /// between filters, the slew to the next mosaic panel) stays where it was
+  /// added.
   ///
   /// Returns false and changes nothing while a run owns the tree.
   bool insertNewNode(
@@ -39,7 +41,7 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
       index = null;
     }
     if (index == null && node.kind.stage.precedesCapture) {
-      (parentId: parentId, index: index) = _aheadOfCapture(parentId);
+      (parentId: parentId, index: index) = _aheadOfCapture(parentId, node.kind);
     }
     withUndoBatch(() {
       addNode(node, parentId: parentId, index: index);
@@ -50,10 +52,14 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     return true;
   }
 
-  /// Where a new aim or prepare step goes when it is added at [parentId]
-  /// with no index: the usual position, moved up to just before the first
-  /// sibling ahead of it that takes frames.
-  ({String? parentId, int? index}) _aheadOfCapture(String? parentId) {
+  /// Where a new aim or prepare step of [kind] goes when it is added at
+  /// [parentId] with no index: the usual position, moved up to just before
+  /// the first sibling ahead of it that takes frames unless a step of its
+  /// type is already up there.
+  ({String? parentId, int? index}) _aheadOfCapture(
+    String? parentId,
+    NodeKind kind,
+  ) {
     final nodes = _currentSequence!.nodes;
     final resolved = _resolveInsertionPoint(nodes, parentId, null);
     final containerId = resolved.parentId ?? _currentSequence!.rootNodeId;
@@ -61,6 +67,7 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     if (siblings == null) return resolved;
     final limit = resolved.index ?? siblings.length;
     for (var i = 0; i < limit && i < siblings.length; i++) {
+      if (nodes[siblings[i]]?.kind == kind) return resolved;
       if (_takesFrames(nodes, siblings[i])) {
         return (parentId: containerId, index: i);
       }

@@ -43,35 +43,29 @@ pub struct WizardCheckpoint {
 }
 
 /// What a checkpoint keeps of the trigger state: the persisted fields of its
-/// parts, plus the three run settings the executor holds beside it. One flat
+/// parts, plus the two run settings the executor holds beside it. One flat
 /// JSON object, every field tolerant of being absent from an older file.
+/// Older files also carry `triggers_enabled`; it is read and ignored, because
+/// nothing a checkpoint says may turn off dawn or weather parking.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TriggerStateSnapshot {
     #[serde(flatten)]
     pub state: PersistedTriggerState,
     #[serde(default)]
     pub safety_fail_mode: SafetyFailMode,
-    #[serde(default = "default_triggers_enabled")]
-    pub triggers_enabled: bool,
     #[serde(default)]
     pub filter_focus_offsets: HashMap<String, i32>,
-}
-
-fn default_triggers_enabled() -> bool {
-    true
 }
 
 impl TriggerStateSnapshot {
     pub fn from_state(
         state: &TriggerState,
         safety_fail_mode: SafetyFailMode,
-        triggers_enabled: bool,
         filter_focus_offsets: HashMap<String, i32>,
     ) -> Self {
         Self {
             state: state.persisted(),
             safety_fail_mode,
-            triggers_enabled,
             filter_focus_offsets,
         }
     }
@@ -88,11 +82,8 @@ pub struct SessionCheckpoint {
     pub version: u32,
     /// When the checkpoint was created
     pub timestamp: DateTime<Utc>,
-    /// The sequence definition
     pub sequence: SequenceDefinition,
-    /// Status of each node
     pub node_statuses: HashMap<NodeId, NodeStatus>,
-    /// Last completed node ID
     pub last_completed_node: Option<NodeId>,
     /// Current node being executed (if any)
     pub current_node: Option<NodeId>,
@@ -109,9 +100,7 @@ pub struct SessionCheckpoint {
     /// Observer location
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
-    /// Total completed exposures
     pub completed_exposures: u32,
-    /// Total completed integration time
     pub completed_integration_secs: f64,
     /// Whether this checkpoint is from an active session
     pub is_active: bool,
@@ -158,6 +147,11 @@ pub struct SessionCheckpoint {
     /// through it, keyed by the node's id; a resumed run takes the rest.
     #[serde(default)]
     pub exposure_frames_taken: HashMap<NodeId, u32>,
+    /// Frames each Take Exposures step has taken over the whole plan, every
+    /// loop pass and every run this one continues, keyed by the node's id.
+    /// Empty in checkpoints written before it existed.
+    #[serde(default)]
+    pub exposure_frames_done: HashMap<NodeId, u32>,
     /// How the run ended, when it ended on its own terms: stopped by the
     /// operator, failed, or ended early by a trigger (dawn, weather). `None`
     /// while it runs, so a checkpoint still `None` after the app restarts
@@ -173,7 +167,6 @@ pub struct SessionCheckpoint {
 pub enum RunEnd {
     /// The operator stopped it.
     Stopped,
-    /// It failed.
     Failed,
     /// A trigger ended it early and put the rig away (dawn, unsafe weather).
     EndedEarly,
@@ -226,6 +219,7 @@ impl SessionCheckpoint {
             // save_checkpoint time (loop nodes with current_iteration > 0).
             loop_iterations: HashMap::new(),
             exposure_frames_taken: HashMap::new(),
+            exposure_frames_done: HashMap::new(),
         }
     }
 
@@ -269,7 +263,6 @@ impl SessionCheckpoint {
         self.timestamp = Utc::now();
     }
 
-    /// Set device IDs
     pub fn set_devices(
         &mut self,
         camera: Option<String>,
@@ -291,7 +284,6 @@ impl SessionCheckpoint {
         self.longitude = lon;
     }
 
-    /// Set save path
     pub fn set_save_path(&mut self, path: Option<PathBuf>) {
         self.save_path = path;
     }
@@ -333,7 +325,6 @@ impl SessionCheckpoint {
     }
 }
 
-/// Manager for checkpoint persistence
 pub struct CheckpointManager {
     checkpoint_dir: PathBuf,
     info_cache: Mutex<Option<CachedCheckpointInfo>>,
@@ -350,7 +341,6 @@ impl CheckpointManager {
     const CHECKPOINT_FILENAME: &'static str = "skotiq_session.checkpoint";
     const CHECKPOINT_BACKUP: &'static str = "skotiq_session.checkpoint.bak";
 
-    /// Get the checkpoint directory path
     pub fn checkpoint_dir(&self) -> &Path {
         &self.checkpoint_dir
     }
@@ -531,6 +521,7 @@ impl CheckpointManager {
                 can_resume: checkpoint.can_resume(),
                 age_seconds: checkpoint.age_seconds(),
                 ended: checkpoint.ended,
+                frames_done_by_step: checkpoint.exposure_frames_done,
             })),
             None => Ok(None),
         }
@@ -678,6 +669,9 @@ pub struct CheckpointInfo {
     /// How the run ended; `None` when the app died under it (interrupted).
     #[serde(default)]
     pub ended: Option<RunEnd>,
+    /// Frames each Take Exposures step of the plan has taken, by node id.
+    #[serde(default)]
+    pub frames_done_by_step: HashMap<NodeId, u32>,
 }
 
 #[cfg(test)]
@@ -900,12 +894,8 @@ mod tests {
         offsets.insert("Ha".to_string(), 42);
         offsets.insert("OIII".to_string(), -17);
 
-        let snapshot = TriggerStateSnapshot::from_state(
-            &original,
-            SafetyFailMode::WarnOnly,
-            true,
-            offsets.clone(),
-        );
+        let snapshot =
+            TriggerStateSnapshot::from_state(&original, SafetyFailMode::WarnOnly, offsets.clone());
 
         let json = serde_json::to_string(&snapshot).expect("snapshot must serialize");
         let restored_snapshot: TriggerStateSnapshot =
@@ -915,7 +905,6 @@ mod tests {
             "TriggerStateSnapshot serde round-trip must preserve every field"
         );
         assert_eq!(restored_snapshot.safety_fail_mode, SafetyFailMode::WarnOnly);
-        assert!(restored_snapshot.triggers_enabled);
         assert_eq!(restored_snapshot.filter_focus_offsets, offsets);
 
         let mut restored = TriggerState::new();
@@ -1032,7 +1021,6 @@ mod tests {
         assert_eq!(snapshot.state.target.current_target_name, None);
         assert!(!snapshot.state.telemetry.weather_safe);
         assert_eq!(snapshot.safety_fail_mode, SafetyFailMode::FailClosed);
-        assert!(snapshot.triggers_enabled, "triggers default to on");
         assert!(snapshot.filter_focus_offsets.is_empty());
     }
 
@@ -1050,12 +1038,8 @@ mod tests {
         state.latches.grid_dither_index = 4;
         state.latches.baseline_hfr = Some(2.1);
 
-        let snapshot = TriggerStateSnapshot::from_state(
-            &state,
-            SafetyFailMode::FailClosed,
-            true,
-            HashMap::new(),
-        );
+        let snapshot =
+            TriggerStateSnapshot::from_state(&state, SafetyFailMode::FailClosed, HashMap::new());
 
         let mut checkpoint =
             SessionCheckpoint::new(SequenceDefinition::new("Persist test".to_string()));

@@ -17,6 +17,7 @@ import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import '../providers/hardware_presets_provider.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/settings_provider.dart';
 import '../services/hardware_presets/hardware_presets_service.dart';
 

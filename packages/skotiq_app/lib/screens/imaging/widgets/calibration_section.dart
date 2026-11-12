@@ -23,7 +23,7 @@ typedef DefectMapHostDarkPicker = Future<String?> Function(
 Future<List<String>> _pickLocalDarkFrames() async {
   const typeGroup = XTypeGroup(
     label: 'Dark frames',
-    extensions: ['fits', 'fit', 'fts', 'xisf'],
+    extensions: FrameFiles.all,
   );
   final files = await openFiles(acceptedTypeGroups: [typeGroup]);
   return files.map((file) => file.path).toList(growable: false);

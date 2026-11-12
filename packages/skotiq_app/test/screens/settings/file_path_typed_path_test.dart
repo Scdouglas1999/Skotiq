@@ -29,7 +29,11 @@ Future<HarnessHandle> _pump(
 }) async {
   final handle = await pumpAppScreen(
     tester,
-    const FilePathSettings(embedded: true),
+    const SettingsFormScope(
+      narrow: false,
+      embedded: true,
+      child: FilePathSettings(),
+    ),
     size: const Size(1280, 1000),
     settle: false,
     extraOverrides: [

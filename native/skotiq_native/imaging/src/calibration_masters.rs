@@ -65,8 +65,13 @@ pub enum MasterCalibrationError {
     /// dimensions, unsupported pixel type, degenerate flat mean, …). The
     /// inner string is the combiner's own diagnostic.
     Combine(String),
-    UnsupportedPixelType { pixel_type: PixelType },
-    BufferLengthMismatch { expected: usize, actual: usize },
+    UnsupportedPixelType {
+        pixel_type: PixelType,
+    },
+    BufferLengthMismatch {
+        expected: usize,
+        actual: usize,
+    },
     InvalidParameter(String),
 }
 

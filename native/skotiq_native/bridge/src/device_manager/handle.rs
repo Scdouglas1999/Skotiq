@@ -5,35 +5,106 @@
 //! error. Which protocol answers is decided once, at connect.
 
 use crate::device::{DeviceType, DriverType};
+use crate::device_capabilities::DeviceCapabilities;
+use crate::device_manager::accessory::{self, Dome, Rotator, SafetyMonitor, Weather};
+use crate::device_manager::ops::sim_gate;
+use crate::device_manager::rig::filter_wheel::FilterWheel;
+use crate::device_manager::rig::focuser::Focuser;
+use crate::device_manager::rig::RigDriver;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
-use skotiq_device::{
-    AccessoryDriver, CoverCalibratorDriver, DomeDriver, DriverError, RotatorDriver,
-    SafetyMonitorDriver, SwitchDriver, WeatherDriver,
-};
+use crate::error::SkotiqError;
+use skotiq_device::{AccessoryDriver, CoverCalibratorDriver, DriverError, SwitchDriver};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub(crate) enum DeviceHandle {
-    Dome(Arc<dyn DomeDriver>),
-    Rotator(Arc<dyn RotatorDriver>),
+    Dome(Arc<dyn Dome>),
+    Rotator(Arc<dyn Rotator>),
     Switch(Arc<dyn SwitchDriver>),
-    Weather(Arc<dyn WeatherDriver>),
-    SafetyMonitor(Arc<dyn SafetyMonitorDriver>),
+    Weather(Arc<dyn Weather>),
+    SafetyMonitor(Arc<dyn SafetyMonitor>),
     CoverCalibrator(Arc<dyn CoverCalibratorDriver>),
+    FilterWheel(Arc<dyn FilterWheel>),
+    Focuser(Arc<dyn Focuser>),
+}
+
+/// What a handle is closed and probed through.
+enum Link {
+    Accessory(Arc<dyn AccessoryDriver>),
+    Rig(Arc<dyn RigDriver>),
 }
 
 impl DeviceHandle {
-    pub(crate) fn accessory(&self) -> Arc<dyn AccessoryDriver> {
+    fn link(&self) -> Link {
         match self {
-            DeviceHandle::Dome(d) => d.clone(),
-            DeviceHandle::Rotator(d) => d.clone(),
-            DeviceHandle::Switch(d) => d.clone(),
-            DeviceHandle::Weather(d) => d.clone(),
-            DeviceHandle::SafetyMonitor(d) => d.clone(),
-            DeviceHandle::CoverCalibrator(d) => d.clone(),
+            DeviceHandle::Dome(d) => Link::Accessory(d.clone()),
+            DeviceHandle::Rotator(d) => Link::Accessory(d.clone()),
+            DeviceHandle::Switch(d) => Link::Accessory(d.clone()),
+            DeviceHandle::Weather(d) => Link::Accessory(d.clone()),
+            DeviceHandle::SafetyMonitor(d) => Link::Accessory(d.clone()),
+            DeviceHandle::CoverCalibrator(d) => Link::Accessory(d.clone()),
+            DeviceHandle::FilterWheel(d) => Link::Rig(d.clone()),
+            DeviceHandle::Focuser(d) => Link::Rig(d.clone()),
         }
+    }
+
+    pub(crate) async fn disconnect(&self) -> Result<(), DriverError> {
+        match self.link() {
+            Link::Accessory(driver) => driver.disconnect().await,
+            Link::Rig(driver) => driver.disconnect().await,
+        }
+    }
+
+    /// One liveness probe; see [`RigDriver::heartbeat`] for the three answers.
+    pub(crate) async fn heartbeat(&self, device_id: &str) -> Result<bool, String> {
+        match self.link() {
+            Link::Accessory(driver) => match driver.heartbeat().await {
+                Ok(()) => {
+                    tracing::trace!("{} heartbeat: healthy", device_id);
+                    Ok(true)
+                }
+                Err(DriverError::NotConnected | DriverError::Disconnected) => {
+                    tracing::debug!("{} heartbeat: not connected", device_id);
+                    Ok(false)
+                }
+                Err(e) => Err(e.to_string()),
+            },
+            Link::Rig(driver) => driver.heartbeat().await,
+        }
+    }
+
+    /// What the device supports, and the live readings that share the
+    /// capability structs, as its driver reports them.
+    pub(crate) async fn capabilities(
+        &self,
+        device_id: &str,
+    ) -> Result<DeviceCapabilities, SkotiqError> {
+        Ok(match self {
+            DeviceHandle::Dome(d) => DeviceCapabilities::Dome(d.capabilities(device_id).await?),
+            DeviceHandle::Rotator(d) => {
+                DeviceCapabilities::Rotator(d.capabilities(device_id).await?)
+            }
+            DeviceHandle::Switch(d) => {
+                DeviceCapabilities::Switch(accessory::switch_capabilities(d.as_ref()).await)
+            }
+            DeviceHandle::Weather(d) => {
+                DeviceCapabilities::Weather(d.capabilities(device_id).await?)
+            }
+            DeviceHandle::SafetyMonitor(d) => {
+                DeviceCapabilities::SafetyMonitor(d.capabilities(device_id).await?)
+            }
+            DeviceHandle::CoverCalibrator(d) => DeviceCapabilities::CoverCalibrator(
+                accessory::cover_calibrator_capabilities(d.as_ref()).await,
+            ),
+            DeviceHandle::FilterWheel(d) => {
+                DeviceCapabilities::FilterWheel(d.capabilities(device_id).await?)
+            }
+            DeviceHandle::Focuser(d) => {
+                DeviceCapabilities::Focuser(d.capabilities(device_id).await?)
+            }
+        })
     }
 }
 
@@ -109,18 +180,51 @@ impl DeviceManager {
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
         self.handles.get(device_id).and_then(pick).ok_or_else(|| {
-            DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!(
-                    "{} {} not connected",
-                    protocol_label(info.driver_type),
-                    device_noun(info.device_type)
+            let noun = device_noun(info.device_type);
+            match (info.driver_type, info.device_type) {
+                // The simulated rig devices answer with the simulator's own
+                // sentence, which the FFI edge shows only for an error that
+                // carries no device id.
+                (DriverType::Simulator, DeviceType::FilterWheel | DeviceType::Focuser) => {
+                    DeviceOpError::not_connected(None, sim_gate::not_connected(&noun))
+                }
+                _ => DeviceOpError::not_connected(
+                    Some(device_id.to_string()),
+                    format!(
+                        "{} {} not connected",
+                        protocol_label(info.driver_type),
+                        noun
+                    ),
                 ),
-            )
+            }
         })
     }
 
-    pub(crate) async fn dome(&self, device_id: &str) -> Result<Arc<dyn DomeDriver>, DeviceOpError> {
+    pub(crate) async fn focuser(&self, device_id: &str) -> Result<Arc<dyn Focuser>, DeviceOpError> {
+        self.connected(device_id, |h| match h {
+            DeviceHandle::Focuser(d) => Some(d),
+            _ => None,
+        })
+        .await
+    }
+
+    pub(crate) async fn filter_wheel(
+        &self,
+        device_id: &str,
+    ) -> Result<Arc<dyn FilterWheel>, DeviceOpError> {
+        self.connected(device_id, |h| match h {
+            DeviceHandle::FilterWheel(d) => Some(d),
+            _ => None,
+        })
+        .await
+    }
+
+    /// The handle of a registered, connected device of a type that has one.
+    pub(crate) async fn handle(&self, device_id: &str) -> Result<DeviceHandle, DeviceOpError> {
+        self.connected(device_id, Some).await
+    }
+
+    pub(crate) async fn dome(&self, device_id: &str) -> Result<Arc<dyn Dome>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Dome(d) => Some(d),
             _ => None,
@@ -131,7 +235,7 @@ impl DeviceManager {
     pub(crate) async fn rotator(
         &self,
         device_id: &str,
-    ) -> Result<Arc<dyn RotatorDriver>, DeviceOpError> {
+    ) -> Result<Arc<dyn Rotator>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Rotator(d) => Some(d),
             _ => None,
@@ -153,7 +257,7 @@ impl DeviceManager {
     pub(crate) async fn weather(
         &self,
         device_id: &str,
-    ) -> Result<Arc<dyn WeatherDriver>, DeviceOpError> {
+    ) -> Result<Arc<dyn Weather>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Weather(d) => Some(d),
             _ => None,
@@ -164,7 +268,7 @@ impl DeviceManager {
     pub(crate) async fn safety_monitor(
         &self,
         device_id: &str,
-    ) -> Result<Arc<dyn SafetyMonitorDriver>, DeviceOpError> {
+    ) -> Result<Arc<dyn SafetyMonitor>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::SafetyMonitor(d) => Some(d),
             _ => None,

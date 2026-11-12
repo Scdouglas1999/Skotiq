@@ -52,6 +52,17 @@ impl CenterProgress {
             Self::Starting { .. } | Self::Centered { .. } | Self::Rotating { .. } => None,
         }
     }
+
+    /// How far from the target this step measured the mount pointing.
+    pub fn separation_arcsec(&self) -> Option<f64> {
+        match self {
+            Self::Solved {
+                separation_arcsec, ..
+            }
+            | Self::Centered { separation_arcsec } => Some(*separation_arcsec),
+            _ => None,
+        }
+    }
 }
 
 pub(crate) const CENTER_CORRECTION_SLEW_START_TIMEOUT: Duration = Duration::from_secs(5);
@@ -192,14 +203,14 @@ async fn center(
                     return InstructionResult::failure(format!(
                         "The mount's current position could not be expressed in J2000: {}",
                         e
-                    ))
+                    )).caused_by(&e)
                 }
             },
             Err(e) => {
                 return InstructionResult::failure(format!(
                     "Custom center coordinates were not provided and current mount coordinates could not be read: {}",
                     e
-                ))
+                )).caused_by(&e)
             }
         }
     };
@@ -298,7 +309,7 @@ async fn center(
                     ctx,
                     RetriedDevice::Camera,
                     camera_retries_done,
-                    &e.to_string(),
+                    e,
                     &format!("on the centering frame (attempt {})", attempt),
                 )
                 .await
@@ -307,11 +318,11 @@ async fn center(
                     RetryOutcome::Cancelled => {
                         return InstructionResult::cancelled("Center cancelled")
                     }
-                    RetryOutcome::GiveUp(message) => {
+                    RetryOutcome::GiveUp(failure) => {
                         return InstructionResult::failure(format!(
-                            "Failed to capture image: {}",
-                            message
+                            "Failed to capture image: {failure}"
                         ))
+                        .caused_by(&failure.error)
                     }
                 },
             }
@@ -447,7 +458,8 @@ async fn center(
             return InstructionResult::failure(format!(
                 "Mount sync failed during centering on attempt {}: {}",
                 attempt, e
-            ));
+            ))
+            .caused_by(&e);
         }
 
         tracing::info!("Slewing to correct position...");
@@ -465,7 +477,7 @@ async fn center(
                     return InstructionResult::failure(format!(
                         "Correction slew command failed during centering on attempt {}: {}",
                         attempt, e
-                    ));
+                    )).caused_by(&e);
                 }
             }
             _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {

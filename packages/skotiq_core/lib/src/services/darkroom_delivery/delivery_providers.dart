@@ -10,8 +10,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../database/daos/delivery_journal_dao.dart';
-import '../../database/daos/delivery_targets_dao.dart';
+import '../../providers/database_provider.dart';
 import '../../providers/notification_router_provider.dart'
     show secretsStoreProvider;
 import '../logging_service.dart';

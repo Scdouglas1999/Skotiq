@@ -80,7 +80,6 @@ struct ScriptedDomeRotatorOps {
     mount_slew_targets: Mutex<Vec<(f64, f64)>>,
     /// The (RA degrees, Dec) hint of every plate solve.
     plate_solve_hints: Mutex<Vec<(Option<f64>, Option<f64>)>>,
-    // Camera
     camera_exposure_calls: AtomicU32,
     /// For each `guider_dither`, how many exposures had been started when it
     /// was issued, so a test can tell which frames a dither followed.
@@ -211,18 +210,24 @@ struct ScriptedDomeRotatorOps {
     scripted_gain: Option<i32>,
     scripted_offset: Option<i32>,
     scripted_sensor_temp_c: Option<f64>,
+    /// The camera's own file every frame arrives with, as a DSLR delivers it.
+    pub(super) scripted_camera_file: Option<skotiq_device::CameraFile>,
     /// Unbinned pixel pitch the camera reports, in microns. `None` stands
     /// in for a driver that will not answer.
     scripted_pixel_size_um: Option<(f64, f64)>,
     /// `None` stands in for a rig whose site has not been configured.
     scripted_observer_location: Option<(f64, f64)>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
-    camera_failures: Mutex<std::collections::VecDeque<String>>,
+    camera_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// Errors the next `filterwheel_set_position` calls fail with, one each.
-    filter_set_failures: Mutex<std::collections::VecDeque<String>>,
+    filter_set_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// The next this-many `filterwheel_set_position` calls are accepted and
     /// never carried out: a stalled wheel.
     filter_stalled_moves: AtomicU32,
+    /// Errors the next `focuser_move_to` calls fail with, one each.
+    focuser_move_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
+    /// When `Some`, `cover_calibrator_open_cover` fails with this error.
+    cover_open_error: Option<crate::device_ops::DeviceError>,
 }
 
 impl ScriptedDomeRotatorOps {
@@ -308,29 +313,53 @@ impl ScriptedDomeRotatorOps {
             scripted_gain: None,
             scripted_offset: None,
             scripted_sensor_temp_c: None,
+            scripted_camera_file: None,
             scripted_pixel_size_um: None,
             scripted_observer_location: None,
             camera_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_set_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_stalled_moves: AtomicU32::new(0),
+            focuser_move_failures: Mutex::new(std::collections::VecDeque::new()),
+            cover_open_error: None,
         }
     }
 
+    /// Fail the next focuser moves with these errors, one each.
+    fn failing_focuser_moves(self, errors: &[crate::device_ops::DeviceError]) -> Self {
+        self.focuser_move_failures
+            .lock()
+            .unwrap()
+            .extend(errors.iter().cloned());
+        self
+    }
+
+    /// Fail every cover open with `error`.
+    fn failing_cover_open(mut self, error: crate::device_ops::DeviceError) -> Self {
+        self.cover_open_error = Some(error);
+        self
+    }
+
     /// Fail the next exposures with these errors, one each.
-    fn failing_exposures(self, errors: &[&str]) -> Self {
+    fn failing_exposures<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.camera_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
     /// Fail the next filter-wheel moves with these errors, one each.
-    fn failing_filter_moves(self, errors: &[&str]) -> Self {
+    fn failing_filter_moves<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.filter_set_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
@@ -411,11 +440,14 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// Fail the next camera exposures with these errors, one each.
-    fn failing_next_exposures(self, errors: &[&str]) -> Self {
+    fn failing_next_exposures<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.camera_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
@@ -766,7 +798,7 @@ impl CameraOps for ScriptedDomeRotatorOps {
             return std::future::pending::<DeviceResult<ImageData>>().await;
         }
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
-            return Err(error.into());
+            return Err(error);
         }
         if let Some((position, frame)) = &self.focus_model {
             let at = *position.lock().unwrap();
@@ -804,6 +836,9 @@ impl CameraOps for ScriptedDomeRotatorOps {
         }
         if self.scripted_sensor_temp_c.is_some() {
             image.temperature = self.scripted_sensor_temp_c;
+        }
+        if self.scripted_camera_file.is_some() {
+            image.camera_file = self.scripted_camera_file.clone();
         }
         Ok(image)
     }
@@ -857,6 +892,9 @@ impl CameraOps for ScriptedDomeRotatorOps {
 impl FocuserOps for ScriptedDomeRotatorOps {
     async fn focuser_move_to(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.focuser_moves.lock().unwrap().push(p);
+        if let Some(error) = self.focuser_move_failures.lock().unwrap().pop_front() {
+            return Err(error);
+        }
         if let Some((position, _)) = &self.focus_model {
             *position.lock().unwrap() = p;
         }
@@ -891,7 +929,7 @@ impl FilterWheelOps for ScriptedDomeRotatorOps {
     async fn filterwheel_set_position(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.filter_moves.lock().unwrap().push(p);
         if let Some(error) = self.filter_set_failures.lock().unwrap().pop_front() {
-            return Err(error.into());
+            return Err(error);
         }
         let stalled = self
             .filter_stalled_moves
@@ -1056,6 +1094,9 @@ impl CoverCalibratorOps for ScriptedDomeRotatorOps {
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.cover_open_ids.lock().unwrap().push(id.to_string());
+        if let Some(error) = &self.cover_open_error {
+            return Err(error.clone());
+        }
         self.inner.cover_calibrator_open_cover(id).await
     }
     async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
@@ -1121,22 +1162,21 @@ impl FrameStoreOps for ScriptedDomeRotatorOps {
         self.saved_frame_paths.lock().unwrap().push(f.to_string());
         self.inner.save_fits(d, f, ctx).await
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
         match self.scripted_frame_metrics {
-            Some((hfr, _, _)) => Ok(Some(hfr)),
-            None => self.inner.calculate_image_hfr(d).await,
-        }
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        match self.scripted_frame_metrics {
-            Some((hfr, stars, _)) => Ok((0..stars).map(|i| (i as f64, i as f64, hfr)).collect()),
-            None => self.inner.detect_stars_in_image(d).await,
-        }
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        match self.scripted_frame_metrics {
-            Some((_, _, eccentricity)) => Ok(Some(eccentricity)),
-            None => self.inner.measure_frame_eccentricity(d).await,
+            Some((hfr, stars, eccentricity)) => Ok(crate::device_ops::LightFrameMeasurement {
+                hfr: Some(hfr),
+                star_count: Some(stars as u32),
+                star_shape: Some(crate::device_ops::FrameStarShape {
+                    eccentricity,
+                    elongation: None,
+                }),
+                trail: None,
+            }),
+            None => self.inner.measure_light_frame(d).await,
         }
     }
 }

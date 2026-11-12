@@ -1,8 +1,7 @@
 part of '../notification_routing_settings.dart';
 
 class _PushoverRoutingSection extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _PushoverRoutingSection({required this.isMobile});
+  const _PushoverRoutingSection();
 
   @override
   ConsumerState<_PushoverRoutingSection> createState() =>
@@ -84,7 +83,6 @@ class _PushoverRoutingSectionState
               title: 'API token',
               controller: _token,
               hasStoredValue: cfg.apiToken.isNotEmpty,
-              isMobile: widget.isMobile,
               hint: 'Pushover application token',
               onChanged: (_) => _clearToken = false,
               onClear: () => setState(() => _clearToken = true),
@@ -94,7 +92,6 @@ class _PushoverRoutingSectionState
               title: 'User key',
               controller: _user,
               hasStoredValue: cfg.userKey.isNotEmpty,
-              isMobile: widget.isMobile,
               hint: 'Pushover user / group key',
               onChanged: (_) => _clearUser = false,
               onClear: () => setState(() => _clearUser = true),
@@ -131,7 +128,6 @@ class _PushoverRoutingSectionState
       trailing: settingsTrailingTextInput(
         context: context,
         controller: c,
-        isMobile: widget.isMobile,
         obscure: obscure,
       ),
     );

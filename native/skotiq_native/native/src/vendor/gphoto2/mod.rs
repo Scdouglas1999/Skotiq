@@ -50,5 +50,7 @@ mod utils;
 pub use camera::*;
 pub use discovery::*;
 use ffi::*;
+// libgphoto2's file handle; the device layer's `CameraFile` is named by path.
+use ffi::CameraFile;
 use sdk::*;
 pub use utils::*;

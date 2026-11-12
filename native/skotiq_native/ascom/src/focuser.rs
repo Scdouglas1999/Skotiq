@@ -2,9 +2,7 @@
 
 use crate::com::ComDispatch;
 
-com_device!(
-    Focuser
-);
+com_device!(Focuser);
 
 impl<D: ComDispatch> Focuser<D> {
     skotiq_device::ascom_focuser_members!(com_member);

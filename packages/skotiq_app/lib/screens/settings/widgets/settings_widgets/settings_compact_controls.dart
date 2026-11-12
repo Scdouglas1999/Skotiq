@@ -17,9 +17,6 @@ class SettingsCompactSlider extends StatefulWidget {
   /// May be asynchronous; a failure restores the stored value.
   final FutureOr<void> Function(double value) onChanged;
 
-  /// Overrides the enclosing [SettingsFormScope].
-  final bool? isMobile;
-
   const SettingsCompactSlider({
     super.key,
     required this.value,
@@ -28,7 +25,6 @@ class SettingsCompactSlider extends StatefulWidget {
     required this.divisions,
     required this.format,
     required this.onChanged,
-    this.isMobile,
   });
 
   static const Duration writeDelay = Duration(milliseconds: 250);
@@ -91,9 +87,9 @@ class _SettingsCompactSliderState extends State<SettingsCompactSlider> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final isMobile = widget.isMobile ?? SettingsFormScope.isMobileOf(context);
-    final sliderWidth = isMobile ? 100.0 : 120.0;
-    final labelWidth = isMobile ? 45.0 : 50.0;
+    final narrow = SettingsFormScope.narrowOf(context);
+    final sliderWidth = narrow ? 100.0 : 120.0;
+    final labelWidth = narrow ? 45.0 : 50.0;
     final shown = _value.clamp(widget.min, widget.max).toDouble();
 
     return SettingsFieldNotice(
@@ -117,7 +113,7 @@ class _SettingsCompactSliderState extends State<SettingsCompactSlider> {
             width: labelWidth,
             child: Text(
               widget.format(shown),
-              style: (isMobile
+              style: (narrow
                       ? SkotiqTypography.captionSm
                       : SkotiqTypography.caption)
                   .copyWith(
@@ -148,8 +144,6 @@ class ObjectTypeToggle extends StatelessWidget {
 
   final bool isLast;
 
-  final bool? isMobile;
-
   const ObjectTypeToggle({
     super.key,
     required this.title,
@@ -158,7 +152,6 @@ class ObjectTypeToggle extends StatelessWidget {
     required this.isEnabled,
     required this.onChanged,
     this.isLast = false,
-    this.isMobile,
   });
 
   @override
@@ -173,7 +166,6 @@ class ObjectTypeToggle extends StatelessWidget {
         onChanged: onChanged,
       ),
       isLast: isLast,
-      isMobile: isMobile,
     );
   }
 }

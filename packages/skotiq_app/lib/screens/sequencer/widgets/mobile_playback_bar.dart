@@ -103,7 +103,7 @@ class MobilePlaybackBar extends ConsumerWidget {
                 enabled: executionState.canStop,
                 holdColor: colors.error,
                 confirmText: 'Hold to stop',
-                semanticsLabel: 'Press and hold to stop the sequence',
+                semanticsLabel: 'Stop the sequence',
                 onConfirmed: stopSequence,
                 // IgnorePointer so the inner InkWell does not consume the
                 // long-press event; gestures are owned exclusively by the

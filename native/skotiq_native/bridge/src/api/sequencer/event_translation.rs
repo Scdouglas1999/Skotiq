@@ -73,7 +73,7 @@ pub(crate) fn typed_sequencer_event_from_progress_detail(
             node_id: node_id.to_string(),
             frame: *frame,
             total: *total,
-            reason: reason.clone(),
+            reason: reason.to_string(),
             hfr: *hfr,
             eccentricity: *eccentricity,
             star_count: *star_count,

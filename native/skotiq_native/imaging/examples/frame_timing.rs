@@ -162,6 +162,55 @@ fn main() {
             register_frame(&rgb, &rgb, &RegistrationConfig::default()).unwrap()
         }),
     );
+    let turned = {
+        let (s, c) = 0.3f64.to_radians().sin_cos();
+        TransformModel {
+            matrix: [[c, -s, 3.4], [s, c, -2.2], [0.0, 0.0, 1.0]],
+            kind: TransformKind::Similarity,
+        }
+    };
+    for (name, image, interp) in [
+        ("warp_to_grid mono lanczos3", &frame, Interpolator::Lanczos3),
+        ("warp_to_grid mono bilinear", &frame, Interpolator::Bilinear),
+        ("warp_to_grid rgb lanczos3", &rgb, Interpolator::Lanczos3),
+    ] {
+        line(
+            name,
+            best_of(3, || warp_to_grid(image, W, H, &turned, interp)),
+        );
+    }
+    let panel = |x0: usize, ra: f64| {
+        let (pw, ph) = (1600usize, 1200usize);
+        let src = frame.samples_f32();
+        let px: Vec<f32> = (0..ph)
+            .flat_map(|y| src[y * W as usize + x0..y * W as usize + x0 + pw].to_vec())
+            .collect();
+        MosaicPanel {
+            image: ImageData::from_f32(pw as u32, ph as u32, 1, &px),
+            wcs: skotiq_imaging::SipWcs::from_pointing(ra, 22.0, 0.0, 1.9, pw as u32, ph as u32)
+                .cd_only(),
+        }
+    };
+    let panels = vec![
+        panel(0, 83.8),
+        panel(
+            1200,
+            83.8 + 1200.0 * 1.9 / 3600.0 / 22f64.to_radians().cos(),
+        ),
+    ];
+    line(
+        "stitch_mosaic 2 x 1600x1200 lanczos3",
+        best_of(3, || {
+            stitch_mosaic(&panels, &MosaicStitchConfig::default()).unwrap()
+        }),
+    );
+    let plane = frame.samples_f32();
+    line(
+        "gaussian_blur sigma 2",
+        best_of(5, || {
+            color_composite::mix::gaussian_blur(&plane, W as usize, H as usize, 2.0)
+        }),
+    );
     let mut stacker = LiveStacker::new(&frame, LiveStackConfig::default()).unwrap();
     line(
         "LiveStacker::add_frame mono",

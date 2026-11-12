@@ -282,9 +282,15 @@ pub enum Phd2Event {
         dropped_frames: u32,
     },
     StarLost,
-    StarSelected { x: f64, y: f64 },
+    StarSelected {
+        x: f64,
+        y: f64,
+    },
     CalibrationComplete,
-    Alert { message: String, alert_type: String },
+    Alert {
+        message: String,
+        alert_type: String,
+    },
     /// Connection lost
     Disconnected,
     Error(String),

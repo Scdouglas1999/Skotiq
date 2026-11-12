@@ -80,6 +80,11 @@ void main() {
       expect(body['error'], 'path_not_allowed');
       expect(body['valid'], isFalse);
       expect(body['exists'], isFalse);
+      expect(
+        body.keys,
+        isNot(contains('allowedRoots')),
+        reason: 'a link that may check a folder is not told the host\'s roots',
+      );
 
       // The write-probe must never have run outside the allow-list.
       final probes = await outside

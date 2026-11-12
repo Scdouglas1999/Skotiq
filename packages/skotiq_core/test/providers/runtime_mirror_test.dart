@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+
+import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart'
     show capturePreviewPublisherProvider;
 
@@ -52,6 +54,7 @@ PlateSolveResult _solve({double ra = 83.82, double dec = -5.39}) =>
   ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
   final container = ProviderContainer(
     overrides: [
+      inMemoryDatabaseOverride(),
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
@@ -77,6 +80,7 @@ _MockNetworkBackend _clientBackend() {
 
 ProviderContainer _client(_MockNetworkBackend backend) => ProviderContainer(
   overrides: [
+    inMemoryDatabaseOverride(),
     backendProvider.overrideWith((ref) => _FixedBackendNotifier(ref, backend)),
   ],
 );
@@ -282,7 +286,8 @@ void main() {
         'not', () async {
       final backend = _clientBackend();
       when(
-        () => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
+        () =>
+            backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
       ).thenAnswer((_) async => null);
       final client = _client(backend);
       addTearDown(client.dispose);
@@ -306,7 +311,12 @@ void main() {
       );
       await pumpEventQueue();
 
-      verify(() => backend.cameraGetLastImage('sim_camera_1', maxWidth: any(named: 'maxWidth'))).called(1);
+      verify(
+        () => backend.cameraGetLastImage(
+          'sim_camera_1',
+          maxWidth: any(named: 'maxWidth'),
+        ),
+      ).called(1);
     });
   });
 
@@ -441,7 +451,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 2100));
       final backend = _clientBackend();
       when(
-        () => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
+        () =>
+            backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
       ).thenAnswer((_) async => null);
       final client = _client(backend);
       addTearDown(client.dispose);
@@ -520,7 +531,7 @@ void main() {
     test('a client watching the host run gets its step statuses and session '
         'counters', () async {
       final client = await roundTrip((host) {
-        host.read(sequenceProgressProvider.notifier)
+        host.read(runRecordProvider.notifier)
           ..updateNodeStatus('unpark', NodeStatus.success)
           ..updateNodeStatus('exp-l', NodeStatus.running)
           ..updateNodeProgress('exp-l', 50, 'Frame 1 of 2');
@@ -542,25 +553,6 @@ void main() {
       final session = client.read(sessionStateProvider);
       expect(session.completedExposures, 4);
       expect(session.dbSessionId, 12);
-    });
-
-    test('a client that started the run keeps its own step statuses', () async {
-      final client = await roundTrip(
-        (host) => host
-            .read(sequenceProgressProvider.notifier)
-            .updateNodeStatus('unpark', NodeStatus.failure),
-        'sequenceRun',
-        prepareClient: (client) {
-          client.read(currentRunIdProvider.notifier).state = 7;
-          client
-              .read(sequenceProgressProvider.notifier)
-              .updateNodeStatus('unpark', NodeStatus.success);
-        },
-      );
-      expect(
-        client.read(sequenceProgressProvider).nodeStatuses['unpark'],
-        NodeStatus.success,
-      );
     });
 
     test('a flip on the host shows on the client', () async {
@@ -648,7 +640,10 @@ void main() {
         client.read(currentImageProvider)?.filePath,
         r'C:\data\L_001.fits',
       );
-      verifyNever(() => backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')));
+      verifyNever(
+        () =>
+            backend.cameraGetLastImage(any(), maxWidth: any(named: 'maxWidth')),
+      );
     });
   });
 
@@ -695,6 +690,7 @@ void main() {
     var solves = 0;
     final client = ProviderContainer(
       overrides: [
+        inMemoryDatabaseOverride(),
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, backend),
         ),

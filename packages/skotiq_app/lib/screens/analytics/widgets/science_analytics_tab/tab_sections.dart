@@ -62,8 +62,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
     final active = sessions
         .cast<ImagingSession?>()
         .firstWhere((s) => s?.id == activeSessionId, orElse: () => null);
-    final format = DateFormat('MMM d, yyyy HH:mm');
-
+    
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd,
@@ -137,7 +136,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
                       value: session.id,
                       child: Text(
                         '${session.name ?? 'Session ${session.id}'}'
-                        '  ·  ${format.format(session.startTime)}'
+                        '  ·  ${ClockFormat.monthDayYearHm(session.startTime.toLocal())}'
                         // Every capture, not the frames kept: the row's
                         // `successful_exposures` ignores the auto-grader, and
                         // "7/8 frames kept" sat over "4/8" (rig, 2026-11-03).
@@ -406,7 +405,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
     ref.invalidate(sessionMovingObjectCandidatesProvider(sessionId));
     ref.invalidate(sessionLineRatioProductsProvider(sessionId));
     ref.invalidate(sessionFrameQualityMetricsProvider(sessionId));
-    ref.invalidate(sessionTileMetricsProvider(sessionId));
+    ref.invalidate(frameTileMetricsProvider);
     ref.invalidate(dbSessionImagesProvider(sessionId));
   }
 }

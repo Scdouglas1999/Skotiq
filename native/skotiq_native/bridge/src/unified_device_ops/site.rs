@@ -2,7 +2,6 @@ use super::*;
 
 impl SiteOps for UnifiedDeviceOps {
     fn get_observer_location(&self) -> Option<(f64, f64)> {
-        // Get observer location from app settings
         match self.app_state.get_observer_location() {
             Ok(Some(location)) => {
                 tracing::debug!(

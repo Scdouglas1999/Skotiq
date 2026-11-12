@@ -27,7 +27,7 @@ import 'dart:developer' as developer;
 
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
-import '../../providers/sequence/run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import 'event_classifier.dart';
 import 'notification_presentation.dart';
 import 'notification_signature.dart';
@@ -80,11 +80,7 @@ class NotificationRouter {
   /// Per-category rate-limit window state.
   final Map<NotificationCategory, _RateWindow> _rateWindows = {};
 
-  /// Whether the run in progress has already been told as failed. A failing
-  /// run reports its fault more than once (the instruction's own error, the
-  /// node's failure, the terminal `SequenceFailed` restating the first one),
-  /// and the operator is told once, with the first.
-  bool _runFailureTold = false;
+  final ConnectingDevices _connecting = ConnectingDevices();
 
   /// Per-category last fire time (for debouncing).
   final Map<NotificationCategory, DateTime> _lastFireTime = {};
@@ -527,6 +523,9 @@ class NotificationRouter {
   // Internal: event mapping
 
   void _onEvent(SkotiqEvent event) {
+    // Followed whether or not notifications are on, so turning them on
+    // mid-connect does not lose the thread.
+    final failedConnect = _connecting.isFailedConnect(event);
     if (!_matrix.enabled) return;
 
     // NotificationNode emits a sequencer event of type
@@ -595,22 +594,15 @@ class NotificationRouter {
       // run's stop episode.
       _stopPushArbiter.noteRunBoundary();
     }
-    if (event.category == EventCategory.sequencer &&
-        const {'Started', 'Completed', 'Stopped'}.contains(event.eventType)) {
-      _runFailureTold = false;
-    }
+    // A connect that did not succeed is not a lost device. Whoever asked
+    // for the connect is told why it failed; the device service tells the
+    // rest (see `_handleDeviceError`).
+    if (failedConnect) return;
 
     // Single source of truth for event -> category classification, shared
     // with PushNotificationService (see event_classifier.dart).
     final classified = NotificationEventClassifier.classify(event);
     if (classified == null) return;
-    if (classified.category == NotificationCategory.sequenceFailed) {
-      final alreadyTold = _runFailureTold;
-      // The terminal event ends the run, so a failure after it (a flat
-      // wizard's, say) is told again.
-      _runFailureTold = event.eventType != 'SequenceFailed';
-      if (alreadyTold) return;
-    }
     final context = _buildContext(event, classified.context);
     route(classified.category, context, severity: classified.severity);
   }

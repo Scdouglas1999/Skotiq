@@ -21,7 +21,9 @@ class DeviceReadHealth {
   /// The device the readings belong to.
   final String deviceId;
 
-  /// When a read last succeeded.
+  /// When a read last succeeded, recorded once reads fail. Null while they
+  /// succeed: stamping every good read would tell every listener on every
+  /// poll, and nothing shows the time until reads fail.
   final DateTime? lastReadAt;
 
   /// Failed reads since the last success.
@@ -57,23 +59,36 @@ class DeviceReadHealthNotifier
 
   final DateTime Function() _now;
 
+  /// When each slot's last good read happened, for the first failure to
+  /// carry into the state.
+  final _lastGoodRead = <DeviceType, ({String deviceId, DateTime at})>{};
+
   /// A read of [deviceId] in the [type] slot succeeded.
   void recordSuccess(DeviceType type, String deviceId) {
-    state = {
-      ...state,
-      type: DeviceReadHealth(deviceId: deviceId, lastReadAt: _now()),
-    };
+    _lastGoodRead[type] = (deviceId: deviceId, at: _now());
+    final previous = state[type];
+    if (previous != null &&
+        previous.deviceId == deviceId &&
+        previous.failures == 0) {
+      return;
+    }
+    state = {...state, type: DeviceReadHealth(deviceId: deviceId)};
   }
 
   /// A read of [deviceId] in the [type] slot failed with [error].
   void recordFailure(DeviceType type, String deviceId, Object error) {
     final previous = state[type];
     final sameDevice = previous != null && previous.deviceId == deviceId;
+    final lastGood = _lastGoodRead[type];
     state = {
       ...state,
       type: DeviceReadHealth(
         deviceId: deviceId,
-        lastReadAt: sameDevice ? previous.lastReadAt : null,
+        lastReadAt: sameDevice && previous.failures > 0
+            ? previous.lastReadAt
+            : lastGood != null && lastGood.deviceId == deviceId
+            ? lastGood.at
+            : null,
         failures: (sameDevice ? previous.failures : 0) + 1,
         lastError: readErrorText(error),
       ),
@@ -82,6 +97,7 @@ class DeviceReadHealthNotifier
 
   /// Forget the [type] slot (its device disconnected).
   void clear(DeviceType type) {
+    _lastGoodRead.remove(type);
     if (!state.containsKey(type)) return;
     state = {...state}..remove(type);
   }

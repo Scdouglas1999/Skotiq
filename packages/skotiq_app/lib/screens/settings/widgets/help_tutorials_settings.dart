@@ -14,9 +14,7 @@ import '../../../tours/tour.dart';
 import '../../../tours/tour_runner.dart';
 
 class HelpTutorialsSettings extends ConsumerWidget {
-  final bool isMobile;
-
-  const HelpTutorialsSettings({super.key, this.isMobile = false});
+  const HelpTutorialsSettings({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,8 +31,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
       key: TourTarget.settingsHelp.key,
       title: 'Help & tutorials',
       description: 'Guided tours and learning resources',
-      isMobile: isMobile,
-      hideHeader: isMobile,
       children: [
         // The single replay hub for the guided first-run flows: each
         // auto-launches at most once on the startup spine and is replayable
@@ -49,7 +45,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
         // `dart run tools/production/settings_search_index_gen.dart`.
         SettingsSection(
           title: 'Guided flows',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.sparkles,
@@ -153,7 +148,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
         ),
         SettingsSection(
           title: 'Tutorial tours',
-          isMobile: isMobile,
           children: [
             for (final tour in Tour.workflows)
               _TutorialRow(
@@ -170,7 +164,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
         ),
         SettingsSection(
           title: 'Reset progress',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.refreshCw,

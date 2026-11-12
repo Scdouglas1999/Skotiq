@@ -5,25 +5,8 @@
 
 use super::*;
 
-// Slew instruction
-
 /// Default tolerance for slew position validation in degrees (1 arcminute = 1/60 degree)
 pub(crate) const SLEW_POSITION_TOLERANCE_DEG: f64 = 1.0 / 60.0;
-
-/// Normalize RA difference to account for wraparound at 24 hours
-/// Returns the shortest angular distance between two RA values in hours
-pub(crate) fn normalize_ra_diff_hours(diff: f64) -> f64 {
-    // Normalize to [-12, +12] h so the sign of the result is the shortest
-    // signed angular distance — necessary because a raw 23 h difference is
-    // physically a -1 h move, not a 23 h move.
-    let mut wrapped = diff % 24.0;
-    if wrapped > 12.0 {
-        wrapped -= 24.0;
-    } else if wrapped < -12.0 {
-        wrapped += 24.0;
-    }
-    wrapped
-}
 
 /// Validate that mount reached the target position within tolerance
 /// ra_target and ra_actual are in hours, dec_target and dec_actual are in degrees
@@ -35,7 +18,7 @@ pub(crate) fn validate_slew_position(
     dec_actual: f64,
     tolerance_deg: f64,
 ) -> Result<(), String> {
-    let ra_diff_hours = normalize_ra_diff_hours(ra_actual - ra_target);
+    let ra_diff_hours = crate::meridian::wrap_hours(ra_actual - ra_target);
     // On the sky, not in raw RA degrees: an hour of RA spans cos(Dec) of the
     // arc it does on the equator. Without the factor the effective tolerance
     // near the pole shrank to seconds of arc, below the jitter of a good
@@ -62,7 +45,6 @@ pub(crate) fn validate_slew_position(
     Ok(())
 }
 
-/// Execute a slew instruction
 pub async fn execute_slew(
     config: &SlewConfig,
     ctx: &InstructionContext,
@@ -177,10 +159,13 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
 
     tracing::info!("Mount is parked; unparking it to slew");
     if let Err(e) = ctx.run.device_ops.mount_unpark(mount_id).await {
-        return Some(InstructionResult::failure_because(
-            format!("The mount is parked and could not be unparked: {e}"),
-            Setback::MountParked,
-        ));
+        return Some(
+            InstructionResult::failure_because(
+                format!("The mount is parked and could not be unparked: {e}"),
+                Setback::MountParked,
+            )
+            .caused_by(&e),
+        );
     }
     let deadline = tokio::time::Instant::now() + UNPARK_TIMEOUT;
     loop {
@@ -396,14 +381,14 @@ async fn slew_mount(
                                             e
                                         ),
                                         Setback::PositionUnverified,
-                                    )
+                                    ).caused_by(&e)
                                 }
                             }
                         }
                         Err(e) => InstructionResult::failure(e),
                     }
                 }
-                Err(e) => InstructionResult::failure(format!("Slew failed: {}", e)),
+                Err(e) => InstructionResult::failure(format!("Slew failed: {}", e)).caused_by(&e),
             }
         }
         _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {

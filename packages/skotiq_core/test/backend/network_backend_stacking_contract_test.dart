@@ -198,6 +198,37 @@ void main() {
       final stats = await backend.stackingGetStats();
       expect(stats.stackedFrameCount, 0);
       expect(stats.totalFramesAttempted, 0);
+      // A host from before stacks were kept to one filter: no filter fields.
+      expect(stats.filter, isNull);
+      expect(stats.otherFilterFrames, 0);
+      expect(stats.otherFilterNote, isNull);
+    });
+
+    test('stats carry the stack filter and the frames left out of it', () async {
+      final fake = FakeNetworkClient()
+        ..setResponse(
+          '/api/stacking/stats',
+          body: jsonEncode({
+            'stats': {
+              ..._stats(),
+              'filter': 'L',
+              'otherFilterFrames': 1,
+              'lastOtherFilter': 'R',
+            },
+          }),
+        );
+      final backend = _backend(fake);
+      addTearDown(backend.dispose);
+
+      final stats = await backend.stackingGetStats();
+      expect(stats.filter, 'L');
+      expect(stats.otherFilterFrames, 1);
+      expect(stats.lastOtherFilter, 'R');
+      expect(
+        stats.otherFilterNote,
+        'It was taken with the R filter and this stack is of L frames. To '
+        'stack it, stop and start a new live stack.',
+      );
     });
   });
 

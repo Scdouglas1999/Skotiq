@@ -231,7 +231,13 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     final tabBar = AdaptiveTabBar(
       tabs: [for (final tab in PlannerTab.values) _tabFor(tab, l10n)],
       selectedIndex: _currentSubTab,
-      onSelected: _showTab,
+      onSelected: (index) {
+        _showTab(index);
+        // Into the location, so a link to the tab it still named is not a
+        // link to where the planner already is.
+        GoRouter.maybeOf(context)
+            ?.go(AppRoutes.planner(tab: PlannerTab.values[index]));
+      },
       // The page header owns the 24px gutter, so the strip starts flush
       // against the title block.
       horizontalPadding: 0,

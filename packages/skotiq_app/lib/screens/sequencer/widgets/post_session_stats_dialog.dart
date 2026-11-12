@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -25,7 +24,10 @@ class PostSessionStatsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d, yyyy HH:mm:ss');
+    String stamp(DateTime instant) {
+      final t = instant.toLocal();
+      return '${ClockFormat.monthDayYear(t)} ${ClockFormat.hms(t)}';
+    }
     return SkotiqDialog(
       title: 'Session summary',
       icon: LucideIcons.barChart3,
@@ -52,12 +54,12 @@ class PostSessionStatsDialog extends StatelessWidget {
               _StatRow(
                   colors: colors,
                   label: 'Started',
-                  value: dateFormat.format(startedAt)),
+                  value: stamp(startedAt)),
               if (endedAt != null)
                 _StatRow(
                     colors: colors,
                     label: 'Ended',
-                    value: dateFormat.format(endedAt!)),
+                    value: stamp(endedAt!)),
               _StatRow(
                   colors: colors,
                   label: 'Wall clock',

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' show Locale;
@@ -49,34 +50,11 @@ class SequencerHandlers implements RouteSource {
     SequencerApi.loadAndStart: handleSequencerLoadAndStart,
     SequencerApi.setSimulationMode: handleSequencerSetSimulationMode,
     SequencerApi.setDevices: handleSequencerSetDevices,
-    SequencerApi.setSafetyFailMode: handleSequencerSetSafetyFailMode,
-    SequencerApi.setParkPolicy: handleSequencerSetParkPolicy,
-    SequencerApi.setDeviceRetries: handleSequencerSetDeviceRetries,
-    SequencerApi.setQualityPolicy: handleSequencerSetQualityPolicy,
-    SequencerApi.setSafetyCheckInterval: handleSequencerSetSafetyCheckInterval,
     SequencerApi.setSavePath: handleSequencerSetSavePath,
     SequencerApi.setActiveSequenceRunId: handleSequencerSetActiveSequenceRunId,
-    SequencerApi.setDecisionLoggingEnabled:
-        handleSequencerSetDecisionLoggingEnabled,
-    SequencerApi.updateDitherConfig: handleSequencerUpdateDitherConfig,
-    SequencerApi.updateMeridianFlipConfig:
-        handleSequencerUpdateMeridianFlipConfig,
-    SequencerApi.updateLocation: handleSequencerUpdateLocation,
-    SequencerApi.updateFilterOffsets: handleSequencerUpdateFilterOffsets,
     SequencerApi.updatePendingIntegrationCarryOver:
         handleSequencerUpdatePendingIntegrationCarryOver,
-    SequencerApi.updateAutofocusInterval:
-        handleSequencerUpdateAutofocusInterval,
-    SequencerApi.updateAutofocusConfig: handleSequencerUpdateAutofocusConfig,
-    SequencerApi.updateDefaultQualityCheck:
-        handleSequencerUpdateDefaultQualityCheck,
-    SequencerApi.updateRejectFolderPath: handleSequencerUpdateRejectFolderPath,
-    SequencerApi.updateObserverProfile: handleSequencerUpdateObserverProfile,
     SequencerApi.updateSkyBrightness: handleSequencerUpdateSkyBrightness,
-    SequencerApi.updateDefaultAdaptiveExposure:
-        handleSequencerUpdateDefaultAdaptiveExposure,
-    SequencerApi.clearDefaultAdaptiveExposure:
-        handleSequencerClearDefaultAdaptiveExposure,
     SequencerApi.setCheckpointDir: handleSequencerSetCheckpointDir,
     SequencerApi.hasCheckpoint: handleSequencerHasCheckpoint,
     SequencerApi.getCheckpointInfo: handleSequencerGetCheckpointInfo,
@@ -87,14 +65,12 @@ class SequencerHandlers implements RouteSource {
     SequencerApi.requestMeridianFlip: handleSequencerRequestMeridianFlip,
     SequencerApi.recoveryTryNow: handleSequencerRecoveryTryNow,
     SequencerApi.recoveryAbort: handleSequencerRecoveryAbort,
-    SequencerApi.updateRecoveryConfig: handleSequencerUpdateRecoveryConfig,
     SequencerApi.getCurrentRecovery: handleSequencerGetCurrentRecovery,
     SequencerApi.getRecoveryHistory: handleSequencerGetRecoveryHistory,
     SequencerApi.updateCloudMotion: handleSequencerUpdateCloudMotion,
     SequencerApi.getCloudMotion: handleSequencerGetCloudMotion,
     SequencerApi.updateWeatherVerdict: handleSequencerUpdateWeatherVerdict,
     SequencerApi.weatherOperatorClear: handleSequencerWeatherOperatorClear,
-    SequencerApi.weatherResumeAfter: handleSequencerWeatherResumeAfter,
     SequencerApi.updateConditionsScore: handleSequencerUpdateConditionsScore,
     SequencerApi.getAdaptiveSwap: handleSequencerGetAdaptiveSwap,
     SequencerApi.secondaryRigStatus: handleSecondaryRigStatus,
@@ -171,51 +147,15 @@ class SequencerHandlers implements RouteSource {
       _handleSequencerSetSimulationMode(request);
   Future<Response> handleSequencerSetDevices(Request request) =>
       _handleSequencerSetDevices(request);
-  Future<Response> handleSequencerSetSafetyFailMode(Request request) =>
-      _handleSequencerSetSafetyFailMode(request);
-  Future<Response> handleSequencerSetParkPolicy(Request request) =>
-      _handleSequencerSetParkPolicy(request);
-  Future<Response> handleSequencerSetDeviceRetries(Request request) =>
-      _handleSequencerSetDeviceRetries(request);
-  Future<Response> handleSequencerSetQualityPolicy(Request request) =>
-      _handleSequencerSetQualityPolicy(request);
-  Future<Response> handleSequencerSetSafetyCheckInterval(Request request) =>
-      _handleSequencerSetSafetyCheckInterval(request);
   Future<Response> handleSequencerSetSavePath(Request request) =>
       _handleSequencerSetSavePath(request);
   Future<Response> handleSequencerSetActiveSequenceRunId(Request request) =>
       _handleSequencerSetActiveSequenceRunId(request);
-  Future<Response> handleSequencerSetDecisionLoggingEnabled(Request request) =>
-      _handleSequencerSetDecisionLoggingEnabled(request);
-  Future<Response> handleSequencerUpdateDitherConfig(Request request) =>
-      _handleSequencerUpdateDitherConfig(request);
-  Future<Response> handleSequencerUpdateMeridianFlipConfig(Request request) =>
-      _handleSequencerUpdateMeridianFlipConfig(request);
-  Future<Response> handleSequencerUpdateLocation(Request request) =>
-      _handleSequencerUpdateLocation(request);
-  Future<Response> handleSequencerUpdateFilterOffsets(Request request) =>
-      _handleSequencerUpdateFilterOffsets(request);
   Future<Response> handleSequencerUpdatePendingIntegrationCarryOver(
     Request request,
   ) => _handleSequencerUpdatePendingIntegrationCarryOver(request);
-  Future<Response> handleSequencerUpdateAutofocusInterval(Request request) =>
-      _handleSequencerUpdateAutofocusInterval(request);
-  Future<Response> handleSequencerUpdateAutofocusConfig(Request request) =>
-      _handleSequencerUpdateAutofocusConfig(request);
-  Future<Response> handleSequencerUpdateDefaultQualityCheck(Request request) =>
-      _handleSequencerUpdateDefaultQualityCheck(request);
-  Future<Response> handleSequencerUpdateRejectFolderPath(Request request) =>
-      _handleSequencerUpdateRejectFolderPath(request);
-  Future<Response> handleSequencerUpdateObserverProfile(Request request) =>
-      _handleSequencerUpdateObserverProfile(request);
   Future<Response> handleSequencerUpdateSkyBrightness(Request request) =>
       _handleSequencerUpdateSkyBrightness(request);
-  Future<Response> handleSequencerUpdateDefaultAdaptiveExposure(
-    Request request,
-  ) => _handleSequencerUpdateDefaultAdaptiveExposure(request);
-  Future<Response> handleSequencerClearDefaultAdaptiveExposure(
-    Request request,
-  ) => _handleSequencerClearDefaultAdaptiveExposure(request);
   Future<Response> handleSequencerSetCheckpointDir(Request request) =>
       _handleSequencerSetCheckpointDir(request);
   Future<Response> handleSequencerHasCheckpoint(Request request) =>
@@ -236,8 +176,6 @@ class SequencerHandlers implements RouteSource {
       _handleSequencerRecoveryTryNow(request);
   Future<Response> handleSequencerRecoveryAbort(Request request) =>
       _handleSequencerRecoveryAbort(request);
-  Future<Response> handleSequencerUpdateRecoveryConfig(Request request) =>
-      _handleSequencerUpdateRecoveryConfig(request);
   Future<Response> handleSequencerGetCurrentRecovery(Request request) =>
       _handleSequencerGetCurrentRecovery(request);
   Future<Response> handleSequencerGetRecoveryHistory(Request request) =>
@@ -250,8 +188,6 @@ class SequencerHandlers implements RouteSource {
   Future<Response> handleSequencerWeatherOperatorClear(Request request) =>
       _handleSequencerWeatherOperatorClear(request);
 
-  Future<Response> handleSequencerWeatherResumeAfter(Request request) =>
-      _handleSequencerWeatherResumeAfter(request);
   Future<Response> handleSequencerGetCloudMotion(Request request) =>
       _handleSequencerGetCloudMotion(request);
   Future<Response> handleSequencerUpdateConditionsScore(Request request) =>

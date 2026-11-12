@@ -54,8 +54,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
     return (container, container.read(sequenceExecutorProvider));
   }
 
@@ -166,8 +165,9 @@ void main() {
 
   test('a failed flip records an error and does NOT count as a flip', () {
     final (container, executor) = build();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     executor.handleSequencerEventForTest(
       flipEvent(
@@ -255,8 +255,9 @@ void main() {
     // `ended_at` forever and the still-active imaging session refuses the next
     // start with `active_session_exists`.
     final (container, executor) = build();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     executor.handleSequencerEventForTest(
       backend_events.SkotiqEvent(
@@ -314,8 +315,9 @@ void main() {
 
   test('a flip whose recovery failed after the pier changed says so', () {
     final (container, executor) = build();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     executor
       ..handleSequencerEventForTest(

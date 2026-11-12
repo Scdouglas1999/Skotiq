@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/merged_sections.dart';
 import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/widgets/focus_model_settings.dart';
@@ -56,7 +57,11 @@ void main() {
     addTearDown(database.close);
     await pumpAppScreen(
       tester,
-      const FocusModelSettings(embedded: true),
+      const SettingsFormScope(
+        narrow: false,
+        embedded: true,
+        child: FocusModelSettings(),
+      ),
       size: const Size(1280, 1000),
       database: database,
       settle: false,

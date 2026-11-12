@@ -186,7 +186,13 @@ CapturedImageData capturedImageDataFromResult({
   return CapturedImageData(
     width: capturedImage.width,
     height: capturedImage.height,
-    displayData: Uint8List.fromList(capturedImage.displayData),
+    // The native and remote paths hand over a fresh Uint8List nobody else
+    // holds; copying it again cost the UI isolate 40 ms at 26 MP and 100 ms
+    // at 61 MP per frame.
+    displayData: switch (capturedImage.displayData) {
+      final Uint8List bytes => bytes,
+      final other => Uint8List.fromList(other),
+    },
     histogram: capturedImage.histogram,
     stats: ImageStats(
       min: capturedImage.stats.min,

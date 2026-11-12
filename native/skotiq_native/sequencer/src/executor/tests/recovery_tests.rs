@@ -227,9 +227,13 @@ fn update_recovery_config_writes_through_runtime() {
         audible_alert_when_entered: false,
         park_and_close_when_recovery_gives_up: true,
     };
-    let mut executor = executor;
+    let executor = executor;
     rt.block_on(async {
-        executor.update_recovery_config(cfg.clone()).await;
+        executor
+            .handle()
+            .update_run_config(|config| config.recovery = cfg.clone())
+            .await
+            .unwrap();
     });
     let handle = executor.run_config_store();
     let rc = handle.read();
@@ -577,10 +581,10 @@ async fn restore_tracking_after_recovery_never_commands_a_parked_mount() {
         "must not claim frames may trail on a parked mount, got: {message}"
     );
     match rx.try_recv() {
-        Ok(ExecutorEvent::Error { message }) => {
+        Ok(ExecutorEvent::StepProblem { message }) => {
             assert!(message.contains("parked"), "got: {message}");
         }
-        other => panic!("expected a truthful Error event, got {other:?}"),
+        other => panic!("expected a truthful problem event, got {other:?}"),
     }
 }
 
@@ -607,15 +611,17 @@ async fn restore_tracking_after_recovery_failure_is_loud() {
         err.is_some(),
         "a tracking-restore failure must be surfaced, not swallowed"
     );
-    let event = rx.try_recv().expect("a loud Error event must be emitted");
+    // Told as a problem of the step, not as the run failing: the run
+    // resumes or waits for the operator, and its frames may trail.
+    let event = rx.try_recv().expect("the problem must be announced");
     match event {
-        ExecutorEvent::Error { message } => {
+        ExecutorEvent::StepProblem { message } => {
             assert!(
                 message.contains("tracking could not be re-enabled"),
                 "the error must explain tracking was not restored: {message}"
             );
         }
-        other => panic!("expected an Error event, got {other:?}"),
+        other => panic!("expected a problem event, got {other:?}"),
     }
 }
 

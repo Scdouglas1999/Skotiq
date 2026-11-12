@@ -67,7 +67,6 @@ pub struct PolarAlignmentImageData {
     pub phase: String,
 }
 
-/// Configuration for polar alignment.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PolarAlignConfig {
     pub step_size: f64,
@@ -122,7 +121,6 @@ impl Default for PolarAlignConfig {
     }
 }
 
-/// Result of polar alignment calculation.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct PolarAlignResult {
     pub azimuth_error: f64,

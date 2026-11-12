@@ -19,7 +19,7 @@ import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import 'night_mount_tab.dart';
-import 'night_panel_parts.dart';
+import '../panel_widgets.dart';
 import '../../../settings/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 
@@ -43,7 +43,7 @@ class _NightMountActionsSectionState
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
     final caps = facts.capabilities;
     final busy = _busy != null ? l10n.text('nightScopeWhyCommandBusy') : null;

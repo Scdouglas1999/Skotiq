@@ -11,7 +11,6 @@ String _sanitizeDeviceText(String value) => value
     .trim();
 
 mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
-
   @override
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType) async {
     final bridgeType = _toBridgeDeviceType(deviceType);
@@ -144,11 +143,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
       }
     } catch (e, stackTrace) {
       _logger.severe('Native connection failed for $deviceId', e, stackTrace);
-      throw DeviceConnectException(
-        deviceId,
-        e,
-        reason: bridgeErrorMessage(e),
-      );
+      throw DeviceConnectException(deviceId, e, reason: bridgeErrorMessage(e));
     }
   }
 
@@ -329,15 +324,37 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
-    await bridge.apiSaveFitsFromLastCapture(
+    return bridge.apiSaveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: filePath,
       headerData: _toBridgeFitsHeader(headerData),
+      keepCameraFile: keepCameraFile,
+    );
+  }
+
+  @override
+  Future<void> updateFrameCards(
+    String filePath,
+    List<FitsKeywordWrite> cards,
+  ) async {
+    await bridge.apiUpdateFrameCards(
+      filePath: filePath,
+      cards: [
+        for (final card in cards)
+          bridge.FrameCardUpdate(
+            keyword: card.keyword,
+            stringValue: card.stringValue,
+            intValue: card.intValue,
+            doubleValue: card.doubleValue,
+            comment: card.comment,
+          ),
+      ],
     );
   }
 

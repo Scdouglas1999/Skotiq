@@ -45,7 +45,9 @@ fn retry_warnings(
 ) -> Vec<String> {
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -158,7 +160,14 @@ async fn a_context_outside_a_run_does_not_retry() {
 
 #[tokio::test(start_paused = true)]
 async fn a_disconnected_camera_is_left_to_disconnect_recovery() {
-    let error = "Camera is not connected";
+    // What the INDI client says when its server went away mid-run: no "not
+    // connected" anywhere in the words, a lost device all the same.
+    let error = DeviceError::NotConnected {
+        device: crate::device_ops::DeviceKind::Camera,
+        message: "Channel closed: Failed to send INDI command to 127.0.0.1:7624: channel \
+                  closed. The connection may have been lost."
+            .to_string(),
+    };
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&[error]));
     let (ctx, mut events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
@@ -172,17 +181,33 @@ async fn a_disconnected_camera_is_left_to_disconnect_recovery() {
         "retrying a call to a device that is gone cannot work; the disconnect \
          recovery reconnects it and re-runs the node"
     );
-    let message = result.message.unwrap_or_default();
-    assert!(
-        is_device_disconnected_message(&message),
-        "the failure must still read as a disconnect so recovery picks it up: {message}"
+    assert_eq!(
+        result.setback(),
+        Some(Setback::Disconnected),
+        "the failure must be a disconnect so recovery picks it up: {:?}",
+        result.message
     );
     assert!(retry_warnings(&mut events).is_empty());
 }
 
+/// The kind of failure decides, not its words: a driver fault that happens to
+/// say "not connected" is retried like any other fault.
+#[tokio::test(start_paused = true)]
+async fn words_alone_do_not_make_a_disconnect() {
+    let ops =
+        Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&["Camera is not connected"]));
+    let (ctx, _events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
+
+    let result = execute_exposure(&darks(1), &ctx, |_, _, _| {}).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(result.status, NodeStatus::Success);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 2);
+}
+
 #[tokio::test(start_paused = true)]
 async fn a_frame_that_fails_image_validation_is_not_retried() {
-    let error = "Image validation failed: image is saturated";
+    let error = DeviceError::InvalidFrame("image is saturated".to_string());
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&[error]));
     let (ctx, _events, dir) = retrying_ctx(ops.clone(), DeviceRetryPolicy::default()).await;
 
@@ -204,11 +229,10 @@ async fn stop_during_the_retry_wait_returns_promptly() {
     let task = tokio::spawn(async move { execute_exposure(&darks(2), &ctx, |_, _, _| {}).await });
     loop {
         match events.recv().await {
-            Ok(crate::executor::ExecutorEvent::Warning { message })
-                if message.contains("Retrying in") =>
-            {
-                break
-            }
+            Ok(
+                crate::executor::ExecutorEvent::Warning { message }
+                | crate::executor::ExecutorEvent::NoticedWarning { message, .. },
+            ) if message.contains("Retrying in") => break,
             Ok(_) => {}
             Err(e) => panic!("no retry announced: {e}"),
         }
@@ -397,36 +421,40 @@ async fn the_centering_frame_retries_a_failed_download() {
 
 #[test]
 fn faults_are_classified_by_whether_a_retry_can_help() {
+    use crate::device_ops::DeviceKind;
     use DeviceFault::*;
     for (error, expected) in [
-        (DOWNLOAD_ERROR, Transient),
+        (DeviceError::from(DOWNLOAD_ERROR), Transient),
         (
-            "Image download on cam exceeded the 120s timeout — failing the frame so recovery can run",
-            Transient,
-        ),
-        ("Camera not ready", Transient),
-        (
-            "Exception occurred. (Exception from HRESULT: 0x80020009 (DISP_E_MEMBERNOTFOUND))",
+            DeviceError::Timeout("Image download on cam exceeded the 120s timeout".to_string()),
             Transient,
         ),
         (
-            "Native filter wheel fw did not reach slot 3 within 60s (last position: Some(1))",
-            Transient,
+            DeviceError::Cancelled("Exposure cancelled".to_string()),
+            Cancelled,
         ),
-        ("Exposure cancelled", Cancelled),
-        ("Operation cancelled", Cancelled),
-        ("Camera is not connected", Disconnected),
         (
-            "Simulator device for 'camera.download' is not connected: the driver handle was lost \
-             mid-session (injected fault).",
+            DeviceError::NotConnected {
+                device: DeviceKind::Camera,
+                message: "Simulator device for 'camera.download' is not connected".to_string(),
+            },
             Disconnected,
         ),
-        ("Image validation failed: image is saturated", Refused),
-        ("Filter 'Hb' not found", Refused),
-        ("Camera subframes are not supported by this device backend", Refused),
-        ("Invalid value for gain", Refused),
+        (
+            DeviceError::InvalidFrame("image is saturated".to_string()),
+            Refused,
+        ),
+        (
+            DeviceError::Rejected("Filter 'Hb' not found".to_string()),
+            Refused,
+        ),
+        (
+            DeviceError::unsupported("Camera subframes are not supported by this device backend"),
+            Refused,
+        ),
+        (DeviceError::NO_GUIDER, Refused),
     ] {
-        assert_eq!(classify_device_fault(error), expected, "{error}");
+        assert_eq!(classify_device_fault(&error), expected, "{error}");
     }
 }
 

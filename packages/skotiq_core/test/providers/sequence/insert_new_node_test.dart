@@ -40,8 +40,9 @@ void main() {
   test('nothing changes while a run owns the tree', () {
     editor().createSequence();
     final before = sequence();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     expect(editor().insertNewNode(DelayNode(id: 'delay')), isFalse);
     expect(sequence(), same(before));

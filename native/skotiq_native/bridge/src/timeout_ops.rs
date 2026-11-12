@@ -38,8 +38,6 @@ use std::future::Future;
 use std::time::Duration;
 use tokio::time::timeout;
 
-// Standard timeouts
-
 /// Standard timeout values for different operation types
 pub struct Timeouts;
 
@@ -69,12 +67,10 @@ impl Timeouts {
         Duration::from_secs(300)
     }
 
-    /// Timeout for parking/unparking
     pub const fn park() -> Duration {
         Duration::from_secs(180)
     }
 
-    /// Timeout for finding home
     pub const fn find_home() -> Duration {
         Duration::from_secs(300)
     }
@@ -95,7 +91,6 @@ impl Timeouts {
         Duration::from_secs(120)
     }
 
-    /// Timeout for focuser movements
     pub const fn focuser_move() -> Duration {
         Duration::from_secs(120)
     }
@@ -105,12 +100,10 @@ impl Timeouts {
         Duration::from_secs(60)
     }
 
-    /// Timeout for rotator movements
     pub const fn rotator_move() -> Duration {
         Duration::from_secs(60)
     }
 
-    /// Timeout for dome operations
     pub const fn dome() -> Duration {
         Duration::from_secs(300)
     }
@@ -130,7 +123,6 @@ impl Timeouts {
         Duration::from_secs(5)
     }
 
-    /// Timeout for device discovery
     pub const fn discovery() -> Duration {
         Duration::from_secs(10)
     }

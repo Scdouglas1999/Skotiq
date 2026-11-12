@@ -20,11 +20,12 @@ import 'package:skotiq_core/src/models/scheduler/scheduler_status.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
     show BinningMode, LiveStackingMethod, LiveStackingThumbnailSize;
 import 'package:skotiq_core/src/providers/annotation_settings_provider.dart';
-import 'package:skotiq_core/src/providers/constellation_provider.dart'
+import 'package:skotiq_core/src/services/constellation/hub_credentials.dart'
     show resolveConstellationAccountId, resolveConstellationCredentials;
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/settings/store_settings.dart';
 import 'package:skotiq_core/src/providers/frame_watch_settings_provider.dart';
+import 'package:skotiq_core/src/models/site/learned_obstruction.dart';
 import 'package:skotiq_core/src/providers/glance_mode_provider.dart';
 import 'package:skotiq_core/src/providers/home_assistant_provider.dart';
 import 'package:skotiq_core/src/providers/host_settings/host_settings_providers.dart'
@@ -103,7 +104,6 @@ Map<String, Object?> _sequencerDefaults(SequencerDefaults d) => {
   'exposureBinning': d.exposureBinning.name,
   'exposureDitherEvery': d.exposureDitherEvery,
   'frameDownloadOverheadSecs': d.frameDownloadOverheadSecs,
-  'livestackingDefaultPort': d.livestackingDefaultPort,
   'livestackingPublicByDefault': d.livestackingPublicByDefault,
   'livestackingDefaultStackMethod': d.livestackingDefaultStackMethod.name,
   'livestackingDefaultWatermark': d.livestackingDefaultWatermark,
@@ -128,7 +128,6 @@ const _sequencerKeys = [
   'sequencer_exposure_offset',
   'sequencer_exposure_binning',
   'sequencer_exposure_dither_every',
-  'livestacking_default_port',
   'livestacking_public_by_default',
   'livestacking_default_stack_method',
   'livestacking_default_watermark',
@@ -251,7 +250,6 @@ final _probes = <_Probe>[
         'sequencer_exposure_offset': '21',
         'sequencer_exposure_binning': 'two',
         'sequencer_exposure_dither_every': '5',
-        'livestacking_default_port': '9090',
         'livestacking_public_by_default': 'true',
         'livestacking_default_stack_method': 'median_rej',
         'livestacking_default_watermark': r'$TARGET by me',
@@ -275,7 +273,6 @@ final _probes = <_Probe>[
         'sequencer_exposure_offset': '',
         'sequencer_exposure_binning': 'three',
         'sequencer_exposure_dither_every': 'z',
-        'livestacking_default_port': 'port',
         'livestacking_public_by_default': 'yes',
         'livestacking_default_stack_method': 'medianRej',
         'livestacking_default_watermark': '',
@@ -344,7 +341,6 @@ final _probes = <_Probe>[
         final n = c.read(sequencerDefaultsProvider.notifier);
         await n.ensureLoaded();
         await n.updateLiveStackingDefaults(
-          defaultPort: 8090,
           publicByDefault: true,
           defaultStackMethod: LiveStackingMethod.medianRej,
           defaultWatermark: 'Skotiq',
@@ -855,9 +851,11 @@ void main() {
 /// What these settings now read from text no build writes, where that
 /// differs from the base build. A declared setting reads it by its kind's one
 /// rule instead of each feature's own idiom:
-///   * a bool is on for `true` in any case and off for any other text (the
-///     base read `TRUE` as off where it tested `== 'true'`, and empty or
-///     unreadable text as on where it tested `!= 'false'`);
+///   * a bool is on for `true` and off for `false` in any case (the base read
+///     `TRUE` as off where it tested `== 'true'`, and `FALSE` as on where it
+///     tested `!= 'false'`). Any other text reads as off, except for the
+///     switches whose base reader took anything but `false` as on (tutorials,
+///     frame watch): those read it as on, as before;
 ///   * an empty row of a JSON document or an optional text means nothing is
 ///     saved (the base kept an empty filter name, and failed on an empty push
 ///     notification document).
@@ -866,7 +864,7 @@ const Map<String, Object?> _changedOnPurpose = {
     'reads': {'upper case': true},
   },
   'tutorials enabled': {
-    'reads': {'upper case off': false, 'empty': false},
+    'reads': {'upper case off': false},
   },
   'sequencer defaults': {
     'reads': {
@@ -875,11 +873,7 @@ const Map<String, Object?> _changedOnPurpose = {
   },
   'frame watch': {
     'reads': {
-      'unreadable values': {
-        'recenterEnabled': false,
-        'obstructionDetection': false,
-      },
-      'empty': {'recenterEnabled': false, 'obstructionDetection': false},
+      'unreadable values': {'obstructionDetection': false},
     },
   },
   'push notifications': {

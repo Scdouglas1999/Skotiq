@@ -25,7 +25,6 @@ pub enum GuidingStopReason {
     SequenceStep,
     /// The guider is settling after a dither.
     DitherSettle,
-    /// The run was stopped.
     RunStopped,
     /// Someone stopped guiding from the guider controls.
     Operator,

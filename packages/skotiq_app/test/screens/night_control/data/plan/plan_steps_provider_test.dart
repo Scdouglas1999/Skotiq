@@ -97,6 +97,67 @@ void main() {
     expect(header.framesTotal, 2);
   });
 
+  // The run gives a Smart Exposure looping until stopped no total and ignores
+  // its per-filter counts, so the step's frames have no planned number.
+  test('an active Smart Exposure looping until stopped shows frames, no total',
+      () {
+    const rootId = 'root';
+    final target = TargetHeaderNode(
+      id: 'm31',
+      targetName: 'M31',
+      raHours: 0.712,
+      decDegrees: 41.269,
+      parentId: rootId,
+      childIds: const ['m31-smart'],
+    );
+    final smart = SmartExposureNode(
+      id: 'm31-smart',
+      parentId: 'm31',
+      loopUntilStopped: true,
+      plans: const [
+        FilterPlan(filterName: 'L', count: 20),
+        FilterPlan(filterName: 'R', count: 10),
+      ],
+    );
+    final root = InstructionSetNode(
+      id: rootId,
+      name: 'Tonight',
+      childIds: const ['m31'],
+    );
+    final sequence = Sequence.create(
+      name: 'Loop plan',
+      rootNodeId: rootId,
+      nodes: {rootId: root, 'm31': target, 'm31-smart': smart},
+    );
+    final container = planContainer(
+      now: evening,
+      sequence: sequence,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: DateTime(2026, 10, 19, 19, 50),
+      ),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.running,
+        currentNodeId: 'm31-smart',
+        nodeStatuses: {
+          'm31': NodeStatus.running,
+          'm31-smart': NodeStatus.running,
+        },
+        nodeProgressDetail: {'m31-smart': 'Completed 7/0'},
+      ),
+    );
+    addTearDown(container.dispose);
+
+    final active = container
+        .read(nightPlanStepsProvider)
+        .singleWhere((s) => s.nodeId == 'm31-smart');
+    expect(active.when, const StepWhenProgress(7, null));
+    final header = container.read(nightHeaderProvider);
+    expect(header.framesDone, 7);
+    expect(header.framesTotal, isNull);
+  });
+
   test('an active step with no frame reported yet shows its planned time', () {
     final plan = TwoTargetPlan();
     final container = planContainer(
@@ -122,6 +183,32 @@ void main() {
     final header = container.read(nightHeaderProvider);
     expect(header.framesDone, isNull);
     expect(header.framesTotal, isNull);
+  });
+
+  // A step the operator's Stop ended ran, and may have taken frames; a step
+  // the run passed over did not. The list told both as "skipped".
+  test('a step the operator stopped is stopped, not skipped', () {
+    final container = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: DateTime(2026, 10, 19, 19, 50),
+      ),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.running,
+        nodeStatuses: {
+          'm74-l': NodeStatus.cancelled,
+          'ngc891-ha': NodeStatus.skipped,
+        },
+      ),
+    );
+    addTearDown(container.dispose);
+
+    final steps = container.read(nightPlanStepsProvider);
+    expect(steps[0].status, PlanStepStatus.stopped);
+    expect(steps[1].status, PlanStepStatus.skipped);
   });
 
   test('statuses a previous run left do not mark a waiting plan done', () {

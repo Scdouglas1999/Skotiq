@@ -1,6 +1,58 @@
 use super::*;
 
-/// Sequencer-specific events
+/// What a [`SequencerEvent::Error`] means for the run it came from. The
+/// sequencer decides this where the problem happens, because only it knows
+/// whether the run goes on.
+#[frb]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SequencerErrorKind {
+    /// A note about a run that is going normally.
+    Advisory,
+    /// One step had a problem and the run carried on.
+    StepProblem,
+    /// The run is paused for the operator, and this is why.
+    RunHeld,
+    /// A step failed. The run ends with `Failed` unless recovery saves it,
+    /// and `Failed` is what says the run failed.
+    StepFailed,
+    /// An operation started by hand (an autofocus, a polar alignment)
+    /// reported it. No run is involved.
+    Standalone,
+}
+
+impl SequencerErrorKind {
+    /// The severity an event of this kind is published at during a run.
+    pub(crate) fn run_severity(self) -> EventSeverity {
+        match self {
+            Self::Advisory | Self::StepProblem => EventSeverity::Warning,
+            Self::RunHeld | Self::StepFailed | Self::Standalone => EventSeverity::Error,
+        }
+    }
+}
+
+/// A happening the run carries on through and tells the operator about once.
+/// The `DecisionLogged` row that carries it is what the app raises the
+/// notification from; the `Error` (a warning) that carries it is the line in
+/// the run's warnings and raises nothing of its own. Mirrors
+/// `skotiq_sequencer::RunNotice`.
+#[frb]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SequencerNotice {
+    AutofocusContinued,
+    RejectStreak,
+    ProblemNoticed,
+}
+
+impl From<skotiq_sequencer::RunNotice> for SequencerNotice {
+    fn from(notice: skotiq_sequencer::RunNotice) -> Self {
+        match notice {
+            skotiq_sequencer::RunNotice::AutofocusContinued => Self::AutofocusContinued,
+            skotiq_sequencer::RunNotice::RejectStreak => Self::RejectStreak,
+            skotiq_sequencer::RunNotice::ProblemNoticed => Self::ProblemNoticed,
+        }
+    }
+}
+
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SequencerEvent {
@@ -61,8 +113,15 @@ pub enum SequencerEvent {
         total: u32,
         duration_secs: f64,
     },
+    /// Something went wrong, or is worth knowing, short of the run's end.
+    /// `kind` says what it means for the run; nothing downstream should work
+    /// that out from the severity or the text.
     Error {
         message: String,
+        kind: SequencerErrorKind,
+        /// Set on the warning line of a happening its decision row announces.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        notice: Option<SequencerNotice>,
     },
     /// A meridian flip finished. Mirrors
     /// `ExecutorEvent::MeridianFlipOutcome`.
@@ -525,6 +584,9 @@ pub enum SequencerEvent {
         /// has been stamped with one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         sequence_run_id: Option<i64>,
+        /// Set on the row of a happening the operator is told about once.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        notice: Option<SequencerNotice>,
     },
 }
 

@@ -2,8 +2,15 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
-    show apiEventStream, SkotiqEvent, EventCategory, EventSeverity;
+    show
+        apiEventStream,
+        SkotiqEvent,
+        EventCategory,
+        EventSeverity,
+        SequencerErrorKind;
 import '../backend/bridge_event_mapper.dart';
+import '../backend/sequencer_error_kind.dart';
+import '../backend/sequencer_notice.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
@@ -127,14 +134,23 @@ class EventHistoryNotifier extends StateNotifier<List<SkotiqEvent>> {
     state = [event, ...state].take(maxHistorySize).toList();
   }
 
+  final Set<SkotiqEvent> _earlier = Set.identity();
+
   /// Fill an empty history with events that happened before this window was
   /// listening (a linked client's first connect), newest first.
   void seedEarlier(List<SkotiqEvent> newestFirst) {
     if (!mounted || state.isNotEmpty) return;
-    state = newestFirst.take(maxHistorySize).toList();
+    final earlier = newestFirst.take(maxHistorySize).toList();
+    _earlier.addAll(earlier);
+    state = earlier;
   }
 
+  /// Whether [event] came with [seedEarlier]: it is part of the night so
+  /// far, not something that just happened.
+  bool happenedEarlier(SkotiqEvent event) => _earlier.contains(event);
+
   void clear() {
+    _earlier.clear();
     state = [];
   }
 
@@ -228,7 +244,7 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       // what happened (the step's error, the heartbeat's equipment Error).
       final message = _eventMessage(event);
       if (message == null) return;
-      if (_isAnnouncedRunWarning(event, message)) return;
+      if (_isAnnouncedRunWarning(event)) return;
 
       // A sequencer event the notification router classifies is the router's
       // to tell: a failed run (once per run, with its reason) and an
@@ -237,6 +253,14 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       // notices.
       if (event.category == core.EventCategory.sequencer &&
           NotificationEventClassifier.classify(event) != null) {
+        return;
+      }
+
+      // A failed step is told by the run's end, whose notice carries this
+      // reason, or by recovery's own notices when recovery saves the run.
+      if (event.category == core.EventCategory.sequencer &&
+          event.eventType == 'Error' &&
+          sequencerErrorKindOf(event) == SequencerErrorKind.stepFailed) {
         return;
       }
 
@@ -295,14 +319,14 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
   });
 });
 
-/// True for the run's Warning about a quality problem it carries on through.
-/// The notification router announces that problem from its decision row and
-/// Tonight lists it with the run's warnings; a toast here made one problem
-/// three notices with the same words.
-bool _isAnnouncedRunWarning(core.SkotiqEvent event, String message) =>
-    event.category == core.EventCategory.sequencer &&
+/// True for the run's Warning about a happening it carried on through. The
+/// notification router announces it from the decision row with the same
+/// notice, and Tonight lists the Warning with the run's warnings, so a toast
+/// would tell the same happening twice.
+bool _isAnnouncedRunWarning(core.SkotiqEvent event) =>
+    event.eventType == 'Error' &&
     event.severity == core.EventSeverity.warning &&
-    message.trimRight().endsWith(kQualityProblemContinuesNote);
+    sequencerNoticeOf(event) != null;
 
 /// The sentence a backend event carries, or null when it carries none.
 String? _eventMessage(core.SkotiqEvent event) {
@@ -331,6 +355,22 @@ String _eventTitle(core.SkotiqEvent event) {
 
   if (deviceType != null && deviceType.isNotEmpty) {
     return '$deviceType Error';
+  }
+  // The sequencer's error payload says what it means for the run.
+  if (event.category == core.EventCategory.sequencer &&
+      event.eventType == 'Error') {
+    switch (sequencerErrorKindOf(event)) {
+      case SequencerErrorKind.runHeld:
+        return 'Sequence paused';
+      case SequencerErrorKind.standalone:
+        return event.severity == core.EventSeverity.warning
+            ? 'Warning'
+            : 'Operation failed';
+      case SequencerErrorKind.advisory:
+      case SequencerErrorKind.stepProblem:
+      case SequencerErrorKind.stepFailed:
+        break;
+    }
   }
   return '$categoryLabel ${event.severity == core.EventSeverity.warning ? "Warning" : "Error"}';
 }

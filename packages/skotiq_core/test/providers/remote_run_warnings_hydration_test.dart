@@ -52,12 +52,9 @@ SequencerStatus _pausedStatus({
   ),
 );
 
-Phd2Status _phd2({String? stopReason}) =>
-    Phd2Status(state: 'Stopped', connected: true, stopReason: stopReason);
-
 Future<ProviderContainer> _hydrate(
   SequencerStatus status, {
-  Phd2Status? phd2,
+  String? guiderStopReason,
 }) async {
   final events = StreamController<SkotiqEvent>.broadcast();
   final backend = _MockNetworkBackend();
@@ -67,8 +64,19 @@ Future<ProviderContainer> _hydrate(
   when(() => backend.isAuthTokenRejected).thenReturn(false);
   when(() => backend.eventStream).thenAnswer((_) => events.stream);
   when(() => backend.sequencerGetStatus()).thenAnswer((_) async => status);
-  when(() => backend.getConnectedDevices()).thenAnswer((_) async => const []);
-  when(() => backend.phd2GetStatus()).thenAnswer((_) async => phd2 ?? _phd2());
+  when(() => backend.getHostRuntimeState()).thenAnswer(
+    (_) async => [
+      HostRuntimeUpdate(
+        channel: 'guiderStatus',
+        revision: 1,
+        value: {
+          'deviceId': 'phd2_guider',
+          'state': 'stopped',
+          'stopReason': guiderStopReason,
+        },
+      ),
+    ],
+  );
 
   final container = ProviderContainer(
     overrides: [
@@ -131,7 +139,7 @@ void main() {
   test("the guider's own status gives the reason too", () async {
     final container = await _hydrate(
       _pausedStatus(guidingStopReason: null, reportsGuidingStopReason: false),
-      phd2: _phd2(stopReason: 'meridian_flip'),
+      guiderStopReason: 'meridian_flip',
     );
 
     expect(container.read(guidingStopReasonProvider), 'meridian_flip');

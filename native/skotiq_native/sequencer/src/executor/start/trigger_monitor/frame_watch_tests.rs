@@ -117,7 +117,8 @@ impl Harness {
         run.teardown.node_tree_has_ended();
         let dispatcher = Dispatcher::new(
             &run,
-            ExecutionContext::new("root".into(), ops.clone()),
+            run.build_context(std::time::Instant::now(), requests.clone())
+                .await,
             requests,
         )
         .await;
@@ -168,7 +169,7 @@ impl Harness {
             ProgressDetail::FrameRejected {
                 frame: 1,
                 total: 1,
-                reason: row.db_reason.clone(),
+                reason: row.db_reject().expect("a rejected row"),
                 hfr: row.hfr,
                 eccentricity: row.ecc,
                 star_count: row.stars,
@@ -259,7 +260,9 @@ fn fired(log: &[ExecutorEvent], id: &str) -> usize {
 fn warnings(log: &[ExecutorEvent]) -> Vec<&str> {
     log.iter()
         .filter_map(|e| match e {
-            ExecutorEvent::Warning { message } => Some(message.as_str()),
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
+                Some(message.as_str())
+            }
             _ => None,
         })
         .collect()
@@ -539,6 +542,7 @@ async fn final_frames_all_finish_solving_without_starting_a_recenter() {
         };
     }
     frames[2].db_accepted = false;
+    frames[2].db_reason = "HFR 2.49 px exceeds absolute threshold 2.00 px".to_string();
     let mut h = Harness::with_plan_and_rows(plan(), frames.clone()).await;
     assert!(
         h.dispatcher
@@ -702,7 +706,7 @@ async fn refused_probe_return_honors_failure_policy_without_exposing() {
                 failure_action: action,
                 ..Default::default()
             }));
-        let mount = h.dispatcher.rig.context.mount_id.clone().unwrap();
+        let mount = h.dispatcher.rig.devices().mount_id.clone().unwrap();
         h.ops.mount_park(&mount).await.unwrap();
         let state = h.dispatcher.rig.trigger_state.clone();
         let mut claim = TriggerCameraClaim::acquire(

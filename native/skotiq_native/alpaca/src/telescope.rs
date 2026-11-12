@@ -101,10 +101,7 @@ pub struct TelescopeFullStatus {
     pub guide_rate_declination: Option<f64>,
 }
 
-alpaca_device!(
-    AlpacaTelescope,
-    Telescope
-);
+alpaca_device!(AlpacaTelescope, Telescope);
 
 impl AlpacaTelescope {
     skotiq_device::ascom_telescope_members!(alpaca_member);

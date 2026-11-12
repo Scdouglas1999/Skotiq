@@ -50,27 +50,22 @@ impl TriggerManager {
         }
     }
 
-    /// Get the trigger state for updates
     pub fn state(&self) -> Arc<RwLock<TriggerState>> {
         self.state.clone()
     }
 
-    /// Add a trigger
     pub fn add_trigger(&mut self, trigger: Trigger) {
         self.triggers.push(trigger);
     }
 
-    /// Remove a trigger by ID
     pub fn remove_trigger(&mut self, id: &str) {
         self.triggers.retain(|t| t.id != id);
     }
 
-    /// Get a trigger by ID
     pub fn get_trigger(&self, id: &str) -> Option<&Trigger> {
         self.triggers.iter().find(|t| t.id == id)
     }
 
-    /// Get mutable trigger by ID
     pub fn get_trigger_mut(&mut self, id: &str) -> Option<&mut Trigger> {
         self.triggers.iter_mut().find(|t| t.id == id)
     }
@@ -130,7 +125,6 @@ impl TriggerManager {
         Some(trigger)
     }
 
-    /// Enable/disable all triggers
     pub fn set_all_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
@@ -181,7 +175,6 @@ impl TriggerManager {
         })
     }
 
-    /// Get all triggers
     pub fn triggers(&self) -> &[Trigger] {
         &self.triggers
     }

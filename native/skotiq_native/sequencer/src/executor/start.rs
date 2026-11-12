@@ -65,7 +65,7 @@ impl SequenceExecutor {
         self.is_cancelled.store(false, Ordering::Relaxed);
         let (command_tx, commands) = mpsc::channel::<ExecutorCommand>(32);
         self.command_tx = Some(command_tx);
-        let (run_completion_tx, run_completion_rx) = oneshot::channel();
+        let (run_completion_tx, run_completion_rx) = watch::channel(false);
         self.run_completion_rx = Some(run_completion_rx);
 
         self.run_state.transition(ExecutorState::Running);
@@ -84,9 +84,9 @@ impl SequenceExecutor {
             .take()
             .ok_or("No root node available - sequence may not be properly loaded".to_string())?;
 
-        let frames_taken = checkpoint_to_restore
+        let frames = checkpoint_to_restore
             .as_ref()
-            .map(|checkpoint| checkpoint.exposure_frames_taken.clone())
+            .map(crate::node::resume::BurstFrames::from_checkpoint)
             .unwrap_or_default();
         let seed = RunSeed {
             staging: std::mem::take(&mut self.staging),
@@ -106,7 +106,7 @@ impl SequenceExecutor {
             &*root_node,
             custom_recovery_branches,
             unreachable_instruction_names,
-            frames_taken,
+            frames,
         );
         let run = Arc::new(run);
         self.run = Some(run.clone());
@@ -114,7 +114,7 @@ impl SequenceExecutor {
         let state = self.run_state.clone();
         tokio::spawn(async move {
             run::supervised(state, run.execute(root_node, commands, seed)).await;
-            let _ = run_completion_tx.send(());
+            run_completion_tx.send_replace(true);
         });
 
         Ok(())
@@ -128,7 +128,7 @@ impl SequenceExecutor {
         root_node: &dyn Node,
         custom_recovery_branches: HashMap<String, NodeId>,
         unreachable_instruction_names: Vec<String>,
-        frames_taken: HashMap<NodeId, u32>,
+        frames: crate::node::resume::BurstFrames,
     ) -> Run {
         let config = self.settings.snapshot();
         let control = RunControl {
@@ -157,7 +157,7 @@ impl SequenceExecutor {
         let mut loop_passes_finished = HashMap::new();
         root_node.snapshot_loop_iterations(&mut loop_passes_finished);
         let resume =
-            crate::node::resume::ResumeRecord::new(root_node, loop_passes_finished, frames_taken);
+            crate::node::resume::ResumeRecord::new(root_node, loop_passes_finished, frames);
 
         let checkpoint = match (&self.checkpoint_manager, &self.sequence) {
             (Some(manager), Some(sequence)) => Some(Arc::new(CheckpointWriter::new(
@@ -169,7 +169,6 @@ impl SequenceExecutor {
                     rig: rig.clone(),
                     settings: self.settings.clone(),
                     trigger_manager: self.trigger_manager.clone(),
-                    triggers_enabled: self.triggers_enabled,
                     budget_registry: budget_registry.clone(),
                     smart_exposure_states: smart_exposure_states.clone(),
                     resume: resume.clone(),
@@ -196,7 +195,6 @@ impl SequenceExecutor {
             },
             device_ops,
             triggers: self.trigger_manager.clone(),
-            triggers_enabled: self.triggers_enabled,
             decisions: DecisionLog {
                 tx: self.decision_tx.clone(),
                 run_id: self.active_sequence_run_id.clone(),

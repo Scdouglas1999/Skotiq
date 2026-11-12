@@ -4,6 +4,7 @@ import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../utils/device_id.dart';
 import '../profiles_provider.dart';
+import '../../models/equipment_profile_model.dart';
 import 'device_slots.dart';
 
 /// The computed status of a single device slot for one profile.
@@ -108,21 +109,18 @@ class ProfileConnectionStatus {
   ProfileDeviceConnection operator [](DeviceType type) =>
       connections.firstWhere((c) => c.type == type);
 
-  // Sidebar rollups (core slots only)
+  // Sidebar rollups
 
-  /// Number of assigned core slots (the denominator of the sidebar's
-  /// `connected/total` badge).
-  int get coreTotalCount =>
-      connections.where((c) => c.type.slot.isCore && c.isAssigned).length;
+  /// Number of slots the profile assigns (the denominator of the sidebar's
+  /// `connected/total` badge; the same devices [RigDevices] counts).
+  int get assignedCount => connections.where((c) => c.isAssigned).length;
 
-  /// Number of assigned core slots whose matched device is `connected` (the
+  /// Number of assigned slots whose matched device is `connected` (the
   /// numerator of the sidebar badge).
-  int get coreConnectedCount => connections
+  int get assignedConnectedCount => connections
       .where(
         (c) =>
-            c.type.slot.isCore &&
-            c.isAssigned &&
-            c.profileState == DeviceConnectionState.connected,
+            c.isAssigned && c.profileState == DeviceConnectionState.connected,
       )
       .length;
 
@@ -184,13 +182,16 @@ final profileConnectionStatusProvider =
       ref,
       profile,
     ) {
+      // Only the connection half: telemetry polls must not recompute this.
       ProfileDeviceConnection connectionOf(DeviceSlot slot) {
-        final state = ref.watch(slot.state);
+        final live = ref.watch(
+          slot.state.select((s) => (state: s.connectionState, id: s.deviceId)),
+        );
         return ProfileDeviceConnection(
           type: slot.type,
           profileId: profile.deviceIdFor(slot.type),
-          connectedId: state.deviceId,
-          connectedState: state.connectionState,
+          connectedId: live.id,
+          connectedState: live.state,
         );
       }
 
@@ -202,46 +203,119 @@ final profileConnectionStatusProvider =
       );
     });
 
-/// Slots holding a device that is CONNECTED but that the active profile does not
-/// assign — i.e. an ad-hoc connection made from the Discovery panel.
-///
-/// These connections are session-only: nothing writes them to
-/// `equipment_profiles`, so the next launch reconnects only the profile devices
-/// and the rest are gone without notice — which the operator cannot see from a
-/// card that renders identically to a profile device.
-///
-/// Empty when there is no active profile: "no equipment profile is set up yet"
-/// is already a BLOCKED readiness item, and repeating it per device card would
-/// be noise. This answers the narrower question of which devices the operator
-/// connected *outside* the profile they are running.
-final sessionOnlyConnectedSlotsProvider = Provider<Set<DeviceType>>((ref) {
-  final profile = ref.watch(activeEquipmentProfileProvider);
-  if (profile == null) return const <DeviceType>{};
-  final status = ref.watch(profileConnectionStatusProvider(profile));
-  return <DeviceType>{
-    for (final connection in status.connections)
-      if (connection.connectedState == DeviceConnectionState.connected &&
-          !connection.matchesProfile)
-        connection.type,
-  };
-});
+/// One device of the rig: a slot the active profile assigns, or a slot
+/// holding a device connected outside the profile.
+class RigDevice {
+  const RigDevice({
+    required this.type,
+    required this.assigned,
+    required this.connected,
+    required this.sessionOnly,
+  });
 
-/// The ACTIVE profile's assigned device slots, in canonical slot order.
-///
-/// Distinct from [offlineProfileDeviceNamesProvider], which reports only the
-/// assigned slots that are DOWN: an empty offline list cannot tell "every
-/// assigned device is connected" apart from "this profile assigns no device",
-/// and readiness must not read the second as a green row.
-///
-/// Empty when there is no active profile.
-final assignedProfileDeviceTypesProvider = Provider<List<DeviceType>>((ref) {
-  final profile = ref.watch(activeEquipmentProfileProvider);
-  if (profile == null) return const <DeviceType>[];
-  final status = ref.watch(profileConnectionStatusProvider(profile));
-  return <DeviceType>[
-    for (final connection in status.connections)
-      if (connection.isAssigned) connection.type,
+  final DeviceType type;
+
+  /// The active profile names a device for this slot.
+  final bool assigned;
+
+  /// A device is connected in this slot.
+  final bool connected;
+
+  /// The connected device is not the one the active profile names (an ad-hoc
+  /// connection from the Discovery panel). Nothing writes it to the profile,
+  /// so the next launch does not reconnect it. Never set without an active
+  /// profile: "no profile yet" is its own readiness item.
+  final bool sessionOnly;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RigDevice &&
+      other.type == type &&
+      other.assigned == assigned &&
+      other.connected == connected &&
+      other.sessionOnly == sessionOnly;
+
+  @override
+  int get hashCode => Object.hash(type, assigned, connected, sessionOnly);
+}
+
+/// Which devices make up the rig right now and how many of them are
+/// connected. Every surface that states a device count (the rail's rig card,
+/// the Equipment header and profile block, Tonight) reads it from here.
+class RigDevices {
+  const RigDevices(this.devices);
+
+  /// In [deviceSlots] order.
+  final List<RigDevice> devices;
+
+  int get total => devices.length;
+
+  int get connected => devices.where((d) => d.connected).length;
+
+  /// The slots the active profile assigns.
+  List<DeviceType> get assigned => [
+    for (final device in devices)
+      if (device.assigned) device.type,
   ];
+
+  Set<DeviceType> get sessionOnly => {
+    for (final device in devices)
+      if (device.sessionOnly) device.type,
+  };
+
+  RigDevice? operator [](DeviceType type) {
+    for (final device in devices) {
+      if (device.type == type) return device;
+    }
+    return null;
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! RigDevices || other.devices.length != devices.length) {
+      return false;
+    }
+    for (var i = 0; i < devices.length; i++) {
+      if (other.devices[i] != devices[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hashAll(devices);
+}
+
+/// The rig as the active profile and the live slots define it.
+///
+/// Watches only each slot's connection state and device id, so a mount
+/// publishing its position every two seconds does not recompute it.
+final rigDevicesProvider = Provider<RigDevices>((ref) {
+  final profile = ref.watch(activeEquipmentProfileProvider);
+  final devices = <RigDevice>[];
+  for (final slot in deviceSlots) {
+    final live = ref.watch(
+      slot.state.select((s) => (state: s.connectionState, id: s.deviceId)),
+    );
+    final assignedId = profile?.deviceIdFor(slot.type);
+    final connection = ProfileDeviceConnection(
+      type: slot.type,
+      profileId: assignedId == null || assignedId.isEmpty ? null : assignedId,
+      connectedId: live.id,
+      connectedState: live.state,
+    );
+    final connected = live.state == DeviceConnectionState.connected;
+    if (!connection.isAssigned && !connected) continue;
+    devices.add(
+      RigDevice(
+        type: slot.type,
+        assigned: connection.isAssigned,
+        connected: connected,
+        sessionOnly:
+            profile != null && connected && !connection.matchesProfile,
+      ),
+    );
+  }
+  return RigDevices(List.unmodifiable(devices));
 });
 
 /// Display names of the ACTIVE profile's assigned device slots that are not

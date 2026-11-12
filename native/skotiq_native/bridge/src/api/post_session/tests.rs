@@ -1,5 +1,5 @@
 use super::*;
-use skotiq_imaging::read_fits;
+use skotiq_imaging::read_frame;
 use std::path::PathBuf;
 
 /// A scratch directory that deletes itself when the test ends. Cleanup runs
@@ -207,7 +207,7 @@ fn integrate_session_produces_master_and_preview() {
     assert_eq!(result.per_frame_stats.len(), 3);
 
     // The master is a real, readable F32 linear FITS of the right geometry.
-    let (master_img, _h) = read_fits(master_path.as_path()).expect("read master");
+    let (master_img, _h) = read_frame(master_path.as_path()).expect("read master");
     assert_eq!(master_img.pixel_type, PixelType::F32);
     assert_eq!(master_img.width, size);
     assert_eq!(master_img.height, size);
@@ -239,14 +239,15 @@ fn write_field_fits_with_wcs(path: &Path, image: &ImageData, wcs: &WcsInfo) {
 /// The integrated master must carry the **registration reference**'s WCS in
 /// its FITS header so the mosaic stitcher can place the panel without a
 /// post-hoc plate solve. Without the carry-over the master has NO WCS and
-/// `read_fits` finds no CRVAL/CD keywords — this test fails.
+/// `read_frame` finds no CRVAL/CD keywords — this test fails.
 #[test]
 fn integrate_session_stamps_reference_wcs_into_master() {
     let dir = temp_dir("integrate_session_stamps_reference_wcs_into_master");
     let size = 256u32;
     let stars = base_stars(size as f64);
     // A representative plate-solved panel WCS: ~1.5 arcsec/px, small rotation.
-    let ref_wcs = WcsInfo::from_plate_solve(83.822, -5.391, 12.0, 1.5, size, size);
+    let ref_wcs =
+        skotiq_imaging::SipWcs::from_pointing(83.822, -5.391, 12.0, 1.5, size, size).cd_only();
 
     let mut light_paths = Vec::new();
     let shifts = [(0.0, 0.0), (3.0, -2.0), (-2.0, 4.0)];
@@ -285,7 +286,7 @@ fn integrate_session_stamps_reference_wcs_into_master() {
     // serialize floats at finite precision, so compare with a tolerance tight
     // enough to prove it's the reference's WCS (sub-arcsec on a ~1.5"/px CD,
     // sub-µdeg on RA/Dec), not a default or invented one.
-    let (_master_img, h) = read_fits(master_path.as_path()).expect("read master");
+    let (_master_img, h) = read_frame(master_path.as_path()).expect("read master");
     let near = |key: &str, want: f64| {
         let got = h
             .get_float(key)
@@ -335,7 +336,7 @@ fn integrate_session_leaves_master_wcs_absent_when_reference_has_none() {
     });
     api_integrate_session(args.to_string()).expect("integration should succeed");
 
-    let (_img, h) = read_fits(master_path.as_path()).expect("read master");
+    let (_img, h) = read_frame(master_path.as_path()).expect("read master");
     assert_eq!(
         h.get_float("CRVAL1"),
         None,
@@ -403,7 +404,7 @@ fn master_accumulate_create_add_finalize() {
         Some(master_path.to_string_lossy().as_ref())
     );
 
-    let (img, _h) = read_fits(master_path.as_path()).expect("read accumulated master");
+    let (img, _h) = read_frame(master_path.as_path()).expect("read accumulated master");
     assert_eq!(img.pixel_type, PixelType::F32);
     assert_eq!(img.width, size);
 }
@@ -506,7 +507,7 @@ fn flat_build_preserves_identity_and_rejects_mismatched_inputs() {
     let args =
         serde_json::json!({"flatPaths":[first,second],"biasOrDarkFlat":bias,"outputPath":out});
     api_build_master_flat(args.to_string()).unwrap();
-    let result = read_fits_header(&out).unwrap();
+    let result = read_frame_header(&out).unwrap();
     assert_eq!(result.get_string("INSTRUME"), Some("Camera A"));
     assert_eq!(result.get_string("FILTER"), Some("L"));
     header.set_string("FILTER", "B");
@@ -567,7 +568,7 @@ fn build_master_flat_unit_mean() {
         res.output_mean
     );
 
-    let (img, _h) = read_fits(out.as_path()).unwrap();
+    let (img, _h) = read_frame(out.as_path()).unwrap();
     assert_eq!(img.pixel_type, PixelType::F32);
 
     // The default output must be usable by the camera-light calibration path.
@@ -607,7 +608,7 @@ fn save_fits_master_round_trips() {
     let r = api_save_fits_master(args.to_string()).expect("save");
     let res: SaveFitsMasterResult = serde_json::from_str(&r).unwrap();
     assert_eq!(res.pixel_type, "f32");
-    let (img, h) = read_fits(out.as_path()).unwrap();
+    let (img, h) = read_frame(out.as_path()).unwrap();
     assert_eq!(img.pixel_type, PixelType::F32);
     assert_eq!(img.width, size);
     assert_eq!(h.get_string("OBJECT"), Some("M42"));
@@ -985,7 +986,7 @@ fn integrate_session_names_every_calibration_slot_when_none_is_supplied() {
     );
     assert!(result.calibration.has_warnings());
 
-    let (_img, header) = read_fits(master_path.as_path()).expect("read master");
+    let (_img, header) = read_frame(master_path.as_path()).expect("read master");
     for kind in ["dark", "flat", "bias"] {
         let want = format!("Calibration {kind}: none applied [missing]");
         assert!(
@@ -1044,7 +1045,7 @@ fn integrate_session_reports_an_exactly_matched_dark() {
         MatchQuality::Missing
     );
 
-    let (_img, header) = read_fits(master_path.as_path()).expect("read master");
+    let (_img, header) = read_frame(master_path.as_path()).expect("read master");
     let dark_line = format!("Calibration dark: {} [exact]", dark_path.to_string_lossy());
     let history = history_text(&header);
     assert!(
@@ -1089,7 +1090,7 @@ fn integrate_session_reports_a_stale_warm_dark_as_a_fallback() {
     );
     assert_eq!(dark.staleness.temperature_delta_c, Some(6.0));
 
-    let (_img, header) = read_fits(master_path.as_path()).expect("read master");
+    let (_img, header) = read_frame(master_path.as_path()).expect("read master");
     assert!(
         history_text(&header).contains("STALE"),
         "master HISTORY must state the staleness verdict: {:?}",
@@ -1132,7 +1133,7 @@ fn integrate_session_reports_an_exposure_mismatched_dark_as_a_fallback() {
         "the tolerance is the documented fraction of the light's exposure"
     );
 
-    let (_img, header) = read_fits(master_path.as_path()).expect("read master");
+    let (_img, header) = read_frame(master_path.as_path()).expect("read master");
     let history = history_text(&header);
     assert!(
         history.contains("EXPTIME") && history.contains("OUT OF TOLERANCE"),
@@ -1305,8 +1306,6 @@ fn temperature_threshold_is_the_documented_constant_and_flats_have_none() {
     );
     assert_eq!(flat_slot.staleness.max_age_days, FLAT_MAX_AGE_DAYS);
 }
-
-// Cancellation
 
 /// Decode the `Err` payload of a cancelled run.
 fn decode_cancelled(err: &str) -> CancelledOutcome {
@@ -1591,7 +1590,7 @@ fn master_add_records_its_calibration_and_finalize_replays_every_fold() {
     });
     api_master_accumulate(finalize.to_string()).expect("finalize");
 
-    let (_img, header) = read_fits(master_path.as_path()).expect("read finalized master");
+    let (_img, header) = read_frame(master_path.as_path()).expect("read finalized master");
     let history = history_text(&header);
     assert!(
         history.contains("Fold '2026-08-14' (2 lights)"),
@@ -1639,7 +1638,7 @@ fn finalize_without_a_calibration_log_states_the_gap() {
     )
     .expect("finalize");
 
-    let (_img, header) = read_fits(master_path.as_path()).expect("read master");
+    let (_img, header) = read_frame(master_path.as_path()).expect("read master");
     assert!(
         history_text(&header).contains("Calibration record unavailable"),
         "{:?}",
@@ -1846,7 +1845,7 @@ fn finalize_with_an_unreadable_calibration_log_still_writes_the_master() {
     )
     .expect("a corrupt provenance log does not block the data product");
 
-    let (_img, header) = read_fits(master_path.as_path()).expect("read master");
+    let (_img, header) = read_frame(master_path.as_path()).expect("read master");
     let history = history_text(&header);
     assert!(
         history.contains("Calibration record unreadable"),

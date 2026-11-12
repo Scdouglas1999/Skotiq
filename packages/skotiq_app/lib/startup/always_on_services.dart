@@ -59,6 +59,14 @@ class AlwaysOnService {
 /// [AlwaysOnServices.stop]; the provider's own `onDispose` releases what it
 /// holds when the container is disposed.
 final List<AlwaysOnService> alwaysOnServices = [
+  AlwaysOnService(
+    'run configuration',
+    runConfigSyncProvider,
+    _hosts,
+    'the sequencer, and frames saved by hand, follow the settings: the file '
+        'format and camera raw file, dither, autofocus, park, retries, '
+        'grading, recovery and the rest a run reads',
+  ),
   // Notifications and alerts.
   AlwaysOnService(
     'notification router',
@@ -210,12 +218,6 @@ final List<AlwaysOnService> alwaysOnServices = [
 
   // Run and session.
   AlwaysOnService(
-    'last ended run',
-    lastEndedRunProvider,
-    _windows,
-    'Tonight showing the finished night whichever screen was open at its end',
-  ),
-  AlwaysOnService(
     'session frames seed',
     sessionNightSeedProvider,
     _everyRole,
@@ -290,8 +292,8 @@ final List<AlwaysOnService> alwaysOnServices = [
     'runtime mirror (host)',
     hostRuntimeMirrorProvider,
     _everyRole,
-    'solves, centering, autofocus and the frame on screen published to '
-        'linked clients',
+    'devices, guider, open plan, solves, centering, autofocus and the frame '
+        'on screen published to linked clients',
   ),
   AlwaysOnService(
     'runtime reports (client)',
@@ -323,12 +325,6 @@ final List<AlwaysOnService> alwaysOnServices = [
     remoteSequenceEditorSyncProvider,
     _windows,
     "a client's Builder following the host's open plan",
-  ),
-  AlwaysOnService(
-    'sequence editor mirror (host)',
-    masterSequenceEditorMirrorProvider,
-    _windows,
-    "the host's open plan pushed to linked clients as it is edited",
   ),
   AlwaysOnService(
     'DepthLock tip dismissal',

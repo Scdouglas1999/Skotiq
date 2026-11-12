@@ -5,7 +5,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/planning/target_suggestion.dart';
 import '../services/sesame_name_resolver.dart';
-import 'simbad_provider.dart';
+import '../services/catalog_lookup/simbad_provider.dart';
 import 'target_suggestion_provider.dart';
 
 /// UI-only sort modes for the planner workspace. These re-sort the already-

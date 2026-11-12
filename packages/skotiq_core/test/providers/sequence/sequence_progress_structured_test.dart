@@ -3,7 +3,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 void main() {
   test('structured node progress does not clear legacy detail', () {
-    final notifier = SequenceProgressNotifier();
+    final notifier = RunRecordNotifier();
 
     notifier.updateNodeProgress('exposure-1', 35, 'Frame 2/10');
     notifier.updateNodeStructuredProgress(
@@ -16,10 +16,13 @@ void main() {
       ),
     );
 
-    expect(notifier.state.nodeProgressPercent['exposure-1'], 40);
-    expect(notifier.state.nodeProgressDetail['exposure-1'], 'Frame 2/10');
+    expect(notifier.state.progress.nodeProgressPercent['exposure-1'], 40);
     expect(
-      notifier.state.nodeProgressStructuredDetail['exposure-1'],
+      notifier.state.progress.nodeProgressDetail['exposure-1'],
+      'Frame 2/10',
+    );
+    expect(
+      notifier.state.progress.nodeProgressStructuredDetail['exposure-1'],
       isA<ExposureInstructionProgressDetail>(),
     );
   });

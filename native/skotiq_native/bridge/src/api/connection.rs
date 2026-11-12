@@ -192,7 +192,7 @@ async fn connect_device_expecting(
     );
 
     // Special handling for PHD2 auto-launch
-    if is_phd2_device_id(&device_id) {
+    if crate::guider::phd2::is_device_id(&device_id) {
         if !skotiq_imaging::is_phd2_running() {
             tracing::info!("PHD2 not running, attempting to launch...");
             if let Err(e) = skotiq_imaging::launch_phd2() {
@@ -227,7 +227,6 @@ async fn connect_device_expecting(
     // Check if device is registered in DeviceManager, if not, discover and register it
     let device_manager = get_device_manager();
 
-    // Check if device is already registered
     let is_registered = device_manager.is_device_registered(&device_id).await;
 
     // If not registered, register it so the DeviceManager can connect.
@@ -269,13 +268,6 @@ async fn connect_device_expecting(
         .connect_device_expecting(&device_id, expected_model.as_deref())
         .await
         .map_err(|e| SkotiqError::connection_failed(&device_id, e))
-}
-
-pub(crate) fn is_phd2_device_id(device_id: &str) -> bool {
-    device_id == crate::api::phd2::PHD2_DEVICE_ID
-        || device_id == "phd2"
-        || device_id.starts_with("phd2:")
-        || device_id.starts_with("phd2://")
 }
 
 /// Disconnect from a device

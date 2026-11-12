@@ -59,7 +59,7 @@ fn rig_data() -> Option<PathBuf> {
 
 fn load(path: &Path) -> ImageData {
     let (image, _) =
-        skotiq_imaging::read_fits(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        skotiq_imaging::read_frame(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     ImageData {
         width: image.width,
         height: image.height,
@@ -72,7 +72,8 @@ fn load(path: &Path) -> ImageData {
         filter: None,
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -80,16 +81,12 @@ fn load(path: &Path) -> ImageData {
 async fn metrics(path: &Path) -> FrameMetrics {
     let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
     let image = load(path);
+    let measured = ops.measure_light_frame(&image).await.expect("measurement");
     FrameMetrics {
-        hfr: ops.calculate_image_hfr(&image).await.expect("hfr"),
-        eccentricity: ops.measure_frame_eccentricity(&image).await.expect("ecc"),
-        star_count: Some(
-            ops.detect_stars_in_image(&image)
-                .await
-                .expect("stars")
-                .len() as u32,
-        ),
-        trail: ops.measure_frame_trail(&image).await.expect("trail"),
+        hfr: measured.hfr,
+        eccentricity: measured.star_shape.map(|shape| shape.eccentricity),
+        star_count: measured.star_count,
+        trail: measured.trail,
     }
 }
 

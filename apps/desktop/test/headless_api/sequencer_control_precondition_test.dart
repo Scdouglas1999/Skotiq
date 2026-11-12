@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,6 +12,19 @@ import 'package:shelf/shelf.dart';
 import 'handler_test_helpers.dart';
 
 class _MockSequencerBackend extends Mock implements SequencerBackend {}
+
+/// An executor whose run is still in its stopping phase: the plan's shutdown
+/// steps (a fifteen-minute Warm camera) have not ended.
+class _StoppingExecutor extends Fake implements SequenceExecutor {
+  final stopped = Completer<void>();
+  var stops = 0;
+
+  @override
+  Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
+    stops++;
+    return stopped.future;
+  }
+}
 
 SequencerStatus _status(String state) => SequencerStatus(
   state: state,
@@ -32,7 +46,7 @@ Future<Map<String, Object?>> _bodyOf(Response response) async =>
 /// started. Measured live against the release bundle on the cancelled leg:
 ///
 /// ```
-/// POST /api/sequencer/stop   -> {"status":"stopped","wasRunning":true}
+/// POST /api/sequencer/stop   -> {"status":"stopping","wasRunning":true}
 /// GET  /api/sequencer/status -> {"state":"cancelled", ...}
 /// POST /api/sequencer/pause  -> 200 {"status":"paused"}          <- the lie
 /// GET  /api/sequencer/status -> {"state":"cancelled", ...}       <- unchanged
@@ -112,6 +126,36 @@ void main() {
     }
   });
 
+  // A headless host's stop answered only once the plan's shutdown steps had
+  // run, about fifteen minutes, and the caller's request timed out first.
+  test(
+    'stop of a run in flight answers at once, while the run stops',
+    () async {
+      when(
+        () => backend.sequencerGetStatus(),
+      ).thenAnswer((_) async => _status('running'));
+      final executor = _StoppingExecutor();
+      final stopping = createHeadlessTestContainer(
+        overrides: [
+          sequencerBackendProvider.overrideWithValue(backend),
+          sequenceExecutorProvider.overrideWithValue(executor),
+        ],
+      );
+      addTearDown(stopping.dispose);
+
+      final response = await translateHandlerErrors(
+        SequencerHandlers(stopping).handleSequencerStop(_post('stop')),
+      ).timeout(const Duration(seconds: 5));
+
+      expect(response.statusCode, HttpStatus.ok);
+      final body = await _bodyOf(response);
+      expect(body['status'], 'stopping');
+      expect(body['wasRunning'], isTrue);
+      expect(executor.stops, 1);
+      executor.stopped.complete();
+    },
+  );
+
   group('a run in flight still takes all three', () {
     // The deny-list direction matters: `stopping` and `recovering` are runs
     // very much in flight — a sequence retrying after unsafe weather is
@@ -174,7 +218,7 @@ void main() {
         () => backend.sequencerGetStatus(),
       ).thenAnswer((_) async => _status('running'));
       container
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .updateProgress(currentTarget: 'M Long Field');
 
       final response = await handlers.handleSequencerStatus(

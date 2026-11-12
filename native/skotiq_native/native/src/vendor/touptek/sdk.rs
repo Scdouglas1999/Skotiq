@@ -10,6 +10,9 @@ pub(crate) struct TouptekSdk {
     pub(crate) stop: OgmacamStop,
     pub(crate) pull_image_v3: OgmacamPullImageV3,
     pub(crate) put_expo_time: OgmacamPutExpoTime,
+    pub(crate) get_exp_time_range: OgmacamGetExpTimeRange,
+    pub(crate) put_auto_expo_enable: OgmacamPutAutoExpoEnable,
+    pub(crate) put_speed: OgmacamPutSpeed,
     pub(crate) get_expo_again: OgmacamGetExpoAGain,
     pub(crate) put_expo_again: OgmacamPutExpoAGain,
     pub(crate) get_expo_again_range: OgmacamGetExpoAGainRange,
@@ -34,31 +37,37 @@ unsafe impl Send for TouptekSdk {}
 // SAFETY: &TouptekSdk only exposes immutable function pointers; the loaded Library is read-only after construction. All FFI calls that mutate camera state go through &TouptekSdk and are wrapped in `TOUPTEK_SDK_LOCK` lock sections, so concurrent &-access never races on shared state.
 unsafe impl Sync for TouptekSdk {}
 
-/// Supported Touptek white-label brands and their SDK details.
-/// Each entry: (DLL name, function prefix, brand display name)
-#[cfg(windows)]
+/// One brand build of the SDK: library base name, function prefix, brand name.
+///
+/// The brand name is what discovery reports and what device IDs carry
+/// (`native:touptek:<brand>:<index>`, lowercased). Every library here exports
+/// every entry point [`TouptekSdk::load`] requires (checked against the
+/// x64, arm64 and armhf Linux builds INDI ships, SDK 60.32226 to 60.33015);
+/// Meade's build keeps ToupTek's own `Toupcam_` prefix.
 pub(crate) const TOUPTEK_BRANDS: &[(&str, &str, &str)] = &[
-    ("ogmacam.dll", "Ogmacam", "OGMA"),
-    ("toupcam.dll", "Toupcam", "Touptek"),
-    ("altaircam.dll", "Altaircam", "Altair"),
-    ("mallincam.dll", "Mallincam", "Mallincam"),
+    ("ogmacam", "Ogmacam", "OGMA"),
+    ("toupcam", "Toupcam", "Touptek"),
+    ("altaircam", "Altaircam", "Altair"),
+    ("mallincam", "Mallincam", "Mallincam"),
+    ("omegonprocam", "Omegonprocam", "Omegon"),
+    ("nncam", "Nncam", "Risingcam"),
+    ("starshootg", "Starshootg", "Orion"),
+    ("bressercam", "Bressercam", "Bresser"),
+    ("meadecam", "Toupcam", "Meade"),
+    ("tscam", "Tscam", "TS-Optics"),
+    ("svbonycam", "Svbonycam", "SVBONY"),
 ];
 
-#[cfg(target_os = "linux")]
-pub(crate) const TOUPTEK_BRANDS: &[(&str, &str, &str)] = &[
-    ("libogmacam.so", "Ogmacam", "OGMA"),
-    ("libtoupcam.so", "Toupcam", "Touptek"),
-    ("libaltaircam.so", "Altaircam", "Altair"),
-    ("libmallincam.so", "Mallincam", "Mallincam"),
-];
-
-#[cfg(target_os = "macos")]
-pub(crate) const TOUPTEK_BRANDS: &[(&str, &str, &str)] = &[
-    ("libogmacam.dylib", "Ogmacam", "OGMA"),
-    ("libtoupcam.dylib", "Toupcam", "Touptek"),
-    ("libaltaircam.dylib", "Altaircam", "Altair"),
-    ("libmallincam.dylib", "Mallincam", "Mallincam"),
-];
+/// The file name of a brand library on this platform.
+pub(crate) fn brand_library_file(base: &str) -> String {
+    if cfg!(windows) {
+        format!("{base}.dll")
+    } else if cfg!(target_os = "macos") {
+        format!("lib{base}.dylib")
+    } else {
+        format!("lib{base}.so")
+    }
+}
 
 impl TouptekSdk {
     /// Open one brand's library and resolve its entry points. A library that
@@ -137,6 +146,21 @@ impl TouptekSdk {
                     })?,
                 put_expo_time: *library
                     .get::<OgmacamPutExpoTime>(&sym("put_ExpoTime"))
+                    .map_err(|e| {
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
+                    })?,
+                get_exp_time_range: *library
+                    .get::<OgmacamGetExpTimeRange>(&sym("get_ExpTimeRange"))
+                    .map_err(|e| {
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
+                    })?,
+                put_auto_expo_enable: *library
+                    .get::<OgmacamPutAutoExpoEnable>(&sym("put_AutoExpoEnable"))
+                    .map_err(|e| {
+                        SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
+                    })?,
+                put_speed: *library
+                    .get::<OgmacamPutSpeed>(&sym("put_Speed"))
                     .map_err(|e| {
                         SdkUnavailable::Broken(format!("Symbol error in {}: {}", dll_name, e))
                     })?,
@@ -250,7 +274,7 @@ pub(crate) fn get_sdk_for_brand(brand: &str) -> Result<(), DriverError> {
         .find(|(_, _, name)| name.eq_ignore_ascii_case(brand))
         .ok_or_else(|| DriverError::SdkError(format!("Unknown Touptek brand: {}", brand)))?;
 
-    match TouptekSdk::load(brand_info.0, brand_info.1) {
+    match TouptekSdk::load(&brand_library_file(brand_info.0), brand_info.1) {
         Ok(sdk) => {
             map.insert(brand.to_string(), Ok(sdk));
             Ok(())
@@ -329,23 +353,49 @@ pub(crate) fn sdk_version_from_sdk(sdk: &TouptekSdk, brand: &str) -> Option<Stri
     touptek_static_cstr(unsafe { version() }).map(|value| format!("{brand} SDK v{value}"))
 }
 
+/// What a failed SDK call's HRESULT means, in words a camera owner can act on.
+pub(crate) fn describe_hresult(rc: i32) -> String {
+    let meaning = match rc as u32 {
+        0x8007_0005 => "permission denied; on Linux install the camera's udev rules and replug it",
+        0x8007_0057 => "the camera refused the value",
+        0x8000_4001 => "this camera model does not support it",
+        0x8000_FFFF => "not possible in the camera's current state",
+        0x8007_001F => "the camera stopped responding; check the USB cable, port and hub",
+        0x8007_00AA => "the camera is in use by another program",
+        0x8001_011F => "the camera did not answer in time",
+        0x8000_000A => "no frame is ready",
+        0x8000_4003 => "the SDK was given a null pointer",
+        0x8001_010E => "called from the SDK's callback thread",
+        _ => "the SDK reported a failure",
+    };
+    format!("{meaning} (SDK code 0x{:08X})", rc as u32)
+}
+
+/// A failed SDK call as the error the caller returns.
+pub(crate) fn touptek_failure(action: &str, camera: &str, rc: i32) -> DriverError {
+    DriverError::SdkError(format!(
+        "Could not {action} on {camera}: {}",
+        describe_hresult(rc)
+    ))
+}
+
+/// A sensor temperature reading in 0.1 C, or `None` when the model has no
+/// thermometer (`E_NOTIMPL`).
 pub(crate) fn touptek_temperature_result(
     camera_name: &str,
     sdk_result: i32,
     temperature_tenths_c: i16,
-) -> Result<f64, DriverError> {
+) -> Result<Option<f64>, DriverError> {
     if sdk_result >= 0 {
-        Ok(temperature_tenths_c as f64 / 10.0)
+        Ok(Some(f64::from(temperature_tenths_c) / 10.0))
+    } else if sdk_result == OGMACAM_E_NOTIMPL {
+        Ok(None)
     } else {
-        tracing::error!(
-            "Touptek get_Temperature() failed for camera '{}'. Error code: {}",
+        Err(touptek_failure(
+            "read the sensor temperature",
             camera_name,
-            sdk_result
-        );
-        Err(DriverError::SdkError(format!(
-            "Failed to read temperature from Touptek camera '{}'. SDK error: {}. Camera may not have a temperature sensor.",
-            camera_name, sdk_result
-        )))
+            sdk_result,
+        ))
     }
 }
 
@@ -398,8 +448,12 @@ pub(crate) fn touptek_fourcc_to_string(fourcc: u32) -> String {
 ///   The ×16 scaling lives in ToupTek's *ASCOM* layer, above the SDK this
 ///   driver uses.
 ///
-/// `bit_depth` comes from `Ogmacam_get_RawFormat`, which reports the raw format's
-/// own bits-per-pixel, so container and precision coincide for this vendor.
+/// The SDK can be told to pad low instead (`OGMACAM_OPTION_ZERO_PADDING` = 1,
+/// which INDI's toupbase sets), and a camera can keep options across sessions,
+/// so connect sets high padding explicitly.
+///
+/// `bit_depth` comes from `Ogmacam_get_RawFormat` read after the bit depth is
+/// negotiated, so container and precision coincide for this vendor.
 pub(crate) fn max_adu_from_bit_depth(bit_depth: u32) -> u32 {
     if bit_depth >= 32 {
         u32::MAX
@@ -432,10 +486,12 @@ pub(crate) fn touptek_no_sdk_loaded_error(
     }
 }
 
+/// The negotiated raw format: Bayer pattern (color cameras) and bits per sample.
 pub(crate) fn read_touptek_raw_format(
     sdk: &TouptekSdk,
     handle: HOgmacam,
     camera_name: &str,
+    color: bool,
 ) -> (Option<BayerPattern>, Option<u32>) {
     let mut fourcc: c_uint = 0;
     let mut bits_per_pixel: c_uint = 0;
@@ -445,26 +501,26 @@ pub(crate) fn read_touptek_raw_format(
     let result = unsafe { (sdk.get_raw_format)(handle, &mut fourcc, &mut bits_per_pixel) };
     if result < 0 {
         tracing::warn!(
-            "Touptek get_RawFormat() failed for camera '{}'. SDK error: {}",
+            "{}: reading the raw format failed: {}",
             camera_name,
-            result
+            describe_hresult(result)
         );
         return (None, None);
     }
 
-    let pattern = touptek_bayer_pattern_from_fourcc(fourcc);
-    if pattern.is_none() {
-        tracing::warn!(
-            "Touptek camera '{}' reported non-Bayer raw format '{}' ({} bpp); leaving Bayer pattern unknown",
-            camera_name,
-            touptek_fourcc_to_string(fourcc),
-            bits_per_pixel
-        );
-    }
-    let bit_depth = if bits_per_pixel > 0 {
-        Some(bits_per_pixel)
+    let pattern = if color {
+        let pattern = touptek_bayer_pattern_from_fourcc(fourcc);
+        if pattern.is_none() {
+            tracing::warn!(
+                "{} reported non-Bayer raw format '{}' ({} bpp); leaving the Bayer pattern unknown",
+                camera_name,
+                touptek_fourcc_to_string(fourcc),
+                bits_per_pixel
+            );
+        }
+        pattern
     } else {
         None
     };
-    (pattern, bit_depth)
+    (pattern, (bits_per_pixel > 0).then_some(bits_per_pixel))
 }

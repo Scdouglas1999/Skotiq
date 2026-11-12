@@ -20,5 +20,5 @@ pub use driver::{
 };
 pub use error::DriverError;
 pub use kind::DeviceKind;
-pub use mount::{GuideDirection, MountClock, MountSiteInfo, PierSide, TrackingRate};
+pub use mount::{GuideDirection, MountClock, MountSiteInfo, PierSide, SiteSource, TrackingRate};
 pub use vendor::Vendor;
