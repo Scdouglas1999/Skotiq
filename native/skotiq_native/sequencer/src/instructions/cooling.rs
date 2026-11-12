@@ -29,6 +29,7 @@ pub async fn execute_cool_camera(
         Ok(value) => value,
         Err(e) => {
             return InstructionResult::failure(format!("Failed to read camera temperature: {}", e))
+                .caused_by(&e)
         }
     };
     let target_temp = config.target_temp;
@@ -42,7 +43,7 @@ pub async fn execute_cool_camera(
         .camera_set_cooler(&camera_id, true, target_temp)
         .await
     {
-        return InstructionResult::failure(format!("Failed to enable cooler: {}", e));
+        return InstructionResult::failure(format!("Failed to enable cooler: {}", e)).caused_by(&e);
     }
 
     if already_at_target {
@@ -53,6 +54,7 @@ pub async fn execute_cool_camera(
                     "Failed to read camera cooler power: {}",
                     e
                 ))
+                .caused_by(&e)
             }
         };
         let msg = if start_temp <= target_temp - SETPOINT_TOLERANCE_C {
@@ -108,6 +110,7 @@ pub async fn execute_cool_camera(
                     "Failed to read camera temperature during cooling: {}",
                     e
                 ))
+                .caused_by(&e)
             }
         };
         let cooler_power = match ctx.run.device_ops.camera_get_cooler_power(&camera_id).await {
@@ -117,6 +120,7 @@ pub async fn execute_cool_camera(
                     "Failed to read camera cooler power: {}",
                     e
                 ))
+                .caused_by(&e)
             }
         };
 
@@ -280,6 +284,7 @@ pub async fn execute_warm_camera(
         Ok(value) => value,
         Err(e) => {
             return InstructionResult::failure(format!("Failed to read camera temperature: {}", e))
+                .caused_by(&e)
         }
     };
 
@@ -332,7 +337,8 @@ pub async fn execute_warm_camera(
             return InstructionResult::failure(format!(
                 "The cooler is idle but could not be switched off: {}",
                 e
-            ));
+            ))
+            .caused_by(&e);
         }
         if let Some(cb) = progress_callback {
             cb(100.0, "Cooler was idle; switched off".to_string());
@@ -424,7 +430,8 @@ pub async fn execute_warm_camera(
         return InstructionResult::failure(format!(
             "Warmed to {:.1}°C but could not switch the cooler off: {}",
             target_temp, e
-        ));
+        ))
+        .caused_by(&e);
     }
 
     if let Some(cb) = progress_callback {

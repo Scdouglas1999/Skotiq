@@ -15,6 +15,7 @@ NetworkBackend _backend(FakeNetworkClient fake) => NetworkBackend(
 );
 
 Map<String, dynamic> _status({Object? trackedStars}) => {
+  'deviceId': 'native:builtin_guider:multi_star',
   'state': 'Guiding',
   'connected': true,
   'rmsRa': 0.4,
@@ -95,14 +96,15 @@ void main() {
     );
 
     test(
-      'complete PHD2 status decodes and older host may omit stars',
+      'complete guider status decodes and older host may omit stars',
       () async {
         final fake = FakeNetworkClient()
-          ..setResponse('/api/phd2/status', body: jsonEncode(_status()));
+          ..setResponse('/api/guider/status', body: jsonEncode(_status()));
         final backend = _backend(fake);
         addTearDown(backend.dispose);
 
-        final status = await backend.phd2GetStatus();
+        final status = await backend.guiderGetStatus();
+        expect(status.deviceId, 'native:builtin_guider:multi_star');
         expect(status.connected, isTrue);
         expect(status.state, 'Guiding');
         expect(status.rmsTotal, 0.64);
@@ -115,13 +117,13 @@ void main() {
       () async {
         final fake = FakeNetworkClient()
           ..setResponse(
-            '/api/phd2/status',
+            '/api/guider/status',
             body: jsonEncode({..._status()}..remove('connected')),
           );
         final backend = _backend(fake);
         addTearDown(backend.dispose);
 
-        await expectLater(backend.phd2GetStatus(), throwsFormatException);
+        await expectLater(backend.guiderGetStatus(), throwsFormatException);
       },
     );
 
@@ -130,7 +132,7 @@ void main() {
       () async {
         final fake = FakeNetworkClient()
           ..setResponse(
-            '/api/phd2/status',
+            '/api/guider/status',
             body: jsonEncode(
               _status(
                 trackedStars: [
@@ -142,7 +144,7 @@ void main() {
         final backend = _backend(fake);
         addTearDown(backend.dispose);
 
-        await expectLater(backend.phd2GetStatus(), throwsFormatException);
+        await expectLater(backend.guiderGetStatus(), throwsFormatException);
       },
     );
   });

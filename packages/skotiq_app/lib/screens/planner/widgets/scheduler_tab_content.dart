@@ -35,9 +35,11 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
   Future<void> _configSaveTail = Future<void>.value();
   bool _configSaveErrorVisible = false;
   bool _schedulerActionBusy = false;
-  int _schedulerActionGeneration = 0;
   int _remotePollTicks = 0;
-  Object? _configAuthority;
+
+  /// Scheduler actions and config saves sent to the host; a host change
+  /// drops what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
   SchedulerConfig? _confirmedConfig;
   SchedulerConfig? _requestedConfig;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
@@ -51,9 +53,13 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       backendProvider,
       (previous, next) {
         if (previous == null || identical(previous, next)) return;
-        // Do not carry command state across a backend replacement.
-        _schedulerActionGeneration++;
+        // Do not carry command state or unsaved config across a backend
+        // replacement; the next build reads the new host's config.
+        _hostScopes.cancelAll();
         _configSaveErrorVisible = false;
+        _confirmedConfig = null;
+        _requestedConfig = null;
+        _configSaveTail = Future<void>.value();
         if (mounted && _schedulerActionBusy) {
           setState(() => _schedulerActionBusy = false);
         }
@@ -92,7 +98,6 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _backendSubscription?.close();
-    _schedulerActionGeneration++;
     _countdownTimer?.cancel();
     super.dispose();
   }
@@ -122,8 +127,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
     bool allowWarnings = false,
   }) async {
     if (_schedulerActionBusy) return;
-    final backend = ref.read(backendProvider);
-    final generation = ++_schedulerActionGeneration;
+    final command = _hostScopes.beginLatest(#schedulerAction);
+    final backend = command.value;
     setState(() => _schedulerActionBusy = true);
     try {
       if (action == 'start') {
@@ -166,32 +171,22 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
             await engine.evaluateNow(reason: 'manual force re-evaluation');
         }
       }
-      if (_isCurrentSchedulerAction(backend, generation)) {
+      if (command.isCurrent) {
         ref.invalidate(schedulerRemoteSnapshotProvider);
         ref.invalidate(schedulerPreviewDecisionProvider);
       }
     } catch (error) {
       if (!mounted) return;
-      if (generation == _schedulerActionGeneration &&
-          identical(ref.read(backendProvider), backend)) {
+      if (command.isCurrent) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Scheduler action failed: ${userFacingError(error)}')),
         );
       }
     } finally {
-      if (_isCurrentSchedulerAction(backend, generation)) {
+      if (command.isCurrent) {
         setState(() => _schedulerActionBusy = false);
       }
     }
-  }
-
-  bool _isCurrentSchedulerAction(
-    SkotiqBackend backend,
-    int generation,
-  ) {
-    return mounted &&
-        generation == _schedulerActionGeneration &&
-        identical(ref.read(backendProvider), backend);
   }
 
   void _onWeightsChanged(SchedulerWeights weights) {
@@ -212,7 +207,8 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       _requestedConfig ?? _confirmedConfig ?? SchedulerConfig.defaults;
 
   void _applySchedulerConfig(SchedulerConfig config) {
-    final backend = ref.read(backendProvider);
+    final host = _hostScopes.begin();
+    final backend = host.value;
     final localStore = backend.remoteHost != null
         ? null
         : ref.read(schedulerConfigStoreProvider);
@@ -249,7 +245,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
           // nothing is torn down and the live config is not overwritten.
           ref.invalidate(schedulerPersistedConfigProvider);
         }
-        if (!mounted || !identical(ref.read(backendProvider), backend)) return;
+        if (!mounted || host.isStale) return;
         setState(() {
           _confirmedConfig = confirmed;
           if (_requestedConfig == config) _requestedConfig = null;
@@ -259,7 +255,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
         }
         _configSaveErrorVisible = false;
       } catch (error) {
-        if (mounted && identical(ref.read(backendProvider), backend)) {
+        if (mounted && host.isCurrent) {
           if (_requestedConfig == config) {
             final rollback = _confirmedConfig ?? SchedulerConfig.defaults;
             if (backend.remoteHost == null) {
@@ -271,9 +267,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
             ref.invalidate(schedulerRemoteSnapshotProvider);
           }
         }
-        if (mounted &&
-            identical(ref.read(backendProvider), backend) &&
-            !_configSaveErrorVisible) {
+        if (mounted && host.isCurrent && !_configSaveErrorVisible) {
           _configSaveErrorVisible = true;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -371,14 +365,7 @@ class _SchedulerTabContentState extends ConsumerState<SchedulerTabContent>
       ref.watch(schedulerAutoReevalProvider);
     }
 
-    if (!identical(_configAuthority, backend)) {
-      _configAuthority = backend;
-      _confirmedConfig = authoritativeConfig;
-      _requestedConfig = null;
-      _configSaveTail = Future<void>.value();
-    } else if (_requestedConfig == null) {
-      _confirmedConfig = authoritativeConfig;
-    }
+    if (_requestedConfig == null) _confirmedConfig = authoritativeConfig;
     final config = _requestedConfig ?? authoritativeConfig;
 
     return LayoutBuilder(

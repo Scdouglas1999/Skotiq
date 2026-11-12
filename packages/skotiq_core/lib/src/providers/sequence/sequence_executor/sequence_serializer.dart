@@ -401,8 +401,8 @@ class SequenceSerializer {
           'save_to': null,
           'triggers': n.triggers,
           // Per-node sky-brightness adaptive exposure
-          // override. `null` => use the global default pushed via
-          // `sequencerUpdateDefaultAdaptiveExposure`. The Rust JSON
+          // override. `null` => use the global default the run
+          // configuration carries. The Rust JSON
           // schema uses `serde(default)` so omitting the key is fine,
           // but emitting it explicitly keeps the wire shape visible
           // and the downstream tests reproducible.

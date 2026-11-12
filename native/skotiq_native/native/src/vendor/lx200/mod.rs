@@ -171,7 +171,7 @@ mod home_tests {
         );
     }
 
-    /// `:hF#` is an OnStep extension. A Meade mount must say it cannot home
+    /// `:hC#` is an OnStep extension. A Meade mount must say it cannot home
     /// instead of sending a command its firmware never defined.
     #[tokio::test]
     async fn meade_reports_no_home_command() {
@@ -194,9 +194,11 @@ mod home_tests {
         assert!(!Lx200Mount::new_meade("TEST_PORT".to_string()).can_find_home());
     }
 
+    /// OnStep's `:hF#` resets the mount's idea of where it points to the
+    /// home position without moving it; `:hC#` is the one that drives there.
     #[test]
-    fn find_home_uses_the_onstep_home_command() {
-        assert_eq!(commands::ONSTEP_FIND_HOME, ":hF#");
+    fn find_home_drives_to_home_rather_than_declaring_it() {
+        assert_eq!(commands::ONSTEP_GO_HOME, ":hC#");
     }
 
     /// Set park follows the same rule as home: OnStep overrides the trait

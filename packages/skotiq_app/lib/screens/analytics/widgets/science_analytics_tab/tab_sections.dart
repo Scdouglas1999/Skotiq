@@ -405,7 +405,7 @@ extension _ScienceAnalyticsTabSections on _ScienceAnalyticsTabState {
     ref.invalidate(sessionMovingObjectCandidatesProvider(sessionId));
     ref.invalidate(sessionLineRatioProductsProvider(sessionId));
     ref.invalidate(sessionFrameQualityMetricsProvider(sessionId));
-    ref.invalidate(sessionTileMetricsProvider(sessionId));
+    ref.invalidate(frameTileMetricsProvider);
     ref.invalidate(dbSessionImagesProvider(sessionId));
   }
 }

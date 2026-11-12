@@ -25,30 +25,96 @@ use tokio::sync::RwLock;
 use super::super::*;
 use super::*;
 
-/// Set filter wheel position. Simulators go through the `DeviceManager` like
-/// every other driver, so the move publishes its events whoever asked.
-pub async fn filter_wheel_set_position(
+/// Get filter wheel status
+pub async fn api_get_filterwheel_status(
+    device_id: String,
+) -> Result<FilterWheelStatus, SkotiqError> {
+    let mgr = get_device_manager();
+    let position = poll_filter_wheel_position(mgr, &device_id).await?;
+    let is_moving = mgr
+        .filter_wheel_poll_is_moving(&device_id, position)
+        .await
+        .map_err(SkotiqError::from)?;
+    // debug, not info: this whole status path is polled every few seconds by
+    // the dashboard/companions — at INFO it dominated the log volume.
+    tracing::debug!(
+        target: "skotiq_bridge::api::devices::filter_wheel",
+        "[api_get_filterwheel_status] device={}, raw position from SDK={}",
+        device_id,
+        position
+    );
+    let (filter_count, filter_names) = mgr
+        .filter_wheel_get_config(&device_id)
+        .await
+        .map_err(SkotiqError::from)?;
+
+    tracing::debug!(
+        target: "skotiq_bridge::api::devices::filter_wheel",
+        "[api_get_filterwheel_status] Returning: position={}, moving={}, filter_count={}, names={:?}",
+        position,
+        is_moving,
+        filter_count,
+        filter_names
+    );
+
+    Ok(FilterWheelStatus {
+        connected: true,
+        position,
+        moving: is_moving,
+        filter_count,
+        filter_names,
+    })
+}
+
+/// Set filter wheel position
+pub async fn api_filterwheel_set_position(
     device_id: String,
     position: i32,
 ) -> Result<(), SkotiqError> {
-    get_device_manager()
+    tracing::info!(
+        target: "skotiq_bridge::api::devices::filter_wheel",
+        "[API] api_filterwheel_set_position called: device_id={}, position={}",
+        device_id,
+        position
+    );
+    tracing::info!(target: "skotiq_bridge::api::devices::filter_wheel", "[API] Using real device via DeviceManager");
+    let mgr = get_device_manager();
+    let result = mgr
         .filter_wheel_set_position(&device_id, position)
         .await
-        .map_err(SkotiqError::from)
+        .map_err(SkotiqError::from);
+    match &result {
+        Ok(_) => {
+            tracing::info!(target: "skotiq_bridge::api::devices::filter_wheel", "[API] Filter wheel position set successfully")
+        }
+        Err(e) => {
+            tracing::error!(target: "skotiq_bridge::api::devices::filter_wheel", "[API] Filter wheel set position failed: {:?}", e)
+        }
+    }
+    result
 }
 
-/// Set camera gain
-pub async fn set_camera_gain(device_id: String, gain: i32) -> Result<(), SkotiqError> {
+/// Get filter names
+pub async fn api_filterwheel_get_names(device_id: String) -> Result<Vec<String>, SkotiqError> {
     let mgr = get_device_manager();
-    mgr.camera_set_gain(&device_id, gain)
+    let (_, filter_names) = mgr
+        .filter_wheel_get_config(&device_id)
         .await
-        .map_err(SkotiqError::from)
+        .map_err(SkotiqError::from)?;
+    Ok(filter_names)
 }
 
-/// Set camera offset
-pub async fn set_camera_offset(device_id: String, offset: i32) -> Result<(), SkotiqError> {
+/// Set filter names on a filter wheel
+/// This pushes user-defined filter names from the equipment profile to the hardware driver.
+pub async fn api_filterwheel_set_filter_names(
+    device_id: String,
+    names: Vec<String>,
+) -> Result<(), SkotiqError> {
+    tracing::info!(target: "skotiq_bridge::api::devices::filter_wheel", "API: Setting filter names for '{}': {:?}", device_id, names);
+
     let mgr = get_device_manager();
-    mgr.camera_set_offset(&device_id, offset)
+    mgr.filter_wheel_set_filter_names(&device_id, names)
         .await
-        .map_err(SkotiqError::from)
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to set filter names: {}", e)))?;
+    Ok(())
 }

@@ -175,7 +175,7 @@ class FilePathSettings extends ConsumerWidget {
     String settingKey,
     String currentPath,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final isRemoteMode = ref.read(isRemoteModeProvider);
     // Only `image_output_path` is carried by the remote wire model; the three
     // infra paths (sequences/database/logs) are excluded from partial
@@ -195,7 +195,7 @@ class FilePathSettings extends ConsumerWidget {
       );
 
       if (!context.mounted || result == null) return;
-      if (!identical(ref.read(backendProvider), authority)) {
+      if (host.isStale) {
         context.showWarningSnackBar(
           'The imaging host changed while choosing that folder. Choose it '
           'again for the current host.',
@@ -204,8 +204,7 @@ class FilePathSettings extends ConsumerWidget {
       }
 
       await ref.read(filePathSettingsWriterProvider)(settingKey, result);
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+      if (!context.mounted || host.isStale) {
         return;
       }
       if (settingKey == 'sequences') {
@@ -216,7 +215,7 @@ class FilePathSettings extends ConsumerWidget {
         );
       }
     } catch (e) {
-      if (context.mounted && identical(ref.read(backendProvider), authority)) {
+      if (context.mounted && host.isCurrent) {
         context.showErrorSnackBar(
             'Could not update the storage path: ${userFacingError(e)}');
       }
@@ -238,7 +237,7 @@ class FilePathSettings extends ConsumerWidget {
     String settingKey,
     String typed,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final isRemoteMode = ref.read(isRemoteModeProvider);
     final path = typed.trim();
 
@@ -263,8 +262,7 @@ class FilePathSettings extends ConsumerWidget {
 
     if (!isRemoteMode) {
       final problem = await ref.read(storageDirectoryProbeProvider)(path);
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+      if (!context.mounted || host.isStale) {
         return;
       }
       if (problem != null) {
@@ -279,14 +277,14 @@ class FilePathSettings extends ConsumerWidget {
         );
         if (!useAnyway ||
             !context.mounted ||
-            !identical(ref.read(backendProvider), authority)) {
+            host.isStale) {
           return;
         }
       }
     }
 
     await ref.read(filePathSettingsWriterProvider)(settingKey, path);
-    if (!context.mounted || !identical(ref.read(backendProvider), authority)) {
+    if (!context.mounted || host.isStale) {
       return;
     }
     context.showSuccessSnackBar(

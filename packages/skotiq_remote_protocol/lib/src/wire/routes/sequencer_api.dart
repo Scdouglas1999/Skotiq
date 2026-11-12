@@ -128,41 +128,6 @@ enum SequencerApi implements ApiEndpoint {
       rate: ApiRateTier.control,
     ),
   ),
-  setSafetyFailMode(
-    ApiRoute.post(
-      '/api/sequencer/safety-fail-mode',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  setParkPolicy(
-    ApiRoute.post(
-      '/api/sequencer/park-policy',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  setDeviceRetries(
-    ApiRoute.post(
-      '/api/sequencer/device-retries',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  setQualityPolicy(
-    ApiRoute.post(
-      '/api/sequencer/quality-policy',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  setSafetyCheckInterval(
-    ApiRoute.post(
-      '/api/sequencer/safety-check-interval',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
   setSavePath(
     ApiRoute.post(
       '/api/sequencer/save-path',
@@ -177,41 +142,6 @@ enum SequencerApi implements ApiEndpoint {
       rate: ApiRateTier.control,
     ),
   ),
-  setDecisionLoggingEnabled(
-    ApiRoute.post(
-      '/api/sequencer/decision-logging-enabled',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateDitherConfig(
-    ApiRoute.post(
-      '/api/sequencer/update-dither-config',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateMeridianFlipConfig(
-    ApiRoute.post(
-      '/api/sequencer/update-meridian-flip-config',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateLocation(
-    ApiRoute.post(
-      '/api/sequencer/update-location',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateFilterOffsets(
-    ApiRoute.post(
-      '/api/sequencer/update-filter-offsets',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
   updatePendingIntegrationCarryOver(
     ApiRoute.post(
       '/api/sequencer/update-pending-integration-carry-over',
@@ -219,58 +149,9 @@ enum SequencerApi implements ApiEndpoint {
       rate: ApiRateTier.control,
     ),
   ),
-  updateAutofocusInterval(
-    ApiRoute.post(
-      '/api/sequencer/update-autofocus-interval',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateAutofocusConfig(
-    ApiRoute.post(
-      '/api/sequencer/update-autofocus-config',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateDefaultQualityCheck(
-    ApiRoute.post(
-      '/api/sequencer/update-default-quality-check',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateRejectFolderPath(
-    ApiRoute.post(
-      '/api/sequencer/update-reject-folder-path',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateObserverProfile(
-    ApiRoute.post(
-      '/api/sequencer/update-observer-profile',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
   updateSkyBrightness(
     ApiRoute.post(
       '/api/sequencer/update-sky-brightness',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  updateDefaultAdaptiveExposure(
-    ApiRoute.post(
-      '/api/sequencer/update-default-adaptive-exposure',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  clearDefaultAdaptiveExposure(
-    ApiRoute.post(
-      '/api/sequencer/clear-default-adaptive-exposure',
       resource: ApiResource.sequencer,
       rate: ApiRateTier.control,
     ),
@@ -345,13 +226,6 @@ enum SequencerApi implements ApiEndpoint {
       rate: ApiRateTier.control,
     ),
   ),
-  updateRecoveryConfig(
-    ApiRoute.post(
-      '/api/sequencer/recovery/update-config',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
   getCurrentRecovery(
     ApiRoute.get(
       '/api/sequencer/recovery/current',
@@ -387,13 +261,6 @@ enum SequencerApi implements ApiEndpoint {
   weatherOperatorClear(
     ApiRoute.post(
       '/api/sequencer/weather-operator-clear',
-      resource: ApiResource.sequencer,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  weatherResumeAfter(
-    ApiRoute.post(
-      '/api/sequencer/weather-resume-after',
       resource: ApiResource.sequencer,
       rate: ApiRateTier.control,
     ),

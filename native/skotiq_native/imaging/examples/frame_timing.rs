@@ -187,7 +187,8 @@ fn main() {
             .collect();
         MosaicPanel {
             image: ImageData::from_f32(pw as u32, ph as u32, 1, &px),
-            wcs: WcsInfo::from_plate_solve(ra, 22.0, 0.0, 1.9, pw as u32, ph as u32),
+            wcs: skotiq_imaging::SipWcs::from_pointing(ra, 22.0, 0.0, 1.9, pw as u32, ph as u32)
+                .cd_only(),
         }
     };
     let panels = vec![

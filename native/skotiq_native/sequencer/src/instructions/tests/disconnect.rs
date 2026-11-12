@@ -1,26 +1,33 @@
-//! `disconnect` tests — moved verbatim out of the former single `instructions::tests`
-//! module (release-pass C3 mechanical split). Shared fixtures stay in the parent
-//! `tests` module and reach here through `use super::*;`.
+//! A failure a lost device caused goes to the run's disconnect recovery.
 
 use super::*;
 
 #[test]
-fn device_disconnect_messages_are_classified_narrowly() {
-    assert!(is_device_disconnected_message("No camera connected"));
-    assert!(is_device_disconnected_message(
-            "Device 'cam1' is not connected. Cannot perform: exposure. Please reconnect the device first."
-        ));
-    assert!(is_device_disconnected_message(
-        "Filter wheel is not connected"
-    ));
+fn a_failure_is_a_disconnect_when_a_lost_device_caused_it() {
+    let lost = DeviceError::NotConnected {
+        device: crate::device_ops::DeviceKind::Mount,
+        message: "Device error 1031: Telescope is not connected".to_string(),
+    };
+    let result = InstructionResult::failure(format!("Slew failed: {lost}")).caused_by(&lost);
+    assert_eq!(result.setback(), Some(Setback::Disconnected));
+    assert_eq!(
+        result.message.as_deref(),
+        Some("Slew failed: The mount is not connected (Device error 1031: Telescope is not connected)")
+    );
 
-    assert!(!is_device_disconnected_message(
-        "No target coordinates available"
-    ));
-    assert!(!is_device_disconnected_message(
-        "Plate solve returned no solution"
-    ));
-    assert!(!is_device_disconnected_message("Script exited with code 1"));
+    // A lost device outranks what the instruction made of the failure.
+    let parked = InstructionResult::failure_because("The mount is parked", Setback::MountParked)
+        .caused_by(&lost);
+    assert_eq!(parked.setback(), Some(Setback::Disconnected));
+
+    for other in [
+        DeviceError::from("Device not connected"),
+        DeviceError::Timeout("Slew timed out".to_string()),
+        DeviceError::Rejected("Declination out of range".to_string()),
+    ] {
+        let result = InstructionResult::failure(format!("Slew failed: {other}")).caused_by(&other);
+        assert_eq!(result.setback(), None, "{other}");
+    }
 }
 
 #[test]
@@ -32,7 +39,8 @@ fn disconnected_instruction_failure_posts_recovery_request() {
     rt.block_on(async {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
         let pending = Arc::new(AtomicBool::new(false));
-        let result = InstructionResult::failure("No camera connected");
+        let result =
+            InstructionResult::failure_because("No camera connected", Setback::Disconnected);
         let status = result.log_and_get_status_with_recovery("Exposure", Some(&tx), Some(&pending));
 
         assert_eq!(status, NodeStatus::Failure);

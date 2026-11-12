@@ -537,10 +537,9 @@ async fn recovery_camera(camera_id: Option<String>) -> Option<String> {
     if camera_id.is_some() {
         return camera_id;
     }
-    if let Ok(executor) = skotiq_sequencer::get_executor().try_read() {
-        if executor.camera_id.is_some() {
-            return executor.camera_id.clone();
-        }
+    let run_camera = skotiq_sequencer::get_executor().read().await.camera_id.clone();
+    if run_camera.is_some() {
+        return run_camera;
     }
     if let Some(id) = crate::api::get_state()
         .get_profile_device_id(crate::device::DeviceType::Camera)

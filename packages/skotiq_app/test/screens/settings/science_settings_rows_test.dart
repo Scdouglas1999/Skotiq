@@ -244,8 +244,10 @@ void main() {
     final science = _FakeScienceSettings();
     await _pumpPage(tester, science: science, atlasBytes: 12300000000);
 
-    expect(find.text('Your Sky size limit (GB)'), findsOneWidget);
-    expect(find.textContaining('12.3 GB of 25 GB used'), findsOneWidget);
+    // Usage and the limit in one unit: 12.3e9 bytes are 11.5 GiB, and the
+    // limit of 25 is 25 GiB.
+    expect(find.text('Your Sky size limit (GiB)'), findsOneWidget);
+    expect(find.textContaining('11.5 GiB of 25 GiB used'), findsOneWidget);
     expect(find.text('Compress tiles'), findsOneWidget);
 
     final field = _fieldWithHint('25');

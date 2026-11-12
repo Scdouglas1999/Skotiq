@@ -315,10 +315,8 @@ fn describe_error(e: &MosaicError) -> String {
     }
 }
 
-/// The CD-matrix [`WcsInfo`] a FITS header carries
-/// ([`skotiq_imaging::SipWcs::from_header`]): an explicit CD matrix, or one
-/// synthesised from `CDELT1/2` (+ optional `CROTA2`). `None` if the header has
-/// neither (or no `CRVAL`).
+/// The CD-matrix [`WcsInfo`] a FITS header carries, read by
+/// [`skotiq_imaging::SipWcs::from_header`].
 fn wcs_from_header(header: &FitsHeader) -> Option<WcsInfo> {
     skotiq_imaging::SipWcs::from_header(header).map(|wcs| wcs.cd_only())
 }

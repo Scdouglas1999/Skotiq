@@ -87,7 +87,8 @@ pub(crate) async fn wait_for_dome_shutter_state(
                 // case for a close.
                 return Err(InstructionResult::failure(format!(
                     "Failed to read dome shutter status while waiting for {target}: {e}"
-                )));
+                ))
+                .caused_by(&e));
             }
         }
 
@@ -163,7 +164,7 @@ pub async fn execute_open_dome(
     }
 
     if let Err(e) = ctx.run.device_ops.dome_open(&dome_id).await {
-        return InstructionResult::failure(format!("Failed to open dome: {}", e));
+        return InstructionResult::failure(format!("Failed to open dome: {}", e)).caused_by(&e);
     }
 
     if !config.shutter_only {
@@ -224,7 +225,7 @@ pub async fn execute_close_dome(
 
     expect_shutter_open(ctx, false).await;
     if let Err(e) = ctx.run.device_ops.dome_close(&dome_id).await {
-        return InstructionResult::failure(format!("Failed to close dome: {}", e));
+        return InstructionResult::failure(format!("Failed to close dome: {}", e)).caused_by(&e);
     }
 
     // Confirm the shutter actually reached Closed — a roof that reports
@@ -277,7 +278,7 @@ pub async fn execute_park_dome(
 
         tracing::info!("Parking dome...");
         if let Err(e) = ctx.run.device_ops.dome_park(&dome_id).await {
-            return InstructionResult::failure(format!("Failed to park dome: {}", e));
+            return InstructionResult::failure(format!("Failed to park dome: {}", e)).caused_by(&e);
         }
     }
 
@@ -294,7 +295,8 @@ pub async fn execute_park_dome(
         return InstructionResult::failure(format!(
             "Dome parked but failed to close shutter: {}",
             e
-        ));
+        ))
+        .caused_by(&e);
     }
 
     // Confirm the shutter reached Closed before claiming the park succeeded.

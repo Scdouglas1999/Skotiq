@@ -4,16 +4,30 @@
 @ port baud=115200 data=8 parity=none stop=1 flow=none
 > :MountInfo#
 (scan over)
-== port answers-at-115200 ==
+== port v3-at-115200 ==
 @ port baud=9600 data=8 parity=none stop=1 flow=none
 > :MountInfo#
 @ port baud=115200 data=8 parity=none stop=1 flow=none
 > :MountInfo#
-< CEM60#
+< 0120
+> :GLS#
+< -2714308146802777210531#
 > :FW1#
-< 260525240101#
+< 210607210329#
 > :FW2#
-< 230201230202#
+< 210105210106#
+(scan over)
+== port v25-at-9600 ==
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+< 0045
+> :GLS#
+< -271431468028210531#
+> :FW1#
+< 210607210329#
+> :FW2#
+< 210105210106#
 (scan over)
 == found ==
-port=<answers-at-115200> name=iOptron CEM60 (<answers-at-115200>) model=CEM60 firmware=Some("iOptron firmware mainboard 2026-05-25, hand controller 2024-01-01, RA motor 2023-02-01, Dec motor 2023-02-02") baud=115200
+port=<v3-at-115200> name=iOptron CEM120 (<v3-at-115200>) model=CEM120 firmware=Some("iOptron firmware mainboard 2021-06-07, hand controller 2021-03-29, RA motor 2021-01-05, Dec motor 2021-01-06") baud=115200
+port=<v25-at-9600> name=iOptron iEQ45 Pro EQ (<v25-at-9600>) model=iEQ45 Pro EQ firmware=Some("iOptron firmware mainboard 2021-06-07, hand controller 2021-03-29, RA motor 2021-01-05, Dec motor 2021-01-06") baud=9600

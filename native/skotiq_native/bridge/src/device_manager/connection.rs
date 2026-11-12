@@ -220,7 +220,7 @@ impl DeviceManager {
     /// The normal lifecycle is `register_device` (as `Disconnected`) then
     /// `connect_device`, which dispatches to a driver and flips the state. A
     /// backend that owns its own out-of-band transport — PHD2 talks JSON-RPC
-    /// over its own TCP socket, opened by `api_phd2_connect`, not by any driver
+    /// over its own TCP socket, opened by `guider::phd2::connect`, not by any driver
     /// in `dispatch/` — has nothing for `connect_device` to dispatch to, so it
     /// records the already-live connection here instead. A backend that skips
     /// this is invisible to `is_device_connected` /
@@ -490,11 +490,6 @@ impl DeviceManager {
                 if info.device_type == DeviceType::Mount {
                     crate::device_manager::motion_guard::ensure_sampler();
                 }
-
-                // Also register in app state
-                self.app_state
-                    .register_device(info.clone(), ConnectionState::Connected)
-                    .await;
 
                 // Auto-start heartbeat monitoring for the connected device
                 let heartbeat_config = policy(info.device_type).heartbeat;
@@ -1093,8 +1088,8 @@ impl DeviceManager {
         // actually torn down. Without this the PHD2 client was leaked: state
         // was reset but the TCP connection and event listener kept running,
         // so a subsequent reconnect attempted to talk through a stale client.
-        if crate::api::connection::is_phd2_device_id(&device_info.id) {
-            if let Err(e) = crate::api::phd2::api_phd2_disconnect().await {
+        if crate::guider::phd2::is_device_id(&device_info.id) {
+            if let Err(e) = crate::guider::phd2::disconnect().await {
                 // Log loudly so a stuck PHD2 client is never hidden, but
                 // continue with the generic cleanup either way: the device is
                 // already being released and a PHD2-side error must not block
@@ -1106,13 +1101,7 @@ impl DeviceManager {
                 );
             }
         }
-        // An INDI device is released through the shared server connection
-        // below, whatever its type.
-        let handle = self
-            .handles
-            .remove(device_id)
-            .filter(|_| device_info.driver_type != DriverType::Indi);
-        if let Some(handle) = handle {
+        if let Some(handle) = self.handles.remove(device_id) {
             let label = format!(
                 "{} {}",
                 protocol_label(device_info.driver_type),
@@ -1199,34 +1188,10 @@ impl DeviceManager {
                 DriverType::Ascom => {
                     // ASCOM not available on non-Windows platforms
                 }
+                // A camera or mount: released on its server's shared
+                // connection, as the other types are through their handle.
                 DriverType::Indi => {
-                    let (host, port, device_name) = Self::parse_indi_device_id(device_id)?;
-                    let server_key = format!("{host}:{port}");
-
-                    let client = {
-                        let clients = self.indi_clients.read().await;
-                        clients.get(&server_key).cloned()
-                    };
-
-                    let Some(client) = client else {
-                        return Err(format!("INDI client not connected for {}", server_key));
-                    };
-
-                    let mut locked_client = client.write().await;
-                    locked_client
-                        .disconnect_device(&device_name)
-                        .await
-                        .map_err(|e| {
-                            format!(
-                                "Failed to disconnect INDI device {} via {}: {}",
-                                device_name, server_key, e
-                            )
-                        })?;
-
-                    locked_client
-                        .wait_until_device_disconnected(&device_name, Duration::from_secs(5))
-                        .await
-                        .map_err(|e| e.to_string())?;
+                    record_disconnect!("INDI device", self.release_indi_device(device_id).await);
                 }
                 DriverType::Simulator => {
                     // Flip the matching `simulation.rs` singleton's `connected`
@@ -1249,10 +1214,6 @@ impl DeviceManager {
             },
             EventSeverity::Info,
         );
-
-        self.app_state
-            .remove_device(device_info.device_type, device_id)
-            .await;
 
         if !disconnect_errors.is_empty() {
             return Err(format!(
@@ -1288,8 +1249,6 @@ impl DeviceManager {
             }
         };
 
-        self.app_state.remove_device(device_type, device_id).await;
-
         self.app_state.publish_equipment_event(
             EquipmentEvent::Error {
                 device_type: device_type.as_str().to_string(),
@@ -1300,7 +1259,7 @@ impl DeviceManager {
         );
     }
 
-    /// Heartbeat threshold reached: mark the device unhealthy and mirror registry state.
+    /// Heartbeat threshold reached: mark the device unhealthy.
     ///
     /// Real reconnection is handled exclusively by `reconnection_loop` when
     /// `auto_reconnect` is enabled (FB-); the heartbeat task must not sleep
@@ -1325,10 +1284,6 @@ impl DeviceManager {
             }
             dev.info.clone()
         };
-
-        self.app_state
-            .remove_device(info.device_type, device_id)
-            .await;
 
         Some(info)
     }

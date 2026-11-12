@@ -36,36 +36,12 @@ pub async fn discover_devices() -> Result<Vec<PlayerOneCameraInfo>, DriverError>
         let result = unsafe { (sdk.get_camera_properties)(i, &mut info) };
 
         if result == 0 {
-            // SAFETY: result == 0 (POA_OK) means SDK populated `info`; camera_model_name is a 256-byte `[c_char; 256]` and POA SDK guarantees NUL-termination within the buffer per PlayerOneCamera.h.
-            let name = unsafe {
-                CStr::from_ptr(info.camera_model_name.as_ptr())
-                    .to_string_lossy()
-                    .to_string()
-            };
-
-            // SAFETY: SDK populated `info` on success; `sn` is a 64-byte `[c_char; 64]` field with NUL-termination guarantee from POA SDK.
-            let serial_number = unsafe {
-                let sn = CStr::from_ptr(info.sn.as_ptr())
-                    .to_string_lossy()
-                    .to_string();
-                if sn.is_empty() {
-                    None
-                } else {
-                    Some(sn)
-                }
-            };
-
-            // SAFETY: SDK populated `info` on success; `user_custom_id` is a 16-byte `[c_char; 16]` field with NUL-termination guarantee from POA SDK.
-            let user_custom_id = unsafe {
-                let custom_id = CStr::from_ptr(info.user_custom_id.as_ptr())
-                    .to_string_lossy()
-                    .to_string();
-                if custom_id.is_empty() {
-                    None
-                } else {
-                    Some(custom_id)
-                }
-            };
+            // Fixed-size fields; userCustomID holds up to 16 bytes with no room for a NUL.
+            let text = |field: &[c_char]| safe_cstr_to_string(field.as_ptr(), field.len());
+            let present = |value: String| (!value.trim().is_empty()).then_some(value);
+            let name = text(&info.camera_model_name);
+            let serial_number = present(text(&info.sn));
+            let user_custom_id = present(text(&info.user_custom_id));
 
             cameras.push(PlayerOneCameraInfo {
                 camera_id: info.camera_id,

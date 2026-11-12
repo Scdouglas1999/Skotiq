@@ -53,7 +53,8 @@ pub async fn execute_temperature_compensation(
             return InstructionResult::failure(format!(
                 "Failed to read focuser temperature: {}",
                 e
-            ));
+            ))
+            .caused_by(&e);
         }
     };
 
@@ -162,7 +163,8 @@ pub async fn execute_temperature_compensation(
     let current_position = match ctx.run.device_ops.focuser_get_position(&focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
-            return InstructionResult::failure(format!("Failed to get focuser position: {}", e));
+            return InstructionResult::failure(format!("Failed to get focuser position: {}", e))
+                .caused_by(&e);
         }
     };
 
@@ -226,7 +228,8 @@ pub async fn execute_temperature_compensation(
             return InstructionResult::failure(format!(
                 "Failed to verify final focuser position after temperature compensation move: {}",
                 e
-            ));
+            ))
+            .caused_by(&e);
         }
     };
 
@@ -274,10 +277,9 @@ async fn move_focuser_and_wait(
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> Result<(), InstructionResult> {
     if let Err(e) = ctx.run.device_ops.focuser_move_to(focuser_id, target).await {
-        return Err(InstructionResult::failure(format!(
-            "Failed to move focuser: {}",
-            e
-        )));
+        return Err(
+            InstructionResult::failure(format!("Failed to move focuser: {}", e)).caused_by(&e),
+        );
     }
 
     let move_start = std::time::Instant::now();

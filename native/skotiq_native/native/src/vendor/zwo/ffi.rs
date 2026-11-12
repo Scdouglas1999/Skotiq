@@ -150,7 +150,9 @@ pub(crate) struct ASIControlCaps {
     pub(crate) default_value: c_long,
     pub(crate) is_auto_supported: ASIBool,
     pub(crate) is_writable: ASIBool,
-    pub(crate) control_type: ASIControlType,
+    /// An `ASI_CONTROL_TYPE` value, kept as the C int the SDK writes: a newer
+    /// SDK may report a control this table does not name.
+    pub(crate) control_type: c_int,
     pub(crate) unused: [c_char; 32],
 }
 

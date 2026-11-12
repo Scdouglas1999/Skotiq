@@ -36,6 +36,34 @@ void main() {
     expect(find.textContaining('Swap E/W'), findsNothing);
   });
 
+  // The tab lives on in an IndexedStack while another one is shown. Following
+  // every position poll there rebuilt it, and each rebuild cost a frame.
+  testWidgets('a hidden tab does not follow the mount, and catches up when '
+      'shown', (tester) async {
+    final shown = ValueNotifier<bool>(false);
+    addTearDown(shown.dispose);
+    final handle = await pumpPanelTab(
+      tester,
+      ValueListenableBuilder<bool>(
+        valueListenable: shown,
+        builder: (context, enabled, child) =>
+            TickerMode(enabled: enabled, child: child!),
+        child: const NightMountTab(),
+      ),
+      overrides: panelOverrides(),
+    );
+    final mount =
+        handle.container.read(mountStateProvider.notifier) as PanelMountNotifier;
+
+    mount.put(kTrackingMount.copyWith(ra: 2.0));
+    await tester.pump();
+    expect(find.text('01h37m58s', skipOffstage: false), findsOneWidget);
+
+    shown.value = true;
+    await tester.pump();
+    expect(find.text('02h00m00s'), findsOneWidget);
+  });
+
   // qa-surfaces S16: past the flip point the tab read "Flip in 0m" for a
   // mount at hour angle +4h45m.
   testWidgets('past the flip point the countdown reads past due',

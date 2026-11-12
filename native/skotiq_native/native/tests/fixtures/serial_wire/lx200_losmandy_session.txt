@@ -2,6 +2,8 @@ call connect
 @ port baud=9600 data=8 parity=none stop=1 flow=none
 > :GVP#
 < Losmandy Gemini#
+> :GR#
+< 05:30:00#
   -> Ok(())
   id=native:losmandy:<PORT_ID> name=Losmandy Gemini (<PORT>) vendor=Other("LX200") connected=true
   can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=true can_find_home=false can_set_park=false
@@ -50,10 +52,9 @@ call sync_to_coordinates(5.5123, -20.2512)
 <  M31 EX GAL MAG 3.5 SZ178.0'#
   -> Ok(())
 call set_tracking(false)
-> :Q#
-  -> Ok(())
+  -> Err(NotSupported)
 call get_tracking
-  -> Ok(false)
+  -> Ok(true)
 call set_tracking(true)
 > :TQ#
   -> Ok(())
@@ -134,7 +135,7 @@ call get_site
 call set_site(40.007714, -75.397448)
 > :St+40*00#
 < 1
-> :Sg+075*24#
+> :Sg075*24#
 < 1
   -> Ok(())
 call get_clock
@@ -177,7 +178,7 @@ call get_coordinates
 < +20*00:00#
   -> Ok((5.5, 20.0))
 call unpark
-> :PO#
+> :hW#
   -> Ok(())
 call is_parked
   -> Ok(false)

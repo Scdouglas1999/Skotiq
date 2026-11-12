@@ -219,17 +219,28 @@ impl fmt::Display for IndiError {
     }
 }
 
-impl From<IndiError> for String {
-    fn from(err: IndiError) -> String {
-        err.to_string()
-    }
-}
-
 pub type IndiResult<T> = Result<T, IndiError>;
 
+/// The kind of failure an INDI error names. A failure of no particular kind
+/// stays the protocol's own error, for its wording.
 impl From<IndiError> for skotiq_device::DriverError {
     fn from(err: IndiError) -> Self {
-        skotiq_device::DriverError::Backend(Box::new(err))
+        use skotiq_device::DriverError;
+        match &err {
+            IndiError::NotConnected => DriverError::NotConnected,
+            // The connection to the server is gone, and with it every device on it.
+            IndiError::ChannelClosed(_) | IndiError::ReaderDied(_) => DriverError::Disconnected,
+            IndiError::Timeout
+            | IndiError::ConnectionTimeout { .. }
+            | IndiError::OperationTimeout { .. }
+            | IndiError::MessageParseTimeout { .. }
+            | IndiError::BlobTimeout { .. }
+            | IndiError::PropertyTimeout { .. } => DriverError::Timeout(err.to_string()),
+            // A write to a read-only property: the device does not offer it.
+            IndiError::PermissionDenied(_) => DriverError::NotSupported,
+            IndiError::ValueOutOfRange { .. } => DriverError::InvalidParameter(err.to_string()),
+            _ => DriverError::Backend(Box::new(err)),
+        }
     }
 }
 
@@ -265,10 +276,47 @@ mod tests {
     }
 
     #[test]
-    fn test_error_to_string_conversion() {
-        let err = IndiError::Timeout;
-        let s: String = err.into();
-        assert_eq!(s, "Connection timeout");
+    fn indi_errors_reach_drivers_as_the_failure_they_name() {
+        use skotiq_device::DriverError;
+
+        assert!(matches!(
+            DriverError::from(IndiError::NotConnected),
+            DriverError::NotConnected
+        ));
+        assert!(matches!(
+            DriverError::from(IndiError::ChannelClosed(
+                "Failed to send INDI command to 127.0.0.1:7624: channel closed".to_string()
+            )),
+            DriverError::Disconnected
+        ));
+        let blob = DriverError::from(IndiError::BlobTimeout {
+            device: "CCD Simulator".to_string(),
+            property: "CCD1".to_string(),
+            expected_size: 4,
+            received_size: 1,
+            duration: Duration::from_secs(120),
+        });
+        assert!(
+            matches!(&blob, DriverError::Timeout(text) if text.contains("CCD1")),
+            "{blob:?}"
+        );
+        assert!(matches!(
+            DriverError::from(IndiError::PermissionDenied("CCD_TEMPERATURE".to_string())),
+            DriverError::NotSupported
+        ));
+        let range = DriverError::from(IndiError::ValueOutOfRange {
+            device: "Focuser".to_string(),
+            property: "ABS_FOCUS_POSITION".to_string(),
+            element: "FOCUS_ABSOLUTE_POSITION".to_string(),
+            value: 100000.0,
+            min: 0.0,
+            max: 50000.0,
+        });
+        assert!(matches!(&range, DriverError::InvalidParameter(text) if text.contains("100000")));
+
+        let alert = DriverError::from(IndiError::DeviceAlert("CCD_EXPOSURE".to_string()));
+        assert!(matches!(alert, DriverError::Backend(_)));
+        assert_eq!(alert.to_string(), "Device alert: CCD_EXPOSURE");
     }
 
     #[test]

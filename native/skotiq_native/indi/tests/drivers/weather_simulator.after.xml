@@ -1,0 +1,190 @@
+<defSwitchVector device="Weather Simulator" name="CONNECTION" label="Connection" group="Main Control" state="Ok" perm="rw" rule="OneOfMany" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="CONNECT" label="Connect">
+On
+    </defSwitch>
+    <defSwitch name="DISCONNECT" label="Disconnect">
+Off
+    </defSwitch>
+</defSwitchVector>
+<defTextVector device="Weather Simulator" name="DRIVER_INFO" label="Driver Info" group="General Info" state="Idle" perm="ro" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defText name="DRIVER_NAME" label="Name">
+Weather Simulator
+    </defText>
+    <defText name="DRIVER_EXEC" label="Exec">
+indi_simulator_weather
+    </defText>
+    <defText name="DRIVER_VERSION" label="Version">
+1.0
+    </defText>
+    <defText name="DRIVER_INTERFACE" label="Interface">
+128
+    </defText>
+</defTextVector>
+<defSwitchVector device="Weather Simulator" name="DEBUG" label="Debug" group="Options" state="Idle" perm="rw" rule="OneOfMany" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="ENABLE" label="Enable">
+Off
+    </defSwitch>
+    <defSwitch name="DISABLE" label="Disable">
+On
+    </defSwitch>
+</defSwitchVector>
+<defSwitchVector device="Weather Simulator" name="CONFIG_PROCESS" label="Configuration" group="Options" state="Idle" perm="rw" rule="AtMostOne" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="CONFIG_LOAD" label="Load">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_SAVE" label="Save">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_DEFAULT" label="Default">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_PURGE" label="Purge">
+Off
+    </defSwitch>
+</defSwitchVector>
+<defTextVector device="Weather Simulator" name="ACTIVE_DEVICES" label="Snoop devices" group="Options" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defText name="ACTIVE_GPS" label="GPS">
+GPS Simulator
+    </defText>
+</defTextVector>
+<defNumberVector device="Weather Simulator" name="WEATHER_UPDATE" label="Update" group="Main Control" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defNumber name="PERIOD" label="Period (s)" format="%.f" min="0" max="3600" step="60">
+60
+    </defNumber>
+</defNumberVector>
+<defSwitchVector device="Weather Simulator" name="WEATHER_REFRESH" label="Weather" group="Main Control" state="Idle" perm="rw" rule="AtMostOne" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="REFRESH" label="Refresh">
+Off
+    </defSwitch>
+</defSwitchVector>
+<defSwitchVector device="Weather Simulator" name="WEATHER_OVERRIDE" label="Safety" group="Main Control" state="Idle" perm="rw" rule="AnyOfMany" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="OVERRIDE" label="Override Status">
+Off
+    </defSwitch>
+</defSwitchVector>
+<defLightVector device="Weather Simulator" name="WEATHER_STATUS" label="Status" group="Main Control" state="Ok" timestamp="2026-11-12T14:02:36">
+    <defLight name="WEATHER_FORECAST" label="Weather">
+Ok
+    </defLight>
+    <defLight name="WEATHER_TEMPERATURE" label="Temperature (C)">
+Ok
+    </defLight>
+    <defLight name="WEATHER_WIND_SPEED" label="Wind (kph)">
+Ok
+    </defLight>
+    <defLight name="WEATHER_RAIN_HOUR" label="Precip (mm)">
+Ok
+    </defLight>
+</defLightVector>
+<defLightVector device="Weather Simulator" name="SAFETY_STATUS" label="Safety" group="Main Control" state="Ok" timestamp="2026-11-12T14:02:36">
+    <defLight name="SAFETY" label="Safety">
+Idle
+    </defLight>
+</defLightVector>
+<defNumberVector device="Weather Simulator" name="WEATHER_PARAMETERS" label="Parameters" group="Parameters" state="Ok" perm="ro" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defNumber name="WEATHER_FORECAST" label="Weather" format="%.2f" min="0" max="0" step="0">
+0
+    </defNumber>
+    <defNumber name="WEATHER_TEMPERATURE" label="Temperature (C)" format="%.2f" min="-10" max="30" step="0">
+15
+    </defNumber>
+    <defNumber name="WEATHER_HUMIDITY" label="Humidity (%)" format="%.2f" min="0" max="100" step="0">
+0
+    </defNumber>
+    <defNumber name="WEATHER_WIND_SPEED" label="Wind (kph)" format="%.2f" min="0" max="20" step="0">
+0
+    </defNumber>
+    <defNumber name="WEATHER_WIND_GUST" label="Gust (kph)" format="%.2f" min="0" max="20" step="0">
+0
+    </defNumber>
+    <defNumber name="WEATHER_RAIN_HOUR" label="Precip (mm)" format="%.2f" min="0" max="0" step="0">
+0
+    </defNumber>
+</defNumberVector>
+<defNumberVector device="Weather Simulator" name="WEATHER_TEMPERATURE" label="Temperature (C)" group="Parameters" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defNumber name="MIN_OK" label="OK range min" format="%.2f" min="-1000000" max="1000000" step="0">
+-10
+    </defNumber>
+    <defNumber name="MAX_OK" label="OK range max" format="%.2f" min="-1000000" max="1000000" step="0">
+30
+    </defNumber>
+    <defNumber name="PERC_WARN" label="% for Warning" format="%.f" min="0" max="100" step="5">
+15
+    </defNumber>
+    <defNumber name="ALERT_TYPE" label="Flip alerting to in-bounds" format="%.f" min="0" max="1" step="1">
+0
+    </defNumber>
+</defNumberVector>
+<defNumberVector device="Weather Simulator" name="WEATHER_HUMIDITY" label="Humidity (%)" group="Parameters" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defNumber name="MIN_OK" label="OK range min" format="%.2f" min="-1000000" max="1000000" step="0">
+0
+    </defNumber>
+    <defNumber name="MAX_OK" label="OK range max" format="%.2f" min="-1000000" max="1000000" step="0">
+100
+    </defNumber>
+    <defNumber name="PERC_WARN" label="% for Warning" format="%.f" min="0" max="100" step="5">
+15
+    </defNumber>
+    <defNumber name="ALERT_TYPE" label="Flip alerting to in-bounds" format="%.f" min="0" max="1" step="1">
+0
+    </defNumber>
+</defNumberVector>
+<defNumberVector device="Weather Simulator" name="WEATHER_WIND_SPEED" label="Wind (kph)" group="Parameters" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defNumber name="MIN_OK" label="OK range min" format="%.2f" min="-1000000" max="1000000" step="0">
+0
+    </defNumber>
+    <defNumber name="MAX_OK" label="OK range max" format="%.2f" min="-1000000" max="1000000" step="0">
+20
+    </defNumber>
+    <defNumber name="PERC_WARN" label="% for Warning" format="%.f" min="0" max="100" step="5">
+15
+    </defNumber>
+    <defNumber name="ALERT_TYPE" label="Flip alerting to in-bounds" format="%.f" min="0" max="1" step="1">
+0
+    </defNumber>
+</defNumberVector>
+<defNumberVector device="Weather Simulator" name="WEATHER_WIND_GUST" label="Gust (kph)" group="Parameters" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defNumber name="MIN_OK" label="OK range min" format="%.2f" min="-1000000" max="1000000" step="0">
+0
+    </defNumber>
+    <defNumber name="MAX_OK" label="OK range max" format="%.2f" min="-1000000" max="1000000" step="0">
+20
+    </defNumber>
+    <defNumber name="PERC_WARN" label="% for Warning" format="%.f" min="0" max="100" step="5">
+15
+    </defNumber>
+    <defNumber name="ALERT_TYPE" label="Flip alerting to in-bounds" format="%.f" min="0" max="1" step="1">
+0
+    </defNumber>
+</defNumberVector>
+<defNumberVector device="Weather Simulator" name="GEOGRAPHIC_COORD" label="Location" group="Site Management" state="Ok" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defNumber name="LAT" label="Lat (dd:mm:ss)" format="%010.6m" min="-90" max="90" step="0">
+51
+    </defNumber>
+    <defNumber name="LONG" label="Lon (dd:mm:ss)" format="%010.6m" min="0" max="360" step="0">
+357.69999999999998863
+    </defNumber>
+    <defNumber name="ELEV" label="Elevation (m)" format="%g" min="-200" max="10000" step="0">
+72
+    </defNumber>
+</defNumberVector>
+<defNumberVector device="Weather Simulator" name="WEATHER_CONTROL" label="Control" group="Main Control" state="Idle" perm="rw" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defNumber name="Weather" label="Weather" format="%.f" min="0" max="1" step="1">
+0
+    </defNumber>
+    <defNumber name="Temperature" label="Temperature" format="%.2f" min="-50" max="70" step="10">
+15
+    </defNumber>
+    <defNumber name="Humidity" label="Humidity" format="%.f" min="0" max="100" step="5">
+0
+    </defNumber>
+    <defNumber name="Wind" label="Wind" format="%.2f" min="0" max="100" step="5">
+0
+    </defNumber>
+    <defNumber name="Gust" label="Gust" format="%.2f" min="0" max="50" step="5">
+0
+    </defNumber>
+    <defNumber name="Precip" label="Precip" format="%.f" min="0" max="100" step="10">
+0
+    </defNumber>
+</defNumberVector>

@@ -2017,5 +2017,244 @@
     "predictive_af.drift_runs_before_warn": "5",
     "planning.active_project_id": "",
     "science.sky_atlas.opt_in_migrated": "true"
+  },
+  "email transport": {
+    "reads": {
+      "missing": {
+        "smtpHost": "",
+        "smtpPort": 587,
+        "username": "",
+        "password": "",
+        "useTls": true,
+        "fromAddress": "",
+        "toAddress": ""
+      },
+      "stored": {
+        "smtpHost": "smtp.example.org",
+        "smtpPort": 465,
+        "username": "rig",
+        "password": "",
+        "useTls": true,
+        "fromAddress": "rig@example.org",
+        "toAddress": "me@example.org"
+      },
+      "secret in the row": {
+        "smtpHost": "smtp.example.org",
+        "smtpPort": 465,
+        "username": "rig",
+        "password": "hunter2",
+        "useTls": false,
+        "fromAddress": "rig@example.org",
+        "toAddress": "me@example.org"
+      },
+      "empty": {
+        "error": "StateError"
+      },
+      "null text": {
+        "error": "StateError"
+      },
+      "not json": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "save": {
+        "notification_transport_email": "{\"smtpHost\":\"mail.example.net\",\"smtpPort\":587,\"username\":\"\",\"password\":\"\",\"useTls\":true,\"fromAddress\":\"\",\"toAddress\":\"you@example.net\"}",
+        "notification_secrets_migrated_v2": "true"
+      }
+    }
+  },
+  "webhook transport": {
+    "reads": {
+      "missing": {
+        "url": "",
+        "headers": {},
+        "bodyTemplate": null
+      },
+      "stored": {
+        "url": "",
+        "headers": {},
+        "bodyTemplate": "{{title}}"
+      },
+      "secret in the row": {
+        "url": "https://hooks.example.org/rig",
+        "headers": {
+          "Authorization": "Bearer abc"
+        },
+        "bodyTemplate": null
+      },
+      "empty": {
+        "error": "StateError"
+      },
+      "null text": {
+        "error": "StateError"
+      },
+      "not json": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "save": {
+        "notification_transport_webhookGeneric": "{\"url\":\"\",\"headers\":{},\"bodyTemplate\":\"{{body}}\"}",
+        "notification_secrets_migrated_v2": "true"
+      }
+    }
+  },
+  "pushover transport": {
+    "reads": {
+      "missing": {
+        "apiToken": "",
+        "userKey": "",
+        "device": null,
+        "priority": 0
+      },
+      "stored": {
+        "apiToken": "",
+        "userKey": "",
+        "device": "phone",
+        "priority": 1
+      },
+      "secret in the row": {
+        "apiToken": "tok",
+        "userKey": "usr",
+        "device": null,
+        "priority": -1
+      },
+      "empty": {
+        "error": "StateError"
+      },
+      "null text": {
+        "error": "StateError"
+      },
+      "not json": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "save": {
+        "notification_transport_pushover": "{\"apiToken\":\"\",\"userKey\":\"\",\"device\":null,\"priority\":2}",
+        "notification_secrets_migrated_v2": "true"
+      }
+    }
+  },
+  "telegram transport": {
+    "reads": {
+      "missing": {
+        "botToken": "",
+        "chatId": "",
+        "disableNotification": false
+      },
+      "stored": {
+        "botToken": "",
+        "chatId": "-100",
+        "disableNotification": true
+      },
+      "secret in the row": {
+        "botToken": "123:abc",
+        "chatId": "42",
+        "disableNotification": false
+      },
+      "empty": {
+        "error": "StateError"
+      },
+      "null text": {
+        "error": "StateError"
+      },
+      "not json": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "save": {
+        "notification_transport_telegram": "{\"botToken\":\"\",\"chatId\":\"7\",\"disableNotification\":false}",
+        "notification_secrets_migrated_v2": "true"
+      }
+    }
+  },
+  "discord transport": {
+    "reads": {
+      "missing": {
+        "webhookUrl": "",
+        "username": null,
+        "avatarUrl": null
+      },
+      "stored": {
+        "webhookUrl": "",
+        "username": "Rig",
+        "avatarUrl": "https://example.com/a.png"
+      },
+      "secret in the row": {
+        "webhookUrl": "https://discord.com/api/webhooks/1/abc",
+        "username": null,
+        "avatarUrl": null
+      },
+      "empty": {
+        "error": "StateError"
+      },
+      "null text": {
+        "error": "StateError"
+      },
+      "not json": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "save": {
+        "notification_transport_discord": "{\"webhookUrl\":\"\",\"username\":\"Scope\",\"avatarUrl\":null}",
+        "notification_secrets_migrated_v2": "true"
+      }
+    }
+  },
+  "mqtt transport": {
+    "reads": {
+      "missing": {
+        "host": "",
+        "port": 1883,
+        "username": null,
+        "password": null,
+        "topic": "skotiq/notifications",
+        "qos": 0,
+        "retain": false,
+        "useTls": false,
+        "clientId": "skotiq"
+      },
+      "stored": {
+        "host": "broker.local",
+        "port": 8883,
+        "username": "rig",
+        "password": null,
+        "topic": "rig/n",
+        "qos": 1,
+        "retain": true,
+        "useTls": true,
+        "clientId": "scope"
+      },
+      "secret in the row": {
+        "host": "broker.local",
+        "port": 1883,
+        "username": "rig",
+        "password": "pw",
+        "topic": "rig/n",
+        "qos": 1,
+        "retain": false,
+        "useTls": false,
+        "clientId": "scope"
+      },
+      "empty": {
+        "error": "StateError"
+      },
+      "null text": {
+        "error": "StateError"
+      },
+      "not json": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "save": {
+        "notification_transport_mqtt": "{\"host\":\"mqtt.example.net\",\"port\":1883,\"username\":null,\"password\":null,\"topic\":\"skotiq/notifications\",\"qos\":0,\"retain\":false,\"useTls\":false,\"clientId\":\"skotiq\"}",
+        "notification_secrets_migrated_v2": "true"
+      }
+    }
   }
 }

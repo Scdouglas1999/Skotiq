@@ -261,10 +261,12 @@ impl AtikCamera {
         self.core.bin_y = 1;
         self.core.subframe = None;
         if let Some(cooling) = cooling {
-            self.core.cooler.enabled = cooling.is_cooling();
-            if cooling.is_cooling() {
-                self.core.cooler.target_c = cooling.setpoint_c();
-            }
+            self.core.update_cooler(|cooler| {
+                cooler.enabled = cooling.is_cooling();
+                if cooling.is_cooling() {
+                    cooler.target_c = cooling.setpoint_c();
+                }
+            });
         }
 
         tracing::info!(
@@ -295,7 +297,7 @@ impl AtikCamera {
         // Letting a cooled sensor warm up by itself can damage it (SDK guide
         // 5.6), so the warm-up is started whenever the camera reports cooling.
         let cooling_now = cooling_info(sdk, handle).is_some_and(|c| c.is_cooling());
-        if cooling_now || self.core.cooler.enabled {
+        if cooling_now || self.core.cooler().enabled {
             // SAFETY: the handle is open.
             let result = unsafe { (sdk.cooler_warm_up)(handle) };
             if result != ArtemisError::Ok as c_int {

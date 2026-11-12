@@ -10,10 +10,11 @@ under the name the Linux loader looks for, after instrumenting every exported
 function to append `Name(scalar args)` to `$FAKE_SDK_TRACE` and, for a gap of
 100 ms or more since the previous call, a line to `$FAKE_SDK_TRACE.timing`.
 
-The SVBony, Touptek and Moravian fakes predate the entry points those drivers
-now require (SVBGetSensorPixelSize and the current property struct; pull-mode
-callbacks; the gxccd API), so their libraries fail to load and their sessions
-record the same load error before and after.
+A fake whose source is `include_str!`ed (SVBony: tests/fake_sdk/svbony.rs) is
+read from that file. The Touptek and Moravian fakes predate the entry points
+those drivers now require (pull-mode callbacks; the gxccd API), so their
+libraries fail to load and their sessions record the same load error before
+and after.
 """
 import os, pathlib, re, subprocess, sys
 
@@ -67,11 +68,17 @@ def instrument(m):
     return head + "{ " + call + " "
 
 PAT = re.compile(r'(#\[no_mangle\] pub (?:unsafe )?extern "C" fn (\w+)\(([^)]*)\)(?:->[^{]+)?)\{')
-for vendor, const, lib in FAKES:
+def fake_source(const):
     m = re.search(r'const %s: &str = r#"\n(.*?)"#;' % const, src, flags=re.S)
-    if not m:
-        sys.exit("fake source %s not found" % const)
-    body, count = PAT.subn(instrument, m.group(1))
+    if m:
+        return m.group(1)
+    m = re.search(r'const %s: &str = include_str!\("([^"]+)"\);' % const, src)
+    if m:
+        return (tests / m.group(1)).read_text()
+    sys.exit("fake source %s not found" % const)
+
+for vendor, const, lib in FAKES:
+    body, count = PAT.subn(instrument, fake_source(const))
     d = out / vendor
     d.mkdir(parents=True, exist_ok=True)
     rs = d / (const.lower() + ".rs")

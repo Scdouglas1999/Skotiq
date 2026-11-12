@@ -3,17 +3,27 @@
 //! A simulated device refuses with the same error a real arm would, so each
 //! failure is a [`DeviceOpError`] carried through [`DriverError::Backend`]
 //! and handed back unchanged by the ops layer.
+//!
+//! A simulator's capabilities take what the simulator models (a rotator's
+//! reverse support, a dome's shutter) from its state; the live readings that
+//! share the capability structs are fixed values the capability cache
+//! replaces with live ones on its next read.
 
 use crate::api::devices::simulation::{
     self as sim, get_sim_cover_calibrator, get_sim_dome, get_sim_rotator, get_sim_safety_monitor,
     get_sim_switch, get_sim_weather,
 };
 use crate::device::{DeviceInfo, DeviceType, DomeStatus, ShutterState};
+use crate::device_capabilities::{
+    DomeCapabilities, RotatorCapabilities, SafetyMonitorCapabilities, WeatherCapabilities,
+};
+use crate::device_manager::accessory::{Dome, Rotator, SafetyMonitor, Weather};
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::ops::sim_gate;
 use crate::device_manager::rig::filter_wheel::SimFilterWheel;
 use crate::device_manager::rig::focuser::SimFocuser;
 use crate::dispatch::DeviceOpError;
+use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
 use skotiq_device::{
@@ -34,7 +44,7 @@ pub(crate) fn handle(info: &DeviceInfo) -> Option<DeviceHandle> {
         DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(SimFocuser {})),
         DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(SimFilterWheel {})),
         DeviceType::Dome => DeviceHandle::Dome(Arc::new(SimDome { device_id })),
-        DeviceType::Rotator => DeviceHandle::Rotator(Arc::new(SimRotator)),
+        DeviceType::Rotator => DeviceHandle::Rotator(Arc::new(SimRotator {})),
         DeviceType::Switch => DeviceHandle::Switch(Arc::new(SimSwitch)),
         DeviceType::Weather => DeviceHandle::Weather(Arc::new(SimWeather { device_id })),
         DeviceType::SafetyMonitor => {
@@ -186,7 +196,31 @@ impl DomeDriver for SimDome {
     }
 }
 
-struct SimRotator;
+#[async_trait]
+impl Dome for SimDome {
+    async fn capabilities(&self, _device_id: &str) -> Result<DomeCapabilities, SkotiqError> {
+        let s = get_sim_dome().read().await.status.clone();
+        Ok(DomeCapabilities {
+            can_set_azimuth: s.can_set_azimuth,
+            can_park: true,
+            can_find_home: true,
+            can_set_shutter: s.can_set_shutter,
+            can_sync_azimuth: true,
+            azimuth: Some(0.0),
+            slewing: false,
+            at_home: true,
+            at_park: false,
+            shutter_status: Some(crate::device_capabilities::ShutterStatus::Closed),
+            can_slave: s.can_slave,
+            slaved: false,
+            can_abort: true,
+        })
+    }
+}
+
+/// Written with braces because the binding generator stops on a unit struct
+/// that implements a trait of this crate.
+struct SimRotator {}
 
 impl SimRotator {
     /// Applies `change` to the connected rotator's status.
@@ -277,6 +311,26 @@ impl RotatorDriver for SimRotator {
                 "Simulator rotator does not support reverse",
             )))
         }
+    }
+}
+
+#[async_trait]
+impl Rotator for SimRotator {
+    async fn capabilities(&self, _device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
+        let can_reverse = get_sim_rotator().read().await.status.can_reverse;
+        Ok(RotatorCapabilities {
+            can_reverse,
+            reverse: false,
+            step_size: Some(0.1),
+            is_moving: false,
+            mechanical_position: Some(0.0),
+            position: Some(0.0),
+            can_move_absolute: true,
+            can_halt: true,
+            can_sync: true,
+            min_angle_deg: Some(0.0),
+            max_angle_deg: Some(360.0),
+        })
     }
 }
 
@@ -388,6 +442,29 @@ impl WeatherDriver for SimWeather {
     }
 }
 
+/// Every reading the simulated station has.
+#[async_trait]
+impl Weather for SimWeather {
+    async fn capabilities(&self, _device_id: &str) -> Result<WeatherCapabilities, SkotiqError> {
+        Ok(WeatherCapabilities {
+            has_cloud_cover: true,
+            has_dew_point: true,
+            has_humidity: true,
+            has_pressure: true,
+            has_rain_rate: true,
+            has_sky_brightness: true,
+            has_sky_quality: true,
+            has_sky_temperature: true,
+            has_seeing: true,
+            has_temperature: true,
+            has_wind_direction: true,
+            has_wind_gust: true,
+            has_wind_speed: true,
+            average_period: Some(60.0),
+        })
+    }
+}
+
 struct SimSafetyMonitor {
     device_id: String,
 }
@@ -429,13 +506,42 @@ impl SafetyMonitorDriver for SimSafetyMonitor {
             if sim_faults::take_unplug(FAULT_KEY).is_some() {
                 get_sim_safety_monitor().write().await.status.connected = false;
             }
-            return Err(refuse(DeviceOpError::driver(e)));
+            return Err(refuse(e));
         }
         let safety = get_sim_safety_monitor().read().await;
         if !safety.status.connected {
             return Err(self.not_connected());
         }
         Ok(safety.status.is_safe)
+    }
+}
+
+/// Read from the simulator's state, not through `is_safe`, so a capability
+/// read does not use up an injected `safetymonitor.status` fault. A monitor
+/// that has dropped reads unsafe.
+#[async_trait]
+impl SafetyMonitor for SimSafetyMonitor {
+    async fn capabilities(
+        &self,
+        _device_id: &str,
+    ) -> Result<SafetyMonitorCapabilities, SkotiqError> {
+        let monitor = get_sim_safety_monitor().read().await;
+        let (is_safe, description) = if monitor.status.connected {
+            (
+                monitor.status.is_safe,
+                if monitor.status.is_safe {
+                    "Simulated conditions are safe"
+                } else {
+                    "Simulated conditions are unsafe"
+                },
+            )
+        } else {
+            (false, "Simulated safety monitor is not connected")
+        };
+        Ok(SafetyMonitorCapabilities {
+            is_safe,
+            safety_description: Some(description.to_string()),
+        })
     }
 }
 

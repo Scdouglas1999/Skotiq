@@ -403,6 +403,11 @@ impl OwnedExcepInfo {
         &mut self.0
     }
 
+    /// The error code the driver raised, when it set one.
+    pub(super) fn scode(&self) -> Option<i32> {
+        (self.0.scode != 0).then_some(self.0.scode)
+    }
+
     /// What the driver itself said about the failure, or `None` when it left
     /// the structure empty (the caller's signal to fall back to the HRESULT).
     ///

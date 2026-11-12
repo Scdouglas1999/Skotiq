@@ -75,38 +75,63 @@ fn plate_solve_ra_is_already_degrees_for_polar_geometry() {
     assert_eq!(plate_solve_ra_degrees(10.0), 10.0);
 }
 
+fn raw_frame(width: u32, height: u32, data: Vec<u16>) -> crate::last_frame::RawFrame {
+    crate::last_frame::RawFrame {
+        width,
+        height,
+        data,
+        bayer_pattern: None,
+        camera_file: None,
+        exposure: crate::last_frame::ExposureRecord {
+            started_at: chrono::Utc::now(),
+            exposure_secs: 2.0,
+            gain: Some(139),
+            offset: Some(21),
+            temperature: None,
+            bits_per_pixel: 16,
+        },
+    }
+}
+
+/// The solver reads the frame the camera delivered, sample for sample, not
+/// the stretched 8-bit preview the screen draws: a star 40 ADU above a 1000
+/// ADU sky and the difference between two bright stars both survive.
+#[tokio::test]
+async fn polar_solve_frame_is_the_cameras_own_samples() {
+    use super::{write_polar_solve_frame, SolveHints};
+
+    let (width, height) = (16u32, 8u32);
+    let mut data = vec![1000u16; (width * height) as usize];
+    data[3 * width as usize + 4] = 1040;
+    data[5 * width as usize + 10] = 52_000;
+    data[5 * width as usize + 11] = 61_000;
+
+    let path = crate::api::create_unique_temp_fits_path("polar_raw_solve_test");
+    let path_str = path.to_string_lossy().to_string();
+    write_polar_solve_frame(
+        raw_frame(width, height, data.clone()),
+        &path_str,
+        &SolveHints::default(),
+    )
+    .await
+    .expect("solve frame write");
+
+    let (image, header) = skotiq_imaging::read_frame(&path).expect("read back the solve frame");
+    let _ = std::fs::remove_file(&path);
+    assert_eq!((image.width, image.height), (width, height));
+    assert_eq!(image.as_u16(), Some(data));
+    assert_eq!(header.get_float("EXPTIME"), Some(2.0));
+    assert_eq!(header.get_int("GAIN"), Some(139));
+}
+
 /// The frame polar alignment hands the solver must carry the field scale the
 /// operator already configured. Without `FOCALLEN` and the
 /// binned pixel pitch, ASTAP has no scale to work from and sweeps its
 /// field-of-view ladder — the slow path that fails on fields it would
 /// otherwise solve, three times per alignment run.
-#[test]
-fn polar_solve_frame_carries_the_field_scale_hints() {
-    use super::{write_temp_fits_for_solve, SolveHints};
-    use crate::api::imaging::{CapturedImageResult, ImageStatsResult};
-
-    let width = 8u32;
-    let height = 6u32;
-    let image = CapturedImageResult {
-        width,
-        height,
-        display_data: vec![32u8; (width * height * 4) as usize],
-        histogram: vec![0; 256],
-        stats: ImageStatsResult {
-            min: 0.0,
-            max: 1.0,
-            mean: 0.5,
-            median: 0.5,
-            std_dev: 0.1,
-            hfr: None,
-            eccentricity: None,
-            fwhm: None,
-            star_count: 0,
-        },
-        exposure_time: 2.0,
-        timestamp: "2026-08-13T00:00:00Z".to_string(),
-        is_color: false,
-    };
+#[tokio::test]
+async fn polar_solve_frame_carries_the_field_scale_hints() {
+    use super::{write_polar_solve_frame, SolveHints};
 
     let path = crate::api::create_unique_temp_fits_path("polar_hint_test");
     let path_str = path.to_string_lossy().to_string();
@@ -117,9 +142,12 @@ fn polar_solve_frame_carries_the_field_scale_hints() {
         pixel_size_um: Some((3.76, 3.76)),
         binning: (2, 2),
     };
-    write_temp_fits_for_solve(&image, &path_str, &hints).expect("temp FITS write");
+    write_polar_solve_frame(raw_frame(8, 6, vec![500; 48]), &path_str, &hints)
+        .await
+        .expect("solve frame write");
 
-    let (_data, header) = skotiq_imaging::read_frame(&path).expect("read back temp FITS");
+    let (_data, header) = skotiq_imaging::read_frame(&path).expect("read back the solve frame");
+    let _ = std::fs::remove_file(&path);
     assert_eq!(header.get_float("FOCALLEN"), Some(416.0));
     let xpixsz = header.get_float("XPIXSZ").expect("XPIXSZ card");
     let ypixsz = header.get_float("YPIXSZ").expect("YPIXSZ card");
@@ -127,47 +155,28 @@ fn polar_solve_frame_carries_the_field_scale_hints() {
         (xpixsz - 7.52).abs() < 1e-6 && (ypixsz - 7.52).abs() < 1e-6,
         "a 3.76 um sensor binned 2x2 has 7.52 um effective pixels, got {xpixsz} x {ypixsz}"
     );
-
-    let _ = std::fs::remove_file(&path);
 }
 
 /// A rig that reports neither optic nor pitch contributes no card, and the
 /// solver behaves exactly as it did before — no invented numbers.
-#[test]
-fn polar_solve_frame_omits_scale_cards_when_nothing_is_known() {
-    use super::{write_temp_fits_for_solve, SolveHints};
-    use crate::api::imaging::{CapturedImageResult, ImageStatsResult};
-
-    let image = CapturedImageResult {
-        width: 4,
-        height: 4,
-        display_data: vec![0u8; 4 * 4 * 4],
-        histogram: vec![0; 256],
-        stats: ImageStatsResult {
-            min: 0.0,
-            max: 0.0,
-            mean: 0.0,
-            median: 0.0,
-            std_dev: 0.0,
-            hfr: None,
-            eccentricity: None,
-            fwhm: None,
-            star_count: 0,
-        },
-        exposure_time: 1.0,
-        timestamp: "2026-08-13T00:00:00Z".to_string(),
-        is_color: false,
-    };
+#[tokio::test]
+async fn polar_solve_frame_omits_scale_cards_when_nothing_is_known() {
+    use super::{write_polar_solve_frame, SolveHints};
 
     let path = crate::api::create_unique_temp_fits_path("polar_hint_absent_test");
     let path_str = path.to_string_lossy().to_string();
-    write_temp_fits_for_solve(&image, &path_str, &SolveHints::default()).expect("write");
+    write_polar_solve_frame(
+        raw_frame(4, 4, vec![0; 16]),
+        &path_str,
+        &SolveHints::default(),
+    )
+    .await
+    .expect("solve frame write");
 
-    let (_data, header) = skotiq_imaging::read_frame(&path).expect("read back temp FITS");
+    let (_data, header) = skotiq_imaging::read_frame(&path).expect("read back the solve frame");
+    let _ = std::fs::remove_file(&path);
     assert_eq!(header.get_float("FOCALLEN"), None);
     assert_eq!(header.get_float("XPIXSZ"), None);
-
-    let _ = std::fs::remove_file(&path);
 }
 
 /// The pole-region slew target sits just beside the meridian on the side the

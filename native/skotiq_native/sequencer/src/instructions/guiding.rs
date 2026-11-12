@@ -858,9 +858,10 @@ async fn start_guiding(
         Err(GuidingStartError::NoStar(e)) => InstructionResult::failure_because(
             format!("The guider found no guide star in a fresh frame: {}.", e),
             Setback::NoGuideStar,
-        ),
+        )
+        .caused_by(&e),
         Err(GuidingStartError::Start(e)) => {
-            InstructionResult::failure(format!("Failed to start guiding: {}", e))
+            InstructionResult::failure(format!("Failed to start guiding: {}", e)).caused_by(&e)
         }
     }
 }

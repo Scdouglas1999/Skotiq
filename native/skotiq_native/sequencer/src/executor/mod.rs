@@ -104,7 +104,7 @@ pub use lifecycle::{RunStopping, StopOrigin};
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;
-pub use run_config::{CameraFileSaving, RunConfig, RunConfigStore};
+pub use run_config::{ArchiveFormat, CameraFileSaving, FrameFormat, RunConfig, RunConfigStore};
 use run_config::{RunStaging, SkyFeed};
 pub(crate) use run_state::{RunCell, RunControl};
 use trigger_context::*;
@@ -138,7 +138,6 @@ pub struct SequenceExecutor {
     pub save_path: Option<std::path::PathBuf>,
     /// Trigger manager for monitoring conditions
     trigger_manager: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     /// Checkpoint manager for crash recovery.
     /// stored behind an `Arc` so the streaming-checkpoint task
     /// (spawned inside `start()`) shares the SAME instance — including its
@@ -230,7 +229,6 @@ impl SequenceExecutor {
             cover_calibrator_id: None,
             save_path: None,
             trigger_manager: Arc::new(RwLock::new(trigger_manager)),
-            triggers_enabled: true,
             checkpoint_manager: None,
             run: None,
             depth_goal_ops: None,
@@ -290,6 +288,14 @@ impl SequenceExecutor {
         self.run_state.get()
     }
 
+    pub fn handle(&self) -> ExecutorHandle {
+        ExecutorHandle {
+            run_state: self.run_state.clone(),
+            settings: self.settings.clone(),
+            trigger_manager: self.trigger_manager.clone(),
+        }
+    }
+
     pub fn get_progress(&self) -> SequenceProgress {
         self.run_state.progress()
     }
@@ -325,40 +331,78 @@ impl Default for SequenceExecutor {
     }
 }
 
-static EXECUTOR: std::sync::OnceLock<Arc<RwLock<SequenceExecutor>>> = std::sync::OnceLock::new();
+/// The parts of an executor that callers outside a run read and change
+/// without holding the executor: the run's state and progress, and the
+/// operator's settings. Each has its own lock, so a status read or a settings
+/// change never waits behind a start, a stop or each other.
+#[derive(Clone)]
+pub struct ExecutorHandle {
+    run_state: RunCell,
+    settings: RunConfigStore,
+    trigger_manager: Arc<RwLock<TriggerManager>>,
+}
 
-/// Get the global executor instance
+impl ExecutorHandle {
+    pub fn state(&self) -> ExecutorState {
+        self.run_state.get()
+    }
+
+    pub fn progress(&self) -> SequenceProgress {
+        self.run_state.progress()
+    }
+
+    /// The current operator settings.
+    pub fn run_config(&self) -> RunConfig {
+        self.settings.snapshot()
+    }
+
+    /// Replace the operator settings. Each section that differs from the
+    /// current value takes effect and is announced once; equal sections do
+    /// nothing. A value that fails [`RunConfig::validate`] changes nothing
+    /// and is refused with the reason.
+    pub async fn apply_run_config(&self, config: RunConfig) -> Result<(), String> {
+        self.settings
+            .apply(config, &self.trigger_manager, &self.run_state)
+            .await
+    }
+
+    /// Change some of the operator settings, on the terms of
+    /// [`Self::apply_run_config`].
+    pub async fn update_run_config(&self, edit: impl FnOnce(&mut RunConfig)) -> Result<(), String> {
+        self.settings
+            .update(&self.trigger_manager, &self.run_state, edit)
+            .await
+    }
+}
+
+struct GlobalExecutor {
+    executor: Arc<RwLock<SequenceExecutor>>,
+    handle: ExecutorHandle,
+}
+
+static EXECUTOR: std::sync::OnceLock<GlobalExecutor> = std::sync::OnceLock::new();
+
+fn global_executor() -> &'static GlobalExecutor {
+    EXECUTOR.get_or_init(|| {
+        let executor = SequenceExecutor::new();
+        let handle = executor.handle();
+        GlobalExecutor {
+            executor: Arc::new(RwLock::new(executor)),
+            handle,
+        }
+    })
+}
+
+/// The process's executor. Take it for write only to change what the
+/// executor itself holds (the loaded sequence, the run, its wiring), and only
+/// briefly; read status and change settings through [`executor_handle`].
 pub fn get_executor() -> &'static Arc<RwLock<SequenceExecutor>> {
-    EXECUTOR.get_or_init(|| Arc::new(RwLock::new(SequenceExecutor::new())))
+    &global_executor().executor
 }
 
-/// What a trigger-initiated dither attempt should be recorded as.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DitherTriggerOutcome {
-    /// Dither happened; reset the interval.
-    Performed,
-    /// The rig has no guider, so there is nothing to dither. Reset the interval
-    /// anyway — the condition cannot change mid-run, and leaving it unmarked made
-    /// the trigger re-fire on every single exposure.
-    SkippedNoGuider,
-    /// A genuine failure (guide star lost, settle timeout). Keep the interval due
-    /// so the next exposure retries, and warn.
-    Failed,
-}
-
-/// Classify a dither result. Split out from the trigger loop so the three cases
-/// are testable without standing up an executor.
-pub(crate) fn classify_dither_result(
-    status: NodeStatus,
-    message: Option<&str>,
-) -> DitherTriggerOutcome {
-    if status == NodeStatus::Success {
-        return DitherTriggerOutcome::Performed;
-    }
-    if message.is_some_and(crate::device_ops::message_says_no_guider_configured) {
-        return DitherTriggerOutcome::SkippedNoGuider;
-    }
-    DitherTriggerOutcome::Failed
+/// The handle of the process's executor.
+pub fn executor_handle() -> &'static ExecutorHandle {
+    &global_executor().handle
 }
 
 /// What a trigger-fired autofocus failure costs the run, and therefore what the
@@ -451,36 +495,6 @@ pub(crate) struct AutofocusTriggerContinuation {
     pub(crate) decision: crate::decision::DecisionEvent,
     /// One-line notice for the run's warnings.
     pub(crate) operator_message: String,
-}
-
-/// Build the continuation record for a non-converging trigger autofocus. Lives
-/// outside the trigger loop so the policy — continue on the last-good focus,
-/// never pause, park or end the run — is testable without standing up an
-/// executor.
-///
-/// `origin_restored` is the `autofocus_origin_restored` marker from the failed
-/// result: `Some(true)` the focuser went back to where it started, `Some(false)`
-/// the return move failed and the motor is off its origin, `None` the run never
-/// moved the focuser at all (e.g. admission rejected).
-pub(crate) fn autofocus_trigger_continuation(
-    trigger_id: &str,
-    trigger_name: &str,
-    reason: &str,
-    position_before: Option<i32>,
-    position_after: Option<i32>,
-    origin_restored: Option<bool>,
-) -> AutofocusTriggerContinuation {
-    autofocus_failure_continuation(
-        &format!("Autofocus trigger '{trigger_name}'"),
-        serde_json::json!({
-            "trigger_id": trigger_id,
-            "trigger_name": trigger_name,
-        }),
-        reason,
-        position_before,
-        position_after,
-        origin_restored,
-    )
 }
 
 /// The continuation record for any autofocus that did not converge while the

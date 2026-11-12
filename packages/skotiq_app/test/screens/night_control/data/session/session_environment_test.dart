@@ -375,6 +375,33 @@ void main() {
       expect(weather.route, '/settings?section=weather-safety');
     });
 
+    // The mount is polled every 2 s and its coordinates move between polls.
+    // Neither Overview block shows them, and each recompute costs a frame.
+    test('a mount position poll leaves the checklist and equipment rows alone',
+        () async {
+      final h = await sessionHarness(overrides: _readyRig());
+      await _checklist(h);
+      h.read(nightEquipmentProvider);
+      var told = 0;
+      h.container.listen(nightBeforeYouStartProvider, (_, __) => told++);
+      h.container.listen(nightEquipmentProvider, (_, __) => told++);
+
+      final mount = h.container.read(mountStateProvider.notifier);
+      for (var i = 0; i < 5; i++) {
+        mount.updatePosition(5.0 + i / 1000, 41.2, null, null);
+        await Future<void>.delayed(Duration.zero);
+        h.read(nightBeforeYouStartProvider);
+        h.read(nightEquipmentProvider);
+      }
+      expect(told, 0);
+
+      mount.setTracking(true);
+      await Future<void>.delayed(Duration.zero);
+      h.read(nightBeforeYouStartProvider);
+      h.read(nightEquipmentProvider);
+      expect(told, 2, reason: 'tracking is shown on both, so it tells both');
+    });
+
     test('the board order, and the rest of the rig is ready', () async {
       final h = await sessionHarness(overrides: _readyRig());
       final items = await _checklist(h);

@@ -126,11 +126,8 @@ class NightPlanTree {
   /// A Smart Exposure loops until its target's window closes. Its length is
   /// the window's, which a frame count cannot give: the executor's
   /// per-frame remaining time counts the plans' per-filter counts.
-  bool get loopsUntilWindowEnds => entries.any(
-        (e) =>
-            e.node is SmartExposureNode &&
-            (e.node as SmartExposureNode).loopUntilStopped,
-      );
+  bool get loopsUntilWindowEnds =>
+      entries.any((e) => e.node.capturesUntilStopped);
 
   int stepIndexOf(String nodeId) =>
       steps.indexWhere((entry) => entry.node.id == nodeId);
@@ -400,10 +397,9 @@ final nightNodeEventTimesProvider = Provider<NightNodeEventTimes>((ref) {
   return null;
 }
 
-/// How many frames a step plans per pass: an exposure's count, or null.
-int? nightPlannedFrames(SequenceNode node) => switch (node) {
-      ExposureNode() => node.count,
-      SciencePhotometryNode() => node.count,
-      SmartExposureNode() => node.plans.fold<int>(0, (s, p) => s + p.count),
-      _ => null,
-    };
+/// The frames [node] takes per pass, or null when it has no count of its own:
+/// it captures nothing, or it loops until stopped.
+int? nightPlannedFrames(SequenceNode node) {
+  final frames = node.framesPerPass;
+  return frames > 0 ? frames : null;
+}

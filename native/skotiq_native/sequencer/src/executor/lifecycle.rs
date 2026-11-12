@@ -13,9 +13,9 @@
 //!      Replay screen can render an audit trail of operator actions.
 //!
 //! What is deliberately NOT here:
-//!   * Steady-state config pushes (`update_dither_config`, `update_location`,
-//!     …) — those live in `runtime_config.rs` because they mutate the
-//!     [`RunConfig`] handle rather than driving the executor task.
+//!   * The operator's settings: one [`RunConfig`], changed through
+//!     [`super::ExecutorHandle::apply_run_config`] rather than by driving the
+//!     executor task.
 //!   * Recovery state-machine accessors (`current_recovery`,
 //!     `recovery_history`) — those live in `recovery.rs`. The operator
 //!     `recovery_try_now` / `recovery_abort` *commands* live here because

@@ -6,8 +6,10 @@
 //! ASCOM enumerations ([`types`]); the transport crates generate their
 //! wrapper functions from the member lists.
 
+mod errors;
 pub mod interfaces;
 pub mod members;
 mod types;
 
+pub use errors::classify_error_number;
 pub use types::*;

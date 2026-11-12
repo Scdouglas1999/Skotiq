@@ -4,71 +4,12 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../../../device.dart';
-import '../../../error.dart';
 import '../../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `advance_sim_slew`, `angular_separation_deg`, `begin_sim_home`, `begin_sim_slew`, `cancel_sim_slew`, `get_sim_mount`, `interpolate_ra`, `pier_side_after_slew_to`, `seed_unknown_pier_side`, `set_sim_park_position`, `sim_home_position`, `sim_local_sidereal_time`, `sim_park_position`, `sim_pole_position`, `sim_site`, `sim_slew_deg_per_sec`, `sim_slew_duration_secs`, `sim_slew_in_flight`, `sim_slew_start_lag_secs`, `sim_slew`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SimParkPose`, `SimSlew`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `eq`, `fmt`, `fmt`
-
-/// Get mount status
-Future<MountStatus> apiGetMountStatus({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesSimulationMountApiGetMountStatus(deviceId: deviceId);
-
-/// Slew mount to coordinates
-Future<void> apiMountSlewToCoordinates({
-  required String deviceId,
-  required double ra,
-  required double dec,
-}) => RustLib.instance.api
-    .crateApiDevicesSimulationMountApiMountSlewToCoordinates(
-      deviceId: deviceId,
-      ra: ra,
-      dec: dec,
-    );
-
-/// Sync mount to coordinates
-Future<void> apiMountSyncToCoordinates({
-  required String deviceId,
-  required double ra,
-  required double dec,
-}) => RustLib.instance.api
-    .crateApiDevicesSimulationMountApiMountSyncToCoordinates(
-      deviceId: deviceId,
-      ra: ra,
-      dec: dec,
-    );
-
-/// Park the mount
-Future<void> apiMountPark({required String deviceId}) => RustLib.instance.api
-    .crateApiDevicesSimulationMountApiMountPark(deviceId: deviceId);
-
-/// Unpark the mount
-Future<void> apiMountUnpark({required String deviceId}) => RustLib.instance.api
-    .crateApiDevicesSimulationMountApiMountUnpark(deviceId: deviceId);
-
-/// Set mount tracking
-Future<void> apiMountSetTracking({
-  required String deviceId,
-  required int enabled,
-}) => RustLib.instance.api.crateApiDevicesSimulationMountApiMountSetTracking(
-  deviceId: deviceId,
-  enabled: enabled,
-);
-
-/// Pulse guide the mount in a direction for a duration
-Future<void> apiMountPulseGuide({
-  required String deviceId,
-  required String direction,
-  required int durationMs,
-}) => RustLib.instance.api.crateApiDevicesSimulationMountApiMountPulseGuide(
-  deviceId: deviceId,
-  direction: direction,
-  durationMs: durationMs,
-);
 
 class SimulatedMount {
   final MountStatus status;

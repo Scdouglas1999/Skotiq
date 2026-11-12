@@ -78,7 +78,7 @@ pub(crate) fn raw16_container_max_adu_agrees_with_pipeline_saturation_threshold(
 #[test]
 pub(crate) fn cooler_state_defaults_to_off() {
     let cam = PlayerOneCamera::new(0);
-    let snap = *cam.cooler_state.lock().unwrap();
+    let snap = cam.core.cooler();
     assert!(!snap.enabled);
     assert_eq!(snap.target_c, 0.0);
 }
@@ -87,27 +87,26 @@ pub(crate) fn cooler_state_defaults_to_off() {
 /// `get_status` must surface `cooler_on == true` and the target temp.
 ///
 /// We exercise the same code path the production `set_cooler` uses to
-/// update `cooler_state` (after the SDK accepted the change) and the same
+/// update `core.cooler` (after the SDK accepted the change) and the same
 /// fallback path `get_status` uses when the SDK read-back is unavailable:
-/// the cached `cooler_state` is the floor, so a failed read-back can never
+/// the cached cooler state is the floor, so a failed read-back can never
 /// report the cooler as off.
 #[test]
 pub(crate) fn set_cooler_then_status_reports_enabled() {
     let cam = PlayerOneCamera::new(0);
 
     // Pre-condition: default is off.
-    assert!(!cam.cooler_state.lock().unwrap().enabled);
+    assert!(!cam.core.cooler().enabled);
 
     // Simulate the post-SDK-success update that `set_cooler` performs.
-    {
-        let mut guard = cam.cooler_state.lock().unwrap();
-        guard.enabled = true;
-        guard.target_c = -10.0;
-    }
+    cam.core.update_cooler(|cooler| {
+        cooler.enabled = true;
+        cooler.target_c = -10.0;
+    });
 
-    // Read back via the same mutex path `get_status` uses when the SDK
+    // Read back via the same path `get_status` uses when the SDK
     // read-back is unavailable.
-    let snap = *cam.cooler_state.lock().unwrap();
+    let snap = cam.core.cooler();
     assert!(
         snap.enabled,
         "cooler_on must reflect the last set_cooler call"
@@ -121,20 +120,18 @@ pub(crate) fn set_cooler_then_status_reports_enabled() {
 pub(crate) fn set_cooler_then_disable_reports_off() {
     let cam = PlayerOneCamera::new(0);
 
-    {
-        let mut guard = cam.cooler_state.lock().unwrap();
-        guard.enabled = true;
-        guard.target_c = -15.0;
-    }
-    assert!(cam.cooler_state.lock().unwrap().enabled);
+    cam.core.update_cooler(|cooler| {
+        cooler.enabled = true;
+        cooler.target_c = -15.0;
+    });
+    assert!(cam.core.cooler().enabled);
 
-    {
-        let mut guard = cam.cooler_state.lock().unwrap();
-        guard.enabled = false;
-        guard.target_c = 20.0;
-    }
+    cam.core.update_cooler(|cooler| {
+        cooler.enabled = false;
+        cooler.target_c = 20.0;
+    });
 
-    let snap = *cam.cooler_state.lock().unwrap();
+    let snap = cam.core.cooler();
     assert!(!snap.enabled);
     assert_eq!(snap.target_c, 20.0);
 }
@@ -179,4 +176,62 @@ pub(crate) fn poa_value_type_discriminants_match_the_header() {
     assert_eq!(POAValueType::Int as i32, 0);
     assert_eq!(POAValueType::Float as i32, 1);
     assert_eq!(POAValueType::Bool as i32, 2);
+}
+
+fn subframe(start_x: u32, start_y: u32, width: u32, height: u32) -> SubFrame {
+    SubFrame {
+        start_x,
+        start_y,
+        width,
+        height,
+    }
+}
+
+/// POASetImageSize takes widths in multiples of 4 and heights in multiples of
+/// 2; the ROI the driver asks for is already one the SDK keeps as it is.
+#[test]
+pub(crate) fn a_roi_is_cut_to_the_sizes_the_sdk_takes() {
+    let roi = roi_for(Some(&subframe(3, 3, 101, 51)), 3096, 2080, false).unwrap();
+    assert_eq!(
+        roi,
+        Roi {
+            x: 3,
+            y: 3,
+            width: 100,
+            height: 50
+        }
+    );
+    // The binned full frame of a 6248 x 4176 sensor at bin 3.
+    let full = roi_for(None, 6248 / 3, 4176 / 3, false).unwrap();
+    assert_eq!(
+        (full.x, full.y, full.width, full.height),
+        (0, 0, 2080, 1392)
+    );
+}
+
+/// A color ROI starting on an odd pixel would shift the frame's Bayer cell
+/// away from the BAYERPAT the camera's pattern writes.
+#[test]
+pub(crate) fn a_color_roi_starts_on_an_even_pixel() {
+    let roi = roi_for(Some(&subframe(5, 7, 64, 32)), 1920, 1080, true).unwrap();
+    assert_eq!((roi.x, roi.y), (4, 6));
+    let mono = roi_for(Some(&subframe(5, 7, 64, 32)), 1920, 1080, false).unwrap();
+    assert_eq!((mono.x, mono.y), (5, 7));
+}
+
+#[test]
+pub(crate) fn a_roi_outside_the_binned_sensor_is_refused() {
+    for request in [
+        subframe(1900, 0, 64, 32),
+        subframe(0, 0, 2, 32),
+        subframe(u32::MAX, 0, 64, 32),
+    ] {
+        assert!(
+            matches!(
+                roi_for(Some(&request), 1920, 1080, false),
+                Err(DriverError::InvalidParameter(_))
+            ),
+            "{request:?}"
+        );
+    }
 }

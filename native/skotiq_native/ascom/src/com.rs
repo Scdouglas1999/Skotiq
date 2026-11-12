@@ -100,12 +100,14 @@ impl ComCall<'_> {
         }
     }
 
-    /// The driver refused or failed this call.
-    pub fn invoke_error(&self, cause: String) -> AscomError {
+    /// The driver refused or failed this call. `code` is the error code the
+    /// driver raised, or the HRESULT when it raised none.
+    pub fn invoke_error(&self, cause: String, code: Option<i32>) -> AscomError {
         AscomError::Invoke {
             dispatch: self.dispatch,
             member: self.member.to_string(),
             cause,
+            code,
         }
     }
 

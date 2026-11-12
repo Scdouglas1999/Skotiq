@@ -7,6 +7,7 @@
 //! calibrator is confirmed off and the cover is confirmed closed.
 
 use super::PanelLocation;
+use crate::device_ops::{DeviceError, DeviceKind};
 use crate::instructions::InstructionContext;
 use crate::wizard::{wait_for_slew_complete, WizardProgressReporter};
 use crate::FlatWizardConfig;
@@ -22,29 +23,31 @@ async fn wait_for_cover_state(
     timeout: std::time::Duration,
     poll_ms: u64,
     cancellable: bool,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     let start = std::time::Instant::now();
     loop {
         if cancellable && ctx.cancellation_token.load(Ordering::Relaxed) {
-            return Err("Operation cancelled".to_string());
+            return Err(DeviceError::Cancelled("Operation cancelled".to_string()));
         }
         let state = ctx
             .run
             .device_ops
             .cover_calibrator_get_cover_state(device_id)
             .await
-            .map_err(|e| format!("Failed to read cover state: {}", e))?;
+            .map_err(|e| e.context("Failed to read cover state"))?;
         if state == target_state {
             return Ok(());
         }
         if state == 5 {
-            return Err("Cover reported error state".to_string());
+            return Err(DeviceError::Failed(
+                "Cover reported error state".to_string(),
+            ));
         }
         if start.elapsed() > timeout {
-            return Err(format!(
+            return Err(DeviceError::Timeout(format!(
                 "Timeout waiting for cover to reach state {}",
                 target_state
-            ));
+            )));
         }
         tokio::time::sleep(std::time::Duration::from_millis(poll_ms)).await;
     }
@@ -58,29 +61,31 @@ async fn wait_for_calibrator_state(
     timeout: std::time::Duration,
     poll_ms: u64,
     cancellable: bool,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     let start = std::time::Instant::now();
     loop {
         if cancellable && ctx.cancellation_token.load(Ordering::Relaxed) {
-            return Err("Operation cancelled".to_string());
+            return Err(DeviceError::Cancelled("Operation cancelled".to_string()));
         }
         let state = ctx
             .run
             .device_ops
             .cover_calibrator_get_calibrator_state(device_id)
             .await
-            .map_err(|e| format!("Failed to read calibrator state: {}", e))?;
+            .map_err(|e| e.context("Failed to read calibrator state"))?;
         if state == target_state {
             return Ok(());
         }
         if state == 5 {
-            return Err("Calibrator reported error state".to_string());
+            return Err(DeviceError::Failed(
+                "Calibrator reported error state".to_string(),
+            ));
         }
         if start.elapsed() > timeout {
-            return Err(format!(
+            return Err(DeviceError::Timeout(format!(
                 "Timeout waiting for calibrator to reach state {}",
                 target_state
-            ));
+            )));
         }
         tokio::time::sleep(std::time::Duration::from_millis(poll_ms)).await;
     }
@@ -92,7 +97,7 @@ pub(super) async fn setup_flat_panel(
     brightness: i32,
     progress: &dyn WizardProgressReporter,
     cleanup_required: &AtomicBool,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     let device_id = match ctx.run.rig.cover_calibrator_id.as_deref() {
         Some(id) => id,
         None => {
@@ -114,7 +119,7 @@ pub(super) async fn setup_flat_panel(
         .cover_calibrator_open_cover(device_id)
         .await
     {
-        return Err(format!("Failed to open cover: {}", e));
+        return Err(e.context("Failed to open cover"));
     }
     // The open command was accepted, so teardown must run even if
     // readiness polling or any later setup operation fails.
@@ -138,7 +143,7 @@ pub(super) async fn setup_flat_panel(
         .cover_calibrator_calibrator_on(device_id, brightness)
         .await
     {
-        return Err(format!("Failed to turn on calibrator: {}", e));
+        return Err(e.context("Failed to turn on calibrator"));
     }
     wait_for_calibrator_state(
         ctx,
@@ -155,7 +160,7 @@ pub(super) async fn setup_flat_panel(
 }
 
 /// Clean up flat panel after taking flats (turn off light, close cover).
-pub(super) async fn cleanup_flat_panel(ctx: &InstructionContext) -> Result<(), String> {
+pub(super) async fn cleanup_flat_panel(ctx: &InstructionContext) -> Result<(), DeviceError> {
     let cc_id = match ctx.run.rig.cover_calibrator_id.as_deref() {
         Some(id) => id,
         None => return Ok(()),
@@ -164,6 +169,9 @@ pub(super) async fn cleanup_flat_panel(ctx: &InstructionContext) -> Result<(), S
     tracing::info!("Cleaning up flat panel: turning off light and closing cover");
 
     let mut errors = Vec::new();
+    // A panel that dropped during teardown makes the whole teardown a
+    // disconnect, so the run reconnects it.
+    let mut lost = false;
 
     if let Err(e) = ctx
         .run
@@ -171,10 +179,12 @@ pub(super) async fn cleanup_flat_panel(ctx: &InstructionContext) -> Result<(), S
         .cover_calibrator_calibrator_off(cc_id)
         .await
     {
+        lost |= matches!(e, DeviceError::NotConnected { .. });
         errors.push(format!("failed to turn off calibrator: {}", e));
     }
 
     if let Err(e) = ctx.run.device_ops.cover_calibrator_close_cover(cc_id).await {
+        lost |= matches!(e, DeviceError::NotConnected { .. });
         errors.push(format!("failed to close cover: {}", e));
     }
 
@@ -198,29 +208,38 @@ pub(super) async fn cleanup_flat_panel(ctx: &InstructionContext) -> Result<(), S
     );
 
     if let Err(e) = calibrator_result {
+        lost |= matches!(e, DeviceError::NotConnected { .. });
         errors.push(format!("calibrator did not reach off state: {}", e));
     } else {
         tracing::info!("Calibrator off");
     }
 
     if let Err(e) = cover_result {
+        lost |= matches!(e, DeviceError::NotConnected { .. });
         errors.push(format!("cover did not reach closed state: {}", e));
     } else {
         tracing::info!("Cover closed");
     }
 
     if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("; "))
+        return Ok(());
     }
+    let message = errors.join("; ");
+    Err(if lost {
+        DeviceError::NotConnected {
+            device: DeviceKind::CoverCalibrator,
+            message,
+        }
+    } else {
+        DeviceError::Failed(message)
+    })
 }
 
 /// Change flat panel brightness (used by auto-adjust brightness logic).
 pub(super) async fn set_panel_brightness(
     ctx: &InstructionContext,
     brightness: i32,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     let cc_id = match ctx.run.rig.cover_calibrator_id.as_deref() {
         Some(id) => id,
         None => return Ok(()),
@@ -254,7 +273,7 @@ pub(super) async fn position_for_flats(
     config: &FlatWizardConfig,
     ctx: &InstructionContext,
     progress: &dyn WizardProgressReporter,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     match config.panel_location {
         PanelLocation::FlatPanel => {
             tracing::info!("Positioning for flat panel");
@@ -263,7 +282,9 @@ pub(super) async fn position_for_flats(
                 progress.report(0.12, "Slewing to zenith".to_string());
 
                 let (lat, lon) = ctx.run.device_ops.get_observer_location().ok_or_else(|| {
-                    "Observer location is required for flat-panel positioning".to_string()
+                    DeviceError::Failed(
+                        "Observer location is required for flat-panel positioning".to_string(),
+                    )
                 })?;
 
                 let now = chrono::Utc::now();
@@ -284,10 +305,12 @@ pub(super) async fn position_for_flats(
                     .device_ops
                     .mount_slew_to_coordinates(mount_id, zenith_ra, zenith_dec)
                     .await
-                    .map_err(|e| format!("Failed to slew to zenith: {}", e))?;
+                    .map_err(|e| e.context("Failed to slew to zenith"))?;
 
                 progress.report(0.15, "Waiting for slew to complete".to_string());
-                wait_for_slew_complete(ctx, mount_id, 300, "Slew to zenith").await?;
+                wait_for_slew_complete(ctx, mount_id, 300, "Slew to zenith")
+                    .await
+                    .map_err(DeviceError::Failed)?;
             }
 
             Ok(())
@@ -297,7 +320,9 @@ pub(super) async fn position_for_flats(
 
             if let Some(mount_id) = &ctx.run.rig.mount_id {
                 let (lat, lon) = ctx.run.device_ops.get_observer_location().ok_or_else(|| {
-                    "Observer location is required for sky-flat positioning".to_string()
+                    DeviceError::Failed(
+                        "Observer location is required for sky-flat positioning".to_string(),
+                    )
                 })?;
 
                 progress.report(
@@ -312,7 +337,9 @@ pub(super) async fn position_for_flats(
                     PanelLocation::DawnSky => 90.0,
                     PanelLocation::DuskSky => 270.0,
                     PanelLocation::FlatPanel => {
-                        return Err("Invalid panel location for sky-flat positioning".to_string());
+                        return Err(DeviceError::Failed(
+                            "Invalid panel location for sky-flat positioning".to_string(),
+                        ));
                     }
                 };
 
@@ -330,10 +357,12 @@ pub(super) async fn position_for_flats(
                     .device_ops
                     .mount_slew_to_coordinates(mount_id, ra, dec)
                     .await
-                    .map_err(|e| format!("Failed to slew for sky flats: {}", e))?;
+                    .map_err(|e| e.context("Failed to slew for sky flats"))?;
 
                 progress.report(0.15, "Waiting for slew to complete".to_string());
-                wait_for_slew_complete(ctx, mount_id, 300, "Slew to sky flat position").await?;
+                wait_for_slew_complete(ctx, mount_id, 300, "Slew to sky flat position")
+                    .await
+                    .map_err(DeviceError::Failed)?;
             }
 
             Ok(())

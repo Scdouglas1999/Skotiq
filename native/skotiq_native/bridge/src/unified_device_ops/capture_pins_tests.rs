@@ -377,6 +377,39 @@ async fn a_color_frame_publishes_the_same_measurements_from_either_entry_point()
     );
 }
 
+#[tokio::test]
+async fn a_stored_frame_is_measured_for_grading_as_a_fresh_detection_measures_it() {
+    let device_id = "native:pin_grading";
+    connect_fixed_camera(device_id, Arc::new(rig_crop()), None).await;
+    let mut image = sequence_capture(device_id).await;
+    let ops = create_unified_device_ops();
+    let fresh = |image: &ImageData| {
+        super::frame_store::measure_light_frame(
+            &skotiq_imaging::ImageData::from_u16(image.width, image.height, 1, &image.data),
+            None,
+        )
+    };
+
+    assert!(
+        crate::last_frame::detected_stars(image.width, image.height, &image.data)
+            .await
+            .is_some(),
+        "the store keeps the detection of the frame it holds"
+    );
+    let measured = ops.measure_light_frame(&image).await.expect("measurement");
+    assert_eq!(measured, fresh(&image));
+    assert!(measured.star_count.is_some_and(|n| n > 100), "{measured:?}");
+
+    // A frame changed after it was stored (a defect map corrected a pixel)
+    // is detected again, not answered with the stored stars.
+    image.data[0] = image.data[0].wrapping_add(1);
+    assert!(crate::last_frame::detected_stars(image.width, image.height, &image.data)
+        .await
+        .is_none());
+    assert_eq!(ops.measure_light_frame(&image).await.expect("measurement"), fresh(&image));
+    disconnect_fixed_camera(device_id).await;
+}
+
 /// Wall time of one manual capture of a full-size frame, from the call to the
 /// stored result (the driver answers instantly, so this is the analysis).
 ///
@@ -420,3 +453,148 @@ const COLOR: &str = "1024x1024 color=true exposure=2.0
 stats min=16.0 max=65504.0 mean=698.3109436035156 median=672.0 std_dev=657.9213351686734
 stars=192 hfr=Some(2.310760259173266) fwhm=Some(4.621520518346532) eccentricity=Some(0.6601127561091212)
 histogram=3513c089f664dcd4 display=0a6c414758185544 display_len=4194304 raw=c88128ab9b80e33f";
+
+/// The owner's ASI1600 frame tiled to `width` x `height`.
+fn rig_frame_of_size(width: u32, height: u32) -> (u32, u32, Vec<u16>) {
+    let path = std::env::var("SKOTIQ_TIMING_FRAME").map(std::path::PathBuf::from).unwrap_or_else(|_| {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../test-fixtures/rig-2026-09-14/focused_L_0005.fits")
+    });
+    let (image, _) = skotiq_imaging::read_frame(&path).expect("read the rig frame");
+    let (cw, ch) = (image.width, image.height);
+    let crop = image.as_u16().expect("a 16-bit frame");
+    let mut data = Vec::with_capacity((width * height) as usize);
+    for y in 0..height {
+        let row = (y % ch) as usize * cw as usize;
+        for x in 0..width {
+            data.push(crop[row + (x % cw) as usize]);
+        }
+    }
+    (width, height, data)
+}
+
+fn median_ms(mut samples: Vec<f64>) -> f64 {
+    samples.sort_by(f64::total_cmp);
+    samples[samples.len() / 2] * 1e3
+}
+
+/// Wall time of each stage a sequence light frame goes through on the host,
+/// from the driver's download to the saved file and its thumbnail, at the
+/// sizes of a 26 MP and a 61 MP sensor.
+///
+/// ```text
+/// SKOTIQ_TIMING_FRAME=<a real 16-bit frame> \
+/// cargo test --release -p skotiq_bridge --lib frame_path_stage_times -- --ignored --nocapture
+/// ```
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "timing probe; run by hand"]
+async fn frame_path_stage_times() {
+    let runs = 5;
+    let dir = std::env::temp_dir().join(format!("sk-frame-path-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    for (label, width, height) in [("26MP", 6248u32, 4176u32), ("61MP", 9576, 6388)] {
+        let frame = Arc::new(rig_frame_of_size(width, height));
+        let device_id = format!("native:timing_{label}");
+        connect_fixed_camera(&device_id, frame.clone(), None).await;
+        let ops = create_unified_device_ops();
+        let mut stages: Vec<(&str, Vec<f64>)> = Vec::new();
+        let mut record = |name: &'static str, secs: f64| match stages.iter_mut().find(|(n, _)| *n == name) {
+            Some((_, v)) => v.push(secs),
+            None => stages.push((name, vec![secs])),
+        };
+        for run in 0..runs {
+            let t = std::time::Instant::now();
+            let image = sequence_capture(&device_id).await;
+            record("capture (download+validate+store)", t.elapsed().as_secs_f64());
+
+            let t = std::time::Instant::now();
+            let bytes = skotiq_imaging::ImageData::from_u16(width, height, 1, &image.data);
+            record("  of which: u16 -> byte copy", t.elapsed().as_secs_f64());
+            let t = std::time::Instant::now();
+            let _ = skotiq_imaging::validate_image_comprehensive(
+                &bytes,
+                skotiq_imaging::ImageValidationOptions {
+                    expected_width: Some(width),
+                    expected_height: Some(height),
+                    ..Default::default()
+                },
+            );
+            record("  of which: validation", t.elapsed().as_secs_f64());
+            let raw = crate::last_frame::raw(&device_id).await.expect("stored");
+            let t = std::time::Instant::now();
+            let _ = crate::last_frame::measure(&raw, 2.0);
+            record("  of which: display+stats+stars", t.elapsed().as_secs_f64());
+
+            let t = std::time::Instant::now();
+            let _ = ops.measure_light_frame(&image).await.expect("measurement");
+            record("grading measurement", t.elapsed().as_secs_f64());
+            let t = std::time::Instant::now();
+            let _ = super::frame_store::measure_light_frame(&bytes, None);
+            record("  the same, stars not stored", t.elapsed().as_secs_f64());
+
+            for (format, ext) in [
+                (skotiq_sequencer::ArchiveFormat::Fits, "fits"),
+                (skotiq_sequencer::ArchiveFormat::Xisf, "xisf"),
+            ] {
+                skotiq_sequencer::executor_handle()
+                    .update_run_config(|config| {
+                        config.frame_format = skotiq_sequencer::FrameFormat {
+                            format,
+                            xisf_compression: skotiq_imaging::XisfCompression::from_name("zstd+sh")
+                                .unwrap(),
+                            xisf_checksums: true,
+                        }
+                    })
+                    .await
+                    .expect("the frame format applies");
+                let path = dir.join(format!("{label}_{run}.{ext}"));
+                let t = std::time::Instant::now();
+                ops.save_fits(&image, path.to_str().unwrap(), &skotiq_sequencer::scheduling::FrameContext::default())
+                    .await
+                    .expect("save");
+                record(if ext == "fits" { "save FITS" } else { "save XISF zstd+sh" }, t.elapsed().as_secs_f64());
+                let t = std::time::Instant::now();
+                crate::api::imaging::api_generate_fits_thumbnail(path.to_string_lossy().into_owned(), 512)
+                    .await
+                    .expect("thumbnail");
+                record(if ext == "fits" { "thumbnail from FITS" } else { "thumbnail from XISF" }, t.elapsed().as_secs_f64());
+                let t = std::time::Instant::now();
+                let _ = skotiq_imaging::read_frame(&path).expect("read back");
+                record(if ext == "fits" { "read FITS" } else { "read XISF" }, t.elapsed().as_secs_f64());
+            }
+            skotiq_sequencer::executor_handle()
+                .update_run_config(|config| config.frame_format = skotiq_sequencer::FrameFormat::default())
+                .await
+                .expect("the frame format applies");
+
+            let t = std::time::Instant::now();
+            let last = crate::api::api_get_last_image(device_id.clone()).await.expect("last image");
+            record("last image for the screen", t.elapsed().as_secs_f64());
+
+            // What a linked client's 2560 px preview would cost encoded here
+            // (nearest-neighbor resize and JPEG quality 85, as the host's
+            // Dart encoder does it).
+            let t = std::time::Instant::now();
+            let (w, h) = (2560u32, (f64::from(height) * 2560.0 / f64::from(width)).round() as u32);
+            let mut rgb = Vec::with_capacity((w * h * 3) as usize);
+            for y in 0..h {
+                let row = (y * height / h) as usize * width as usize;
+                for x in 0..w {
+                    let at = (row + (x * width / w) as usize) * 4;
+                    rgb.extend_from_slice(&last.display_data[at..at + 3]);
+                }
+            }
+            let mut jpeg = Vec::new();
+            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 85)
+                .encode(&rgb, w, h, image::ColorType::Rgb8)
+                .expect("jpeg");
+            record("preview JPEG 2560 px, native", t.elapsed().as_secs_f64());
+        }
+        disconnect_fixed_camera(&device_id).await;
+        println!("== {label} {width}x{height} mono, median of {runs} (ms)");
+        for (name, samples) in stages {
+            println!("{name:>36}: {:8.1}", median_ms(samples));
+        }
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
