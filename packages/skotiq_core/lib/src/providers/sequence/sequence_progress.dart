@@ -64,6 +64,27 @@ final sequenceProgressProvider = Provider<SequenceProgress>(
   (ref) => ref.watch(runRecordProvider.select((run) => run.progress)),
 );
 
+/// The run's progress as a step list draws it: the current step and filter
+/// and each step's status, percent and detail. It changes only when one of
+/// those does, so a tree of steps is not rebuilt by the run's clock, counters
+/// and message, which change every second. Those fields are as of the last
+/// step change here; read [sequenceProgressProvider] for them.
+final sequenceStepProgressProvider = Provider<SequenceProgress>((ref) {
+  ref.watch(
+    sequenceProgressProvider.select(
+      (p) => (
+        p.currentNodeId,
+        p.currentFilter,
+        p.nodeStatuses,
+        p.nodeProgressPercent,
+        p.nodeProgressDetail,
+        p.nodeProgressStructuredDetail,
+      ),
+    ),
+  );
+  return ref.read(sequenceProgressProvider);
+});
+
 /// WHO ended the run in progress, as the last authorship evidence on the wire
 /// named them — null while nothing has named anyone.
 ///

@@ -111,7 +111,7 @@ class _SequenceGutterMapState extends ConsumerState<_SequenceGutterMap> {
     final entries = sequence == null
         ? const <SequenceMapEntry>[]
         : sequenceMapEntries(sequence, ref.watch(visibleNodeOrderProvider));
-    final progress = ref.watch(sequenceProgressProvider);
+    final progress = ref.watch(sequenceStepProgressProvider);
     final selectedId = ref.watch(selectedNodeIdProvider);
 
     return SizedBox(
