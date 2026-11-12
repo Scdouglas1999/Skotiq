@@ -9,6 +9,7 @@ import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/sequence_provider.dart';
 import '../providers/ui_notification_provider.dart';
+import 'device_service.dart';
 import 'logging_service.dart';
 import 'notification_service.dart';
 import '../backend/remote_host.dart';
@@ -483,10 +484,7 @@ class DeviceReconnectCoordinator {
       readDeviceSlot(_ref, type).autoReconnectEnabled;
 
   Future<void> _performReconnection(DeviceType type, String deviceId) async {
-    await readDeviceConnectionNotifier(
-      _ref,
-      type,
-    ).connect(deviceId, maxRetries: 1);
+    await _ref.read(deviceServiceProvider).connect(type, deviceId);
     final slot = readDeviceSlot(_ref, type);
     validateReconnectOutcome(
       type: type,
@@ -495,10 +493,9 @@ class DeviceReconnectCoordinator {
     );
   }
 
-  /// State notifiers deliberately retain terminal connection failures in
-  /// `lastError` instead of rethrowing them, so awaiting `connect()` alone does
-  /// not prove that reconnection succeeded. Keep the coordinator's retry
-  /// counter honest by requiring the authoritative post-attempt state.
+  /// A connect that returns has not proved the device is back: the slot can
+  /// have been taken by another connect meanwhile. Keep the coordinator's
+  /// retry counter honest by requiring the authoritative post-attempt state.
   static void validateReconnectOutcome({
     required DeviceType type,
     required DeviceConnectionState connectionState,

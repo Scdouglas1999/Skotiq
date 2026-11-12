@@ -4,9 +4,6 @@ import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../services/device_service.dart';
 
-const int kDefaultMaxRetries = 3;
-const Duration kDefaultRetryDelay = Duration(seconds: 1);
-
 /// The connection surface of a device slot, as the device table
 /// (`equipment/device_slots.dart`) hands it out.
 ///
@@ -15,11 +12,6 @@ const Duration kDefaultRetryDelay = Duration(seconds: 1);
 abstract interface class DeviceConnectionNotifier {
   DeviceConnectionState get connectionState;
   String? get deviceId;
-
-  /// Connect [deviceId], retrying a recoverable failure up to [maxRetries]
-  /// attempts in total. A failure is left on the slot as `lastError`; this
-  /// does not throw.
-  Future<void> connect(String deviceId, {String? deviceName, int maxRetries});
 
   Future<void> disconnect();
   void clearError();
@@ -36,9 +28,9 @@ abstract interface class DeviceConnectionNotifier {
   void connectFailed(Object error);
 }
 
-/// The connection half of every device notifier: connect with retry,
-/// disconnect, and the connecting / connected / disconnected / error
-/// transitions. A device's own notifier adds its telemetry on top.
+/// The connection half of every device notifier: disconnect, and the
+/// connecting / connected / disconnected / error transitions that
+/// [DeviceService] writes while it connects a device. A device's own notifier adds its telemetry on top.
 abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
     extends StateNotifier<S>
     implements DeviceConnectionNotifier {
@@ -56,40 +48,6 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
 
   @override
   String? get deviceId => state.deviceId;
-
-  @override
-  Future<void> connect(
-    String deviceId, {
-    String? deviceName,
-    int maxRetries = kDefaultMaxRetries,
-  }) async {
-    final revision = ++_connectionRevision;
-    for (var attempt = 1; ; attempt++) {
-      setConnecting(deviceId, deviceName ?? deviceId);
-      try {
-        await ref.read(deviceServiceProvider).connect(deviceType, deviceId);
-        if (_isCurrent(revision) && state.deviceId == deviceId) setConnected();
-        return;
-      } catch (e) {
-        if (!_isCurrentAttempt(deviceId, revision)) return;
-        final error = DeviceError.fromException(
-          e,
-          deviceId: deviceId,
-          retryAttempts: attempt,
-        );
-        if (!error.recoverable || attempt >= maxRetries) {
-          state = state.copyWith(
-            connectionState: DeviceConnectionState.error,
-            lastError: error,
-          );
-          return;
-        }
-        state = state.copyWith(lastError: error);
-        await Future<void>.delayed(kDefaultRetryDelay * attempt);
-        if (!_isCurrentAttempt(deviceId, revision)) return;
-      }
-    }
-  }
 
   @override
   Future<void> disconnect() async {
@@ -160,8 +118,4 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
   }
 
   bool _isCurrent(int revision) => mounted && revision == _connectionRevision;
-
-  bool _isCurrentAttempt(String deviceId, int revision) =>
-      _isCurrent(revision) &&
-      (state.deviceId == null || state.deviceId == deviceId);
 }
