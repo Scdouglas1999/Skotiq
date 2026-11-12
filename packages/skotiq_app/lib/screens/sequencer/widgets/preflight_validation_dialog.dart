@@ -231,6 +231,7 @@ class _PreFlightValidationDialogState
       final result = diffService.diff(
         previous: persisted,
         current: sequence,
+        sensitivity: ref.read(cameraSensitivityProvider),
       );
       if (result.isEmpty) return;
       if (!mounted) return;

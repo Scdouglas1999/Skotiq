@@ -22,6 +22,7 @@ import 'disk_space_service.dart';
 import 'darkroom_build_plan.dart';
 import 'darkroom_registration_preview.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../models/imaging/frame_gain.dart';
 export 'darkroom_build_plan.dart';
 export 'darkroom_registration_preview.dart';
 
@@ -343,7 +344,7 @@ class DarkroomBuildService {
           'Night of $night',
           _filterOf(f),
           '${_seconds(f.exposureDuration)} s',
-          if (f.gain != null) 'gain ${f.gain}',
+          if (f.gainText != null) f.gainText!,
           if (f.offset != null) 'offset ${f.offset}',
           if (f.binX != 1 || f.binY != 1) 'bin ${f.binX}x${f.binY}',
           if (temperature != null) formatCelsius(temperature, decimals: 0),
@@ -352,7 +353,8 @@ class DarkroomBuildService {
         final matches = await library.match(
           LightFrameContext(
             cameraId: FitsHeaderReader.stringValue(headers[f.id]!, 'INSTRUME'),
-            gain: f.gain,
+            gain: f.comparableGain,
+            gainIsUnknownIso: f.hasUnknownIso,
             offset: f.offset,
             exposureSeconds: f.exposureDuration,
             temperature: temperature,

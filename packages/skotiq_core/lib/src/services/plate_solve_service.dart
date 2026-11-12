@@ -33,7 +33,7 @@ const int _fitsCardLength = 80;
 /// Newlines are still honoured first, because some solvers (and this repo's own
 /// fixtures) do write one card per line; only segments longer than a single card
 /// are split further. This mirrors `fits_header_cards` in
-/// `native/skotiq_native/imaging/src/platesolve.rs`.
+/// `native/skotiq_native/platesolve/src/lib.rs`.
 List<String> _fitsHeaderCards(String content) {
   final cards = <String>[];
   for (final segment in const LineSplitter().convert(content)) {
@@ -414,7 +414,7 @@ class PlateSolveService {
   /// Solve with ASTAP.
   ///
   /// Argument list mirrors the native Rust solver in
-  /// `imaging/src/platesolve.rs` so this Dart fallback is a *real* solve and
+  /// `platesolve/src/lib.rs` so this Dart fallback is a *real* solve and
   /// not a no-op that silently masks a backend failure:
   ///   * `-f <image>`        — input frame.
   ///   * `-ra` / `-spd`      — hint position (RA in degrees, south-pole
@@ -645,7 +645,7 @@ class PlateSolveService {
   /// own (empty) filesystem instead shows a false "Set up plate solver"
   /// banner. The host-side detection ultimately calls the Rust
   /// `api_platesolve_detect` so platform-specific path enumeration stays in
-  /// one place (`platesolve_paths.rs`).
+  /// one place (`platesolve/src/paths.rs`).
   Future<ps_model.PlateSolverDetection> detect() async {
     final logging = _ref.read(loggingServiceProvider);
     try {

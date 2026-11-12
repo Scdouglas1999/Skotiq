@@ -116,6 +116,9 @@ macro_rules! forward_device_ops {
                 async fn camera_get_model(&self, camera_id: &str) -> $crate::device_ops::DeviceResult<Option<String>> {
                     self.$field.camera_get_model(camera_id).await
                 }
+                async fn camera_get_iso_speeds(&self, camera_id: &str) -> $crate::device_ops::DeviceResult<Vec<i32>> {
+                    self.$field.camera_get_iso_speeds(camera_id).await
+                }
             }
         };
     };

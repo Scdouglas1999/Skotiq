@@ -416,6 +416,15 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     var out = score;
     for (final dimension in _unverifiedTupleDimensions(ctx, record)) {
       out -= _unverifiedDimensionPenalty;
+      if (dimension == 'gain' && ctx.gainIsUnknownIso) {
+        reasons.add('ISO UNVERIFIED (the lights record no ISO)');
+        warnings.add(
+          'These light frames were taken with a DSLR before Skotiq recorded '
+          'ISO speeds, so their ISO is unknown and the $label was matched '
+          'without comparing it — confirm the $label was shot at the same ISO.',
+        );
+        continue;
+      }
       reasons.add('$dimension UNVERIFIED (the lights record none)');
       warnings.add(
         'The light frames record no $dimension, so the $label was matched '

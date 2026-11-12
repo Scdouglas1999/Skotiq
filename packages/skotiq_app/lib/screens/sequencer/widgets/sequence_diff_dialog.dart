@@ -157,7 +157,11 @@ class SequenceDiffDialog extends StatelessWidget {
       return;
     }
 
-    final result = diffService.diff(previous: previous, current: current);
+    final result = diffService.diff(
+      previous: previous,
+      current: current,
+      sensitivity: ref.read(cameraSensitivityProvider),
+    );
     if (!context.mounted) return;
     await show(context, result);
   }

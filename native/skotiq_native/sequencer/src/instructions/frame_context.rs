@@ -192,6 +192,14 @@ pub async fn sample_frame_context(
         // The equipment profile names the camera the operator wants in the
         // archive; a rig without one still has a connected camera with a
         // name, so the driver fills the gap and `INSTRUME` is not lost.
+        frame_ctx.gain_is_iso = frame_ctx.gain.is_some()
+            && rig_read(
+                "camera ISO speeds",
+                device_ops.camera_get_iso_speeds(camera_id),
+            )
+            .await
+            .is_some_and(|speeds| !speeds.is_empty());
+
         if frame_ctx.camera_make.is_none() && frame_ctx.camera_model.is_none() {
             frame_ctx.camera_model =
                 rig_read("camera model", device_ops.camera_get_model(camera_id))

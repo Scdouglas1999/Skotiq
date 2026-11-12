@@ -46,6 +46,13 @@ class CapturedImages extends Table {
 
   RealColumn get exposureDuration => real()();
   IntColumn get gain => integer().nullable()();
+
+  /// What [gain] is: `gain` (a camera's gain number), `iso` (the ISO speed
+  /// of a DSLR or mirrorless frame) or `isoListPosition` (a DSLR frame from
+  /// before Skotiq recorded ISO speeds, which stored the position in the
+  /// camera's ISO list; its ISO is unknown). Null reads as `gain`. See
+  /// `GainKind`.
+  TextColumn get gainKind => text().nullable()();
   IntColumn get offset => integer().nullable()();
   IntColumn get binX => integer().withDefault(const Constant(1))();
   IntColumn get binY => integer().withDefault(const Constant(1))();

@@ -12,9 +12,9 @@ extension _ImagingServiceNamingInternals on ImagingService {
     required int frameNumber,
     required DateTime timestamp,
   }) {
-    // $TEMP, $CAMERA, $TELESCOPE fall back to the same defaults as the Rust
-    // naming.rs when equipment reports no name or temperature, so both
-    // languages produce the same path string for an unnamed rig. A provider
+    // $TEMP, $CAMERA, $TELESCOPE fall back to fixed defaults when equipment
+    // reports no name or temperature, so an unnamed rig still gets one stable
+    // path string. A provider
     // read that fails is a different thing: only a disposed container is
     // tolerated (the substitution degrades and says so in the log); any other
     // failure propagates rather than silently stamping 'Camera'/'Telescope'

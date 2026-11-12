@@ -55,6 +55,7 @@ extension _ImagingServicePersistence on ImagingService {
     final sessionId = sessionState.dbSessionId;
 
     final cameraState = _ref.read(cameraStateProvider);
+    final sensitivity = _ref.read(cameraSensitivityProvider);
     final mountState = _ref.read(mountStateProvider);
     final focuserState = _ref.read(focuserStateProvider);
     final rotatorState = _ref.read(rotatorStateProvider);
@@ -101,7 +102,10 @@ extension _ImagingServicePersistence on ImagingService {
       frameType: drift.Value(exposureSettings.frameType.name),
       exposureDuration: drift.Value(exposureSettings.exposureTime),
       gain: drift.Value(exposureSettings.gain),
-      offset: drift.Value(exposureSettings.offset),
+      gainKind: drift.Value(sensitivity.gainKind.recordName),
+      // A camera without an offset control (a DSLR) records none, as its
+      // file's header does.
+      offset: drift.Value(sensitivity.hasOffset ? exposureSettings.offset : null),
       binX: drift.Value(exposureSettings.binningX),
       binY: drift.Value(exposureSettings.binningY),
       filter: drift.Value(exposureSettings.filter),

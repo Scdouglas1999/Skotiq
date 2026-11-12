@@ -8274,6 +8274,7 @@ impl SseDecode for crate::device_capabilities::types::CameraCapabilities {
         let mut var_canSetGain = <bool>::sse_decode(deserializer);
         let mut var_gainMin = <Option<i32>>::sse_decode(deserializer);
         let mut var_gainMax = <Option<i32>>::sse_decode(deserializer);
+        let mut var_isoSpeeds = <Vec<i32>>::sse_decode(deserializer);
         let mut var_canSetOffset = <bool>::sse_decode(deserializer);
         let mut var_offsetMin = <Option<i32>>::sse_decode(deserializer);
         let mut var_offsetMax = <Option<i32>>::sse_decode(deserializer);
@@ -8310,6 +8311,7 @@ impl SseDecode for crate::device_capabilities::types::CameraCapabilities {
             can_set_gain: var_canSetGain,
             gain_min: var_gainMin,
             gain_max: var_gainMax,
+            iso_speeds: var_isoSpeeds,
             can_set_offset: var_canSetOffset,
             offset_min: var_offsetMin,
             offset_max: var_offsetMax,
@@ -9045,12 +9047,14 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
             24 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_gain = <i32>::sse_decode(deserializer);
+                let mut var_gainIsIso = <bool>::sse_decode(deserializer);
                 let mut var_offset = <i32>::sse_decode(deserializer);
                 let mut var_binX = <i32>::sse_decode(deserializer);
                 let mut var_binY = <i32>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                     device_id: var_deviceId,
                     gain: var_gain,
+                    gain_is_iso: var_gainIsIso,
                     offset: var_offset,
                     bin_x: var_binX,
                     bin_y: var_binY,
@@ -9539,6 +9543,7 @@ impl SseDecode for crate::event::sequencer::FrameCaptureMetadata {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_gain = <Option<i32>>::sse_decode(deserializer);
+        let mut var_gainIsIso = <bool>::sse_decode(deserializer);
         let mut var_offset = <Option<i32>>::sse_decode(deserializer);
         let mut var_sensorTempC = <Option<f64>>::sse_decode(deserializer);
         let mut var_coolerPowerPercent = <Option<f64>>::sse_decode(deserializer);
@@ -9557,6 +9562,7 @@ impl SseDecode for crate::event::sequencer::FrameCaptureMetadata {
         let mut var_targetId = <Option<String>>::sse_decode(deserializer);
         return crate::event::sequencer::FrameCaptureMetadata {
             gain: var_gain,
+            gain_is_iso: var_gainIsIso,
             offset: var_offset,
             sensor_temp_c: var_sensorTempC,
             cooler_power_percent: var_coolerPowerPercent,
@@ -13456,6 +13462,7 @@ impl flutter_rust_bridge::IntoDart for crate::device_capabilities::types::Camera
             self.can_set_gain.into_into_dart().into_dart(),
             self.gain_min.into_into_dart().into_dart(),
             self.gain_max.into_into_dart().into_dart(),
+            self.iso_speeds.into_into_dart().into_dart(),
             self.can_set_offset.into_into_dart().into_dart(),
             self.offset_min.into_into_dart().into_dart(),
             self.offset_max.into_into_dart().into_dart(),
@@ -14204,6 +14211,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
             crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                 device_id,
                 gain,
+                gain_is_iso,
                 offset,
                 bin_x,
                 bin_y,
@@ -14211,6 +14219,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 24.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 gain.into_into_dart().into_dart(),
+                gain_is_iso.into_into_dart().into_dart(),
                 offset.into_into_dart().into_dart(),
                 bin_x.into_into_dart().into_dart(),
                 bin_y.into_into_dart().into_dart(),
@@ -14715,6 +14724,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::FrameCaptureMeta
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.gain.into_into_dart().into_dart(),
+            self.gain_is_iso.into_into_dart().into_dart(),
             self.offset.into_into_dart().into_dart(),
             self.sensor_temp_c.into_into_dart().into_dart(),
             self.cooler_power_percent.into_into_dart().into_dart(),
@@ -17807,6 +17817,7 @@ impl SseEncode for crate::device_capabilities::types::CameraCapabilities {
         <bool>::sse_encode(self.can_set_gain, serializer);
         <Option<i32>>::sse_encode(self.gain_min, serializer);
         <Option<i32>>::sse_encode(self.gain_max, serializer);
+        <Vec<i32>>::sse_encode(self.iso_speeds, serializer);
         <bool>::sse_encode(self.can_set_offset, serializer);
         <Option<i32>>::sse_encode(self.offset_min, serializer);
         <Option<i32>>::sse_encode(self.offset_max, serializer);
@@ -18403,6 +18414,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
             crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                 device_id,
                 gain,
+                gain_is_iso,
                 offset,
                 bin_x,
                 bin_y,
@@ -18410,6 +18422,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 <i32>::sse_encode(24, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(gain, serializer);
+                <bool>::sse_encode(gain_is_iso, serializer);
                 <i32>::sse_encode(offset, serializer);
                 <i32>::sse_encode(bin_x, serializer);
                 <i32>::sse_encode(bin_y, serializer);
@@ -18780,6 +18793,7 @@ impl SseEncode for crate::event::sequencer::FrameCaptureMetadata {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Option<i32>>::sse_encode(self.gain, serializer);
+        <bool>::sse_encode(self.gain_is_iso, serializer);
         <Option<i32>>::sse_encode(self.offset, serializer);
         <Option<f64>>::sse_encode(self.sensor_temp_c, serializer);
         <Option<f64>>::sse_encode(self.cooler_power_percent, serializer);
@@ -22271,6 +22285,7 @@ mod io {
                 can_set_gain: self.can_set_gain.cst_decode(),
                 gain_min: self.gain_min.cst_decode(),
                 gain_max: self.gain_max.cst_decode(),
+                iso_speeds: self.iso_speeds.cst_decode(),
                 can_set_offset: self.can_set_offset.cst_decode(),
                 offset_min: self.offset_min.cst_decode(),
                 offset_max: self.offset_max.cst_decode(),
@@ -22754,6 +22769,7 @@ mod io {
                     crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                         device_id: ans.device_id.cst_decode(),
                         gain: ans.gain.cst_decode(),
+                        gain_is_iso: ans.gain_is_iso.cst_decode(),
                         offset: ans.offset.cst_decode(),
                         bin_x: ans.bin_x.cst_decode(),
                         bin_y: ans.bin_y.cst_decode(),
@@ -23054,6 +23070,7 @@ mod io {
         fn cst_decode(self) -> crate::event::sequencer::FrameCaptureMetadata {
             crate::event::sequencer::FrameCaptureMetadata {
                 gain: self.gain.cst_decode(),
+                gain_is_iso: self.gain_is_iso.cst_decode(),
                 offset: self.offset.cst_decode(),
                 sensor_temp_c: self.sensor_temp_c.cst_decode(),
                 cooler_power_percent: self.cooler_power_percent.cst_decode(),
@@ -25486,6 +25503,7 @@ mod io {
                 can_set_gain: Default::default(),
                 gain_min: core::ptr::null_mut(),
                 gain_max: core::ptr::null_mut(),
+                iso_speeds: core::ptr::null_mut(),
                 can_set_offset: Default::default(),
                 offset_min: core::ptr::null_mut(),
                 offset_max: core::ptr::null_mut(),
@@ -26000,6 +26018,7 @@ mod io {
         fn new_with_null_ptr() -> Self {
             Self {
                 gain: core::ptr::null_mut(),
+                gain_is_iso: Default::default(),
                 offset: core::ptr::null_mut(),
                 sensor_temp_c: core::ptr::null_mut(),
                 cooler_power_percent: core::ptr::null_mut(),
@@ -31071,6 +31090,7 @@ mod io {
         can_set_gain: bool,
         gain_min: *mut i32,
         gain_max: *mut i32,
+        iso_speeds: *mut wire_cst_list_prim_i_32_strict,
         can_set_offset: bool,
         offset_min: *mut i32,
         offset_max: *mut i32,
@@ -31527,6 +31547,7 @@ mod io {
     pub struct wire_cst_EquipmentEvent_CameraSettingsChanged {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         gain: i32,
+        gain_is_iso: bool,
         offset: i32,
         bin_x: i32,
         bin_y: i32,
@@ -31809,6 +31830,7 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_frame_capture_metadata {
         gain: *mut i32,
+        gain_is_iso: bool,
         offset: *mut i32,
         sensor_temp_c: *mut f64,
         cooler_power_percent: *mut f64,

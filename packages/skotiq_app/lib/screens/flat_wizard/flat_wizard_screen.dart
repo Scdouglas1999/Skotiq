@@ -12,6 +12,7 @@ import 'widgets/flat_build_master_step.dart';
 import 'widgets/flat_wizard_split_view.dart';
 import 'widgets/flat_preview_panel.dart';
 import 'widgets/save_path_dialog.dart';
+import '../../widgets/sensitivity_field.dart';
 
 part 'flat_wizard_screen/capture_mode_controls.dart';
 part 'flat_wizard_screen/filter_controls.dart';

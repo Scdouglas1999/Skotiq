@@ -14,11 +14,14 @@
 //!
 //! 1. **Bulb mode**: For exposures > 30s, the camera must be set to Bulb mode.
 //!    The driver holds the shutter open via `gp_camera_trigger_capture` + timed release.
-//! 2. **ISO mapping**: ISO values are mapped to/from the gain parameter.
-//!    ISO 100 = gain 0, ISO 200 = gain 1, etc. (index into available ISO list).
-//! 3. **Image download**: After capture, the image is downloaded from camera storage
+//! 2. **ISO as gain**: the gain the driver takes and reports is the ISO number
+//!    itself; a request between the body's speeds goes to the nearest one, and
+//!    Auto ISO is never offered.
+//! 3. **Long exposure noise reduction** is switched off at connect where the
+//!    body shows the setting.
+//! 4. **Image download**: After capture, the image is downloaded from camera storage
 //!    as a RAW file and decoded to 16-bit pixel data via the raw pixel extraction path.
-//! 4. **Live view**: Some cameras support live view preview via `gp_camera_capture_preview`.
+//! 5. **Live view**: Some cameras support live view preview via `gp_camera_capture_preview`.
 //!
 //! ## Library Requirements
 //!
@@ -43,6 +46,7 @@ mod camera_ops;
 mod discovery;
 mod ffi;
 mod sdk;
+mod settings;
 #[cfg(test)]
 mod tests;
 mod utils;
@@ -53,4 +57,5 @@ use ffi::*;
 // libgphoto2's file handle; the device layer's `CameraFile` is named by path.
 use ffi::CameraFile;
 use sdk::*;
+use settings::*;
 pub use utils::*;

@@ -144,6 +144,25 @@ pub trait CameraDriver: DeviceDriver {
     /// If the camera does not support gain adjustment, returns Err(NotSupported).
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError>;
 
+    /// The ISO speeds a DSLR or mirrorless body offers, lowest first: the
+    /// camera's own list including the extended speeds it offers, without
+    /// Auto ISO. Empty for a camera whose sensitivity is a gain number.
+    ///
+    /// A camera that lists ISO speeds takes and reports its gain as the ISO
+    /// number itself (ASCOM's "gain value" mode, as the owner's FujiCOM driver
+    /// settled on), so `GAIN` means ISO for every DSLR frame whatever the
+    /// body's list, and [`Self::get_gain_range`] is the lowest and highest
+    /// speed.
+    async fn get_iso_speeds(&self) -> Result<Vec<i32>, DriverError> {
+        Ok(Vec::new())
+    }
+
+    /// What the driver found and did about the body's long exposure noise
+    /// reduction when it connected.
+    fn long_exposure_noise_reduction(&self) -> LongExposureNoiseReduction {
+        LongExposureNoiseReduction::NotApplicable
+    }
+
     /// Get the valid range for offset/black level setting.
     ///
     /// Returns (min_offset, max_offset) tuple.

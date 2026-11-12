@@ -480,7 +480,8 @@ extension _SmartNightSequenceEmitter on SmartNightService {
             id: SmartNightService._uuid.v4(),
             name:
                 'Darks — ${req.durationSecs.toStringAsFixed(0)}s '
-                '@ G${req.gain} ($tempLabel, bin ${req.binX}x${req.binY})',
+                '@ ${context.sensitivity.describe(req.gain)} '
+                '($tempLabel, bin ${req.binX}x${req.binY})',
             durationSecs: req.durationSecs,
             count: framesPerCombo,
             frameType: FrameType.dark,

@@ -47,6 +47,27 @@ const _onceLazyTables = {
   'conversational_builds',
 };
 
+/// Columns schema steps after the base build added, by table. The base
+/// comparisons leave them out; each step's own migration test covers it.
+const _columnsAddedAfterBase = {
+  'captured_images': {'gain_kind'},
+};
+
+/// [tables] (a [dumpSchema] `tables` map) without [_columnsAddedAfterBase].
+Map<dynamic, dynamic> _asOfBase(Map<dynamic, dynamic> tables) => {
+  for (final MapEntry(:key, :value) in tables.entries)
+    key: _columnsAddedAfterBase[key] == null
+        ? value
+        : {
+            ...(value as Map),
+            'columns': [
+              for (final column in (value['columns'] as List))
+                if (!_columnsAddedAfterBase[key]!.contains(column['name']))
+                  column,
+            ],
+          },
+};
+
 /// What schema 67 changed since the base build: a calibration library's gain
 /// and offset may be empty (a camera without those controls), so the two
 /// tables are rebuilt with the columns nullable and without a default.
@@ -134,20 +155,28 @@ void main() {
       _withRaw(file, (db) {
         expect(db.select('PRAGMA integrity_check').first.values, ['ok']);
         expect(db.select('PRAGMA foreign_key_check'), isEmpty);
-        expect(db.select('PRAGMA user_version').first.values, [67]);
+        expect(db.select('PRAGMA user_version').first.values, [68]);
       });
       // Same tables, same indexes, same SQL text: nothing was rebuilt,
       // altered or added but the two tables schema 67 rebuilt, which keep
-      // their structure apart from the nullable columns.
+      // their structure apart from the nullable columns, and the tables later
+      // steps add columns to.
+      bool kept(String key) =>
+          !_columnsAddedAfterBase.keys.contains(key.split(':').last);
+      final masterAfter =
+          _withRaw(file, (db) => _outsideV67(dumpMasterSql(db), db));
       expect(
-        _withRaw(file, (db) => _outsideV67(dumpMasterSql(db), db)),
-        masterBefore,
+        {for (final e in masterAfter.entries) if (kept(e.key)) e.key: e.value},
+        {for (final e in masterBefore.entries) if (kept(e.key)) e.key: e.value},
       );
       final tablesAfter = jsonDecode(
-        jsonEncode(_withRaw(file, dumpSchema)['tables']),
+        jsonEncode(_asOfBase(_withRaw(file, dumpSchema)['tables']! as Map)),
       ) as Map;
       final expected = _withV67(tablesBefore);
-      for (final table in _v67NullableColumns.keys) {
+      for (final table in [
+        ..._v67NullableColumns.keys,
+        ..._columnsAddedAfterBase.keys,
+      ]) {
         expect(tablesAfter[table], expected[table], reason: table);
       }
 
@@ -290,7 +319,9 @@ void main() {
 
         await _openAndClose(file);
 
-        final shapeAfter = _withRaw(file, dumpSchema)['tables']! as Map;
+        final shapeAfter = _asOfBase(
+          _withRaw(file, dumpSchema)['tables']! as Map,
+        );
         expect(shapeAfter.keys.toSet(), shapeBefore.keys.toSet());
         for (final table in [..._onceLazyTables, 'captured_images']) {
           expect(shapeAfter[table], shapeBefore[table], reason: table);
@@ -318,7 +349,7 @@ void main() {
     await _openAndClose(file);
 
     _withRaw(file, (db) {
-      expect(db.select('PRAGMA user_version').first.values, [67]);
+      expect(db.select('PRAGMA user_version').first.values, [68]);
       expect(db.select('SELECT COUNT(*) AS n FROM sky_tiles').first['n'], 2);
       expect(
         db.select(
@@ -343,7 +374,7 @@ void main() {
               )
               as Map<String, dynamic>;
 
-      final freshTables = fresh['tables']! as Map;
+      final freshTables = _asOfBase(fresh['tables']! as Map);
       final baseTables = _withV67(base['tables'] as Map);
       expect(freshTables.keys.toSet(), {
         ...baseTables.keys,

@@ -119,8 +119,6 @@ fn main() {
         .with_range(skotiq_imaging::SampleRange::UNIT);
     line("samples_f32 [0,1] float", best_of(5, || unit.samples_f32()));
     line("detect_stars [0,1] float", best_of(5, || detect_stars(&unit, &cfg)));
-    line("to_rgba mono", best_of(5, || frame.to_rgba().unwrap()));
-    line("to_rgba rgb", best_of(5, || rgb.to_rgba().unwrap()));
     line(
         "measure_frame_shape",
         best_of(5, || measure_frame_shape(&frame)),

@@ -410,7 +410,7 @@ where
     E: Fn(&PolarAlignResult) + Send + Sync,
 {
     // Pre-flight: require an external plate solver.
-    if !skotiq_imaging::is_solver_available() {
+    if !skotiq_platesolve::is_solver_available() {
         return Err(PolarAlignError::SolverUnavailable);
     }
 

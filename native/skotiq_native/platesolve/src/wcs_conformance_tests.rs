@@ -18,8 +18,8 @@
 //! `divergence` and neither implementation is changed — see the fixture README.
 
 use super::{parse_wcs_file_inner, PlateSolveError};
-use crate::fits::header_text_cards;
 use serde_json::Value;
+use skotiq_imaging::header_text_cards;
 use std::path::PathBuf;
 
 fn fixture_root() -> PathBuf {

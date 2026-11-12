@@ -1,10 +1,6 @@
-//! Real Plate Solving Integration
-//!
-//! Provides actual integration with plate solving software:
-//! - ASTAP (Astrometric STAcking Program)
-//! - Local Astrometry.net
-//!
-//! These are real implementations that call external solvers.
+//! The external plate solvers: finding ASTAP and astrometry.net and their
+//! catalogs, running them on a frame, and reading their output into a
+//! [`PlateSolveResult`] referenced at the frame center.
 //!
 //! # `as`-cast policy
 //!
@@ -26,14 +22,15 @@
 //! * `output_dir.parent().unwrap_or_else(|| Path::new("."))` — root-path
 //!   case for the temp/work directory; current-dir is the safe fallback.
 
-mod platesolve_paths;
+mod paths;
 
-pub use platesolve_paths::CatalogInfo;
-use platesolve_paths::{
+pub use paths::CatalogInfo;
+use paths::{
     astap_candidates, astrometry_candidates, catalog_dir_candidates, first_existing,
     identify_catalog, AstapPathInputs, AstrometryPathInputs, CatalogSearchInputs, OsFamily, RealFs,
 };
 
+use skotiq_imaging::PlateSolveResult;
 use std::fs;
 use std::io::Read;
 use std::num::ParseFloatError;
@@ -111,54 +108,6 @@ pub enum PlateSolveError {
     },
     #[error("WCS file `{path}` holds a solution that cannot be referenced at the frame center")]
     WcsNotCentered { path: String },
-}
-
-/// One solve, referenced at the frame center: `ra`/`dec` are the solution's
-/// reference point (`CRVAL`) with the center pixel as its reference pixel, and
-/// the CD matrix and SIP polynomials are those about that pixel. Every solver
-/// output is brought to this form where it is parsed, so centering, the
-/// frame's WCS ([`crate::SipWcs::from_plate_solve`]) and the app read one
-/// solution.
-#[derive(Debug, Clone, Default)]
-pub struct PlateSolveResult {
-    /// RA of the frame center in degrees
-    pub ra: f64,
-    /// Dec of the frame center in degrees
-    pub dec: f64,
-    /// Image scale in arcsec/pixel
-    pub pixel_scale: f64,
-    /// Rotation angle in degrees (East of North)
-    pub rotation: f64,
-    /// Field width in degrees
-    pub field_width: f64,
-    /// Field height in degrees
-    pub field_height: f64,
-    pub success: bool,
-    pub error: Option<String>,
-    /// Time taken to solve in seconds
-    pub solve_time_secs: f64,
-    /// Raw CD matrix (deg/pixel) as read from the WCS — the full anisotropic
-    /// transform. `pixel_scale`/`rotation` above are the isotropic collapse
-    /// kept for backward compatibility. Zero when no WCS was parsed.
-    pub cd1_1: f64,
-    pub cd1_2: f64,
-    pub cd2_1: f64,
-    pub cd2_2: f64,
-    /// SIP forward distortion order (`A_ORDER`/`B_ORDER`). Zero when absent.
-    pub a_order: u32,
-    pub b_order: u32,
-    /// SIP forward coefficients in row-major `(i, j)` order: the slot for term
-    /// `A_i_j` is at index `i * (order + 1) + j` (likewise `B_i_j`). Empty when
-    /// no SIP keywords were present.
-    pub a_coeffs: Vec<f64>,
-    pub b_coeffs: Vec<f64>,
-    /// SIP inverse distortion order (`AP_ORDER`/`BP_ORDER`). Zero when absent.
-    pub ap_order: u32,
-    pub bp_order: u32,
-    /// SIP inverse coefficients, same row-major `(i, j)` layout as the forward
-    /// terms. Empty when the inverse keywords were not present.
-    pub ap_coeffs: Vec<f64>,
-    pub bp_coeffs: Vec<f64>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -283,7 +232,7 @@ pub fn set_solver_preference(
 /// PATH. Returns the first hit. `configured` lets settings override the
 /// search order — when supplied and present, it always wins.
 ///
-/// The candidate list lives in `platesolve_paths::astap_candidates` so the
+/// The candidate list lives in `paths::astap_candidates` so the
 /// per-OS enumeration can be unit-tested without filesystem access.
 pub fn find_astap_with_override(configured: Option<&Path>) -> Option<PathBuf> {
     let local_app_data = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
@@ -416,7 +365,7 @@ fn which_on_path(binary: &str) -> Option<String> {
 ///
 /// Extracted so the rule is a named thing with a test rather than a line
 /// inside [`detect_astap_catalog`] — the repo's habit for exactly this kind of
-/// decision (see `platesolve_paths::astap_candidates`).
+/// decision (see `paths::astap_candidates`).
 ///
 /// `configured_exe` is what the operator set in Settings → Plate Solving;
 /// `discovered_exe` is what the module's own resolver found on this machine.
@@ -444,7 +393,7 @@ fn catalog_search_fallback(
 ///   4. platform-specific install locations (`%LOCALAPPDATA%\astap`, etc.).
 ///
 /// The actual filename → catalog-name mapping lives in
-/// `platesolve_paths::identify_catalog` so it can be exhaustively tested
+/// `paths::identify_catalog` so it can be exhaustively tested
 /// without staging real catalog files.
 pub fn detect_astap_catalog(
     exe_path: Option<&Path>,
@@ -673,7 +622,7 @@ fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
 /// Returns one slot per requested keyword, in the order asked for; every slot
 /// is empty when the header cannot be read.
 fn fits_header_floats(path: &Path, keys: &[&str]) -> Vec<Option<f64>> {
-    match crate::read_frame_header(path) {
+    match skotiq_imaging::read_frame_header(path) {
         Ok(header) => keys.iter().map(|key| header.get_float(key)).collect(),
         Err(_) => vec![None; keys.len()],
     }
@@ -800,10 +749,10 @@ pub(crate) fn build_astap_args(
 /// as a FITS copy: astrometry.net reads only FITS, ASTAP only uncompressed
 /// XISF and no camera raw file. `None` when the frame is FITS (or no frame
 /// the app reads) and is solved as it is.
-fn solver_copy(image_path: &Path) -> Result<Option<crate::FitsCopy>, String> {
-    match crate::frame_format(image_path) {
-        Ok(crate::ImageFormat::Fits) | Err(_) => Ok(None),
-        Ok(_) => crate::FitsCopy::new(image_path, &std::env::temp_dir())
+fn solver_copy(image_path: &Path) -> Result<Option<skotiq_imaging::FitsCopy>, String> {
+    match skotiq_imaging::frame_format(image_path) {
+        Ok(skotiq_imaging::ImageFormat::Fits) | Err(_) => Ok(None),
+        Ok(_) => skotiq_imaging::FitsCopy::new(image_path, &std::env::temp_dir())
             .map(Some)
             .map_err(|e| format!("could not prepare the frame for the solver: {e}")),
     }
@@ -1393,7 +1342,7 @@ fn parse_wcs_file_inner(
 /// The result is the solution at the frame center. ASTAP solves there, and
 /// `solve-field` is asked to ([`build_astrometry_args`]); a `.wcs` whose
 /// `CRPIX` is somewhere else is moved to the center
-/// ([`crate::SipWcs::rereferenced`]) instead of having its `CRVAL` taken for
+/// ([`skotiq_imaging::SipWcs::rereferenced`]) instead of having its `CRVAL` taken for
 /// the center. With no frame size from either source the center is unknown
 /// and the solution stays where the solver referenced it.
 fn parse_wcs_file_with_image_size(
@@ -1428,8 +1377,8 @@ fn parse_wcs_file_with_image_size(
     let mut ap_terms: Vec<(u32, u32, f64)> = Vec::new();
     let mut bp_terms: Vec<(u32, u32, f64)> = Vec::new();
 
-    for card in crate::fits::header_text_cards(&content) {
-        let Some((keyword, value_str)) = crate::fits::card_keyword_and_value(card) else {
+    for card in skotiq_imaging::header_text_cards(&content) {
+        let Some((keyword, value_str)) = skotiq_imaging::card_keyword_and_value(card) else {
             continue;
         };
 
@@ -1518,7 +1467,7 @@ fn parse_wcs_file_with_image_size(
     let b_order = b_order.unwrap_or(0);
     let ap_order = ap_order.unwrap_or(0);
     let bp_order = bp_order.unwrap_or(0);
-    let mut solution = crate::SipWcs {
+    let mut solution = skotiq_imaging::SipWcs {
         crval1: ra,
         crval2: dec,
         crpix1: crpix1.unwrap_or_default(),
@@ -1550,7 +1499,7 @@ fn parse_wcs_file_with_image_size(
                 })?;
         }
     }
-    let crate::SipWcs {
+    let skotiq_imaging::SipWcs {
         crval1: ra,
         crval2: dec,
         cd1_1,
@@ -2195,20 +2144,20 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("sk-solver-copy-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let samples: Vec<u16> = (0..64 * 48).map(|i| (i * 7 % 4096) as u16).collect();
-        let image = crate::ImageData::from_u16(64, 48, 1, &samples);
-        let mut header = crate::FitsHeader::new();
+        let image = skotiq_imaging::ImageData::from_u16(64, 48, 1, &samples);
+        let mut header = skotiq_imaging::FitsHeader::new();
         header.set_string("OBJECT", "M31");
 
         let xisf = dir.join("light.xisf");
-        let options = crate::FrameWriteOptions {
-            xisf: crate::XisfWriteOptions {
-                compression: crate::XisfCompression::from_name("zstd+sh").unwrap(),
+        let options = skotiq_imaging::FrameWriteOptions {
+            xisf: skotiq_imaging::XisfWriteOptions {
+                compression: skotiq_imaging::XisfCompression::from_name("zstd+sh").unwrap(),
                 ..Default::default()
             },
         };
-        crate::write_frame_with(&xisf, &image, &header, &options).unwrap();
+        skotiq_imaging::write_frame_with(&xisf, &image, &header, &options).unwrap();
         let copy = super::solver_copy(&xisf).unwrap().expect("an XISF frame is copied");
-        let (copied, copied_header) = crate::read_fits(copy.path()).unwrap();
+        let (copied, copied_header) = skotiq_imaging::read_fits(copy.path()).unwrap();
         assert_eq!(copied.as_u16().unwrap(), samples);
         assert_eq!(copied_header.get_string("OBJECT"), Some("M31"));
         let copy_path = copy.path().to_path_buf();
@@ -2216,7 +2165,7 @@ mod tests {
         assert!(!copy_path.exists());
 
         let fits = dir.join("light.fits");
-        crate::write_fits(&fits, &image, &header).unwrap();
+        skotiq_imaging::write_fits(&fits, &image, &header).unwrap();
         assert!(super::solver_copy(&fits).unwrap().is_none());
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -2400,7 +2349,7 @@ mod tests {
         assert!(r.rotation.abs() < 1e-6, "rotation {}", r.rotation);
 
         // The reference pixel is the 1-based image centre, not (0.5,0.5).
-        let wcs = crate::wcs_sip::SipWcs::from_plate_solve(&r, 1000, 800).expect("invertible WCS");
+        let wcs = skotiq_imaging::SipWcs::from_plate_solve(&r, 1000, 800).expect("invertible WCS");
         assert!((wcs.crpix1 - 500.5).abs() < 1e-6, "crpix1 {}", wcs.crpix1);
         assert!((wcs.crpix2 - 400.5).abs() < 1e-6, "crpix2 {}", wcs.crpix2);
     }
@@ -2991,7 +2940,7 @@ mod tests {
     /// invisible to auto-detect.
     #[test]
     fn astap_candidates_windows_includes_standard_program_files_path() {
-        use super::platesolve_paths::{astap_candidates, AstapPathInputs, OsFamily};
+        use super::paths::{astap_candidates, AstapPathInputs, OsFamily};
         use std::path::PathBuf;
 
         let candidates = astap_candidates(&AstapPathInputs {
@@ -3610,7 +3559,7 @@ mod tests {
 /// `PlateSolveService` tests. Declared here (not under `tests/`) because the
 /// parsers it pins are private to this module.
 #[cfg(test)]
-#[path = "platesolve_wcs_conformance_tests.rs"]
+#[path = "wcs_conformance_tests.rs"]
 mod wcs_conformance;
 
 /// The `-fov` hint, pinned on the argument vector the ASTAP *process* is given.
@@ -3783,7 +3732,7 @@ mod astap_arg_tests {
 #[cfg(test)]
 mod fits_naxis2_tests {
     use super::fits_naxis2;
-    use crate::{write_fits, FitsHeader, ImageData, PixelType};
+    use skotiq_imaging::{write_fits, FitsHeader, ImageData, PixelType};
 
     #[test]
     fn reads_the_height_without_decoding_pixels() {
@@ -3814,7 +3763,7 @@ mod fits_naxis2_tests {
         header.set_float("XPIXSZ", 3.76);
         write_fits(&path, &image, &header).unwrap();
 
-        let scale = super::super::fits_scale_arcsec_per_px(&path).unwrap();
+        let scale = super::fits_scale_arcsec_per_px(&path).unwrap();
         assert!(
             (scale - 1.292_59).abs() < 1e-4,
             "600 mm at 3.76 um is 1.29\"/px, got {scale}"
@@ -3829,7 +3778,7 @@ mod fits_naxis2_tests {
         let path = dir.join("bare.fits");
         let image = ImageData::new(16, 12, 1, PixelType::U16);
         write_fits(&path, &image, &FitsHeader::new()).unwrap();
-        assert_eq!(super::super::fits_scale_arcsec_per_px(&path), None);
+        assert_eq!(super::fits_scale_arcsec_per_px(&path), None);
     }
 }
 
@@ -3945,25 +3894,28 @@ mod rig_2026_09_14_tests {
                 Some((f64::from(width), f64::from(height))),
             )
             .expect("parse");
-            let wcs = crate::SipWcs::from_plate_solve(&solve, width, height).expect("a WCS");
-            let image = crate::ImageData::new(width, height, 1, crate::PixelType::U16);
+            let wcs =
+                skotiq_imaging::SipWcs::from_plate_solve(&solve, width, height).expect("a WCS");
+            let image =
+                skotiq_imaging::ImageData::new(width, height, 1, skotiq_imaging::PixelType::U16);
             for name in ["frame.fits", "frame.xisf"] {
                 let frame = dir.join(name);
-                crate::write_frame_with(
+                skotiq_imaging::write_frame_with(
                     &frame,
                     &image,
-                    &crate::FitsHeader::new(),
+                    &skotiq_imaging::FitsHeader::new(),
                     &Default::default(),
                 )
                 .unwrap();
-                crate::write_wcs_into_frame(&frame, &wcs).unwrap();
-                let header = crate::read_frame_header(&frame).unwrap();
+                skotiq_imaging::write_wcs_into_frame(&frame, &wcs).unwrap();
+                let header = skotiq_imaging::read_frame_header(&frame).unwrap();
                 assert_eq!(
                     header.get_int("A_ORDER"),
                     (solve.a_order > 0).then_some(i64::from(solve.a_order)),
                     "{name}"
                 );
-                let read = crate::SipWcs::from_header(&header).expect("the frame has a WCS");
+                let read =
+                    skotiq_imaging::SipWcs::from_header(&header).expect("the frame has a WCS");
                 for (x, y, ra, dec) in corners {
                     let (got_ra, got_dec) = read.pixel_to_world(x, y);
                     // Header cards carry 11 significant digits (1e-8° at
@@ -4012,7 +3964,8 @@ mod rig_2026_09_14_tests {
                 Some((f64::from(width), f64::from(height))),
             )
             .unwrap_or_else(|e| panic!("{file}: {e}"));
-            let wcs = crate::SipWcs::from_plate_solve(&solve, width, height).expect("a WCS");
+            let wcs =
+                skotiq_imaging::SipWcs::from_plate_solve(&solve, width, height).expect("a WCS");
             let points = astropy["points"][file].as_array().expect("astropy points");
             assert_eq!(points.len(), 5, "{file}");
             for (n, point) in points.iter().enumerate() {

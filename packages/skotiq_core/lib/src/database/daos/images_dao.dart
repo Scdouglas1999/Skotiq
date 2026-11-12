@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../services/logging_service.dart';
 import '../../services/thumbnail_sidecar_service.dart';
+import '../../models/imaging/gain_kind.dart';
 import '../database.dart';
 import '../tables/captured_images.dart';
 import '../tables/imaging_sessions.dart';
@@ -769,6 +770,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     int? starCount,
     double? eccentricity,
     int? gain,
+    GainKind gainKind = GainKind.gain,
     int? offset,
     int? binX,
     int? binY,
@@ -841,9 +843,9 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
       'runtime_grade, eccentricity, thumbnail_path, is_plate_solved, '
       'created_at, sensor_temp, cooler_power, mount_ra, mount_dec, '
       'mount_altitude, mount_azimuth, pier_side, focuser_position, '
-      'focuser_temp, rotator_angle) '
+      'focuser_temp, rotator_angle, gain_kind) '
       'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
-      '?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      '?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       variables: [
         Variable<String>(filePath),
         Variable<String>(fileName),
@@ -880,6 +882,7 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
         intOrNull(focuserPosition),
         realOrNull(focuserTemp),
         realOrNull(rotatorAngle),
+        Variable<String>(gainKind.recordName),
       ],
       updates: {capturedImages},
     );

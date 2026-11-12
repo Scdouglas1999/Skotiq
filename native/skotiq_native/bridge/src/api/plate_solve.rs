@@ -681,7 +681,7 @@ impl From<&PlateSolveResult> for skotiq_imaging::PlateSolveResult {
 /// Get the path to the installed plate solver
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_get_plate_solver_path() -> Option<String> {
-    skotiq_imaging::get_solver_path().map(|p| p.to_string_lossy().to_string())
+    skotiq_platesolve::get_solver_path().map(|p| p.to_string_lossy().to_string())
 }
 
 /// Apply the persisted plate-solver preference to the imaging crate's
@@ -705,7 +705,7 @@ fn apply_saved_preference_to_imaging() {
             return;
         }
     };
-    skotiq_imaging::set_solver_preference(
+    skotiq_platesolve::set_solver_preference(
         if pref.astap_path.is_empty() {
             None
         } else {
@@ -743,7 +743,7 @@ pub(crate) async fn resolve_solve_scale(
     if let Some(scale) = explicit.filter(|s| s.is_finite() && *s > 0.0) {
         return Some(scale);
     }
-    if let Some(scale) = skotiq_imaging::fits_scale_arcsec_per_px(path) {
+    if let Some(scale) = skotiq_platesolve::fits_scale_arcsec_per_px(path) {
         tracing::debug!(
             "Plate solve: field scale {:.2}\"/px read from the frame's own header",
             scale
@@ -824,7 +824,12 @@ async fn plate_solve_blind_inner(
     // runner, which kills and reaps the child on expiry.
     let owned_path = path.to_path_buf();
     let result = tokio::task::spawn_blocking(move || {
-        skotiq_imaging::blind_solve_with_timeout(&owned_path, timeout_secs, hint_scale, downsample)
+        skotiq_platesolve::blind_solve_with_timeout(
+            &owned_path,
+            timeout_secs,
+            hint_scale,
+            downsample,
+        )
     })
     .await
     .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
@@ -1179,7 +1184,7 @@ async fn plate_solve_near_inner(
 
     let owned_path = path.to_path_buf();
     let result = tokio::task::spawn_blocking(move || {
-        skotiq_imaging::solve_near_with_timeout(
+        skotiq_platesolve::solve_near_with_timeout(
             &owned_path,
             hint_ra,
             hint_dec,
@@ -1296,15 +1301,15 @@ pub fn api_platesolve_detect() -> Result<PlateSolverDetection, SkotiqError> {
     // Probing involves filesystem reads which are fast but blocking. The
     // function is sync — callers can wrap it if they need it off the UI
     // isolate.
-    skotiq_imaging::invalidate_solver_availability_cache();
+    skotiq_platesolve::invalidate_solver_availability_cache();
 
     let astap_path =
-        skotiq_imaging::find_astap_with_override(configured_astap.as_deref().map(Path::new));
-    let astrometry_path = skotiq_imaging::find_astrometry_with_override(
+        skotiq_platesolve::find_astap_with_override(configured_astap.as_deref().map(Path::new));
+    let astrometry_path = skotiq_platesolve::find_astrometry_with_override(
         configured_astrometry.as_deref().map(Path::new),
     );
 
-    let catalog = skotiq_imaging::detect_astap_catalog(
+    let catalog = skotiq_platesolve::detect_astap_catalog(
         astap_path.as_deref(),
         configured_catalog.as_deref().map(Path::new),
     );
@@ -1333,7 +1338,7 @@ pub fn api_platesolve_detect() -> Result<PlateSolverDetection, SkotiqError> {
 pub fn api_platesolve_verify(executable_path: String) -> Result<PlateSolverInfo, SkotiqError> {
     use std::path::Path;
     let path = Path::new(&executable_path);
-    match skotiq_imaging::verify_solver(path) {
+    match skotiq_platesolve::verify_solver(path) {
         Ok(info) => Ok(PlateSolverInfo {
             path: info.path.to_string_lossy().to_string(),
             flavour: info.flavour,
@@ -1362,7 +1367,7 @@ pub fn api_platesolve_set_config(config: PlateSolverConfigPayload) -> Result<(),
     // Push the new paths into the imaging crate before saving, so the
     // preference is live immediately even if the subsequent storage write
     // fails (the user just configured the paths; honour them in this session).
-    skotiq_imaging::set_solver_preference(
+    skotiq_platesolve::set_solver_preference(
         if config.astap_path.is_empty() {
             None
         } else {
@@ -1383,7 +1388,7 @@ pub fn api_platesolve_set_config(config: PlateSolverConfigPayload) -> Result<(),
 
     let pref = config.into_pref();
     crate::state::save_platesolver_preference(&pref).map_err(SkotiqError::OperationFailed)?;
-    skotiq_imaging::invalidate_solver_availability_cache();
+    skotiq_platesolve::invalidate_solver_availability_cache();
     Ok(())
 }
 

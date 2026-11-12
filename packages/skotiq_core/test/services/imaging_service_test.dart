@@ -3230,8 +3230,7 @@ void main() {
       expect(subs[r'$DATE'], '2026-05-23');
       expect(subs[r'$TIME'], '00-00-00');
       expect(subs[r'$DATETIME'], '2026-05-23_00-00-00');
-      // $SESSION is documented as compact yyyymmdd in the Rust naming.rs;
-      // we mirror that so cross-language users see consistent strings.
+      // $SESSION is the compact yyyymmdd date.
       expect(subs[r'$SESSION'], '20260523');
     });
 

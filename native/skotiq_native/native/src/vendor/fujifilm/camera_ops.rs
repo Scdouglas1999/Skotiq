@@ -565,6 +565,18 @@ impl CameraDriver for FujifilmCamera {
         }
     }
 
+    async fn get_iso_speeds(&self) -> Result<Vec<i32>, DriverError> {
+        Ok(self.supported_isos.clone())
+    }
+
+    fn long_exposure_noise_reduction(&self) -> LongExposureNoiseReduction {
+        if self.long_exposure_nr {
+            LongExposureNoiseReduction::StaysOn
+        } else {
+            LongExposureNoiseReduction::Off
+        }
+    }
+
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         Err(DriverError::NotSupported) // Fujifilm cameras don't support offset
     }

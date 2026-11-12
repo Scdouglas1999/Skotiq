@@ -166,25 +166,6 @@ pub fn debayer_u16(
     }
 }
 
-/// Debayer a raw u16 image directly to interleaved RGB16.
-///
-/// Convenience for callers that only need the interleaved samples and already
-/// know the output geometry (e.g. full-resolution Bilinear/VNG). For algorithms
-/// that change the output dimensions — notably
-/// [`SuperPixel`](DebayerAlgorithm::SuperPixel), which halves resolution — use
-/// [`debayer_u16`] and read the resulting [`RgbImage::width`] /
-/// [`RgbImage::height`] so the buffer length and the declared dimensions stay
-/// consistent.
-pub fn debayer_to_rgb16(
-    raw_data: &[u16],
-    width: u32,
-    height: u32,
-    pattern: BayerPattern,
-    algorithm: DebayerAlgorithm,
-) -> Vec<u16> {
-    debayer_u16(raw_data, width, height, pattern, algorithm).to_rgb16()
-}
-
 fn debayer_bilinear(pixels: &[u16], width: u32, height: u32, pattern: BayerPattern) -> RgbImage {
     let w = width as usize;
     let h = height as usize;
@@ -1008,13 +989,13 @@ mod tests {
     #[test]
     fn bilinear_green_interpolation_uses_correct_neighbors_for_rggb() {
         let pixels = patterned_raw(BayerPattern::RGGB, 4, 4);
-        let rgb = debayer_to_rgb16(
+        let rgb = debayer_u16(
             &pixels,
             4,
             4,
             BayerPattern::RGGB,
             DebayerAlgorithm::Bilinear,
-        );
+        ).to_rgb16();
         let idx = (4 + 2) * 3;
         assert_eq!(rgb[idx], 1000);
         assert_eq!(rgb[idx + 1], 500);
@@ -1024,13 +1005,13 @@ mod tests {
     #[test]
     fn bilinear_green_interpolation_uses_correct_neighbors_for_bggr() {
         let pixels = patterned_raw(BayerPattern::BGGR, 4, 4);
-        let rgb = debayer_to_rgb16(
+        let rgb = debayer_u16(
             &pixels,
             4,
             4,
             BayerPattern::BGGR,
             DebayerAlgorithm::Bilinear,
-        );
+        ).to_rgb16();
         let idx = ((2 * 4) + 1) * 3;
         assert_eq!(rgb[idx], 1000);
         assert_eq!(rgb[idx + 1], 500);
@@ -1047,7 +1028,7 @@ mod tests {
         // With uniform per-colour values (R=1000, G=500, B=100) the recovered
         // channels must equal the true colours regardless of stencil size.
         let pixels = patterned_raw(BayerPattern::RGGB, 4, 4);
-        let rgb = debayer_to_rgb16(&pixels, 4, 4, BayerPattern::RGGB, DebayerAlgorithm::VNG);
+        let rgb = debayer_u16(&pixels, 4, 4, BayerPattern::RGGB, DebayerAlgorithm::VNG).to_rgb16();
         // Green site at (x=0, y=1): a blue-row green on the border.
         let (x, y) = (0usize, 1usize);
         let idx = (y * 4 + x) * 3;
@@ -1131,13 +1112,13 @@ mod tests {
 
         // Finally, run VNG end-to-end and ensure it produces a non-trivial
         // result (no panics, output preserves the bright/dark contrast).
-        let rgb = debayer_to_rgb16(
+        let rgb = debayer_u16(
             &pixels,
             w as u32,
             h as u32,
             BayerPattern::RGGB,
             DebayerAlgorithm::VNG,
-        );
+        ).to_rgb16();
         let dark_idx = (4 * w + 2) * 3;
         let bright_idx = (4 * w + 7) * 3;
         let dark_sum: u32 =

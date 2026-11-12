@@ -1,0 +1,16 @@
+[package]
+name = "skotiq_platesolve"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+authors.workspace = true
+publish.workspace = true
+description = "Runs the external plate solvers (ASTAP, astrometry.net) and reads their solutions"
+
+[dependencies]
+skotiq_imaging = { path = "../imaging" }
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
