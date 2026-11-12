@@ -1,0 +1,178 @@
+> heartbeat
+  GetTracking
+< ok true
+> site_capabilities
+< ok MountSiteCapabilities { can_read_site: true, can_write_site: true, can_read_time: true, can_write_time: true }
+> get_site
+  GetSite
+< ok MountSite { latitude_deg: 40.0, longitude_deg: -75.0, elevation_m: Some(100.0) }
+> get_time
+  GetUtcDate
+< ok MountTimeInfo { utc_unix_seconds: 1794452400, utc_offset_hours: 0.0 }
+> status
+  GetCoordinates
+  GetTracking
+  IsSlewing
+  IsParked
+  GetAltAz
+  GetSideOfPier
+  GetSiderealTime
+  AtHome
+  GetCapabilities
+  CanPark
+  GetTrackingRate
+< ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=5.5 dec=22.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Sidereal) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> coordinates
+  GetCoordinates
+< ok (5.5, 22.0)
+> can_park
+  CanPark
+< ok true
+> can_set_park
+  GetCapabilities
+  CanPark
+< ok true
+> can_find_home
+  GetCapabilities
+  CanPark
+< ok true
+> unpark
+  Unpark
+  IsParked
+< ok ()
+> set_tracking off
+  SetTracking false
+< ok ()
+> tracking_rate
+  GetTrackingRate
+< ok 0
+> set_tracking_rate lunar
+  SetTrackingRate 1
+< ok ()
+> slew 6.25h +35
+  GetCoordinates
+  GetTracking
+  IsSlewing
+  IsParked
+  GetAltAz
+  GetSideOfPier
+  GetSiderealTime
+  AtHome
+  GetCapabilities
+  CanPark
+  GetTrackingRate
+  SetTracking true
+  SlewToCoordinates 6.3 35.0
+< ok ()
+> status
+  GetCoordinates
+  GetTracking
+  IsSlewing
+  IsParked
+  GetAltAz
+  GetSideOfPier
+  GetSiderealTime
+  AtHome
+  GetCapabilities
+  CanPark
+  GetTrackingRate
+< ok "tracking=true slewing=false parked=false at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Lunar) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> abort
+  AbortSlew
+< ok ()
+> sync 6.26h +35.05
+  GetCoordinates
+  GetTracking
+  IsSlewing
+  IsParked
+  GetAltAz
+  GetSideOfPier
+  GetSiderealTime
+  AtHome
+  GetCapabilities
+  CanPark
+  GetTrackingRate
+  SyncToCoordinates 6.3 35.0
+< ok ()
+> pulse north 60 ms
+  PulseGuide North 60
+  IsPulseGuiding
+< ok ()
+> pulse west 60 ms
+  PulseGuide West 60
+  IsPulseGuiding
+< ok ()
+> move_axis 0 at 1
+  MoveAxis 0 1
+< ok ()
+> move_axis 0 at 0
+  MoveAxis 0 0
+< ok ()
+> move_axis 1 at -1
+  MoveAxis 1 -1
+< ok ()
+> stop
+  Stop
+< ok ()
+> slew_alt_az 50 120
+  SlewToAltAz 50.0 120.0
+< ok ()
+> find_home
+  GetCapabilities
+  CanPark
+  GetCoordinates
+  GetTracking
+  IsSlewing
+  IsParked
+  GetAltAz
+  GetSideOfPier
+  GetSiderealTime
+  AtHome
+  GetCapabilities
+  CanPark
+  GetTrackingRate
+  FindHome
+< ok ()
+> set_site
+  SetSite 41.5000 -74.2500 Some(120.0)
+< ok ()
+> set_time
+  SetUtcDate 46332.888889
+< ok ()
+> set_park
+  GetCapabilities
+  CanPark
+  GetCoordinates
+  GetTracking
+  IsSlewing
+  IsParked
+  GetAltAz
+  GetSideOfPier
+  GetSiderealTime
+  AtHome
+  GetCapabilities
+  CanPark
+  GetTrackingRate
+  SetPark
+< ok ()
+> park
+  Park
+< ok ()
+> status
+  GetCoordinates
+  GetTracking
+  IsSlewing
+  IsParked
+  GetAltAz
+  GetSideOfPier
+  GetSiderealTime
+  AtHome
+  GetCapabilities
+  CanPark
+  GetTrackingRate
+< ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Lunar) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> disconnect
+  Disconnect
+< ok ()
+> status
+< err ASCOM mount not connected
