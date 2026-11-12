@@ -337,6 +337,12 @@ String? _eventMessage(core.SkotiqEvent event) {
 
 /// Build a title string from the event's category and device type.
 String _eventTitle(core.SkotiqEvent event) {
+  // A system notification names itself ("Database needs repair").
+  if (event.category == core.EventCategory.system &&
+      event.eventType == 'Notification') {
+    final title = event.data['title'];
+    if (title is String && title.trim().isNotEmpty) return title;
+  }
   final deviceType = event.data['device_type'] as String?;
   final categoryLabel = switch (event.category) {
     core.EventCategory.equipment => 'Device',

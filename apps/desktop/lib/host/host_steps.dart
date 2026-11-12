@@ -240,6 +240,14 @@ final List<HostStartupStep> hostStartupSteps = [
     },
   ),
   HostStartupStep(
+    name: 'database full check',
+    phase: _services,
+    // After the server step so a daemon's linked clients hear the notice.
+    needs: ['database', 'interrupted-work recovery', 'remote access server'],
+    waitedFor: {},
+    run: _checkDatabaseInBackground,
+  ),
+  HostStartupStep(
     name: 'device discovery at launch',
     phase: _services,
     only: _gui,
@@ -261,6 +269,83 @@ final List<HostStartupStep> hostStartupSteps = [
 /// process's own work. A linked client owns no runs and does not call it.
 Future<void> _recoverInterruptedWork(HostStartup host) =>
     recoverFromPreviousProcessExit(host.container.read(databaseProvider));
+
+/// How long after start-up the full database check waits, so it does not
+/// compete with the reads every screen makes as the app comes up.
+const Duration _databaseCheckDelay = Duration(seconds: 5);
+
+/// The full integrity check the start-up `quick_check` leaves out, run on a
+/// copy of the database a few seconds after start, and the one notice it
+/// gives. See [DatabaseHealthCheck].
+Future<void> _checkDatabaseInBackground(HostStartup host) async {
+  var stopping = false;
+  Future<void>? checking;
+  // Shutdown waits for a check under way, so a REINDEX is never cut off by
+  // the database closing underneath it.
+  host.onStop('database full check', () async {
+    stopping = true;
+    await checking;
+  });
+  await Future<void>.delayed(_databaseCheckDelay);
+  if (stopping) return;
+
+  final check = DatabaseHealthCheck(host.container.read(databaseProvider));
+  final run = check.run();
+  checking = run.then((_) {}, onError: (_) {});
+  final outcome = await run;
+
+  final source = host.logSource;
+  switch (outcome) {
+    case DatabaseHealthy():
+      host.logger.info('Database full check: ok', source: source);
+    case DatabaseNotChecked(:final reason):
+      host.logger.warning(
+        'Database full check did not run: $reason',
+        source: source,
+      );
+    case DatabaseIndexRepaired(:final findings):
+      host.logger.warning(
+        'Database full check found indexes out of step with their tables; '
+        'rebuilt them with REINDEX and the check now passes',
+        source: source,
+        fields: {
+          'indexes': findings.indexes.join(', '),
+          'found': findings.messages.join('; '),
+        },
+      );
+    case DatabaseRepairAtNextStart(:final findings, :final reindexFailure):
+      host.logger.error(
+        'Database full check found damage it cannot repair while running; '
+        'the next start runs the full check and the start-up recovery',
+        source: source,
+        fields: {
+          'found': findings.messages.join('; '),
+          if (reindexFailure != null) 'reindex': reindexFailure,
+        },
+      );
+  }
+
+  final notice = outcome.notice;
+  if (notice == null) return;
+  host.container.read(hostMutationEventHubProvider).announce(notice.toEvent());
+  if (host.kind == HostKind.gui) {
+    final toasts = host.container.read(uiNotificationProvider.notifier);
+    switch (notice.severity) {
+      case EventSeverity.info:
+        toasts.showSuccess(notice.message, title: notice.title);
+      case EventSeverity.warning:
+      case EventSeverity.error:
+      case EventSeverity.critical:
+        // It asks for something before the next restart, so it stays up
+        // long enough to be read in full.
+        toasts.showWarning(
+          notice.message,
+          title: notice.title,
+          duration: const Duration(seconds: 30),
+        );
+    }
+  }
+}
 
 Future<void> _startDaemonServer(HostStartup host) async {
   final config = host.daemonConfig!;
