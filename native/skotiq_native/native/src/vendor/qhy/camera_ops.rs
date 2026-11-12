@@ -105,7 +105,7 @@ impl CameraDriver for QhyCamera {
         if !self.connected {
             return Err(DriverError::NotConnected);
         }
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let (state, exposure_remaining) = match &self.exposure {
             Some(exposure) if exposure.remaining_secs() > 0.0 => {
                 (CameraState::Exposing, Some(exposure.remaining_secs()))
@@ -150,7 +150,7 @@ impl CameraDriver for QhyCamera {
         }
         readout_window(self.sensor_area, bin, params.subframe.as_ref())?;
 
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let handle = self.connected_handle()?;
         if self.exposure.take().is_some() {
             // A frame that was started and never read nor aborted would make
@@ -232,7 +232,7 @@ impl CameraDriver for QhyCamera {
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         self.connected_handle()?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let handle = self.connected_handle()?;
         // SAFETY: `handle` is open and the SDK lock is held.
         let result = unsafe { (sdk.cancel_qhyccd_exposing_and_readout)(handle) };
@@ -260,7 +260,7 @@ impl CameraDriver for QhyCamera {
                 self.camera_id
             )));
         }
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let handle = self.connected_handle()?;
         // SAFETY: `handle` is open and the SDK lock is held.
         let buffer_len = unsafe { (sdk.get_qhyccd_memory_length)(handle) } as usize;
@@ -402,13 +402,13 @@ impl CameraDriver for QhyCamera {
                     )));
                 }
             }
-            let sdk = QhySdk::lock().await?;
+            let sdk = self.sdk().await?;
             self.start_cooling(&sdk, target)?;
             self.cooler_on = true;
             self.cooler_target_c = Some(target);
         } else {
             self.keepalive.stop();
-            let sdk = QhySdk::lock().await?;
+            let sdk = self.sdk().await?;
             if self.has_manual_pwm {
                 // Manual drive at zero power is how INDI and NINA switch the TEC off.
                 self.write(
@@ -440,7 +440,7 @@ impl CameraDriver for QhyCamera {
         if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&self.device_id) {
             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         }
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.temperature(&sdk).ok_or_else(|| {
             DriverError::SdkError(format!(
                 "QHY camera {} gave no sensor temperature",
@@ -454,7 +454,7 @@ impl CameraDriver for QhyCamera {
         if !self.has_cooler {
             return Err(DriverError::NotSupported);
         }
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.cooler_power(&sdk).ok_or_else(|| {
             DriverError::SdkError(format!(
                 "QHY camera {} gave no cooler power",
@@ -466,7 +466,7 @@ impl CameraDriver for QhyCamera {
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         self.connected_handle()?;
         check_range(f64::from(gain), self.gain_range, "gain", |g| g.to_string())?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.write(
             &sdk,
             QhyControl::CONTROL_GAIN,
@@ -485,7 +485,7 @@ impl CameraDriver for QhyCamera {
         if self.gain_written {
             return Ok(self.current_gain);
         }
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         Ok(self
             .read(&sdk, QhyControl::CONTROL_GAIN)
             .map_or(self.current_gain, |g| g as i32))
@@ -496,7 +496,7 @@ impl CameraDriver for QhyCamera {
         check_range(f64::from(offset), self.offset_range, "offset", |o| {
             o.to_string()
         })?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.write(
             &sdk,
             QhyControl::CONTROL_OFFSET,
@@ -513,7 +513,7 @@ impl CameraDriver for QhyCamera {
         if self.offset_written {
             return Ok(self.current_offset);
         }
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         Ok(self
             .read(&sdk, QhyControl::CONTROL_OFFSET)
             .map_or(self.current_offset, |o| o as i32))
@@ -522,7 +522,7 @@ impl CameraDriver for QhyCamera {
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         self.connected_handle()?;
         let bin = self.check_bin(bin_x, bin_y)?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_roi(&sdk, bin, None)?;
         Ok(())
     }
@@ -533,7 +533,7 @@ impl CameraDriver for QhyCamera {
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         self.connected_handle()?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let bin = self.current_bin;
         self.apply_roi(&sdk, bin, subframe.as_ref())?;
         Ok(())
@@ -561,7 +561,7 @@ impl CameraDriver for QhyCamera {
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         self.connected_handle()?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let handle = self.connected_handle()?;
 
         let mut num_modes: c_uint = 0;
@@ -605,7 +605,7 @@ impl CameraDriver for QhyCamera {
         let mode_index = c_uint::try_from(mode.index).map_err(|_| {
             DriverError::InvalidParameter(format!("QHY read mode {} does not exist", mode.index))
         })?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let handle = self.connected_handle()?;
 
         let mut prev_mode: c_uint = 0;
@@ -695,7 +695,7 @@ impl CameraDriver for QhyCamera {
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         self.connected_handle()?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let mut features = VendorFeatures::default();
         features.usb_bandwidth = self.read(&sdk, QhyControl::CONTROL_USBTRAFFIC);
         features.sensor_chamber_humidity = self
@@ -737,7 +737,7 @@ impl CameraDriver for QhyCamera {
         &self,
     ) -> Result<skotiq_device::camera::CameraRecommendedSettings, DriverError> {
         self.connected_handle()?;
-        let sdk = QhySdk::lock().await?;
+        let sdk = self.sdk().await?;
         let mut out = skotiq_device::camera::CameraRecommendedSettings::default();
         let mut notes: Vec<String> = Vec::new();
         let recommended = |control| {

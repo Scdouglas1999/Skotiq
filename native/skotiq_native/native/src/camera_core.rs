@@ -14,7 +14,9 @@ use skotiq_device::camera::{
     BayerPattern, CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame,
     VendorFeatures,
 };
-use skotiq_device::DriverError;
+use skotiq_device::{DriverError, ExposureAbort};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 /// The cooler state a driver last commanded or read back.
 ///
@@ -41,6 +43,17 @@ impl CoolerState {
     }
 }
 
+/// An abort asked for while a frame read is in flight. The read checks it
+/// between SDK calls; the next exposure clears it.
+#[derive(Debug, Default)]
+pub(crate) struct AbortRequest(AtomicBool);
+
+impl ExposureAbort for AbortRequest {
+    fn request(&self) {
+        self.0.store(true, Ordering::Release);
+    }
+}
+
 /// State common to the vendor camera drivers.
 #[derive(Debug)]
 pub(crate) struct CameraCore {
@@ -61,6 +74,7 @@ pub(crate) struct CameraCore {
     pub(crate) exposure_started_at: Option<std::time::Instant>,
     /// Seconds requested for the exposure in progress or last taken.
     pub(crate) exposure_duration: f64,
+    abort: Arc<AbortRequest>,
 }
 
 impl CameraCore {
@@ -81,7 +95,32 @@ impl CameraCore {
             cooler: std::sync::Mutex::new(CoolerState::off(cooler_default_target_c)),
             exposure_started_at: None,
             exposure_duration: 0.0,
+            abort: Arc::default(),
         }
+    }
+
+    /// For [`skotiq_device::CameraDriver::exposure_abort`], in a driver
+    /// whose frame read checks [`Self::abort_requested`].
+    pub(crate) fn abort_handle(&self) -> Arc<dyn ExposureAbort> {
+        self.abort.clone()
+    }
+
+    /// Whether the frame read in flight was asked to give up.
+    pub(crate) fn abort_requested(&self) -> bool {
+        self.abort.0.load(Ordering::Acquire)
+    }
+
+    /// A new exposure starts with no abort pending.
+    pub(crate) fn clear_abort(&self) {
+        self.abort.0.store(false, Ordering::Release);
+    }
+
+    /// What a frame read that was given up answers.
+    pub(crate) fn read_given_up(&self) -> DriverError {
+        DriverError::Unknown(format!(
+            "the frame read of {} was given up because the exposure was aborted",
+            self.name
+        ))
     }
 
     /// The connected check. Which methods call it, and where among their

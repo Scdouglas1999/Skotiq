@@ -97,6 +97,19 @@ unsafe impl Send for QhyCamera {}
 unsafe impl Sync for QhyCamera {}
 
 impl QhyCamera {
+    /// The SDK, held for this camera (see `sdk_loader::lock_scope`).
+    pub(crate) async fn sdk(
+        &self,
+    ) -> Result<crate::vendor::sdk_loader::SdkGuard<QhySdk>, skotiq_device::DriverError> {
+        use crate::vendor::sdk_loader::{device_key, lock_scope};
+        QhySdk::slot()
+            .lock_device(
+                lock_scope(&skotiq_device::Vendor::Qhy),
+                device_key(&self.camera_id),
+            )
+            .await
+    }
+
     pub fn new(camera_id: String) -> Self {
         let device_id = format!("native:qhy:{}", camera_id);
         Self {
@@ -273,8 +286,8 @@ impl QhyCamera {
             .filter(|max| *max > 0.0)
             .unwrap_or(255.0);
         self.has_thermometer = self.available(sdk, QhyControl::CONTROL_CURTEMP);
-        self.has_shutter = self.available(sdk, QhyControl::CAM_MECHANICALSHUTTER)
-            && sdk.control_shutter.is_some();
+        self.has_shutter =
+            self.available(sdk, QhyControl::CAM_MECHANICALSHUTTER) && sdk.control_shutter.is_some();
         self.has_st4_port = self.available(sdk, QhyControl::CONTROL_ST4PORT);
         self.supported_bins = [
             (1, QhyControl::CAM_BIN1X1MODE),
@@ -370,7 +383,10 @@ impl QhyCamera {
         if bin != self.current_bin {
             let bin_u = bin as c_uint;
             // SAFETY: as in `available`; `bin` was checked to be a supported factor.
-            bin_mode_result(unsafe { (sdk.set_qhyccd_binmode)(handle, bin_u, bin_u) }, bin)?;
+            bin_mode_result(
+                unsafe { (sdk.set_qhyccd_binmode)(handle, bin_u, bin_u) },
+                bin,
+            )?;
             self.current_bin = bin;
         }
         // SAFETY: as in `available`; the window lies inside the binned sensor.
@@ -501,7 +517,16 @@ impl CoolerKeepalive {
             let handle = handle;
             loop {
                 tokio::time::sleep(COOLER_RESEND_INTERVAL).await;
-                let Ok(sdk) = QhySdk::lock().await else {
+                // Held for this camera only, like the camera's own calls: a
+                // resend waiting for the whole SDK would queue behind another
+                // camera's frame read and hold every later call up with it.
+                let Ok(sdk) = QhySdk::slot()
+                    .lock_device(
+                        crate::vendor::sdk_loader::lock_scope(&skotiq_device::Vendor::Qhy),
+                        crate::vendor::sdk_loader::device_key(&camera_id),
+                    )
+                    .await
+                else {
                     return;
                 };
                 // The camera's session ended (disconnect, unplug): stop.
@@ -511,11 +536,7 @@ impl CoolerKeepalive {
                 // SAFETY: the session still holds this handle and the SDK
                 // lock is held for the call.
                 let result = unsafe {
-                    (sdk.set_qhyccd_param)(
-                        handle.0,
-                        QhyControl::CONTROL_COOLER as c_int,
-                        target_c,
-                    )
+                    (sdk.set_qhyccd_param)(handle.0, QhyControl::CONTROL_COOLER as c_int, target_c)
                 };
                 if result != QHYCCD_SUCCESS {
                     tracing::debug!(
@@ -611,10 +632,9 @@ pub(crate) fn readout_window(
     bin: i32,
     subframe: Option<&SubFrame>,
 ) -> Result<Area, DriverError> {
-    let bin = u32::try_from(bin)
-        .ok()
-        .filter(|b| *b >= 1)
-        .ok_or_else(|| DriverError::InvalidParameter(format!("QHY binning {bin} is not a factor")))?;
+    let bin = u32::try_from(bin).ok().filter(|b| *b >= 1).ok_or_else(|| {
+        DriverError::InvalidParameter(format!("QHY binning {bin} is not a factor"))
+    })?;
     let full = Area {
         x: area.x / bin,
         y: area.y / bin,
@@ -626,8 +646,14 @@ pub(crate) fn readout_window(
     };
     let fits = sub.width > 0
         && sub.height > 0
-        && sub.start_x.checked_add(sub.width).is_some_and(|r| r <= full.width)
-        && sub.start_y.checked_add(sub.height).is_some_and(|b| b <= full.height);
+        && sub
+            .start_x
+            .checked_add(sub.width)
+            .is_some_and(|r| r <= full.width)
+        && sub
+            .start_y
+            .checked_add(sub.height)
+            .is_some_and(|b| b <= full.height);
     if !fits {
         return Err(DriverError::InvalidParameter(format!(
             "The subframe {}x{} at ({}, {}) does not fit the {}x{} sensor at {}x{} binning",

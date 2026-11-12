@@ -10,6 +10,10 @@ const FLI_COOLER_OFF_SETPOINT_C: f64 = 40.0;
 
 #[async_trait]
 impl CameraDriver for FliCamera {
+    fn exposure_abort(&self) -> Option<std::sync::Arc<dyn skotiq_device::ExposureAbort>> {
+        Some(self.core.abort_handle())
+    }
+
     fn capabilities(&self) -> CameraCapabilities {
         self.core.capabilities.clone()
     }
@@ -75,6 +79,7 @@ impl CameraDriver for FliCamera {
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         self.core.require_connected()?;
+        self.core.clear_abort();
 
         let area = image_area(
             self.visible,
@@ -169,6 +174,13 @@ impl CameraDriver for FliCamera {
         let mut byte_buffer: Vec<u8> = vec![0u8; row_bytes * height];
 
         for row in 0..height {
+            if self.core.abort_requested() {
+                // The rest of the frame is discarded, as after a failed row.
+                // SAFETY: self.handle is valid.
+                let _ = unsafe { (sdk.cancel_exposure)(self.handle) };
+                self.core.state = CameraState::Idle;
+                return Err(self.core.read_given_up());
+            }
             let row_offset = row * row_bytes;
             // SAFETY: row < height, so row_offset + row_bytes <= byte_buffer.len(); the pointer stays inside the allocation.
             let row_ptr = unsafe { byte_buffer.as_mut_ptr().add(row_offset) };

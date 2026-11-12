@@ -122,6 +122,10 @@ impl CameraDriver for SvbonyCamera {
         self.core.capabilities.clone()
     }
 
+    fn exposure_abort(&self) -> Option<std::sync::Arc<dyn skotiq_device::ExposureAbort>> {
+        Some(self.core.abort_handle())
+    }
+
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         self.core.require_connected()?;
 
@@ -174,6 +178,7 @@ impl CameraDriver for SvbonyCamera {
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         self.core.require_connected()?;
+        self.core.clear_abort();
         let micros = exposure_micros(
             params.duration_secs,
             self.controls.get(SvbControlType::Exposure),
@@ -181,7 +186,7 @@ impl CameraDriver for SvbonyCamera {
         let roi = self.roi_for(params.bin_x, params.bin_y, params.subframe.as_ref())?;
         let size = self.buffer_for(roi)?;
 
-        let sdk = SvbonySdk::lock().await?;
+        let sdk = self.sdk().await?;
         stop_capture(&sdk, self.camera_id);
         if let Some(gain) = params.gain {
             self.core.gain =
@@ -216,7 +221,7 @@ impl CameraDriver for SvbonyCamera {
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         self.core.require_connected()?;
 
-        let sdk = SvbonySdk::lock().await?;
+        let sdk = self.sdk().await?;
         // SAFETY: the camera is open; SVBStopVideoCapture takes a single c_int.
         let result = unsafe { (sdk.stop_video_capture)(self.camera_id) };
         check(result, "abort the exposure")?;
@@ -246,7 +251,7 @@ impl CameraDriver for SvbonyCamera {
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         self.core.require_connected()?;
         let (width, height) = {
-            let sdk = SvbonySdk::lock().await?;
+            let sdk = self.sdk().await?;
             sdk_roi_size(&sdk, self.camera_id)?
         };
         let size = calculate_buffer_size_i32(width, height, self.image_type.bytes_per_sample())?;
@@ -262,7 +267,11 @@ impl CameraDriver for SvbonyCamera {
 
         self.core.state = CameraState::Downloading;
         let sdk = loop {
-            let sdk = SvbonySdk::lock().await?;
+            let sdk = self.sdk().await?;
+            if self.core.abort_requested() {
+                self.end_failed_exposure(&sdk);
+                return Err(self.core.read_given_up());
+            }
             match self.read_frame(&sdk, size, FRAME_POLL_MS) {
                 SvbError::Success => break sdk,
                 SvbError::Timeout if Instant::now() < deadline => {
@@ -336,7 +345,7 @@ impl CameraDriver for SvbonyCamera {
             return Err(DriverError::NotSupported);
         }
 
-        let sdk = SvbonySdk::lock().await?;
+        let sdk = self.sdk().await?;
         write_control(
             &sdk,
             self.camera_id,
@@ -358,7 +367,8 @@ impl CameraDriver for SvbonyCamera {
                 SvbControlType::TargetTemperature,
                 (target * 10.0).round() as i64,
             )?;
-            self.core.update_cooler(|cooler| cooler.target_c = tenths as f64 / 10.0);
+            self.core
+                .update_cooler(|cooler| cooler.target_c = tenths as f64 / 10.0);
         }
 
         self.core.update_cooler(|cooler| cooler.enabled = enabled);
@@ -385,7 +395,7 @@ impl CameraDriver for SvbonyCamera {
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        let sdk = SvbonySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.core.gain =
             self.set_and_read_back(&sdk, SvbControlType::Gain, i64::from(gain))? as i32;
         Ok(())
@@ -398,7 +408,7 @@ impl CameraDriver for SvbonyCamera {
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        let sdk = SvbonySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.core.offset =
             self.set_and_read_back(&sdk, SvbControlType::BlackLevel, i64::from(offset))? as i32;
         Ok(())
@@ -418,7 +428,7 @@ impl CameraDriver for SvbonyCamera {
             )));
         }
         let roi = self.roi_for(bin_x, bin_y, None)?;
-        let sdk = SvbonySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_roi(&sdk, roi, false)
     }
 
@@ -435,7 +445,7 @@ impl CameraDriver for SvbonyCamera {
             )));
         }
         let roi = self.roi_for(self.core.bin_x, self.core.bin_y, subframe.as_ref())?;
-        let sdk = SvbonySdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_roi(&sdk, roi, subframe.is_some())
     }
 
