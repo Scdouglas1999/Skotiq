@@ -1342,8 +1342,17 @@ mod fake_sdk_contract {
         wheel.move_to_position(3).await.expect("Player One PW move");
         assert_eq!(
             wheel.get_position().await.expect("Player One PW position"),
-            3
+            -1,
+            "a turning wheel reads -1"
         );
+        let mut position = -1;
+        for _ in 0..10 {
+            position = wheel.get_position().await.expect("Player One PW position");
+            if position != -1 {
+                break;
+            }
+        }
+        assert_eq!(position, 3);
         assert!(!wheel.is_moving().await.expect("Player One PW moving"));
         wheel
             .set_filter_name(3, "Ha".to_string())
@@ -2272,36 +2281,61 @@ fn removed()->bool{ std::env::var("FAKE_EFW_REMOVED").is_ok() }
 #[no_mangle] pub unsafe extern "C" fn EFWGetSerialNumber(_id:c_int,serial:*mut EFWSerialNumber)->c_int{ if serial.is_null(){return 7;} (*serial).id=[0xEF,0xF0,1,2,0,0,0,0]; 0}
 "#;
 
+    // Models the PlayerOneCamera.h / PlayerOnePW.h contracts the drivers rely on:
+    // camera ids exist once POAGetCameraCount has scanned; POAStartExposure(id,
+    // POA_FALSE) is video mode, which keeps the camera exposing after a frame and
+    // refuses another start with POA_ERROR_EXPOSING; POASetImageBin resets the ROI
+    // to the binned full frame; ROI width is a multiple of 4 and height of 2;
+    // POA_EXPOSURE takes 10..2e9 us and POA_EXP 0.00001..7200 s. The wheel homes
+    // for a moment after POAOpenPW and answers POAGetCurrentPosition with
+    // PW_ERROR_IS_MOVING while it turns.
     const PLAYER_ONE_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
 use std::ffi::{c_char,c_int,c_long};
-use std::sync::atomic::{AtomicI32,AtomicI64,Ordering};
-static CURRENT_ID:AtomicI32=AtomicI32::new(101); static WIDTH:AtomicI32=AtomicI32::new(64); static HEIGHT:AtomicI32=AtomicI32::new(48); static BIN:AtomicI32=AtomicI32::new(1);
+use std::sync::atomic::{AtomicBool,AtomicI32,AtomicI64,Ordering};
+static SCANNED:AtomicBool=AtomicBool::new(false); static CURRENT_ID:AtomicI32=AtomicI32::new(101);
+static WIDTH:AtomicI32=AtomicI32::new(64); static HEIGHT:AtomicI32=AtomicI32::new(48); static BIN:AtomicI32=AtomicI32::new(1); static START_X:AtomicI32=AtomicI32::new(0); static START_Y:AtomicI32=AtomicI32::new(0);
 static GAIN:AtomicI64=AtomicI64::new(0); static OFFSET:AtomicI64=AtomicI64::new(0); static COOLER:AtomicI64=AtomicI64::new(0); static TARGET_TEMP:AtomicI64=AtomicI64::new(-10); static FORMAT:AtomicI32=AtomicI32::new(1);
+static EXPOSURE_US:AtomicI64=AtomicI64::new(10000); static EXPOSING:AtomicBool=AtomicBool::new(false); static SNAP:AtomicBool=AtomicBool::new(true); static READY:AtomicBool=AtomicBool::new(false);
+const MAX_W:c_int=64; const MAX_H:c_int=48;
 #[repr(C)] struct POACameraProperties{camera_model_name:[c_char;256],user_custom_id:[c_char;16],camera_id:c_int,max_width:c_int,max_height:c_int,bit_depth:c_int,is_color_camera:c_int,is_has_st4_port:c_int,is_has_cooler:c_int,is_usb3_speed:c_int,bayer_pattern:c_int,pixel_size:f64,sn:[c_char;64],sensor_model_name:[c_char;32],local_path:[c_char;256],bins:[c_int;8],img_formats:[c_int;8],is_support_hard_bin:c_int,p_id:c_int,reserved:[c_char;248]}
-#[repr(C)] union POAConfigValue{int_value:c_long,float_value:f64,bool_value:c_int}
+#[repr(C)] #[derive(Clone,Copy)] union POAConfigValue{int_value:c_long,float_value:f64,bool_value:c_int}
+#[repr(C)] struct POAConfigAttributes{is_support_auto:c_int,is_writable:c_int,is_readable:c_int,config_id:c_int,value_type:c_int,max_value:POAConfigValue,min_value:POAConfigValue,default_value:POAConfigValue,conf_name:[c_char;64],description:[c_char;128],reserved:[c_char;64]}
 fn write_cstr(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for i in 0..text.len().min(buf.len().saturating_sub(1)){buf[i]=text[i] as c_char;}}
 // SAFETY: shim writes through the caller-supplied props pointer after a null check.
-fn fill_props(id:c_int,props:*mut POACameraProperties)->c_int{unsafe{if props.is_null(){return 4;} let mut p:POACameraProperties=std::mem::zeroed(); p.camera_id=id; p.max_width=64; p.max_height=48; p.is_usb3_speed=1; p.pixel_size=2.9; p.bins[0]=1; p.bins[1]=2; p.bins[2]=4; p.img_formats[0]=1; p.img_formats[1]=-1; p.is_support_hard_bin=1; match id{101=>{write_cstr(&mut p.camera_model_name,b"Skotiq Fake Poseidon-M Pro"); write_cstr(&mut p.sn,b"POA-COOLED-0001"); write_cstr(&mut p.sensor_model_name,b"IMX571"); p.bit_depth=16; p.is_color_camera=0; p.is_has_st4_port=1; p.is_has_cooler=1; p.bayer_pattern=-1; p.p_id=101;} 202=>{write_cstr(&mut p.camera_model_name,b"Skotiq Fake Neptune-C II"); write_cstr(&mut p.sn,b"POA-GUIDE-0002"); write_cstr(&mut p.sensor_model_name,b"IMX464"); p.bit_depth=12; p.is_color_camera=1; p.is_has_st4_port=0; p.is_has_cooler=0; p.bayer_pattern=1; p.p_id=202;} _=>return 1} *props=p; 0}}
-#[no_mangle] pub extern "C" fn POAGetCameraCount()->c_int{2}
+fn fill_props(id:c_int,props:*mut POACameraProperties)->c_int{unsafe{if props.is_null(){return 12;} let mut p:POACameraProperties=std::mem::zeroed(); p.camera_id=id; p.max_width=MAX_W; p.max_height=MAX_H; p.is_usb3_speed=1; p.pixel_size=2.9; p.bins[0]=1; p.bins[1]=2; p.bins[2]=4; p.img_formats[0]=1; p.img_formats[1]=-1; p.is_support_hard_bin=1; match id{101=>{write_cstr(&mut p.camera_model_name,b"Skotiq Fake Poseidon-M Pro"); write_cstr(&mut p.sn,b"POA-COOLED-0001"); write_cstr(&mut p.sensor_model_name,b"IMX571"); p.bit_depth=16; p.is_color_camera=0; p.is_has_st4_port=1; p.is_has_cooler=1; p.bayer_pattern=-1; p.p_id=101;} 202=>{write_cstr(&mut p.camera_model_name,b"Skotiq Fake Neptune-C II"); write_cstr(&mut p.sn,b"POA-GUIDE-0002"); write_cstr(&mut p.sensor_model_name,b"IMX464"); p.bit_depth=12; p.is_color_camera=1; p.is_has_st4_port=0; p.is_has_cooler=0; p.bayer_pattern=1; p.p_id=202;} _=>return 2} *props=p; 0}}
+fn binned_max()->(c_int,c_int){let bin=BIN.load(Ordering::SeqCst); (MAX_W/bin,MAX_H/bin)}
+#[no_mangle] pub extern "C" fn POAGetCameraCount()->c_int{SCANNED.store(true,Ordering::SeqCst); 2}
 #[no_mangle] pub extern "C" fn POAGetSDKVersion()->*const c_char{b"fake-playerone-camera-1.0\0".as_ptr() as *const c_char}
-#[no_mangle] pub extern "C" fn POAGetCameraProperties(index:c_int,props:*mut POACameraProperties)->c_int{match index{0=>fill_props(101,props),1=>fill_props(202,props),_=>1}}
-#[no_mangle] pub extern "C" fn POAGetCameraPropertiesByID(id:c_int,props:*mut POACameraProperties)->c_int{fill_props(id,props)}
-#[no_mangle] pub extern "C" fn POAOpenCamera(id:c_int)->c_int{if id==101||id==202{CURRENT_ID.store(id,Ordering::SeqCst); 0}else{1}}
-#[no_mangle] pub extern "C" fn POAInitCamera(_id:c_int)->c_int{0}
-#[no_mangle] pub extern "C" fn POACloseCamera(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn POAGetConfig(_id:c_int,control:c_int,value:*mut POAConfigValue,is_auto:*mut c_int)->c_int{if value.is_null()||is_auto.is_null(){return 4;} *is_auto=0; match control{1=>(*value).int_value=GAIN.load(Ordering::SeqCst) as c_long,3=>(*value).float_value=-9.5,7=>(*value).int_value=OFFSET.load(Ordering::SeqCst) as c_long,12=>(*value).int_value=40,16=>(*value).int_value=38,17=>(*value).int_value=TARGET_TEMP.load(Ordering::SeqCst) as c_long,18=>(*value).bool_value=COOLER.load(Ordering::SeqCst) as c_int,20=>(*value).int_value=20,21=>(*value).int_value=55,28=>(*value).int_value=68,_=>(*value).int_value=0}; 0}
-#[no_mangle] pub unsafe extern "C" fn POASetConfig(_id:c_int,control:c_int,value:POAConfigValue,_is_auto:c_int)->c_int{match control{0=>{},1=>GAIN.store(value.int_value as i64,Ordering::SeqCst),7=>OFFSET.store(value.int_value as i64,Ordering::SeqCst),17=>TARGET_TEMP.store(value.int_value as i64,Ordering::SeqCst),18=>COOLER.store(value.bool_value as i64,Ordering::SeqCst),_=>{}} 0}
-#[no_mangle] pub extern "C" fn POASetImageBin(_id:c_int,bin:c_int)->c_int{if bin<=0||bin>4{return 7;} BIN.store(bin,Ordering::SeqCst); 0}
-#[no_mangle] pub extern "C" fn POASetImageSize(_id:c_int,width:c_int,height:c_int)->c_int{if width<=0||height<=0{return 4;} WIDTH.store(width,Ordering::SeqCst); HEIGHT.store(height,Ordering::SeqCst); 0}
-#[no_mangle] pub extern "C" fn POASetImageStartPos(_id:c_int,_x:c_int,_y:c_int)->c_int{0}
-#[no_mangle] pub extern "C" fn POASetImageFormat(_id:c_int,fmt:c_int)->c_int{FORMAT.store(fmt,Ordering::SeqCst); 0}
-#[no_mangle] pub extern "C" fn POAStartExposure(_id:c_int,_snap:c_int)->c_int{if std::env::var("SK_POA_START_ERROR").is_ok(){13}else{0}}
-#[no_mangle] pub extern "C" fn POAStopExposure(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn POAGetCameraState(_id:c_int,state:*mut c_int)->c_int{if state.is_null(){return 4;} *state=0; 0}
-#[no_mangle] pub unsafe extern "C" fn POAGetImageData(_id:c_int,buf:*mut u8,size:c_long,_timeout_ms:c_int)->c_int{if std::env::var("SK_POA_IMAGE_ERROR").is_ok(){return 10;} if buf.is_null()||size<0{return 4;} for i in 0..((size as usize)/2){let v=5000u16.wrapping_add(i as u16); *buf.add(i*2)=(v&0xff) as u8; *buf.add(i*2+1)=(v>>8) as u8;} 0}
-#[no_mangle] pub unsafe extern "C" fn POAGetImageSize(_id:c_int,width:*mut c_int,height:*mut c_int)->c_int{if width.is_null()||height.is_null(){return 4;} *width=WIDTH.load(Ordering::SeqCst); *height=HEIGHT.load(Ordering::SeqCst); 0}
-#[no_mangle] pub unsafe extern "C" fn POAImageReady(_id:c_int,ready:*mut c_int)->c_int{if ready.is_null(){return 4;} *ready=if std::env::var("SK_POA_NOT_READY").is_ok(){0}else{1}; 0}
+#[no_mangle] pub extern "C" fn POAGetCameraProperties(index:c_int,props:*mut POACameraProperties)->c_int{if !SCANNED.load(Ordering::SeqCst){return 1;} match index{0=>fill_props(101,props),1=>fill_props(202,props),_=>1}}
+#[no_mangle] pub extern "C" fn POAGetCameraPropertiesByID(id:c_int,props:*mut POACameraProperties)->c_int{if !SCANNED.load(Ordering::SeqCst){return 2;} fill_props(id,props)}
+#[no_mangle] pub extern "C" fn POAOpenCamera(id:c_int)->c_int{if !SCANNED.load(Ordering::SeqCst){return 2;} if id==101||id==202{CURRENT_ID.store(id,Ordering::SeqCst); 0}else{2}}
+#[no_mangle] pub extern "C" fn POAInitCamera(_id:c_int)->c_int{BIN.store(1,Ordering::SeqCst); WIDTH.store(MAX_W,Ordering::SeqCst); HEIGHT.store(MAX_H,Ordering::SeqCst); START_X.store(0,Ordering::SeqCst); START_Y.store(0,Ordering::SeqCst); EXPOSING.store(false,Ordering::SeqCst); READY.store(false,Ordering::SeqCst); SENSOR_MODE.store(0,Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn POACloseCamera(_id:c_int)->c_int{EXPOSING.store(false,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetConfig(_id:c_int,control:c_int,value:*mut POAConfigValue,is_auto:*mut c_int)->c_int{if value.is_null()||is_auto.is_null(){return 12;} *is_auto=0; match control{0=>(*value).int_value=EXPOSURE_US.load(Ordering::SeqCst) as c_long,1=>(*value).int_value=GAIN.load(Ordering::SeqCst) as c_long,3=>(*value).float_value=-9.5,7=>(*value).int_value=OFFSET.load(Ordering::SeqCst) as c_long,12=>(*value).int_value=40,16=>(*value).int_value=38,17=>(*value).int_value=TARGET_TEMP.load(Ordering::SeqCst) as c_long,18=>(*value).bool_value=COOLER.load(Ordering::SeqCst) as c_int,20=>(*value).int_value=20,21=>(*value).int_value=55,28=>(*value).int_value=68,30=>(*value).bool_value=0,31=>(*value).float_value=EXPOSURE_US.load(Ordering::SeqCst) as f64/1e6,_=>(*value).int_value=0}; 0}
+#[no_mangle] pub unsafe extern "C" fn POASetConfig(_id:c_int,control:c_int,value:POAConfigValue,_is_auto:c_int)->c_int{match control{0=>{let us=value.int_value as i64; if us<10||us>2_000_000_000{return 7;} EXPOSURE_US.store(us,Ordering::SeqCst)},1=>{let v=value.int_value as i64; if !(0..=700).contains(&v){return 7;} GAIN.store(v,Ordering::SeqCst)},7=>{let v=value.int_value as i64; if !(0..=255).contains(&v){return 7;} OFFSET.store(v,Ordering::SeqCst)},17=>{let v=value.int_value as i64; if !(-50..=30).contains(&v){return 7;} TARGET_TEMP.store(v,Ordering::SeqCst)},18=>COOLER.store(value.bool_value as i64,Ordering::SeqCst),31=>{let s=value.float_value; if !(0.00001..=7200.0).contains(&s){return 7;} EXPOSURE_US.store((s*1e6).round() as i64,Ordering::SeqCst)},_=>{}} 0}
+// SAFETY: shim writes through the caller-supplied attribute pointer after a null check.
+#[no_mangle] pub unsafe extern "C" fn POAGetConfigAttributesByConfigID(_id:c_int,control:c_int,attr:*mut POAConfigAttributes)->c_int{if attr.is_null(){return 12;} let mut a:POAConfigAttributes=std::mem::zeroed(); a.config_id=control; a.is_writable=1; a.is_readable=1; match control{0=>{a.min_value.int_value=10; a.max_value.int_value=2_000_000_000; a.default_value.int_value=10000;},1=>{a.min_value.int_value=0; a.max_value.int_value=700; a.default_value.int_value=0;},7=>{a.min_value.int_value=0; a.max_value.int_value=255; a.default_value.int_value=0;},17=>{a.min_value.int_value=-50; a.max_value.int_value=30; a.default_value.int_value=-10;},31=>{a.value_type=1; a.min_value.float_value=0.00001; a.max_value.float_value=7200.0; a.default_value.float_value=0.01;},_=>return 3} *attr=a; 0}
+#[no_mangle] pub extern "C" fn POASetImageBin(_id:c_int,bin:c_int)->c_int{if EXPOSING.load(Ordering::SeqCst){return 11;} if bin!=1&&bin!=2&&bin!=4{return 4;} BIN.store(bin,Ordering::SeqCst); WIDTH.store((MAX_W/bin)&!3,Ordering::SeqCst); HEIGHT.store((MAX_H/bin)&!1,Ordering::SeqCst); START_X.store(0,Ordering::SeqCst); START_Y.store(0,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetImageBin(_id:c_int,bin:*mut c_int)->c_int{if bin.is_null(){return 12;} *bin=BIN.load(Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn POASetImageSize(_id:c_int,width:c_int,height:c_int)->c_int{if EXPOSING.load(Ordering::SeqCst){return 11;} if width<=0||height<=0{return 4;} let (mw,mh)=binned_max(); let (w,h)=(width&!3,height&!1); if w==0||h==0||w>mw||h>mh{return 7;} WIDTH.store(w,Ordering::SeqCst); HEIGHT.store(h,Ordering::SeqCst); if START_X.load(Ordering::SeqCst)+w>mw{START_X.store(mw-w,Ordering::SeqCst);} if START_Y.load(Ordering::SeqCst)+h>mh{START_Y.store(mh-h,Ordering::SeqCst);} 0}
+#[no_mangle] pub extern "C" fn POASetImageStartPos(_id:c_int,x:c_int,y:c_int)->c_int{if EXPOSING.load(Ordering::SeqCst){return 11;} if x<0||y<0{return 4;} let (mw,mh)=binned_max(); if x+WIDTH.load(Ordering::SeqCst)>mw||y+HEIGHT.load(Ordering::SeqCst)>mh{return 7;} START_X.store(x,Ordering::SeqCst); START_Y.store(y,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetImageStartPos(_id:c_int,x:*mut c_int,y:*mut c_int)->c_int{if x.is_null()||y.is_null(){return 12;} *x=START_X.load(Ordering::SeqCst); *y=START_Y.load(Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn POASetImageFormat(_id:c_int,fmt:c_int)->c_int{if EXPOSING.load(Ordering::SeqCst){return 11;} FORMAT.store(fmt,Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn POAStartExposure(_id:c_int,single_frame:c_int)->c_int{if std::env::var("SK_POA_START_ERROR").is_ok(){return 18;} if EXPOSING.load(Ordering::SeqCst){return 11;} EXPOSING.store(true,Ordering::SeqCst); SNAP.store(single_frame!=0,Ordering::SeqCst); READY.store(true,Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn POAStopExposure(_id:c_int)->c_int{EXPOSING.store(false,Ordering::SeqCst); READY.store(false,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetCameraState(_id:c_int,state:*mut c_int)->c_int{if state.is_null(){return 12;} *state=if EXPOSING.load(Ordering::SeqCst){2}else{1}; 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetImageData(_id:c_int,buf:*mut u8,size:c_long,_timeout_ms:c_int)->c_int{if std::env::var("SK_POA_IMAGE_ERROR").is_ok(){return 10;} if buf.is_null(){return 12;} if size<0{return 4;} if !READY.load(Ordering::SeqCst){return 9;} let pixels=(WIDTH.load(Ordering::SeqCst)*HEIGHT.load(Ordering::SeqCst)) as usize; if (size as usize)<pixels*2{return 10;} for i in 0..pixels{let v=5000u16.wrapping_add(i as u16); *buf.add(i*2)=(v&0xff) as u8; *buf.add(i*2+1)=(v>>8) as u8;} if SNAP.load(Ordering::SeqCst){EXPOSING.store(false,Ordering::SeqCst); READY.store(false,Ordering::SeqCst);} 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetImageSize(_id:c_int,width:*mut c_int,height:*mut c_int)->c_int{if width.is_null()||height.is_null(){return 12;} *width=WIDTH.load(Ordering::SeqCst); *height=HEIGHT.load(Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn POAImageReady(_id:c_int,ready:*mut c_int)->c_int{if ready.is_null(){return 12;} *ready=if std::env::var("SK_POA_NOT_READY").is_ok(){0}else{READY.load(Ordering::SeqCst) as c_int}; 0}
+static SENSOR_MODE:AtomicI32=AtomicI32::new(0);
+#[repr(C)] struct POASensorModeInfo{name:[c_char;64],desc:[c_char;128]}
+fn has_modes()->bool{CURRENT_ID.load(Ordering::SeqCst)==101}
+#[no_mangle] pub unsafe extern "C" fn POAGetSensorModeCount(_id:c_int,count:*mut c_int)->c_int{if count.is_null(){return 12;} *count=if has_modes(){2}else{0}; 0}
+// SAFETY: shim writes through the caller-supplied info pointer after a null check.
+#[no_mangle] pub unsafe extern "C" fn POAGetSensorModeInfo(_id:c_int,index:c_int,info:*mut POASensorModeInfo)->c_int{if info.is_null(){return 12;} if !has_modes(){return 15;} let (name,desc):(&[u8],&[u8])=match index{0=>(b"Normal",b"Normal mode"),1=>(b"LowNoise",b"Low noise mode, slower readout"),_=>return 4}; let mut i:POASensorModeInfo=std::mem::zeroed(); write_cstr(&mut i.name,name); write_cstr(&mut i.desc,desc); *info=i; 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetSensorMode(_id:c_int,mode:*mut c_int)->c_int{if mode.is_null(){return 12;} if !has_modes(){return 15;} *mode=SENSOR_MODE.load(Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn POASetSensorMode(_id:c_int,mode:c_int)->c_int{if EXPOSING.load(Ordering::SeqCst){return 11;} if !has_modes(){return 15;} if !(0..2).contains(&mode){return 4;} SENSOR_MODE.store(mode,Ordering::SeqCst); 0}
 "#;
 
     const PLAYER_ONE_PW_FAKE_SDK: &str = r#"
@@ -2309,23 +2343,24 @@ fn fill_props(id:c_int,props:*mut POACameraProperties)->c_int{unsafe{if props.is
 use std::ffi::{c_char,c_int};
 use std::sync::atomic::{AtomicI32,Ordering};
 static POSITION:AtomicI32=AtomicI32::new(0);
+static BUSY_POLLS:AtomicI32=AtomicI32::new(0);
 static mut ALIASES:[[c_char;24];7]=[[0;24];7];
 #[repr(C)] struct PWProperties{name:[c_char;64],handle:c_int,position_count:c_int,sn:[c_char;32],reserved:[c_char;32]}
-#[repr(C)] enum PWState{Closed=0,Opened=1,Moving=2}
 fn write_cstr(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for i in 0..text.len().min(buf.len().saturating_sub(1)){buf[i]=text[i] as c_char;}}
 unsafe fn put(buf:*mut c_char,len:usize,text:&[u8]){if buf.is_null(){return;} for i in 0..len{*buf.add(i)=0;} for i in 0..text.len().min(len.saturating_sub(1)){*buf.add(i)=text[i] as c_char;}}
+fn busy()->bool{BUSY_POLLS.fetch_update(Ordering::SeqCst,Ordering::SeqCst,|n|(n>0).then(||n-1)).is_ok()}
 #[no_mangle] pub extern "C" fn POAGetPWCount()->c_int{1}
 #[no_mangle] pub extern "C" fn POAGetPWSDKVer()->*const c_char{b"fake-playerone-pw-1.0\0".as_ptr() as *const c_char}
 #[no_mangle] pub unsafe extern "C" fn POAGetPWProperties(index:c_int,prop:*mut PWProperties)->c_int{if index!=0{return 1;} fill_prop(prop)}
 #[no_mangle] pub unsafe extern "C" fn POAGetPWPropertiesByHandle(handle:c_int,prop:*mut PWProperties)->c_int{if handle!=77{return 2;} fill_prop(prop)}
 unsafe fn fill_prop(prop:*mut PWProperties)->c_int{if prop.is_null(){return 7;} let mut p:PWProperties=std::mem::zeroed(); write_cstr(&mut p.name,b"Skotiq Fake Phoenix Wheel"); p.handle=77; p.position_count=7; write_cstr(&mut p.sn,b"PW-FAKE-0001"); *prop=p; 0}
-#[no_mangle] pub extern "C" fn POAOpenPW(handle:c_int)->c_int{if handle==77{0}else{2}}
+#[no_mangle] pub extern "C" fn POAOpenPW(handle:c_int)->c_int{if handle!=77{return 2;} BUSY_POLLS.store(2,Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn POAClosePW(handle:c_int)->c_int{if handle==77{0}else{2}}
-#[no_mangle] pub unsafe extern "C" fn POAGetCurrentPosition(handle:c_int,pos:*mut c_int)->c_int{if handle!=77{return 2;} if pos.is_null(){return 7;} *pos=POSITION.load(Ordering::SeqCst); 0}
-#[no_mangle] pub extern "C" fn POAGotoPosition(handle:c_int,pos:c_int)->c_int{if handle!=77{return 2;} if pos<0||pos>=7{return 3;} POSITION.store(pos,Ordering::SeqCst); 0}
-#[no_mangle] pub unsafe extern "C" fn POAGetPWState(handle:c_int,state:*mut PWState)->c_int{if handle!=77{return 2;} if state.is_null(){return 7;} *state=PWState::Opened; 0}
-#[no_mangle] pub unsafe extern "C" fn POAGetPWFilterAlias(handle:c_int,pos:c_int,buf:*mut c_char,len:c_int)->c_int{if handle!=77{return 2;} if pos<0||pos>=7{return 3;} if buf.is_null(){return 7;} let alias=ALIASES[pos as usize]; if alias[0]==0{let text=format!("Filter {}",pos+1); put(buf,len as usize,text.as_bytes());}else{for i in 0..(len as usize).min(24){*buf.add(i)=alias[i];}} 0}
-#[no_mangle] pub unsafe extern "C" fn POASetPWFilterAlias(handle:c_int,pos:c_int,name:*const c_char)->c_int{if handle!=77{return 2;} if pos<0||pos>=7{return 3;} if name.is_null(){return 7;} for i in 0..24{ALIASES[pos as usize][i]=0;} for i in 0..23{let ch=*name.add(i); ALIASES[pos as usize][i]=ch; if ch==0{break;}} 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetCurrentPosition(handle:c_int,pos:*mut c_int)->c_int{if handle!=77{return 2;} if pos.is_null(){return 7;} if busy(){return 6;} *pos=POSITION.load(Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn POAGotoPosition(handle:c_int,pos:c_int)->c_int{if handle!=77{return 2;} if pos<0||pos>=7{return 3;} if BUSY_POLLS.load(Ordering::SeqCst)>0{return 6;} POSITION.store(pos,Ordering::SeqCst); BUSY_POLLS.store(3,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetPWState(handle:c_int,state:*mut c_int)->c_int{if handle!=77{return 2;} if state.is_null(){return 7;} *state=if busy(){2}else{1}; 0}
+#[no_mangle] pub unsafe extern "C" fn POAGetPWFilterAlias(handle:c_int,pos:c_int,buf:*mut c_char,len:c_int)->c_int{if handle!=77{return 2;} if pos<0||pos>=7{return 3;} if buf.is_null(){return 7;} if len<24{return 3;} let alias=ALIASES[pos as usize]; if alias[0]==0{let text=format!("Filter {}",pos+1); put(buf,len as usize,text.as_bytes());}else{for i in 0..24{*buf.add(i)=alias[i];}} 0}
+#[no_mangle] pub unsafe extern "C" fn POASetPWFilterAlias(handle:c_int,pos:c_int,name:*const c_char,len:c_int)->c_int{if handle!=77{return 2;} if pos<0||pos>=7{return 3;} if len<0||len>=24{return 3;} for i in 0..24{ALIASES[pos as usize][i]=0;} if name.is_null()||len==0{return 0;} for i in 0..(len as usize){ALIASES[pos as usize][i]=*name.add(i);} 0}
 "#;
 
     const QHY_FAKE_SDK: &str = r#"
