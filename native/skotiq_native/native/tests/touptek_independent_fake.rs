@@ -357,7 +357,7 @@ fn the_cooler_reads_as_the_camera_has_it() {
     run(async {
         let camera = connected().await;
         let status = camera.get_status().await.unwrap();
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.target_temp, Some(-15.0));
         assert_eq!(status.sensor_temp, Some(21.5));
         assert_eq!(status.cooler_power, Some(50.0));
