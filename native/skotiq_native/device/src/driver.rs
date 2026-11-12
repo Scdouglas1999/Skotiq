@@ -351,6 +351,13 @@ pub trait FocuserDriver: DeviceDriver {
 
     async fn is_moving(&self) -> Result<bool, DriverError>;
 
+    /// Whether [`FocuserDriver::halt`] can stop a move under way. `false`
+    /// for a focuser with no stop command, whose `halt` answers
+    /// `NotSupported`.
+    fn can_halt(&self) -> bool {
+        true
+    }
+
     async fn halt(&mut self) -> Result<(), DriverError>;
 
     async fn get_temperature(&self) -> Result<Option<f64>, DriverError>;
