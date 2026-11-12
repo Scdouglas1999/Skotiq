@@ -58,8 +58,7 @@ const List<TourStep> _firstNight = [
     // wonder why their 5-minute exposures have field rotation. Explain the
     // two methods, when each applies, and acceptable error so they know
     // when "good enough" really is good enough.
-    description:
-        'Polar alignment lines up the mount\'s rotation axis with the '
+    description: 'Polar alignment lines up the mount\'s rotation axis with the '
         'celestial pole. Without it, stars trail in long exposures and the '
         'frame slowly rotates around the guide star — guiding can\'t fix '
         'either. Skotiq ships two methods. Drift alignment is the most '
@@ -144,8 +143,7 @@ const List<TourStep> _firstNight = [
     // WHY: This is the payoff step — once a sequence is running, the
     // user goes inside and sleeps. The sample sequence concept is the
     // hand-hold that keeps them from staring at the empty sequencer.
-    description:
-        'A sequence is the script that tells Skotiq what to capture, '
+    description: 'A sequence is the script that tells Skotiq what to capture, '
         'when to dither, when to refocus, and when to flip across the '
         'meridian. The Sequencer screen builds these as a tree of '
         'instruction, trigger, and logic nodes — but for tonight, open the '
@@ -161,4 +159,3 @@ const List<TourStep> _firstNight = [
         'astrophotography.',
   ),
 ];
-

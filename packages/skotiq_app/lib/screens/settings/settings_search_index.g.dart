@@ -309,7 +309,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Calibration frames',
     'Capture your first light',
     'Clear all tutorial progress and start fresh',
-    'Enable tutorials',
     'Equipment setup',
     'First night walkthrough',
     'Generate diagnostic dump',
@@ -322,8 +321,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Reset all progress',
     'Reset progress',
     'Run the one-click first-light flow again — short exposure,',
-    'Settings',
-    'Show tutorial prompts and guided tours',
     'Target planning',
     'Tutorial tours',
     'Walk back through the equipment onboarding wizard to scan',
@@ -935,7 +932,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Re-run onboarding tour',
     'Run the one-click first-light flow again — short exposure,':
         'Capture your first light',
-    'Show tutorial prompts and guided tours': 'Enable tutorials',
     'Walk back through the equipment onboarding wizard to scan':
         'Re-run equipment setup',
   },

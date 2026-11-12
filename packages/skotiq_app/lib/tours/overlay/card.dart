@@ -217,7 +217,12 @@ class _TourCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
+              // On a narrow phone the three buttons do not fit one row; the
+              // moves then sit under Skip instead of running off the card.
+              OverflowBar(
+                alignment: MainAxisAlignment.spaceBetween,
+                overflowAlignment: OverflowBarAlignment.end,
+                overflowSpacing: 8,
                 children: [
                   // `button: true` without `enabled` publishes no enabled
                   // flag, which AT-SPI reads as disabled.
@@ -234,35 +239,39 @@ class _TourCard extends StatelessWidget {
                       isLoading: pendingMove == _Move.skip,
                     ),
                   ),
-                  const Spacer(),
-                  if (index > 0)
-                    Semantics(
-                      button: true,
-                      enabled: true,
-                      label: 'Previous step',
-                      hint: 'Press Backspace or Left Arrow',
-                      child: SkotiqButton(
-                        onPressed: busy ? null : onBack,
-                        label: 'Back',
-                        icon: LucideIcons.chevronLeft,
-                        variant: ButtonVariant.ghost,
-                        size: ButtonSize.small,
-                        isLoading: pendingMove == _Move.back,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (index > 0)
+                        Semantics(
+                          button: true,
+                          enabled: true,
+                          label: 'Previous step',
+                          hint: 'Press Backspace or Left Arrow',
+                          child: SkotiqButton(
+                            onPressed: busy ? null : onBack,
+                            label: 'Back',
+                            icon: LucideIcons.chevronLeft,
+                            variant: ButtonVariant.ghost,
+                            size: ButtonSize.small,
+                            isLoading: pendingMove == _Move.back,
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Semantics(
+                        button: true,
+                        enabled: true,
+                        label: isLast ? 'Finish tutorial' : 'Next step',
+                        hint: 'Press Enter, Space, or Right Arrow',
+                        child: SkotiqButton(
+                          onPressed: busy ? null : onNext,
+                          label: isLast ? 'Done' : 'Next',
+                          icon: isLast ? null : LucideIcons.chevronRight,
+                          size: ButtonSize.small,
+                          isLoading: pendingMove == _Move.next,
+                        ),
                       ),
-                    ),
-                  const SizedBox(width: 8),
-                  Semantics(
-                    button: true,
-                    enabled: true,
-                    label: isLast ? 'Finish tutorial' : 'Next step',
-                    hint: 'Press Enter, Space, or Right Arrow',
-                    child: SkotiqButton(
-                      onPressed: busy ? null : onNext,
-                      label: isLast ? 'Done' : 'Next',
-                      icon: isLast ? null : LucideIcons.chevronRight,
-                      size: ButtonSize.small,
-                      isLoading: pendingMove == _Move.next,
-                    ),
+                    ],
                   ),
                 ],
               ),

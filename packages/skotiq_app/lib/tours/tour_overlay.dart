@@ -127,10 +127,7 @@ class _TourOverlayState extends ConsumerState<TourOverlay>
   /// Ticks only while a coach-mark tour is on screen: it drives the pulse ring
   /// and re-measures the target each frame. A ticker left running keeps the
   /// whole app producing frames.
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2000),
-  )..addListener(_followTarget);
+  late final AnimationController _pulse;
 
   /// What is drawn. It trails the runner's step until that step is settled:
   /// its target found, or found to be absent and the step left standing. A
@@ -162,6 +159,15 @@ class _TourOverlayState extends ConsumerState<TourOverlay>
   /// half a second may be two frames.
   static const Duration _screenBuildTime = Duration(milliseconds: 450);
   static const int _screenBuildFrames = 12;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..addListener(_followTarget);
+  }
 
   @override
   void dispose() {
@@ -246,6 +252,7 @@ class _TourOverlayState extends ConsumerState<TourOverlay>
   /// Settles the current step and then keeps its spotlight on the target as
   /// the target scrolls, animates or is laid out again.
   void _followTarget() {
+    if (!mounted) return;
     final run = ref.read(tourRunnerProvider);
     final step = run.step;
     final overlay = context.findRenderObject();

@@ -13,6 +13,7 @@ import '../../widgets/remote_host_path_dialog.dart';
 import 'widgets/plate_solve_parameters_section.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/solver_detection_card.dart';
+import '../../tours/tour_target.dart';
 
 enum PlateSolverPathKind {
   astapExecutable,
@@ -339,6 +340,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     required SkotiqBackend authority,
   }) {
     return SettingsPage(
+      key: TourTarget.settingsPlateSolving.key,
       title: 'Plate solving',
       description:
           'Configure ASTAP / Astrometry.net for centering, framing, and '
