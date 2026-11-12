@@ -656,11 +656,11 @@ final currentImageIsCalibratedProvider = Provider<bool>((ref) {
   if (path == null || path.isEmpty) {
     return false;
   }
-  // The calibration service produces files ending in `_cal.fits` (or
-  // `_cal.fit`). We match either casing on the suffix; the rest of the
-  // pipeline normalises paths but the suffix itself is stable.
+  // The calibration service names its output after the light with `_cal`
+  // before the light's own extension.
   final lower = path.toLowerCase();
-  return lower.endsWith('_cal.fits') || lower.endsWith('_cal.fit');
+  return isFrameFilePath(lower) &&
+      lower.substring(0, lower.lastIndexOf('.')).endsWith('_cal');
 });
 
 /// Live preview histogram: uses host raw pixels when [CapturedImageData.hasRawReady],

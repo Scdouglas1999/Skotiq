@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
+import 'package:skotiq_core/skotiq_core.dart'
+    show kFrameFileExtensions, userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/darkroom_navigation.dart';
@@ -12,8 +13,8 @@ import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 
 const _fitsFiles = XTypeGroup(
-  label: 'FITS images',
-  extensions: ['fits', 'fit', 'fts'],
+  label: 'FITS and XISF images',
+  extensions: kFrameFileExtensions,
 );
 
 /// Picks a master flat file; replaceable in tests.
