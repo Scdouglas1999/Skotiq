@@ -417,12 +417,29 @@ extension _DeviceServiceEventHandling on DeviceService {
         (type == null ? null : _expectedSlotName(type, deviceId)) ??
         _discoveryNameFromId(deviceId) ??
         _friendlyNameFromId(deviceId);
+    final meaning = _attempts.onConnected(deviceId);
+    if (meaning == ConnectedMeaning.stale) {
+      // The connect this event belongs to has failed and the device is being
+      // let go of; the slot keeps showing why.
+      _safeLog(
+        (logger) => logger.info(
+          'Ignoring Connected for $deviceType ($deviceId): its connect '
+          'failed and the device is being released',
+          source: 'DeviceService',
+        ),
+        'device-connected-stale-$deviceType',
+      );
+      return;
+    }
     if (type != null) {
       readDeviceConnectionNotifier(_ref, type)
         ..setConnecting(deviceId, resolvedName)
         ..setConnected();
       // A new connection starts with no stale readings.
       _ref.read(deviceReadHealthProvider.notifier).clear(type);
+      if (meaning == ConnectedMeaning.late) {
+        unawaited(_finishLateConnect(type, deviceId, resolvedName));
+      }
     }
 
     // Reset the reconnect lifecycle for every device type, then drive
@@ -437,6 +454,9 @@ extension _DeviceServiceEventHandling on DeviceService {
 
   void _applyDeviceConnecting(String deviceType, String deviceId) {
     if (_isGuideCameraEvent(deviceType, deviceId)) return;
+    // This service's own connect has already set the slot, and may since
+    // have failed.
+    if (_attempts.isOwn(deviceId)) return;
     // See _applyDeviceConnected: prefer the discovery model name over the raw
     // id so the "Connecting…" label and card show the friendly name.
     final resolvedName =
@@ -468,9 +488,13 @@ extension _DeviceServiceEventHandling on DeviceService {
   /// ordering is unaffected.
   bool _disconnectEventOwnsSlot(DeviceType type, String eventDeviceId) {
     final tracked = _slotDeviceIdFor(type);
-    if (tracked == null || tracked.isEmpty || tracked == eventDeviceId) {
-      return true;
+    if (tracked == null || tracked.isEmpty) {
+      // A slot that holds no device but shows why a connect failed keeps
+      // saying so; only a new connect or the user clears it.
+      return readDeviceSlot(_ref, type).connectionState !=
+          DeviceConnectionState.error;
     }
+    if (tracked == eventDeviceId) return true;
     _safeLog(
       (logger) => logger.warning(
         'Ignoring stale ${type.name} Disconnected for $eventDeviceId; '
@@ -494,7 +518,7 @@ extension _DeviceServiceEventHandling on DeviceService {
 
     // The app let go of a device whose connect did not come up. The connect
     // already left the slot showing why; nothing was lost.
-    if (_reconnectCoordinator.takeCleanupDisconnect(deviceId)) {
+    if (_attempts.onDisconnected(deviceId)) {
       _safeLog(
         (logger) => logger.info(
           'Released $deviceType ($deviceId) after a connect that did not '
@@ -621,12 +645,19 @@ extension _DeviceServiceEventHandling on DeviceService {
       'device-error-log',
     );
 
+    // The failure of this service's own connect. The connect call leaves the
+    // slot showing it and hands it to whoever asked for the connect, so it
+    // is told there, once.
+    if (deviceId != null && _attempts.isOwn(deviceId)) return;
+
     // 2. Update the matching device-type state notifier so equipment
     //    cards display the error in their subtitle.
-    final exception = Exception(
-      fullMessage,
-    ); // setError expects Object — wrap once.
     final type = deviceTypeFromWireName(deviceType ?? '');
+    final isGuideCamera = _isGuideCameraEvent(deviceType, deviceId);
+    // An error while the slot is connecting this device is a connect that
+    // somebody else started (the native reconnect, the host, another client)
+    // and that did not succeed; say that rather than only the driver's words.
+    var toldMessage = fullMessage;
     if (type == null) {
       _safeLog(
         (logger) => logger.warning(
@@ -636,8 +667,17 @@ extension _DeviceServiceEventHandling on DeviceService {
         ),
         'device-error-unknown-type',
       );
-    } else if (!_isGuideCameraEvent(deviceType, deviceId)) {
-      readDeviceConnectionNotifier(_ref, type).setError(exception);
+    } else if (!isGuideCamera) {
+      final before = readDeviceSlot(_ref, type);
+      if (before.connectionState == DeviceConnectionState.connecting &&
+          before.deviceId == deviceId) {
+        final verb = before.lastError == null ? 'connect' : 'reconnect';
+        toldMessage = 'The ${type.noun} did not $verb: $fullMessage';
+      }
+      readDeviceConnectionNotifier(
+        _ref,
+        type,
+      ).setError(Exception(fullMessage));
     }
 
     // Rate-limit the user-facing surface so a flapping device cannot flood it.
@@ -646,7 +686,7 @@ extension _DeviceServiceEventHandling on DeviceService {
     // structured-history entry within the dedup window. The logger record from
     // step 1 still captures every occurrence for diagnostics, so nothing is lost.
     final now = DateTime.now();
-    final dedupKey = '${deviceId ?? deviceType ?? '?'}::$fullMessage';
+    final dedupKey = '${deviceId ?? deviceType ?? '?'}::$toldMessage';
     final lastShown = _recentDeviceErrorToasts[dedupKey];
     if (lastShown != null &&
         now.difference(lastShown) < _deviceErrorToastWindow) {
@@ -676,7 +716,7 @@ extension _DeviceServiceEventHandling on DeviceService {
       // still want the entry recorded, so default to "Device".
       errSvc.logDeviceError(
         operation: 'driver_error',
-        message: fullMessage,
+        message: toldMessage,
         deviceType: deviceType ?? 'Device',
         deviceId: deviceId,
         severity: mappedSeverity,
@@ -697,7 +737,7 @@ extension _DeviceServiceEventHandling on DeviceService {
         _ref
             .read(uiNotificationProvider.notifier)
             .showError(
-              fullMessage,
+              toldMessage,
               title: '${deviceType ?? "Device"} Error',
               duration: const Duration(seconds: 12),
             );

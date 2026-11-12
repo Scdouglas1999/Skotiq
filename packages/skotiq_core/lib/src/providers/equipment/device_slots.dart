@@ -26,6 +26,21 @@ import 'safety_monitor_state_provider.dart';
 import 'switch_state_provider.dart';
 import 'weather_state_provider.dart';
 
+/// The device types the native heartbeat reconnects itself, so Dart must not
+/// schedule a second reconnect that would race it.
+///
+/// A copy of the native rule: `policy(type).heartbeat.auto_reconnect` in
+/// `native/skotiq_native/bridge/src/device_manager/policy.rs`. Nothing on the
+/// FFI publishes that table yet; when it does, this constant is replaced by
+/// the answer. Until then a change on either side has to be made on both.
+const Set<DeviceType> nativeReconnectedDeviceTypes = {
+  DeviceType.mount,
+  DeviceType.guider,
+  DeviceType.dome,
+  DeviceType.weather,
+  DeviceType.coverCalibrator,
+};
+
 class DeviceSlot {
   const DeviceSlot({
     required this.type,
@@ -33,7 +48,6 @@ class DeviceSlot {
     required this.state,
     required this.notifier,
     this.isCore = false,
-    this.nativeOwnsReconnect = false,
     this.heartbeat = false,
     this.checksModel = false,
   });
@@ -54,10 +68,8 @@ class DeviceSlot {
   /// connection dots and a connected/total count.
   final bool isCore;
 
-  /// The native heartbeat reconnects this type itself
-  /// (`HeartbeatConfig::for_*().auto_reconnect`), so Dart must not schedule a
-  /// second reconnect that would race it.
-  final bool nativeOwnsReconnect;
+  /// See [nativeReconnectedDeviceTypes].
+  bool get nativeOwnsReconnect => nativeReconnectedDeviceTypes.contains(type);
 
   /// Dart starts and stops the native heartbeat around connect / disconnect.
   final bool heartbeat;
@@ -84,7 +96,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: mountStateProvider,
     notifier: mountStateProvider.notifier,
     isCore: true,
-    nativeOwnsReconnect: true,
     heartbeat: true,
     checksModel: true,
   ),
@@ -112,7 +123,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     state: guiderStateProvider,
     notifier: guiderStateProvider.notifier,
     isCore: true,
-    nativeOwnsReconnect: true,
   ),
   DeviceSlot(
     type: DeviceType.rotator,
@@ -128,14 +138,12 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     wireNames: const ['dome'],
     state: domeStateProvider,
     notifier: domeStateProvider.notifier,
-    nativeOwnsReconnect: true,
   ),
   DeviceSlot(
     type: DeviceType.weather,
     wireNames: const ['weather'],
     state: weatherStateProvider,
     notifier: weatherStateProvider.notifier,
-    nativeOwnsReconnect: true,
   ),
   DeviceSlot(
     type: DeviceType.safetyMonitor,
@@ -154,7 +162,6 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     wireNames: const ['covercalibrator', 'cover calibrator'],
     state: coverCalibratorStateProvider,
     notifier: coverCalibratorStateProvider.notifier,
-    nativeOwnsReconnect: true,
   ),
 ]);
 

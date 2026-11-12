@@ -72,12 +72,20 @@ List<Override> _readyRig({
         ),
       ),
       phd2StateProvider.overrideWith((ref) => phd2),
-      assignedProfileDeviceTypesProvider.overrideWithValue(
-        const <DeviceType>[
-          DeviceType.camera,
-          DeviceType.mount,
-          DeviceType.guider,
-        ],
+      rigDevicesProvider.overrideWithValue(
+        RigDevices([
+          for (final type in const [
+            DeviceType.camera,
+            DeviceType.mount,
+            DeviceType.guider,
+          ])
+            RigDevice(
+              type: type,
+              assigned: true,
+              connected: false,
+              sessionOnly: false,
+            ),
+        ]),
       ),
       appSettingsProvider.overrideWith(() => FixedSettings(settings)),
       nightSolverStatusProvider.overrideWithValue(

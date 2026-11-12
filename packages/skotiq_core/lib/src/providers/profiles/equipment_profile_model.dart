@@ -118,14 +118,19 @@ class EquipmentProfileModel {
     this.updatedAt,
   });
 
-  /// Returns telescope name + camera name as subtitle, or fallback
+  /// Telescope and camera name, else the first name there is, else how many
+  /// slots the profile assigns (the count [RigDevices] gives for the active
+  /// profile; a guide camera is part of its guider).
   String get subtitle {
     if (telescopeName != null && cameraName != null) {
       return '$telescopeName + $cameraName';
     }
     if (cameraName != null) return cameraName!;
     if (mountName != null) return mountName!;
-    return deviceCount == 1 ? '1 device' : '$deviceCount devices';
+    final count = DeviceType.values
+        .where((type) => deviceIdFor(type) != null)
+        .length;
+    return count == 1 ? '1 device' : '$count devices';
   }
 
   /// The device this profile assigns to [type]'s slot. The guide camera is
@@ -177,11 +182,6 @@ class EquipmentProfileModel {
   bool get hasAssignedDevices =>
       (guideCameraId ?? '').isNotEmpty ||
       DeviceType.values.any((type) => (deviceIdFor(type) ?? '').isNotEmpty);
-
-  /// Count of assigned devices, the guide camera included.
-  int get deviceCount =>
-      DeviceType.values.where((type) => deviceIdFor(type) != null).length +
-      (guideCameraId != null ? 1 : 0);
 
   factory EquipmentProfileModel.fromDatabase(EquipmentProfile db) {
     List<String> filters = [];

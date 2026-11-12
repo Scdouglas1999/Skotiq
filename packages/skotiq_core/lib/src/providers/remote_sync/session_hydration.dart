@@ -188,6 +188,9 @@ void _dropDevicesTheHostNoLongerReports(
     // A slot that holds no device has nothing the host could stop reporting;
     // one showing a connect that failed keeps showing it.
     if (deviceId == null) continue;
+    // A connect this client asked for is still in flight; the host does not
+    // list the device until it is up.
+    if (DeviceServiceLifecycle.hasOwnConnectOf(deviceId)) continue;
     final stillReported = devices.any(
       (d) => d.deviceType == type && d.id == deviceId,
     );

@@ -60,15 +60,19 @@ void _applyEquipmentMutationFromHost(
     return;
   }
 
+  // The guide camera is the guider's: it has no slot, and the imaging
+  // camera's is not its to take or to empty.
+  if (_isHostGuideCamera(reader, parsed, deviceId)) return;
+
+  final notifier = readDeviceConnectionNotifier(reader, parsed);
   switch (action) {
     case HostMutationAction.connected:
-      final notifier = readDeviceConnectionNotifier(reader, parsed);
       if (!_isDeviceAlreadyConnected(reader, parsed, deviceId)) {
         notifier.setConnecting(deviceId, deviceName);
       }
       notifier.setConnected();
     case HostMutationAction.disconnected:
-      readDeviceConnectionNotifier(reader, parsed).setDisconnected();
+      _emptySlotFor(reader, parsed, deviceId);
     default:
       break;
   }
