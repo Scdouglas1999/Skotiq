@@ -42,23 +42,13 @@ pub(crate) struct PWProperties {
     pub(crate) reserved: [c_char; 32],
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PWState {
-    Closed = 0,
-    Opened = 1,
-    Moving = 2,
-}
+/// `PWState` from PlayerOnePW.h, held as the C int the SDK writes.
+pub(crate) const PW_STATE_OPENED: c_int = 1;
+pub(crate) const PW_STATE_MOVING: c_int = 2;
 
-/// POA Exposure Status
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum POAExposureStatus {
-    Idle = 0,
-    Working = 1,
-    Success = 2,
-    Failed = 3,
-}
+/// `PW_ERROR_IS_MOVING` from PlayerOnePW.h: the answer to a position read
+/// while the wheel turns.
+pub(crate) const PW_ERROR_IS_MOVING: c_int = 6;
 
 /// POA Bool type
 pub(crate) type POABool = c_int;

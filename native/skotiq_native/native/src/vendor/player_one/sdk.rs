@@ -108,9 +108,9 @@ crate::load_vendor_sdk! {
         close_pw: b"POAClosePW\0" => unsafe extern "C" fn(c_int) -> c_int,
         get_current_position: b"POAGetCurrentPosition\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
         goto_position: b"POAGotoPosition\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
-        get_pw_state: b"POAGetPWState\0" => unsafe extern "C" fn(c_int, *mut PWState) -> c_int,
+        get_pw_state: b"POAGetPWState\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
         get_filter_alias: b"POAGetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *mut c_char, c_int) -> c_int,
-        set_filter_alias: b"POASetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *const c_char) -> c_int,
+        set_filter_alias: b"POASetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *const c_char, c_int) -> c_int,
         get_sdk_version: b"POAGetPWSDKVer\0" => unsafe extern "C" fn() -> *const c_char,
     }
 }
@@ -253,11 +253,12 @@ pub(crate) fn check_poa_pw_error(code: c_int, operation: &str) -> Result<(), Dri
             operation
         ))),
         8 => Err(DriverError::SdkError(format!(
-            "{}: Player One PW operation failed",
+            "{}: Player One filter wheel operation failed (sent commands too often, or unplugged)",
             operation
         ))),
         9 => Err(DriverError::SdkError(format!(
-            "{}: Player One PW firmware error",
+            "{}: Player One filter wheel firmware error (a filter may not line up with its slot); \
+             power-cycle the wheel",
             operation
         ))),
         other => Err(DriverError::SdkError(format!(
