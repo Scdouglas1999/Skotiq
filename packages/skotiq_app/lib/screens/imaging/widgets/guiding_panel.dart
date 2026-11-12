@@ -317,6 +317,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
             data: ref.watch(guideGraphProvider),
             isGuiding: isGuiding,
             isConnected: isConnected,
+            arcsecPerPixel: pixelScale,
           ),
           const SizedBox(height: 16),
 

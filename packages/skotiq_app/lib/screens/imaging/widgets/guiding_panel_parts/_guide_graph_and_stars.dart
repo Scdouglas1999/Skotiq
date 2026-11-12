@@ -10,16 +10,20 @@ class CompactGuidingGraph extends StatelessWidget {
   final bool isGuiding;
   final bool isConnected;
 
+  /// The guide camera's scale; null plots guide-camera pixels.
+  final double? arcsecPerPixel;
+
   const CompactGuidingGraph({
     super.key,
     required this.colors,
     required this.data,
     required this.isGuiding,
     required this.isConnected,
+    this.arcsecPerPixel,
   });
 
-  /// The vertical range, in guide-camera pixels: PHD2 reports raw distances
-  /// and no pixel scale reaches this panel, so they cannot be arcseconds.
+  /// The vertical range, in the unit the panel's readouts use (arcseconds
+  /// once the guider reports its scale, pixels before).
   static const double range = 4;
 
   /// How many of the newest samples the panel shows.
@@ -30,11 +34,14 @@ class CompactGuidingGraph extends StatelessWidget {
     final recent =
         data.length > window ? data.sublist(data.length - window) : data;
     final newest = recent.isEmpty ? null : recent.last.time;
+    final unit = guideDistance(0, arcsecPerPixel).unit;
     List<Offset> trace(double Function(GuideGraphPoint) error) => <Offset>[
           for (final point in recent)
             Offset(
               -newest!.difference(point.time).inMilliseconds / 1000.0,
-              error(point).clamp(-range, range),
+              guideDistance(error(point), arcsecPerPixel)
+                  .value
+                  .clamp(-range, range),
             ),
         ];
 
@@ -48,7 +55,7 @@ class CompactGuidingGraph extends StatelessWidget {
       ),
       child: SkotiqChart(
         semanticLabel: 'Guide error, last ${recent.length} steps, '
-            '±${range.round()} px full scale',
+            '±${range.round()}$unit full scale',
         dense: true,
         legend: true,
         series: <ChartSeries>[
@@ -66,11 +73,11 @@ class CompactGuidingGraph extends StatelessWidget {
           ],
         ],
         x: const ChartAxis(kind: ChartAxisKind.elapsed, max: 0, maxTicks: 4),
-        y: const ChartAxis(
+        y: ChartAxis(
           min: -range,
           max: range,
-          ticks: <double>[-range, 0, range],
-          unit: ' px',
+          ticks: const <double>[-range, 0, range],
+          unit: unit,
         ),
         rules: const <ChartRule>[ChartRule.y(0, dashed: false)],
         emptyText: isGuiding
