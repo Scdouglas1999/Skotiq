@@ -581,9 +581,9 @@ impl CameraDriver for PlayerOneCamera {
         else {
             return Err(DriverError::NotSupported);
         };
-        // SAFETY: the camera is open; POASetSensorMode takes the id and index by value
-        // and answers POA_ERROR_INVALID_ARGU for an index out of range.
         check_poa_error(
+            // SAFETY: the camera is open; POASetSensorMode takes the id and index by value
+            // and answers POA_ERROR_INVALID_ARGU for an index out of range.
             unsafe { set_mode(self.camera_id, mode.index) },
             "SetSensorMode",
         )?;

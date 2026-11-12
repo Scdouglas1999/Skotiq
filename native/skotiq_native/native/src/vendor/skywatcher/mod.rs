@@ -314,8 +314,8 @@ impl SkyWatcherMount {
         }
     }
 
-    /// The same mount on a fixed clock.
-    #[cfg(test)]
+    /// The same mount on a fixed clock, for the serial wire tests.
+    #[cfg(all(test, target_os = "linux"))]
     pub(crate) fn with_clock(mut self, clock: fn() -> DateTime<Utc>) -> Self {
         self.clock = clock;
         self

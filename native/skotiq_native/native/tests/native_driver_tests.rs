@@ -2188,7 +2188,9 @@ mod fake_sdk_contract {
 // exposures up to 60 s. Camera 1: uncooled RGGB color, bins 1/2, 12-bit,
 // exposures up to 2000 s, with FLIP and MONO_BIN, which FAKE_ASI_FLIP and
 // FAKE_ASI_MONO_BIN preset the way another program can leave them. Camera 2:
-// uncooled mono that reads out RAW8 only.
+// uncooled mono that reads out RAW8 only. FAKE_ASI_GONE=1 takes every camera
+// off the bus: the SDK lists none and answers a call on any id with
+// ASI_ERROR_INVALID_ID.
 // Every pixel holds 1000 + 256 * row + column of the binned sensor grid, so a
 // frame shows where on the sensor it was read.
 use std::ffi::{c_char, c_int, c_long, c_uchar};
@@ -2216,10 +2218,10 @@ struct ASICameraInfo{ name:[c_char;64], camera_id:c_int, max_height:c_long, max_
 #[repr(C)]
 struct ASIControlCaps{ name:[c_char;64], description:[c_char;128], max_value:c_long, min_value:c_long, default_value:c_long, is_auto_supported:c_int, is_writable:c_int, control_type:c_int, unused:[c_char;32] }
 fn write_cstr(buf:&mut [c_char], text:&[u8]){ for slot in buf.iter_mut(){*slot=0;} for i in 0..text.len().min(buf.len().saturating_sub(1)){buf[i]=text[i] as c_char;} }
-fn camera(id:c_int)->Option<usize>{ if (0..3).contains(&id) {Some(id as usize)} else {None} }
+fn camera(id:c_int)->Option<usize>{ if (0..3).contains(&id)&&std::env::var("FAKE_ASI_GONE").is_err() {Some(id as usize)} else {None} }
 fn control(cam:usize, control:c_int)->Option<&'static Control>{ CONTROLS[cam].iter().find(|c| c.0==control) }
 fn env_value(name:&str)->Option<i64>{ std::env::var(name).ok().and_then(|v| v.parse().ok()) }
-#[no_mangle] pub extern "C" fn ASIGetNumOfConnectedCameras()->c_int{3}
+#[no_mangle] pub extern "C" fn ASIGetNumOfConnectedCameras()->c_int{ if std::env::var("FAKE_ASI_GONE").is_ok(){0}else{3} }
 #[no_mangle] pub extern "C" fn ASIGetSDKVersion()->*const c_char{b"fake-asi-1.0\0".as_ptr() as *const c_char}
 #[no_mangle] pub unsafe extern "C" fn ASIGetCameraProperty(info:*mut ASICameraInfo,index:c_int)->c_int{ let Some(cam)=camera(index) else {return 1;}; if info.is_null(){return 1;} let mut value:ASICameraInfo=std::mem::zeroed(); value.camera_id=index; value.max_width=MAX_W[cam] as c_long; value.max_height=MAX_H[cam] as c_long; for (i,b) in BINS[cam].iter().enumerate(){value.supported_bins[i]=*b;} for (i,f) in FORMATS[cam].iter().enumerate(){value.supported_video_format[i]=*f;} value.supported_video_format[FORMATS[cam].len()]=-1; value.st4_port=1; value.is_usb3_host=1; value.is_usb3_camera=1; if cam==0 { write_cstr(&mut value.name,b"Skotiq Fake ASI2600MM Pro"); value.pixel_size=3.76; value.is_cooler_cam=1; value.elec_per_adu=0.8; value.bit_depth=16; } else if cam==2 { write_cstr(&mut value.name,b"Skotiq Fake ASI120MM Mini"); value.pixel_size=3.75; value.elec_per_adu=4.0; value.bit_depth=12; value.is_usb3_host=0; value.is_usb3_camera=0; } else { write_cstr(&mut value.name,b"Skotiq Fake ASI224MC"); value.pixel_size=3.75; value.is_color_cam=1; value.bayer_pattern=0; value.elec_per_adu=3.0; value.bit_depth=12; } *info=value; 0 }
 #[no_mangle] pub extern "C" fn ASIOpenCamera(id:c_int)->c_int{if camera(id).is_some(){0}else{2}}
@@ -2231,9 +2233,9 @@ fn env_value(name:&str)->Option<i64>{ std::env::var(name).ok().and_then(|v| v.pa
 #[no_mangle] pub extern "C" fn ASISetStartPos(id:c_int,x:c_int,y:c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; let bin=BIN[cam].load(Ordering::SeqCst); if x<0||y<0||x+WIDTH[cam].load(Ordering::SeqCst)>MAX_W[cam]/bin||y+HEIGHT[cam].load(Ordering::SeqCst)>MAX_H[cam]/bin{return 10;} START_X[cam].store(x,Ordering::SeqCst); START_Y[cam].store(y,Ordering::SeqCst); 0 }
 #[no_mangle] pub unsafe extern "C" fn ASIGetStartPos(id:c_int,x:*mut c_int,y:*mut c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; if x.is_null()||y.is_null(){return 16;} *x=START_X[cam].load(Ordering::SeqCst); *y=START_Y[cam].load(Ordering::SeqCst); 0 }
 #[no_mangle] pub unsafe extern "C" fn ASIGetROIFormat(id:c_int,width:*mut c_int,height:*mut c_int,bin:*mut c_int,img_type:*mut c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; if width.is_null()||height.is_null()||bin.is_null()||img_type.is_null(){return 16;} *width=WIDTH[cam].load(Ordering::SeqCst); *height=HEIGHT[cam].load(Ordering::SeqCst); *bin=BIN[cam].load(Ordering::SeqCst); *img_type=IMG_TYPE[cam].load(Ordering::SeqCst); 0 }
-#[no_mangle] pub extern "C" fn ASIStartExposure(_id:c_int,_dark:c_int)->c_int{0}
-#[no_mangle] pub extern "C" fn ASIStopExposure(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn ASIGetExpStatus(_id:c_int,status:*mut c_int)->c_int{ if status.is_null(){return 16;} *status=2; 0 }
+#[no_mangle] pub extern "C" fn ASIStartExposure(id:c_int,_dark:c_int)->c_int{ if camera(id).is_none(){return 2;} 0 }
+#[no_mangle] pub extern "C" fn ASIStopExposure(id:c_int)->c_int{ if camera(id).is_none(){return 2;} 0 }
+#[no_mangle] pub unsafe extern "C" fn ASIGetExpStatus(id:c_int,status:*mut c_int)->c_int{ if camera(id).is_none(){return 2;} if status.is_null(){return 16;} *status=2; 0 }
 #[no_mangle] pub unsafe extern "C" fn ASIGetDataAfterExp(id:c_int,buffer:*mut c_uchar,size:c_long)->c_int{ let Some(cam)=camera(id) else {return 2;}; let (w,h)=(WIDTH[cam].load(Ordering::SeqCst),HEIGHT[cam].load(Ordering::SeqCst)); let (x0,y0)=(START_X[cam].load(Ordering::SeqCst),START_Y[cam].load(Ordering::SeqCst)); let bytes=if IMG_TYPE[cam].load(Ordering::SeqCst)==2 {2} else {1}; if buffer.is_null()||(size as i64)<(w as i64)*(h as i64)*bytes{return 13;} for row in 0..h { for col in 0..w { let value=(1000+256*(y0+row)+(x0+col)) as u16; let i=(row*w+col) as usize; if bytes==2 { *buffer.add(i*2)=(value&0xff) as u8; *buffer.add(i*2+1)=(value>>8) as u8; } else { *buffer.add(i)=(value&0xff) as u8; } } } 0 }
 #[no_mangle] pub unsafe extern "C" fn ASIGetNumOfControls(id:c_int,count:*mut c_int)->c_int{ let Some(cam)=camera(id) else {return 2;}; if count.is_null(){return 16;} *count=CONTROLS[cam].len() as c_int; 0 }
 #[no_mangle] pub unsafe extern "C" fn ASIGetControlCaps(id:c_int,index:c_int,caps:*mut ASIControlCaps)->c_int{ let Some(cam)=camera(id) else {return 2;}; if caps.is_null(){return 16;} if index<0||index as usize>=CONTROLS[cam].len(){return 1;} let (control_type,name,min,max,default_value)=CONTROLS[cam][index as usize]; let mut value:ASIControlCaps=std::mem::zeroed(); write_cstr(&mut value.name,name); write_cstr(&mut value.description,b"Skotiq fake SDK control"); value.min_value=min as c_long; value.max_value=max as c_long; value.default_value=default_value as c_long; value.is_writable=if control_type==8||control_type==15 {0} else {1}; value.control_type=control_type; *caps=value; 0 }
@@ -2242,22 +2244,24 @@ fn env_value(name:&str)->Option<i64>{ std::env::var(name).ok().and_then(|v| v.pa
     const EAF_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
 // EAFOpen knows an id only after EAFGetNum has listed it (EAF_focuser.h: GetNum
-// "should be the first API to be called").
+// "should be the first API to be called"). FAKE_EAF_GONE=1 unplugs the focuser:
+// the SDK lists none and answers a call on its id with EAF_ERROR_INVALID_ID.
 use std::ffi::{c_char,c_int,c_uchar};
 use std::sync::atomic::{AtomicBool,AtomicI32,Ordering};
 static POSITION:AtomicI32=AtomicI32::new(1_000); static MAX_STEP:AtomicI32=AtomicI32::new(60_000); static REVERSE:AtomicBool=AtomicBool::new(false); static BEEP:AtomicBool=AtomicBool::new(false); static BACKLASH:AtomicI32=AtomicI32::new(0); static ENUMERATED:AtomicBool=AtomicBool::new(false);
 #[repr(C)] struct EAFInfo{ id:c_int, name:[c_char;64], max_step:c_int }
 #[repr(C)] struct EAFSerialNumber{ id:[c_uchar;8] }
 fn write_cstr(buf:&mut [c_char], text:&[u8]){ for slot in buf.iter_mut(){*slot=0;} for i in 0..text.len().min(buf.len().saturating_sub(1)){buf[i]=text[i] as c_char;} }
-#[no_mangle] pub extern "C" fn EAFGetNum()->c_int{ENUMERATED.store(true,Ordering::SeqCst);1}
+fn gone()->bool{ std::env::var("FAKE_EAF_GONE").is_ok() }
+#[no_mangle] pub extern "C" fn EAFGetNum()->c_int{ENUMERATED.store(true,Ordering::SeqCst); if gone(){0}else{1}}
 #[no_mangle] pub unsafe extern "C" fn EAFGetID(index:c_int,id:*mut c_int)->c_int{ if id.is_null()||index!=0{return 1;} *id=0; 0}
 #[no_mangle] pub extern "C" fn EAFOpen(id:c_int)->c_int{if id==0&&ENUMERATED.load(Ordering::SeqCst){0}else{2}}
 #[no_mangle] pub extern "C" fn EAFClose(_id:c_int)->c_int{0}
 #[no_mangle] pub unsafe extern "C" fn EAFGetProperty(id:c_int,info:*mut EAFInfo)->c_int{ if info.is_null()||id!=0{return 2;} let mut value:EAFInfo=std::mem::zeroed(); value.id=id; value.max_step=MAX_STEP.load(Ordering::SeqCst); write_cstr(&mut value.name,b"ZWO EAF"); *info=value; 0}
-#[no_mangle] pub extern "C" fn EAFMove(_id:c_int,position:c_int)->c_int{POSITION.store(position,Ordering::SeqCst);0}
-#[no_mangle] pub extern "C" fn EAFStop(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn EAFIsMoving(_id:c_int,moving:*mut bool,hand_control:*mut bool)->c_int{ if moving.is_null()||hand_control.is_null(){return 7;} *moving=false; *hand_control=false; 0}
-#[no_mangle] pub unsafe extern "C" fn EAFGetPosition(_id:c_int,position:*mut c_int)->c_int{ if position.is_null(){return 7;} *position=POSITION.load(Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn EAFMove(_id:c_int,position:c_int)->c_int{if gone(){return 2;} POSITION.store(position,Ordering::SeqCst);0}
+#[no_mangle] pub extern "C" fn EAFStop(_id:c_int)->c_int{if gone(){2}else{0}}
+#[no_mangle] pub unsafe extern "C" fn EAFIsMoving(_id:c_int,moving:*mut bool,hand_control:*mut bool)->c_int{ if gone(){return 2;} if moving.is_null()||hand_control.is_null(){return 7;} *moving=false; *hand_control=false; 0}
+#[no_mangle] pub unsafe extern "C" fn EAFGetPosition(_id:c_int,position:*mut c_int)->c_int{ if gone(){return 2;} if position.is_null(){return 7;} *position=POSITION.load(Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn EAFGetTemp(_id:c_int,temp:*mut f32)->c_int{ if temp.is_null(){return 7;} *temp=21.5; 0}
 #[no_mangle] pub extern "C" fn EAFSetMaxStep(_id:c_int,max_step:c_int)->c_int{MAX_STEP.store(max_step,Ordering::SeqCst);0}
 #[no_mangle] pub unsafe extern "C" fn EAFGetMaxStep(_id:c_int,max_step:*mut c_int)->c_int{ if max_step.is_null(){return 7;} *max_step=MAX_STEP.load(Ordering::SeqCst); 0}
@@ -2279,6 +2283,8 @@ fn write_cstr(buf:&mut [c_char], text:&[u8]){ for slot in buf.iter_mut(){*slot=0
 // in the process is still counting its slots and answers EFWGetProperty with
 // EFW_ERROR_MOVING three times (EFW_filter.h). FAKE_EFW_REMOVED=1 unplugs the
 // wheel; FAKE_EFW_SLOTS gives the slot count of a wheel plugged in its place.
+// FAKE_EFW_GONE=1 unplugs it after the SDK has re-listed the bus: a call on
+// its id answers EFW_ERROR_INVALID_ID.
 use std::ffi::{c_char,c_int,c_uchar};
 use std::sync::atomic::{AtomicBool,AtomicI32,Ordering};
 static POSITION:AtomicI32=AtomicI32::new(0); static DIRECTION:AtomicBool=AtomicBool::new(false); static ENUMERATED:AtomicBool=AtomicBool::new(false); static OPENED:AtomicBool=AtomicBool::new(false); static DETECTING:AtomicI32=AtomicI32::new(0);
@@ -2286,13 +2292,14 @@ static POSITION:AtomicI32=AtomicI32::new(0); static DIRECTION:AtomicBool=AtomicB
 #[repr(C)] struct EFWSerialNumber{ id:[c_uchar;8] }
 fn write_cstr(buf:&mut [c_char], text:&[u8]){ for slot in buf.iter_mut(){*slot=0;} for i in 0..text.len().min(buf.len().saturating_sub(1)){buf[i]=text[i] as c_char;} }
 fn removed()->bool{ std::env::var("FAKE_EFW_REMOVED").is_ok() }
+fn gone()->bool{ std::env::var("FAKE_EFW_GONE").is_ok() }
 #[no_mangle] pub extern "C" fn EFWGetNum()->c_int{ENUMERATED.store(true,Ordering::SeqCst); if removed(){0}else{1}}
 #[no_mangle] pub unsafe extern "C" fn EFWGetID(index:c_int,id:*mut c_int)->c_int{ if id.is_null()||index!=0||removed(){return 1;} *id=0; 0}
 #[no_mangle] pub extern "C" fn EFWOpen(id:c_int)->c_int{ if removed(){return 4;} if id!=0||!ENUMERATED.load(Ordering::SeqCst){return 2;} if !OPENED.swap(true,Ordering::SeqCst){DETECTING.store(3,Ordering::SeqCst);} 0}
 #[no_mangle] pub extern "C" fn EFWClose(_id:c_int)->c_int{ if removed(){2}else{0} }
 #[no_mangle] pub unsafe extern "C" fn EFWGetProperty(id:c_int,info:*mut EFWInfo)->c_int{ if removed(){return 4;} if info.is_null()||id!=0{return 2;} if DETECTING.load(Ordering::SeqCst)>0 { DETECTING.fetch_sub(1,Ordering::SeqCst); return 5; } let mut value:EFWInfo=std::mem::zeroed(); value.id=id; value.slot_num=std::env::var("FAKE_EFW_SLOTS").ok().and_then(|v| v.parse().ok()).unwrap_or(7); write_cstr(&mut value.name,b"Skotiq Fake EFW 7x36"); *info=value; 0}
-#[no_mangle] pub unsafe extern "C" fn EFWGetPosition(_id:c_int,position:*mut c_int)->c_int{ if removed(){return 4;} if position.is_null(){return 7;} *position=POSITION.load(Ordering::SeqCst); 0}
-#[no_mangle] pub extern "C" fn EFWSetPosition(_id:c_int,position:c_int)->c_int{ if removed(){return 4;} POSITION.store(position,Ordering::SeqCst);0}
+#[no_mangle] pub unsafe extern "C" fn EFWGetPosition(_id:c_int,position:*mut c_int)->c_int{ if removed(){return 4;} if gone(){return 2;} if position.is_null(){return 7;} *position=POSITION.load(Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn EFWSetPosition(_id:c_int,position:c_int)->c_int{ if removed(){return 4;} if gone(){return 2;} POSITION.store(position,Ordering::SeqCst);0}
 #[no_mangle] pub extern "C" fn EFWSetDirection(_id:c_int,direction:bool)->c_int{DIRECTION.store(direction,Ordering::SeqCst);0}
 #[no_mangle] pub unsafe extern "C" fn EFWGetDirection(_id:c_int,direction:*mut bool)->c_int{ if direction.is_null(){return 7;} *direction=DIRECTION.load(Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn EFWCalibrate(_id:c_int)->c_int{0}

@@ -414,6 +414,8 @@ impl Processor {
     fn describe(&self) -> Result<RawInfoFfi, RawError> {
         // SAFETY: RawInfoFfi is plain old data; the shim fills every field.
         let mut info: RawInfoFfi = unsafe { std::mem::zeroed() };
+        // SAFETY: valid, opened handle; `info` is a live RawInfoFfi, the
+        // layout of the shim's skotiq_raw_info_t, which it only writes.
         let code = unsafe { skotiq_raw_describe(self.0, &mut info) };
         if code != 0 {
             return Err(RawError::Decode(format!("reading the file's description (code {code})")));

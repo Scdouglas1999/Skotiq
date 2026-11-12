@@ -173,8 +173,8 @@ impl CameraDriver for QhyCamera {
                 } else {
                     SHUTTER_CLOSED
                 };
-                // SAFETY: `handle` is open and the SDK lock is held.
                 check_qhy_error(
+                    // SAFETY: `handle` is open and the SDK lock is held.
                     unsafe { control_shutter(handle, state) },
                     "move its shutter",
                 )?;
