@@ -355,7 +355,7 @@
   set_filter_name(0) = Ok(())
   set_filter_name(99) = Ok(())
 [touptek camera]
-  vendor = Other("Touptek")
+  vendor = Touptek
   is_connected = false
   serial_number = None
   disconnect = Ok(())
@@ -377,8 +377,8 @@
   set_gain(100) = Err(NotConnected)
   set_gain(-1) = Err(NotConnected)
   get_gain = Err(NotConnected)
-  set_offset(10) = Ok(())
-  set_offset(-1) = Ok(())
+  set_offset(10) = Err(NotConnected)
+  set_offset(-1) = Err(NotConnected)
   get_offset = Ok(0)
   set_binning(2,2) = Err(NotConnected)
   set_binning(0,0) = Err(NotConnected)

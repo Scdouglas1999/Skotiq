@@ -15,28 +15,67 @@ pub(crate) const OGMACAM_FLAG_TEC_ONOFF: u64 = 0x00020000;
 pub(crate) const OGMACAM_FLAG_ST4: u64 = 0x00000200;
 pub(crate) const OGMACAM_FLAG_ROI_HARDWARE: u64 = 0x00000008;
 pub(crate) const OGMACAM_FLAG_BINSKIP_SUPPORTED: u64 = 0x00000020;
+pub(crate) const OGMACAM_FLAG_GETTEMPERATURE: u64 = 0x00000400;
 pub(crate) const OGMACAM_FLAG_FAN: u64 = 0x00010000;
+pub(crate) const OGMACAM_FLAG_BLACKLEVEL: u64 = 0x00400000;
+/// Conversion gain: LCG and HCG (FLAG_CG), plus HDR (FLAG_CGHDR).
+pub(crate) const OGMACAM_FLAG_CG: u64 = 0x04000000;
+pub(crate) const OGMACAM_FLAG_CGHDR: u64 = 0x0000000800000000;
 pub(crate) const OGMACAM_FLAG_HEAT: u64 = 0x0000008000000000;
+/// The SDK enumerates the brand's filter wheels and focusers beside its cameras.
+pub(crate) const OGMACAM_FLAG_FILTERWHEEL: u64 = 0x0000100000000000;
+pub(crate) const OGMACAM_FLAG_AUTOFOCUSER: u64 = 0x0002000000000000;
+/// RAW10, RAW12, RAW14 or RAW16: the sensor reads out more than 8 bits.
+pub(crate) const OGMACAM_FLAG_RAW_ABOVE_8_BITS: u64 =
+    0x00001000 | 0x00002000 | 0x00004000 | 0x00008000;
 
 // Options (values verified against toupcam.h / ogmacam.h)
-pub(crate) const OGMACAM_OPTION_TEC: c_uint = 0x08;
-// 0x06 = TOUPCAM_OPTION_BITDEPTH (0 = 8-bit, 1 = 16-bit). Do not confuse with 0x04
+pub(crate) const OGMACAM_OPTION_RAW: c_uint = 0x04;
+// 0x06 = BITDEPTH: 0 = 8 bits, 1 = the camera's maximum. Do not confuse with 0x04
 // (OPTION_RAW): writing bit depth to 0x04 re-sets RAW and leaves the camera in 8-bit,
 // while download parses W*H bytes as W*H*2 u16 garbage.
 pub(crate) const OGMACAM_OPTION_BITDEPTH: c_uint = 0x06;
-// 0x17 = TOUPCAM_OPTION_BINNING. Do not confuse with 0x01 (OPTION_NOFRAME_TIMEOUT,
-// minimum 500ms): writing a bin factor there sets a frame timeout and never bins.
-pub(crate) const OGMACAM_OPTION_BINNING: c_uint = 0x17;
-pub(crate) const OGMACAM_OPTION_RAW: c_uint = 0x04;
 /// [RW] cooling fan speed, 0 = off, [1, `maxfanspeed`] otherwise.
 pub(crate) const OGMACAM_OPTION_FAN: c_uint = 0x07;
-/// [RW] anti-fogging heater level, 0 = off.
-pub(crate) const OGMACAM_OPTION_HEAT: c_uint = 0x37;
+pub(crate) const OGMACAM_OPTION_TEC: c_uint = 0x08;
+// 0x0b = TRIGGER. Value 1 selects software/simulated trigger mode, the prerequisite for
+// the software-trigger + pull-mode capture pipeline used below.
+pub(crate) const OGMACAM_OPTION_TRIGGER: c_uint = 0x0b;
+/// [RW] cooler set-point in 0.1 C; -2730 or below means the model's default.
+pub(crate) const OGMACAM_OPTION_TECTARGET: c_uint = 0x0f;
+/// [RW] black level (offset) in ADU of the camera's bit depth, at most 31 << (bits - 8).
+pub(crate) const OGMACAM_OPTION_BLACKLEVEL: c_uint = 0x15;
+/// [RW] conversion gain: 0 = LCG, 1 = HCG, 2 = HDR.
+pub(crate) const OGMACAM_OPTION_CG: c_uint = 0x19;
+// 0x17 = BINNING. Do not confuse with 0x01 (OPTION_NOFRAME_TIMEOUT, minimum 500 ms):
+// writing a bin factor there sets a frame timeout and never bins.
+pub(crate) const OGMACAM_OPTION_BINNING: c_uint = 0x17;
+/// [RO] TEC voltage in 0.1 V; the SDK asks for at least 2 s between reads.
+pub(crate) const OGMACAM_OPTION_TEC_VOLTAGE: c_uint = 0x20;
+/// [RW] the TEC voltage at full cooler power, in 0.1 V.
+pub(crate) const OGMACAM_OPTION_TEC_VOLTAGE_MAX: c_uint = 0x21;
+/// [RW] 1 = rows arrive bottom row first. The SDK default is 1 on Windows, 0 elsewhere,
+/// and ROI coordinates follow the same row order. Settable only before the stream starts.
+pub(crate) const OGMACAM_OPTION_UPSIDE_DOWN: c_uint = 0x23;
 /// [RW] USB bandwidth as a percentage, [1, 100].
 pub(crate) const OGMACAM_OPTION_BANDWIDTH: c_uint = 0x2e;
-// 0x0b = TOUPCAM_OPTION_TRIGGER. Value 1 selects software/simulated trigger mode, the
-// prerequisite for the software-trigger + pull-mode capture pipeline used below.
-pub(crate) const OGMACAM_OPTION_TRIGGER: c_uint = 0x0b;
+/// [RW] anti-fogging heater level, 0 = off.
+pub(crate) const OGMACAM_OPTION_HEAT: c_uint = 0x37;
+/// [WO] 3 discards every frame the camera and the SDK still hold.
+pub(crate) const OGMACAM_OPTION_FLUSH: c_uint = 0x3d;
+/// [RO] cooler set-point range in 0.1 C: minimum in the low 16 bits, maximum in the high.
+pub(crate) const OGMACAM_OPTION_TECTARGET_RANGE: c_uint = 0x6d;
+/// [RW] where the unused bits of a 10..14-bit sample go: 0 = high bits (the sample keeps
+/// its own value), 1 = low bits (the sample is scaled up to 16 bits).
+pub(crate) const OGMACAM_OPTION_ZERO_PADDING: c_uint = 0x78;
+
+/// `OgmacamFrameInfoV3::flag` bits saying which fields the camera filled.
+pub(crate) const OGMACAM_FRAMEINFO_FLAG_EXPOTIME: c_uint = 0x04;
+pub(crate) const OGMACAM_FRAMEINFO_FLAG_EXPOGAIN: c_uint = 0x08;
+pub(crate) const OGMACAM_FRAMEINFO_FLAG_BLACKLEVEL: c_uint = 0x10;
+
+/// The SDK's answer for a feature this camera model does not have.
+pub(crate) const OGMACAM_E_NOTIMPL: i32 = 0x8000_4001_u32 as i32;
 
 // Pull-mode event codes delivered to the StartPullModeWithCallback callback.
 // A software-triggered frame arrives as EVENT_IMAGE (live image), pulled with bStill = 0.
@@ -124,8 +163,19 @@ pub(crate) type OgmacamPullImageV3 = unsafe extern "system" fn(
     p_info: *mut OgmacamFrameInfoV3,
 ) -> i32;
 
-// Exposure
+// Exposure, in microseconds
 pub(crate) type OgmacamPutExpoTime = unsafe extern "system" fn(h: HOgmacam, time: c_uint) -> i32;
+pub(crate) type OgmacamGetExpTimeRange = unsafe extern "system" fn(
+    h: HOgmacam,
+    n_min: *mut c_uint,
+    n_max: *mut c_uint,
+    n_def: *mut c_uint,
+) -> i32;
+/// Readout speed level, 0 (slowest) to the model's `maxspeed`.
+pub(crate) type OgmacamPutSpeed = unsafe extern "system" fn(h: HOgmacam, speed: c_ushort) -> i32;
+/// 0 turns auto exposure off.
+pub(crate) type OgmacamPutAutoExpoEnable =
+    unsafe extern "system" fn(h: HOgmacam, mode: c_int) -> i32;
 
 // Gain
 pub(crate) type OgmacamGetExpoAGain = unsafe extern "system" fn(h: HOgmacam, gain: *mut u16) -> i32;
@@ -191,14 +241,32 @@ pub(crate) type OgmacamVersion = unsafe extern "system" fn() -> *const c_char;
 ///
 /// Owned by a `Box` inside [`TouptekCamera`] so its address is stable across moves of the
 /// camera struct (the camera is moved into a `HashMap` after connect). The callback only
-/// ever reads/writes these two atomics — it never calls back into the SDK, which is
+/// ever reads/writes these atomics — it never calls back into the SDK, which is
 /// mandatory: `Ogmacam_Stop`/`Ogmacam_Close` deadlock if invoked from the callback context
 /// (toupcam.h:410).
 pub(crate) struct TouptekEventState {
     /// Set true on EVENT_IMAGE — a software-triggered frame is ready to pull.
     pub(crate) image_ready: AtomicBool,
-    /// Set true on EVENT_ERROR / EVENT_DISCONNECTED / EVENT_NOFRAMETIMEOUT.
-    pub(crate) error: AtomicBool,
+    /// The EVENT_ERROR or EVENT_NOFRAMETIMEOUT code that ended this exposure, 0 if none.
+    pub(crate) fault: AtomicU32,
+    /// Set on EVENT_DISCONNECTED and never cleared: the handle is dead until reconnect.
+    pub(crate) disconnected: AtomicBool,
+}
+
+impl TouptekEventState {
+    pub(crate) fn new() -> Self {
+        Self {
+            image_ready: AtomicBool::new(false),
+            fault: AtomicU32::new(0),
+            disconnected: AtomicBool::new(false),
+        }
+    }
+
+    /// Forget the previous exposure's frame and fault before the next trigger.
+    pub(crate) fn clear_exposure(&self) {
+        self.image_ready.store(false, Ordering::SeqCst);
+        self.fault.store(0, Ordering::SeqCst);
+    }
 }
 
 /// Pull-mode event callback registered via `Ogmacam_StartPullModeWithCallback`.
@@ -219,9 +287,10 @@ pub(crate) unsafe extern "system" fn touptek_event_callback(n_event: c_uint, ctx
     let state = unsafe { &*(ctx as *const TouptekEventState) };
     match n_event {
         OGMACAM_EVENT_IMAGE => state.image_ready.store(true, Ordering::SeqCst),
-        OGMACAM_EVENT_ERROR | OGMACAM_EVENT_DISCONNECTED | OGMACAM_EVENT_NOFRAMETIMEOUT => {
-            state.error.store(true, Ordering::SeqCst);
+        OGMACAM_EVENT_ERROR | OGMACAM_EVENT_NOFRAMETIMEOUT => {
+            state.fault.store(n_event, Ordering::SeqCst);
         }
+        OGMACAM_EVENT_DISCONNECTED => state.disconnected.store(true, Ordering::SeqCst),
         _ => {}
     }
 }
