@@ -399,8 +399,6 @@ impl From<&GoalRecord> for ApiDepthGoal {
     }
 }
 
-// API
-
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_depthlock_status() -> ApiDepthLockStatus {
     match crate::depthlock_service::service() {

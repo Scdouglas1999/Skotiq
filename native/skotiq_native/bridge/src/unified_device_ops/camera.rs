@@ -71,7 +71,6 @@ impl CameraOps for UnifiedDeviceOps {
         )
         .await
         .inspect_err(|_e| {
-            // Publish failure event
             exposure.end(false, EventSeverity::Error);
         })
         .map_err(|e| format!("Exposure failed: {}", e))?;
@@ -153,7 +152,6 @@ impl CameraOps for UnifiedDeviceOps {
         // Validate downloaded image data to catch corrupted/bad frames early
         // This prevents cascading failures in autofocus, plate solving, etc.
         {
-            // Convert to skotiq_imaging ImageData for validation
             let img_for_validation = skotiq_imaging::ImageData::from_u16(
                 native_image.width,
                 native_image.height,
@@ -246,7 +244,6 @@ impl CameraOps for UnifiedDeviceOps {
             None => (Some("Monochrome".to_string()), None),
         };
 
-        // Publish success event
         exposure.end(true, EventSeverity::Info);
 
         // Why: log-only formatting; "unknown" when the
@@ -259,7 +256,6 @@ impl CameraOps for UnifiedDeviceOps {
             sensor_type.as_deref().unwrap_or("unknown")
         );
 
-        // Convert to sequencer ImageData
         Ok(ImageData {
             width: native_image.width,
             height: native_image.height,

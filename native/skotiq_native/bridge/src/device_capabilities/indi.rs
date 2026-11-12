@@ -106,7 +106,6 @@ pub(crate) async fn get_indi_capabilities(
 
     // Build capabilities based on discovered properties
     if has_ccd_props {
-        // Check for specific CCD capabilities
         let can_abort = properties.iter().any(|p| p.name == "CCD_ABORT_EXPOSURE");
         let has_cooler = properties
             .iter()

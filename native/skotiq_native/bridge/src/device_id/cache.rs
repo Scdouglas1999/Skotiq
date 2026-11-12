@@ -12,9 +12,7 @@ pub(crate) static DEVICE_ID_CACHE: std::sync::OnceLock<DeviceIdCache> = std::syn
 /// Cache metrics for monitoring hit rates and performance.
 #[derive(Debug, Default)]
 pub struct CacheMetrics {
-    /// Number of cache hits
     pub(crate) hits: AtomicU64,
-    /// Number of cache misses
     pub(crate) misses: AtomicU64,
     /// Number of entries evicted due to capacity
     pub(crate) evictions: AtomicU64,
@@ -51,17 +49,14 @@ impl CacheMetrics {
         }
     }
 
-    /// Increment the hit counter
     pub(crate) fn record_hit(&self) {
         self.hits.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Increment the miss counter
     pub(crate) fn record_miss(&self) {
         self.misses.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Increment the eviction counter
     pub(crate) fn record_eviction(&self) {
         self.evictions.fetch_add(1, Ordering::Relaxed);
     }
@@ -133,7 +128,6 @@ impl DeviceIdCache {
         cache.pop(key);
     }
 
-    /// Clear all cached entries.
     pub fn clear(&self) {
         let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
         cache.clear();
@@ -168,13 +162,11 @@ pub(crate) fn get_cache() -> &'static DeviceIdCache {
 pub fn parse_device_id_cached(device_id: &str) -> Result<ParsedDeviceId, SkotiqError> {
     let cache = get_cache();
 
-    // Check cache first
     if let Some(cached) = cache.get(device_id) {
         tracing::trace!("Device ID cache hit: {}", device_id);
         return Ok(cached);
     }
 
-    // Cache miss - parse and store
     tracing::trace!("Device ID cache miss: {}", device_id);
     let parsed = ParsedDeviceId::parse(device_id)?;
     cache.put(device_id.to_string(), parsed.clone());
@@ -216,7 +208,6 @@ pub fn reset_device_id_cache_metrics() {
     get_cache().metrics().reset();
 }
 
-/// Snapshot of cache statistics.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceIdCacheStats {
     /// Current number of entries in the cache
@@ -225,7 +216,6 @@ pub struct DeviceIdCacheStats {
     pub hits: u64,
     /// Total number of cache misses
     pub misses: u64,
-    /// Total number of evictions
     pub evictions: u64,
     /// Cache hit rate as a percentage (0.0 to 100.0)
     pub hit_rate: f64,

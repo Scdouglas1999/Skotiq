@@ -55,7 +55,6 @@ struct FrameQualityArgs {
     fwhm: f64,
     /// Median star eccentricity (0 = round, →1 = trailed), or `null`.
     eccentricity: Option<f64>,
-    /// Number of stars detected.
     star_count: u32,
 }
 
@@ -751,8 +750,6 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

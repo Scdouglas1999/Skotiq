@@ -68,7 +68,6 @@ impl AscomDomeWrapper {
                 }
             };
 
-            // Try to get the device name
             let name = dome.name().unwrap_or_else(|_| prog_id_clone.clone());
             let _ = info_tx.send(name);
 

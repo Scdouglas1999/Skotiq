@@ -100,7 +100,6 @@ struct StitchConfigArgs {
     output_pixel_scale_arcsec: Option<f64>,
 }
 
-/// Output target paths.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 #[flutter_rust_bridge::frb(ignore)]
@@ -122,7 +121,6 @@ struct StitchMosaicArgs {
     panels: Vec<PanelArgs>,
     /// Stitch tunables (optional; defaults applied per field).
     config: StitchConfigArgs,
-    /// Output paths.
     output: OutputArgs,
 }
 
@@ -169,8 +167,6 @@ pub fn api_stitch_mosaic(args_json: String) -> Result<String, String> {
     serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
 }
 
-// Implementation
-
 fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, String> {
     if args.panels.is_empty() {
         return Err("no panels supplied to the mosaic stitcher".to_string());
@@ -202,7 +198,6 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
     // Build the stitch config from the JSON args.
     let cfg = build_config(&args.config)?;
 
-    // Stitch.
     let output = stitch_mosaic(&panels, &cfg).map_err(|e| describe_error(&e))?;
 
     // Write the F32 master, stamping the output canvas WCS.
@@ -346,8 +341,6 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

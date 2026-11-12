@@ -53,7 +53,6 @@ pub(crate) struct FoldArgs {
     pub(crate) online_clip_low: Option<f64>,
     #[serde(default)]
     pub(crate) online_clip_high: Option<f64>,
-    /// The frames to fold.
     pub(crate) frames: Vec<FoldFrameArgs>,
 }
 

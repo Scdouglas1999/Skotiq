@@ -26,7 +26,6 @@ use tokio::sync::RwLock;
 #[cfg(windows)]
 use crate::ascom_wrapper::sta_worker::interactive_dialogs_allowed;
 impl DeviceManager {
-    /// Connect to an ASCOM device
     #[cfg(windows)]
     pub(crate) async fn connect_ascom(&self, info: &DeviceInfo) -> Result<(), String> {
         let prog_id = info

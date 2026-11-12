@@ -220,7 +220,6 @@ impl DeviceManager {
                         .map_err(DeviceOpError::from)?;
                     camera.set_num_x(num_x).await.map_err(DeviceOpError::from)?;
                     camera.set_num_y(num_y).await.map_err(DeviceOpError::from)?;
-                    // Start the exposure
                     return camera
                         .start_exposure(duration, true)
                         .await
@@ -338,7 +337,6 @@ impl DeviceManager {
                                     format!("Failed to set INDI camera frame geometry: {}", e),
                                 )
                             })?;
-                        // Start exposure
                         return locked_client
                             .set_number(
                                 &device_name,
@@ -431,7 +429,6 @@ impl DeviceManager {
         }
     }
 
-    /// Check if camera exposure is complete
     pub async fn camera_is_exposure_complete(
         &self,
         device_id: &str,
@@ -531,7 +528,6 @@ impl DeviceManager {
         }
     }
 
-    /// Abort a camera exposure
     pub async fn camera_abort_exposure(&self, device_id: &str) -> Result<(), DeviceOpError> {
         tracing::info!("DeviceManager: camera_abort_exposure for {}", device_id);
 

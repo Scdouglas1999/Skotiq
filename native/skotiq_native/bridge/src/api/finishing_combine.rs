@@ -386,7 +386,6 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
             .map_err(|e| format!("drizzle failed: {e}"))?
     };
 
-    // Write the F32 master.
     let master_path = Path::new(&args.output_fits);
     ensure_parent_dir(master_path)?;
     let mut header = FitsHeader::new();
@@ -716,8 +715,6 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

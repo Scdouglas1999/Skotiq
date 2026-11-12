@@ -35,16 +35,13 @@ pub async fn api_start_polar_alignment(
         exposure_time, step_size, binning, is_north, manual_rotation, rotate_east
     );
 
-    // Get connected devices using existing API
     let connected = api_get_connected_devices().await;
 
-    // Find connected camera
     let camera_id = connected
         .iter()
         .find(|d| d.device_type == DeviceType::Camera)
         .map(|d| d.id.clone());
 
-    // Find connected mount
     let mount_id = connected
         .iter()
         .find(|d| d.device_type == DeviceType::Mount)
@@ -298,7 +295,6 @@ pub(crate) async fn run_polar_alignment(
             point as i32,
         );
 
-        // Get the captured image
         let image = api_get_last_image(camera_id.clone())
             .await
             .map_err(|e| format!("Failed to get image: {:?}", e))?;
@@ -312,11 +308,9 @@ pub(crate) async fn run_polar_alignment(
         // is already binned.
         let solve_downsample = polar_solve_downsample(image.width, image.height, binning);
 
-        // Save temp file for plate solving
         let temp_path = create_unique_temp_fits_path(&format!("polar_align_point_{}", point));
         let temp_path_str = temp_path.to_string_lossy().to_string();
 
-        // Write FITS file for plate solving
         if let Err(e) = write_temp_fits_for_solve(&image, &temp_path_str, &solve_scale.hints) {
             return Err(format!("Failed to write temp FITS: {}", e));
         }
@@ -593,7 +587,6 @@ pub(crate) async fn run_polar_alignment(
             }
         }
 
-        // Get the captured image
         let image = match api_get_last_image(camera_id.clone()).await {
             Ok(img) => img,
             Err(e) => {

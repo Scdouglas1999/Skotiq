@@ -64,7 +64,6 @@ impl FrameStoreOps for UnifiedDeviceOps {
     ) -> DeviceResult<Vec<(f64, f64, f64)>> {
         use skotiq_imaging::{detect_stars, StarDetectionConfig};
 
-        // Convert to skotiq_imaging::ImageData
         let img = skotiq_imaging::ImageData::from_u16(
             image_data.width,
             image_data.height,

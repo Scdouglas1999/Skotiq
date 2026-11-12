@@ -31,7 +31,6 @@ pub(crate) struct CompositeInputArgs {
     pub(crate) integration_seconds: Option<f64>,
 }
 
-/// A composite request.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 #[flutter_rust_bridge::frb(ignore)]
@@ -83,7 +82,6 @@ fn header_filter(image: &OpImage) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-/// Plan a composite from `args`.
 pub(crate) fn plan(args: &CompositeArgs) -> Result<CompositeOutcome, String> {
     if args.inputs.is_empty() {
         return Err("a composite needs at least one master".to_string());

@@ -192,7 +192,6 @@ impl FrameType {
     }
 }
 
-/// Image file format for saving
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ImageFileFormat {
     #[default]
@@ -402,7 +401,6 @@ pub struct FilterWheelStatus {
     pub filter_names: Vec<String>,
 }
 
-/// Filter information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FilterInfo {
     pub position: i32,

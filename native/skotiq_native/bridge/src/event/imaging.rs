@@ -41,7 +41,6 @@ pub struct PolarAlignmentImageEvent {
     pub phase: String,
 }
 
-/// Imaging-specific events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ImagingEvent {
@@ -76,7 +75,6 @@ pub enum ImagingEvent {
     },
     ExposureCancelled,
 
-    // Download events
     DownloadStarted,
     DownloadCompleted,
 

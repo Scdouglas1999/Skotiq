@@ -15,7 +15,6 @@ use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
-/// Global application state singleton
 static APP_STATE: OnceLock<SharedAppState> = OnceLock::new();
 
 /// Get or initialize the global application state
@@ -24,7 +23,6 @@ pub fn get_state() -> &'static SharedAppState {
     APP_STATE.get_or_init(AppState::new)
 }
 
-/// Global device manager singleton
 static DEVICE_MANAGER: OnceLock<Arc<DeviceManager>> = OnceLock::new();
 
 /// Get or initialize the global device manager

@@ -74,7 +74,6 @@ pub async fn api_event_stream(
                 }
             }
             Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                // Update the global dropped event counter
                 let previous_total = TOTAL_DROPPED_EVENTS.fetch_add(n, Ordering::Relaxed);
                 let new_total = previous_total + n;
 

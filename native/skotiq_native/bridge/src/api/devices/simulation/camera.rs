@@ -1,6 +1,5 @@
 use super::*;
 
-/// Id of the simulated imaging camera.
 pub const SIM_IMAGING_CAMERA_ID: &str = "sim_camera_1";
 /// Id of the simulated guide camera: a small sensor behind a short guide scope,
 /// so the built-in guider has a camera of its own and never exposes on the
@@ -152,7 +151,6 @@ impl SimulatedCamera {
     }
 }
 
-/// The simulated imaging camera.
 #[cfg(test)]
 pub(crate) fn get_sim_camera() -> &'static Arc<RwLock<SimulatedCamera>> {
     get_sim_camera_for(SIM_IMAGING_CAMERA_ID)

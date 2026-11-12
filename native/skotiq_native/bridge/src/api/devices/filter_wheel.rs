@@ -25,8 +25,6 @@ use tokio::sync::RwLock;
 use super::super::*;
 use super::*;
 
-// Filter wheel control
-
 /// Set filter wheel position. Simulators go through the `DeviceManager` like
 /// every other driver, so the move publishes its events whoever asked.
 pub async fn filter_wheel_set_position(

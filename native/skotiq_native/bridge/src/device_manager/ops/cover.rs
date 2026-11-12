@@ -16,14 +16,12 @@ impl DeviceManager {
     // (see `state_events`); the device's own status polling reports when the
     // cover finishes moving.
 
-    /// Open the cover.
     pub async fn cover_calibrator_open_cover(&self, device_id: &str) -> Result<(), DeviceOpError> {
         self.cover_calibrator_open_cover_dispatch(device_id).await?;
         self.publish_cover(device_id, property::COVER, "open".to_string());
         Ok(())
     }
 
-    /// Close the cover.
     pub async fn cover_calibrator_close_cover(&self, device_id: &str) -> Result<(), DeviceOpError> {
         self.cover_calibrator_close_cover_dispatch(device_id)
             .await?;

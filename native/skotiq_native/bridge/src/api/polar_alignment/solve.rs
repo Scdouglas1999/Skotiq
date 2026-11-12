@@ -50,7 +50,6 @@ pub(crate) struct PolarSolveHint {
     pub(crate) ra_degrees: f64,
     /// Degrees, `[-90, 90]`.
     pub(crate) dec_degrees: f64,
-    /// Degrees.
     pub(crate) search_radius_deg: f64,
 }
 

@@ -61,7 +61,6 @@ impl AscomCoverCalibratorWrapper {
                 }
             };
 
-            // Get static properties
             let name = cover_cal.name().unwrap_or_else(|_| prog_id_clone.clone());
             let max_brightness = cover_cal.max_brightness().unwrap_or(100);
             let _ = info_tx.send((name, max_brightness));

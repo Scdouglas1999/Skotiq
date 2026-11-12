@@ -1,6 +1,5 @@
 use super::*;
 
-/// Guiding-specific events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GuidingEvent {

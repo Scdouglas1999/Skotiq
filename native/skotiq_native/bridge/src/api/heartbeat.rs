@@ -39,7 +39,6 @@ pub async fn api_start_device_heartbeat(
         interval_ms
     );
 
-    // Validate device type matches
     if let Some(device) = get_device_manager().get_device(&device_id).await {
         if device.info.device_type != device_type {
             return Err(SkotiqError::InvalidParameter(format!(

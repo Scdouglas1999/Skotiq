@@ -23,7 +23,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Configuration for automatic reconnection
 #[derive(Debug, Clone)]
 pub struct ReconnectConfig {
     /// Whether auto-reconnection is enabled
@@ -126,7 +125,6 @@ pub struct DeviceManager {
     /// re-enumerates, that is the device that moved away.
     pub(crate) expected_models: std::sync::Mutex<HashMap<String, String>>,
 
-    /// Reconnection configuration
     reconnect_config: ReconnectConfig,
 
     /// Flag to stop the reconnection task
@@ -135,20 +133,16 @@ pub struct DeviceManager {
     /// The connected devices that have a handle (the accessory types).
     pub(crate) handles: handle::Handles,
 
-    /// Active native device instances
     pub(crate) native_devices: RwLock<HashMap<String, Box<dyn DeviceDriver>>>,
 
-    /// Active ASCOM camera wrappers
     #[cfg(windows)]
     pub(crate) ascom_cameras:
         RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::camera::AscomCameraWrapper>>>>,
 
-    /// Active ASCOM mount wrappers
     #[cfg(windows)]
     pub(crate) ascom_mounts:
         RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::mount::AscomMountWrapper>>>>,
 
-    /// Active ASCOM focuser wrappers
     #[cfg(windows)]
     pub(crate) ascom_focusers:
         RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::focuser::AscomFocuserWrapper>>>>,
@@ -162,13 +156,10 @@ pub struct DeviceManager {
     /// Active INDI clients (key: "host:port")
     pub(crate) indi_clients: RwLock<HashMap<String, Arc<RwLock<skotiq_indi::IndiClient>>>>,
 
-    /// Active Alpaca camera clients
     pub(crate) alpaca_cameras: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaCamera>>>,
 
-    /// Active Alpaca mount clients
     pub(crate) alpaca_mounts: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaTelescope>>>,
 
-    /// Active Alpaca focuser clients
     pub(crate) alpaca_focusers: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFocuser>>>,
 
     /// Active Alpaca filter wheel clients
@@ -437,7 +428,6 @@ impl DeviceManager {
         of_type
     }
 
-    /// Get a specific device
     pub async fn get_device(&self, device_id: &str) -> Option<ManagedDevice> {
         let devices = self.devices.read().await;
         devices.get(device_id).cloned()

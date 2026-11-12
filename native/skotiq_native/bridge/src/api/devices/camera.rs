@@ -62,7 +62,6 @@ pub async fn cancel_exposure(device_id: String) -> Result<(), SkotiqError> {
         .await
         .map_err(SkotiqError::from)?;
 
-    // Publish ExposureCancelled event
     let state = get_state();
     let event = crate::event::create_event_auto_id(
         crate::event::EventSeverity::Info,
@@ -102,8 +101,6 @@ pub async fn set_camera_cooler(
         .await
         .map_err(SkotiqError::from)
 }
-
-// Camera readout mode
 
 /// Set camera readout mode by index
 ///

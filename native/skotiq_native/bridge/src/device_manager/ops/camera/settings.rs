@@ -39,7 +39,6 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Set camera binning
     pub async fn camera_set_binning(
         &self,
         device_id: &str,
@@ -681,12 +680,10 @@ impl DeviceManager {
                 let clients = self.indi_clients.read().await;
                 if let Some(client) = clients.get(&server_key) {
                     let mut locked_client = client.write().await;
-                    // Set cooler on/off
                     let switch_element = if enabled { "COOLER_ON" } else { "COOLER_OFF" };
                     locked_client
                         .set_switch(&device_name, "CCD_COOLER", switch_element, true)
                         .await?;
-                    // Set target temperature if provided
                     if let Some(temp) = target_temp {
                         locked_client
                             .set_number(

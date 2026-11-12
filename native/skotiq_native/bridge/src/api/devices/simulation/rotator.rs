@@ -1,6 +1,5 @@
 use super::*;
 
-/// Simulated rotator state
 pub(crate) static SIM_ROTATOR: OnceLock<Arc<RwLock<SimulatedRotator>>> = OnceLock::new();
 
 #[flutter_rust_bridge::frb]

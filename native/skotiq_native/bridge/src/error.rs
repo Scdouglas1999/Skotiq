@@ -106,7 +106,6 @@ pub enum SkotiqError {
         current_operation: String,
     },
 
-    // Imaging errors
     #[error("Image processing error: {0}")]
     ImageError(String),
 
@@ -135,7 +134,6 @@ pub enum SkotiqError {
     #[error("Plate solving failed: {0}")]
     PlateSolveError(String),
 
-    // Sequence errors
     #[error("Sequence error: {0}")]
     SequenceError(String),
 
@@ -219,7 +217,6 @@ impl SkotiqError {
         }
     }
 
-    /// Create a hardware error
     pub fn hardware_error(device_id: impl Into<String>, message: impl Into<String>) -> Self {
         SkotiqError::HardwareError {
             device_id: device_id.into(),
@@ -228,7 +225,6 @@ impl SkotiqError {
         }
     }
 
-    /// Create a disconnected error
     pub fn device_disconnected(device_id: impl Into<String>, reason: impl Into<String>) -> Self {
         SkotiqError::DeviceDisconnected {
             device_id: device_id.into(),
@@ -536,7 +532,6 @@ impl From<&SkotiqError> for String {
 pub struct ErrorInfo {
     /// Error category (timeout, connection, hardware, validation, etc.)
     pub category: String,
-    /// Human-readable error message
     pub message: String,
     /// User-friendly message for UI display
     pub user_message: String,
@@ -544,7 +539,6 @@ pub struct ErrorInfo {
     pub is_recoverable: bool,
     /// Whether reconnection should be attempted
     pub should_reconnect: bool,
-    /// Whether this was a timeout
     pub is_timeout: bool,
     /// Device ID if error is device-related
     pub device_id: Option<String>,

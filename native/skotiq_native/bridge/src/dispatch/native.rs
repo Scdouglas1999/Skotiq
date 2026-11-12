@@ -12,7 +12,6 @@ use skotiq_device::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver
 use skotiq_native::catalog::{self, NativeHandle, OpenRequest};
 
 impl DeviceManager {
-    /// Connect to a Native device
     pub(crate) async fn connect_native(&self, info: &DeviceInfo) -> Result<(), String> {
         // Parse device ID: native:vendor:id
         let parts: Vec<&str> = info.id.split(':').collect();

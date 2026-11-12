@@ -40,7 +40,6 @@ pub enum SafetyEvent {
     },
 }
 
-/// System-level events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SystemEvent {

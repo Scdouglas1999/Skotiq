@@ -194,7 +194,6 @@ pub(crate) const PHD2_DEVICE_ID: &str = "phd2_guider";
 /// answer in time.
 pub(crate) const PHD2_NOT_RESPONDING: &str = "NotResponding";
 
-/// Static PHD2 client storage
 pub(crate) static PHD2_CLIENT: OnceLock<Arc<RwLock<Option<skotiq_imaging::Phd2Client>>>> =
     OnceLock::new();
 
@@ -430,7 +429,6 @@ pub async fn api_phd2_connect(host: Option<String>, port: Option<u16>) -> Result
             SkotiqError::connection_failed(PHD2_DEVICE_ID, format!("PHD2: {}", e))
         })?;
 
-    // Store the client
     let mut storage = get_phd2_storage().write().await;
     *storage = Some(client);
 
@@ -461,7 +459,6 @@ pub async fn api_phd2_connect(host: Option<String>, port: Option<u16>) -> Result
         .register_connected_device(phd2_device_info)
         .await;
 
-    // Publish event
     get_state().publish_guiding_event(GuidingEvent::Connected, EventSeverity::Info);
 
     Ok(())
@@ -1317,8 +1314,6 @@ pub async fn api_guider_get_calibration(
         GuiderBackend::Builtin => crate::builtin_guider::get_calibration_data().await,
     }
 }
-
-// Built-in guider configuration
 
 /// Get the current built-in guider configuration.
 /// Returns a flat struct with all configurable parameters.

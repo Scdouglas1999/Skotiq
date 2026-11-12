@@ -90,8 +90,6 @@ pub fn api_reduce_stars_preview(args_json: String) -> Result<String, String> {
     serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
 }
 
-// api_extract_background
-
 /// Tunables for [`api_extract_background`] (subset of [`BackgroundConfig`]).
 /// Each unset field keeps the production [`BackgroundConfig::default`] value.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -587,8 +585,6 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
-
-// Tests
 
 #[cfg(test)]
 mod tests {

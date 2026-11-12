@@ -296,7 +296,6 @@ impl DeviceManager {
             }
         };
 
-        // Get device-type specific heartbeat configuration
         let mut config = policy(device_type).heartbeat;
 
         // Allow interval override if provided (non-zero)
@@ -345,7 +344,6 @@ impl DeviceManager {
             config.auto_reconnect
         );
 
-        // Emit heartbeat started event
         self.app_state.publish_equipment_event(
             EquipmentEvent::HeartbeatStarted {
                 device_type: device_type_str.clone(),
@@ -355,7 +353,6 @@ impl DeviceManager {
             EventSeverity::Info,
         );
 
-        // Mark heartbeat as active
         {
             let mut devices = self.devices.write().await;
             if let Some(device) = devices.get_mut(device_id) {
@@ -417,7 +414,6 @@ impl DeviceManager {
             }),
         );
 
-        // Store the task handle
         {
             let mut tasks = self.heartbeat_tasks.write().await;
             tasks.insert(device_id.to_string(), task);
@@ -446,7 +442,6 @@ impl DeviceManager {
         // per episode instead of on every failing poll (avoids toast spam).
         let mut was_degraded = false;
         loop {
-            // Wait for interval
             tokio::time::sleep(current_interval).await;
 
             // Skip the poll while a blocking operation (e.g. a focuser move) is
@@ -525,7 +520,6 @@ impl DeviceManager {
                     was_degraded = false;
                     current_interval = Duration::from_secs(config.base_interval_secs);
 
-                    // Update last successful communication time
                     {
                         let mut devices = manager.devices.write().await;
                         if let Some(device) = devices.get_mut(&device_id_clone) {
@@ -711,7 +705,6 @@ impl DeviceManager {
             Err(_) => tracing::debug!("Heartbeat task aborted for {}", device_id),
         }
 
-        // Emit heartbeat stopped event
         if let Some(device_type) = device_type_str {
             self.app_state.publish_equipment_event(
                 EquipmentEvent::HeartbeatStopped {
@@ -722,7 +715,6 @@ impl DeviceManager {
             );
         }
 
-        // Mark heartbeat as inactive
         {
             let mut devices = self.devices.write().await;
             if let Some(device) = devices.get_mut(device_id) {

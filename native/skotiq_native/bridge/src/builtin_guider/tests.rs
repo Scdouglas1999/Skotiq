@@ -383,8 +383,6 @@ fn refs_from(stars: &[DetectedStar]) -> Vec<GuideReferenceStar> {
     select_reference_stars(stars, 800, 800)
 }
 
-// Star selection
-
 #[test]
 fn selection_rejects_saturated_faint_elongated_and_edge_stars() {
     let stars = vec![

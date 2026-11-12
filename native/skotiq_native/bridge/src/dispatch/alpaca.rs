@@ -20,7 +20,6 @@ impl From<skotiq_alpaca::AlpacaError> for DeviceOpError {
 }
 
 impl DeviceManager {
-    /// Connect to an Alpaca device
     pub(crate) async fn connect_alpaca(&self, info: &DeviceInfo) -> Result<(), String> {
         use crate::device_id::{parse_device_id_cached, ConnectionInfo};
         use skotiq_alpaca::*;

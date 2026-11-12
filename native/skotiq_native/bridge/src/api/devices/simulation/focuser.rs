@@ -1,6 +1,5 @@
 use super::*;
 
-/// Simulated focuser state
 pub(crate) static SIM_FOCUSER: OnceLock<Arc<RwLock<SimulatedFocuser>>> = OnceLock::new();
 
 #[flutter_rust_bridge::frb]
@@ -96,7 +95,6 @@ pub(crate) fn sim_thermal_focus_shift_steps() -> i32 {
 pub async fn api_get_focuser_status(device_id: String) -> Result<FocuserStatus, SkotiqError> {
     let mgr = get_device_manager();
 
-    // Get all focuser status components
     let position = mgr
         .focuser_get_position(&device_id)
         .await

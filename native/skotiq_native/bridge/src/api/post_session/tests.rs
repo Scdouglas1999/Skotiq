@@ -1306,8 +1306,6 @@ fn temperature_threshold_is_the_documented_constant_and_flats_have_none() {
     assert_eq!(flat_slot.staleness.max_age_days, FLAT_MAX_AGE_DAYS);
 }
 
-// Cancellation
-
 /// Decode the `Err` payload of a cancelled run.
 fn decode_cancelled(err: &str) -> CancelledOutcome {
     serde_json::from_str(err)

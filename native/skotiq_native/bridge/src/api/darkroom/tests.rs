@@ -128,10 +128,6 @@ fn parse(text: &str) -> Value {
     serde_json::from_str(text).expect("the reply must be JSON")
 }
 
-// ---------------------------------------------------------------------------
-// validate
-// ---------------------------------------------------------------------------
-
 #[test]
 fn validate_accepts_a_registered_recipe_and_reports_the_master() {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -373,10 +369,6 @@ fn validate_refuses_a_payload_that_is_not_a_recipe() {
         .expect_err("a payload with no schema version is not a recipe");
     assert!(error.contains("schemaVersion"), "error: {error}");
 }
-
-// ---------------------------------------------------------------------------
-// preview
-// ---------------------------------------------------------------------------
 
 #[test]
 fn linear_color_preview_neutralizes_unequal_sky_backgrounds() {
@@ -645,10 +637,6 @@ fn preview_refuses_an_encoding_it_does_not_know() {
     assert!(error.contains("eyeball"), "error: {error}");
 }
 
-// ---------------------------------------------------------------------------
-// cancellation
-// ---------------------------------------------------------------------------
-
 #[test]
 fn a_cancelled_preview_returns_the_typed_cancelled_shape() {
     let dir = tempfile::tempdir().expect("temp dir");
@@ -767,10 +755,6 @@ fn cancel_status_and_clear_round_trip() {
         .expect_err("an unknown op is refused");
     assert!(error.contains("levitate"), "error: {error}");
 }
-
-// ---------------------------------------------------------------------------
-// export
-// ---------------------------------------------------------------------------
 
 #[test]
 fn export_writes_the_recipe_into_the_fits_and_beside_it() {
@@ -1380,10 +1364,6 @@ fn export_refuses_a_request_that_writes_nothing() {
     .expect_err("an export with no output is refused");
     assert!(error.contains("outputs"), "error: {error}");
 }
-
-// ---------------------------------------------------------------------------
-// registry
-// ---------------------------------------------------------------------------
 
 #[test]
 fn registry_publishes_every_registered_operation() {

@@ -26,7 +26,6 @@ use skotiq_indi::IndiFilterWheel;
 use skotiq_device::FilterWheelDriver;
 
 impl DeviceManager {
-    // Filter wheel control
 
     /// Move the wheel to a 0-based slot, publishing `FilterChanging` before
     /// the move and `FilterChanged` once it ends (see [`state_events`]).

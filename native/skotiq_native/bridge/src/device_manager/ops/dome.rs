@@ -12,14 +12,12 @@ impl DeviceManager {
     // Dome commands publish the command the dome accepted (see
     // `state_events`); the dome status polling reports when it arrives.
 
-    /// Open the shutter.
     pub async fn dome_open_shutter(&self, device_id: &str) -> Result<(), DeviceOpError> {
         self.dome_open_shutter_dispatch(device_id).await?;
         self.publish_dome(device_id, property::DOME_SHUTTER, "open".to_string());
         Ok(())
     }
 
-    /// Close the shutter.
     pub async fn dome_close_shutter(&self, device_id: &str) -> Result<(), DeviceOpError> {
         self.dome_close_shutter_dispatch(device_id).await?;
         self.publish_dome(device_id, property::DOME_SHUTTER, "close".to_string());
@@ -38,7 +36,6 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Park the dome.
     pub async fn dome_park(&self, device_id: &str) -> Result<(), DeviceOpError> {
         self.dome_park_dispatch(device_id).await?;
         self.publish_dome(device_id, property::DOME_PARK, String::new());

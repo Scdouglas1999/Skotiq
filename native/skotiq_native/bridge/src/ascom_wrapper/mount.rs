@@ -76,9 +76,7 @@ enum AscomMountCommand {
     GetTrackingRate(oneshot::Sender<Result<i32, String>>),
     // Axis movement commands (for jogging)
     MoveAxis(i32, f64, oneshot::Sender<Result<(), String>>),
-    // Alt/Az slew
     SlewToAltAz(f64, f64, oneshot::Sender<Result<(), String>>),
-    // Find home
     FindHome(oneshot::Sender<Result<(), String>>),
     AtHome(oneshot::Sender<Result<bool, String>>),
     // Store the current position as the park position

@@ -265,7 +265,6 @@ impl DeviceManager {
         (TrackingRate::Sidereal, can_set_tracking_rate)
     }
 
-    /// Connect to an INDI device
     pub(crate) async fn connect_indi(&self, info: &DeviceInfo) -> Result<(), String> {
         use skotiq_indi::IndiClient;
 
@@ -273,13 +272,11 @@ impl DeviceManager {
         let (host, port, device_name) = Self::parse_indi_device_id(&info.id)?;
         let server_key = format!("{host}:{port}");
 
-        // Check if client exists
         let client = {
             let mut clients = self.indi_clients.write().await;
             if let Some(client) = clients.get(&server_key) {
                 client.clone()
             } else {
-                // Create new client
                 let mut new_client = IndiClient::new(&host, Some(port));
                 new_client.connect().await?;
                 let client_arc = Arc::new(RwLock::new(new_client));
@@ -305,7 +302,6 @@ impl DeviceManager {
             .get_property_last_update_ms(&device_name, "CONNECTION")
             .await;
 
-        // Connect to the specific device.
         locked_client.connect_device(&device_name).await?;
 
         // INDI switch writes are asynchronous: `send_command` returning only
@@ -383,13 +379,11 @@ impl DeviceManager {
 
         let server_key = format!("{}:{}", host, port);
 
-        // Get or create client
         let client = {
             let mut clients = self.indi_clients.write().await;
             if let Some(client) = clients.get(&server_key) {
                 client.clone()
             } else {
-                // Create new client
                 let mut new_client = IndiClient::new(host, Some(port));
                 new_client.connect().await.map_err(|e| e.to_string())?;
                 let client_arc = Arc::new(RwLock::new(new_client));
@@ -511,7 +505,6 @@ impl DeviceManager {
         all_devices
     }
 
-    /// Perform health check for INDI devices
     pub(crate) async fn perform_indi_health_check(&self, device_id: &str) -> Result<bool, String> {
         let (host, port, device_name) = Self::parse_indi_device_id(device_id)?;
         let server_key = format!("{}:{}", host, port);

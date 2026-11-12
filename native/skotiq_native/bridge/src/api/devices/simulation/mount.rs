@@ -1,6 +1,5 @@
 use super::*;
 
-/// Simulated mount state
 pub(crate) static SIM_MOUNT: OnceLock<Arc<RwLock<SimulatedMount>>> = OnceLock::new();
 
 #[flutter_rust_bridge::frb]
@@ -529,7 +528,6 @@ pub async fn api_mount_pulse_guide(
         direction
     );
 
-    // Validate direction
     match direction.to_lowercase().as_str() {
         "north" | "n" | "south" | "s" | "east" | "e" | "west" | "w" => {}
         _ => {

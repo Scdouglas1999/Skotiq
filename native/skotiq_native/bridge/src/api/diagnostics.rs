@@ -148,8 +148,6 @@ pub async fn api_get_switch_capabilities(
     }
 }
 
-// Device quirks
-
 /// Information about a known device quirk, suitable for UI display.
 pub struct QuirkInfo {
     /// Quirk category (e.g. "Temperature", "Timing", "Discovery")

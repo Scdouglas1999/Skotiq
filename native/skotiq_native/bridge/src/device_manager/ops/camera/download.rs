@@ -1,7 +1,6 @@
 use super::*;
 
 impl DeviceManager {
-    /// Download image from camera
     pub async fn camera_download_image(&self, device_id: &str) -> Result<ImageData, DeviceOpError> {
         // Get the driver type for this device
         let driver_type = {
@@ -223,7 +222,6 @@ impl DeviceManager {
                             );
                         }
 
-                        // Get image metadata
                         let width = match camera.get_sensor_width().await {
                             Some(w) => w as u32,
                             None => {

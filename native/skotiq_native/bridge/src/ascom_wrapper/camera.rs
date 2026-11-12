@@ -207,9 +207,7 @@ pub enum CameraConnectionHealth {
     Healthy,
     /// Device is not responding but may recover
     Degraded,
-    /// Device connection has failed
     Failed,
-    /// Device health is unknown
     Unknown,
 }
 
@@ -384,7 +382,6 @@ impl AscomCameraWrapper {
                                 _ => CameraState::Idle,
                             };
 
-                            // Log thermal status if available
                             if let Some(temp) = full_status.thermal.temperature {
                                 tracing::debug!("ASCOM camera temperature: {}C", temp);
                             }
@@ -708,7 +705,6 @@ impl AscomCameraWrapper {
                                         h
                                     );
 
-                                    // Convert i32 array to u16 array
                                     let u16_data: Vec<u16> =
                                         data.iter().map(|&v| v.max(0).min(65535) as u16).collect();
 

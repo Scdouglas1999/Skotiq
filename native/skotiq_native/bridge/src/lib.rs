@@ -133,7 +133,6 @@ static RUNTIME_INIT_FAILED: AtomicBool = AtomicBool::new(false);
 /// Used to provide consistent error messages when RUNTIME_INIT_FAILED is true.
 static RUNTIME_ERROR_MSG: OnceLock<String> = OnceLock::new();
 
-/// Global log directory path
 static LOG_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 /// Global log file guard (keeps file writer alive)
@@ -323,7 +322,6 @@ fn init_native_internal(log_directory: Option<String>) -> Result<(), SkotiqError
 
         LOG_DIR.set(log_path.clone()).ok();
 
-        // Create daily rolling file appender
         let file_appender = tracing_appender::rolling::daily(&log_path, "skotiq.log");
         let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 

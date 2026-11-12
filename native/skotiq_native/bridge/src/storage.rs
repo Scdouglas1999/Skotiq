@@ -13,7 +13,6 @@ struct ProfilesData {
     profiles: Vec<EquipmentProfile>,
 }
 
-/// Profile storage manager
 pub struct ProfileStorage {
     storage_path: PathBuf,
 }
@@ -21,7 +20,6 @@ pub struct ProfileStorage {
 impl ProfileStorage {
     /// Create a new profile storage
     pub fn new(storage_dir: PathBuf) -> Result<Self, String> {
-        // Ensure storage directory exists
         if !storage_dir.exists() {
             fs::create_dir_all(&storage_dir)
                 .map_err(|e| format!("Failed to create storage directory: {}", e))?;
@@ -75,7 +73,6 @@ impl ProfileStorage {
         self.save_profiles(&profiles)
     }
 
-    /// Delete a profile by ID
     pub fn delete_profile(&self, profile_id: &str) -> Result<(), String> {
         let mut profiles = self.load_profiles()?;
 
@@ -128,7 +125,6 @@ impl Default for AppSettings {
     }
 }
 
-/// Settings storage manager
 pub struct SettingsStorage {
     storage_path: PathBuf,
 }
@@ -146,7 +142,6 @@ impl SettingsStorage {
         Ok(Self { storage_path })
     }
 
-    /// Load settings from disk
     pub fn load_settings(&self) -> Result<AppSettings, String> {
         if !self.storage_path.exists() {
             return Ok(AppSettings::default());
@@ -161,7 +156,6 @@ impl SettingsStorage {
         Ok(settings)
     }
 
-    /// Save settings to disk
     pub fn save_settings(&self, settings: &AppSettings) -> Result<(), String> {
         let json = serde_json::to_string_pretty(settings)
             .map_err(|e| format!("Failed to serialize settings: {}", e))?;
@@ -277,15 +271,12 @@ mod tests {
             telescope_aperture: 200.0,
         };
 
-        // Save profile
         storage.save_profile(&profile).unwrap();
 
-        // Load profiles
         let loaded = storage.load_profiles().unwrap();
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].id, "test-profile");
 
-        // Get specific profile
         let retrieved = storage.get_profile("test-profile").unwrap();
         assert_eq!(retrieved.name, "Test Profile");
     }

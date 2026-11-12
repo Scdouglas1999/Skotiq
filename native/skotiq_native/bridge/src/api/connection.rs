@@ -227,7 +227,6 @@ async fn connect_device_expecting(
     // Check if device is registered in DeviceManager, if not, discover and register it
     let device_manager = get_device_manager();
 
-    // Check if device is already registered
     let is_registered = device_manager.is_device_registered(&device_id).await;
 
     // If not registered, register it so the DeviceManager can connect.

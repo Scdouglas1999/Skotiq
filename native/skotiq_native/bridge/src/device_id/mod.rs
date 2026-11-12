@@ -40,8 +40,6 @@ pub use cache::*;
 // with the vendor name and parse error embedded in the panic message.
 mod tests;
 
-// Parsed device ID
-
 /// A fully parsed and validated device ID
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParsedDeviceId {
@@ -49,7 +47,6 @@ pub struct ParsedDeviceId {
     pub raw_id: String,
     /// The driver type this ID represents
     pub driver_type: DriverType,
-    /// The connection-specific information
     pub connection_info: ConnectionInfo,
 }
 
@@ -68,7 +65,6 @@ pub enum ConnectionInfo {
         protocol: String,
         /// Host address (IP or hostname)
         host: String,
-        /// Port number
         port: u16,
         /// Device type string (camera, telescope, focuser, etc.)
         device_type: String,
@@ -78,13 +74,9 @@ pub enum ConnectionInfo {
         base_url: String,
     },
 
-    /// INDI protocol
     Indi {
-        /// INDI server host
         host: String,
-        /// INDI server port
         port: u16,
-        /// INDI device name
         device_name: String,
     },
 
@@ -112,11 +104,8 @@ pub enum ConnectionInfo {
         device_subtype: Option<String>,
     },
 
-    /// Simulator device
     Simulator {
-        /// Simulator device type
         device_type: String,
-        /// Instance index
         instance: u32,
     },
 }
@@ -133,7 +122,6 @@ impl ParsedDeviceId {
             ));
         }
 
-        // Determine the driver type from prefix
         if id.starts_with("ascom:") {
             Self::parse_ascom(id)
         } else if id.starts_with("alpaca:") {
@@ -669,8 +657,6 @@ impl ParsedDeviceId {
     }
 }
 
-// Helper functions
-
 /// The tokens that may follow `native:`: the vendor catalog's, plus the two
 /// devices the bridge itself serves under the native prefix.
 fn native_id_tokens() -> Vec<String> {
@@ -716,8 +702,6 @@ fn parse_base_url(url: &str) -> Result<(String, String, u16), &'static str> {
 
     Ok((protocol, host, port))
 }
-
-// Display implementation
 
 impl std::fmt::Display for ParsedDeviceId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

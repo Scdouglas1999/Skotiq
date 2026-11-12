@@ -50,11 +50,9 @@ pub enum EventPayload {
 /// Statistics about the event bus
 #[derive(Debug, Clone, Default)]
 pub struct EventBusStats {
-    /// Total events published
     pub events_published: u64,
     /// Events dropped due to slow receivers
     pub events_dropped: u64,
-    /// Current number of subscribers
     pub subscriber_count: usize,
     /// Events by category (for the last N events)
     pub events_by_category: HashMap<EventCategory, u64>,
@@ -62,17 +60,12 @@ pub struct EventBusStats {
 
 /// Global event bus for publishing and subscribing to events
 pub struct EventBus {
-    /// Main event channel
     sender: broadcast::Sender<SkotiqEvent>,
-    /// Sequence number generator
     sequence: AtomicU64,
-    /// Events published counter
     events_published: AtomicU64,
-    /// Events dropped counter
     events_dropped: AtomicU64,
     /// Total events published by category
     events_by_category: Mutex<HashMap<EventCategory, u64>>,
-    /// Channel capacity
     capacity: usize,
 }
 
@@ -174,7 +167,6 @@ impl EventBus {
         self.publish(event)
     }
 
-    /// Subscribe to receive events
     pub fn subscribe(&self) -> broadcast::Receiver<SkotiqEvent> {
         self.sender.subscribe()
     }
@@ -199,7 +191,6 @@ impl EventBus {
         }
     }
 
-    /// Get the configured capacity
     pub fn capacity(&self) -> usize {
         self.capacity
     }

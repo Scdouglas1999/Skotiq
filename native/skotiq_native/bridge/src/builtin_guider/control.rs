@@ -12,7 +12,6 @@ pub async fn set_config(config: GuiderConfig) {
     guard.config = config;
 }
 
-/// Get the current guider configuration.
 pub async fn get_config() -> GuiderConfig {
     state().read().await.config.clone()
 }

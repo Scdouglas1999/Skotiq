@@ -34,7 +34,6 @@ struct StackerSession {
     color: Option<ColorIngest>,
 }
 
-/// Global live stacker instance
 static LIVE_STACKER: OnceLock<Mutex<Option<StackerSession>>> = OnceLock::new();
 
 fn get_stacker_lock() -> &'static Mutex<Option<StackerSession>> {
@@ -464,7 +463,6 @@ pub fn stacking_add_frame_from_data(
     })
 }
 
-/// Result from adding a frame to the stack
 #[derive(Debug, Clone)]
 pub struct LiveStackingAddFrameResult {
     pub width: u32,
@@ -697,8 +695,6 @@ mod tests {
 
         data
     }
-
-    // Config From-parse
 
     #[test]
     fn config_parses_valid_demosaic_qualities() {

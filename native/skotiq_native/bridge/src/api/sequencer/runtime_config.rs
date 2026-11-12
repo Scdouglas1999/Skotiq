@@ -812,8 +812,6 @@ pub async fn api_sequencer_get_recovery_history_json() -> Result<String, SkotiqE
         .map_err(|e| SkotiqError::SerializationError(format!("Recovery history serialise: {}", e)))
 }
 
-// Replay debug
-
 /// Replay Debug — stamp the active `sequence_runs.id` onto the
 /// executor so every subsequent emitted DecisionEvent carries it as
 /// `sequence_run_id`. Called by the Dart side immediately after the

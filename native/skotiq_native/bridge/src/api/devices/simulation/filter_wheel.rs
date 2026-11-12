@@ -1,6 +1,5 @@
 use super::*;
 
-/// Simulated filter wheel state
 pub(crate) static SIM_FILTERWHEEL: OnceLock<Arc<RwLock<SimulatedFilterWheel>>> = OnceLock::new();
 
 #[flutter_rust_bridge::frb]
@@ -246,7 +245,6 @@ pub async fn api_filterwheel_set_by_name(
     // Real device - find position by name and use DeviceManager
     let mgr = get_device_manager();
 
-    // Get filter names from device
     let (_, filter_names) = mgr
         .filter_wheel_get_config(&device_id)
         .await
@@ -262,7 +260,6 @@ pub async fn api_filterwheel_set_by_name(
             ))
         })?;
 
-    // Set the filter position
     mgr.filter_wheel_set_position(&device_id, position)
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to set filter: {}", e)))?;

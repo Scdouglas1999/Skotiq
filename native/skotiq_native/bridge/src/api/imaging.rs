@@ -228,7 +228,6 @@ pub async fn api_run_autofocus(
     let cancel_token = get_autofocus_cancel_token();
     cancel_token.store(false, Ordering::Relaxed);
 
-    // Store the method string for result
     let method_str = config.method.clone();
 
     // Map method string to enum
@@ -330,7 +329,6 @@ pub async fn api_run_autofocus(
     let result =
         execute_autofocus_admitted(&af_config, &ctx, Some(&progress_fn), autofocus_guard).await;
 
-    // Get current timestamp
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
@@ -953,11 +951,9 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
         )));
     }
 
-    // Read the actual FITS file
     let (image_data, header) = skotiq_imaging::read_fits(path)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
 
-    // Extract header keywords
     let object_name = header.get_string("OBJECT").map(|s| s.to_string());
     let exposure_time = header.get_float("EXPTIME");
     let filter = header.get_string("FILTER").map(|s| s.to_string());
@@ -967,7 +963,6 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
     let bitpix = header.get_int("BITPIX").unwrap_or(16) as i32;
     let bayer_pattern = header.get_string("BAYERPAT").map(|s| s.to_string());
 
-    // Calculate statistics
     let stats = skotiq_imaging::calculate_stats_u16(&image_data);
 
     let display = crate::frame_display::mono(&image_data);
@@ -1313,7 +1308,6 @@ pub async fn api_get_star_crops_from_last_image(
         .ok_or(SkotiqError::NoImageAvailable)?;
     let img = skotiq_imaging::ImageData::from_u16(raw.width, raw.height, 1, &raw.data);
 
-    // Detect stars
     let config = skotiq_imaging::StarDetectionConfig::default();
     let stars = skotiq_imaging::detect_stars(&img, &config);
 
@@ -1325,7 +1319,6 @@ pub async fn api_get_star_crops_from_last_image(
     // Extract top star crops (80x80 pixels each)
     let crops = skotiq_imaging::extract_top_star_crops(&img, &stars, max_crops as usize, 80);
 
-    // Convert to API format
     let result: Vec<StarCropApi> = crops
         .iter()
         .map(|crop| StarCropApi {
@@ -1420,12 +1413,10 @@ pub async fn api_read_xisf_file(file_path: String) -> Result<XisfReadResult, Sko
     let (image_data, metadata) = skotiq_imaging::read_xisf(path)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to read XISF: {}", e)))?;
 
-    // Calculate statistics
     let stats = skotiq_imaging::calculate_stats_u16(&image_data);
 
     let display = crate::frame_display::mono(&image_data);
 
-    // Convert properties to strings
     let properties: Vec<(String, String)> = metadata
         .properties
         .iter()
@@ -1854,7 +1845,6 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
     use skotiq_imaging::read_fits;
     use std::path::Path;
 
-    // Read FITS file
     let path = Path::new(file_path);
     let (image_data, _header) = read_fits(path)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {:?}", e)))?;
@@ -1947,7 +1937,6 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
         })
     };
 
-    // Calculate downscale factor
     let max_dimension = width.max(height);
     let scale = (max_dimension / max_size + u32::from(max_dimension % max_size != 0)).max(1);
 
@@ -2055,8 +2044,6 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
 }
 
 
-// Image calibration
-
 /// Calibrate an image file using dark, flat, and/or bias calibration frames.
 ///
 /// Loads the light frame and any provided calibration frames from disk,
@@ -2078,7 +2065,6 @@ pub fn api_calibrate_image_file(
     use skotiq_imaging::{calibration, read_image, write_fits, FitsHeader, ImageFormat};
     use std::path::Path;
 
-    // Load light frame
     let light_result = read_image(Path::new(&light_path)).map_err(|e| {
         SkotiqError::ImageError(format!(
             "Failed to read light frame '{}': {}",
@@ -2086,7 +2072,6 @@ pub fn api_calibrate_image_file(
         ))
     })?;
 
-    // Load optional calibration frames
     let dark = match &dark_path {
         Some(p) if !p.is_empty() => {
             let result = read_image(Path::new(p)).map_err(|e| {
@@ -2110,7 +2095,6 @@ pub fn api_calibrate_image_file(
         _ => None,
     };
 
-    // Run calibration pipeline
     let calibrated = crate::api::post_session::calibrate_with_flat_state(
         &light_result.image,
         dark.as_ref(),

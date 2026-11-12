@@ -91,7 +91,6 @@ impl DeviceManager {
         loop {
             check_interval.tick().await;
 
-            // Check if we should stop
             if *self.stop_reconnect.read().await {
                 break;
             }
@@ -100,7 +99,6 @@ impl DeviceManager {
                 continue;
             }
 
-            // Find devices that need reconnection
             let devices_to_reconnect: Vec<(String, ManagedDevice)> = {
                 let devices = self.devices.read().await;
                 devices
@@ -168,13 +166,11 @@ impl DeviceManager {
                     Err(e) => {
                         tracing::warn!("Reconnection failed for {}: {}", device_id, e);
 
-                        // Update attempt counter
                         let mut devices = self.devices.write().await;
                         if let Some(dev) = devices.get_mut(&device_id) {
                             dev.reconnect_attempts += 1;
                             dev.last_error = Some(e.clone());
 
-                            // Publish reconnection failed event
                             self.app_state.publish_equipment_event(
                                 EquipmentEvent::Error {
                                     device_type: dev.info.device_type.as_str().to_string(),
@@ -191,7 +187,6 @@ impl DeviceManager {
                     Ok(()) => {
                         tracing::info!("Reconnection successful for {}", device_id);
 
-                        // Reset attempt counter on success
                         let mut devices = self.devices.write().await;
                         if let Some(dev) = devices.get_mut(&device_id) {
                             dev.reconnect_attempts = 0;
@@ -269,7 +264,6 @@ impl DeviceManager {
         );
     }
 
-    /// Check if a device is registered
     pub async fn is_device_registered(&self, device_id: &str) -> bool {
         let devices = self.devices.read().await;
         devices.contains_key(device_id)
@@ -326,7 +320,6 @@ impl DeviceManager {
         self.connect_device(device_id).await
     }
 
-    /// Internal connection logic
     pub(crate) async fn connect_device_internal(&self, info: &DeviceInfo) -> Result<(), String> {
         let device_id = &info.id;
 
@@ -362,7 +355,6 @@ impl DeviceManager {
             }
         };
 
-        // Publish connecting event
         self.app_state.publish_equipment_event(
             EquipmentEvent::Connecting {
                 device_type: info.device_type.as_str().to_string(),
@@ -421,7 +413,6 @@ impl DeviceManager {
             }
         }
 
-        // Update state based on result
         {
             let mut devices = self.devices.write().await;
             if let Some(dev) = devices.get_mut(device_id) {
@@ -463,7 +454,6 @@ impl DeviceManager {
             }
         }
 
-        // Publish result event
         match &result {
             Ok(_) => {
                 crate::device_capabilities::invalidate_capability_cache_for_device(device_id).await;
@@ -1079,7 +1069,6 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Disconnect a device
     pub async fn disconnect_device(&self, device_id: &str) -> Result<(), String> {
         // Stop heartbeat monitoring first to prevent false disconnect events
         let _ = self.stop_heartbeat(device_id).await;
@@ -1095,7 +1084,6 @@ impl DeviceManager {
 
         self.status_reads.forget(device_id);
 
-        // Update state
         {
             let mut devices = self.devices.write().await;
             if let Some(dev) = devices.get_mut(device_id) {
@@ -1170,7 +1158,6 @@ impl DeviceManager {
         } else {
             match device_info.driver_type {
                 DriverType::Native => {
-                    // Remove from generic native_devices map
                     let mut native_devices = self.native_devices.write().await;
                     if let Some(mut device) = native_devices.remove(device_id) {
                         record_disconnect!("Native device", device.disconnect().await);
@@ -1328,7 +1315,6 @@ impl DeviceManager {
             }
         }
 
-        // Publish event
         self.app_state.publish_equipment_event(
             EquipmentEvent::Disconnected {
                 device_type: device_info.device_type.as_str().to_string(),
@@ -1337,7 +1323,6 @@ impl DeviceManager {
             EventSeverity::Info,
         );
 
-        // Update app state
         self.app_state
             .remove_device(device_info.device_type, device_id)
             .await;
@@ -1518,7 +1503,6 @@ impl DeviceManager {
         *self.stop_reconnect.write().await = true;
     }
 
-    /// Unregister a device
     pub async fn unregister_device(&self, device_id: &str) {
         let mut devices = self.devices.write().await;
         devices.remove(device_id);

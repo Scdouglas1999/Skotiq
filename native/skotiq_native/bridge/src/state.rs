@@ -16,7 +16,6 @@ use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::RwLock;
 
-/// Global application state
 pub struct AppState {
     /// Event bus for publishing/subscribing to events
     pub event_bus: SharedEventBus,
@@ -24,7 +23,6 @@ pub struct AppState {
     /// Connected devices by type and ID
     devices: RwLock<HashMap<(DeviceType, String), DeviceConnection>>,
 
-    /// Equipment profile
     profile: RwLock<Option<EquipmentProfile>>,
 
     /// Observer location (in-memory, synced from Dart on startup/change)
@@ -35,7 +33,6 @@ pub struct AppState {
     observer_location: std::sync::RwLock<Option<ObserverLocation>>,
 }
 
-/// Global profile storage
 static PROFILE_STORAGE: OnceLock<ProfileStorage> = OnceLock::new();
 
 /// Initialize profile storage
@@ -52,10 +49,8 @@ fn get_profile_storage() -> Result<&'static ProfileStorage, String> {
         .ok_or_else(|| "Profile storage not initialized".to_string())
 }
 
-/// Global settings storage
 static SETTINGS_STORAGE: OnceLock<SettingsStorage> = OnceLock::new();
 
-/// Initialize settings storage
 pub fn init_settings_storage(storage_dir: std::path::PathBuf) -> Result<(), String> {
     let storage = SettingsStorage::new(storage_dir)?;
     SETTINGS_STORAGE
@@ -139,7 +134,6 @@ impl AppState {
         })
     }
 
-    /// Register a device connection
     pub async fn register_device(&self, info: DeviceInfo, state: ConnectionState) {
         let key = (info.device_type, info.id.clone());
         let connection = DeviceConnection { info, state };
@@ -148,7 +142,6 @@ impl AppState {
         devices.insert(key, connection);
     }
 
-    /// Remove a device
     pub async fn remove_device(&self, device_type: DeviceType, device_id: &str) {
         let key = (device_type, device_id.to_string());
 
@@ -166,7 +159,6 @@ impl AppState {
             .collect()
     }
 
-    /// Get a specific device
     pub async fn get_device(&self, device_type: DeviceType, device_id: &str) -> Option<DeviceInfo> {
         let key = (device_type, device_id.to_string());
         let devices = self.devices.read().await;
@@ -206,12 +198,10 @@ impl AppState {
             .map(|((_, id), _)| id.clone())
     }
 
-    /// Get the current equipment profile
     pub async fn get_profile(&self) -> Option<EquipmentProfile> {
         self.profile.read().await.clone()
     }
 
-    /// Set the equipment profile
     pub async fn set_profile(&self, profile: Option<EquipmentProfile>) {
         let mut p = self.profile.write().await;
         *p = profile;
@@ -222,12 +212,10 @@ impl AppState {
         get_profile_storage()?.load_profiles()
     }
 
-    /// Save a profile to storage
     pub fn save_profile_to_storage(&self, profile: &EquipmentProfile) -> Result<(), String> {
         get_profile_storage()?.save_profile(profile)
     }
 
-    /// Delete a profile from storage
     pub fn delete_profile_from_storage(&self, profile_id: &str) -> Result<(), String> {
         get_profile_storage()?.delete_profile(profile_id)
     }
@@ -240,12 +228,10 @@ impl AppState {
         Ok(())
     }
 
-    /// Get current settings
     pub fn get_settings(&self) -> Result<AppSettings, String> {
         get_settings_storage()?.load_settings()
     }
 
-    /// Update settings
     pub fn update_settings(&self, settings: &AppSettings) -> Result<(), String> {
         get_settings_storage()?.save_settings(settings)
     }

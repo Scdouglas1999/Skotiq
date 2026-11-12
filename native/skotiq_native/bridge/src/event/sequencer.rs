@@ -1,6 +1,5 @@
 use super::*;
 
-/// Sequencer-specific events
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SequencerEvent {
