@@ -89,12 +89,13 @@ impl Fake {
 }
 
 static FAKE: Mutex<Option<Fake>> = Mutex::new(None);
-static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
 
 struct Installed(#[allow(dead_code)] MutexGuard<'static, ()>);
 
 fn install(fake: Fake) -> Installed {
-    let turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let turn = discovery::REGISTRY_TEST_TURN
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     *FAKE.lock().unwrap_or_else(|e| e.into_inner()) = Some(fake);
     discovery::forget_every_open_camera();
     Installed(turn)
