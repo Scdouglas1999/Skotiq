@@ -1039,6 +1039,9 @@ void main() {
 ///     saved (the base kept empty grading rules as an empty string, and
 ///     failed on an empty notification routing document).
 const Map<String, Object?> _changedOnPurpose = {
+  'connect the equipment at start': {
+    'reads': {'missing': false},
+  },
   'dark library tolerances': {
     'reads': {
       'unreadable': {'error': 'FormatException'},
