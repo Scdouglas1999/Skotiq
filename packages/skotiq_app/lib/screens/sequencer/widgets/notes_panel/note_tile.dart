@@ -17,7 +17,6 @@ class _NoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('MMM d, yyyy · HH:mm');
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -52,7 +51,7 @@ class _NoteTile extends StatelessWidget {
               else
                 Expanded(
                   child: Text(
-                    dateFormat.format(note.createdAt),
+                    ClockFormat.monthDayYearHm(note.createdAt.toLocal()),
                     style: SkotiqTypography.h6
                         .copyWith(color: colors.textSecondary),
                   ),
@@ -100,7 +99,7 @@ class _NoteTile extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
-                dateFormat.format(note.createdAt),
+                ClockFormat.monthDayYearHm(note.createdAt.toLocal()),
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize11,
                     color: colors.textMuted),

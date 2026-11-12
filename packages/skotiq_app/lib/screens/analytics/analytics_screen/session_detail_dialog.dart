@@ -227,8 +227,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              DateFormat('MMM d, yyyy HH:mm')
-                                  .format(session.startTime),
+                              ClockFormat.monthDayYearHm(session.startTime.toLocal()),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: SkotiqTypography.bodySm.copyWith(

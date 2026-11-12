@@ -31,7 +31,6 @@ class _SessionSelector extends StatelessWidget {
       );
     }
 
-    final dateFormat = DateFormat('MMM d, HH:mm');
     final sessionsByRecency = sessions.reversed.toList();
     final recentSessions = sessionsByRecency.take(50).toList();
     final selectedSession = selectedSessionId == null
@@ -94,8 +93,8 @@ class _SessionSelector extends StatelessWidget {
               ),
             ...visibleSessions.map((session) {
               final label = session.name != null && session.name!.isNotEmpty
-                  ? '${session.name} (${dateFormat.format(session.startTime)})'
-                  : dateFormat.format(session.startTime);
+                  ? '${session.name} (${ClockFormat.monthDayHm(session.startTime.toLocal())})'
+                  : ClockFormat.monthDayHm(session.startTime.toLocal());
               return DropdownMenuItem(
                 value: session.id,
                 child: Text(

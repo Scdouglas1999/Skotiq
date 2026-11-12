@@ -18,7 +18,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 // unimplemented on Linux/Windows and threw an internal API name at the user.
 import '../../utils/darkroom_navigation.dart';
 import '../../utils/exported_file_reveal.dart';
-import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/snackbar_helper.dart';

@@ -297,7 +297,7 @@ class _VersionRow extends StatelessWidget {
   });
 
   String _formatTimestamp(DateTime date) {
-    return DateFormat('MMM d, yyyy HH:mm').format(date);
+    return ClockFormat.monthDayYearHm(date.toLocal());
   }
 
   @override

@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -306,10 +305,8 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
     DateTime spanEnd,
   ) {
     final range = _timeRange ?? const RangeValues(0, 1);
-    final startLabel = DateFormat('HH:mm:ss')
-        .format(_offsetFromFraction(spanStart, spanEnd, range.start));
-    final endLabel = DateFormat('HH:mm:ss')
-        .format(_offsetFromFraction(spanStart, spanEnd, range.end));
+    final startLabel = ClockFormat.hms(_offsetFromFraction(spanStart, spanEnd, range.start));
+    final endLabel = ClockFormat.hms(_offsetFromFraction(spanStart, spanEnd, range.end));
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Column(
@@ -407,7 +404,7 @@ class _ReplayDebugScreenState extends ConsumerState<ReplayDebugScreen> {
     final notesService = ref.read(notesRepositoryProvider);
     final body = StringBuffer()
       ..writeln(
-          'At ${DateFormat.yMd().add_Hms().format(d.timestamp.toLocal())}: ${d.summary}')
+          'At ${ClockFormat.dateHms(d.timestamp.toLocal())}: ${d.summary}')
       ..writeln()
       ..writeln('Category: ${d.category.displayLabel}');
     if (d.nodeId != null) body.writeln('Node: ${d.nodeId}');
@@ -518,7 +515,7 @@ class _DecisionTileState extends State<_DecisionTile> {
     final c = widget.colors;
     final badgeColor = _categoryColor(widget.decision.category, c);
     final tsLocal = widget.decision.timestamp.toLocal();
-    final timeLabel = DateFormat('HH:mm:ss').format(tsLocal);
+    final timeLabel = ClockFormat.hms(tsLocal);
     final isForensicsLinked =
         widget.decision.category == DecisionCategory.frameRejected ||
             widget.decision.details.containsKey('captured_image_id') ||

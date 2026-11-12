@@ -15,6 +15,10 @@ const List<String> _monthNames = <String>[
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', //
 ];
 
+const List<String> _weekdayNames = <String>[
+  'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', //
+];
+
 abstract final class ClockFormat {
   /// `23:52`.
   static String hm(DateTime t) => '${pad2(t.hour)}:${pad2(t.minute)}';
@@ -47,6 +51,20 @@ abstract final class ClockFormat {
 
   /// `Nov 10, 2026 23:52`.
   static String monthDayYearHm(DateTime t) => '${monthDayYear(t)} ${hm(t)}';
+
+  /// `Tue, Nov 10`, for a night or a day someone has to find on a calendar.
+  static String weekdayMonthDay(DateTime t) =>
+      '${_weekdayNames[t.weekday - 1]}, ${monthDay(t)}';
+
+  /// `Tue, Nov 10, 2026`.
+  static String weekdayMonthDayYear(DateTime t) =>
+      '${weekdayMonthDay(t)}, ${t.year}';
+
+  /// `20261110_235207`, for a file name: sorts by time and has no character
+  /// a file system refuses.
+  static String fileStamp(DateTime t) =>
+      '${t.year.toString().padLeft(4, '0')}${pad2(t.month)}${pad2(t.day)}_'
+      '${pad2(t.hour)}${pad2(t.minute)}${pad2(t.second)}';
 
   /// [t] as `23:52` when it falls on the same calendar day as [reference],
   /// else `Nov 10 23:52`.

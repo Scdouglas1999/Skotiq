@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -434,8 +433,8 @@ class _HistoryFilterBarState extends ConsumerState<_HistoryFilterBar> {
 String observingNightLabel(DateTime night) {
   final evening = DateTime(night.year, night.month, night.day);
   final morning = evening.add(const Duration(days: 1));
-  return 'Night of ${DateFormat('EEE, MMM d').format(evening)} to '
-      '${DateFormat('EEE, MMM d, yyyy').format(morning)}';
+  return 'Night of ${ClockFormat.weekdayMonthDay(evening)} to '
+      '${ClockFormat.weekdayMonthDayYear(morning)}';
 }
 
 class _GroupedRunList extends StatelessWidget {
@@ -510,7 +509,6 @@ class _RunCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('MMM d, yyyy HH:mm');
     final status = run.status;
     final statusColor = _statusColor(status);
     final statusIcon = _statusIcon(status);
@@ -577,7 +575,7 @@ class _RunCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${dateFormat.format(run.startedAt)}  |  $durationStr',
+                      '${ClockFormat.monthDayYearHm(run.startedAt.toLocal())}  |  $durationStr',
                       style: TextStyle(
                           fontSize: SkotiqTypography.fontSize12,
                           color: colors.textMuted),

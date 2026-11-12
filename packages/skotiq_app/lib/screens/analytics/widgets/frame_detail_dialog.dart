@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/skotiq_core.dart'
@@ -198,9 +197,8 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
     final rows = <(String, String)>[
       (
         'Captured',
-        DateFormat('EEE MMM d, yyyy · HH:mm:ss').format(
-          image.capturedAt,
-        )
+        '${ClockFormat.weekdayMonthDayYear(image.capturedAt.toLocal())} · '
+            '${ClockFormat.hms(image.capturedAt.toLocal())}'
       ),
       ('Frame type', image.frameType),
       ('Exposure', '${_trim(image.exposureDuration)} s'),

@@ -56,6 +56,47 @@ void main() {
     });
   });
 
+  group('ClockFormat names for a calendar and a file', () {
+    final t = DateTime(2026, 11, 3, 4, 5, 9);
+
+    test('a weekday date', () {
+      expect(ClockFormat.weekdayMonthDay(t), 'Tue, Nov 3');
+      expect(ClockFormat.weekdayMonthDayYear(t), 'Tue, Nov 3, 2026');
+      expect(ClockFormat.weekdayMonthDay(DateTime(2026, 11, 8)), 'Sun, Nov 8');
+    });
+
+    test('a file stamp sorts by time', () {
+      expect(ClockFormat.fileStamp(t), '20261103_040509');
+    });
+
+    test('a UTC time prints its own fields; the caller picks the clock', () {
+      final utc = DateTime.utc(2026, 11, 3, 4, 5);
+      expect(ClockFormat.hm(utc), '04:05');
+      expect(ClockFormat.dateHm(utc), '2026-11-03 04:05');
+    });
+  });
+
+  group('ByteFormat units', () {
+    test('the app shows one unit family', () {
+      final names = ByteFormat.units.names;
+      expect(ByteFormat.megaUnit, names[2]);
+      expect(ByteFormat.gigaUnit, names[3]);
+      expect(ByteFormat.bytesPerMega, ByteFormat.units.step * ByteFormat.units.step);
+      // A limit entered as a number of gigabytes reads back as that number.
+      expect(
+        ByteFormat.size(25 * ByteFormat.bytesPerGiga),
+        '25.0 ${ByteFormat.gigaUnit}',
+      );
+    });
+
+    test('each family steps by its own factor', () {
+      expect(ByteUnits.binary.step, 1024);
+      expect(ByteUnits.binary.names, ['B', 'KiB', 'MiB', 'GiB', 'TiB']);
+      expect(ByteUnits.decimal.step, 1000);
+      expect(ByteUnits.decimal.names, ['B', 'kB', 'MB', 'GB', 'TB']);
+    });
+  });
+
   group('RelativeTime', () {
     final now = DateTime(2026, 11, 10, 12);
     String ago(Duration d, [RelativeTimeStyle s = RelativeTimeStyle.compact]) =>

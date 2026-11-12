@@ -77,7 +77,6 @@ class _StackAndShareEntry extends StatelessWidget {
     if (pickable.isEmpty) return launcher;
 
     final colors = SkotiqColors.of(context);
-    final format = DateFormat('MMM d, HH:mm');
     return Wrap(
       spacing: SkotiqTokens.spaceSm,
       runSpacing: SkotiqTokens.spaceSm,
@@ -108,7 +107,7 @@ class _StackAndShareEntry extends StatelessWidget {
                       child: Text(
                         // When and how much first: the side panel is narrow
                         // and the name is what an ellipsis may cut.
-                        '${format.format(session.startTime)}'
+                        '${ClockFormat.monthDayHm(session.startTime.toLocal())}'
                         '  ·  ${session.totalExposures} frames'
                         '  ·  ${session.name ?? 'Session ${session.id}'}',
                         maxLines: 1,

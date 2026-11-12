@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -260,8 +259,7 @@ class FinderChartService {
       creator: 'Skotiq Astrophotography Suite',
     );
 
-    final dateFormatter = DateFormat('yyyy-MM-dd HH:mm:ss');
-    final dateStr = dateFormatter.format(observationTime);
+        final dateStr = ClockFormat.dateHms(observationTime);
 
     final latStr = _formatLatitude(latitude);
     final lonStr = _formatLongitude(longitude);
@@ -635,7 +633,7 @@ class FinderChartService {
   }
 
   static String suggestedFilename({String? objectName}) {
-    final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final date = ClockFormat.date(DateTime.now());
     if (objectName != null) {
       final safeName = objectName.replaceAll(RegExp(r'[^\w\s-]'), '_').trim();
       return 'finder_chart_${safeName}_$date.pdf';

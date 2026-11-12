@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
@@ -289,13 +288,13 @@ class VisualTimeline extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  DateFormat('HH:mm').format(firstStart),
+                  ClockFormat.hm(firstStart),
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize10,
                       color: colors.textMuted),
                 ),
                 Text(
-                  DateFormat('HH:mm').format(
+                  ClockFormat.hm(
                     firstStart.add(Duration(seconds: (totalSecs / 4).round())),
                   ),
                   style: TextStyle(
@@ -303,7 +302,7 @@ class VisualTimeline extends ConsumerWidget {
                       color: colors.textMuted),
                 ),
                 Text(
-                  DateFormat('HH:mm').format(
+                  ClockFormat.hm(
                     firstStart.add(Duration(seconds: (totalSecs / 2).round())),
                   ),
                   style: TextStyle(
@@ -311,7 +310,7 @@ class VisualTimeline extends ConsumerWidget {
                       color: colors.textMuted),
                 ),
                 Text(
-                  DateFormat('HH:mm').format(
+                  ClockFormat.hm(
                     firstStart
                         .add(Duration(seconds: (totalSecs * 3 / 4).round())),
                   ),
@@ -320,7 +319,7 @@ class VisualTimeline extends ConsumerWidget {
                       color: colors.textMuted),
                 ),
                 Text(
-                  DateFormat('HH:mm').format(lastEnd),
+                  ClockFormat.hm(lastEnd),
                   style: TextStyle(
                       fontSize: SkotiqTypography.fontSize10,
                       color: colors.textMuted),

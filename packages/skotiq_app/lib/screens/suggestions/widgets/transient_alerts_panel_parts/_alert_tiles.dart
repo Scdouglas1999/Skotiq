@@ -191,7 +191,7 @@ class _TransientAlertTileState extends ConsumerState<_TransientAlertTile> {
                                   color: colors.textMuted),
                             ),
                             Text(
-                              DateFormat('MMM d').format(alert.discoveryTime),
+                              ClockFormat.monthDay(alert.discoveryTime.toLocal()),
                               style: TextStyle(
                                   fontSize: SkotiqTypography.fontSize11,
                                   color: colors.textMuted),

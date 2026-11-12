@@ -276,8 +276,9 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                DateFormat.yMd()
-                                    .format(widget.template.createdAt),
+                                ClockFormat.monthDayYear(
+                                  widget.template.createdAt.toLocal(),
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -425,7 +426,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   }
 
   Future<void> _createNewSequenceFromTemplate(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final sequenceNotifier = ref.read(currentSequenceProvider.notifier);
     final newNodes = <String, SequenceNode>{};
     final idMapping = <String, String>{};
@@ -495,7 +496,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       );
       if (discard != true ||
           !context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+          host.isStale) {
         return;
       }
       sequenceNotifier.loadSequence(newSequence, discardUnsaved: true);
@@ -512,7 +513,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   }
 
   Future<void> _editTemplate(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final editor = ref.read(currentSequenceProvider.notifier);
 
     if (editor.isDirty) {
@@ -546,7 +547,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
       if (discard != true || !context.mounted) return;
     }
 
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (host.isStale) {
       context.showWarningSnackBar(
         'The connected host changed. Reopen the template catalog.',
       );
@@ -604,7 +605,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
           isTemplate: true,
         );
         if (!context.mounted ||
-            !identical(ref.read(backendProvider), authority)) {
+            host.isStale) {
           return;
         }
         editableTemplate = editableTemplate.copyWith(databaseId: savedId);
@@ -618,7 +619,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         ref.invalidate(sequenceTemplatesProvider);
       } catch (e) {
         if (context.mounted &&
-            identical(ref.read(backendProvider), authority)) {
+            host.isCurrent) {
           context.showErrorSnackBar('Could not create template copy: ${userFacingError(e)}');
         }
         return;
@@ -640,7 +641,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
   }
 
   Future<void> _duplicateTemplate(BuildContext context) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final repository = ref.read(sequenceRepositoryProvider);
     final dbId = widget.template.databaseId;
     if (dbId != null) {
@@ -649,7 +650,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
             dbId, '${widget.template.name} (Copy)');
 
         if (!context.mounted ||
-            !identical(ref.read(backendProvider), authority)) {
+            host.isStale) {
           return;
         }
 
@@ -667,7 +668,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         context.showSuccessSnackBar('Duplicated "${widget.template.name}"');
       } catch (e) {
         if (context.mounted &&
-            identical(ref.read(backendProvider), authority)) {
+            host.isCurrent) {
           context.showErrorSnackBar('Failed to duplicate template: ${userFacingError(e)}');
         }
       }
@@ -685,7 +686,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
             await repository.saveSequence(newTemplate, isTemplate: true);
 
         if (!context.mounted ||
-            !identical(ref.read(backendProvider), authority)) {
+            host.isStale) {
           return;
         }
 
@@ -701,7 +702,7 @@ class _TemplateCardState extends ConsumerState<_TemplateCard>
         context.showSuccessSnackBar('Duplicated "${widget.template.name}"');
       } catch (e) {
         if (context.mounted &&
-            identical(ref.read(backendProvider), authority)) {
+            host.isCurrent) {
           context.showErrorSnackBar('Failed to duplicate template: ${userFacingError(e)}');
         }
       }
