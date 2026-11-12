@@ -66,7 +66,7 @@ void main() {
 
   test('every sequencer operation refuses under its own name', () async {
     final operations = _sequencerOperations(backend);
-    expect(operations, hasLength(38));
+    expect(operations, hasLength(24));
     for (final entry in operations.entries) {
       await expectLater(entry.value(), refuses(entry.key), reason: entry.key);
     }

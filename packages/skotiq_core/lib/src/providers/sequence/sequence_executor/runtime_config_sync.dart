@@ -260,7 +260,6 @@ class RuntimeConfigSync {
 
   /// Start the sky-brightness feed for the run.
   void startWatchers() {
-    stopWatchers();
     _startSkyBrightnessPoll();
   }
 
@@ -292,7 +291,10 @@ class RuntimeConfigSync {
   /// The run is over: stop the sky-brightness feed, and let the sections a
   /// run keeps follow the settings again.
   void stopWatchers() {
-    _ref.read(runConfigSyncProvider).endRun();
+    // A run that never sent its settings has none to end.
+    if (_ref.exists(runConfigSyncProvider)) {
+      _ref.read(runConfigSyncProvider).endRun();
+    }
     _skyBrightnessPollTimer?.cancel();
     _skyBrightnessPollTimer = null;
     _lastPushedSkyMag = null;
