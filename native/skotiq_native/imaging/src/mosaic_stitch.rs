@@ -60,7 +60,7 @@ use crate::normalization::{
     estimate_normalization, CoverageMask, NormEstimator, NormalizationConfig,
 };
 use crate::numeric::solve_dense;
-use crate::resample::{Interpolator, Taps};
+use crate::resample::Interpolator;
 use crate::robust_stats::median_in_place;
 use crate::{ImageData, SipWcs, WcsInfo};
 
@@ -277,18 +277,17 @@ impl DecodedPanel {
         })
     }
 
-    /// The taps of a sample at fractional 0-based source pixel `(sx, sy)`, or
-    /// `None` when the interpolation support leaves the panel (no edge
-    /// replication — a border smear would bleed a panel's frame into the seam).
+    /// Sample channel `c` at fractional 0-based source pixel `(sx, sy)` with
+    /// `interp`. Returns `None` when the interpolation support leaves the panel
+    /// (no edge replication — a border smear would bleed a panel's frame into
+    /// the seam).
     #[inline]
-    fn taps(&self, sx: f64, sy: f64, interp: Interpolator) -> Option<Taps> {
-        interp.taps(sx, sy, self.width, self.height)
-    }
-
-    /// Channel `c` of the panel through `taps`.
-    #[inline]
-    fn sample(&self, taps: &Taps, c: usize) -> f64 {
-        taps.apply(|x, y| self.data[(y * self.width + x) * self.channels + c])
+    fn sample(&self, c: usize, sx: f64, sy: f64, interp: Interpolator) -> Option<f64> {
+        let (data, channels) = (&self.data, self.channels);
+        let stride = self.width * channels;
+        interp
+            .taps(sx, sy, self.width, self.height)
+            .map(|taps| taps.apply(|x, y| data[y * stride + x * channels + c]))
     }
 }
 
@@ -605,13 +604,11 @@ fn fit_overlap_pair(
             let si = pi
                 .proj
                 .world_to_pixel(ra, dec)
-                .and_then(|(sx, sy)| pi.taps(sx, sy, interp))
-                .map(|taps| pi.sample(&taps, 0));
+                .and_then(|(sx, sy)| pi.sample(0, sx, sy, interp));
             let sj = pj
                 .proj
                 .world_to_pixel(ra, dec)
-                .and_then(|(sx, sy)| pj.taps(sx, sy, interp))
-                .map(|taps| pj.sample(&taps, 0));
+                .and_then(|(sx, sy)| pj.sample(0, sx, sy, interp));
             if let (Some(vi), Some(vj)) = (si, sj) {
                 if vi.is_finite() && vj.is_finite() {
                     let idx = row * w + colp;
@@ -713,19 +710,18 @@ fn render_canvas(
                     // and then poisons the weighted mean (acc=NaN, wsum finite).
                     // Track how many channels were committed so a mid-loop reject
                     // rolls back exactly those (and no more).
-                    let Some(taps) = p.taps(sx, sy, cfg.resampler) else {
-                        continue;
-                    };
                     let mut ok = true;
                     let mut committed = 0usize;
                     for c in 0..channels {
-                        let v = p.sample(&taps, c);
-                        if v.is_finite() {
-                            acc[c] += weight * (ph.gain * v + ph.offset);
-                            committed += 1;
-                        } else {
-                            ok = false;
-                            break;
+                        match p.sample(c, sx, sy, cfg.resampler) {
+                            Some(v) if v.is_finite() => {
+                                acc[c] += weight * (ph.gain * v + ph.offset);
+                                committed += 1;
+                            }
+                            _ => {
+                                ok = false;
+                                break;
+                            }
                         }
                     }
                     if ok {
@@ -735,8 +731,9 @@ fn render_canvas(
                         // the channels we actually committed. Re-sampling is exact
                         // and finite for those (we only committed finite samples).
                         for c in 0..committed {
-                            let v = p.sample(&taps, c);
-                            acc[c] -= weight * (ph.gain * v + ph.offset);
+                            if let Some(v) = p.sample(c, sx, sy, cfg.resampler) {
+                                acc[c] -= weight * (ph.gain * v + ph.offset);
+                            }
                         }
                     }
                 }

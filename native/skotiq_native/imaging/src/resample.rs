@@ -34,6 +34,20 @@ impl Interpolator {
         }
     }
 
+    /// The floor `(x0, y0)` of a sample position as a column and row, when
+    /// every tap around it lies inside a `w` × `h` frame. `None` for a NaN
+    /// position; an infinite one saturates and fails the bounds.
+    #[inline]
+    fn support_origin(self, x0: f64, y0: f64, w: usize, h: usize) -> Option<(i64, i64)> {
+        if x0.is_nan() || y0.is_nan() {
+            return None;
+        }
+        let (ix, iy) = (x0 as i64, y0 as i64);
+        let reach = self.radius();
+        let inside = |i: i64, extent: usize| i >= reach - 1 && i <= extent as i64 - 1 - reach;
+        (inside(ix, w) && inside(iy, h)).then_some((ix, iy))
+    }
+
     /// The taps and weights of a sample at source position `(sx, sy)` in a
     /// `width` × `height` frame, or `None` when any tap falls outside it.
     ///
@@ -41,27 +55,24 @@ impl Interpolator {
     /// not produced, so a frame border never smears into a stack or a seam.
     #[inline]
     pub(crate) fn taps(self, sx: f64, sy: f64, width: usize, height: usize) -> Option<Taps> {
-        if !kernel_inside(sx, sy, width, height, self) {
-            return None;
-        }
-        let x0 = sx.floor();
-        let y0 = sy.floor();
+        let (x0, y0) = (sx.floor(), sy.floor());
+        let (ix, iy) = self.support_origin(x0, y0, width, height)?;
         let (fx, fy) = (sx - x0, sy - y0);
         Some(match self {
             Interpolator::Bilinear => {
-                let (ix, iy) = (x0 as usize, y0 as usize);
+                let (ix, iy) = (ix as usize, iy as usize);
                 Taps::Bilinear(Bilinear::new(ix, iy, ix + 1, iy + 1, fx, fy))
             }
-            Interpolator::CatmullRom => separable(fx, fy, x0, y0, 2, catmull_rom),
-            Interpolator::Lanczos3 => separable(fx, fy, x0, y0, 3, lanczos3),
+            Interpolator::CatmullRom => separable(fx, fy, ix, iy, 2, catmull_rom),
+            Interpolator::Lanczos3 => separable(fx, fy, ix, iy, 3, lanczos3),
         })
     }
 }
 
 /// The taps of a separable kernel of half-width `radius` at fractional offset
-/// `(fx, fy)` from the floor `(x0, y0)`, which [`kernel_inside`] has accepted.
+/// `(fx, fy)` from the floor `(x0, y0)`, whose support is inside the frame.
 #[inline]
-fn separable(fx: f64, fy: f64, x0: f64, y0: f64, radius: i64, kernel: impl Fn(f64) -> f64) -> Taps {
+fn separable(fx: f64, fy: f64, x0: i64, y0: i64, radius: i64, kernel: impl Fn(f64) -> f64) -> Taps {
     let start = -(radius - 1);
     let n = (2 * radius) as usize;
     let mut wx = [0.0f64; 6];
@@ -77,26 +88,22 @@ fn separable(fx: f64, fy: f64, x0: f64, y0: f64, radius: i64, kernel: impl Fn(f6
     }
     // Both kernels sum to within a few percent of one at every fractional
     // offset; dividing by the sum keeps a flat field flat.
-    Taps::Separable {
-        x0: (x0 as i64 + start) as usize,
-        y0: (y0 as i64 + start) as usize,
+    Taps::Separable(Separable {
+        x0: (x0 + start) as usize,
+        y0: (y0 + start) as usize,
         n,
         wx,
         wy,
         norm: sum_wx * sum_wy,
-    }
+    })
 }
 
 /// Whether every tap of `interp` around source position `(sx, sy)` lies inside
 /// a `w` × `h` frame.
 pub fn kernel_inside(sx: f64, sy: f64, w: usize, h: usize, interp: Interpolator) -> bool {
-    if !sx.is_finite() || !sy.is_finite() {
-        return false;
-    }
-    let (x0, y0) = (sx.floor(), sy.floor());
-    let hi = interp.radius() as f64;
-    let lo = 1.0 - hi;
-    x0 + lo >= 0.0 && y0 + lo >= 0.0 && x0 + hi <= (w as f64 - 1.0) && y0 + hi <= (h as f64 - 1.0)
+    interp
+        .support_origin(sx.floor(), sy.floor(), w, h)
+        .is_some()
 }
 
 /// The taps of one resampling position, computed once and applied to every
@@ -104,15 +111,7 @@ pub fn kernel_inside(sx: f64, sy: f64, w: usize, h: usize, interp: Interpolator)
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Taps {
     Bilinear(Bilinear),
-    /// A separable kernel over `n × n` taps starting at `(x0, y0)`.
-    Separable {
-        x0: usize,
-        y0: usize,
-        n: usize,
-        wx: [f64; 6],
-        wy: [f64; 6],
-        norm: f64,
-    },
+    Separable(Separable),
 }
 
 impl Taps {
@@ -122,25 +121,34 @@ impl Taps {
     pub(crate) fn apply(&self, at: impl Fn(usize, usize) -> f64) -> f64 {
         match self {
             Taps::Bilinear(cell) => cell.apply(at),
-            Taps::Separable {
-                x0,
-                y0,
-                n,
-                wx,
-                wy,
-                norm,
-            } => {
-                let mut acc = 0.0;
-                for (ty, w_y) in wy.iter().enumerate().take(*n) {
-                    let mut row_acc = 0.0;
-                    for (tx, w_x) in wx.iter().enumerate().take(*n) {
-                        row_acc += w_x * at(x0 + tx, y0 + ty);
-                    }
-                    acc += w_y * row_acc;
-                }
-                acc / norm
-            }
+            Taps::Separable(taps) => taps.apply(at),
         }
+    }
+}
+
+/// A separable kernel over `n × n` taps starting at `(x0, y0)`.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Separable {
+    x0: usize,
+    y0: usize,
+    n: usize,
+    wx: [f64; 6],
+    wy: [f64; 6],
+    norm: f64,
+}
+
+impl Separable {
+    #[inline]
+    fn apply(&self, at: impl Fn(usize, usize) -> f64) -> f64 {
+        let mut acc = 0.0;
+        for (ty, w_y) in self.wy.iter().enumerate().take(self.n) {
+            let mut row_acc = 0.0;
+            for (tx, w_x) in self.wx.iter().enumerate().take(self.n) {
+                row_acc += w_x * at(self.x0 + tx, self.y0 + ty);
+            }
+            acc += w_y * row_acc;
+        }
+        acc / self.norm
     }
 }
 
@@ -263,7 +271,8 @@ mod tests {
         for interp in [Interpolator::CatmullRom, Interpolator::Lanczos3] {
             for i in 0..=1000 {
                 let f = i as f64 / 1000.0;
-                let Some(Taps::Separable { norm, .. }) = interp.taps(10.0 + f, 10.0 + f, 32, 32)
+                let Some(Taps::Separable(Separable { norm, .. })) =
+                    interp.taps(10.0 + f, 10.0 + f, 32, 32)
                 else {
                     panic!("{interp:?} at {f} has no taps");
                 };
@@ -288,6 +297,9 @@ mod tests {
             assert!(interp.taps(reach - 1.5, 8.0, 16, 16).is_none());
             assert!(interp.taps(16.0 - reach + 0.5, 8.0, 16, 16).is_none());
             assert!(interp.taps(f64::NAN, 8.0, 16, 16).is_none());
+            assert!(interp.taps(8.0, f64::INFINITY, 16, 16).is_none());
+            assert!(interp.taps(f64::NEG_INFINITY, 8.0, 16, 16).is_none());
+            assert!(!kernel_inside(f64::NAN, 8.0, 16, 16, interp));
         }
     }
 
