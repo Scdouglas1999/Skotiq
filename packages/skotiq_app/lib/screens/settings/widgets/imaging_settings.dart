@@ -8,9 +8,7 @@ import 'imaging_naming_pattern.dart';
 import 'settings_widgets.dart';
 
 class ImagingSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const ImagingSettings({super.key, this.isMobile = false});
+  const ImagingSettings({super.key});
 
   @override
   ConsumerState<ImagingSettings> createState() => _ImagingSettingsState();
@@ -102,9 +100,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
           value: format,
           items: kSupportedCaptureImageFormats,
           onChanged: notifier.setImageFormat,
-          width: widget.isMobile ? 120 : 140,
+          width: 140,
+          narrowWidth: 120,
         ),
-        isMobile: widget.isMobile,
       ),
       if (isXisf) ...[
         SettingRow(
@@ -119,10 +117,10 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
             items: kXisfCompressionLabels.keys.toList(),
             itemLabels: kXisfCompressionLabels.values.toList(),
             onChanged: notifier.setXisfCompression,
-            width: widget.isMobile ? 200 : 280,
+            width: 280,
+            narrowWidth: 200,
           ),
-          isMobile: widget.isMobile,
-          stackOnMobile: widget.isMobile,
+          stackWhenNarrow: true,
         ),
         SettingRow(
           icon: LucideIcons.shieldCheck,
@@ -135,7 +133,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
             value: settings.xisfChecksums,
             onChanged: notifier.setXisfChecksums,
           ),
-          isMobile: widget.isMobile,
         ),
       ],
     ];
@@ -146,11 +143,8 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -160,12 +154,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
         return SettingsPage(
           title: 'Imaging',
           description: 'Default capture settings',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'File format',
-              isMobile: widget.isMobile,
               children: [
                 ..._formatRows(settings),
                 SettingRow(
@@ -176,13 +167,12 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                   trailing: SettingsTextInput(
                     authoritativeValue: settings.fileNamingPattern,
                     authorityKey: authority,
-                    width: widget.isMobile ? 160 : 220,
+                    width: 220,
+                    narrowWidth: 160,
                     onChanged: _commitPattern,
-                    isMobile: widget.isMobile,
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
-                  stackOnMobile: widget.isMobile,
+                  stackWhenNarrow: true,
                 ),
                 _patternFeedback(
                   settings.fileNamingPattern,

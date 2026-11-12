@@ -35,6 +35,7 @@ class DeviceReconnectCoordinator {
     required Future<void> Function() pauseSequence,
     required void Function(String deviceId, {int attempt, int maxAttempts})
     surfaceReconnecting,
+    required Future<void> Function(DeviceType type, String deviceId) connect,
     List<Duration>? retryDelays,
     Future<void> Function(DeviceType type, String deviceId)? reconnectAttempt,
     Future<String> Function(DeviceType type, String deviceId)? reconnectTarget,
@@ -44,6 +45,7 @@ class DeviceReconnectCoordinator {
        _resumeSequence = resumeSequence,
        _pauseSequence = pauseSequence,
        _surfaceReconnecting = surfaceReconnecting,
+       _connect = connect,
        _retryDelays = retryDelays ?? reconnectDelays,
        _reconnectAttemptOverride = reconnectAttempt,
        _reconnectTarget = reconnectTarget;
@@ -57,6 +59,10 @@ class DeviceReconnectCoordinator {
   bool get _hostOwnsRecovery => _backend.remoteHost != null;
   final Future<void> Function() _resumeSequence;
   final Future<void> Function() _pauseSequence;
+
+  /// The device service's connect: the one writer of a slot during a
+  /// connect. It throws when the connect fails.
+  final Future<void> Function(DeviceType type, String deviceId) _connect;
   final List<Duration> _retryDelays;
   final Future<void> Function(DeviceType type, String deviceId)?
   _reconnectAttemptOverride;
@@ -112,8 +118,8 @@ class DeviceReconnectCoordinator {
   /// this coordinator must not schedule a reconnect of its own: the two raced
   /// and double-connected the same device. Resuming the sequence after a
   /// native reconnect is handled by [onAuthoritativeDeviceConnected].
-  static bool nativeOwnsReconnect(DeviceType type) =>
-      type.slot.nativeOwnsReconnect;
+  bool nativeOwnsReconnect(DeviceType type) =>
+      _backend.nativeReconnectedDeviceTypes.contains(type);
 
   String _reconnectKey(DeviceType type, String deviceId) =>
       '${type.name}:$deviceId';
@@ -483,10 +489,7 @@ class DeviceReconnectCoordinator {
       readDeviceSlot(_ref, type).autoReconnectEnabled;
 
   Future<void> _performReconnection(DeviceType type, String deviceId) async {
-    await readDeviceConnectionNotifier(
-      _ref,
-      type,
-    ).connect(deviceId, maxRetries: 1);
+    await _connect(type, deviceId);
     final slot = readDeviceSlot(_ref, type);
     validateReconnectOutcome(
       type: type,
@@ -495,10 +498,9 @@ class DeviceReconnectCoordinator {
     );
   }
 
-  /// State notifiers deliberately retain terminal connection failures in
-  /// `lastError` instead of rethrowing them, so awaiting `connect()` alone does
-  /// not prove that reconnection succeeded. Keep the coordinator's retry
-  /// counter honest by requiring the authoritative post-attempt state.
+  /// A connect that returns has not proved the device is back: the slot can
+  /// have been taken by another connect meanwhile. Keep the coordinator's
+  /// retry counter honest by requiring the authoritative post-attempt state.
   static void validateReconnectOutcome({
     required DeviceType type,
     required DeviceConnectionState connectionState,

@@ -21,6 +21,7 @@
 use std::sync::Arc;
 
 use serde_json::{json, Map, Value};
+use skotiq_imaging::color_composite::Palette;
 use skotiq_imaging::recipe::ops::crop::auto_rect;
 use skotiq_imaging::recipe::ops::stretch::auto_params;
 use skotiq_imaging::recipe::{
@@ -29,6 +30,25 @@ use skotiq_imaging::recipe::{
 };
 
 use super::state::{registry, render_cache, LoadedMaster};
+
+/// One value an enumerated parameter accepts: the token a recipe stores and
+/// what the editor calls it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Choice {
+    pub(crate) wire: &'static str,
+    pub(crate) label: &'static str,
+}
+
+impl Choice {
+    const fn new(wire: &'static str, label: &'static str) -> Self {
+        Self { wire, label }
+    }
+
+    /// A combination, named as the recipe engine names it.
+    const fn palette(palette: Palette) -> Self {
+        Self::new(palette.as_wire(), palette.display_name())
+    }
+}
 
 /// The JSON type of a parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,8 +112,8 @@ pub(crate) struct ParamDoc {
     pub(crate) length: Option<usize>,
     /// Element-count bounds for a `numberList`.
     pub(crate) length_range: Option<(usize, usize)>,
-    /// Accepted tokens for an `enum`.
-    pub(crate) allowed: &'static [&'static str],
+    /// The values an `enum` accepts.
+    pub(crate) allowed: &'static [Choice],
     /// The value the operation reads when the key is absent, as JSON text.
     /// `None` for a required parameter, and for one whose absence means
     /// something other than a value.
@@ -266,7 +286,10 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 max: None,
                 length: None,
                 length_range: None,
-                allowed: &["linked", "luminance"],
+                allowed: &[
+                    Choice::new("linked", "Linked channels"),
+                    Choice::new("luminance", "Luminance (keeps color)"),
+                ],
                 default_json: Some(r#""linked""#),
                 example_json: r#""linked""#,
                 independent: true,
@@ -432,7 +455,10 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 max: None,
                 length: None,
                 length_range: None,
-                allowed: &["catalog", "averageStar"],
+                allowed: &[
+                    Choice::new("catalog", "Catalog star colors"),
+                    Choice::new("averageStar", "Average star"),
+                ],
                 default_json: Some(r#""catalog""#),
                 example_json: r#""catalog""#,
                 independent: true,
@@ -644,7 +670,10 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 max: None,
                 length: None,
                 length_range: None,
-                allowed: &["luminance", "perChannel"],
+                allowed: &[
+                    Choice::new("luminance", "Luminance"),
+                    Choice::new("perChannel", "Each channel"),
+                ],
                 default_json: Some("\"luminance\""),
                 example_json: "\"luminance\"",
                 independent: true,
@@ -697,7 +726,16 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 max: None,
                 length: None,
                 length_range: None,
-                allowed: &["lrgb", "rgb", "haRgb", "haLrgb", "sho", "hoo", "osc", "custom"],
+                allowed: &[
+                    Choice::palette(Palette::Lrgb),
+                    Choice::palette(Palette::Rgb),
+                    Choice::palette(Palette::HaRgb),
+                    Choice::palette(Palette::HaLrgb),
+                    Choice::palette(Palette::Sho),
+                    Choice::palette(Palette::Hoo),
+                    Choice::palette(Palette::Osc),
+                    Choice::palette(Palette::Custom),
+                ],
                 default_json: None,
                 example_json: r#""rgb""#,
                 independent: false,
@@ -870,7 +908,10 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 max: None,
                 length: None,
                 length_range: None,
-                allowed: &["average", "maximum"],
+                allowed: &[
+                    Choice::new("average", "Average of red and blue"),
+                    Choice::new("maximum", "Larger of red and blue"),
+                ],
                 default_json: Some("\"average\""),
                 example_json: "\"average\"",
                 independent: true,
@@ -989,7 +1030,6 @@ pub(crate) fn example_params(doc: &OpDoc) -> Result<Value, String> {
 /// The narrowband palettes as the weights each one is, so an editor can show
 /// what SHO or HOO does and offer either as the start of a custom mix.
 pub(crate) fn channel_mixes_json() -> Value {
-    use skotiq_imaging::color_composite::Palette;
     [Palette::Sho, Palette::Hoo]
         .iter()
         .filter_map(|palette| {
@@ -1033,7 +1073,9 @@ pub(crate) fn ops_json() -> Result<Value, String> {
                 entry["maxLength"] = json!(max_length);
             }
             if !param.allowed.is_empty() {
-                entry["allowed"] = json!(param.allowed);
+                entry["allowed"] = json!(param.allowed.iter().map(|c| c.wire).collect::<Vec<_>>());
+                entry["allowedLabels"] =
+                    json!(param.allowed.iter().map(|c| c.label).collect::<Vec<_>>());
             }
             if let Some(text) = param.default_json {
                 entry["default"] = table_json(text, doc.id, param.name, "default")?;

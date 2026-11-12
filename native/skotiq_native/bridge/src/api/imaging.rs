@@ -1562,45 +1562,39 @@ mod rgba_save_tests;
 
 // FITS file saving
 
-/// What the Imaging screen knows about a manual capture when it saves it.
-/// The header is built by `crate::frame_header`, the same builder every
-/// sequenced frame goes through; RA is in hours.
+/// What the caller of a manual capture knows about the frame it saves: what
+/// it was told to take, who and where the observer is, and which devices make
+/// up the rig. Everything the devices know (pointing, pier side, focuser,
+/// rotator, temperatures, guiding, the camera's own exposure record) is read
+/// from them when the frame is saved, as it is for a sequence's frame.
 #[derive(Debug, Clone)]
 pub struct FitsWriteHeader {
     pub object_name: Option<String>,
+    /// Seconds the exposure was commanded for.
     pub exposure_time: f64,
-    pub capture_timestamp: String,
     pub frame_type: String,
+    /// The filter the capture was set to; `None` records the one the wheel
+    /// reports.
     pub filter: Option<String>,
+    /// Commanded, for a camera that does not report its own.
     pub gain: Option<i32>,
     pub offset: Option<i32>,
-    pub ccd_temp: Option<f64>,
-    pub ra: Option<f64>,
-    pub dec: Option<f64>,
-    pub altitude: Option<f64>,
-    pub telescope: Option<String>,
-    pub instrument: Option<String>,
-    pub observer: Option<String>,
     pub bin_x: i32,
     pub bin_y: i32,
+    pub telescope: Option<String>,
+    /// The camera as the equipment profile names it; the driver's model name
+    /// when `None`.
+    pub instrument: Option<String>,
+    pub observer: Option<String>,
     pub focal_length: Option<f64>,
     pub aperture: Option<f64>,
-    pub pixel_size_x: Option<f64>,
-    pub pixel_size_y: Option<f64>,
     pub site_latitude: Option<f64>,
     pub site_longitude: Option<f64>,
     pub site_elevation: Option<f64>,
-}
-
-/// Save image data to FITS file
-pub async fn api_save_fits_file(
-    file_path: String,
-    width: u32,
-    height: u32,
-    data: Vec<u16>,
-    header_data: FitsWriteHeader,
-) -> Result<(), SkotiqError> {
-    crate::frame_header::write_capture_frame(file_path, width, height, data, header_data.into()).await
+    pub mount_id: Option<String>,
+    pub focuser_id: Option<String>,
+    pub filter_wheel_id: Option<String>,
+    pub rotator_id: Option<String>,
 }
 
 /// One card to set in a frame file's metadata. Exactly one value is given.
@@ -1700,6 +1694,10 @@ pub fn api_set_capture_file_format(
 /// Save the device's last captured frame as FITS, without moving its pixels
 /// across the FFI boundary.
 ///
+/// The header is the one a sequence's frame gets, less the cards that tie a
+/// frame to a run: the rig is read by `skotiq_sequencer::sample_frame_context`
+/// and the file is written by the same `save_fits`.
+///
 /// Returns an error if no image has been captured yet for the specified device.
 pub async fn api_save_fits_from_last_capture(
     device_id: String,
@@ -1718,12 +1716,66 @@ pub async fn api_save_fits_from_last_capture(
             device_id
         ))
     })?;
-    let header = crate::frame_header::FrameHeader {
-        bayer_pattern: frame.bayer_pattern.map(crate::frame_header::bayerpat),
-        ..header_data.into()
+    let exposure_started_at = frame.exposure.started_at;
+    let image = frame.into_image_data();
+
+    let trimmed =
+        |text: Option<String>| text.map(|t| t.trim().to_string()).filter(|t| !t.is_empty());
+    let rig = skotiq_sequencer::RunRig {
+        camera_id: Some(device_id),
+        mount_id: trimmed(header_data.mount_id),
+        focuser_id: trimmed(header_data.focuser_id),
+        filterwheel_id: trimmed(header_data.filter_wheel_id),
+        rotator_id: trimmed(header_data.rotator_id),
+        latitude: header_data.site_latitude,
+        longitude: header_data.site_longitude,
+        ..Default::default()
     };
-    crate::frame_header::write_capture_frame(file_path, frame.width, frame.height, frame.data, header)
-        .await?;
+    let identity = skotiq_sequencer::FrameIdentity {
+        observer_name: trimmed(header_data.observer),
+        site_elevation_m: header_data.site_elevation,
+        camera_model: trimmed(header_data.instrument),
+        telescope_name: trimmed(header_data.telescope),
+        telescope_focal_length_mm: header_data.focal_length,
+        telescope_aperture_mm: header_data.aperture,
+        ..Default::default()
+    };
+    let object_name = trimmed(header_data.object_name);
+
+    let device_ops = create_unified_device_ops();
+    let (filter_name, filter_index) = skotiq_sequencer::resolve_capture_filter(
+        device_ops.as_ref(),
+        rig.filterwheel_id.as_deref(),
+        header_data.filter.as_deref(),
+    )
+    .await;
+    let frame_ctx = skotiq_sequencer::sample_frame_context(
+        device_ops.as_ref(),
+        &skotiq_sequencer::CaptureFacts {
+            rig: &rig,
+            identity: &identity,
+            commanded_secs: header_data.exposure_time,
+            commanded_gain: header_data.gain,
+            commanded_offset: header_data.offset,
+            binning: (
+                header_data.bin_x.max(1) as u32,
+                header_data.bin_y.max(1) as u32,
+            ),
+            frame_type: &header_data.frame_type,
+            exposure_started_at,
+            filter: (filter_name.as_deref(), filter_index),
+            target_name: object_name.as_deref(),
+            set_temp_c: None,
+            bayer_pattern: None,
+        },
+        &image,
+    )
+    .await;
+
+    device_ops
+        .save_fits(&image, &file_path, &frame_ctx)
+        .await
+        .map_err(|e| SkotiqError::OperationFailed(e.to_string()))?;
     tracing::info!("FITS file saved successfully from last capture");
     Ok(())
 }

@@ -8,9 +8,7 @@ import 'safety_fail_mode_labels.dart';
 import 'settings_widgets.dart';
 
 class SequencerSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const SequencerSettings({super.key, this.isMobile = false});
+  const SequencerSettings({super.key});
 
   @override
   ConsumerState<SequencerSettings> createState() => _SequencerSettingsState();
@@ -64,7 +62,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
             authorityKey: authority,
             hint: 'e.g. M42 — \${integration.hms}',
             designWidth: 240,
-            isMobile: widget.isMobile,
             onChanged: (value) {
               // Persist empty string as cleared (null in memory). The
               // notifier's _sentinel pattern preserves the distinction
@@ -393,11 +390,10 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
       globalMeridianFlipSettingsLoadStateProvider,
     );
     if (flipLoadState.isLoading) {
-      return SettingsLoadingState(isMobile: widget.isMobile);
+      return const SettingsLoadingState();
     }
     if (flipLoadState.hasError) {
       return SettingsErrorState(
-        isMobile: widget.isMobile,
         error: flipLoadState.error!,
         onRetry: () {
           ref.invalidate(globalMeridianFlipSettingsProvider);
@@ -406,9 +402,8 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
     }
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: widget.isMobile),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -424,6 +419,7 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
             settings.parkOnUnsafeWeather && weatherSettings.autoParkEnabled;
 
         return SettingsPage(
+          hideHeader: false,
           title: 'Sequencer',
           description: 'Automation and sequence settings',
           children: [

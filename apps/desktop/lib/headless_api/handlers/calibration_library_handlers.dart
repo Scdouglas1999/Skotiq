@@ -97,7 +97,7 @@ class CalibrationLibraryHandlers implements RouteSource {
             'binX': group.binX,
             'binY': group.binY,
             'night': group.night,
-            'lastCapturedAt': group.lastCapturedAt.toIso8601String(),
+            'lastCapturedAt': group.lastCapturedAt.toWireTime(),
             'frameIds': group.frames.map((f) => f.id).toList(),
             'buildable': group.buildable,
             'missingFiles': group.missingFiles,

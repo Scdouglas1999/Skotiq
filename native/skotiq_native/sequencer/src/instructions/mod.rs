@@ -65,6 +65,7 @@ pub use expose::*;
 pub use filter::*;
 pub use focuser_calibration::*;
 pub(crate) use frame_context::*;
+pub use frame_context::{sample_frame_context, CaptureFacts};
 pub use gating::*;
 pub use grading::*;
 pub use guiding::*;

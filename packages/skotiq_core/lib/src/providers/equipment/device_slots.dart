@@ -16,6 +16,7 @@ import '../provider_reader.dart';
 import 'camera_state_provider.dart';
 import 'cover_calibrator_state_provider.dart';
 import 'device_connection_notifier.dart';
+import 'device_slot_readings.dart';
 import 'dome_state_provider.dart';
 import 'filter_wheel_state_provider.dart';
 import 'focuser_state_provider.dart';
@@ -26,21 +27,6 @@ import 'safety_monitor_state_provider.dart';
 import 'switch_state_provider.dart';
 import 'weather_state_provider.dart';
 
-/// The device types the native heartbeat reconnects itself, so Dart must not
-/// schedule a second reconnect that would race it.
-///
-/// A copy of the native rule: `policy(type).heartbeat.auto_reconnect` in
-/// `native/skotiq_native/bridge/src/device_manager/policy.rs`. Nothing on the
-/// FFI publishes that table yet; when it does, this constant is replaced by
-/// the answer. Until then a change on either side has to be made on both.
-const Set<DeviceType> nativeReconnectedDeviceTypes = {
-  DeviceType.mount,
-  DeviceType.guider,
-  DeviceType.dome,
-  DeviceType.weather,
-  DeviceType.coverCalibrator,
-};
-
 class DeviceSlot {
   const DeviceSlot({
     required this.type,
@@ -50,6 +36,7 @@ class DeviceSlot {
     this.isCore = false,
     this.heartbeat = false,
     this.checksModel = false,
+    this.readings,
   });
 
   final DeviceType type;
@@ -68,15 +55,18 @@ class DeviceSlot {
   /// connection dots and a connected/total count.
   final bool isCore;
 
-  /// See [nativeReconnectedDeviceTypes].
-  bool get nativeOwnsReconnect => nativeReconnectedDeviceTypes.contains(type);
-
   /// Dart starts and stops the native heartbeat around connect / disconnect.
   final bool heartbeat;
 
   /// Connect passes the profile's saved model so a positional id that now
   /// points at different hardware is refused.
   final bool checksModel;
+
+  /// The readings a linked client's card takes from the host with the
+  /// slot's connection state; null for a slot that mirrors its connection
+  /// only. The guider has none: its readings follow the host's guiding
+  /// events, which a client receives itself.
+  final SlotReadings<Object?>? readings;
 }
 
 /// Every device slot, in the order the app lists devices.
@@ -89,6 +79,7 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: cameraReadings,
   ),
   DeviceSlot(
     type: DeviceType.mount,
@@ -98,6 +89,7 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: mountReadings,
   ),
   DeviceSlot(
     type: DeviceType.focuser,
@@ -107,6 +99,7 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: focuserReadings,
   ),
   DeviceSlot(
     type: DeviceType.filterWheel,
@@ -116,6 +109,7 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: filterWheelReadings,
   ),
   DeviceSlot(
     type: DeviceType.guider,
@@ -132,6 +126,7 @@ final List<DeviceSlot> deviceSlots = List.unmodifiable([
     isCore: true,
     heartbeat: true,
     checksModel: true,
+    readings: rotatorReadings,
   ),
   DeviceSlot(
     type: DeviceType.dome,

@@ -270,7 +270,7 @@ class DarkroomDeliveryHandlers implements RouteSource {
         'targetId': entry.targetId,
         'state': entry.state.wire,
         'attempts': entry.attempts,
-        'deliveredAt': entry.deliveredAt?.toIso8601String(),
+        'deliveredAt': entry.deliveredAt?.toWireTime(),
       });
     } on UnknownDeliveryPeerException catch (error) {
       return jsonNotFound({

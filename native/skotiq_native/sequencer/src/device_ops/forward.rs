@@ -109,6 +109,9 @@ macro_rules! forward_device_ops {
                 async fn camera_get_cooler_on(&self, camera_id: &str) -> $crate::device_ops::DeviceResult<Option<bool>> {
                     self.$field.camera_get_cooler_on(camera_id).await
                 }
+                async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> $crate::device_ops::DeviceResult<Option<f64>> {
+                    self.$field.camera_get_cooler_setpoint(camera_id).await
+                }
                 async fn camera_get_pixel_size_um(&self, camera_id: &str) -> $crate::device_ops::DeviceResult<Option<(f64, f64)>> {
                     self.$field.camera_get_pixel_size_um(camera_id).await
                 }

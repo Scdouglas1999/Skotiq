@@ -131,8 +131,8 @@ class _OnboardingFilterWheelStepState
     setState(() => _loadingSlots = true);
     try {
       await ref
-          .read(filterWheelStateProvider.notifier)
-          .connect(deviceId, maxRetries: 1);
+          .read(deviceServiceProvider)
+          .connect(DeviceType.filterWheel, deviceId);
       if (!mounted) return;
       final fw = ref.read(filterWheelStateProvider);
       final driverNames = fw.filterNames;

@@ -33,7 +33,13 @@ sk_events.SkotiqEvent _event({
       severity: severity,
       category: sk_events.EventCategory.sequencer,
       payload: sk_events.EventPayload.sequencer(
-        sk_events.SequencerEvent.error(message: message),
+        sk_events.SequencerEvent.error(
+          message: message,
+          kind: severity == sk_events.EventSeverity.error ||
+                  severity == sk_events.EventSeverity.critical
+              ? sk_events.SequencerErrorKind.stepFailed
+              : sk_events.SequencerErrorKind.advisory,
+        ),
       ),
     );
 

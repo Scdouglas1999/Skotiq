@@ -149,50 +149,45 @@ impl DeviceManager {
                     continue;
                 }
 
-                // Attempt reconnection. `connect_device_internal` re-checks the
-                // cancel token at additional checkpoints inside the call.
-                match self.connect_device_internal(&device.info).await {
-                    Err(e) if e == RECONNECT_CANCELED_MSG => {
-                        // Reconnect was aborted by a concurrent disconnect.
-                        // Do NOT increment the attempt counter or emit a
-                        // "reconnection attempt failed" event — that would be
-                        // misleading because the user themselves stopped it.
-                        tracing::info!(
-                            "Reconnect for {} canceled mid-attempt (manual disconnect)",
-                            device_id
-                        );
-                        continue;
-                    }
-                    Err(e) => {
-                        tracing::warn!("Reconnection failed for {}: {}", device_id, e);
+                self.attempt_reconnect(&device_id, &device.info).await;
+            }
+        }
+    }
 
-                        let mut devices = self.devices.write().await;
-                        if let Some(dev) = devices.get_mut(&device_id) {
-                            dev.reconnect_attempts += 1;
-                            dev.last_error = Some(e.clone());
+    /// One reconnect attempt, after its backoff. A failed connect already
+    /// publishes the device's Error with the reason; the attempt only counts
+    /// it, so one failed attempt is one event.
+    pub(crate) async fn attempt_reconnect(&self, device_id: &str, info: &DeviceInfo) {
+        // `connect_device_internal` re-checks the cancel token at additional
+        // checkpoints inside the call.
+        match self.connect_device_internal(info).await {
+            Err(e) if e == RECONNECT_CANCELED_MSG => {
+                // The user stopped it with a disconnect: not a failed attempt.
+                tracing::info!(
+                    "Reconnect for {} canceled mid-attempt (manual disconnect)",
+                    device_id
+                );
+            }
+            Err(e) => {
+                let mut devices = self.devices.write().await;
+                if let Some(dev) = devices.get_mut(device_id) {
+                    dev.reconnect_attempts += 1;
+                    tracing::warn!(
+                        "Reconnection attempt {} failed for {}: {}",
+                        dev.reconnect_attempts,
+                        device_id,
+                        e
+                    );
+                    dev.last_error = Some(e);
+                }
+            }
+            Ok(()) => {
+                tracing::info!("Reconnection successful for {}", device_id);
 
-                            self.app_state.publish_equipment_event(
-                                EquipmentEvent::Error {
-                                    device_type: dev.info.device_type.as_str().to_string(),
-                                    device_id: device_id.clone(),
-                                    message: format!(
-                                        "Reconnection attempt {} failed: {}",
-                                        dev.reconnect_attempts, e
-                                    ),
-                                },
-                                EventSeverity::Warning,
-                            );
-                        }
-                    }
-                    Ok(()) => {
-                        tracing::info!("Reconnection successful for {}", device_id);
-
-                        let mut devices = self.devices.write().await;
-                        if let Some(dev) = devices.get_mut(&device_id) {
-                            dev.reconnect_attempts = 0;
-                            dev.last_error = None;
-                        }
-                    }
+                let mut devices = self.devices.write().await;
+                if let Some(dev) = devices.get_mut(device_id) {
+                    dev.reconnect_attempts = 0;
+                    dev.last_error = None;
                 }
             }
         }

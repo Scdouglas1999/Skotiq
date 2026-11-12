@@ -386,7 +386,7 @@ class SequenceSerializer {
           // FITS IMAGETYP-style frame type. Omitting this stamped every
           // sequencer capture "Light" — sequenced darks/flats/bias were
           // mislabeled on disk, star-graded (and rejected), and dithered.
-          'frame_type': _frameTypeToWire(n.frameType),
+          'frame_type': n.frameType.imageType,
           'filter': n.filter,
           'filter_index': filterIndex,
           'gain': n.gain,
@@ -951,18 +951,6 @@ class SequenceSerializer {
         return 'AbortAndPark';
     }
   }
-
-  /// Wire form of [FrameType] for the Rust `ExposureConfig.frame_type`
-  /// field — PascalCase because it lands verbatim in the FITS `IMAGETYP`
-  /// keyword via `FrameContext.frame_type`.
-  String _frameTypeToWire(FrameType type) => switch (type) {
-    FrameType.light => 'Light',
-    FrameType.dark => 'Dark',
-    FrameType.flat => 'Flat',
-    FrameType.bias => 'Bias',
-    FrameType.darkFlat => 'DarkFlat',
-    FrameType.snapshot => 'Snapshot',
-  };
 
   String _binningToString(BinningMode binning) {
     switch (binning) {

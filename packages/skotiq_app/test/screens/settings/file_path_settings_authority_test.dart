@@ -44,7 +44,11 @@ void main() {
 
     final handle = await pumpAppScreen(
       tester,
-      const FilePathSettings(embedded: true),
+      const SettingsFormScope(
+        narrow: false,
+        embedded: true,
+        child: FilePathSettings(),
+      ),
       settle: false,
       extraOverrides: [
         backendProvider.overrideWith(

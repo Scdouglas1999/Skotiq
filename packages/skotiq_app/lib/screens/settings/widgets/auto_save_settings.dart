@@ -9,16 +9,8 @@ import '../../../utils/snackbar_helper.dart';
 
 /// Auto-save configuration settings page.
 class AutoSaveSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view / header (embedded in a
-  /// merged section's single outer scroll).
-  final bool embedded;
-
   const AutoSaveSettings({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   @override
@@ -81,7 +73,9 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
       }
       if (mounted) context.showSuccessSnackBar('Backup created successfully');
     } catch (error) {
-      if (mounted) context.showErrorSnackBar('Backup failed: ${userFacingError(error)}');
+      if (mounted) {
+        context.showErrorSnackBar('Backup failed: ${userFacingError(error)}');
+      }
     } finally {
       if (mounted) {
         setState(() => _isSavingNow = false);
@@ -105,7 +99,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = widget.isMobile;
     // The client ROLE, not the live connection. `main.dart` starts
     // `autoSaveLifecycleProvider` only when `remoteTarget == null`, so a
     // desktop launched with `--remote-host` never schedules backups at all —
@@ -116,16 +109,12 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     final isRemoteClient = ref.watch(isRemoteClientProvider);
 
     if (isRemoteClient) {
-      return SettingsPage(
+      return const SettingsPage(
         title: 'Automatic backups',
         description: 'Backups run on the imaging host',
-        isMobile: isMobile,
-        hideHeader: isMobile || widget.embedded,
-        scrollable: !widget.embedded,
         children: [
           SettingsSection(
             title: 'Host-owned setting',
-            isMobile: isMobile,
             children: [
               SettingRow(
                 icon: LucideIcons.server,
@@ -133,9 +122,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                 subtitle:
                     'Automatic backup scheduling is stored and executed on '
                     'the computer connected to your equipment.',
-                trailing: const SizedBox.shrink(),
+                trailing: SizedBox.shrink(),
                 isLast: true,
-                isMobile: isMobile,
               ),
             ],
           ),
@@ -151,12 +139,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     // backed up. Rendering that instance is what made this page contradict
     // Settings > Backup & Restore on the same second.
     return ref.watch(autoSaveLifecycleProvider).when(
-          loading: () => SettingsLoadingState(
-            isMobile: isMobile,
-            scrollable: !widget.embedded,
-          ),
+          loading: () => const SettingsLoadingState(),
           error: (error, stackTrace) => SettingsErrorState(
-            isMobile: isMobile,
             error: error,
             onRetry: () => ref.invalidate(autoSaveLifecycleProvider),
           ),
@@ -166,7 +150,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
 
   Widget _buildConfigured(BuildContext context, AutoSaveService service) {
     final colors = SkotiqColors.of(context);
-    final isMobile = widget.isMobile;
     final config = service.config;
     // `autoSaveStatusProvider` backfills `lastBackup` from the persisted
     // `autosave.last_backup_at` whenever the live instance does not know it —
@@ -179,13 +162,9 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
     return SettingsPage(
       title: 'Automatic backups',
       description: 'Schedule recurring backups of Skotiq data',
-      isMobile: isMobile,
-      hideHeader: isMobile || widget.embedded,
-      scrollable: !widget.embedded,
       children: [
         SettingsSection(
           title: 'Sequence auto-save',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.fileCheck,
@@ -196,7 +175,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                 onChanged: (value) =>
                     _updateConfig(service, sequenceEnabled: value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.clock,
@@ -218,10 +196,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   service,
                   sequenceInterval: Duration(minutes: value.round()),
                 ),
-                isMobile: isMobile,
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
@@ -229,7 +205,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
         // Backup section
         SettingsSection(
           title: 'Automatic backups',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.hardDrive,
@@ -240,7 +215,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                 onChanged: (value) =>
                     _updateConfig(service, backupEnabled: value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.clock,
@@ -257,9 +231,7 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   service,
                   backupInterval: Duration(hours: value.round()),
                 ),
-                isMobile: isMobile,
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.archive,
@@ -276,10 +248,8 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   service,
                   maxBackups: value.round(),
                 ),
-                isMobile: isMobile,
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
@@ -287,7 +257,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
         // Status section
         SettingsSection(
           title: 'Status',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.checkCircle,
@@ -308,7 +277,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                         color: colors.textMuted,
                       ),
                     ),
-              isMobile: isMobile,
             ),
             if (status.lastError != null)
               SettingRow(
@@ -317,20 +285,15 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                 title: 'Last error',
                 subtitle: status.lastError,
                 trailing: const SizedBox.shrink(),
-                isMobile: isMobile,
               ),
             // Save Now button row
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 12.0 : 16.0,
-                vertical: isMobile ? 12.0 : 14.0,
-              ),
+            SettingsItem(
               child: Row(
                 children: [
                   SkotiqButton(
                     label: 'Back Up Now',
                     icon: LucideIcons.save,
-                    size: isMobile ? ButtonSize.small : ButtonSize.medium,
+                    size: settingsActionButtonSize(context),
                     isLoading: _isSavingNow,
                     onPressed: _isSavingNow ? null : () => _saveNow(service),
                   ),

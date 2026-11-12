@@ -118,6 +118,13 @@ pub trait CameraOps: Send + Sync {
         Ok(None)
     }
 
+    /// The temperature the cooler is holding the sensor to, in Celsius, while
+    /// the cooler is on. `Ok(None)` with the cooler off, no cooler, or no
+    /// reading. Defaulted for the same reason as `camera_get_cooler_on`.
+    async fn camera_get_cooler_setpoint(&self, _camera_id: &str) -> DeviceResult<Option<f64>> {
+        Ok(None)
+    }
+
     /// The camera's UNBINNED pixel pitch in microns, as `(x, y)`.
     ///
     /// `Ok(None)` means the driver does not report one, and the FITS writer

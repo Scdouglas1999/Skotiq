@@ -7,8 +7,6 @@ import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/bridge_event_mapper.dart' show tryBridgeEventFromCoreEvent;
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
-import '../models/sequence/active_plan_owner.dart';
-import '../models/sequence/sequence_models.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/backend/host_runtime_update.dart';
 import '../models/imaging/imaging_models.dart'
@@ -18,10 +16,6 @@ import '../services/capture_preview_loader.dart'
     show capturePreviewPublisherProvider, capturedImageDataFromResult;
 import '../services/imaging_service.dart'
     show currentImageProvider, exposureProgressProvider;
-import '../services/logging_service.dart' show loggingServiceProvider;
-import '../services/phd2_status_poll.dart';
-import '../services/sequence_file_service.dart'
-    show sequenceFileServiceProvider;
 import '../utils/device_id.dart' show kPhd2CanonicalId, kPhd2DisplayName;
 import '../utils/utc_timestamp.dart';
 import 'current_frame_analysis_provider.dart' show hostFrameSolvesProvider;
@@ -31,15 +25,14 @@ import 'host_settings/host_settings_providers.dart'
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'event_provider.dart' show eventHistoryProvider;
-import 'device_heartbeat_health_provider.dart';
-import 'equipment/device_slots.dart';
-import 'equipment/device_property_events.dart';
 import 'guiding_provider.dart' show guidingStopReasonProvider;
 import 'imaging_provider.dart' show exposureSettingsProvider;
 import 'observing_list_provider.dart'
     show listedCatalogIdsProvider, observingListsProvider;
 import 'profiles_provider.dart';
 import 'provider_reader.dart';
+import 'runtime_mirror/channels/device_slot_channel.dart'
+    show mirrorDevicesOfOlderHost;
 import 'runtime_mirror/client_runtime_mirror.dart';
 import 'planning_provider.dart' show projectListProvider;
 import 'scheduler_provider.dart'
@@ -47,11 +40,8 @@ import 'scheduler_provider.dart'
         integrationGoalsStreamProvider,
         schedulerPreviewDecisionProvider,
         targetConstraintsStreamProvider;
-import 'sequence/remote_sequence_editor_sync.dart'
-    show remoteEditorSyncStateProvider, sequenceFingerprint;
 import 'sequence/sequencer_run_event.dart' show SequencerRunEvent;
 import 'sequence_provider.dart';
-import 'ui_notification_provider.dart' show uiNotificationProvider;
 import 'sequence_stats_provider.dart'
     show sequenceRunsProvider, SequenceRunStats;
 import 'session_provider.dart';
@@ -91,11 +81,13 @@ Future<void> applyRemoteSyncEvent(
     case EventCategory.system:
       _applySystemSyncEvent(reader, event, networkBackend: networkBackend);
       break;
+    // A linked client takes the host's devices and guider from the runtime
+    // channels; the host's own window follows the events.
     case EventCategory.equipment:
-      _applyEquipmentEvent(reader, event, networkBackend: networkBackend);
+      if (networkBackend == null) _applyEquipmentEvent(reader, event);
       break;
     case EventCategory.guiding:
-      await _applyGuidingEvent(reader, event, networkBackend: networkBackend);
+      if (networkBackend == null) _applyGuidingEvent(reader, event);
       break;
     case EventCategory.sequencer:
       _applySequencerEvent(reader, event, networkBackend: networkBackend);
@@ -153,7 +145,7 @@ void _applySystemSyncEvent(
   SkotiqBackend? networkBackend,
 }) {
   if (event.eventType == hostStateChangedEventType) {
-    _applyHostMutation(reader, event.data);
+    _applyHostMutation(reader, event.data, onHost: networkBackend == null);
   } else if (event.eventType == hostRuntimeStateEventType &&
       networkBackend != null) {
     final update = HostRuntimeUpdate.fromJson(event.data);

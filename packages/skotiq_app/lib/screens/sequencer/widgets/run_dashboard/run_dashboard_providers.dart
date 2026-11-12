@@ -1112,7 +1112,12 @@ bool _routerClassifierAlreadyPushes(sk_events.SkotiqEvent event) {
         _ => false,
       },
     sk_events.EventPayload_Sequencer(field0: final v) => switch (v) {
-        sk_events.SequencerEvent_Error() => true,
+        // A failed step is pushed by the router as the run's failure, when
+        // the run does fail. A pause for the operator and a hand-started
+        // operation's error have no router notice that carries the reason,
+        // so this bridge pages them.
+        sk_events.SequencerEvent_Error(kind: final kind) =>
+          kind == sk_events.SequencerErrorKind.stepFailed,
         // Told once per failed run by the router, with its reason.
         sk_events.SequencerEvent_Failed() => true,
         sk_events.SequencerEvent_Stopped() => true,
@@ -1283,6 +1288,14 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
         }
         final row = _toDashboardEvent(event);
         ref.read(runDashboardCriticalEventsProvider.notifier).add(row);
+        // An alert the host raised before this window linked to it is shown
+        // with the night so far. It has already sounded and paged where it
+        // was raised.
+        if (ref
+            .read(eventHistoryProvider.notifier)
+            .happenedEarlier(event)) {
+          continue;
+        }
         alerts.add(RunCriticalAlert(event: event, row: row));
       }
     },

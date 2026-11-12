@@ -291,8 +291,8 @@ final List<AlwaysOnService> alwaysOnServices = [
     'runtime mirror (host)',
     hostRuntimeMirrorProvider,
     _everyRole,
-    'solves, centering, autofocus and the frame on screen published to '
-        'linked clients',
+    'devices, guider, open plan, solves, centering, autofocus and the frame '
+        'on screen published to linked clients',
   ),
   AlwaysOnService(
     'runtime reports (client)',
@@ -324,12 +324,6 @@ final List<AlwaysOnService> alwaysOnServices = [
     remoteSequenceEditorSyncProvider,
     _windows,
     "a client's Builder following the host's open plan",
-  ),
-  AlwaysOnService(
-    'sequence editor mirror (host)',
-    masterSequenceEditorMirrorProvider,
-    _windows,
-    "the host's open plan pushed to linked clients as it is edited",
   ),
   AlwaysOnService(
     'DepthLock tip dismissal',

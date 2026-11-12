@@ -12,11 +12,9 @@ import 'settings_widgets.dart';
 class FrameWatchSettingsSection extends ConsumerStatefulWidget {
   const FrameWatchSettingsSection({
     super.key,
-    this.isMobile = false,
     this.showObstructionDetection = true,
   });
 
-  final bool isMobile;
   final bool showObstructionDetection;
 
   @override
@@ -44,7 +42,6 @@ class _FrameWatchSettingsSectionState
       title: widget.showObstructionDetection
           ? 'Frame watch'
           : 'Recenter after drift',
-      isMobile: widget.isMobile,
       children: [
         SettingRow(
           icon: LucideIcons.crosshair,
@@ -78,7 +75,6 @@ class _FrameWatchSettingsSectionState
             decimals: 0,
             onChanged: (value) =>
                 _save(() => notifier.setDriftLimitArcsec(value)),
-            isMobile: widget.isMobile,
           ),
           isLast: !widget.showObstructionDetection,
         ),

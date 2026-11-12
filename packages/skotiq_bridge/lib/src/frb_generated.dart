@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 765458045;
+  int get rustContentHash => -1089332966;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -257,10 +257,6 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiImagingApiClearDeviceImage({required String deviceId});
 
   Future<String> crateApiFinishingAnalyzeApiColorCalibrate({
-    required String argsJson,
-  });
-
-  Future<String> crateApiFinishingCombineApiCombineChannels({
     required String argsJson,
   });
 
@@ -990,14 +986,6 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
     required String cameraId,
     required String configJson,
-  });
-
-  Future<void> crateApiImagingApiSaveFitsFile({
-    required String filePath,
-    required int width,
-    required int height,
-    required List<int> data,
-    required FitsWriteHeader headerData,
   });
 
   Future<void> crateApiImagingApiSaveFitsFromLastCapture({
@@ -2524,36 +2512,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiFinishingAnalyzeApiColorCalibrateConstMeta =>
       const TaskConstMeta(
         debugName: "api_color_calibrate",
-        argNames: ["argsJson"],
-      );
-
-  @override
-  Future<String> crateApiFinishingCombineApiCombineChannels({
-    required String argsJson,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(argsJson);
-          return wire.wire__crate__api__finishing_combine__api_combine_channels(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_String,
-          decodeErrorData: dco_decode_String,
-        ),
-        constMeta: kCrateApiFinishingCombineApiCombineChannelsConstMeta,
-        argValues: [argsJson],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiFinishingCombineApiCombineChannelsConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_combine_channels",
         argNames: ["argsJson"],
       );
 
@@ -8151,48 +8109,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_run_focuser_backlash_calibration",
         argNames: ["deviceId", "cameraId", "configJson"],
-      );
-
-  @override
-  Future<void> crateApiImagingApiSaveFitsFile({
-    required String filePath,
-    required int width,
-    required int height,
-    required List<int> data,
-    required FitsWriteHeader headerData,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(filePath);
-          var arg1 = cst_encode_u_32(width);
-          var arg2 = cst_encode_u_32(height);
-          var arg3 = cst_encode_list_prim_u_16_loose(data);
-          var arg4 = cst_encode_box_autoadd_fits_write_header(headerData);
-          return wire.wire__crate__api__imaging__api_save_fits_file(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingApiSaveFitsFileConstMeta,
-        argValues: [filePath, width, height, data, headerData],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiSaveFitsFileConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_save_fits_file",
-        argNames: ["filePath", "width", "height", "data", "headerData"],
       );
 
   @override
@@ -14407,32 +14323,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   FitsWriteHeader dco_decode_fits_write_header(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 23)
-      throw Exception('unexpected arr length: expect 23 but see ${arr.length}');
+    if (arr.length != 20)
+      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
     return FitsWriteHeader(
       objectName: dco_decode_opt_String(arr[0]),
       exposureTime: dco_decode_f_64(arr[1]),
-      captureTimestamp: dco_decode_String(arr[2]),
-      frameType: dco_decode_String(arr[3]),
-      filter: dco_decode_opt_String(arr[4]),
-      gain: dco_decode_opt_box_autoadd_i_32(arr[5]),
-      offset: dco_decode_opt_box_autoadd_i_32(arr[6]),
-      ccdTemp: dco_decode_opt_box_autoadd_f_64(arr[7]),
-      ra: dco_decode_opt_box_autoadd_f_64(arr[8]),
-      dec: dco_decode_opt_box_autoadd_f_64(arr[9]),
-      altitude: dco_decode_opt_box_autoadd_f_64(arr[10]),
-      telescope: dco_decode_opt_String(arr[11]),
-      instrument: dco_decode_opt_String(arr[12]),
-      observer: dco_decode_opt_String(arr[13]),
-      binX: dco_decode_i_32(arr[14]),
-      binY: dco_decode_i_32(arr[15]),
-      focalLength: dco_decode_opt_box_autoadd_f_64(arr[16]),
-      aperture: dco_decode_opt_box_autoadd_f_64(arr[17]),
-      pixelSizeX: dco_decode_opt_box_autoadd_f_64(arr[18]),
-      pixelSizeY: dco_decode_opt_box_autoadd_f_64(arr[19]),
-      siteLatitude: dco_decode_opt_box_autoadd_f_64(arr[20]),
-      siteLongitude: dco_decode_opt_box_autoadd_f_64(arr[21]),
-      siteElevation: dco_decode_opt_box_autoadd_f_64(arr[22]),
+      frameType: dco_decode_String(arr[2]),
+      filter: dco_decode_opt_String(arr[3]),
+      gain: dco_decode_opt_box_autoadd_i_32(arr[4]),
+      offset: dco_decode_opt_box_autoadd_i_32(arr[5]),
+      binX: dco_decode_i_32(arr[6]),
+      binY: dco_decode_i_32(arr[7]),
+      telescope: dco_decode_opt_String(arr[8]),
+      instrument: dco_decode_opt_String(arr[9]),
+      observer: dco_decode_opt_String(arr[10]),
+      focalLength: dco_decode_opt_box_autoadd_f_64(arr[11]),
+      aperture: dco_decode_opt_box_autoadd_f_64(arr[12]),
+      siteLatitude: dco_decode_opt_box_autoadd_f_64(arr[13]),
+      siteLongitude: dco_decode_opt_box_autoadd_f_64(arr[14]),
+      siteElevation: dco_decode_opt_box_autoadd_f_64(arr[15]),
+      mountId: dco_decode_opt_String(arr[16]),
+      focuserId: dco_decode_opt_String(arr[17]),
+      filterWheelId: dco_decode_opt_String(arr[18]),
+      rotatorId: dco_decode_opt_String(arr[19]),
     );
   }
 
@@ -15872,6 +15785,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerErrorKind dco_decode_sequencer_error_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SequencerErrorKind.values[raw as int];
+  }
+
+  @protected
   SequencerEvent dco_decode_sequencer_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -15928,7 +15847,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           durationSecs: dco_decode_f_64(raw[3]),
         );
       case 13:
-        return SequencerEvent_Error(message: dco_decode_String(raw[1]));
+        return SequencerEvent_Error(
+          message: dco_decode_String(raw[1]),
+          kind: dco_decode_sequencer_error_kind(raw[2]),
+        );
       case 14:
         return SequencerEvent_MeridianFlipOutcome(
           outcome: dco_decode_String(raw[1]),
@@ -18743,51 +18665,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_objectName = sse_decode_opt_String(deserializer);
     var var_exposureTime = sse_decode_f_64(deserializer);
-    var var_captureTimestamp = sse_decode_String(deserializer);
     var var_frameType = sse_decode_String(deserializer);
     var var_filter = sse_decode_opt_String(deserializer);
     var var_gain = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_offset = sse_decode_opt_box_autoadd_i_32(deserializer);
-    var var_ccdTemp = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_ra = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_dec = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_altitude = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_binX = sse_decode_i_32(deserializer);
+    var var_binY = sse_decode_i_32(deserializer);
     var var_telescope = sse_decode_opt_String(deserializer);
     var var_instrument = sse_decode_opt_String(deserializer);
     var var_observer = sse_decode_opt_String(deserializer);
-    var var_binX = sse_decode_i_32(deserializer);
-    var var_binY = sse_decode_i_32(deserializer);
     var var_focalLength = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_aperture = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_pixelSizeX = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_pixelSizeY = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_siteLatitude = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_siteLongitude = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_siteElevation = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_mountId = sse_decode_opt_String(deserializer);
+    var var_focuserId = sse_decode_opt_String(deserializer);
+    var var_filterWheelId = sse_decode_opt_String(deserializer);
+    var var_rotatorId = sse_decode_opt_String(deserializer);
     return FitsWriteHeader(
       objectName: var_objectName,
       exposureTime: var_exposureTime,
-      captureTimestamp: var_captureTimestamp,
       frameType: var_frameType,
       filter: var_filter,
       gain: var_gain,
       offset: var_offset,
-      ccdTemp: var_ccdTemp,
-      ra: var_ra,
-      dec: var_dec,
-      altitude: var_altitude,
+      binX: var_binX,
+      binY: var_binY,
       telescope: var_telescope,
       instrument: var_instrument,
       observer: var_observer,
-      binX: var_binX,
-      binY: var_binY,
       focalLength: var_focalLength,
       aperture: var_aperture,
-      pixelSizeX: var_pixelSizeX,
-      pixelSizeY: var_pixelSizeY,
       siteLatitude: var_siteLatitude,
       siteLongitude: var_siteLongitude,
       siteElevation: var_siteElevation,
+      mountId: var_mountId,
+      focuserId: var_focuserId,
+      filterWheelId: var_filterWheelId,
+      rotatorId: var_rotatorId,
     );
   }
 
@@ -20832,6 +20748,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerErrorKind sse_decode_sequencer_error_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SequencerErrorKind.values[inner];
+  }
+
+  @protected
   SequencerEvent sse_decode_sequencer_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -20904,7 +20829,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 13:
         var var_message = sse_decode_String(deserializer);
-        return SequencerEvent_Error(message: var_message);
+        var var_kind = sse_decode_sequencer_error_kind(deserializer);
+        return SequencerEvent_Error(message: var_message, kind: var_kind);
       case 14:
         var var_outcome = sse_decode_String(deserializer);
         var var_targetName = sse_decode_String(deserializer);
@@ -22003,6 +21929,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   int cst_encode_pier_side(PierSide raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
+  int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -23796,27 +23728,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_String(self.objectName, serializer);
     sse_encode_f_64(self.exposureTime, serializer);
-    sse_encode_String(self.captureTimestamp, serializer);
     sse_encode_String(self.frameType, serializer);
     sse_encode_opt_String(self.filter, serializer);
     sse_encode_opt_box_autoadd_i_32(self.gain, serializer);
     sse_encode_opt_box_autoadd_i_32(self.offset, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.ccdTemp, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.ra, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.dec, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.altitude, serializer);
+    sse_encode_i_32(self.binX, serializer);
+    sse_encode_i_32(self.binY, serializer);
     sse_encode_opt_String(self.telescope, serializer);
     sse_encode_opt_String(self.instrument, serializer);
     sse_encode_opt_String(self.observer, serializer);
-    sse_encode_i_32(self.binX, serializer);
-    sse_encode_i_32(self.binY, serializer);
     sse_encode_opt_box_autoadd_f_64(self.focalLength, serializer);
     sse_encode_opt_box_autoadd_f_64(self.aperture, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.pixelSizeX, serializer);
-    sse_encode_opt_box_autoadd_f_64(self.pixelSizeY, serializer);
     sse_encode_opt_box_autoadd_f_64(self.siteLatitude, serializer);
     sse_encode_opt_box_autoadd_f_64(self.siteLongitude, serializer);
     sse_encode_opt_box_autoadd_f_64(self.siteElevation, serializer);
+    sse_encode_opt_String(self.mountId, serializer);
+    sse_encode_opt_String(self.focuserId, serializer);
+    sse_encode_opt_String(self.filterWheelId, serializer);
+    sse_encode_opt_String(self.rotatorId, serializer);
   }
 
   @protected
@@ -25499,6 +25428,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sequencer_error_kind(
+    SequencerErrorKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_sequencer_event(
     SequencerEvent self,
     SseSerializer serializer,
@@ -25570,9 +25508,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_32(frame, serializer);
         sse_encode_u_32(total, serializer);
         sse_encode_f_64(durationSecs, serializer);
-      case SequencerEvent_Error(message: final message):
+      case SequencerEvent_Error(message: final message, kind: final kind):
         sse_encode_i_32(13, serializer);
         sse_encode_String(message, serializer);
+        sse_encode_sequencer_error_kind(kind, serializer);
       case SequencerEvent_MeridianFlipOutcome(
         outcome: final outcome,
         targetName: final targetName,

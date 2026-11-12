@@ -114,10 +114,19 @@ pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
 pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqError> {
     tracing::info!(origin = origin.as_deref(), "Stopping sequence execution");
 
-    let mut executor = get_sequence_executor().write().await;
-    let run_id = executor.active_sequence_run_id();
-    executor
-        .stop_with_origin(skotiq_sequencer::StopOrigin::from_wire(origin.as_deref()))
+    // The executor is held only to ask: its stopping phase can run the plan's
+    // shutdown steps for minutes, and status reads go through the same lock.
+    let (run_id, run_in_flight, stopping) = {
+        let mut executor = get_sequence_executor().write().await;
+        let run_id = executor.active_sequence_run_id();
+        let run_in_flight = executor.has_run_in_flight();
+        let stopping = executor
+            .request_stop(skotiq_sequencer::StopOrigin::from_wire(origin.as_deref()))
+            .await;
+        (run_id, run_in_flight, stopping)
+    };
+    stopping
+        .finished()
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to stop sequence: {}", e)))?;
 
@@ -136,13 +145,18 @@ pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqErro
         tracing::warn!("Failed to stop secondary rig on sequence stop: {}", e);
     }
 
-    get_state().publish_event(create_event_auto_id(
-        EventSeverity::Info,
-        EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Stopped {
-            sequence_run_id: run_id,
-        }),
-    ));
+    // A run that was in flight announces its own end when its state turns
+    // (see `event_bridge`): Stopped when the stop cancelled it. Only a stop
+    // with no run to end is announced from here.
+    if !run_in_flight {
+        get_state().publish_event(create_event_auto_id(
+            EventSeverity::Info,
+            EventCategory::Sequencer,
+            EventPayload::Sequencer(SequencerEvent::Stopped {
+                sequence_run_id: run_id,
+            }),
+        ));
+    }
 
     Ok(())
 }
@@ -526,6 +540,97 @@ mod executor_site_tests {
             }
         }
         assert_eq!(started, vec!["M 31 mosaic".to_string()]);
+    }
+
+    /// A run that is stopped turns Cancelled and the event bridge announces
+    /// that as Stopped. The Stop command announced a second Stopped of its
+    /// own, which every client on the wire received.
+    #[tokio::test]
+    async fn stopping_a_run_announces_stopped_once() {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        let mut sequence = skotiq_sequencer::SequenceDefinition::new("Long wait".to_string());
+        sequence.nodes.push(skotiq_sequencer::NodeDefinition {
+            id: "wait".to_string(),
+            name: "Wait".to_string(),
+            node_type: skotiq_sequencer::NodeType::Delay(skotiq_sequencer::DelayConfig {
+                seconds: 120.0,
+            }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        crate::api::sequencer::wait_for_no_event_listeners().await;
+        let mut run_events = {
+            let mut executor = get_sequence_executor().write().await;
+            executor.set_device_ops(std::sync::Arc::new(
+                skotiq_sequencer::device_ops::NullDeviceOps,
+            ));
+            executor.load_sequence(sequence).expect("sequence loads");
+            executor.subscribe()
+        };
+        let bridge = tokio::spawn(async move {
+            crate::api::sequencer::run_sequencer_event_loop(&mut run_events, get_state()).await;
+        });
+        let mut events = get_state().event_bus.subscribe();
+
+        api_sequencer_start().await.expect("run starts");
+        crate::api::sequencer::api_sequencer_stop(None)
+            .await
+            .expect("run stops");
+
+        let mut stopped = 0;
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        // Collect until the bus has been quiet for a moment after a Stopped.
+        loop {
+            let wait = if stopped == 0 {
+                deadline - tokio::time::Instant::now()
+            } else {
+                std::time::Duration::from_millis(500)
+            };
+            match tokio::time::timeout(wait, events.recv()).await {
+                Ok(Ok(event)) => {
+                    if matches!(
+                        event.payload,
+                        crate::event::EventPayload::Sequencer(
+                            crate::event::SequencerEvent::Stopped { .. }
+                        )
+                    ) {
+                        stopped += 1;
+                    }
+                }
+                Ok(Err(_)) | Err(_) => break,
+            }
+        }
+        bridge.abort();
+        assert_eq!(stopped, 1, "one stop is one Stopped on the wire");
+    }
+
+    /// With no run to end, the Stop command is the only thing that can say
+    /// the sequencer is stopped.
+    #[tokio::test]
+    async fn stopping_with_no_run_still_announces_stopped() {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        get_sequence_executor().write().await.reset().await;
+        let mut events = get_state().event_bus.subscribe();
+
+        crate::api::sequencer::api_sequencer_stop(None)
+            .await
+            .expect("stop is accepted");
+
+        let mut stopped = 0;
+        while let Ok(event) = events.try_recv() {
+            if matches!(
+                event.payload,
+                crate::event::EventPayload::Sequencer(crate::event::SequencerEvent::Stopped { .. })
+            ) {
+                stopped += 1;
+            }
+        }
+        assert_eq!(stopped, 1);
     }
 
     /// The run announces its own pause when its state turns Paused, so the

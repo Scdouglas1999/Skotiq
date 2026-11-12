@@ -28,16 +28,17 @@
 //! ## Error vs. info routing
 //!
 //! `ExecutorEvent::Error` -> `EventSeverity::Error` + `SequencerEvent::Error`.
+//! Every payload published here has kind `Standalone`: there is no run, so
+//! nothing downstream may read it as a run failing or carrying on.
 //! Every other variant is currently re-emitted at `EventSeverity::Info` with a
 //! `SequencerEvent::Error { message: "…" }` payload describing the event —
 //! the one-shot sites don't have a richer payload mapping today and the
 //! existing UI consumer (`SequenceExecutor._handleSequencerEvent`) treats the
-//! `Error` SequencerEvent as the catch-all log line. This keeps the wiring
-//! visible without inventing new typed payloads (which would require an FRB
-//! regen and a separate UI handler).
+//! `Error` SequencerEvent as the catch-all log line.
 
 use crate::event::{
-    create_event_auto_id, EventCategory, EventPayload, EventSeverity, SequencerEvent,
+    create_event_auto_id, EventCategory, EventPayload, EventSeverity, SequencerErrorKind,
+    SequencerEvent,
 };
 use crate::state::SharedAppState;
 use skotiq_sequencer::ExecutorEvent;
@@ -112,7 +113,9 @@ pub(crate) fn publish_autofocus_finished(
 fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
     let (severity, message) = match event {
         ExecutorEvent::Error { message } => (EventSeverity::Error, message),
-        ExecutorEvent::Warning { message } => (EventSeverity::Warning, message),
+        ExecutorEvent::Warning { message }
+        | ExecutorEvent::StepProblem { message }
+        | ExecutorEvent::RunHeld { message } => (EventSeverity::Warning, message),
         ExecutorEvent::SequenceFailed { error } => (EventSeverity::Error, error),
         // The one-shot autofocus publishes its own points; forwarding these
         // too would double the V-curve and log a line per point.
@@ -154,7 +157,10 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
     state.publish_event(create_event_auto_id(
         severity,
         EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Error { message }),
+        EventPayload::Sequencer(SequencerEvent::Error {
+            message,
+            kind: SequencerErrorKind::Standalone,
+        }),
     ));
 }
 

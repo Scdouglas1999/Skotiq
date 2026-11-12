@@ -9,8 +9,8 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header - hide on mobile since parent shows it
-        if (!widget.isMobile) ...[
+        // The narrow layout's own header already says "Catalogs".
+        if (!_narrow) ...[
           Text(
             'Catalogs',
             style: SkotiqTypography.sectionTitle.copyWith(
@@ -259,7 +259,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
               SkotiqTypography.sectionTitle.copyWith(color: colors.textPrimary),
         ),
         const SizedBox(height: 16),
-        widget.isMobile
+        _narrow
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

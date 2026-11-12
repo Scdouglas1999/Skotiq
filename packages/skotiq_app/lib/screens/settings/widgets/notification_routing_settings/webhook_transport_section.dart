@@ -1,8 +1,7 @@
 part of '../notification_routing_settings.dart';
 
 class _WebhookTransportSection extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _WebhookTransportSection({required this.isMobile});
+  const _WebhookTransportSection();
 
   @override
   ConsumerState<_WebhookTransportSection> createState() =>
@@ -75,7 +74,6 @@ class _WebhookTransportSectionState
                 context: context,
                 controller: _url,
                 hint: 'https://example.com/webhook',
-                isMobile: widget.isMobile,
               ),
             ),
             SettingRow(
@@ -86,7 +84,6 @@ class _WebhookTransportSectionState
                 context: context,
                 controller: _body,
                 hint: '{"text":"\${title}"}',
-                isMobile: widget.isMobile,
               ),
             ),
             SettingRow(
@@ -97,7 +94,6 @@ class _WebhookTransportSectionState
                 context: context,
                 controller: _headers,
                 hint: 'Authorization: Bearer …',
-                isMobile: widget.isMobile,
               ),
             ),
             SettingRow(

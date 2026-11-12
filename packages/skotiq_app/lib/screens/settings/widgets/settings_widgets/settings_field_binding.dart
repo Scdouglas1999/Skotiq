@@ -473,34 +473,39 @@ class SettingField<S, T> {
   final String? hint;
 }
 
-/// What every settings input under a page reads from context instead of
-/// taking as constructor arguments.
+/// What every settings building block under a page reads from context instead
+/// of taking as constructor arguments.
 ///
-/// [isMobile] is the single-pane (phone) layout of the Settings screen, which
-/// is a property of the screen and never changes inside one page. [embedded]
-/// marks a page rendered inside another page's scroll view. [authority] is the
-/// identity of the backend that owns the values on the page; inputs retire
-/// pending edits when it changes.
+/// [narrow] is the layout class of the pane the page sits in: true in the
+/// single-pane (list, then detail) layout of the Settings screen, false in the
+/// split view and anywhere outside Settings (a dialog, a panel on another
+/// screen). The Settings screen decides it once, from width alone
+/// ([Responsive.isPhone] or a detail pane too narrow for a row), and it never
+/// changes inside one page. It picks layout: stacking, padding, control
+/// widths. Touch-target size is a different question, answered by platform in
+/// the UI kit ([SkotiqTouchTarget]).
+///
+/// [embedded] marks a page rendered inside another page's scroll view.
+/// [authority] is the identity of the backend that owns the values on the
+/// page; inputs retire pending edits when it changes.
 class SettingsFormScope extends InheritedWidget {
   const SettingsFormScope({
     super.key,
-    required this.isMobile,
+    required this.narrow,
     this.embedded = false,
     this.authority,
     required super.child,
   });
 
-  final bool isMobile;
+  final bool narrow;
   final bool embedded;
   final Object? authority;
 
   static SettingsFormScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<SettingsFormScope>();
 
-  /// Desktop layout when no Settings screen is above (a dialog, a panel on
-  /// another screen).
-  static bool isMobileOf(BuildContext context) =>
-      maybeOf(context)?.isMobile ?? false;
+  static bool narrowOf(BuildContext context) =>
+      maybeOf(context)?.narrow ?? false;
 
   static bool embeddedOf(BuildContext context) =>
       maybeOf(context)?.embedded ?? false;
@@ -517,7 +522,7 @@ class SettingsFormScope extends InheritedWidget {
   }) {
     final current = maybeOf(context);
     return SettingsFormScope(
-      isMobile: current?.isMobile ?? false,
+      narrow: current?.narrow ?? false,
       embedded: embedded ?? current?.embedded ?? false,
       authority: authority ?? current?.authority,
       child: child,
@@ -526,7 +531,7 @@ class SettingsFormScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(SettingsFormScope oldWidget) =>
-      oldWidget.isMobile != isMobile ||
+      oldWidget.narrow != narrow ||
       oldWidget.embedded != embedded ||
       !identical(oldWidget.authority, authority);
 }

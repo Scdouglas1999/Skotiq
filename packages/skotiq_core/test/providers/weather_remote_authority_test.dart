@@ -230,8 +230,10 @@ void main() {
       expect(state.actions.shouldCloseDome, isTrue);
       expect(state.actions.reason, 'Rain detected; roof closure required');
       expect(
-        state.actions.resumeCheckTime,
-        DateTime.parse('2026-07-13T03:30:00Z'),
+        state.actions.resumeCheckTime!.isAtSameMomentAs(
+          DateTime.parse('2026-07-13T03:30:00Z'),
+        ),
+        isTrue,
       );
     },
   );

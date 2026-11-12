@@ -9,9 +9,7 @@ import '../../../utils/darkroom_navigation.dart';
 /// Calibration tab. The pointer stays visible in case navigation is not
 /// available, so the entry is never a dead end.
 class CalibrationSettingsRedirect extends StatefulWidget {
-  const CalibrationSettingsRedirect({super.key, this.isMobile = false});
-
-  final bool isMobile;
+  const CalibrationSettingsRedirect({super.key});
 
   @override
   State<CalibrationSettingsRedirect> createState() =>

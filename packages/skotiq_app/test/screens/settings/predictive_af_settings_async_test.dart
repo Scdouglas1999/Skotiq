@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/predictive_af_settings.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -182,7 +183,8 @@ void main() {
         child: MaterialApp(
           theme: SkotiqTheme.dark,
           home: const Scaffold(
-            body: PredictiveAfSettingsPage(isMobile: true),
+            body: SettingsFormScope(
+                narrow: true, child: PredictiveAfSettingsPage()),
           ),
         ),
       ),

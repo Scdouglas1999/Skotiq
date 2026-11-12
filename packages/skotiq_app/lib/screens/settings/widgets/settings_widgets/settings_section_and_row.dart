@@ -11,15 +11,10 @@ class SettingsSection extends StatelessWidget {
 
   final List<Widget> children;
 
-  /// Unused: a section looks the same on every layout. Accepted so existing
-  /// call sites keep compiling.
-  final bool? isMobile;
-
   const SettingsSection({
     super.key,
     required this.title,
     required this.children,
-    this.isMobile,
   });
 
   @override
@@ -198,11 +193,9 @@ class SettingRow extends StatelessWidget {
   /// wave 4 removes it.
   final bool isLast;
 
-  /// Overrides the enclosing [SettingsFormScope].
-  final bool? isMobile;
-
-  /// Stack the control below the title on the phone layout.
-  final bool stackOnMobile;
+  /// Put the control below the title in the narrow layout
+  /// ([SettingsFormScope.narrow]) instead of beside it.
+  final bool stackWhenNarrow;
 
   /// Optional field-level help. When supplied, a [helpAffordance] icon is
   /// rendered to the right of the [title] showing the rich tooltip from
@@ -226,8 +219,7 @@ class SettingRow extends StatelessWidget {
     this.subtitle,
     required this.trailing,
     this.isLast = false,
-    this.isMobile,
-    this.stackOnMobile = false,
+    this.stackWhenNarrow = false,
     this.helpId,
     this.controlFlex = 1,
   });
@@ -281,9 +273,9 @@ class SettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final isMobile = this.isMobile ?? SettingsFormScope.isMobileOf(context);
+    final narrow = SettingsFormScope.narrowOf(context);
 
-    final shouldStack = isMobile && stackOnMobile;
+    final shouldStack = narrow && stackWhenNarrow;
 
     // The row's title and its trailing control are ONE thing to a screen
     // reader.
@@ -302,8 +294,7 @@ class SettingRow extends StatelessWidget {
           ),
           child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal:
-                  isMobile ? SkotiqTokens.spaceMd : SkotiqTokens.spaceLg,
+              horizontal: narrow ? SkotiqTokens.spaceMd : SkotiqTokens.spaceLg,
               vertical: SkotiqTokens.spaceMd,
             ),
             child: shouldStack
@@ -347,6 +338,96 @@ class SettingRow extends StatelessWidget {
         const SizedBox(height: SkotiqTokens.spaceMd),
         trailing,
       ],
+    );
+  }
+}
+
+/// A hand-laid item inside a [SettingsSection] panel, for content a
+/// [SettingRow] does not fit: a delivery destination with its status lines, a
+/// row of buttons. It carries the item's padding and, with [icon], a leading
+/// icon tile; [trailing] sits at the right edge.
+class SettingsItem extends StatelessWidget {
+  const SettingsItem({
+    super.key,
+    this.icon,
+    this.iconColor,
+    this.trailing,
+    this.divider = false,
+    required this.child,
+  });
+
+  final IconData? icon;
+
+  /// Defaults to the secondary text color.
+  final Color? iconColor;
+
+  final Widget? trailing;
+
+  /// Draw a hairline under the item, for a list the section does not
+  /// separate itself.
+  final bool divider;
+
+  final Widget child;
+
+  /// The style of an item's own title line.
+  static TextStyle titleStyle(BuildContext context) {
+    final style = SettingsFormScope.narrowOf(context)
+        ? SkotiqTypography.labelSm
+        : SkotiqTypography.label;
+    return style.copyWith(color: SkotiqColors.of(context).textPrimary);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = SkotiqColors.of(context);
+    final narrow = SettingsFormScope.narrowOf(context);
+    final icon = this.icon;
+    final trailing = this.trailing;
+    final tile = narrow ? 32.0 : 36.0;
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: narrow ? 12.0 : SkotiqTokens.spaceLg,
+        vertical: narrow ? 12.0 : 14.0,
+      ),
+      decoration: divider
+          ? BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: colors.border.withValues(alpha: 0.5),
+                ),
+              ),
+            )
+          : null,
+      child: icon == null
+          ? child
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: tile,
+                  height: tile,
+                  decoration: BoxDecoration(
+                    color: colors.well,
+                    borderRadius: SkotiqTokens.borderRadiusMd,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: narrow ? 14.0 : SkotiqTokens.iconSm,
+                    color: iconColor ?? colors.textSecondary,
+                  ),
+                ),
+                SizedBox(width: narrow ? 10 : 14),
+                Expanded(child: child),
+                if (trailing != null)
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: trailing,
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 }

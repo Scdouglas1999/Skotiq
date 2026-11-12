@@ -172,6 +172,28 @@ pub fn imaging_steps(root: &dyn Node) -> HashSet<NodeId> {
     out
 }
 
+/// The finished steps a resume does not run again: the imaging steps, and
+/// the Notification steps. A notification says something happened; saying it
+/// again tells the operator of a second happening that did not take place.
+///
+/// A Run Script step is not here on purpose. A script can prepare the rig
+/// (open a roof, switch power on), the stop may have undone that, and the
+/// steps after it slew the mount: it runs again like the other rig steps.
+pub fn kept_on_resume(root: &dyn Node) -> HashSet<NodeId> {
+    let mut out = imaging_steps(root);
+    collect_notifications(root, &mut out);
+    out
+}
+
+fn collect_notifications(node: &dyn Node, out: &mut HashSet<NodeId>) {
+    if matches!(node.node_type(), NodeType::Notification(_)) {
+        out.insert(node.id().clone());
+    }
+    for child in node.children() {
+        collect_notifications(child.as_ref(), out);
+    }
+}
+
 /// Whether `node` takes frames; collects it and every descendant that does.
 fn collect_imaging_steps(node: &dyn Node, out: &mut HashSet<NodeId>) -> bool {
     let mut takes_frames = matches!(

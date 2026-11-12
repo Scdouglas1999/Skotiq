@@ -112,9 +112,7 @@ class PlateSolvingSettingsScreen extends ConsumerWidget {
 /// Full plate-solving setup UI shared by the Settings catalog and the
 /// dedicated `/settings/plate-solving` route.
 class PlateSolvingSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const PlateSolvingSettings({super.key, this.isMobile = false});
+  const PlateSolvingSettings({super.key});
 
   @override
   ConsumerState<PlateSolvingSettings> createState() =>
@@ -342,11 +340,11 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
   }) {
     final canChoosePath = !hostRefusesAdminOnly(ref);
     return SettingsPage(
+      hideHeader: false,
       title: 'Plate solving',
       description:
           'Configure ASTAP / Astrometry.net for centering, framing, and '
           'polar alignment.',
-      isMobile: widget.isMobile,
       children: [
         SolverDetectionCard(
           detection: detection,

@@ -20,6 +20,62 @@ pub(crate) struct RawFrame {
     pub data: Vec<u16>,
     /// `None` for a monochrome sensor.
     pub bayer_pattern: Option<BayerPattern>,
+    pub exposure: ExposureRecord,
+}
+
+/// What the camera layer recorded about the exposure behind a frame: the
+/// facts a FITS header takes from the camera rather than from the caller.
+#[derive(Debug, Clone)]
+pub(crate) struct ExposureRecord {
+    /// When the exposure was started.
+    pub started_at: chrono::DateTime<chrono::Utc>,
+    /// Seconds, as the camera reported them.
+    pub exposure_secs: f64,
+    pub gain: Option<i32>,
+    pub offset: Option<i32>,
+    /// Sensor temperature in Celsius.
+    pub temperature: Option<f64>,
+    pub bits_per_pixel: u32,
+}
+
+impl RawFrame {
+    /// The frame as the sequencer's device layer hands frames around, for
+    /// the code a manual save shares with a sequence's.
+    pub(crate) fn into_image_data(self) -> skotiq_sequencer::ImageData {
+        let (sensor_type, bayer_offset) = sensor_type_and_offset(self.bayer_pattern);
+        skotiq_sequencer::ImageData {
+            width: self.width,
+            height: self.height,
+            data: self.data,
+            bits_per_pixel: self.exposure.bits_per_pixel,
+            exposure_secs: self.exposure.exposure_secs,
+            gain: self.exposure.gain,
+            offset: self.exposure.offset,
+            temperature: self.exposure.temperature,
+            filter: None,
+            timestamp: self.exposure.started_at.timestamp(),
+            sensor_type,
+            bayer_offset,
+        }
+    }
+}
+
+/// The sequencer's `ImageData` names the color filter by its offset.
+pub(crate) fn sensor_type_and_offset(
+    pattern: Option<BayerPattern>,
+) -> (Option<String>, Option<(i32, i32)>) {
+    match pattern {
+        Some(pattern) => {
+            let offset = match pattern {
+                BayerPattern::Rggb => (0, 0),
+                BayerPattern::Grbg => (1, 0),
+                BayerPattern::Gbrg => (0, 1),
+                BayerPattern::Bggr => (1, 1),
+            };
+            (Some("Color".to_string()), Some(offset))
+        }
+        None => (Some("Monochrome".to_string()), None),
+    }
 }
 
 /// One camera's last frame: what the screens draw, and the samples it was
@@ -98,7 +154,12 @@ pub(crate) fn measure(raw: &RawFrame, exposure_secs: f64) -> CapturedImageResult
         histogram: display.histogram,
         stats,
         exposure_time: exposure_secs,
-        timestamp: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        // The end of the exposure: the start the header records as DATE-OBS
+        // plus the commanded time, so a caller that subtracts the exposure
+        // lands on the same start.
+        timestamp: (raw.exposure.started_at
+            + chrono::Duration::microseconds((exposure_secs.max(0.0) * 1e6).round() as i64))
+        .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
         is_color: raw.bayer_pattern.is_some(),
     }
 }

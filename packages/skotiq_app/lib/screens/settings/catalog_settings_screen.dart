@@ -16,7 +16,8 @@ import '../../utils/snackbar_helper.dart';
 import 'widgets/catalog_download_source_card.dart';
 import 'widgets/deep_star_catalog_card.dart';
 import 'widgets/element_refresh_card.dart';
-import 'widgets/settings_widgets.dart' show settingsPagePadding;
+import 'widgets/settings_widgets.dart'
+    show SettingsFormScope, settingsPagePadding;
 import 'settings_sections.dart';
 import '../../router/app_routes.dart';
 
@@ -64,9 +65,7 @@ final catalogUninstallProvider =
 
 /// Screen for managing astronomical catalog downloads and settings
 class CatalogSettingsScreen extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const CatalogSettingsScreen({super.key, this.isMobile = false});
+  const CatalogSettingsScreen({super.key});
 
   @override
   ConsumerState<CatalogSettingsScreen> createState() =>
@@ -79,6 +78,8 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   CatalogStatus? _dsoStatus;
   CatalogStatus? _annotationStatus;
   bool _isLoading = true;
+
+  bool get _narrow => SettingsFormScope.narrowOf(context);
 
   /// Catalogs installed on the connected appliance, when this app is driving a
   /// remote backend. The cards above read the LOCAL filesystem, which on a
@@ -549,15 +550,14 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen>
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final padding = widget.isMobile ? 16.0 : 24.0;
-
-    // On mobile, skip Scaffold since parent provides structure
-    if (widget.isMobile) {
+    // In the narrow layout the Settings screen provides the structure, so
+    // there is no Scaffold.
+    if (_narrow) {
       return _isLoading
           ? const Center(
               child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36))
           : SingleChildScrollView(
-              padding: EdgeInsets.all(padding),
+              padding: const EdgeInsets.all(16),
               child: _buildContent(context),
             );
     }

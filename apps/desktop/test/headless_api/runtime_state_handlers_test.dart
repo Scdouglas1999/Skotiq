@@ -8,7 +8,10 @@ import 'package:skotiq_app/screens/night_control/data/session/guide_series_provi
 import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/runtime_state_handlers.dart';
+import 'package:skotiq_desktop/headless_api/night_event_log.dart';
 import 'package:skotiq_desktop/headless_api/validation.dart';
+
+import 'handler_test_helpers.dart';
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
@@ -29,14 +32,14 @@ void main() {
   late ProviderContainer container;
   late List<SkotiqEvent> broadcast;
   late RuntimeStateHandlers handlers;
-  var retained = <SkotiqEvent>[];
+  late NightEventLog nightEvents;
 
   setUp(() {
     final backend = _MockFfiBackend();
     when(
       () => backend.eventStream,
     ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-    container = ProviderContainer(
+    container = createHeadlessTestContainer(
       overrides: [
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, backend),
@@ -45,7 +48,8 @@ void main() {
     );
     broadcast = <SkotiqEvent>[];
     container.read(hostMutationEventHubProvider).wsBroadcast = broadcast.add;
-    handlers = RuntimeStateHandlers(container, retained: () => retained);
+    nightEvents = NightEventLog();
+    handlers = RuntimeStateHandlers(container, nightEvents: nightEvents);
   });
 
   tearDown(() => container.dispose());
@@ -120,12 +124,12 @@ void main() {
       eventType: type,
       data: const {},
     );
-    retained = [
+    [
       event('Started', 1),
       event('ExposureProgress', 2),
       const HostRuntimeUpdate(channel: 'plateSolve', revision: 3).toEvent(),
       event('NodeCompleted', 4),
-    ];
+    ].forEach(nightEvents.append);
 
     final response = await handlers.handleRecentEvents(
       Request('GET', Uri.parse('http://localhost/api/runtime/recent-events')),
@@ -149,7 +153,7 @@ void main() {
             eventType: type,
             data: data ?? const {},
           );
-      retained = [
+      [
         event('Stopped', 1),
         event('IntegrationProgress', 2, {
           'phase': 'registering',
@@ -164,7 +168,7 @@ void main() {
           'fraction': .5,
         }),
         event('IntegrationProgress', 5, {'phase': 'done', 'fraction': 1.0}),
-      ];
+      ].forEach(nightEvents.append);
 
       final response = await handlers.handleRecentEvents(
         Request('GET', Uri.parse('http://localhost/api/runtime/recent-events')),
@@ -176,6 +180,40 @@ void main() {
       expect(events.map((e) => e['timestamp']), [1, 3, 4, 5]);
     },
   );
+
+  // A client linking at midnight did not see that the focuser failed to
+  // connect at start-up: hours of guide steps had pushed it out of the
+  // replay buffer the log was seeded from.
+  test('a start-up failure outlasts a night of telemetry', () async {
+    nightEvents.append(
+      const SkotiqEvent(
+        timestamp: 1,
+        severity: EventSeverity.error,
+        category: EventCategory.equipment,
+        eventType: 'Error',
+        data: {'device_type': 'Focuser', 'message': 'unplugged'},
+      ),
+    );
+    for (var at = 2; at < 20000; at++) {
+      nightEvents.append(
+        SkotiqEvent(
+          timestamp: at,
+          severity: EventSeverity.info,
+          category: EventCategory.guiding,
+          eventType: 'GuideStep',
+          data: const {},
+        ),
+      );
+    }
+
+    final response = await handlers.handleRecentEvents(
+      Request('GET', Uri.parse('http://localhost/api/runtime/recent-events')),
+    );
+
+    final events = (jsonDecode(await response.readAsString())['events'] as List)
+        .cast<Map<String, dynamic>>();
+    expect(events.map((e) => e['eventType']), ['Error']);
+  });
 
   test('night history serves what this host gathered tonight', () async {
     final at = DateTime(2026, 11, 3, 18, 22);

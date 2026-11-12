@@ -111,7 +111,7 @@ pub(crate) async fn wait_for_dome_shutter_state(
             );
             tracing::warn!("{msg}");
             if let Some(event_tx) = &ctx.run.event_tx {
-                let _ = event_tx.send(crate::executor::ExecutorEvent::Error { message: msg });
+                let _ = event_tx.send(crate::executor::ExecutorEvent::StepProblem { message: msg });
             }
             return Ok(DomeShutterWaitOutcome::Unconfirmed);
         }

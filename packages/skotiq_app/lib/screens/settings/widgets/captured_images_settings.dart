@@ -21,9 +21,7 @@ import '../../../utils/image_decode_size.dart';
 /// had shot. This grid fetches thumbnails on demand (cached) and shows frame
 /// metadata. Remote-only; the local desktop has its own image browser.
 class CapturedImagesSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const CapturedImagesSettings({super.key, this.isMobile = false});
+  const CapturedImagesSettings({super.key});
 
   @override
   ConsumerState<CapturedImagesSettings> createState() =>
@@ -164,8 +162,6 @@ class _CapturedImagesSettingsState
     return SettingsPage(
       title: 'Captured images',
       description: 'Browse frames captured on the connected appliance',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile,
       children: [
         if (backend == null)
           _info(colors, LucideIcons.info,
@@ -200,7 +196,8 @@ class _CapturedImagesSettingsState
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: widget.isMobile ? 120 : 160,
+                maxCrossAxisExtent:
+                    SettingsFormScope.narrowOf(context) ? 120 : 160,
                 childAspectRatio: 1,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,

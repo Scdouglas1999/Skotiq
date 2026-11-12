@@ -93,7 +93,7 @@ class _MobileSectionList extends StatelessWidget {
                                   isSelected: false,
                                   onTap: () => onSectionTap(section.id, null),
                                   colors: colors,
-                                  isMobile: true,
+                                  navigationStep: true,
                                 ),
                               ),
                             ],
@@ -148,7 +148,7 @@ class _MobileSearchResults extends StatelessWidget {
               isSelected: false,
               onTap: () => onSectionTap(section.id, null),
               colors: colors,
-              isMobile: true,
+              navigationStep: true,
             ),
             for (final row in result.rows)
               _SearchRowResult(
@@ -176,17 +176,16 @@ class _CategoryItem extends StatefulWidget {
   final VoidCallback onTap;
   final SkotiqColors colors;
 
-  /// Narrow layout: a taller touch target with a trailing chevron, because at
-  /// this width the row is a navigation step rather than a selection.
-  final bool isMobile;
-
+  /// In the single-pane list the row is a navigation step rather than a
+  /// selection: a taller target with a trailing chevron.
+  final bool navigationStep;
   const _CategoryItem({
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
     required this.colors,
-    this.isMobile = false,
+    this.navigationStep = false,
   });
 
   @override
@@ -224,7 +223,7 @@ class _CategoryItemState extends State<_CategoryItem> {
             onFocusChange: (value) => setState(() => _isFocused = value),
             borderRadius: SkotiqTokens.borderRadiusSm,
             child: Container(
-              height: widget.isMobile
+              height: widget.navigationStep
                   ? SkotiqTokens.minTouchTarget
                   : _navItemHeight,
               padding: const EdgeInsets.symmetric(
@@ -261,7 +260,7 @@ class _CategoryItemState extends State<_CategoryItem> {
                       style: SkotiqTypography.button.copyWith(color: ink),
                     ),
                   ),
-                  if (widget.isMobile)
+                  if (widget.navigationStep)
                     Icon(
                       LucideIcons.chevronRight,
                       size: _navIconSize,

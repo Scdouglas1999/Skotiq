@@ -22,16 +22,8 @@ const String kAfFailureToleranceSubtitle =
     '0 = don\u2019t judge the frames';
 
 class AutofocusSettingsPage extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view (embedded in a merged
-  /// section's single outer scroll) and without the page header.
-  final bool embedded;
-
   const AutofocusSettingsPage({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   @override
@@ -356,12 +348,8 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
     final filterWheelState = ref.watch(filterWheelStateProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-        scrollable: !widget.embedded,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -372,18 +360,14 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
           title: 'Autofocus',
           description:
               'Configure autofocus behavior, curve fitting, and per-filter settings',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile || widget.embedded,
-          scrollable: !widget.embedded,
           children: [
             SettingsSection(
               // Not 'Autofocus': the merged page already bands this pane
               // AUTOFOCUS, and an eyebrow repeating it printed the word twice
               // in a row once section labels became uppercase.
               title: 'Behavior',
-              isMobile: widget.isMobile,
               children: [
-                if (!widget.isMobile)
+                if (!SettingsFormScope.narrowOf(context))
                   _buildDesktopTwoColumnLayout(settings)
                 else
                   for (final row in _afBehaviorRows)
@@ -392,7 +376,6 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
                       title: row.field.label,
                       subtitle: row.subtitle,
                       trailing: row.control(settings),
-                      isMobile: true,
                     ),
               ],
             ),

@@ -439,6 +439,8 @@ async fn replay(
             loop {
                 match events.recv().await {
                     Ok(ExecutorEvent::Error { message })
+                    | Ok(ExecutorEvent::RunHeld { message })
+                    | Ok(ExecutorEvent::StepProblem { message })
                     | Ok(ExecutorEvent::Warning { message }) => {
                         messages.lock().unwrap().push(message)
                     }

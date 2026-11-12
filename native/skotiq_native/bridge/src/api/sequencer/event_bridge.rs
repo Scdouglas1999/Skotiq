@@ -308,15 +308,10 @@ pub(crate) async fn run_sequencer_event_loop(
                 // rather than the terminal `Failed` one. Without it the real
                 // cause of a failure (daylight gate, missing device, refused
                 // slew) never left the Rust log.
-                ExecutorEvent::InstructionFailed { node_name, message } => {
-                    Some(create_event_auto_id(
-                        EventSeverity::Error,
-                        EventCategory::Sequencer,
-                        EventPayload::Sequencer(SequencerEvent::Error {
-                            message: format!("{}: {}", node_name, message),
-                        }),
-                    ))
-                }
+                ExecutorEvent::InstructionFailed { node_name, message } => Some(run_error_event(
+                    SequencerErrorKind::StepFailed,
+                    format!("{}: {}", node_name, message),
+                )),
                 ExecutorEvent::ExposureStarted {
                     frame,
                     total,
@@ -434,25 +429,21 @@ pub(crate) async fn run_sequencer_event_loop(
                         }),
                     ))
                 }
-                ExecutorEvent::Error { message } => Some(create_event_auto_id(
-                    EventSeverity::Error,
-                    EventCategory::Sequencer,
-                    EventPayload::Sequencer(SequencerEvent::Error {
-                        message: message.clone(),
-                    }),
+                ExecutorEvent::Error { message } => Some(run_error_event(
+                    SequencerErrorKind::StepFailed,
+                    message.clone(),
                 )),
-                // Same payload, different SEVERITY — which is what every
-                // downstream consumer routes on. Reusing the payload keeps the
-                // wire format (and the generated FRB bindings) unchanged; Dart
-                // reads `SkotiqEvent.severity` to decide whether a message
-                // is a run failure or an advisory, exactly as it already does
-                // for `MeridianFlipOutcome`.
-                ExecutorEvent::Warning { message } => Some(create_event_auto_id(
-                    EventSeverity::Warning,
-                    EventCategory::Sequencer,
-                    EventPayload::Sequencer(SequencerEvent::Error {
-                        message: message.clone(),
-                    }),
+                ExecutorEvent::Warning { message } => Some(run_error_event(
+                    SequencerErrorKind::Advisory,
+                    message.clone(),
+                )),
+                ExecutorEvent::StepProblem { message } => Some(run_error_event(
+                    SequencerErrorKind::StepProblem,
+                    message.clone(),
+                )),
+                ExecutorEvent::RunHeld { message } => Some(run_error_event(
+                    SequencerErrorKind::RunHeld,
+                    message.clone(),
                 )),
                 ExecutorEvent::MeridianFlipOutcome {
                     outcome,
@@ -654,6 +645,33 @@ pub(crate) async fn run_sequencer_event_loop(
     }
 }
 
+/// Wait until nothing listens to the executor's events: a test that ended a
+/// moment ago may still be letting go of its listeners, and a second live
+/// bridge would publish every event twice.
+#[cfg(test)]
+pub(crate) async fn wait_for_no_event_listeners() {
+    for _ in 0..200 {
+        if get_sequence_executor()
+            .read()
+            .await
+            .event_subscriber_count()
+            == 0
+        {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+}
+
+/// A run's error-payload event of `kind`, at the severity that kind has.
+fn run_error_event(kind: SequencerErrorKind, message: String) -> crate::event::SkotiqEvent {
+    create_event_auto_id(
+        kind.run_severity(),
+        EventCategory::Sequencer,
+        EventPayload::Sequencer(SequencerEvent::Error { message, kind }),
+    )
+}
+
 #[cfg(test)]
 mod frame_event_capture_tests {
     use crate::api::sequencer::typed_sequencer_event_from_progress_detail;
@@ -794,6 +812,11 @@ mod event_bridge_idempotence_tests {
     /// events are being duplicated.
     #[tokio::test]
     async fn subscribing_again_does_not_add_a_second_event_listener() {
+        // Other tests listen to the same executor for their own runs.
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        crate::api::sequencer::wait_for_no_event_listeners().await;
         api_sequencer_subscribe_events()
             .await
             .expect("first subscribe should succeed");

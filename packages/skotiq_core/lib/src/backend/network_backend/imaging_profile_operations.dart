@@ -1,7 +1,6 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
-
   @override
   Future<List<EquipmentProfile>> getProfiles() async {
     final response = await _get('profiles');
@@ -1115,6 +1114,11 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
       'interval_ms': intervalMs,
     });
   }
+
+  /// The host reconnects its own devices; a linked client reconnects none
+  /// of them (see `DeviceReconnectCoordinator`), so nothing here is native.
+  @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes => const {};
 
   @override
   Future<void> stopDeviceHeartbeat(String deviceId) async {

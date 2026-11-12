@@ -456,7 +456,9 @@ impl Run {
         // there does not mean the run carried on past its fault.
         let failure = failure_collector.finish(unreachable_reason).await;
         self.put_rig_away(result, &side_context).await;
-        self.finalize(result, failure, started).await;
+        let guider_left_running = self.end_the_runs_guiding(result).await;
+        self.finalize(result, failure, started, guider_left_running)
+            .await;
     }
 
     /// Drive the node tree with the run's other tasks until the tree has
@@ -690,21 +692,64 @@ impl Run {
         .await;
     }
 
+    /// A stopped run ends the guiding it started. Guiding the run did not
+    /// start (the operator's, from before the run) is not the run's to end.
+    /// A trigger that parked the rig has already stopped the guider. Returns
+    /// what the operator needs to hear about a guider that is still guiding.
+    async fn end_the_runs_guiding(&self, result: NodeStatus) -> Option<String> {
+        if result != NodeStatus::Cancelled || self.teardown.parked_by_trigger() {
+            return None;
+        }
+        let trigger_state = self.triggers.read().await.state();
+        let ours = trigger_state.read().await.guiding.is_enabled();
+        let ops = &self.device_ops;
+        if !ours {
+            let guiding = matches!(ops.guider_get_status().await, Ok(status) if status.is_guiding);
+            return guiding.then(|| {
+                "The guider is still guiding: it was started outside this run.".to_string()
+            });
+        }
+        ops.guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
+            .await;
+        let stopped = ops.guider_stop().await;
+        {
+            let mut state = trigger_state.write().await;
+            state.set_guiding_enabled(false);
+            state.guiding.set_resume_pending(false);
+        }
+        match stopped {
+            Ok(()) | Err(crate::device_ops::DeviceError::NO_GUIDER) => None,
+            Err(error) => {
+                tracing::warn!("[GUIDING] The guider did not stop with the run: {error}");
+                Some(format!(
+                    "The guider did not stop and may still be guiding: {error}."
+                ))
+            }
+        }
+    }
+
     /// The run's one finalization: store the terminal state with the run's
     /// own verdict as its message, close the checkpoint, publish the terminal
-    /// events, and announce the state last.
+    /// events, and announce the state last. `guider_left_running` is added to
+    /// the verdict of a stopped run whose guider still guides.
     async fn finalize(
         &self,
         result: NodeStatus,
         mut failure: crate::executor::failure_cause::RunFailureReport,
         started: std::time::Instant,
+        guider_left_running: Option<String>,
     ) {
         let state = &self.control.state;
         let final_state = executor_state_for_result(result);
         // The message is composed from the status the root returned, so it
         // cannot disagree with the state: the tree keeps emitting progress
         // after the root is done.
-        let verdict = terminal_verdict_message(result, &self.plan.root_display_name);
+        let mut verdict = terminal_verdict_message(result, &self.plan.root_display_name);
+        if let Some(note) = guider_left_running {
+            // Also told in the run's log, where a client reads how the run ended.
+            self.control.warning(note.clone());
+            verdict = format!("{verdict}. {note}");
+        }
         let terminal = state.store(final_state, |progress| {
             progress.message = Some(verdict);
             progress.elapsed_secs = started.elapsed().as_secs_f64();

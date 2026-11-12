@@ -5,8 +5,7 @@ part of '../notification_routing_settings.dart';
 // publishes retained HA config/state topics over the same host.
 
 class _HomeAssistantSection extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _HomeAssistantSection({required this.isMobile});
+  const _HomeAssistantSection();
 
   @override
   ConsumerState<_HomeAssistantSection> createState() =>
@@ -97,7 +96,6 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
                 context: context,
                 controller: _deviceName,
                 hint: 'Skotiq Observatory',
-                isMobile: widget.isMobile,
               ),
             ),
             SettingRow(
@@ -157,7 +155,7 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
             title: 'Publish to Home Assistant',
             subtitle: 'Uses the imaging host\'s MQTT broker and its password.',
             trailing: AdminOnlyNotice(),
-            stackOnMobile: true,
+            stackWhenNarrow: true,
           ),
         ],
       );
@@ -327,7 +325,8 @@ class _RemoteHomeAssistantFormState
         throw StateError('The imaging host is no longer connected.');
       }
       final replacement = _password.text;
-      final updated = await linkedHost.notifications.updateHomeAssistantHostSettings(
+      final updated =
+          await linkedHost.notifications.updateHomeAssistantHostSettings(
         config: HomeAssistantDiscoveryConfig(
           enabled: _enabled,
           deviceName: _deviceName.text.trim(),
@@ -371,8 +370,6 @@ class _RemoteHomeAssistantFormState
 
   @override
   Widget build(BuildContext context) {
-    final mobile =
-        MediaQuery.sizeOf(context).width < SkotiqTokens.breakpointTablet;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -416,7 +413,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _deviceName,
                 hint: 'Skotiq Observatory',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -441,7 +437,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _host,
                 hint: 'homeassistant.local',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -452,7 +447,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _port,
                 hint: _useTls ? '8883' : '1883',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -463,7 +457,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _username,
                 hint: 'optional',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -474,7 +467,6 @@ class _RemoteHomeAssistantFormState
               controller: _password,
               hasStoredValue: _passwordConfigured,
               hint: 'Enter a replacement password',
-              isMobile: mobile,
               onChanged: _markPasswordChanged,
             ),
             SettingRow(
@@ -484,7 +476,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _topic,
                 hint: 'skotiq/notifications',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -495,7 +486,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _clientId,
                 hint: 'skotiq',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),
@@ -519,7 +509,6 @@ class _RemoteHomeAssistantFormState
                 context: context,
                 controller: _discoveryPrefix,
                 hint: 'homeassistant',
-                isMobile: mobile,
                 onChanged: _markDirty,
               ),
             ),

@@ -17,7 +17,6 @@ pub mod buffer_pool;
 pub mod calibration;
 pub mod calibration_master_stream; // Memory-bounded dark/bias masters straight from FITS files
 pub mod calibration_masters; // NEW: Master-flat build + cosmetic (hot/cold) correction
-pub mod channel_combine; // NEW: Narrowband/LRGB channel combination
 pub mod color_calibration; // NEW: Photometric color calibration (per-channel white balance)
 pub mod deconvolution; // NEW: PSF estimation + Richardson-Lucy deconvolution
 pub mod defect_map;
@@ -63,7 +62,6 @@ pub use background_extraction::*; // NEW: Export background-extraction types
 pub use buffer_pool::*;
 pub use calibration::*;
 pub use calibration_masters::*; // NEW: Export master-flat / cosmetic-correction types
-pub use channel_combine::*; // NEW: Export channel-combination types
 pub use color_calibration::*; // NEW: Export color-calibration types
 pub use debayer::*;
 pub use deconvolution::*; // NEW: Export deconvolution types

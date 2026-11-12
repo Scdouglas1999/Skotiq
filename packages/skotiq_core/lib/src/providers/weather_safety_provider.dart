@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show tryParseWireTime;
 import '../models/weather/weather_models.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/settings/app_settings.dart';
@@ -320,7 +321,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     } catch (error) {
       if (!mounted) return;
       final failure = WeatherSafetyState.initial().copyWith(
-        failModeWarning: 'Weather safety configuration unavailable: ${userFacingError(error)}',
+        failModeWarning:
+            'Weather safety configuration unavailable: ${userFacingError(error)}',
         lastEvaluation: DateTime.now(),
       );
       state = failure;
@@ -781,7 +783,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             .catchError((Object error) {
               if (mounted) {
                 state = WeatherSafetyState.initial().copyWith(
-                  failModeWarning: 'Could not snooze host safety: ${userFacingError(error)}',
+                  failModeWarning:
+                      'Could not snooze host safety: ${userFacingError(error)}',
                   lastEvaluation: DateTime.now(),
                 );
               }
@@ -861,7 +864,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
             .catchError((Object error) {
               if (mounted) {
                 state = WeatherSafetyState.initial().copyWith(
-                  failModeWarning: 'Could not cancel host snooze: ${userFacingError(error)}',
+                  failModeWarning:
+                      'Could not cancel host snooze: ${userFacingError(error)}',
                   lastEvaluation: DateTime.now(),
                 );
               }

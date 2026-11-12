@@ -227,7 +227,7 @@ class RunWatchHandlers implements RouteSource {
         'alertLevel': alert?.level.name ?? safety.currentAlertLevel.name,
         'message': message,
         'dataSource': safety.dataSource.name,
-        'lastEvaluation': safety.lastEvaluation?.toIso8601String(),
+        'lastEvaluation': safety.lastEvaluation?.toWireTime(),
       };
     } catch (e) {
       _logWarning('snapshot: weather service read failed: $e');
@@ -280,7 +280,7 @@ class RunWatchHandlers implements RouteSource {
     // carry a BigInt today.
     return jsonOk(
       _jsonSafe(<String, Object?>{
-            'serverTime': DateTime.now().toUtc().toIso8601String(),
+            'serverTime': DateTime.now().toWireTime(),
             'sequencer': {...sequencerStatus, 'progress': progressBlock},
             'activeTarget': activeTargetBlock,
             'guiding': guidingBlock,

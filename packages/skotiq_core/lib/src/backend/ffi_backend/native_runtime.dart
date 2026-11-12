@@ -31,6 +31,9 @@ abstract final class _NativeProcessState {
 
   static List<bridge.DeviceInfo> lastConnectedDevices = const [];
 
+  /// The native reconnect policy, a fixed table: read once per process.
+  static Set<DeviceType>? nativeReconnectedDeviceTypes;
+
   static final discovery = NativeDiscovery(_sweepNativeDiscovery);
 }
 

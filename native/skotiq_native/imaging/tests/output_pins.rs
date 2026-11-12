@@ -1117,24 +1117,6 @@ fn pin_finishing(pins: &mut Pins) {
         }
     }
 
-    let ha = &mono;
-    let oiii = perturbed(&mono, 21, 0.7, 10.0, 6.0);
-    let sii = perturbed(&mono, 22, 0.5, 5.0, 6.0);
-    pins.add(
-        "finishing/channel_combine.sho",
-        match combine_channels(&[&sii, ha, &oiii], &sho_palette()) {
-            Ok(out) => image_digest(&out),
-            Err(e) => debug_digest(&e),
-        },
-    );
-    pins.add(
-        "finishing/channel_combine.hoo",
-        match combine_channels(&[ha, &oiii], &hoo_palette()) {
-            Ok(out) => image_digest(&out),
-            Err(e) => debug_digest(&e),
-        },
-    );
-
     let stars: Vec<ColorStar> = (0..40)
         .map(|i| {
             let bv = -0.2 + 0.04 * i as f64;

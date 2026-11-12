@@ -12,7 +12,16 @@ import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
 
 class _EnvironmentalBackend extends Mock
-    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {}
+    implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {
+  @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes => const {
+    DeviceType.mount,
+    DeviceType.guider,
+    DeviceType.dome,
+    DeviceType.weather,
+    DeviceType.coverCalibrator,
+  };
+}
 
 class _BackendNotifier extends BackendNotifier {
   _BackendNotifier(super.ref, SkotiqBackend backend) {
@@ -67,7 +76,9 @@ void main() {
         ),
       );
 
-      await container.read(deviceServiceProvider).connect(DeviceType.weather, deviceId);
+      await container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.weather, deviceId);
 
       final state = container.read(weatherStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -94,7 +105,9 @@ void main() {
       ).thenAnswer((_) async {});
 
       await expectLater(
-        container.read(deviceServiceProvider).connect(DeviceType.safetyMonitor, deviceId),
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.safetyMonitor, deviceId),
         throwsA(isA<StateError>()),
       );
 
@@ -126,7 +139,9 @@ void main() {
 
     fakeAsync((async) {
       unawaited(
-        container.read(deviceServiceProvider).connect(DeviceType.safetyMonitor, deviceId),
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.safetyMonitor, deviceId),
       );
       async.elapse(const Duration(seconds: 1));
       expect(
@@ -211,7 +226,9 @@ void main() {
 
     fakeAsync((async) {
       unawaited(
-        container.read(deviceServiceProvider).connect(DeviceType.safetyMonitor, deviceId),
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.safetyMonitor, deviceId),
       );
       async.elapse(const Duration(seconds: 1));
       expect(
@@ -250,7 +267,9 @@ void main() {
         ),
       );
 
-      await container.read(deviceServiceProvider).connect(DeviceType.dome, deviceId);
+      await container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.dome, deviceId);
 
       final state = container.read(domeStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);
@@ -270,7 +289,11 @@ void main() {
       );
 
       fakeAsync((async) {
-        unawaited(container.read(deviceServiceProvider).connect(DeviceType.dome, deviceId));
+        unawaited(
+          container
+              .read(deviceServiceProvider)
+              .connect(DeviceType.dome, deviceId),
+        );
         async.elapse(const Duration(seconds: 1));
         expect(
           container.read(domeStateProvider).shutterStatus,
@@ -299,7 +322,11 @@ void main() {
       ).thenAnswer((_) async => const HardwareDomeStatus(azimuth: 12.0));
 
       fakeAsync((async) {
-        unawaited(container.read(deviceServiceProvider).connect(DeviceType.dome, deviceId));
+        unawaited(
+          container
+              .read(deviceServiceProvider)
+              .connect(DeviceType.dome, deviceId),
+        );
         async.elapse(const Duration(seconds: 1));
 
         final state = container.read(domeStateProvider);
@@ -313,7 +340,9 @@ void main() {
         () => backend.getHardwareDomeStatus(deviceId),
       ).thenThrow(StateError('dome status unsupported'));
 
-      await container.read(deviceServiceProvider).connect(DeviceType.dome, deviceId);
+      await container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.dome, deviceId);
 
       final state = container.read(domeStateProvider);
       expect(state.connectionState, DeviceConnectionState.connected);

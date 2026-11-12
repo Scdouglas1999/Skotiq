@@ -69,7 +69,7 @@ Future<void> hostAutoConnect({
       kind,
       error is ProfileAutoConnectException
           ? 'Some equipment did not connect on startup: '
-                '${error.failures.join('; ')}'
+                '${error.described.join('; ')}'
           : 'Equipment auto-connect failed on startup: $error',
     );
   }

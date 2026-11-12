@@ -114,6 +114,49 @@ void main() {
     expect(container.read(uiNotificationProvider), isEmpty);
   });
 
+  // The host says what a sequencer error means for the run. A problem the run
+  // carried on through is the router's warning; a failed step is told by the
+  // run's end; why a run is paused, and an error of an operation started by
+  // hand, have no other notice that carries their text.
+  SkotiqEvent ofKind(SequencerErrorKind kind, String message) => SkotiqEvent(
+    timestamp: DateTime.now().millisecondsSinceEpoch,
+    severity: kind.runContinues ? EventSeverity.warning : EventSeverity.error,
+    category: EventCategory.sequencer,
+    eventType: 'Error',
+    data: {'message': message, kSequencerErrorKindKey: kind.wireName},
+  );
+
+  test('only a pause reason and a hand-started operation toast here', () async {
+    final (container, controller) = await _bridge();
+    addTearDown(container.dispose);
+    addTearDown(controller.close);
+
+    controller
+      ..add(ofKind(SequencerErrorKind.stepProblem, 'Dither did not settle'))
+      ..add(ofKind(SequencerErrorKind.stepFailed, 'Exposure: disk full'))
+      ..add(ofKind(SequencerErrorKind.runHeld, 'DriftLimit recenter failed'))
+      ..add(ofKind(SequencerErrorKind.standalone, 'Autofocus frame not saved'));
+    await pumpEventQueue();
+
+    expect(
+      container
+          .read(uiNotificationProvider)
+          .map((n) => (n.level, n.title, n.message)),
+      [
+        (
+          UiNotificationLevel.error,
+          'Sequence paused',
+          'DriftLimit recenter failed',
+        ),
+        (
+          UiNotificationLevel.error,
+          'Operation failed',
+          'Autofocus frame not saved',
+        ),
+      ],
+    );
+  });
+
   // A failed step is announced as `NodeCompleted` at warning severity with no
   // sentence; its toast read "Sequence Warning / NodeCompleted".
   test('an event without a sentence never toasts its type name', () async {

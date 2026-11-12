@@ -42,15 +42,16 @@ final _frame = CapturedImageResult(
   when(
     () => backend.sequencerGetStatus(),
   ).thenAnswer((_) async => const SequencerStatus(state: 'Idle', progress: 0));
-  when(() => backend.getConnectedDevices()).thenAnswer(
+  when(() => backend.getHostRuntimeState()).thenAnswer(
     (_) async => const [
-      DeviceInfo(
-        id: _cameraId,
-        name: 'ZWO ASI1600MM-Cool',
-        deviceType: DeviceType.camera,
-        driverType: DriverType.native,
-        description: '',
-        driverVersion: '1.0',
+      HostRuntimeUpdate(
+        channel: 'device.camera',
+        revision: 1,
+        value: {
+          'state': 'connected',
+          'deviceId': _cameraId,
+          'deviceName': 'ZWO ASI1600MM-Cool',
+        },
       ),
     ],
   );

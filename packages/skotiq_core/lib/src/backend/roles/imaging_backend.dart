@@ -7,8 +7,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
 import '../../models/autofocus_progress.dart' show StarCrop;
 import '../../models/backend/backend_types.dart';
 import '../../models/imaging/imaging_models.dart' show CapturedImage;
-import '../../services/science/fits_header_writer.dart'
-    show FitsKeywordWrite;
+import '../../services/science/fits_header_writer.dart' show FitsKeywordWrite;
 import '../../models/plate_solver.dart'
     show PlateSolverDetection, PlateSolverInfo, PlateSolverPreference;
 
@@ -31,7 +30,6 @@ import '../../models/plate_solver.dart'
 ///   * Sequencer image grading / quality config — see [SequencerBackend].
 ///   * Profile / settings — see [ProfileSettingsBackend].
 abstract class ImagingBackend {
-
   /// Set the file format this host saves captured frames in, manual and
   /// sequence alike: [format] is `FITS` or `XISF`, [xisfCompression] an XISF
   /// codec name (`zstd+sh`, `lz4`, `none`). Only the host that writes the
@@ -46,9 +44,9 @@ abstract class ImagingBackend {
   /// keeping its pixels and everything else it holds.
   Future<void> updateFrameCards(String filePath, List<FitsKeywordWrite> cards);
 
-  /// Save FITS file directly from the last captured image stored server-side.
-  /// This eliminates raw pixel data transfer across FFI/network boundaries.
-  /// More efficient than saveFitsFile for normal capture workflows.
+  /// Save the camera's last frame as FITS on the host, where its pixels
+  /// already are. The host reads the rig for the header when it writes the
+  /// file; [headerData] carries what a device cannot say.
   Future<void> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,

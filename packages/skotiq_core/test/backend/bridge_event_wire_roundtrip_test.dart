@@ -87,7 +87,22 @@ void main() {
         total: 10,
         durationSecs: 300,
       ),
-      const bridge.SequencerEvent.error(message: 'focuser timeout'),
+      const bridge.SequencerEvent.error(
+        message: 'focuser timeout',
+        kind: bridge.SequencerErrorKind.stepFailed,
+      ),
+      const bridge.SequencerEvent.error(
+        message: 'Trigger asked for an autofocus but no focuser is configured',
+        kind: bridge.SequencerErrorKind.stepProblem,
+      ),
+      const bridge.SequencerEvent.error(
+        message: 'DriftLimit recenter failed',
+        kind: bridge.SequencerErrorKind.runHeld,
+      ),
+      const bridge.SequencerEvent.error(
+        message: 'Autofocus frame not saved',
+        kind: bridge.SequencerErrorKind.standalone,
+      ),
       const bridge.SequencerEvent.meridianFlipOutcome(
         outcome: 'succeeded',
         targetName: 'M31',
