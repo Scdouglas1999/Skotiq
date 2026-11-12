@@ -110,9 +110,9 @@ class _SeededSequence extends CurrentSequenceNotifier {
   }
 }
 
-class _FixedProgress extends SequenceProgressNotifier {
+class _FixedProgress extends RunRecordNotifier {
   _FixedProgress(SequenceProgress seed) {
-    state = seed;
+    state = state.copyWith(progress: seed);
   }
 }
 
@@ -197,7 +197,7 @@ ProviderContainer planContainer({
             : _SeededSequence(ref, sequence),
       ),
       sequenceExecutionStateProvider.overrideWith((ref) => execution),
-      sequenceProgressProvider.overrideWith((ref) => _FixedProgress(progress)),
+      runRecordProvider.overrideWith((ref) => _FixedProgress(progress)),
       sessionStateProvider.overrideWith((ref) => _FixedSession(ref, session)),
       eventHistoryProvider.overrideWith((ref) => _FixedHistory(events)),
       recentSessionFramesProvider.overrideWithValue(sessionFrames),

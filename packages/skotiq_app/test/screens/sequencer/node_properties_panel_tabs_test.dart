@@ -148,10 +148,10 @@ void main() {
     await tester.pump();
 
     handle.container
-        .read(sequenceProgressProvider.notifier)
+        .read(runRecordProvider.notifier)
         .updateNodeStatus(node.id, NodeStatus.running);
     handle.container
-        .read(nodeExposureTallyProvider.notifier)
+        .read(runRecordProvider.notifier)
         .recordFrames(node.id, captured: 6, planned: 12);
 
     await tester.tap(find.text('Activity'), warnIfMissed: false);
@@ -313,19 +313,19 @@ void main() {
     // panel keeps lastKnownNodeActivityProvider alive, so it still folds.
     expect(find.text('Name'), findsOneWidget);
 
-    final exec = handle.container.read(sequenceExecutionStateProvider.notifier);
-    exec.state = SequenceExecutionState.running;
-    final progress = handle.container.read(sequenceProgressProvider.notifier);
+    final exec = handle.container.read(runRecordProvider.notifier);
+    exec.setLifecycle(SequenceExecutionState.running);
+    final progress = handle.container.read(runRecordProvider.notifier);
     progress.updateNodeStatus(node.id, NodeStatus.running);
     handle.container
-        .read(nodeExposureTallyProvider.notifier)
+        .read(runRecordProvider.notifier)
         .recordFrames(node.id, captured: 4, planned: 4);
     progress.updateNodeStatus(node.id, NodeStatus.success);
     // The run ends and the per-node maps clear (reset at the next run's
     // start — the tally follows the same lifecycle).
-    progress.reset();
-    handle.container.read(nodeExposureTallyProvider.notifier).reset();
-    exec.state = SequenceExecutionState.completed;
+    progress.resetProgress();
+    handle.container.read(runRecordProvider.notifier).resetTally();
+    exec.setLifecycle(SequenceExecutionState.completed);
     await tester.pump();
 
     await tester.tap(find.text('Activity'), warnIfMissed: false);
@@ -347,23 +347,23 @@ void main() {
     loadAndSelect(handle, singleNodeSequence(node), node.id);
     await tester.pump();
 
-    final exec = handle.container.read(sequenceExecutionStateProvider.notifier);
-    final progress = handle.container.read(sequenceProgressProvider.notifier);
-    final tally = handle.container.read(nodeExposureTallyProvider.notifier);
+    final exec = handle.container.read(runRecordProvider.notifier);
+    final progress = handle.container.read(runRecordProvider.notifier);
+    final tally = handle.container.read(runRecordProvider.notifier);
 
     // Run 1: the node completes all four frames.
-    exec.state = SequenceExecutionState.running;
+    exec.setLifecycle(SequenceExecutionState.running);
     progress.updateNodeStatus(node.id, NodeStatus.running);
     tally.recordFrames(node.id, captured: 4, planned: 4);
     progress.updateNodeStatus(node.id, NodeStatus.success);
-    exec.state = SequenceExecutionState.completed;
+    exec.setLifecycle(SequenceExecutionState.completed);
     await tester.pump();
 
     // Run 2 starts: the executor resets the progress + tally maps and the
     // execution state re-enters running from a settled state.
-    progress.reset();
-    tally.reset();
-    exec.state = SequenceExecutionState.running;
+    progress.resetProgress();
+    tally.resetTally();
+    exec.setLifecycle(SequenceExecutionState.running);
     await tester.pump();
 
     await tester.tap(find.text('Activity'), warnIfMissed: false);
@@ -386,7 +386,7 @@ void main() {
     // Running with no tally and no parsed detail yet: the unclamped
     // `liveFrame - 1` read "-1 of 12 done" here.
     handle.container
-        .read(sequenceProgressProvider.notifier)
+        .read(runRecordProvider.notifier)
         .updateNodeStatus(node.id, NodeStatus.running);
     await tester.pump();
 
@@ -408,10 +408,10 @@ void main() {
     // Six frames already captured BEFORE the tab opens: opening must not
     // pop — those frames did not "just land".
     handle.container
-        .read(sequenceProgressProvider.notifier)
+        .read(runRecordProvider.notifier)
         .updateNodeStatus(node.id, NodeStatus.running);
     handle.container
-        .read(nodeExposureTallyProvider.notifier)
+        .read(runRecordProvider.notifier)
         .recordFrames(node.id, captured: 6, planned: 12);
     await tester.pump();
 
@@ -427,7 +427,7 @@ void main() {
     // A real landing — the count increments while the tab is open — pops
     // exactly the new cell.
     handle.container
-        .read(nodeExposureTallyProvider.notifier)
+        .read(runRecordProvider.notifier)
         .recordFrames(node.id, captured: 7, planned: 12);
     await tester.pump();
 
@@ -635,7 +635,7 @@ void main() {
         'pass', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final progress = container.read(sequenceProgressProvider.notifier);
+      final progress = container.read(runRecordProvider.notifier);
 
       // Read first so the notifier is alive while progress flows — the
       // inspector watches it, and a lazy read afterwards would only see the
@@ -647,7 +647,7 @@ void main() {
       progress.updateNodeStatus('n1', NodeStatus.success);
       // The success path empties the per-node maps; the snapshot must keep
       // the last true reading.
-      progress.reset();
+      progress.resetProgress();
 
       var snapshot = container.read(lastKnownNodeActivityProvider)['n1'];
       expect(snapshot, isNotNull);
@@ -668,16 +668,16 @@ void main() {
         'settled state', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
-      final progress = container.read(sequenceProgressProvider.notifier);
-      final exec = container.read(sequenceExecutionStateProvider.notifier);
+      final progress = container.read(runRecordProvider.notifier);
+      final exec = container.read(runRecordProvider.notifier);
       container.read(lastKnownNodeActivityProvider);
 
       // Run 1 leaves a finished-node snapshot behind.
-      exec.state = SequenceExecutionState.running;
+      exec.setLifecycle(SequenceExecutionState.running);
       progress.updateNodeStatus('n1', NodeStatus.running);
       progress.updateNodeStatus('n1', NodeStatus.success);
-      progress.reset();
-      exec.state = SequenceExecutionState.completed;
+      progress.resetProgress();
+      exec.setLifecycle(SequenceExecutionState.completed);
       expect(
         container.read(lastKnownNodeActivityProvider)['n1'],
         isNotNull,
@@ -685,13 +685,13 @@ void main() {
 
       // Run 2 starts — completed -> running is a start-admissible
       // transition, so run 1's memory is gone with it.
-      exec.state = SequenceExecutionState.running;
+      exec.setLifecycle(SequenceExecutionState.running);
       expect(container.read(lastKnownNodeActivityProvider), isEmpty);
 
       // A RESUME (paused -> running) is not a new run and must not clear.
       progress.updateNodeStatus('n2', NodeStatus.running);
-      exec.state = SequenceExecutionState.paused;
-      exec.state = SequenceExecutionState.running;
+      exec.setLifecycle(SequenceExecutionState.paused);
+      exec.setLifecycle(SequenceExecutionState.running);
       expect(
         container.read(lastKnownNodeActivityProvider)['n2']!.status,
         NodeStatus.running,

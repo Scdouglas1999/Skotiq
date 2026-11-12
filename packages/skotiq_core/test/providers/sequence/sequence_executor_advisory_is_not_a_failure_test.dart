@@ -78,10 +78,10 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
     return (container, container.read(sequenceExecutorProvider));
   }
 

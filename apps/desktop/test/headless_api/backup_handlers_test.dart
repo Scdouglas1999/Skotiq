@@ -104,8 +104,7 @@ void main() {
     });
 
     test('restore is rejected while a sequence is active', () async {
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
 
       final response = await handlers.handleRestoreBackup(
         Request(

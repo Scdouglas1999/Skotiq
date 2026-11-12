@@ -72,8 +72,7 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    container.read(liveSequenceStatsProvider.notifier).state =
-        SequenceRunStats();
+    container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
     if (sequence != null) {
       container
           .read(currentSequenceProvider.notifier)

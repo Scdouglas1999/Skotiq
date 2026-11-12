@@ -106,35 +106,34 @@ void _finishNight(ProviderContainer host) {
     runId: 41,
     dbSessionId: 113,
   );
-  host.read(completedImagingRunProvider.notifier).state = CompletedImagingRun(
-    imaging,
-    stats,
-  );
   host
-      .read(sequenceTerminalRunResultProvider.notifier)
-      .state = const SequenceTerminalRunResult(
-    generation: 5,
-    outcome: SequenceExecutionState.idle,
-    runStatus: 'stopped',
-    runId: 42,
-    dbSessionId: 114,
-    isCalibration: true,
-  );
+      .read(runRecordProvider.notifier)
+      .setCompletedImagingRun(CompletedImagingRun(imaging, stats));
   host
-      .read(lastEndedRunProvider.notifier)
-      .mirrorHost(
-        LastEndedRun(
-          sequenceId: 'plan-ngc7331',
-          endedAt: DateTime(2026, 11, 3, 18, 36),
+      .read(runRecordProvider.notifier)
+      .publishTerminal(
+        const SequenceTerminalRunResult(
+          generation: 5,
+          outcome: SequenceExecutionState.idle,
+          runStatus: 'stopped',
+          runId: 42,
+          dbSessionId: 114,
+          isCalibration: true,
         ),
       );
-  host.read(runStartedAtProvider.notifier).state = DateTime(
-    2026,
-    11,
-    3,
-    18,
-    33,
-  );
+  host
+      .read(runRecordProvider.notifier)
+      .seed(
+        (run) => run.copyWith(
+          lastEnded: LastEndedRun(
+            sequenceId: 'plan-ngc7331',
+            endedAt: DateTime(2026, 11, 3, 18, 36),
+          ),
+        ),
+      );
+  host
+      .read(runRecordProvider.notifier)
+      .seed((run) => run.copyWith(startedAt: DateTime(2026, 11, 3, 18, 33)));
 }
 
 /// Let the host's publisher see the change (derived providers notify on the
@@ -179,13 +178,9 @@ void main() {
   test('a client that joins a live run keeps the host start time', () async {
     final host = _host();
     addTearDown(host.dispose);
-    host.read(runStartedAtProvider.notifier).state = DateTime(
-      2026,
-      11,
-      3,
-      20,
-      20,
-    );
+    host
+        .read(runRecordProvider.notifier)
+        .seed((run) => run.copyWith(startedAt: DateTime(2026, 11, 3, 20, 20)));
     await _published();
 
     final backend = _clientBackend(host);
@@ -196,8 +191,9 @@ void main() {
     await hydrateHostRuntimeState(client, backend);
     // The run's state reaches the client after the record (a status poll or
     // event): this client sees it go live now, the host saw it at 20:20.
-    client.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.paused;
+    client
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.paused);
 
     expect(client.read(runStartedAtProvider), DateTime(2026, 11, 3, 20, 20));
   });

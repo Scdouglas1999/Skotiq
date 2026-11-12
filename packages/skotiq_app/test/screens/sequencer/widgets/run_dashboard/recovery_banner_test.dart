@@ -78,8 +78,8 @@ Widget _harness({
         return notifier;
       }),
       if (execState != null)
-        sequenceProgressProvider.overrideWith(
-            (ref) => SequenceProgressNotifier()..updateState(execState)),
+        runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier()..showPhase(execState)),
     ],
     child: MaterialApp(
       theme: ThemeData.dark().copyWith(

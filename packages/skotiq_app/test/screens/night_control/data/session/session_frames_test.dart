@@ -55,15 +55,13 @@ void main() {
         [kSessionId, kNight.millisecondsSinceEpoch ~/ 1000]);
     await h.addFrame(minutes: 1, filter: 'L', accepted: true);
     await h.addFrame(minutes: 2, filter: 'L', accepted: false);
-    h.container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.failed;
-    h.container.read(sequenceTerminalRunResultProvider.notifier).state =
-        const SequenceTerminalRunResult(
+    h.container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.failed);
+    h.container.read(runRecordProvider.notifier).publishTerminal(const SequenceTerminalRunResult(
             generation: 1,
             outcome: SequenceExecutionState.failed,
             runStatus: 'failed',
             runId: 51,
-            dbSessionId: kSessionId);
+            dbSessionId: kSessionId));
     expect(h.read(sessionStateProvider).dbSessionId, isNull);
     expect(h.read(nightSessionIdProvider), kSessionId);
     final rows = await h.settle(nightSessionLightRowsProvider);
@@ -75,16 +73,14 @@ void main() {
         180);
     final stats = SequenceRunStats()..framesCaptured = 2;
     stats.endTime = stats.startTime.add(const Duration(hours: 8));
-    h.container.read(completedImagingRunProvider.notifier).state =
-        CompletedImagingRun(h.read(sequenceTerminalRunResultProvider)!, stats);
-    h.container.read(sequenceTerminalRunResultProvider.notifier).state =
-        const SequenceTerminalRunResult(
+    h.container.read(runRecordProvider.notifier).setCompletedImagingRun(CompletedImagingRun(h.read(sequenceTerminalRunResultProvider)!, stats));
+    h.container.read(runRecordProvider.notifier).publishTerminal(const SequenceTerminalRunResult(
             generation: 2,
             outcome: SequenceExecutionState.completed,
             runStatus: 'completed',
             runId: 52,
             dbSessionId: 8,
-            isCalibration: true);
+            isCalibration: true));
     expect(h.read(nightSessionIdProvider), kSessionId);
     expect((await h.settle(nightSessionLightRowsProvider)).length, 2);
     expect(h.read(nightSessionStatsProvider).frameCount, 2);

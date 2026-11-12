@@ -11,9 +11,9 @@ void main() {
     final h = await sessionHarness();
     final keep = h.container.listen(nightSessionEventsProvider, (_, __) {});
     addTearDown(keep.close);
-    final stats = h.container.read(liveSequenceStatsProvider.notifier);
-    stats.state = SequenceRunStats();
-    stats.state = SequenceRunStats()..autofocusRuns = 1;
+    final stats = h.container.read(runRecordProvider.notifier);
+    stats.setStats(SequenceRunStats());
+    stats.setStats(SequenceRunStats()..autofocusRuns = 1);
 
     // The overlay's result for the same run fills the mark in.
     final overlay = h.container.read(autofocusOverlayProvider.notifier);

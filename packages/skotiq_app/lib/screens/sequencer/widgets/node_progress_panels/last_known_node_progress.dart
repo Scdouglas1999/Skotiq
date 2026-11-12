@@ -72,7 +72,7 @@ class NodeActivitySnapshot {
 /// progress maps touch is folded in, and a node whose status transitions INTO
 /// `running` first drops its previous snapshot — a fresh pass over the node is
 /// no longer the previous run's story (mirrors `_NodeItem.didUpdateWidget`'s
-/// `_forgetLiveProgress`). `SequenceProgressNotifier.reset()` empties the maps
+/// `_forgetLiveProgress`). `RunRecordNotifier.reset()` empties the maps
 /// without touching this state, which is exactly what lets a finished node's
 /// last readings survive for the rest of the session.
 ///

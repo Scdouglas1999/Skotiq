@@ -1840,7 +1840,7 @@ void main() {
       final c = ProviderContainer();
       addTearDown(c.dispose);
       final stats = SequenceRunStats();
-      c.read(liveSequenceStatsProvider.notifier).state = stats;
+      c.read(runRecordProvider.notifier).setStats(stats);
 
       var notifications = 0;
       c.listen<SequenceRunStats?>(
@@ -1856,7 +1856,7 @@ void main() {
         exposureSecs: 60,
         accepted: true,
       );
-      c.read(liveSequenceStatsProvider.notifier).state = stats;
+      c.read(runRecordProvider.notifier).setStats(stats);
       expect(
         notifications,
         0,
@@ -1866,7 +1866,7 @@ void main() {
       // Re-store a copy(): identity changes, so consumers are notified — and the
       // copy carries the mutated values.
       final snapshot = stats.copy();
-      c.read(liveSequenceStatsProvider.notifier).state = snapshot;
+      c.read(runRecordProvider.notifier).setStats(snapshot);
       expect(notifications, 1, reason: 'copy() changes identity and notifies');
       expect(snapshot.framesCaptured, 1);
       expect(identical(snapshot, stats), isFalse);

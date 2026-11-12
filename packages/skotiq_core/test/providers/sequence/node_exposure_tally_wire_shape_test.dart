@@ -52,7 +52,7 @@ void main() {
   const node2 = '9617e5f0-node-two';
 
   test('the wire shape — detail_json as a JSON String — reaches the tally', () {
-    final tally = NodeExposureTallyNotifier();
+    final tally = RunRecordNotifier();
     applySequencerEventToNodeExposureTally(
       tally,
       _seq('NodeStarted', {'node_id': node1}),
@@ -65,14 +65,14 @@ void main() {
     }
 
     expect(
-      tally.state[node1],
+      tally.state.tally[node1],
       const NodeExposureTally(captured: 4, planned: 4),
       reason: 'the node-addressed source must reach the tally on the real path',
     );
   });
 
   test('an already-decoded Map payload is still accepted', () {
-    final tally = NodeExposureTallyNotifier();
+    final tally = RunRecordNotifier();
     applySequencerEventToNodeExposureTally(
       tally,
       _seq('InstructionProgressStructured', {
@@ -82,11 +82,11 @@ void main() {
       }),
     );
 
-    expect(tally.state[node1]?.captured, 4);
+    expect(tally.state.tally[node1]?.captured, 4);
   });
 
   test('a malformed detail_json payload is ignored, not counted', () {
-    final tally = NodeExposureTallyNotifier();
+    final tally = RunRecordNotifier();
     applySequencerEventToNodeExposureTally(
       tally,
       _seq('InstructionProgressStructured', {
@@ -100,7 +100,7 @@ void main() {
   });
 
   test('the node boundary cannot credit node 2 with node 1 frames', () {
-    final tally = NodeExposureTallyNotifier();
+    final tally = RunRecordNotifier();
     applySequencerEventToNodeExposureTally(
       tally,
       _seq('NodeStarted', {'node_id': node1}),
@@ -140,19 +140,19 @@ void main() {
     );
 
     expect(
-      tally.state[node1],
+      tally.state.tally[node1],
       const NodeExposureTally(captured: 4, planned: 4),
       reason: 'the finished node captured four frames and must read 4 / 4',
     );
     expect(
-      tally.state[node2],
+      tally.state.tally[node2],
       isNull,
       reason: 'node 2 has captured nothing; crediting it is join-by-position',
     );
   });
 
   test('structured progress with no node id is not attributed to anyone', () {
-    final tally = NodeExposureTallyNotifier();
+    final tally = RunRecordNotifier();
     applySequencerEventToNodeExposureTally(
       tally,
       _seq('NodeStarted', {'node_id': node1}),
@@ -170,7 +170,7 @@ void main() {
   });
 
   test('a fresh pass over a node clears the previous pass frames', () {
-    final tally = NodeExposureTallyNotifier();
+    final tally = RunRecordNotifier();
     for (var frame = 1; frame <= 4; frame++) {
       applySequencerEventToNodeExposureTally(
         tally,
@@ -182,6 +182,6 @@ void main() {
       _seq('NodeStarted', {'node_id': node1}),
     );
 
-    expect(tally.state[node1], isNull);
+    expect(tally.state.tally[node1], isNull);
   });
 }

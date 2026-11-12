@@ -5,7 +5,7 @@ void _applySequencerEvent(
   SkotiqEvent event, {
   SkotiqBackend? networkBackend,
 }) {
-  final progressNotifier = _read(reader, sequenceProgressProvider.notifier);
+  final progressNotifier = _read(reader, runRecordProvider.notifier);
   final data = event.data;
 
   // A local [SequenceExecutor] that owns a run (it created the sequence_runs
@@ -15,7 +15,7 @@ void _applySequencerEvent(
   // that transaction, so mirrored lifecycle only drives state when no local
   // run is owned — i.e. we are watching someone else's run, which is the
   // whole point of this handler.
-  final executorOwnsRun = _read(reader, currentRunIdProvider) != null;
+  final executorOwnsRun = _read(reader, runRecordProvider).runId != null;
 
   // The bare names are what a host actually emits (see
   // `ffi_backend/event_mapping.dart`); the `Sequence`-prefixed spellings were
@@ -30,37 +30,27 @@ void _applySequencerEvent(
         message: 'Started sequence: $sequenceName',
       );
       if (executorOwnsRun) break;
-      progressNotifier.updateState(SequenceExecutionState.running);
-      _read(reader, sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      progressNotifier.setLifecycle(SequenceExecutionState.running);
       break;
     case 'Paused':
     case 'SequencePaused':
       if (executorOwnsRun) break;
-      progressNotifier.updateState(SequenceExecutionState.paused);
-      _read(reader, sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.paused;
+      progressNotifier.setLifecycle(SequenceExecutionState.paused);
       break;
     case 'Resumed':
     case 'SequenceResumed':
       if (executorOwnsRun) break;
-      progressNotifier.updateState(SequenceExecutionState.running);
-      _read(reader, sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      progressNotifier.setLifecycle(SequenceExecutionState.running);
       break;
     case 'Stopped':
     case 'SequenceStopped':
       if (executorOwnsRun) break;
-      progressNotifier.updateState(SequenceExecutionState.idle);
-      _read(reader, sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.idle;
+      progressNotifier.setLifecycle(SequenceExecutionState.idle);
       break;
     case 'Completed':
     case 'SequenceCompleted':
       if (executorOwnsRun) break;
-      progressNotifier.updateState(SequenceExecutionState.completed);
-      _read(reader, sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.completed;
+      progressNotifier.setLifecycle(SequenceExecutionState.completed);
       break;
     // A terminal failure must mirror through with its reason, or the phone
     // keeps reporting the state the run held before it died.
@@ -68,9 +58,7 @@ void _applySequencerEvent(
       final error = data['error'] as String? ?? 'Unknown error';
       progressNotifier.updateProgress(message: 'Sequence failed: $error');
       if (executorOwnsRun) break;
-      progressNotifier.updateState(SequenceExecutionState.failed);
-      _read(reader, sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.failed;
+      progressNotifier.setLifecycle(SequenceExecutionState.failed);
       break;
     case 'NodeStarted':
       progressNotifier.updateProgress(
@@ -123,15 +111,11 @@ void _applySequencerMutationFromHost(
       mapped = _mapSequencerState(rawState);
   }
 
-  _read(reader, sequenceExecutionStateProvider.notifier).state = mapped;
-  _read(reader, sequenceProgressProvider.notifier).updateState(mapped);
+  _read(reader, runRecordProvider.notifier).setLifecycle(mapped);
 
   final message = data['message'] as String?;
   if (message != null) {
-    _read(
-      reader,
-      sequenceProgressProvider.notifier,
-    ).updateProgress(message: message);
+    _read(reader, runRecordProvider.notifier).updateProgress(message: message);
   }
 }
 
@@ -304,9 +288,8 @@ Future<void> _refreshSequencerStatus(
 
 void _applySequencerStatus(Object reader, SequencerStatus status) {
   final mapped = _mapSequencerState(status.state);
-  _read(reader, sequenceExecutionStateProvider.notifier).state = mapped;
-  _read(reader, sequenceProgressProvider.notifier).updateState(mapped);
-  _read(reader, sequenceProgressProvider.notifier).updateProgress(
+  _read(reader, runRecordProvider.notifier).setLifecycle(mapped);
+  _read(reader, runRecordProvider.notifier).updateProgress(
     message: status.message,
     currentNodeId: status.currentNodeId,
     currentNodeName: status.currentNodeName,
@@ -317,9 +300,10 @@ void _applySequencerStatus(Object reader, SequencerStatus status) {
   // without this the Vitals tile reads idle next to a live progress bar. Null
   // vitals (idle host, or a host build that doesn't emit them) clears the tile.
   final vitals = status.runVitals;
-  _read(reader, liveSequenceStatsProvider.notifier).state = vitals == null
-      ? null
-      : SequenceRunStats.fromRemoteVitals(vitals);
+  _read(
+    reader,
+    runRecordProvider.notifier,
+  ).setStats(vitals == null ? null : SequenceRunStats.fromRemoteVitals(vitals));
 
   // Why the host's guiding is stopped. Live StopReason events carry it too,
   // but only to a client that was listening when it was set: one that joined

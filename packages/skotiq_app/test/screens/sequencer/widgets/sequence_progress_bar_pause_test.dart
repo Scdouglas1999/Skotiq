@@ -44,7 +44,7 @@ Widget _harness({
     overrides: [
       sequenceExecutionStateProvider.overrideWith((ref) => execState),
       if (progress != null)
-        sequenceProgressProvider.overrideWith(
+        runRecordProvider.overrideWith(
           (ref) => _FixedProgressNotifier(progress),
         ),
     ],
@@ -62,9 +62,9 @@ Widget _harness({
   );
 }
 
-class _FixedProgressNotifier extends SequenceProgressNotifier {
+class _FixedProgressNotifier extends RunRecordNotifier {
   _FixedProgressNotifier(SequenceProgress initial) {
-    state = initial;
+    state = state.copyWith(progress: initial);
   }
 }
 
@@ -94,8 +94,7 @@ void main() {
         final container = ProviderScope.containerOf(
           tester.element(find.byType(SequenceProgressBar)),
         );
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.paused;
+        container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.paused);
         await tester.pump(const Duration(milliseconds: 16));
 
         expect(runningController.isAnimating, isFalse,
@@ -116,8 +115,7 @@ void main() {
         final container = ProviderScope.containerOf(
           tester.element(find.byType(SequenceProgressBar)),
         );
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
         await tester.pump(const Duration(milliseconds: 16));
 
         expect(controller.isAnimating, isTrue,

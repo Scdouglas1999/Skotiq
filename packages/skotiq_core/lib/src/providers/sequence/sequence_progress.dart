@@ -4,20 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/backend/event_types.dart';
 import '../../models/backend/sequencer_status.dart' show CheckpointInfo;
-import '../../models/sequence/instruction_progress_detail.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
 import '../equipment/camera_state_provider.dart';
-import '../sequence_stats_provider.dart' show currentRunIdProvider;
 import 'node_exposure_tally.dart';
+import 'run_record.dart';
 import 'run_stop_classification.dart';
 import 'sequencer_run_event.dart';
 
-final sequenceExecutionStateProvider = StateProvider<SequenceExecutionState>((
-  ref,
-) {
-  return SequenceExecutionState.idle;
-});
+/// Where the run stands.
+final sequenceExecutionStateProvider = Provider<SequenceExecutionState>(
+  (ref) => ref.watch(runRecordProvider.select((run) => run.lifecycle)),
+);
 
 /// Whether the executor is driving simulated device ops.
 ///
@@ -40,181 +38,30 @@ final executorSimulationModeProvider = FutureProvider<bool>((ref) async {
 /// admitted. During this window the execution state may legitimately remain
 /// idle while settings and preflight validation are awaited, so backend swaps
 /// must consult this latch as well as [sequenceExecutionStateProvider].
-final sequenceLaunchInFlightProvider = StateProvider<bool>((ref) => false);
+final sequenceLaunchInFlightProvider = Provider<bool>(
+  (ref) => ref.watch(runRecordProvider.select((run) => run.launching)),
+);
 
 /// The checkpoint `SequenceExecutor.restoreFromCheckpoint` restored and the
 /// next Start will continue, or null. While set, the run is loaded and ready
 /// but nothing has executed.
-final restoredCheckpointProvider = StateProvider<CheckpointInfo?>(
-  (ref) => null,
+final restoredCheckpointProvider = Provider<CheckpointInfo?>(
+  (ref) => ref.watch(runRecordProvider.select((run) => run.restoredCheckpoint)),
 );
 
 /// Frames each exposure step of the loaded plan already had before the run
 /// that is ready or under way, by node id: the checkpoint's count when the run
-/// continues one, empty for a fresh run. Set by `SequenceExecutor` on a
-/// restore and kept through the continued run, so the plan's progress counts
-/// what was taken before it.
-final framesDoneBeforeRunProvider = StateProvider<Map<String, int>>(
-  (ref) => const {},
+/// continues one, empty for a fresh run, so the plan's progress counts what
+/// was taken before it.
+final framesDoneBeforeRunProvider = Provider<Map<String, int>>(
+  (ref) =>
+      ref.watch(runRecordProvider.select((run) => run.framesDoneBeforeRun)),
 );
 
-final sequenceProgressProvider =
-    StateNotifierProvider<SequenceProgressNotifier, SequenceProgress>((ref) {
-      return SequenceProgressNotifier();
-    });
-
-class SequenceProgressNotifier extends StateNotifier<SequenceProgress> {
-  SequenceProgressNotifier() : super(const SequenceProgress());
-
-  /// Show the imaging host's run progress on a linked client that does not
-  /// own the run. The client's own lifecycle state is kept: that one is
-  /// driven by the run's lifecycle events.
-  void mirrorHostProgress(SequenceProgress hostProgress) {
-    state = hostProgress.copyWith(
-      state: state.state,
-      nodeProgressStructuredDetail: state.nodeProgressStructuredDetail,
-    );
-  }
-
-  void updateState(SequenceExecutionState executionState) {
-    state = state.copyWith(state: executionState);
-  }
-
-  // `updateProgress` means "a null argument leaves the field alone". The next
-  // `SequenceProgress` is therefore rebuilt explicitly rather than through
-  // `copyWith`: a generated copyWith treats `null` per field-nullability — a
-  // compile error on non-null fields, "clear" on nullable ones — and neither
-  // is the omit semantic every caller here relies on.
-  void updateProgress({
-    String? currentNodeId,
-    String? currentNodeName,
-    NodeStatus? currentNodeStatus,
-    int? completedExposures,
-    double? completedIntegrationSecs,
-    double? elapsedSecs,
-    double? estimatedRemainingSecs,
-    String? currentTarget,
-    String? currentFilter,
-    String? message,
-  }) {
-    final current = state;
-    state = SequenceProgress(
-      state: current.state,
-      currentNodeId: currentNodeId ?? current.currentNodeId,
-      currentNodeName: currentNodeName ?? current.currentNodeName,
-      currentNodeStatus: currentNodeStatus ?? current.currentNodeStatus,
-      totalExposures: current.totalExposures,
-      completedExposures: completedExposures ?? current.completedExposures,
-      totalIntegrationSecs: current.totalIntegrationSecs,
-      completedIntegrationSecs:
-          completedIntegrationSecs ?? current.completedIntegrationSecs,
-      elapsedSecs: elapsedSecs ?? current.elapsedSecs,
-      estimatedRemainingSecs:
-          estimatedRemainingSecs ?? current.estimatedRemainingSecs,
-      currentTarget: currentTarget ?? current.currentTarget,
-      currentFilter: currentFilter ?? current.currentFilter,
-      message: message ?? current.message,
-      nodeStatuses: current.nodeStatuses,
-      nodeProgressPercent: current.nodeProgressPercent,
-      nodeProgressDetail: current.nodeProgressDetail,
-      nodeProgressStructuredDetail: current.nodeProgressStructuredDetail,
-    );
-  }
-
-  void updateNodeStatus(String nodeId, NodeStatus status) {
-    final newStatuses = Map<String, NodeStatus>.from(state.nodeStatuses);
-    newStatuses[nodeId] = status;
-    state = state.copyWith(nodeStatuses: newStatuses);
-  }
-
-  void updateNodeProgress(
-    String nodeId,
-    double progressPercent,
-    String detail,
-  ) {
-    final newProgressPercent = Map<String, double>.from(
-      state.nodeProgressPercent,
-    );
-    final newProgressDetail = Map<String, String>.from(
-      state.nodeProgressDetail,
-    );
-
-    newProgressPercent[nodeId] = progressPercent;
-    newProgressDetail[nodeId] = detail;
-
-    state = state.copyWith(
-      nodeProgressPercent: newProgressPercent,
-      nodeProgressDetail: newProgressDetail,
-    );
-  }
-
-  void updateNodeStructuredProgress(
-    String nodeId,
-    double progressPercent,
-    InstructionProgressDetail detail,
-  ) {
-    final newProgressPercent = Map<String, double>.from(
-      state.nodeProgressPercent,
-    );
-    final newStructuredDetail = Map<String, InstructionProgressDetail>.from(
-      state.nodeProgressStructuredDetail,
-    );
-
-    newProgressPercent[nodeId] = progressPercent;
-    newStructuredDetail[nodeId] = detail;
-
-    state = state.copyWith(
-      nodeProgressPercent: newProgressPercent,
-      nodeProgressStructuredDetail: newStructuredDetail,
-    );
-  }
-
-  /// Set the run's denominators. [totalIntegrationSecs] is optional: pass it
-  /// only when a real value is known, otherwise the existing one is kept.
-  ///
-  /// It is optional because the native `Progress` event carries a frame count
-  /// but no integration total: passing its absent value as `0` would clobber,
-  /// roughly once a second, the real total
-  /// [SequenceExecutor._acquireAndStartRun] seeded from the sequence at start.
-  void setTotals(int totalExposures, [double? totalIntegrationSecs]) {
-    state = state.copyWith(
-      totalExposures: totalExposures,
-      totalIntegrationSecs: totalIntegrationSecs ?? state.totalIntegrationSecs,
-    );
-  }
-
-  /// Signature of the last `ExposureCompleted` already folded into
-  /// [SequenceProgress.completedIntegrationSecs]. See
-  /// [recordCompletedFrameIntegration].
-  String? _lastIntegrationEventKey;
-
-  /// Add one completed frame's shutter time to the run's integration total,
-  /// exactly once per event.
-  ///
-  /// Two independent subscribers handle `ExposureCompleted` on a desktop host —
-  /// the DeviceService-driven pump in this file and [SequenceExecutor]'s own
-  /// handler — so an unguarded read-modify-write counts every frame twice.
-  ///
-  /// [eventKey] must identify the originating EVENT, not the frame: both
-  /// subscribers receive the SAME event object, so its timestamp plus the frame
-  /// index distinguishes "the other subscriber already handled this" from "a
-  /// genuinely new frame".
-  void recordCompletedFrameIntegration({
-    required String eventKey,
-    required double durationSecs,
-  }) {
-    if (_lastIntegrationEventKey == eventKey) return;
-    _lastIntegrationEventKey = eventKey;
-    state = state.copyWith(
-      completedIntegrationSecs: state.completedIntegrationSecs + durationSecs,
-    );
-  }
-
-  void reset() {
-    _lastIntegrationEventKey = null;
-    state = const SequenceProgress();
-  }
-}
+/// The run's counters, current step and per-step status.
+final sequenceProgressProvider = Provider<SequenceProgress>(
+  (ref) => ref.watch(runRecordProvider.select((run) => run.progress)),
+);
 
 /// WHO ended the run in progress, as the last authorship evidence on the wire
 /// named them — null while nothing has named anyone.
@@ -228,8 +75,8 @@ class SequenceProgressNotifier extends StateNotifier<SequenceProgress> {
 ///
 /// Cleared when a run starts, so one night's cause can never be attached to the
 /// next one's stop.
-final sequenceStopEvidenceProvider = StateProvider<SequenceStopDecision?>(
-  (ref) => null,
+final sequenceStopEvidenceProvider = Provider<SequenceStopDecision?>(
+  (ref) => ref.watch(runRecordProvider.select((run) => run.stopEvidence)),
 );
 
 /// The stop authorship a sequencer event carries, or null when the event names
@@ -286,7 +133,7 @@ void recordRunEventStopEvidence(
 ) {
   final decision = runEventStopEvidence(event);
   if (decision == null) return;
-  read(sequenceStopEvidenceProvider.notifier).state = decision;
+  read(runRecordProvider.notifier).setStopEvidence(decision);
 }
 
 /// True when a local [SequenceExecutor] owns the running sequence, and is
@@ -299,7 +146,7 @@ void recordRunEventStopEvidence(
 /// state for such a run. With no local run (the headless `load -> start` path)
 /// this pump is the only writer of lifecycle state.
 bool _localExecutorOwnsRun(SequenceProviderReader read) =>
-    read(currentRunIdProvider) != null;
+    read(runRecordProvider).runId != null;
 
 /// Apply a backend sequencer event to the sequence state providers.
 ///
@@ -311,28 +158,23 @@ void applySequencerEventToSequenceProviders(
 ) {
   final event = SequencerRunEvent.fromSkotiqEvent(raw);
   if (event == null) return;
-  final progressNotifier = read(sequenceProgressProvider.notifier);
+  final progressNotifier = read(runRecordProvider.notifier);
   final executorOwnsRun = _localExecutorOwnsRun(read);
 
   // This pump is the only tally writer on a headless host; the tally's writes
   // are monotonic per node, so the executor folding the same event is a no-op.
-  applyRunEventToNodeExposureTally(
-    read(nodeExposureTallyProvider.notifier),
-    event,
-  );
+  applyRunEventToNodeExposureTally(progressNotifier, event);
   recordRunEventStopEvidence(read, event);
 
-  void setState(SequenceExecutionState state) {
-    progressNotifier.updateState(state);
-    read(sequenceExecutionStateProvider.notifier).state = state;
-  }
+  void setState(SequenceExecutionState state) =>
+      progressNotifier.setLifecycle(state);
 
   switch (event) {
     case RunStarted():
       final sequenceName = event.sequenceName ?? 'Unknown';
       // A new run answers for itself: the previous run's stop cause must not
       // be read as this one's.
-      read(sequenceStopEvidenceProvider.notifier).state = null;
+      progressNotifier.setStopEvidence(null);
       if (executorOwnsRun) {
         progressNotifier.updateProgress(
           message: 'Started sequence: $sequenceName',
@@ -341,13 +183,11 @@ void applySequencerEventToSequenceProviders(
       }
       // With no executor, nothing else clears the previous run's accounting;
       // integration seconds accumulate and would otherwise span every run.
-      progressNotifier.reset();
-      progressNotifier.updateState(SequenceExecutionState.running);
+      progressNotifier.resetProgress();
+      progressNotifier.setLifecycle(SequenceExecutionState.running);
       progressNotifier.updateProgress(
         message: 'Started sequence: $sequenceName',
       );
-      read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
 
     case RunPaused():
       if (!executorOwnsRun) setState(SequenceExecutionState.paused);

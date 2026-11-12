@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
-import 'package:skotiq_core/src/providers/sequence/node_exposure_tally.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 
 /// Tests for the per-target execution progress rollup.
@@ -18,11 +17,9 @@ ProviderContainer _container({
         notifier.state = sequence;
         return notifier;
       }),
-      sequenceProgressProvider.overrideWith((ref) {
-        final n = SequenceProgressNotifier();
-        // ignore: invalid_use_of_protected_member
-        n.state = progress;
-        return n;
+      runRecordProvider.overrideWith((ref) {
+        return RunRecordNotifier()
+          ..seed((run) => run.copyWith(progress: progress));
       }),
     ],
   );
@@ -118,7 +115,7 @@ void main() {
         ),
       );
       c
-          .read(nodeExposureTallyProvider.notifier)
+          .read(runRecordProvider.notifier)
           .recordFrames(t.firstExpoId, captured: 3, planned: 8);
       final p = c.read(targetExecutionProgressProvider(t.targetId));
       expect(p.completedFrames, 3);

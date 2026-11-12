@@ -106,7 +106,7 @@ import '../../harness/pump_app_screen.dart';
 Future<HarnessHandle> _pumpTree(
   WidgetTester tester,
   Sequence sequence,
-  SequenceProgressNotifier progress,
+  RunRecordNotifier progress,
 ) async {
   final notifier = CurrentSequenceNotifier();
   // ignore: invalid_use_of_protected_member
@@ -122,7 +122,7 @@ Future<HarnessHandle> _pumpTree(
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceProgressProvider.overrideWith((_) => progress),
+      runRecordProvider.overrideWith((_) => progress),
       sequenceExecutionStateProvider
           .overrideWith((ref) => SequenceExecutionState.idle),
       // The minute clock is a real periodic stream whose timer outlives every
@@ -137,7 +137,7 @@ Future<HarnessHandle> _pumpTree(
 /// Mark A's whole branch finished, exactly as the run's NodeCompleted events
 /// would.
 void _finishTargetA(
-  SequenceProgressNotifier progress,
+  RunRecordNotifier progress,
   ({
     Sequence sequence,
     String targetA,
@@ -162,7 +162,7 @@ void main() {
   testWidgets('the run leaving a finished target folds it away',
       (tester) async {
     final t = _twoTargets();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(tester, t.sequence, progress);
 
     progress.updateProgress(currentNodeId: t.a1);
@@ -186,7 +186,7 @@ void main() {
   testWidgets('the executing branch is re-opened as the run enters it',
       (tester) async {
     final t = _twoTargets();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(tester, t.sequence, progress);
 
     handle.container
@@ -205,7 +205,7 @@ void main() {
   testWidgets('a container the operator re-opened mid-run is left alone',
       (tester) async {
     final t = _twoTargets();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(tester, t.sequence, progress);
     final collapsed = handle.container.read(collapsedNodeIdsProvider.notifier);
 
@@ -235,7 +235,7 @@ void main() {
   testWidgets('a finished container the operator opened is folded anyway',
       (tester) async {
     final t = _twoTargets();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(tester, t.sequence, progress);
     final collapsed = handle.container.read(collapsedNodeIdsProvider.notifier);
 
@@ -263,7 +263,7 @@ void main() {
   testWidgets('the tree re-opening a branch does not count as the operator',
       (tester) async {
     final t = _twoTargets();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(tester, t.sequence, progress);
 
     handle.container
@@ -289,7 +289,7 @@ void main() {
   testWidgets('follow execution off stops the tree moving under the operator',
       (tester) async {
     final t = _twoTargets();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(tester, t.sequence, progress);
     handle.container.read(followExecutionProvider.notifier).state = false;
 
@@ -304,13 +304,13 @@ void main() {
   testWidgets('a run reset forgets what the last run was holding open',
       (tester) async {
     final t = _twoTargets();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final handle = await _pumpTree(tester, t.sequence, progress);
     final collapsed = handle.container.read(collapsedNodeIdsProvider.notifier);
     final execution =
-        handle.container.read(sequenceExecutionStateProvider.notifier);
+        handle.container.read(runRecordProvider.notifier);
 
-    execution.state = SequenceExecutionState.running;
+    execution.setLifecycle(SequenceExecutionState.running);
     progress.updateProgress(currentNodeId: t.a1);
     await tester.pump();
 
@@ -321,7 +321,7 @@ void main() {
 
     // Stop. Back at idle the statuses are cleared and nothing in the sequence
     // has run, so a hold recorded against the last run describes nothing.
-    execution.state = SequenceExecutionState.idle;
+    execution.setLifecycle(SequenceExecutionState.idle);
     await tester.pump();
 
     // A second night reaches the same point, and this time nothing shields
@@ -337,7 +337,7 @@ void main() {
   testWidgets('opening a different sequence forgets the last one\'s holds',
       (tester) async {
     final t = _twoTargets();
-    final progress = SequenceProgressNotifier();
+    final progress = RunRecordNotifier();
     final notifier = CurrentSequenceNotifier();
     // ignore: invalid_use_of_protected_member
     notifier.state = t.sequence;
@@ -351,7 +351,7 @@ void main() {
       settle: false,
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
-        sequenceProgressProvider.overrideWith((_) => progress),
+        runRecordProvider.overrideWith((_) => progress),
         sequenceExecutionStateProvider
             .overrideWith((ref) => SequenceExecutionState.idle),
         ledgerClockProvider

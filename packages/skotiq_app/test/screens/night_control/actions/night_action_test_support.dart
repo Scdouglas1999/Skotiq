@@ -110,7 +110,7 @@ class FakeRigOps implements NightRigOps {
   SequenceExecutionState get _run =>
       container.read(sequenceExecutionStateProvider);
   set _run(SequenceExecutionState value) =>
-      container.read(sequenceExecutionStateProvider.notifier).state = value;
+      container.read(runRecordProvider.notifier).setLifecycle(value);
 
   Future<void> _act(String name) async {
     calls.add(name);
@@ -322,7 +322,7 @@ class FakeRigOps implements NightRigOps {
     ...extra,
   ]);
   ops = FakeRigOps(container);
-  container.read(sequenceExecutionStateProvider.notifier).state = runState;
+  container.read(runRecordProvider.notifier).setLifecycle(runState);
   // Keep the controller alive for the whole test.
   container.listen(nightActionControllerProvider, (_, __) {});
   return (container: container, ops: ops, log: log);

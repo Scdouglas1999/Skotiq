@@ -32,9 +32,9 @@ class _Mount extends MountStateNotifier {
   void pier(String side) => state = state.copyWith(sideOfPier: side);
 }
 
-class _Progress extends SequenceProgressNotifier {
+class _Progress extends RunRecordNotifier {
   _Progress(String? message) {
-    state = SequenceProgress(message: message);
+    state = state.copyWith(progress: SequenceProgress(message: message));
   }
 }
 
@@ -93,7 +93,7 @@ class _Rig {
         nightNowProvider.overrideWithValue((now ?? _t0).toUtc()),
         nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
         mountStateProvider.overrideWith(_Mount.new),
-        sequenceProgressProvider.overrideWith((ref) => _Progress(message)),
+        runRecordProvider.overrideWith((ref) => _Progress(message)),
         eventHistoryProvider.overrideWith((ref) => EventHistoryNotifier()),
       ],
     );
@@ -246,14 +246,14 @@ void main() {
     final rig = _Rig();
     addTearDown(rig.container.dispose);
     final execution =
-        rig.container.read(sequenceExecutionStateProvider.notifier);
-    execution.state = SequenceExecutionState.running;
+        rig.container.read(runRecordProvider.notifier);
+    execution.setLifecycle(SequenceExecutionState.running);
     rig.emit(_triggerFired(_t0));
     rig.pier('East');
     expect(rig.flip.doneForThisTransit, isTrue);
 
-    execution.state = SequenceExecutionState.failed;
-    execution.state = SequenceExecutionState.running;
+    execution.setLifecycle(SequenceExecutionState.failed);
+    execution.setLifecycle(SequenceExecutionState.running);
     expect(rig.flip.doneForThisTransit, isFalse);
     expect(rig.flip.inProgress, isFalse);
   });

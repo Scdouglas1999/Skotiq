@@ -46,7 +46,7 @@ Widget _harness(SequenceExecutionState execState, {bool offstage = false}) {
 void _setState(WidgetTester tester, SequenceExecutionState next) {
   ProviderScope.containerOf(
     tester.element(find.byType(SequenceProgressBar)),
-  ).read(sequenceExecutionStateProvider.notifier).state = next;
+  ).read(runRecordProvider.notifier).setLifecycle(next);
 }
 
 void main() {

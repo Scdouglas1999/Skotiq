@@ -38,11 +38,10 @@ void main() {
     editor.addNode(exposure, parentId: target.id);
 
     // Halfway through the node: two of four frames done (6s of 12s).
-    final progress = container.read(sequenceProgressProvider.notifier);
+    final progress = container.read(runRecordProvider.notifier);
     progress.updateNodeStatus(exposure.id, NodeStatus.running);
     progress.updateNodeProgress(exposure.id, 50, 'Frame 3/4');
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
 
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1200, 1400);

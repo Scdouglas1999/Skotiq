@@ -427,9 +427,9 @@ class _ScreenshotSequence extends CurrentSequenceNotifier {
   }
 }
 
-class _ScreenshotProgress extends SequenceProgressNotifier {
+class _ScreenshotProgress extends RunRecordNotifier {
   _ScreenshotProgress() {
-    updateState(SequenceExecutionState.running);
+    showPhase(SequenceExecutionState.running);
     setTotals(36, 6480);
     // Six frames in, two of each filter, and the seventh - an Ha - is
     // exposing. Everything below has to agree with that: the ring, the
@@ -718,7 +718,7 @@ final _sharedOverrides = <Override>[
   sequenceExecutionStateProvider.overrideWith(
     (ref) => SequenceExecutionState.running,
   ),
-  sequenceProgressProvider.overrideWith((ref) => _ScreenshotProgress()),
+  runRecordProvider.overrideWith((ref) => _ScreenshotProgress()),
   schedulerPreviewDecisionProvider.overrideWith((ref) async {
     return _schedulerDecision;
   }),

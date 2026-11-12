@@ -92,7 +92,7 @@ Future<HarnessHandle> _pumpTree(
   required Sequence sequence,
   bool disableAnimations = false,
   Size size = const Size(1200, 900),
-  SequenceProgressNotifier? progress,
+  RunRecordNotifier? progress,
   SequenceExecutionState executionState = SequenceExecutionState.idle,
   SequencerDensity density = SequencerDensity.ledger,
   double textScale = 1.0,
@@ -142,7 +142,7 @@ Future<HarnessHandle> _pumpTree(
         return clock;
       }),
       if (progress != null)
-        sequenceProgressProvider.overrideWith((_) => progress),
+        runRecordProvider.overrideWith((_) => progress),
       _testDensityProvider.overrideWith((ref) => density),
       sequencerDensityProvider
           .overrideWith((ref) => ref.watch(_testDensityProvider)),
@@ -295,7 +295,7 @@ void main() {
     });
     testWidgets('the running row breathes not at all', (tester) async {
       final built = _tree();
-      final progress = SequenceProgressNotifier();
+      final progress = RunRecordNotifier();
       await _pumpTree(
         tester,
         sequence: built.sequence,
@@ -362,7 +362,7 @@ void main() {
         'the running marker breathes inside a gate, with the '
         'RepaintBoundary OUTSIDE it', (tester) async {
       final built = _tree();
-      final progress = SequenceProgressNotifier();
+      final progress = RunRecordNotifier();
       await _pumpTree(
         tester,
         sequence: built.sequence,

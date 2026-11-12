@@ -189,7 +189,7 @@ void main() {
 
     await expectRevealMovesOnlyTheTree(tester, () async {
       handle.container
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .updateProgress(currentNodeId: seed.lastExposureId);
     });
   });

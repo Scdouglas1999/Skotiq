@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/node_exposure_tally.dart';
+import '../../sequence/run_record.dart';
 import '../../sequence/sequence_progress.dart';
 import '../../sequence_stats_provider.dart' show currentRunIdProvider;
 import '../../session_provider.dart';
@@ -127,7 +128,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
       final percent = progress['nodePercent'];
       final detail = progress['nodeDetail'];
       context
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .mirrorHostProgress(
             SequenceProgress(
               currentNodeId: jsonString(progress['currentNodeId']),
@@ -169,7 +170,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
 
     final tally = value['tally'];
     if (tally is Map) {
-      context.read(nodeExposureTallyProvider.notifier).mirrorHostTally({
+      context.read(runRecordProvider.notifier).mirrorHostTally({
         for (final e in tally.entries)
           if (e.key is String &&
               e.value is List &&

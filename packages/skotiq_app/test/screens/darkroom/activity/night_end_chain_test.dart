@@ -81,20 +81,18 @@ void main() {
 
   /// The dawn park ends the run of [session].
   void dawnEnds(ProviderContainer container, int session, int runId) {
-    container.read(sequenceStopEvidenceProvider.notifier).state =
-        const SequenceStopDecision(
+    container.read(runRecordProvider.notifier).setStopEvidence(const SequenceStopDecision(
       SequenceStopAuthor.system,
       origin: 'dawn_approaching',
       parked: true,
-    );
-    container.read(sequenceTerminalRunResultProvider.notifier).state =
-        SequenceTerminalRunResult(
+    ));
+    container.read(runRecordProvider.notifier).publishTerminal(SequenceTerminalRunResult(
       generation: ++generation,
       outcome: SequenceExecutionState.idle,
       runStatus: 'aborted',
       runId: runId,
       dbSessionId: session,
-    );
+    ));
   }
 
   Future<NightEndRun> nightEndRun(

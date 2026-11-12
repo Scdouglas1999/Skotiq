@@ -14,7 +14,7 @@ import 'package:mockito/mockito.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/equipment/focuser_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/focuser_temp_compensation_provider.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_progress.dart';
+import 'package:skotiq_core/src/providers/sequence/run_record.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
 
@@ -61,7 +61,7 @@ Future<ProviderContainer> _buildContainer({
     ],
   );
   await container.read(appSettingsProvider.future);
-  container.read(sequenceExecutionStateProvider.notifier).state = sequenceState;
+  container.read(runRecordProvider.notifier).setLifecycle(sequenceState);
   return container;
 }
 
@@ -260,8 +260,9 @@ void main() {
 
         // Sequence ends; the next temperature tick captures the baseline and
         // then compensates on the subsequent tick.
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.completed;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.completed);
         focuser.updateTemperature(15.0); // baseline (5000 / 15.0)
         await Future<void>.delayed(Duration.zero);
         focuser.updateTemperature(13.0); // delta = +24 → 5024

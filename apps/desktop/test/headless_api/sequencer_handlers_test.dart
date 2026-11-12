@@ -878,7 +878,7 @@ void main() {
         ),
       );
       container
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .updateProgress(currentTarget: 'M Long Field');
 
       final body = await status();
@@ -915,8 +915,8 @@ void main() {
         (_) async => const SequencerStatus(state: 'running', progress: 0.0),
       );
       container
-          .read(sequenceProgressProvider.notifier)
-          .updateState(SequenceExecutionState.running);
+          .read(runRecordProvider.notifier)
+          .showPhase(SequenceExecutionState.running);
 
       final body = await status();
 

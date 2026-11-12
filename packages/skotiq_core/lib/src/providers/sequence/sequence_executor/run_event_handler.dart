@@ -22,9 +22,10 @@ import '../../replay_debug_provider.dart';
 import '../../sequence_provider.dart'
     show
         recordRunEventStopEvidence,
+        runRecordProvider,
+        RunRecordNotifier,
         sequenceExecutionStateProvider,
         sequenceProgressProvider,
-        SequenceProgressNotifier,
         sequenceStopEvidenceProvider;
 import '../../sequence_stats_provider.dart';
 import '../../session_provider.dart';
@@ -125,14 +126,14 @@ class RunEventHandler {
     }
 
     applyRunEventToNodeExposureTally(
-      _ref.read(nodeExposureTallyProvider.notifier),
+      _ref.read(runRecordProvider.notifier),
       event,
     );
     // Authorship rows precede the cause-neutral cancel notice, so they are
     // folded as they arrive.
     recordRunEventStopEvidence(_ref.read, event);
 
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
     switch (event) {
       case NodeStarted():
         _onNodeStarted(event, progressNotifier);
@@ -182,7 +183,7 @@ class RunEventHandler {
       case RunStarted():
         // A new run answers for itself: the previous run's stop cause must not
         // be read as this one's.
-        _ref.read(sequenceStopEvidenceProvider.notifier).state = null;
+        _ref.read(runRecordProvider.notifier).setStopEvidence(null);
         _targetSkippedAtEntry = false;
         _setExecutionState(SequenceExecutionState.running);
       case RunPaused():
@@ -235,10 +236,7 @@ class RunEventHandler {
     }
   }
 
-  void _onNodeStarted(
-    NodeStarted event,
-    SequenceProgressNotifier progressNotifier,
-  ) {
+  void _onNodeStarted(NodeStarted event, RunRecordNotifier progressNotifier) {
     final nodeId = event.nodeId;
     if (nodeId != null) {
       progressNotifier.updateProgress(
@@ -255,7 +253,7 @@ class RunEventHandler {
 
   void _onNodeCompleted(
     NodeCompleted event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final nodeId = event.nodeId;
     if (nodeId == null) return;
@@ -288,7 +286,7 @@ class RunEventHandler {
 
   void _onExposureStarted(
     ExposureStarted event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final frame = event.frame ?? 0;
     final total = event.total ?? 0;
@@ -314,7 +312,7 @@ class RunEventHandler {
 
   void _onExposureCompleted(
     ExposureCompleted event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final frame = event.frame ?? 0;
     final total = event.total ?? 1;
@@ -358,7 +356,7 @@ class RunEventHandler {
 
   void _onSequencerError(
     SequencerError event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final message = event.message ?? 'Unknown error';
     // An advisory shares the Error payload; it is a warning on the run, never
@@ -409,7 +407,7 @@ class RunEventHandler {
 
   void _onStructuredProgress(
     StructuredInstructionProgress event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     // A Change Filter instruction is the only place the running filter is
     // named when the exposure node itself has none.
@@ -433,7 +431,7 @@ class RunEventHandler {
 
   void _onInstructionProgress(
     InstructionProgress event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final instruction = event.instruction ?? '';
     final percent = event.progressPercent ?? 0.0;
@@ -455,10 +453,7 @@ class RunEventHandler {
     }
   }
 
-  void _onTriggerFired(
-    TriggerFired event,
-    SequenceProgressNotifier progressNotifier,
-  ) {
+  void _onTriggerFired(TriggerFired event, RunRecordNotifier progressNotifier) {
     final triggerName = event.triggerName ?? 'Unknown trigger';
     final action = triggerActionText(event.action ?? '');
     _stats.update((stats) => stats.recordTriggerFire());
@@ -502,7 +497,7 @@ class RunEventHandler {
   /// of it, and put the run's account of it on the run record.
   void _onHorizonObstruction(
     HorizonObstructionDetected event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final site = _ref.read(appObserverLocationProvider);
     final latitude = event.latitude ?? site?.latitude;
@@ -820,7 +815,7 @@ class RunEventHandler {
   /// twelve-minute recovery and after it, with the mount on the east side.
   /// The verdict that follows does not count it again.
   void _handleMeridianFlipOutcome(MeridianFlipOutcome event) {
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
     final outcome = event.outcome ?? 'unknown';
     final targetName = event.targetName ?? 'target';
     final attempts = event.attempts ?? 0;

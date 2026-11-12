@@ -28,10 +28,8 @@ import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
         currentSequenceProvider,
-        framesDoneBeforeRunProvider,
-        restoredCheckpointProvider,
+        runRecordProvider,
         sequenceExecutionStateProvider,
-        sequenceLaunchInFlightProvider,
         sequenceProgressProvider;
 import '../sequence_stats_provider.dart';
 import '../session_provider.dart';
@@ -39,7 +37,6 @@ import '../settings_provider.dart';
 // Session-lifecycle hooks: optical-train baseline capture,
 // post-session diagnostics summary, NotificationRouter active-sequence
 // tracking, USB disconnect aggregation.
-import 'node_exposure_tally.dart';
 import 'run_stop_classification.dart';
 import 'sequence_validation.dart' as validation;
 import 'sequence_executor/eta_smoothing.dart';
@@ -146,7 +143,7 @@ class SequenceExecutor {
   late final RunStatsLedger _stats = RunStatsLedger(
     readStats: () => _ref.read(liveSequenceStatsProvider),
     publishStats: (stats) =>
-        _ref.read(liveSequenceStatsProvider.notifier).state = stats,
+        _ref.read(runRecordProvider.notifier).setStats(stats),
     readRunId: () => _ref.read(currentRunIdProvider),
     runsDao: () => _ref.read(sequenceRunsDaoProvider),
     logger: () => _logger,
@@ -450,7 +447,7 @@ class SequenceExecutor {
   /// checkpoint is already in the host's executor and is started as it is.
   Future<void> _startOnHost(SkotiqBackend backend, RemoteHost host) async {
     if (!_hostRestoreAwaitingStart) {
-      _ref.read(framesDoneBeforeRunProvider.notifier).state = const {};
+      _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
       final sequence = _ref.read(currentSequenceProvider);
       if (sequence == null) throw _noSequenceLoaded();
       await host.runState.putOpenEditorSequence(
@@ -462,7 +459,7 @@ class SequenceExecutor {
     await backend.sequencerStart();
     if (_hostRestoreAwaitingStart) {
       _hostRestoreAwaitingStart = false;
-      _ref.read(restoredCheckpointProvider.notifier).state = null;
+      _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
     }
     _logger.info(
       'Started the run on the imaging host ${host.link.serverHost}',
@@ -516,12 +513,12 @@ class SequenceExecutor {
 
   void _acquireLaunchLatch() {
     _lifecycle.launch.acquire();
-    _ref.read(sequenceLaunchInFlightProvider.notifier).state = true;
+    _ref.read(runRecordProvider.notifier).setLaunching(true);
   }
 
   void _releaseLaunchLatch() {
     _lifecycle.launch.release();
-    _ref.read(sequenceLaunchInFlightProvider.notifier).state = false;
+    _ref.read(runRecordProvider.notifier).setLaunching(false);
   }
 
   /// Open the `imaging_sessions` row for this run.
@@ -622,8 +619,8 @@ class SequenceExecutor {
           sequenceName: sequenceName,
           sequenceSnapshotJson: snapshotJson,
         );
-    _ref.read(currentRunIdProvider.notifier).state = runId;
-    _ref.read(liveSequenceStatsProvider.notifier).state = SequenceRunStats();
+    _ref.read(runRecordProvider.notifier).setRunId(runId);
+    _ref.read(runRecordProvider.notifier).setStats(SequenceRunStats());
     _liveStacking.resetForRun();
     _frames.clearVerdicts();
 
@@ -673,9 +670,9 @@ class SequenceExecutor {
     }
     // Clear the previous run's progress, as [_acquireAndStartRun] does: the
     // integration total and the per-node badges accumulate otherwise.
-    _ref.read(sequenceProgressProvider.notifier).reset();
-    _ref.read(nodeExposureTallyProvider.notifier).reset();
-    _ref.read(framesDoneBeforeRunProvider.notifier).state = const {};
+    _ref.read(runRecordProvider.notifier).resetProgress();
+    _ref.read(runRecordProvider.notifier).resetTally();
+    _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
     return _openRunRecords(
       sequenceName: sequenceName,
       sequenceDatabaseId: sequenceDatabaseId,
@@ -702,8 +699,8 @@ class SequenceExecutor {
         source: 'SequenceExecutor',
       );
     }
-    _ref.read(currentRunIdProvider.notifier).state = null;
-    _ref.read(liveSequenceStatsProvider.notifier).state = null;
+    _ref.read(runRecordProvider.notifier).setRunId(null);
+    _ref.read(runRecordProvider.notifier).setStats(null);
   }
 
   /// Push every user-controlled RuntimeConfig field into the already-loaded
@@ -734,7 +731,7 @@ class SequenceExecutor {
   void _publishElapsed(double elapsedSecs) {
     final progress = _ref.read(sequenceProgressProvider);
     _ref
-        .read(sequenceProgressProvider.notifier)
+        .read(runRecordProvider.notifier)
         .updateProgress(
           elapsedSecs: elapsedSecs,
           estimatedRemainingSecs: _eta.remainingSeconds(
@@ -755,23 +752,21 @@ class SequenceExecutor {
     // Before the editor is locked by the running-state flip below, so the
     // adopted database id lands on a document that still accepts it.
     sequence = await _ensureSequencePersisted(sequence);
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
     // Clear the previous run's progress before seeding this one's: the
     // integration total and the per-node maps accumulate otherwise.
-    progressNotifier.reset();
+    progressNotifier.resetProgress();
     // The per-node frame tally is deliberately NOT cleared when a run ENDS:
     // clearing it there erases the frames the finished run captured before any
     // reader sees them. Run START is where the previous run's frames stop
     // being this node's story.
-    _ref.read(nodeExposureTallyProvider.notifier).reset();
-    _ref.read(framesDoneBeforeRunProvider.notifier).state = const {};
+    _ref.read(runRecordProvider.notifier).resetTally();
+    _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
     progressNotifier.setTotals(
       sequence.totalExposures,
       sequence.totalIntegrationSecs,
     );
-    progressNotifier.updateState(SequenceExecutionState.running);
-    _ref.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    progressNotifier.setLifecycle(SequenceExecutionState.running);
 
     await _targets.bind(sequence);
     await _startSessionRow(sequence);
@@ -888,7 +883,7 @@ class SequenceExecutor {
     _stats.reopen();
     // The sequencer screen must see a clean null -> result transition when
     // this run ends, never the previous run's report.
-    _ref.read(sequenceTerminalRunResultProvider.notifier).state = null;
+    _ref.read(runRecordProvider.notifier).publishTerminal(null);
   }
 
   /// Single rollback path for a failed [start] / [resumeFromCheckpoint], routed
@@ -1098,9 +1093,7 @@ class SequenceExecutor {
 
     if (error != null) {
       _recordTerminalRunError(error);
-      _ref
-          .read(sequenceProgressProvider.notifier)
-          .updateProgress(message: error);
+      _ref.read(runRecordProvider.notifier).updateProgress(message: error);
     }
 
     // Enter the busy finalization phase synchronously, then drive cleanup. The
@@ -1279,7 +1272,7 @@ class SequenceExecutor {
 
     // 5. Clear identity, release ownership, handle the checkpoint.
     try {
-      _ref.read(currentRunIdProvider.notifier).state = null;
+      _ref.read(runRecordProvider.notifier).setRunId(null);
     } catch (e) {
       secondary('clear run id', e);
     }
@@ -1288,7 +1281,7 @@ class SequenceExecutor {
       // keep vitals for). A natural terminal / explicit stop deliberately KEEPS
       // the live stats so the post-run notes prompt can pre-fill from them.
       try {
-        _ref.read(liveSequenceStatsProvider.notifier).state = null;
+        _ref.read(runRecordProvider.notifier).setStats(null);
       } catch (e) {
         secondary('clear live stats', e);
       }
@@ -1440,13 +1433,15 @@ class SequenceExecutor {
       );
       if (!_isCalibrationRun) {
         _ref
-            .read(completedImagingRunProvider.notifier)
-            .state = CompletedImagingRun(
-          result,
-          _ref.read(liveSequenceStatsProvider)?.copy(),
-        );
+            .read(runRecordProvider.notifier)
+            .setCompletedImagingRun(
+              CompletedImagingRun(
+                result,
+                _ref.read(liveSequenceStatsProvider)?.copy(),
+              ),
+            );
       }
-      _ref.read(sequenceTerminalRunResultProvider.notifier).state = result;
+      _ref.read(runRecordProvider.notifier).publishTerminal(result);
     } catch (e) {
       _logger.warning(
         'Failed to publish terminal run result: $e',
@@ -1519,11 +1514,7 @@ class SequenceExecutor {
         if (status.state.toLowerCase() != 'paused') {
           throw Exception('Pause operation timed out - state not confirmed');
         }
-        _ref
-            .read(sequenceProgressProvider.notifier)
-            .updateState(SequenceExecutionState.paused);
-        _ref.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.paused;
+        _setExecutionState(SequenceExecutionState.paused);
       }
 
       _notePausedByExecutor(true);
@@ -1556,11 +1547,7 @@ class SequenceExecutor {
         if (status.state.toLowerCase() != 'running') {
           throw Exception('Resume operation timed out - state not confirmed');
         }
-        _ref
-            .read(sequenceProgressProvider.notifier)
-            .updateState(SequenceExecutionState.running);
-        _ref.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        _setExecutionState(SequenceExecutionState.running);
       }
 
       _notePausedByExecutor(false);
@@ -1685,14 +1672,8 @@ class SequenceExecutor {
     return _launchDrive(f);
   }
 
-  /// Publish [state] to both the progress notifier and the execution-state
-  /// provider in lockstep. Every lifecycle transition must move the two
-  /// together; a surface that reads one and not the other must never observe a
-  /// split state.
-  void _setExecutionState(SequenceExecutionState state) {
-    _ref.read(sequenceProgressProvider.notifier).updateState(state);
-    _ref.read(sequenceExecutionStateProvider.notifier).state = state;
-  }
+  void _setExecutionState(SequenceExecutionState state) =>
+      _ref.read(runRecordProvider.notifier).setLifecycle(state);
 
   Future<void> skip() async {
     _ensureBackendAuthority();
@@ -1831,9 +1812,9 @@ class SequenceExecutor {
       await stop();
     }
 
-    _ref.read(sequenceProgressProvider.notifier).reset();
-    _ref.read(nodeExposureTallyProvider.notifier).reset();
-    _ref.read(framesDoneBeforeRunProvider.notifier).state = const {};
+    _ref.read(runRecordProvider.notifier).resetProgress();
+    _ref.read(runRecordProvider.notifier).resetTally();
+    _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
 
     final backend = _backend;
     try {
@@ -1909,9 +1890,10 @@ class SequenceExecutor {
         await backend.resumeFromCheckpoint();
         _hostRestoreAwaitingStart = true;
         final info = await backend.getCheckpointInfo();
-        _ref.read(restoredCheckpointProvider.notifier).state = info;
-        _ref.read(framesDoneBeforeRunProvider.notifier).state =
-            info?.framesDoneByStep ?? const {};
+        _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(info);
+        _ref
+            .read(runRecordProvider.notifier)
+            .setFramesDoneBeforeRun(info?.framesDoneByStep ?? const {});
         return;
       }
       await _restoreFromCheckpointInner();
@@ -1937,7 +1919,7 @@ class SequenceExecutor {
 
   void _clearRestored() {
     _restored = null;
-    _ref.read(restoredCheckpointProvider.notifier).state = null;
+    _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
   }
 
   /// Rehydrate [currentSequenceProvider] for a resumed run from the snapshot
@@ -2039,7 +2021,7 @@ class SequenceExecutor {
       info.sequenceName,
     );
 
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
     progressNotifier.updateProgress(
       completedExposures: info.completedExposures,
       completedIntegrationSecs: info.completedIntegrationSecs,
@@ -2053,9 +2035,10 @@ class SequenceExecutor {
       snapshotJson: recoveredSnapshotJson,
       sequence: _ref.read(currentSequenceProvider),
     );
-    _ref.read(restoredCheckpointProvider.notifier).state = info;
-    _ref.read(framesDoneBeforeRunProvider.notifier).state =
-        info.framesDoneByStep;
+    _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(info);
+    _ref
+        .read(runRecordProvider.notifier)
+        .setFramesDoneBeforeRun(info.framesDoneByStep);
     _logger.info(
       'Restored "${info.sequenceName}" from its checkpoint '
       '(${info.completedExposures} frames, '
@@ -2091,10 +2074,8 @@ class SequenceExecutor {
     // session and no native run.
     _beginLaunch();
     try {
-      final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
-      progressNotifier.updateState(SequenceExecutionState.running);
-      _ref.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      final progressNotifier = _ref.read(runRecordProvider.notifier);
+      progressNotifier.setLifecycle(SequenceExecutionState.running);
 
       progressNotifier.updateProgress(
         completedExposures: info.completedExposures,

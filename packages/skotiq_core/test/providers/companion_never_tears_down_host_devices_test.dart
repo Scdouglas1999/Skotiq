@@ -145,8 +145,9 @@ void main() {
         when(() => backend.sequencerPause()).thenAnswer((_) async {});
         final container = containerFor();
         container.read(deviceServiceProvider);
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.running);
         for (final (type, id) in [
           ('camera', 'sim_camera_1'),
           ('focuser', 'sim_focuser_1'),
