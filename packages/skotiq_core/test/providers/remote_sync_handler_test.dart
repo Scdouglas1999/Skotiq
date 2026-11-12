@@ -157,6 +157,61 @@ void main() {
       expect(slot.retryDeviceId, 'sim_focuser_1');
     });
 
+    // The host's refusal can reach a client ahead of the host's own
+    // announcement of the connect. The late Connecting then put the failed
+    // slot back to connecting, where nothing ever ended it, and the next
+    // re-read of the host removed the card.
+    test('a host Connecting that arrives behind the refusal of this '
+        'client\'s connect leaves the slot failed', () async {
+      final backend = _connectedBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(
+        () => backend.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      when(
+        () => backend.getConnectedDevices(),
+      ).thenAnswer((_) async => const []);
+      when(
+        () => backend.connectDevice(DeviceType.focuser, 'sim_focuser_1'),
+      ).thenThrow(StateError('unplugged'));
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await expectLater(
+        container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.focuser, 'sim_focuser_1'),
+        throwsA(isA<StateError>()),
+      );
+      await applyRemoteSyncEvent(
+        container,
+        const SkotiqEvent(
+          timestamp: 1,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'Connecting',
+          data: {
+            'device_type': 'focuser',
+            'device_id': 'sim_focuser_1',
+            'device_name': 'Simulated Focuser',
+          },
+        ),
+      );
+
+      final slot = container.read(focuserStateProvider);
+      expect(slot.connectionState, DeviceConnectionState.error);
+      expect(slot.retryDeviceId, 'sim_focuser_1');
+    });
+
     test('equipment Connected updates mount chip without hydration', () async {
       final backend = _connectedBackend();
       when(

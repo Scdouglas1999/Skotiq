@@ -48,6 +48,10 @@ void _applyConnectingDevice(
   }
 
   if (_isHostGuideCamera(reader, parsed, deviceId)) return;
+  // The host announcing a connect this client asked for: the connect call
+  // has set the slot, and when the announcement arrives behind the host's
+  // refusal the slot already shows why it failed.
+  if (DeviceServiceLifecycle.hasOwnConnectOf(deviceId)) return;
   final notifier = readDeviceConnectionNotifier(reader, parsed);
   if (!_isDeviceAlreadyConnected(reader, parsed, deviceId)) {
     notifier.setConnecting(deviceId, deviceName ?? deviceId);

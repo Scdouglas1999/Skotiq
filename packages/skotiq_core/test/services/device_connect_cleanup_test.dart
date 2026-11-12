@@ -146,20 +146,19 @@ void main() {
     when(
       () => backend.getFocuserStatus(deviceId),
     ).thenThrow(StateError('USB cable unplugged'));
-    // The driver's opening event is still in the queue when the bring-up
-    // gives up; it is delivered behind the failure, ahead of the release.
     when(
       () => backend.disconnectDevice(DeviceType.focuser, deviceId),
-    ).thenAnswer((_) async {
-      events
-        ..add(equipmentEvent('Connected', deviceId))
-        ..add(equipmentEvent('Disconnected', deviceId));
-    });
+    ).thenAnswer((_) async {});
 
     await expectLater(
       container.read(deviceServiceProvider).connect(DeviceType.focuser, deviceId),
       throwsA(isA<StateError>()),
     );
+    // The driver's opening event and the release's are delivered only now,
+    // behind the failure.
+    events
+      ..add(equipmentEvent('Connected', deviceId))
+      ..add(equipmentEvent('Disconnected', deviceId));
     await settle();
 
     final slot = container.read(focuserStateProvider);
