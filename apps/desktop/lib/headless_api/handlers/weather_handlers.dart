@@ -112,7 +112,7 @@ class WeatherHandlers implements RouteSource {
           .map(
             (f) => {
               'timestamp': f.timestamp.toUtc().millisecondsSinceEpoch,
-              'time': f.timestamp.toUtc().toIso8601String(),
+              'time': f.timestamp.toWireTime(),
               // Open-Meteo cloud frames carry cloud cover as opacity in [0, 1].
               'cloudCoverPercent': (f.opacity.clamp(0.0, 1.0) * 100.0),
             },
@@ -421,7 +421,7 @@ class WeatherHandlers implements RouteSource {
       "alertLevel": currentAlert?.level.name ?? safety.currentAlertLevel.name,
       "message": _safetyMessage(safety, currentAlert),
       "dataSource": safety.dataSource.name,
-      "lastEvaluation": safety.lastEvaluation?.toIso8601String(),
+      "lastEvaluation": safety.lastEvaluation?.toWireTime(),
     });
   }
 
@@ -460,12 +460,12 @@ class WeatherHandlers implements RouteSource {
       'alertLevel': currentAlert?.level.name ?? safety.currentAlertLevel.name,
       'message': _safetyMessage(safety, currentAlert),
       'dataSource': safety.dataSource.name,
-      'lastEvaluation': safety.lastEvaluation?.toIso8601String(),
+      'lastEvaluation': safety.lastEvaluation?.toWireTime(),
       'currentAlert': currentAlert != null ? _alertToJson(currentAlert) : null,
       'hardwareConnected': hardwareConnected,
       'deviceId': weatherState.deviceId,
       'deviceName': weatherState.deviceName,
-      'lastUpdated': weatherState.lastUpdated?.toIso8601String(),
+      'lastUpdated': weatherState.lastUpdated?.toWireTime(),
       'temperature': temperature,
       'humidity': humidity,
       'cloudCover': cloudCover,
