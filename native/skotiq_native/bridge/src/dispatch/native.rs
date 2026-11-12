@@ -173,8 +173,11 @@ impl DeviceManager {
                 if !mount.is_connected() {
                     return Ok(false);
                 }
+                // A coordinate read, because it always crosses the wire. The
+                // LX200 driver answers the tracking state from memory on most
+                // firmware, so a mount that had gone silent still passed.
                 mount
-                    .get_tracking()
+                    .get_coordinates()
                     .await
                     .map(|_| true)
                     .map_err(|e| format!("Native mount liveness probe failed: {}", e))
