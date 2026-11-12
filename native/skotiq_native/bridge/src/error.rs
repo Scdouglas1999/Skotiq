@@ -106,6 +106,12 @@ pub enum SkotiqError {
         current_operation: String,
     },
 
+    /// The device cannot do this in the state it is in (a dither while
+    /// guiding is paused, say). The message is the whole sentence a person
+    /// reads, including what to do instead.
+    #[error("{0}")]
+    InvalidState(String),
+
     #[error("Image processing error: {0}")]
     ImageError(String),
 
@@ -432,7 +438,7 @@ impl SkotiqError {
 
             SkotiqError::NotSupported { .. } => "unsupported",
 
-            SkotiqError::DeviceBusy { .. } => "busy",
+            SkotiqError::DeviceBusy { .. } | SkotiqError::InvalidState(_) => "busy",
 
             SkotiqError::ImageError(_)
             | SkotiqError::CameraError(_)

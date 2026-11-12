@@ -5,11 +5,6 @@ part of '../ffi_backend.dart';
 Future<T> _native<T>(String operation, FutureOr<T> Function() call) =>
     bridge.NativeBridge.run(operation, call);
 
-/// Guider commands accept every PHD2 spelling but the native guider registry
-/// knows PHD2 under one id.
-String _canonicalGuiderDeviceId(String deviceId) =>
-    isPhd2WireToken(deviceId) ? kPhd2CanonicalId : deviceId;
-
 /// Overall progress the status poll reports for a native sequencer state.
 double sequencerProgressFraction({
   required String state,

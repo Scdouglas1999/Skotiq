@@ -115,10 +115,7 @@ void main() {
       refuses('setCameraCooler'),
     );
     await expectLater(backend.focuserHalt('f'), refuses('apiFocuserHalt'));
-    await expectLater(
-      backend.guiderStopGuiding(deviceId: 'phd2'),
-      refuses('guiderStop'),
-    );
+    await expectLater(backend.guiderStopGuiding(), refuses('guiderStop'));
     await expectLater(
       backend.plateSolve(imagePath: '/tmp/x.fits'),
       refuses('plateSolveBlind'),
@@ -130,7 +127,7 @@ void main() {
   });
 
   test('status polls answer without the library instead of refusing', () async {
-    final status = await backend.phd2GetStatus();
+    final status = await backend.guiderGetStatus();
     expect(status.connected, isFalse);
     expect(status.state, 'Disconnected');
     expect(await backend.getConnectedDevices(), isEmpty);

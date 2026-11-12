@@ -8,7 +8,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `alpaca_broadcast`, `alpaca_device_info`, `alpaca_device_type`, `alpaca_sweep_cache`, `ascom_device_is_hidden`, `devices_from_sweep`, `drivers_for_device_type`, `forget_alpaca_sweep`, `query_indi_device_serial_from_client`, `query_indi_serials_for_server`, `run_alpaca_sweep`, `scan_alpaca_for_type`, `scan_ascom_for_type`, `scan_devices_for_pair`, `scan_indi_for_type`, `scan_native_for_type_with`, `scan_native_for_type`, `scan_simulator_for_type`, `simulator_display_name`, `simulator_for_type`
+// These functions are ignored because they are not marked as `pub`: `alpaca_broadcast`, `alpaca_device_info`, `alpaca_device_type`, `alpaca_sweep_cache`, `ascom_device_is_hidden`, `devices_from_sweep`, `drivers_for_device_type`, `forget_alpaca_sweep`, `indi_server_devices`, `query_indi_device_serial_from_client`, `query_indi_serials_for_server`, `run_alpaca_sweep`, `scan_alpaca_for_type`, `scan_ascom_for_type`, `scan_devices_for_pair`, `scan_indi_for_type`, `scan_native_for_type_with`, `scan_native_for_type`, `scan_simulator_for_type`, `simulator_display_name`, `simulator_for_type`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `scan_native_for_type_public`
 
 /// Discover Alpaca devices at a specific server address

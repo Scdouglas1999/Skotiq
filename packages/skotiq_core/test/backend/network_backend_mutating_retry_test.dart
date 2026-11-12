@@ -82,13 +82,13 @@ void main() {
     var gets = 0;
     final backend = _backend(
       MockClient((request) async {
-        if (request.url.path == '/api/phd2/status') gets++;
+        if (request.url.path == '/api/guider/status') gets++;
         return http.Response('{"error":"busy"}', 503);
       }),
     );
     addTearDown(backend.dispose);
 
-    await expectLater(backend.phd2GetStatus(), throwsA(anything));
+    await expectLater(backend.guiderGetStatus(), throwsA(anything));
     expect(gets, 3);
   });
 }

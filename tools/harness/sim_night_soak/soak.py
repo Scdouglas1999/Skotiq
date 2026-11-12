@@ -397,7 +397,7 @@ class Soak:
         """Everything the invariants read, captured before shutdown."""
         out = {}
         for name, path in (("status", "/api/sequencer/status"), ("mount", "/api/mount/status"),
-                           ("phd2", "/api/phd2/status"), ("recovery", "/api/sequencer/recovery/history")):
+                           ("phd2", "/api/guider/status"), ("recovery", "/api/sequencer/recovery/history")):
             try:
                 out[name] = self.api("GET", path, timeout=15, ok_statuses=(200, 404, 409, 500))
             except Exception as exc:  # noqa: BLE001

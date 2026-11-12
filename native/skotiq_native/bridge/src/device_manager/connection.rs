@@ -220,7 +220,7 @@ impl DeviceManager {
     /// The normal lifecycle is `register_device` (as `Disconnected`) then
     /// `connect_device`, which dispatches to a driver and flips the state. A
     /// backend that owns its own out-of-band transport — PHD2 talks JSON-RPC
-    /// over its own TCP socket, opened by `api_phd2_connect`, not by any driver
+    /// over its own TCP socket, opened by `guider::phd2::connect`, not by any driver
     /// in `dispatch/` — has nothing for `connect_device` to dispatch to, so it
     /// records the already-live connection here instead. A backend that skips
     /// this is invisible to `is_device_connected` /
@@ -1088,8 +1088,8 @@ impl DeviceManager {
         // actually torn down. Without this the PHD2 client was leaked: state
         // was reset but the TCP connection and event listener kept running,
         // so a subsequent reconnect attempted to talk through a stale client.
-        if crate::api::connection::is_phd2_device_id(&device_info.id) {
-            if let Err(e) = crate::api::phd2::api_phd2_disconnect().await {
+        if crate::guider::phd2::is_device_id(&device_info.id) {
+            if let Err(e) = crate::guider::phd2::disconnect().await {
                 // Log loudly so a stuck PHD2 client is never hidden, but
                 // continue with the generic cleanup either way: the device is
                 // already being released and a PHD2-side error must not block

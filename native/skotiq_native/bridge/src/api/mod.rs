@@ -129,6 +129,7 @@ pub mod event_stream;
 pub mod finishing_analyze;
 pub mod finishing_combine;
 pub mod finishing_enhance;
+pub mod guiding;
 pub(crate) mod heartbeat;
 // `pub(crate)` not `pub`: keep this submodule's name out of the crate-root
 // glob (`pub use api::*` in lib.rs) so it doesn't shadow `crate::hotplug`,
@@ -165,6 +166,7 @@ pub use event_stream::*;
 pub use finishing_analyze::*;
 pub use finishing_combine::*;
 pub use finishing_enhance::*;
+pub use guiding::*;
 pub use heartbeat::*;
 // Re-export the hotplug FFI function explicitly rather than glob-importing
 // the submodule — `crate::hotplug` (the listener / poll implementation) is

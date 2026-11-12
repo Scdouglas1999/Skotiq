@@ -62,6 +62,37 @@ void main() {
       expect(sequencer['progress'], isA<Map>());
     });
 
+    // The built-in guider guiding read as "disconnected" here: the snapshot
+    // asked PHD2, which is not connected when the built-in guider is the
+    // host's guider.
+    test('the guiding block is the host guider, whichever it is', () async {
+      final guided = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, _BuiltinGuidingBackend()),
+          ),
+        ],
+      );
+      addTearDown(guided.dispose);
+      final guidedHandlers = RunWatchHandlers(
+        container: guided,
+        eventBroadcast: ctrl.stream,
+      );
+      addTearDown(guidedHandlers.dispose);
+
+      final response = await translateHandlerErrors(
+        guidedHandlers.handleSnapshot(
+          Request('GET', Uri.parse('http://localhost/api/run-watch/snapshot')),
+        ),
+      );
+
+      final body = jsonDecode(await response.readAsString()) as Map;
+      final guiding = body['guiding'] as Map;
+      expect(guiding['state'], 'Guiding');
+      expect(guiding['connected'], isTrue);
+      expect(guiding['rmsTotal'], 0.62);
+    });
+
     test('a failed progress read reports unknown, not idle', () async {
       final failing = ProviderContainer(
         overrides: [
@@ -512,6 +543,26 @@ void main() {
       );
     });
   });
+}
+
+class _FixedBackendNotifier extends BackendNotifier {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) {
+    state = backend;
+  }
+}
+
+/// A host whose guider is the built-in multi-star guider, guiding. PHD2 is
+/// not connected.
+class _BuiltinGuidingBackend extends DisconnectedBackend {
+  @override
+  Future<Phd2Status> guiderGetStatus() async => const Phd2Status(
+    deviceId: builtinGuiderDeviceId,
+    state: 'Guiding',
+    connected: true,
+    rmsRa: 0.41,
+    rmsDec: 0.47,
+    rmsTotal: 0.62,
+  );
 }
 
 /// A 2x2 RGBA frame in the preview buffer, with whatever stats a test needs.
