@@ -2766,8 +2766,11 @@ pub async fn api_sequencer_apply_defect_map(
             let mut flags = defect_apply_flags().lock().await;
             flags.insert(camera_id.clone(), false);
         }
-        let mut executor = crate::api::sequencer::get_sequence_executor().write().await;
-        executor.update_defect_map(None).await;
+        crate::api::sequencer::get_sequence_executor()
+            .read()
+            .await
+            .update_defect_map(None)
+            .await;
         tracing::info!(
             "Defect map application disabled for camera {} (no map pushed to sequencer)",
             camera_id
@@ -2811,8 +2814,11 @@ pub async fn api_sequencer_apply_defect_map(
         save_original,
     };
 
-    let mut executor = crate::api::sequencer::get_sequence_executor().write().await;
-    executor.update_defect_map(Some(state)).await;
+    crate::api::sequencer::get_sequence_executor()
+        .read()
+        .await
+        .update_defect_map(Some(state))
+        .await;
     tracing::info!(
         "Defect map application enabled for camera {} ({}x{}, bucket={} dC) method={}, kernel={}, save_original={}",
         camera_id,
