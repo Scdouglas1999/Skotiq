@@ -78,7 +78,7 @@
 ## safetymonitor.connect [wrong value type]
 > PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
-= Err(Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
+= Err(Parse error: invalid type: map, expected a boolean)
 
 ## safetymonitor.connect [connected reads false x1]
 > PUT /api/v1/safetymonitor/#/connected query[] form[ClientID=<id>&ClientTransactionID=0&Connected=true]
@@ -186,9 +186,7 @@
 
 ## safetymonitor.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## safetymonitor.is_connected [http 400]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -232,9 +230,7 @@
 
 ## safetymonitor.is_connected [ascom 0x40C without Value]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## safetymonitor.is_connected [ascom 0x500]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -258,9 +254,7 @@
 
 ## safetymonitor.is_connected [wrong value type]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
+= Err(Parse error: invalid type: map, expected a boolean)
 
 ## safetymonitor.validate_connection [ok]
 > GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -416,9 +410,7 @@
 
 ## safetymonitor.name [ascom 0x4FF without Value]
 > GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## safetymonitor.name [http 400]
 > GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -446,9 +438,7 @@
 
 ## safetymonitor.description [ascom 0x4FF without Value]
 > GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## safetymonitor.description [http 400]
 > GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -476,9 +466,7 @@
 
 ## safetymonitor.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## safetymonitor.driver_version [http 400]
 > GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -506,9 +494,7 @@
 
 ## safetymonitor.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## safetymonitor.driver_info [http 400]
 > GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -536,9 +522,7 @@
 
 ## safetymonitor.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## safetymonitor.interface_version [http 400]
 > GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -566,9 +550,7 @@
 
 ## safetymonitor.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/safetymonitor/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## safetymonitor.supported_actions [http 400]
 > GET /api/v1/safetymonitor/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -762,9 +744,7 @@
 
 ## safetymonitor.is_safe [ascom 0x4FF without Value]
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## safetymonitor.is_safe [http 400]
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
@@ -808,9 +788,7 @@
 
 ## safetymonitor.is_safe [ascom 0x40C without Value]
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## safetymonitor.is_safe [ascom 0x500]
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
@@ -834,126 +812,4 @@
 
 ## safetymonitor.is_safe [wrong value type]
 > GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
-
-## safetymonitor.get_status [ok]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(SafetyMonitorStatus { connected: true, is_safe: true })
-
-## safetymonitor.get_status [ascom 0x400]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.get_status [ascom 0x4FF without Value]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## safetymonitor.get_status [http 400]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.get_status [http 500]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## safetymonitor.get_status [malformed json]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/issafe query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## safetymonitor.get_info [ok]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(SafetyMonitorInfo { name: "Sim Name", description: "Sim Description", driver_version: "1.2.3", driver_info: "Sim Driver Info", interface_version: 3 })
-
-## safetymonitor.get_info [ascom 0x400]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## safetymonitor.get_info [ascom 0x4FF without Value]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## safetymonitor.get_info [http 400]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## safetymonitor.get_info [http 500]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## safetymonitor.get_info [malformed json]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/description query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverinfo query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/driverversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/interfaceversion query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/safetymonitor/#/name query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+= Err(Parse error: invalid type: map, expected a boolean)

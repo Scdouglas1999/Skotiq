@@ -111,7 +111,7 @@ async fn reconnect_reapplies_camera_cooler() {
         .await;
     {
         let mut cam = get_sim_camera().write().await;
-        cam.status.cooler_on = false;
+        cam.status.cooler_on = Some(false);
         cam.status.target_temp = None;
     }
 
@@ -122,7 +122,11 @@ async fn reconnect_reapplies_camera_cooler() {
 
     {
         let cam = get_sim_camera().read().await;
-        assert!(cam.status.cooler_on, "reconnect must re-enable the cooler");
+        assert_eq!(
+            cam.status.cooler_on,
+            Some(true),
+            "reconnect must re-enable the cooler"
+        );
         assert_eq!(
             cam.status.target_temp,
             Some(-12.0),
@@ -232,7 +236,7 @@ impl skotiq_device::CameraDriver for RecordingCoolerCamera {
             sensor_temp: Some(-10.0),
             cooler_power: Some(0.0),
             target_temp: Some(-10.0),
-            cooler_on: false,
+            cooler_on: Some(false),
             gain: 0,
             offset: 0,
             bin_x: 1,

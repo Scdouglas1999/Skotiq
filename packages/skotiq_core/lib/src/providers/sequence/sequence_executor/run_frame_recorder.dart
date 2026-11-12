@@ -387,7 +387,10 @@ class RunFrameRecorder {
     // Resolved now, from the tree as it was when the frame was produced. The
     // `capture.x ?? attribution.x` fallbacks serve only a client paired with
     // an appliance older than the capture payload; on the FFI path the
-    // capture value is the stronger source. The target id is a `targets.id`
+    // capture value is the stronger source. Gain and offset fall back only
+    // when there is no record at all: in a record, null is a camera without
+    // that control, not a gap for the node's requested value to fill. The
+    // target id is a `targets.id`
     // resolved here, never the event's own `target_id` (a node id).
     final loadedSequence = _ref.read(currentSequenceProvider);
     final attribution = loadedSequence == null
@@ -450,8 +453,10 @@ class RunFrameRecorder {
                 sessionId,
                 FrameCapture(
                   exposureSecs: exposureSecs,
-                  gain: capture.gain ?? attribution.gain,
-                  offset: capture.offset ?? attribution.offset,
+                  gain: capture.hasRecord ? capture.gain : attribution.gain,
+                  offset: capture.hasRecord
+                      ? capture.offset
+                      : attribution.offset,
                   binX: capture.binX ?? attribution.binX,
                   binY: capture.binY ?? attribution.binY,
                   focuserPosition: capture.focuserPosition,
@@ -475,9 +480,9 @@ class RunFrameRecorder {
           filter: filter,
           // FITS IMAGETYP, in the images DB's lowercase spelling.
           frameType: frameType,
-          gain: capture.gain ?? attribution.gain,
+          gain: capture.hasRecord ? capture.gain : attribution.gain,
           gainKind: capture.gainIsIso ? GainKind.iso : GainKind.gain,
-          offset: capture.offset ?? attribution.offset,
+          offset: capture.hasRecord ? capture.offset : attribution.offset,
           binX: capture.binX ?? attribution.binX,
           binY: capture.binY ?? attribution.binY,
           sensorTemp: capture.sensorTempC,
@@ -518,8 +523,10 @@ class RunFrameRecorder {
               exposureTime: exposureSecs ?? 0.0,
               frameType: frameType,
               temperature: capture.sensorTempC,
-              gain: capture.gain ?? attribution.gain ?? 0,
-              offset: capture.offset ?? attribution.offset ?? 0,
+              gain: capture.hasRecord ? capture.gain : attribution.gain,
+              offset: capture.hasRecord
+                  ? capture.offset
+                  : attribution.offset,
               binX: capture.binX ?? attribution.binX,
               binY: capture.binY ?? attribution.binY,
             );

@@ -100,6 +100,11 @@ class FrameCapture {
   /// `targets.id` primary key the row's `target_id` column holds.
   final String? targetId;
 
+  /// Whether the event carried the host's capture record: a host that sends
+  /// it always sends the exposure, an older host sends none of the keys. In a
+  /// record, a null gain or offset is a camera without that control.
+  bool get hasRecord => exposureSecs != null;
+
   /// Read the capture fields back out of a frame event's `data` map. Absent
   /// keys stay null.
   factory FrameCapture.fromEventData(Map<String, dynamic> data) {

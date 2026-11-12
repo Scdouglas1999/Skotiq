@@ -101,7 +101,7 @@ class _WeatherConditions extends ConsumerWidget {
                       valueColor: _cloudCoverTone(colors, cloudCoverPercent),
                     ),
                     Readout(
-                      key: WeatherTutorialKeys.alertRadius,
+                      key: TourTarget.weatherAlertRadius.key,
                       value: alertRadiusKm?.toStringAsFixed(0),
                       unit: 'km',
                       label: 'Alert radius',

@@ -86,7 +86,7 @@ extension _LivePanel on _PolarAlignmentScreenState {
         );
 
     return Container(
-      key: PolarAlignmentTutorialKeys.errorDisplay,
+      key: TourTarget.polarErrorDisplay.key,
       color: colors.surface,
       child: LayoutBuilder(
         builder: (context, constraints) {

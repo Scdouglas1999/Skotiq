@@ -35,8 +35,8 @@ class DarkLibraryService {
     required double exposureTime,
     required String frameType,
     double? temperature,
-    int gain = 0,
-    int offset = 0,
+    int? gain,
+    int? offset,
     int binX = 1,
     int binY = 1,
     int? width,
@@ -78,8 +78,8 @@ class DarkLibraryService {
   /// and the runtime matcher cannot drift apart again.
   Future<DarkLibraryEntry?> findMatchingDark({
     required double exposureTime,
-    required int gain,
-    int offset = 0,
+    required int? gain,
+    int? offset,
     int binX = 1,
     int binY = 1,
     double? temperature,
@@ -225,8 +225,8 @@ class DarkLibraryService {
         exposureTime: built.exposureSecs ?? 0,
         frameType: Value(frameType),
         temperature: Value(built.ccdTempMean ?? built.setTemp),
-        gain: Value(built.gain ?? 0),
-        offset: Value(built.offset ?? 0),
+        gain: Value(built.gain),
+        offset: Value(built.offset),
         binX: Value(built.binX ?? 1),
         binY: Value(built.binY ?? 1),
         width: Value(built.width),
@@ -279,8 +279,8 @@ class DarkLibraryService {
   /// Get all raw frames matching specific parameters (for master dark creation).
   Future<List<DarkLibraryEntry>> getMatchingFrames({
     required double exposureTime,
-    required int gain,
-    int offset = 0,
+    required int? gain,
+    int? offset,
     int binX = 1,
     int binY = 1,
     String frameType = 'dark',

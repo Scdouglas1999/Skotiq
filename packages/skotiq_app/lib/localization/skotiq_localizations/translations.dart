@@ -457,6 +457,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'firstNightWizardSkipForever': 'Skip forever',
     'firstNightWizardStepLabel': 'Step {current} of {total}',
     'firstNightWizardShowMeOnScreen': 'Show me on the {screen} screen',
+    'firstNightWizardReturn': 'Back to the walkthrough',
     // Equipment screen profile management (snackbars + dialogs).
     'equipmentSettingsTitle': 'Equipment settings',
     'equipmentDefaultProfileSet': 'Default profile set',
@@ -873,6 +874,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelCoolerHistorySince': 'Sensor temperature since {time}',
     'nightPanelCoolerNamed': 'Cooler · {name}',
     'nightPanelCoolerNotConnected': 'camera not connected',
+    'nightPanelCoolerNotReported': 'Not reported',
     'nightPanelCoolerOff': 'Off',
     'nightPanelCoolerOffSemantics': 'Turn the cooler off',
     'nightPanelCoolerWarming': 'Warming up',
@@ -2101,6 +2103,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'firstNightWizardSkipForever': 'Omitir para siempre',
     'firstNightWizardStepLabel': 'Paso {current} de {total}',
     'firstNightWizardShowMeOnScreen': 'Muéstrame en la pantalla {screen}',
+    'firstNightWizardReturn': 'Volver a la guía',
     // Equipment screen profile management (snackbars + dialogs).
     'equipmentSettingsTitle': 'Ajustes de equipo',
     'equipmentDefaultProfileSet': 'Perfil predeterminado establecido',
@@ -2511,6 +2514,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelCoolerHistorySince': 'Temperatura del sensor desde las {time}',
     'nightPanelCoolerNamed': 'Refrigeración · {name}',
     'nightPanelCoolerNotConnected': 'cámara no conectada',
+    'nightPanelCoolerNotReported': 'Sin informar',
     'nightPanelCoolerOff': 'Apagada',
     'nightPanelCoolerOffSemantics': 'Apagar la refrigeración',
     'nightPanelCoolerWarming': 'Calentando',

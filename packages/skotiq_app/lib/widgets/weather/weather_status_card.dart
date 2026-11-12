@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../tutorial_keys/weather_keys.dart';
+import '../../tours/tour_target.dart';
 
 /// The radar's own verdict, inside the Weather screen's conditions HUD.
 ///
@@ -149,7 +149,7 @@ class WeatherStatusCard extends StatelessWidget {
           // `readoutSm` and a 300 px HUD gives four readouts ~54 px each, which
           // ellipsizes the unit off the number it belongs to.
           Column(
-            key: WeatherTutorialKeys.cloudMotion,
+            key: TourTarget.weatherCloudMotion.key,
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [

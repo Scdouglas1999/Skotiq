@@ -293,4 +293,48 @@ void main() {
     expect(find.text('Restart to finish restoring'), findsNothing);
     expect(find.textContaining('Could not stage the restore'), findsOneWidget);
   });
+
+  testWidgets('a repair asked for while running is shown once as a dialog',
+      (tester) async {
+    final router = _stubRouter();
+    addTearDown(router.dispose);
+    final container = ProviderContainer(
+      overrides: [
+        inMemoryDatabaseOverride(),
+        appRouterProvider.overrideWithValue(router),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: DatabaseRecoveryLauncher(
+          quarantineInspector: _missingBackup,
+          markerConsumer: () async => null,
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Database needs repair'), findsNothing);
+
+    container.read(databaseRepairNoticeProvider.notifier).state =
+        const DatabaseHealthNotice(
+      title: 'Database needs repair',
+      message: 'Back up the database folder before you restart Skotiq. '
+          'Folder: /data/skotiq',
+      severity: EventSeverity.warning,
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Database needs repair'), findsOneWidget);
+    expect(find.textContaining('Folder: /data/skotiq'), findsOneWidget);
+    expect(container.read(databaseRepairNoticeProvider), isNull);
+
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('Database needs repair'), findsNothing);
+  });
 }

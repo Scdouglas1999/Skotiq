@@ -1760,8 +1760,6 @@ pub async fn api_save_fits_from_last_capture(
             rig: &rig,
             identity: &identity,
             commanded_secs: header_data.exposure_time,
-            commanded_gain: header_data.gain,
-            commanded_offset: header_data.offset,
             binning: (
                 header_data.bin_x.max(1) as u32,
                 header_data.bin_y.max(1) as u32,

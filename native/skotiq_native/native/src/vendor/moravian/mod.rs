@@ -21,6 +21,8 @@ use std::ffi::{c_char, c_double, c_float, c_int, c_void};
 mod camera;
 mod camera_ops;
 mod discovery;
+#[cfg(test)]
+mod documented_tests;
 mod ffi;
 mod helpers;
 mod sdk;

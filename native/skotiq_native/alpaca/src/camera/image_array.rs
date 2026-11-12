@@ -110,35 +110,18 @@ fn parse_rank2(
     let expected = (width as usize)
         .checked_mul(height as usize)
         .ok_or_else(|| AlpacaError::ParseError("width*height overflow".to_string()))?;
-    let mut pixels: Vec<u16> = Vec::with_capacity(expected);
-
-    // Alpaca rank-2 layout is [NumX][NumY] (column-major). We iterate the
-    // outer (X) dimension then the inner (Y) dimension; the resulting flat
-    // vector is column-major in (x, y) — identical to the historical layout
-    // produced by the buggy loop, so existing consumers keep working.
+    check_columns(outer.len(), width, height)?;
+    let mut pixels = vec![0u16; expected];
     let mut offset: usize = 0;
-    for inner in outer.iter() {
-        let inner_arr = inner.as_array().ok_or_else(|| {
-            AlpacaError::ParseError(format!(
-                "Image array row at offset {} is not an array",
-                offset
-            ))
+    for (x, column) in outer.iter().enumerate() {
+        let column = column.as_array().ok_or_else(|| {
+            AlpacaError::ParseError(format!("Image array column {x} is not an array"))
         })?;
-        for pixel in inner_arr.iter() {
-            let v = decode_pixel(pixel, element_type, offset)?;
-            pixels.push(v);
+        check_column_length(x, column.len(), height)?;
+        for (y, pixel) in column.iter().enumerate() {
+            pixels[y * width as usize + x] = decode_pixel(pixel, element_type, offset)?;
             offset += 1;
         }
-    }
-
-    if pixels.len() != expected {
-        return Err(AlpacaError::ParseError(format!(
-            "Image size mismatch: expected {} pixels ({}x{}), got {}",
-            expected,
-            width,
-            height,
-            pixels.len()
-        )));
     }
 
     Ok(ImageArrayResult {
@@ -197,71 +180,40 @@ fn parse_rank3(
         ));
     }
 
-    // Why: scratch buffer in column-major (x, y) order per plane; we transpose
-    // to planar at the end so each plane is contiguous.
-    // Why: u32 → usize widening on every supported
-    // target; `checked_mul` handles the product overflow on 32-bit-usize.
     let pixels_per_plane = (width as usize)
         .checked_mul(height as usize)
         .ok_or_else(|| AlpacaError::ParseError("width*height overflow".to_string()))?;
-    // Why: `planes` was just validated u32; usize widening.
     let total = pixels_per_plane
         .checked_mul(planes as usize)
         .ok_or_else(|| AlpacaError::ParseError("width*height*planes overflow".to_string()))?;
+    check_columns(outer.len(), width, height)?;
     let mut planar: Vec<u16> = vec![0u16; total];
 
     let mut linear: usize = 0;
-    for (xi, inner) in outer.iter().enumerate() {
-        let inner_arr = inner.as_array().ok_or_else(|| {
-            AlpacaError::ParseError(format!("Rank-3 outer[{}] is not an array", xi))
+    for (x, column) in outer.iter().enumerate() {
+        let column = column.as_array().ok_or_else(|| {
+            AlpacaError::ParseError(format!("Rank-3 outer[{}] is not an array", x))
         })?;
-        for (yi, pix) in inner_arr.iter().enumerate() {
+        check_column_length(x, column.len(), height)?;
+        for (y, pix) in column.iter().enumerate() {
             let pix_arr = pix.as_array().ok_or_else(|| {
-                AlpacaError::ParseError(format!(
-                    "Rank-3 outer[{}][{}] pixel is not an array",
-                    xi, yi
-                ))
+                AlpacaError::ParseError(format!("Rank-3 outer[{}][{}] pixel is not an array", x, y))
             })?;
-            // Why: each pixel's plane count is at most a
-            // usize (capped by host memory); if it exceeds u32 it cannot
-            // equal `planes` (a u32) anyway. The cast here only matters
-            // for the inequality comparison and saturates to u32::MAX in
-            // the impossibly-large case — which trips the mismatch check.
-            if u32::try_from(pix_arr.len()).unwrap_or(u32::MAX) != planes {
+            if pix_arr.len() != planes as usize {
                 return Err(AlpacaError::ParseError(format!(
                     "Rank-3 plane-count mismatch at ({},{}): expected {}, got {}",
-                    xi,
-                    yi,
+                    x,
+                    y,
                     planes,
                     pix_arr.len()
                 )));
             }
-            for (pi, channel) in pix_arr.iter().enumerate() {
-                let v = decode_pixel(channel, element_type, linear)?;
-                // Place into planar layout: plane pi, then column-major (xi, yi)
-                // Why: `height` is u32 → usize widening
-                // (≥ 32-bit usize target). `dest` is bounded by `total`
-                // which was computed via `checked_mul` above; index-out-of-
-                // range would panic on the assignment below — but `linear`
-                // is incremented in lockstep with the iteration so this
-                // index is loop-bounded by construction.
-                let dest = (pi * pixels_per_plane) + (xi * (height as usize)) + yi;
-                planar[dest] = v;
+            for (plane, channel) in pix_arr.iter().enumerate() {
+                planar[plane * pixels_per_plane + y * width as usize + x] =
+                    decode_pixel(channel, element_type, linear)?;
                 linear += 1;
             }
         }
-    }
-
-    // Why: cross-check geometry; mismatched array dimensions vs. NumX/NumY
-    // would silently produce a partially-zero plane otherwise.
-    // Why: u32 → usize widening; saturating_mul guards
-    // overflow on 32-bit-usize targets.
-    let expected_linear = pixels_per_plane.saturating_mul(planes as usize);
-    if linear != expected_linear {
-        return Err(AlpacaError::ParseError(format!(
-            "Rank-3 image size mismatch: expected {} pixels ({}x{}x{}), got {}",
-            expected_linear, width, height, planes, linear
-        )));
     }
 
     Ok(ImageArrayResult {
@@ -271,6 +223,32 @@ fn parse_rank3(
         pixels: planar,
         element_type,
     })
+}
+
+/// The array must have `NumX` columns: the ASCOM image array is indexed
+/// `[x][y]`, so its outer dimension is the frame's width.
+fn check_columns(columns: usize, width: u32, height: u32) -> Result<(), AlpacaError> {
+    if columns == width as usize {
+        return Ok(());
+    }
+    let swapped = if columns == height as usize {
+        " (the server sent the dimensions swapped)"
+    } else {
+        ""
+    };
+    Err(AlpacaError::ParseError(format!(
+        "Image array has {columns} columns, expected NumX = {width}{swapped}"
+    )))
+}
+
+fn check_column_length(x: usize, rows: usize, height: u32) -> Result<(), AlpacaError> {
+    if rows == height as usize {
+        Ok(())
+    } else {
+        Err(AlpacaError::ParseError(format!(
+            "Image array column {x} has {rows} rows, expected NumY = {height}"
+        )))
+    }
 }
 
 /// Decode a single JSON pixel into `u16`, dispatching on `element_type`.
@@ -386,14 +364,29 @@ mod image_array_tests {
 
     #[test]
     fn rank2_int32_parses_clean() {
-        // 2x3 image, type 2 (Int32), column-major.
+        // A 2x3 frame as ASCOM sends it, [x][y]: column x=0 holds 1, 2, 3 and
+        // column x=1 holds 4, 5, 6 from the top row down.
         let body = ok_response(2, 2, serde_json::json!([[1, 2, 3], [4, 5, 6],]));
         let r = parse_image_array_json(&body, 2, 3).expect("rank-2 parse");
         assert_eq!(r.width, 2);
         assert_eq!(r.height, 3);
         assert_eq!(r.planes, 1);
-        assert_eq!(r.pixels, vec![1u16, 2, 3, 4, 5, 6]);
+        // Row by row: (0,0) (1,0), (0,1) (1,1), (0,2) (1,2).
+        assert_eq!(r.pixels, vec![1u16, 4, 2, 5, 3, 6]);
         assert_eq!(r.element_type, ImageArrayElementType::Int32);
+    }
+
+    /// A wider-than-tall frame keeps its rows: a 3x2 frame is not read as a
+    /// 2x3 one, and swapped dimensions are refused with the reason.
+    #[test]
+    fn non_square_frame_is_delivered_row_by_row() {
+        // Columns x = 0, 1, 2; each lists the top row then the bottom row.
+        let body = ok_response(2, 2, serde_json::json!([[1, 4], [2, 5], [3, 6]]));
+        let r = parse_image_array_json(&body, 3, 2).expect("rank-2 parse");
+        assert_eq!(r.pixels, vec![1u16, 2, 3, 4, 5, 6]);
+
+        let err = parse_image_array_json(&body, 2, 3).expect_err("swapped dimensions");
+        assert!(err.to_string().contains("swapped"), "{err}");
     }
 
     #[test]
@@ -443,8 +436,8 @@ mod image_array_tests {
         // Type 3 = Double; fractional is legitimate and rounds to nearest.
         let body = ok_response(2, 3, serde_json::json!([[1.0, 2.4, 3.6], [4.5, 5.0, 6.0],]));
         let r = parse_image_array_json(&body, 2, 3).expect("Double rank-2 parse");
-        // 2.4 -> 2, 3.6 -> 4, 4.5 -> 5 (banker's? no: f64::round() rounds half away from zero -> 5)
-        assert_eq!(r.pixels, vec![1u16, 2, 4, 5, 5, 6]);
+        // 2.4 -> 2, 3.6 -> 4, 4.5 -> 5 (half away from zero), row by row.
+        assert_eq!(r.pixels, vec![1u16, 5, 2, 5, 4, 6]);
     }
 
     #[test]
@@ -462,7 +455,7 @@ mod image_array_tests {
 
     #[test]
     fn rank3_color_image_preserves_channel_dimension() {
-        // 2x2x3 RGB image. Column-major outer (x), then y, then plane.
+        // 2x2x3 RGB image as ASCOM sends it: outer x, then y, then plane.
         // Layout on the wire: outer[x][y][p]
         //   (0,0): [10, 20, 30]
         //   (0,1): [11, 21, 31]
@@ -477,12 +470,10 @@ mod image_array_tests {
         assert_eq!(r.width, 2);
         assert_eq!(r.height, 2);
         assert_eq!(r.planes, 3, "channel dimension must NOT be flattened");
-        // Plane 0 (R), planar layout, column-major (x, y): [10, 11, 12, 13]
-        // Plane 1 (G):                                   [20, 21, 22, 23]
-        // Plane 2 (B):                                   [30, 31, 32, 33]
+        // Each plane row by row: (0,0) (1,0) (0,1) (1,1).
         assert_eq!(
             r.pixels,
-            vec![10u16, 11, 12, 13, 20, 21, 22, 23, 30, 31, 32, 33]
+            vec![10u16, 12, 11, 13, 20, 22, 21, 23, 30, 32, 31, 33]
         );
     }
 
@@ -549,7 +540,8 @@ mod image_array_tests {
     fn negative_int_clamps_to_zero() {
         let body = ok_response(2, 2, serde_json::json!([[-5, 0], [70000, 12345]]));
         let r = parse_image_array_json(&body, 2, 2).expect("clamping parse");
-        assert_eq!(r.pixels, vec![0u16, 0, u16::MAX, 12345]);
+        // Row by row: (0,0) (1,0), (0,1) (1,1).
+        assert_eq!(r.pixels, vec![0u16, u16::MAX, 0, 12345]);
     }
 
     #[test]

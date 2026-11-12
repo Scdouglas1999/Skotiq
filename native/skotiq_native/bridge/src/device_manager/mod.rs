@@ -101,6 +101,11 @@ pub struct ManagedDevice {
     /// instead of sitting parked while the sequence "resumes". `None` until
     /// tracking has been commanded at least once; mounts only.
     pub desired_tracking: Option<bool>,
+    /// The equatorial frame the mount's driver declared at its last connect
+    /// (ASCOM `EquatorialSystem`). `None` when it declared none Skotiq can
+    /// use; [`DeviceManager::mount_frame`] then falls back to the driver
+    /// type's frame. Mounts only.
+    pub(crate) declared_mount_frame: Option<epoch::MountFrame>,
 }
 
 /// The Device Manager handles all device connections
@@ -229,6 +234,10 @@ pub struct DeviceManager {
     /// Whether each device's status reads are still succeeding; the heartbeat
     /// counts a run of failures as a failed poll. See [`read_health`].
     pub(crate) status_reads: read_health::StatusReadHealth,
+
+    /// Cameras already told about a pixel size they do not report; the notice
+    /// goes out once per camera per run. See `publish_unknown_pixel_size_notice`.
+    pub(crate) pixel_size_notices: std::sync::Mutex<std::collections::HashSet<String>>,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -363,6 +372,7 @@ impl DeviceManager {
             command_activity: Default::default(),
             published_temperatures: Default::default(),
             status_reads: Default::default(),
+            pixel_size_notices: Default::default(),
         });
 
         // Start the reconnection background task
@@ -404,6 +414,51 @@ impl DeviceManager {
     pub async fn get_device(&self, device_id: &str) -> Option<ManagedDevice> {
         let devices = self.devices.read().await;
         devices.get(device_id).cloned()
+    }
+
+    /// The frame a registered mount takes and reports equatorial coordinates
+    /// in; `None` for an id that is not registered.
+    pub(crate) async fn mount_frame(&self, device_id: &str) -> Option<epoch::MountFrame> {
+        let devices = self.devices.read().await;
+        devices.get(device_id).map(|device| {
+            device
+                .declared_mount_frame
+                .unwrap_or_else(|| epoch::MountFrame::for_driver(device.info.driver_type))
+        })
+    }
+
+    /// Records the frame a mount's driver declared at connect, from its ASCOM
+    /// `EquatorialSystem` read.
+    pub(crate) async fn record_declared_mount_frame<E: std::fmt::Display>(
+        &self,
+        device_id: &str,
+        equatorial_system: Result<i32, E>,
+    ) {
+        let declared = match equatorial_system {
+            Ok(value) => {
+                let frame = epoch::MountFrame::from_equatorial_system(value);
+                match frame {
+                    Some(frame) => tracing::info!(
+                        "Mount {device_id} takes and reports {frame} (EquatorialSystem {value})"
+                    ),
+                    None => tracing::warn!(
+                        "Mount {device_id} reports EquatorialSystem {value}, which names no \
+                         frame Skotiq converts to; sending it coordinates of date"
+                    ),
+                }
+                frame
+            }
+            Err(error) => {
+                tracing::info!(
+                    "Mount {device_id} did not report its EquatorialSystem ({error}); \
+                     sending it coordinates of date"
+                );
+                None
+            }
+        };
+        if let Some(device) = self.devices.write().await.get_mut(device_id) {
+            device.declared_mount_frame = declared;
+        }
     }
 
     /// Whether a device is connected. An id that is not registered is not

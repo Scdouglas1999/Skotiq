@@ -250,7 +250,7 @@ mixin _GuidingMobileSections
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SkotiqButton(
-              key: GuidingTutorialKeys.brainBtn,
+              key: TourTarget.guidingBrainButton.key,
               label: 'Open guider settings',
               icon: SkotiqIcons.settings,
               variant: ButtonVariant.secondary,
@@ -276,7 +276,7 @@ mixin _GuidingMobileSections
             mainAxisSize: MainAxisSize.min,
             children: [
               SkotiqButton(
-                key: GuidingTutorialKeys.brainBtn,
+                key: TourTarget.guidingBrainButton.key,
                 label: _showBrainPanel
                     ? 'Hide brain settings'
                     : 'Show brain settings',

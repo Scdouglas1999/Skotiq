@@ -7,10 +7,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/tutorial_keys/settings_keys.dart';
 import '../../../widgets/first_light/first_light_flow_dialog.dart';
 import 'settings_widgets.dart';
 import '../../../router/app_routes.dart';
+import '../../../tours/tour.dart';
+import '../../../tours/tour_runner.dart';
 
 class HelpTutorialsSettings extends ConsumerWidget {
   const HelpTutorialsSettings({super.key});
@@ -18,11 +19,16 @@ class HelpTutorialsSettings extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    final tutorialState = ref.watch(tutorialProvider);
-    final notifier = ref.read(tutorialProvider.notifier);
+    final run = ref.watch(tourRunnerProvider);
+    final runner = ref.read(tourRunnerProvider.notifier);
+    // A tour left part-way resumes where it stopped; anything else starts.
+    String startOrResume(Tour tour) {
+      final done = run.stepsDone(tour);
+      return done > 0 && !run.isCompleted(tour) ? 'Resume' : 'Start';
+    }
 
     return SettingsPage(
-      key: SettingsTutorialKeys.help,
+      key: TourTarget.settingsHelp.key,
       title: 'Help & tutorials',
       description: 'Guided tours and learning resources',
       children: [
@@ -47,24 +53,13 @@ class HelpTutorialsSettings extends ConsumerWidget {
               subtitle: '7-step guided wizard for your first imaging session — '
                   'connect, polar align, focus, frame, guide, sequence.',
               trailing: _AsyncActionButton(
-                label: 'Start',
+                label: startOrResume(Tour.firstNight),
                 variant: ButtonVariant.secondary,
                 size: ButtonSize.small,
                 icon: LucideIcons.play,
                 failureMessage:
-                    'Could not restart the walkthrough. Please try again.',
-                // Re-open the wizard via its dedicated route. We restart
-                // the in-memory step index first so a user who clicks
-                // "Start" gets the welcome step, not their resumed
-                // mid-tutorial position — the explicit Start action means
-                // "show me from the beginning". (Resume is the auto-open
-                // behavior, not what they asked for here.)
-                onPressed: () async {
-                  await ref.read(firstNightWizardProvider.notifier).restart();
-                  if (context.mounted) {
-                    context.go(AppRoute.firstNightWizard.path);
-                  }
-                },
+                    'Could not open the walkthrough. Please try again.',
+                onPressed: () => runner.resume(Tour.firstNight),
               ),
             ),
             SettingRow(
@@ -124,21 +119,13 @@ class HelpTutorialsSettings extends ConsumerWidget {
                   'where Equipment, Sequencer, Scheduler, and Plate Solving '
                   'live in the app.',
               trailing: _AsyncActionButton(
-                label: 'Start',
+                label: startOrResume(Tour.firstLaunch),
                 variant: ButtonVariant.secondary,
                 size: ButtonSize.small,
                 icon: LucideIcons.play,
                 failureMessage:
-                    'Could not restart the onboarding tour. Please try again.',
-                // Reset the DAO row + in-memory pointer. The first-launch tour
-                // overlay is replay-only, off the startup spine: resetting
-                // flips firstLaunchTourStatusProvider back to pending, and
-                // OnboardingTourReplayLauncher (mounted at the app-shell level)
-                // watches that provider and re-mounts the overlay immediately —
-                // no restart needed.
-                onPressed: () async {
-                  await ref.read(onboardingTourProvider.notifier).reset();
-                },
+                    'Could not open the onboarding tour. Please try again.',
+                onPressed: () => runner.resume(Tour.firstLaunch),
               ),
               isLast: false,
             ),
@@ -162,107 +149,17 @@ class HelpTutorialsSettings extends ConsumerWidget {
         SettingsSection(
           title: 'Tutorial tours',
           children: [
-            // The "Quick Start Tour" (TutorialCategory.firstLight step tour)
-            // was removed here: it is superseded by the real, camera-driven
-            // first-light flow surfaced as "Capture your first light" in the
-            // Guided Flows section above. Keeping both would offer two
-            // different things under near-identical names.
-            _TutorialRow(
-              icon: LucideIcons.boxes,
-              title: 'Equipment setup',
-              category: TutorialCategory.equipmentSetup,
-              completedSteps: notifier
-                  .getCompletedStepsCount(TutorialCategory.equipmentSetup),
-              totalSteps:
-                  notifier.getTotalStepsCount(TutorialCategory.equipmentSetup),
-              isCompleted: notifier
-                  .isCategoryCompletedSync(TutorialCategory.equipmentSetup),
-              hasProgress:
-                  notifier.hasCategoryProgress(TutorialCategory.equipmentSetup),
-              onStart: () =>
-                  notifier.restartTutorial(TutorialCategory.equipmentSetup),
-              onResume: () =>
-                  notifier.resumeTutorial(TutorialCategory.equipmentSetup),
-              onRestart: () =>
-                  notifier.restartTutorial(TutorialCategory.equipmentSetup),
-            ),
-            _TutorialRow(
-              icon: LucideIcons.compass,
-              title: 'Target planning',
-              category: TutorialCategory.targetPlanning,
-              completedSteps: notifier
-                  .getCompletedStepsCount(TutorialCategory.targetPlanning),
-              totalSteps:
-                  notifier.getTotalStepsCount(TutorialCategory.targetPlanning),
-              isCompleted: notifier
-                  .isCategoryCompletedSync(TutorialCategory.targetPlanning),
-              hasProgress:
-                  notifier.hasCategoryProgress(TutorialCategory.targetPlanning),
-              onStart: () =>
-                  notifier.restartTutorial(TutorialCategory.targetPlanning),
-              onResume: () =>
-                  notifier.resumeTutorial(TutorialCategory.targetPlanning),
-              onRestart: () =>
-                  notifier.restartTutorial(TutorialCategory.targetPlanning),
-            ),
-            _TutorialRow(
-              icon: LucideIcons.listOrdered,
-              title: 'Automated imaging',
-              category: TutorialCategory.automatedImaging,
-              completedSteps: notifier
-                  .getCompletedStepsCount(TutorialCategory.automatedImaging),
-              totalSteps: notifier
-                  .getTotalStepsCount(TutorialCategory.automatedImaging),
-              isCompleted: notifier
-                  .isCategoryCompletedSync(TutorialCategory.automatedImaging),
-              hasProgress: notifier
-                  .hasCategoryProgress(TutorialCategory.automatedImaging),
-              onStart: () =>
-                  notifier.restartTutorial(TutorialCategory.automatedImaging),
-              onResume: () =>
-                  notifier.resumeTutorial(TutorialCategory.automatedImaging),
-              onRestart: () =>
-                  notifier.restartTutorial(TutorialCategory.automatedImaging),
-            ),
-            _TutorialRow(
-              icon: LucideIcons.sun,
-              title: 'Calibration frames',
-              category: TutorialCategory.calibrationFrames,
-              completedSteps: notifier
-                  .getCompletedStepsCount(TutorialCategory.calibrationFrames),
-              totalSteps: notifier
-                  .getTotalStepsCount(TutorialCategory.calibrationFrames),
-              isCompleted: notifier
-                  .isCategoryCompletedSync(TutorialCategory.calibrationFrames),
-              hasProgress: notifier
-                  .hasCategoryProgress(TutorialCategory.calibrationFrames),
-              onStart: () =>
-                  notifier.restartTutorial(TutorialCategory.calibrationFrames),
-              onResume: () =>
-                  notifier.resumeTutorial(TutorialCategory.calibrationFrames),
-              onRestart: () =>
-                  notifier.restartTutorial(TutorialCategory.calibrationFrames),
-            ),
-            _TutorialRow(
-              icon: LucideIcons.barChart3,
-              title: 'Advanced features',
-              category: TutorialCategory.advancedFeatures,
-              completedSteps: notifier
-                  .getCompletedStepsCount(TutorialCategory.advancedFeatures),
-              totalSteps: notifier
-                  .getTotalStepsCount(TutorialCategory.advancedFeatures),
-              isCompleted: notifier
-                  .isCategoryCompletedSync(TutorialCategory.advancedFeatures),
-              hasProgress: notifier
-                  .hasCategoryProgress(TutorialCategory.advancedFeatures),
-              onStart: () =>
-                  notifier.restartTutorial(TutorialCategory.advancedFeatures),
-              onResume: () =>
-                  notifier.resumeTutorial(TutorialCategory.advancedFeatures),
-              onRestart: () =>
-                  notifier.restartTutorial(TutorialCategory.advancedFeatures),
-              isLast: true,
-            ),
+            for (final tour in Tour.workflows)
+              _TutorialRow(
+                icon: tour.icon!,
+                title: tour.title,
+                completedSteps: run.stepsDone(tour),
+                totalSteps: tour.steps.length,
+                isCompleted: run.isCompleted(tour),
+                onStart: () => runner.start(tour),
+                onResume: () => runner.resume(tour),
+                isLast: tour == Tour.workflows.last,
+              ),
           ],
         ),
         SettingsSection(
@@ -278,23 +175,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
                 variant: ButtonVariant.destructive,
                 size: ButtonSize.small,
                 onPressed: () => _showResetConfirmation(context, ref),
-              ),
-              isLast: true,
-            ),
-          ],
-        ),
-        SettingsSection(
-          title: 'Settings',
-          children: [
-            SettingRow(
-              icon: LucideIcons.toggleRight,
-              title: 'Enable tutorials',
-              subtitle: 'Show tutorial prompts and guided tours',
-              trailing: SettingsSwitch(
-                value: tutorialState.tutorialsEnabled,
-                onChanged: (value) {
-                  return notifier.setTutorialsEnabled(value);
-                },
               ),
               isLast: true,
             ),
@@ -350,22 +230,11 @@ class HelpTutorialsSettings extends ConsumerWidget {
               size: ButtonSize.small,
               failureMessage:
                   'Could not reset tutorial progress. Please try again.',
-              // Do the whole of what the sentence above promises.
-              //
-              // `resetProgress` deletes every tutorial_progress row — including
-              // the ones that record a dismissed coach mark — but nothing told
-              // the live app about it: the dismissed-prompt set is held in
-              // memory and the first-launch tour's status is a cached future.
-              // So "you will see the welcome tour again" produced no tour and
-              // no nudge for the rest of the session. Drop the in-memory
-              // dismissals and re-arm the welcome tour through the same path
-              // the "Re-run onboarding tour" row above uses.
+              // The sentence above promises the welcome tour, so it starts.
               onPressed: () async {
-                await ref.read(tutorialProvider.notifier).resetProgress();
-                await ref
-                    .read(dismissedTourPromptsProvider.notifier)
-                    .resetAllDismissed();
-                await ref.read(onboardingTourProvider.notifier).reset();
+                final runner = ref.read(tourRunnerProvider.notifier);
+                await runner.resetAll();
+                await runner.start(Tour.firstLaunch);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
             ),
@@ -379,27 +248,27 @@ class HelpTutorialsSettings extends ConsumerWidget {
 class _TutorialRow extends StatefulWidget {
   final IconData icon;
   final String title;
-  final TutorialCategory category;
   final int completedSteps;
   final int totalSteps;
   final bool isCompleted;
-  final bool hasProgress;
+
+  /// Shows the tour from its first step.
   final FutureOr<void> Function() onStart;
+
+  /// Shows the tour where it was left.
   final FutureOr<void> Function() onResume;
-  final FutureOr<void> Function() onRestart;
   final bool isLast;
+
+  bool get hasProgress => completedSteps > 0;
 
   const _TutorialRow({
     required this.icon,
     required this.title,
-    required this.category,
     required this.completedSteps,
     required this.totalSteps,
     required this.isCompleted,
-    required this.hasProgress,
     required this.onStart,
     required this.onResume,
-    required this.onRestart,
     this.isLast = false,
   });
 
@@ -431,13 +300,9 @@ class _TutorialRowState extends State<_TutorialRow> {
   }
 
   FutureOr<void> Function() get _buttonAction {
-    if (widget.isCompleted) {
-      return widget.onRestart;
-    } else if (widget.hasProgress) {
-      return widget.onResume;
-    } else {
-      return widget.onStart;
-    }
+    return widget.hasProgress && !widget.isCompleted
+        ? widget.onResume
+        : widget.onStart;
   }
 
   Future<void> _runAction() async {

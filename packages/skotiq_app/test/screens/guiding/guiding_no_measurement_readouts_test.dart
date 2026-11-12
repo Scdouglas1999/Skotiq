@@ -21,20 +21,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/harness.dart';
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'NoopTutorialProgressDao.${invocation.memberName} called in test',
-      );
-}
-
 class _GuiderConnected extends GuiderStateNotifier {
   _GuiderConnected(super.ref) {
     // ignore: invalid_use_of_protected_member
@@ -80,7 +66,6 @@ Future<void> _drainAsyncFrames(WidgetTester tester) async {
 }
 
 List<Override> _overrides({bool measured = false}) => [
-      tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
       guiderStateProvider.overrideWith(_GuiderConnected.new),
       phd2StateProvider.overrideWith((ref) => Phd2State.guiding),
       if (measured) guideStatsProvider.overrideWith(_MeasuredStats.new),
@@ -172,7 +157,6 @@ void main() {
       size: const Size(1400, 900),
       settle: false,
       extraOverrides: [
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
         guiderStateProvider.overrideWith(_GuiderConnected.new),
         phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
       ],

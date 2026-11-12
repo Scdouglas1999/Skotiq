@@ -4033,7 +4033,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.sensor_temp = cst_encode_opt_box_autoadd_f_64(apiObj.sensorTemp);
     wireObj.cooler_power = cst_encode_opt_box_autoadd_f_64(apiObj.coolerPower);
     wireObj.target_temp = cst_encode_opt_box_autoadd_f_64(apiObj.targetTemp);
-    wireObj.cooler_on = cst_encode_bool(apiObj.coolerOn);
+    wireObj.cooler_on = cst_encode_opt_box_autoadd_bool(apiObj.coolerOn);
     wireObj.gain = cst_encode_i_32(apiObj.gain);
     wireObj.offset = cst_encode_i_32(apiObj.offset);
     wireObj.bin_x = cst_encode_i_32(apiObj.binX);
@@ -20647,8 +20647,7 @@ final class wire_cst_camera_status extends ffi.Struct {
 
   external ffi.Pointer<ffi.Double> target_temp;
 
-  @ffi.Bool()
-  external bool cooler_on;
+  external ffi.Pointer<ffi.Bool> cooler_on;
 
   @ffi.Int32()
   external int gain;

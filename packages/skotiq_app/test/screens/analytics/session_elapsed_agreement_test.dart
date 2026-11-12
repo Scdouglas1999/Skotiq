@@ -15,19 +15,6 @@ import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart'
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
 final _start = DateTime.utc(2026, 7, 30, 20, 30);
 
 /// Night C - M31: never closed, three frames over 20.3 minutes.
@@ -77,7 +64,6 @@ Widget _app(AnalyticsTab tab) {
       standaloneImagesProvider.overrideWith(
         (ref) => Stream.value(const <DbCapturedImage>[]),
       ),
-      tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
     ],
     child: MaterialApp(
       theme: SkotiqTheme.dark,

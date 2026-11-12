@@ -940,7 +940,7 @@ fn a_camera_still_cooling_from_before_is_warmed_up_on_disconnect() {
     let mut camera = connected(&sdk);
     assert!(camera.capabilities().can_cool);
     let status = camera.status(&sdk).unwrap();
-    assert!(status.cooler_on);
+    assert_eq!(status.cooler_on, Some(true));
     assert_eq!(status.target_temp, Some(-15.0));
     assert_eq!(status.cooler_power, Some(20.0));
     assert_eq!(status.sensor_temp, Some(-9.5));

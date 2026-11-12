@@ -2,8 +2,8 @@
 //
 // The three mode tabs live in a TabBarView, which keeps the OUTGOING tab
 // mounted across a switch. _BatchCaptureControls and _SkyFlatsControls both
-// attach FlatWizardTutorialKeys.filterSelect / targetAdu / frameCount, and all
-// three tabs mount _ActionButtons with FlatWizardTutorialKeys.startBtn — those
+// attach TourTarget.flatFilterSelect.key / targetAdu / frameCount, and all
+// three tabs mount _ActionButtons with TourTarget.flatStartButton.key — those
 // are GlobalKeys, so two live elements claiming one key throws "The following
 // GlobalKey was specified multiple times in the widget tree" in a debug build
 // and silently reparents state in release. Only the tab whose mode is selected

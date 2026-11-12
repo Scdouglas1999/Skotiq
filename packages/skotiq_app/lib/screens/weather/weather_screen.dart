@@ -9,7 +9,7 @@ import '../../widgets/weather/weather_radar_map.dart';
 import '../../widgets/weather/radar_timeline_scrubber.dart';
 import '../../widgets/weather/weather_status_card.dart';
 import '../../widgets/weather/satellite_legend.dart';
-import '../../widgets/tutorial_keys/weather_keys.dart';
+import '../../tours/tour_target.dart';
 import '../settings/settings_sections.dart';
 import '../../router/app_routes.dart';
 
@@ -244,7 +244,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
                 constraints.maxHeight >= 420;
 
         final map = WeatherRadarMap(
-          key: WeatherTutorialKeys.radarMap,
+          key: TourTarget.weatherRadarMap.key,
           currentFrame: currentFrame,
           latitude: latitude,
           longitude: longitude,
@@ -257,7 +257,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
         );
 
         final conditions = _WeatherConditions(
-          key: WeatherTutorialKeys.statusCard,
+          key: TourTarget.weatherStatusCard.key,
           radarAvailable: true,
           alert: alert,
           motion: motion,

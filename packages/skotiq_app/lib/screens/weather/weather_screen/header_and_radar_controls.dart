@@ -41,7 +41,7 @@ class _WeatherHeader extends StatelessWidget {
         actions: [
           if (narrow) Flexible(child: chip) else chip,
           SkotiqIconButton(
-            key: WeatherTutorialKeys.refreshBtn,
+            key: TourTarget.weatherRefreshButton.key,
             icon: SkotiqIcons.refresh,
             tooltip: 'Refresh radar data',
             onPressed: isLoading ? null : onRefresh,
@@ -174,7 +174,7 @@ class _RadarControlBar extends StatelessWidget {
             ],
             Expanded(
               child: RadarTimelineScrubber(
-                key: WeatherTutorialKeys.timeline,
+                key: TourTarget.weatherTimeline.key,
                 frames: frames,
                 currentIndex: currentIndex,
                 onFrameChanged: onFrameChanged,

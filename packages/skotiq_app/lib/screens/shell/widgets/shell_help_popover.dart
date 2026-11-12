@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../tours/tour.dart';
+import '../../../tours/tour_overlay.dart';
+import '../../../tours/tour_runner.dart';
 import '../shell_navigation.dart';
 import 'window_chrome.dart' show commandPaletteShortcutLabel;
 
@@ -90,7 +92,7 @@ class ShellHelpButton extends ConsumerWidget {
       switch (action) {
         case _HelpAction.tour:
           if (tourHere == null) return;
-          ref.read(tutorialProvider.notifier).startTutorial(tourHere);
+          ref.read(tourRunnerProvider.notifier).start(tourHere);
         case _HelpAction.shortcuts:
           showShellShortcuts(context);
         case _HelpAction.manual:
@@ -150,10 +152,10 @@ class ShellHelpButton extends ConsumerWidget {
     );
   }
 
-  /// The deep tour that covers the screen on show. Routes without one get a
-  /// disabled "Tour this screen", because a menu item that silently does
-  /// nothing is worse than one that says it has nothing to offer.
-  TutorialCategory? _tourHere(BuildContext context) {
+  /// The tour about the screen on show. Routes without one get a disabled
+  /// "Tour this screen", because a menu item that silently does nothing is
+  /// worse than one that says it has nothing to offer.
+  Tour? _tourHere(BuildContext context) {
     final location = GoRouter.of(context)
         .routerDelegate
         .currentConfiguration
@@ -162,7 +164,16 @@ class ShellHelpButton extends ConsumerWidget {
     for (var route = AppRoute.of(location ?? AppRoute.tonight.path);
         route != null;
         route = route.parent) {
-      if (route.tour != null) return route.tour;
+      final tours = Tour.forScreen(route);
+      if (tours.isEmpty) continue;
+      // Plan carries a tour per tab; the one whose controls are on show is
+      // the one about what the user is looking at.
+      return tours.length == 1
+          ? tours.single
+          : tours
+              .where((tour) => tour.steps.any((step) =>
+                  step.target != null && tourTargetIsOnShow(step.target!)))
+              .firstOrNull;
     }
     return null;
   }

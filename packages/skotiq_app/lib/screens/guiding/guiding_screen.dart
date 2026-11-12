@@ -12,7 +12,7 @@ import 'package:skotiq_app/widgets/phd2/guide_controls_panel.dart';
 import 'package:skotiq_app/widgets/phd2/guide_target_display.dart';
 import 'package:skotiq_app/utils/phd2_helper.dart';
 import 'package:skotiq_app/utils/confirm_dialog.dart';
-import '../../widgets/tutorial_keys/guiding_keys.dart';
+import '../../tours/tour_target.dart';
 import 'widgets/brain_settings_panel.dart';
 import 'widgets/guide_graph_advanced.dart';
 import 'widgets/guide_star_view.dart';
@@ -103,7 +103,7 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
         child: Column(
           children: [
             PageHeader(
-              key: GuidingTutorialKeys.statusBar,
+              key: TourTarget.guidingStatusBar.key,
               icon: SkotiqIcons.guider,
               title: 'Guiding',
               // Below the breakpoint the header keeps the title, the state
@@ -177,14 +177,14 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
       ),
       if (narrow)
         SkotiqIconButton(
-          key: GuidingTutorialKeys.connectBtn,
+          key: TourTarget.guidingConnectButton.key,
           icon: icon,
           tooltip: label,
           onPressed: onPressed,
         )
       else
         SkotiqButton(
-          key: GuidingTutorialKeys.connectBtn,
+          key: TourTarget.guidingConnectButton.key,
           label: label,
           icon: icon,
           variant: ButtonVariant.secondary,

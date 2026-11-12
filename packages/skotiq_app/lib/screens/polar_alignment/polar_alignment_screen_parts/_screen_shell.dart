@@ -289,7 +289,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
             // surfaces (02 rule 5).
             message: disabledReason ?? 'Start polar alignment',
             child: SkotiqButton(
-              key: PolarAlignmentTutorialKeys.startBtn,
+              key: TourTarget.polarStartButton.key,
               // Just "Start" on a phone: the header already says what is
               // being started.
               label: MediaQuery.sizeOf(context).width <

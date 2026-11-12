@@ -42,12 +42,11 @@ impl AlpacaCamera {
     /// plane 0, then all of plane 1, etc. — matching the on-the-wire Alpaca
     /// shape `[NumX][NumY][NumPlanes]` after the Y-then-X iteration order.
     ///
-    /// Why: prefer the binary `imagearrayvariant` endpoint with
-    /// `Accept: application/imagebytes`. A 24 MP frame is ~50 MB binary vs
-    /// ~150 MB JSON; binary path is ~10x faster end-to-end. We send `Accept`
-    /// for both binary and JSON so older servers that only know
-    /// `application/json` still return a usable response, which we then parse
-    /// on the JSON path.
+    /// The frame comes from `imagearray` with `Accept: application/imagebytes`
+    /// (a 24 MP frame is ~50 MB binary against ~150 MB of JSON); a server
+    /// without ImageBytes answers the same request with JSON. Not
+    /// `imagearrayvariant`: the Alpaca API deprecates it and ICameraV4 requires
+    /// Alpaca devices to refuse it.
     pub async fn download_image_array_full(&self) -> Result<ImageArrayResult, AlpacaError> {
         // Why: subframe geometry tells us the expected shape; we cross-check
         // the parsed array against this so a server that reports inconsistent
@@ -85,13 +84,9 @@ impl AlpacaCamera {
         let timeout_ms = self.client.timeout_config().very_long_operation_ms;
 
         let (client_id, transaction_id) = self.client.client_transaction();
-        // Why: `imagearrayvariant` is the v3 endpoint that may return
-        // `application/imagebytes`. ASCOM mandates servers advertising binary
-        // accept it here; servers that only know JSON still respond with their
-        // standard JSON envelope on the same endpoint, so it is safe to prefer.
         let url = format!(
             "{}?ClientID={}&ClientTransactionID={}",
-            self.client.build_url("imagearrayvariant"),
+            self.client.build_url("imagearray"),
             client_id,
             transaction_id
         );
@@ -122,7 +117,7 @@ impl AlpacaCamera {
                 if e.is_timeout() {
                     AlpacaError::timeout(
                         format!(
-                            "imagearrayvariant download ({}x{}, ~{} MB est)",
+                            "imagearray download ({}x{}, ~{} MB est)",
                             width,
                             height,
                             estimated_bytes / 1_000_000
@@ -159,7 +154,7 @@ impl AlpacaCamera {
         // through to the empty string, which fails the `starts_with("application/imagebytes")`
         // check below and routes us to the JSON parser. That is the correct
         // ASCOM-compatible fallback: pre-v3 Alpaca servers do not always set
-        // Content-Type on the imagearrayvariant endpoint and unconditionally
+        // Content-Type on the imagearray endpoint and unconditionally
         // emit JSON, so treating "header missing" as "JSON" matches the spec.
         let content_type = response
             .headers()

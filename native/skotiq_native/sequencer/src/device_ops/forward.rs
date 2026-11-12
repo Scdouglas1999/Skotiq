@@ -326,6 +326,9 @@ macro_rules! forward_device_ops {
                 async fn save_fits(&self, image_data: &$crate::device_ops::ImageData, file_path: &str, frame_ctx: &$crate::scheduling::FrameContext) -> $crate::device_ops::DeviceResult<()> {
                     self.$field.save_fits(image_data, file_path, frame_ctx).await
                 }
+                fn frame_file_extension(&self) -> &'static str {
+                    self.$field.frame_file_extension()
+                }
                 async fn measure_light_frame(&self, image_data: &$crate::device_ops::ImageData) -> $crate::device_ops::DeviceResult<$crate::device_ops::LightFrameMeasurement> {
                     self.$field.measure_light_frame(image_data).await
                 }

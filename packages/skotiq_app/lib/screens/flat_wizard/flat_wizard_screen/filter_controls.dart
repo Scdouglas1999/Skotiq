@@ -1,7 +1,7 @@
 part of '../flat_wizard_screen.dart';
 
 class _FilterSelector extends ConsumerWidget {
-  const _FilterSelector();
+  const _FilterSelector({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

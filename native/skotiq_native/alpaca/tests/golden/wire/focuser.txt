@@ -81,9 +81,7 @@
 
 ## focuser.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.is_connected [http 400]
 > GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -159,9 +157,7 @@
 
 ## focuser.name [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.name [http 400]
 > GET /api/v1/focuser/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -189,9 +185,7 @@
 
 ## focuser.description [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.description [http 400]
 > GET /api/v1/focuser/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -219,9 +213,7 @@
 
 ## focuser.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.driver_version [http 400]
 > GET /api/v1/focuser/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -249,9 +241,7 @@
 
 ## focuser.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.driver_info [http 400]
 > GET /api/v1/focuser/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -279,9 +269,7 @@
 
 ## focuser.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.interface_version [http 400]
 > GET /api/v1/focuser/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -309,9 +297,7 @@
 
 ## focuser.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.supported_actions [http 400]
 > GET /api/v1/focuser/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -339,9 +325,7 @@
 
 ## focuser.position [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.position [http 400]
 > GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -385,9 +369,7 @@
 
 ## focuser.position [ascom 0x40C without Value]
 > GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## focuser.position [ascom 0x500]
 > GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -411,9 +393,7 @@
 
 ## focuser.position [wrong value type]
 > GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## focuser.max_step [ok]
 > GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
@@ -425,9 +405,7 @@
 
 ## focuser.max_step [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.max_step [http 400]
 > GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=0]
@@ -455,9 +433,7 @@
 
 ## focuser.max_increment [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.max_increment [http 400]
 > GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=0]
@@ -485,9 +461,7 @@
 
 ## focuser.step_size [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.step_size [http 400]
 > GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
@@ -515,9 +489,7 @@
 
 ## focuser.is_moving [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.is_moving [http 400]
 > GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
@@ -545,9 +517,7 @@
 
 ## focuser.absolute [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.absolute [http 400]
 > GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=0]
@@ -575,9 +545,7 @@
 
 ## focuser.temp_comp_available [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.temp_comp_available [http 400]
 > GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=0]
@@ -605,9 +573,7 @@
 
 ## focuser.temp_comp [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.temp_comp [http 400]
 > GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=0]
@@ -663,9 +629,7 @@
 
 ## focuser.temperature [ascom 0x4FF without Value]
 > GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## focuser.temperature [http 400]
 > GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=0]
@@ -781,160 +745,4 @@
 > PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
 > PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=1]
 > PUT /api/v1/focuser/#/halt query[] form[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## focuser.get_status [ok]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(FocuserStatus { connected: true, position: 12345, is_moving: false, temperature: Some(12.5), temp_comp: Some(false) })
-
-## focuser.get_status [ascom 0x400]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## focuser.get_status [ascom 0x4FF without Value]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## focuser.get_status [http 400]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## focuser.get_status [http 500]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## focuser.get_status [malformed json]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcomp query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## focuser.get_capabilities [ok]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(FocuserCapabilities { absolute: true, max_step: 50000, max_increment: 5000, step_size: Some(4.5), temp_comp_available: true })
-
-## focuser.get_capabilities [ascom 0x400]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## focuser.get_capabilities [ascom 0x4FF without Value]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## focuser.get_capabilities [http 400]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## focuser.get_capabilities [http 500]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## focuser.get_capabilities [malformed json]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/absolute query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxincrement query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/maxstep query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/focuser/#/tempcompavailable query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

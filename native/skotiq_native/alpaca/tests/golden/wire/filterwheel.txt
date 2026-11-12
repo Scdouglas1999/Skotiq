@@ -81,9 +81,7 @@
 
 ## filterwheel.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.is_connected [http 400]
 > GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -159,9 +157,7 @@
 
 ## filterwheel.name [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.name [http 400]
 > GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -189,9 +185,7 @@
 
 ## filterwheel.description [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.description [http 400]
 > GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -219,9 +213,7 @@
 
 ## filterwheel.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.driver_version [http 400]
 > GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -249,9 +241,7 @@
 
 ## filterwheel.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.driver_info [http 400]
 > GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -279,9 +269,7 @@
 
 ## filterwheel.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.interface_version [http 400]
 > GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -309,9 +297,7 @@
 
 ## filterwheel.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.supported_actions [http 400]
 > GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -339,9 +325,7 @@
 
 ## filterwheel.position [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.position [http 400]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -385,9 +369,7 @@
 
 ## filterwheel.position [ascom 0x40C without Value]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## filterwheel.position [ascom 0x500]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -411,9 +393,7 @@
 
 ## filterwheel.position [wrong value type]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## filterwheel.set_position [ok]
 > PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
@@ -495,36 +475,6 @@
 > PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
 = Ok(())
 
-## filterwheel.is_moving [ok]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-= Ok(false)
-
-## filterwheel.is_moving [ascom 0x400]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## filterwheel.is_moving [ascom 0x4FF without Value]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## filterwheel.is_moving [http 400]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## filterwheel.is_moving [http 500]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## filterwheel.is_moving [malformed json]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
 ## filterwheel.names [ok]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
 = Ok(["L", "R", "G", "B"])
@@ -535,9 +485,7 @@
 
 ## filterwheel.names [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.names [http 400]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
@@ -565,9 +513,7 @@
 
 ## filterwheel.focus_offsets [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.focus_offsets [http 400]
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
@@ -583,211 +529,4 @@
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## filterwheel.get_status [ok]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(FilterWheelStatus { connected: true, position: 2, is_moving: false })
-
-## filterwheel.get_status [ascom 0x400]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## filterwheel.get_status [ascom 0x4FF without Value]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## filterwheel.get_status [http 400]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## filterwheel.get_status [http 500]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## filterwheel.get_status [malformed json]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## filterwheel.get_filter_info [ok]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(FilterWheelInfo { names: ["L", "R", "G", "B"], focus_offsets: [0, 10, 20, 30] })
-
-## filterwheel.get_filter_info [ascom 0x400]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## filterwheel.get_filter_info [ascom 0x4FF without Value]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## filterwheel.get_filter_info [http 400]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## filterwheel.get_filter_info [http 500]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## filterwheel.get_filter_info [malformed json]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## filterwheel.set_filter_by_name [ok]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=1&Position=2]
-= Ok(())
-
-## filterwheel.set_filter_by_name [ascom 0x400]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## filterwheel.set_filter_by_name [ascom 0x4FF without Value]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## filterwheel.set_filter_by_name [http 400]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## filterwheel.set_filter_by_name [http 500]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## filterwheel.set_filter_by_name [malformed json]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## filterwheel.set_filter_by_name(missing) [ok]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-= Err(Filter 'OIII' not found)
-
-## filterwheel.set_filter_by_name(missing) [ascom 0x400]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## filterwheel.set_filter_by_name(missing) [ascom 0x4FF without Value]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## filterwheel.set_filter_by_name(missing) [http 400]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## filterwheel.set_filter_by_name(missing) [http 500]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## filterwheel.set_filter_by_name(missing) [malformed json]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## filterwheel.current_filter_name [ok]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-= Ok("G")
-
-## filterwheel.current_filter_name [ascom 0x400]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## filterwheel.current_filter_name [ascom 0x4FF without Value]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## filterwheel.current_filter_name [http 400]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## filterwheel.current_filter_name [http 500]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## filterwheel.current_filter_name [malformed json]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## filterwheel.current_focus_offset [ok]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=1]
-= Ok(20)
-
-## filterwheel.current_focus_offset [ascom 0x400]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-= Err(Device error 1024: Property or method is not implemented)
-
-## filterwheel.current_focus_offset [ascom 0x4FF without Value]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## filterwheel.current_focus_offset [http 400]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## filterwheel.current_focus_offset [http 500]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## filterwheel.current_focus_offset [malformed json]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

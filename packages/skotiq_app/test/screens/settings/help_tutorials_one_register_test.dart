@@ -130,7 +130,6 @@ void main() {
       'Calibration frames',
       'Advanced features',
       'Reset all progress',
-      'Enable tutorials',
     ]) {
       expect(find.text(title), findsOneWidget, reason: 'missing row "$title"');
     }

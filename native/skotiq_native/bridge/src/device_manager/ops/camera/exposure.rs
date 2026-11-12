@@ -91,145 +91,11 @@ impl DeviceManager {
             Some(DriverType::Alpaca) => {
                 let cameras = self.alpaca_cameras.read().await;
                 if let Some(camera) = cameras.get(device_id) {
-                    tracing::info!("DeviceManager: Calling AlpacaCamera.start_exposure()");
-                    // Gain and Offset are OPTIONAL in ASCOM ICameraV3 — a camera
-                    // that doesn't implement them throws PropertyNotImplemented
-                    // (error 1024). Warn and continue rather than failing the
-                    // whole exposure (mirrors the INDI path below), so gain-less
-                    // cameras (many CCDs, and CMOS in certain modes) can still
-                    // capture instead of erroring out on every frame.
-                    if let Some(g) = gain {
-                        if let Err(e) = camera.set_gain(g).await {
-                            tracing::warn!(
-                                "Failed to set Alpaca camera gain (device may not \
-                                 support it); continuing without it: {}",
-                                e
-                            );
-                        }
-                    }
-                    if let Some(o) = offset {
-                        if let Err(e) = camera.set_offset(o).await {
-                            tracing::warn!(
-                                "Failed to set Alpaca camera offset (device may not \
-                                 support it); continuing without it: {}",
-                                e
-                            );
-                        }
-                    }
-                    // Set binning - propagate errors
-                    camera.set_bin_x(bin_x).await.map_err(|e| {
-                        DeviceOpError::caused_by(
-                            Some(device_id.to_string()),
-                            format!("Failed to set Alpaca camera bin_x: {}", e),
-                            e,
-                        )
-                    })?;
-                    camera.set_bin_y(bin_y).await.map_err(|e| {
-                        DeviceOpError::caused_by(
-                            Some(device_id.to_string()),
-                            format!("Failed to set Alpaca camera bin_y: {}", e),
-                            e,
-                        )
-                    })?;
-                    // Alpaca/ASCOM defines NumX/NumY in binned pixels. Changing
-                    // BinX/BinY does not require drivers to resize an existing
-                    // full-frame ROI, and several leave the unbinned
-                    // dimensions in place. Reset the full-frame ROI after
-                    // binning so a 2x2 exposure on an 800x600 sensor requests
-                    // 400x300 instead of the invalid 800x600.
-                    let sensor_width = camera.camera_x_size().await.map_err(|e| {
-                        DeviceOpError::caused_by(
-                            Some(device_id.to_string()),
-                            format!("Failed to read Alpaca camera width: {}", e),
-                            e,
-                        )
-                    })?;
-                    let sensor_height = camera.camera_y_size().await.map_err(|e| {
-                        DeviceOpError::caused_by(
-                            Some(device_id.to_string()),
-                            format!("Failed to read Alpaca camera height: {}", e),
-                            e,
-                        )
-                    })?;
-                    let full_width = sensor_width
-                        .checked_div(bin_x)
-                        .filter(|v| *v > 0)
-                        .ok_or_else(|| {
-                            DeviceOpError::hardware(
-                                Some(device_id.to_string()),
-                                format!(
-                                    "Invalid Alpaca full-frame width {} at bin {}",
-                                    sensor_width, bin_x
-                                ),
-                            )
-                        })?;
-                    let full_height = sensor_height
-                        .checked_div(bin_y)
-                        .filter(|v| *v > 0)
-                        .ok_or_else(|| {
-                            DeviceOpError::hardware(
-                                Some(device_id.to_string()),
-                                format!(
-                                    "Invalid Alpaca full-frame height {} at bin {}",
-                                    sensor_height, bin_y
-                                ),
-                            )
-                        })?;
-                    let (start_x, start_y, num_x, num_y) = match subframe {
-                        Some(ref roi) => {
-                            let start_x = i32::try_from(roi.start_x).map_err(|_| {
-                                DeviceOpError::hardware(
-                                    Some(device_id.to_string()),
-                                    "Alpaca ROI start_x exceeds the driver integer range",
-                                )
-                            })?;
-                            let start_y = i32::try_from(roi.start_y).map_err(|_| {
-                                DeviceOpError::hardware(
-                                    Some(device_id.to_string()),
-                                    "Alpaca ROI start_y exceeds the driver integer range",
-                                )
-                            })?;
-                            let width = i32::try_from(roi.width).map_err(|_| {
-                                DeviceOpError::hardware(
-                                    Some(device_id.to_string()),
-                                    "Alpaca ROI width exceeds the driver integer range",
-                                )
-                            })?;
-                            let height = i32::try_from(roi.height).map_err(|_| {
-                                DeviceOpError::hardware(
-                                    Some(device_id.to_string()),
-                                    "Alpaca ROI height exceeds the driver integer range",
-                                )
-                            })?;
-                            if start_x.checked_add(width).is_none_or(|v| v > full_width)
-                                || start_y.checked_add(height).is_none_or(|v| v > full_height)
-                            {
-                                return Err(DeviceOpError::hardware(
-                                    Some(device_id.to_string()),
-                                    format!(
-                                        "Alpaca ROI {}x{}+{}+{} exceeds binned sensor {}x{}",
-                                        width, height, start_x, start_y, full_width, full_height
-                                    ),
-                                ));
-                            }
-                            (start_x, start_y, width, height)
-                        }
-                        None => (0, 0, full_width, full_height),
-                    };
-                    camera
-                        .set_start_x(start_x)
-                        .await
-                        .map_err(DeviceOpError::from)?;
-                    camera
-                        .set_start_y(start_y)
-                        .await
-                        .map_err(DeviceOpError::from)?;
-                    camera.set_num_x(num_x).await.map_err(DeviceOpError::from)?;
-                    camera.set_num_y(num_y).await.map_err(DeviceOpError::from)?;
-                    return camera
-                        .start_exposure(duration, true)
-                        .await
-                        .map_err(DeviceOpError::from);
+                    return alpaca_start_exposure(
+                        camera, device_id, duration, gain, offset, (bin_x, bin_y), subframe,
+                        frame_type,
+                    )
+                    .await;
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -440,10 +306,11 @@ impl DeviceManager {
                     .await;
                     let sim = crate::api::devices::simulation::get_sim_camera_for(device_id);
                     let mut guard = sim.write().await;
-                    if let Some(g) = gain {
+                    // A camera without the control ignores the request.
+                    if let Some(g) = gain.filter(|_| guard.status.can_set_gain) {
                         guard.status.gain = g;
                     }
-                    if let Some(o) = offset {
+                    if let Some(o) = offset.filter(|_| guard.status.can_set_offset) {
                         guard.status.offset = o;
                     }
                     guard.status.bin_x = bin_x;
@@ -636,4 +503,97 @@ impl DeviceManager {
             )),
         }
     }
+}
+
+/// One Alpaca exposure, by the ASCOM camera rules both transports share
+/// (`skotiq_device::ascom::camera`): binning, then the whole frame in binned
+/// pixels, then gain and offset in the camera's own mode, then
+/// `StartExposure` with the shutter closed for darks and biases.
+#[allow(clippy::too_many_arguments)]
+async fn alpaca_start_exposure(
+    camera: &skotiq_alpaca::AlpacaCamera,
+    device_id: &str,
+    duration: f64,
+    gain: Option<i32>,
+    offset: Option<i32>,
+    bin: (i32, i32),
+    subframe: Option<SubFrame>,
+    frame_type: skotiq_device::FrameType,
+) -> Result<(), DeviceOpError> {
+    use skotiq_device::ascom::camera::{exposes_to_light, frame_geometry};
+    let failed = |what: &str, e: skotiq_alpaca::AlpacaError| {
+        DeviceOpError::caused_by(
+            Some(device_id.to_string()),
+            format!("Failed to {what} on Alpaca camera {device_id}: {e}"),
+            e,
+        )
+    };
+    let (sensor_x, sensor_y, max_bin_x, max_bin_y) = tokio::join!(
+        camera.camera_x_size(),
+        camera.camera_y_size(),
+        camera.max_bin_x(),
+        camera.max_bin_y(),
+    );
+    let sensor = (
+        sensor_x.map_err(|e| failed("read CameraXSize", e))?,
+        sensor_y.map_err(|e| failed("read CameraYSize", e))?,
+    );
+    let max_bin = (max_bin_x.unwrap_or(1), max_bin_y.unwrap_or(1));
+    let frame = frame_geometry(sensor, max_bin, bin, subframe.as_ref())
+        .map_err(|e| DeviceOpError::hardware(Some(device_id.to_string()), e.to_string()))?;
+
+    camera
+        .set_bin_x(bin.0)
+        .await
+        .map_err(|e| failed("set BinX", e))?;
+    camera
+        .set_bin_y(bin.1)
+        .await
+        .map_err(|e| failed("set BinY", e))?;
+    camera
+        .set_start_x(frame.start_x)
+        .await
+        .map_err(|e| failed("set StartX", e))?;
+    camera
+        .set_start_y(frame.start_y)
+        .await
+        .map_err(|e| failed("set StartY", e))?;
+    camera
+        .set_num_x(frame.num_x)
+        .await
+        .map_err(|e| failed("set NumX", e))?;
+    camera
+        .set_num_y(frame.num_y)
+        .await
+        .map_err(|e| failed("set NumY", e))?;
+
+    // Gain and offset are optional members: a camera without them, or one that
+    // refuses the value, still exposes at its current setting (as INDI does).
+    let controls = camera.controls().await;
+    if let Some(requested) = gain {
+        match controls.gain.to_wire(requested, "Gain") {
+            Ok(wire) => {
+                if let Err(e) = camera.set_gain(wire).await {
+                    warn!("Alpaca camera {device_id} refused gain {requested}; exposing at its current gain: {e}");
+                }
+            }
+            Err(skotiq_device::DriverError::NotSupported) => {}
+            Err(e) => warn!("Alpaca camera {device_id}: {e}; exposing at its current gain"),
+        }
+    }
+    if let Some(requested) = offset {
+        match controls.offset.to_wire(requested, "Offset") {
+            Ok(wire) => {
+                if let Err(e) = camera.set_offset(wire).await {
+                    warn!("Alpaca camera {device_id} refused offset {requested}; exposing at its current offset: {e}");
+                }
+            }
+            Err(skotiq_device::DriverError::NotSupported) => {}
+            Err(e) => warn!("Alpaca camera {device_id}: {e}; exposing at its current offset"),
+        }
+    }
+    camera
+        .start_exposure(duration, exposes_to_light(frame_type))
+        .await
+        .map_err(DeviceOpError::from)
 }

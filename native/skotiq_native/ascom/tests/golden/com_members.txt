@@ -19,6 +19,7 @@ AscomCamera::set_bin_x(1) | put BinX(I4 1) -> void | Failed to set property BinX
 AscomCamera::set_bin_y(1) | put BinY(I4 1) -> void | Failed to set property BinY: {cause} | -
 AscomCamera::can_set_ccd_temperature() | get CanSetCCDTemperature() -> BOOL | Failed to get property CanSetCCDTemperature: {cause} | Property CanSetCCDTemperature is not a bool
 AscomCamera::ccd_temperature() | get CCDTemperature() -> R8 | Failed to get property CCDTemperature: {cause} | Property CCDTemperature is not a double
+AscomCamera::ccd_temperature_setpoint() | get SetCCDTemperature() -> R8 | Failed to get property SetCCDTemperature: {cause} | Property SetCCDTemperature is not a double
 AscomCamera::set_ccd_temperature(1.5) | put SetCCDTemperature(R8 1.5) -> void | Failed to set property SetCCDTemperature: {cause} | -
 AscomCamera::cooler_on() | get CoolerOn() -> BOOL | Failed to get property CoolerOn: {cause} | Property CoolerOn is not a bool
 AscomCamera::set_cooler_on(true) | put CoolerOn(BOOL true) -> void | Failed to set property CoolerOn: {cause} | -
@@ -27,10 +28,15 @@ AscomCamera::gain() | get Gain() -> I4 | Failed to get property Gain: {cause} | 
 AscomCamera::set_gain(1) | put Gain(I4 1) -> void | Failed to set property Gain: {cause} | -
 AscomCamera::offset() | get Offset() -> I4 | Failed to get property Offset: {cause} | Property Offset is not an int (VARIANT type={vt})
 AscomCamera::set_offset(1) | put Offset(I4 1) -> void | Failed to set property Offset: {cause} | -
+AscomCamera::gains() | get Gains() -> SAFEARRAY(BSTR) | Failed to get property Gains: {cause} | Property Gains is not a string array: {detail}
+AscomCamera::offsets() | get Offsets() -> SAFEARRAY(BSTR) | Failed to get property Offsets: {cause} | Property Offsets is not a string array: {detail}
+AscomCamera::exposure_min() | get ExposureMin() -> R8 | Failed to get property ExposureMin: {cause} | Property ExposureMin is not a double
+AscomCamera::exposure_max() | get ExposureMax() -> R8 | Failed to get property ExposureMax: {cause} | Property ExposureMax is not a double
 AscomCamera::camera_state() | get CameraState() -> I4 | Failed to get property CameraState: {cause} | Property CameraState is not an int (VARIANT type={vt})
 AscomCamera::image_ready() | get ImageReady() -> BOOL | Failed to get property ImageReady: {cause} | Property ImageReady is not a bool
 AscomCamera::percent_completed() | get PercentCompleted() -> I4 | Failed to get property PercentCompleted: {cause} | Property PercentCompleted is not an int (VARIANT type={vt})
 AscomCamera::start_exposure(1.5, true) | method StartExposure(R8 1.5, BOOL true) -> void | Failed to call method StartExposure: {cause} | -
+AscomCamera::start_exposure(0.0, false) | method StartExposure(R8 0.0, BOOL false) -> void | Failed to call method StartExposure: {cause} | -
 AscomCamera::abort_exposure() | method AbortExposure() -> void | Failed to call method AbortExposure: {cause} | -
 AscomCamera::stop_exposure() | method StopExposure() -> void | Failed to call method StopExposure: {cause} | -
 AscomCamera::image_array() | get ImageArray() -> SAFEARRAY(I4) | Failed to get ImageArray property: {cause} | {detail}
@@ -71,6 +77,8 @@ AscomCoverCalibrator::close_cover() | method CloseCover() -> void | Failed to ca
 AscomCoverCalibrator::halt_cover() | method HaltCover() -> void | Failed to call method HaltCover: {cause} | -
 AscomCoverCalibrator::calibrator_on(1) | method CalibratorOn(I4 1) -> void | Failed to call CalibratorOn: {cause} | -
 AscomCoverCalibrator::calibrator_off() | method CalibratorOff() -> void | Failed to call method CalibratorOff: {cause} | -
+AscomCoverCalibrator::cover_moving() | get CoverMoving() -> BOOL | Failed to get property CoverMoving: {cause} | Property CoverMoving is not a bool
+AscomCoverCalibrator::calibrator_changing() | get CalibratorChanging() -> BOOL | Failed to get property CalibratorChanging: {cause} | Property CalibratorChanging is not a bool
 AscomCoverCalibrator::heartbeat() | connection.heartbeat
 AscomDome::connect() | connection.connect
 AscomDome::disconnect() | connection.disconnect
@@ -91,6 +99,16 @@ AscomDome::slew_to_azimuth(1.5) | method SlewToAzimuth(R8 1.5) -> void | Failed 
 AscomDome::abort_slew() | method AbortSlew() -> void | Failed to call method AbortSlew: {cause} | -
 AscomDome::find_home() | method FindHome() -> void | Failed to call method FindHome: {cause} | -
 AscomDome::set_slaved(true) | put Slaved(BOOL true) -> void | Failed to set ASCOM dome Slaved: Failed to set property Slaved: {cause} | -
+AscomDome::altitude() | get Altitude() -> R8 | Failed to get property Altitude: {cause} | Property Altitude is not a double
+AscomDome::at_home() | get AtHome() -> BOOL | Failed to get property AtHome: {cause} | Property AtHome is not a bool
+AscomDome::slaved() | get Slaved() -> BOOL | Failed to get property Slaved: {cause} | Property Slaved is not a bool
+AscomDome::can_find_home() | get CanFindHome() -> BOOL | Failed to get property CanFindHome: {cause} | Property CanFindHome is not a bool
+AscomDome::can_park() | get CanPark() -> BOOL | Failed to get property CanPark: {cause} | Property CanPark is not a bool
+AscomDome::can_set_altitude() | get CanSetAltitude() -> BOOL | Failed to get property CanSetAltitude: {cause} | Property CanSetAltitude is not a bool
+AscomDome::can_set_azimuth() | get CanSetAzimuth() -> BOOL | Failed to get property CanSetAzimuth: {cause} | Property CanSetAzimuth is not a bool
+AscomDome::can_set_shutter() | get CanSetShutter() -> BOOL | Failed to get property CanSetShutter: {cause} | Property CanSetShutter is not a bool
+AscomDome::can_slave() | get CanSlave() -> BOOL | Failed to get property CanSlave: {cause} | Property CanSlave is not a bool
+AscomDome::can_sync_azimuth() | get CanSyncAzimuth() -> BOOL | Failed to get property CanSyncAzimuth: {cause} | Property CanSyncAzimuth is not a bool
 AscomDome::heartbeat() | connection.heartbeat
 AscomFilterWheel::connect() | connection.connect
 AscomFilterWheel::disconnect() | connection.disconnect
@@ -187,6 +205,8 @@ AscomMount::tracking_rate() | get TrackingRate() -> I4 | Failed to get property 
 AscomMount::set_tracking_rate(1) | put TrackingRate(I4 1) -> void | Failed to set property TrackingRate: {cause} | -
 AscomMount::can_move_axis(1) | method CanMoveAxis(I4 1) -> BOOL | Failed to call method CanMoveAxis: {cause} | Method CanMoveAxis did not return a boolean
 AscomMount::move_axis(1, 2.5) | method MoveAxis(I4 1, R8 2.5) -> void | Failed to call method MoveAxis: {cause} | -
+AscomMount::equatorial_system() | get EquatorialSystem() -> I4 | Failed to get property EquatorialSystem: {cause} | Property EquatorialSystem is not an int (VARIANT type={vt})
+AscomMount::can_set_pier_side() | get CanSetPierSide() -> BOOL | Failed to get property CanSetPierSide: {cause} | Property CanSetPierSide is not a bool
 AscomMount::heartbeat() | connection.heartbeat
 AscomObservingConditions::connect() | connection.connect
 AscomObservingConditions::disconnect() | connection.disconnect
@@ -265,4 +285,9 @@ AscomSwitch::min_switch_value(1) | method MinSwitchValue(I4 1) -> R8 | Failed to
 AscomSwitch::max_switch_value(1) | method MaxSwitchValue(I4 1) -> R8 | Failed to call MaxSwitchValue: {cause} | MaxSwitchValue did not return a number
 AscomSwitch::switch_step(1) | method SwitchStep(I4 1) -> R8 | Failed to call SwitchStep: {cause} | SwitchStep did not return a number
 AscomSwitch::can_write(1) | method CanWrite(I4 1) -> BOOL | Failed to call CanWrite: {cause} | CanWrite did not return a bool
+AscomSwitch::can_async(1) | method CanAsync(I4 1) -> BOOL | Failed to call method CanAsync: {cause} | Method CanAsync did not return a boolean
+AscomSwitch::set_async(1, true) | method SetAsync(I4 1, BOOL true) -> void | Failed to call method SetAsync: {cause} | -
+AscomSwitch::set_async_value(1, 2.5) | method SetAsyncValue(I4 1, R8 2.5) -> void | Failed to call method SetAsyncValue: {cause} | -
+AscomSwitch::state_change_complete(1) | method StateChangeComplete(I4 1) -> BOOL | Failed to call method StateChangeComplete: {cause} | Method StateChangeComplete did not return a boolean
+AscomSwitch::cancel_async(1) | method CancelAsync(I4 1) -> void | Failed to call method CancelAsync: {cause} | -
 AscomSwitch::heartbeat() | connection.heartbeat

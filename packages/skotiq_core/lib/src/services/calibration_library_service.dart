@@ -228,8 +228,9 @@ class CalibrationLibraryService implements CalibrationLibrary {
     );
     if (dark == null) {
       setWarnings.add(
-        'No matching master dark (gain ${context.gain ?? 'unrecorded'}, offset '
-        '${context.offset ?? 'unrecorded'}, bin ${context.binX}x${context.binY}'
+        'No matching master dark (${context.gain == null ? 'no gain' : 'gain ${context.gain}'}, '
+        '${context.offset == null ? 'no offset' : 'offset ${context.offset}'}, '
+        'bin ${context.binX}x${context.binY}'
         ', ${_fmtSecs(context.exposureSeconds)}) — dark subtraction will be '
         'skipped.',
       );

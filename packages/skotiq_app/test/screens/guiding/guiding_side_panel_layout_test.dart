@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
 import 'package:skotiq_app/widgets/phd2/guide_controls_panel.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/guiding_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -17,19 +17,6 @@ import '../../harness/harness.dart';
 /// The screen's share of a 1920x1080 window: the navigation rail and the top
 /// bar take the rest.
 const Size _desktop = Size(1646, 960);
-
-class _TutorialsDisabled extends TutorialNotifier {
-  _TutorialsDisabled() : super(_NoopDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
 
 class _Phd2Connected extends GuiderStateNotifier {
   _Phd2Connected(super.ref) {
@@ -63,7 +50,6 @@ void main() {
       size: _desktop,
       settle: false,
       extraOverrides: [
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabled()),
         guiderStateProvider.overrideWith(_Phd2Connected.new),
         phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
         calibrationStateProvider.overrideWith(_Calibrated.new),
@@ -74,7 +60,7 @@ void main() {
     }
     expect(tester.takeException(), isNull);
 
-    final controls = find.byKey(GuidingTutorialKeys.controls);
+    final controls = find.byKey(TourTarget.guidingControls.key);
     expect(
       find.descendant(of: controls, matching: find.byType(Scrollable)),
       findsNothing,
@@ -97,7 +83,7 @@ void main() {
 
     final flipNote = tester
         .getRect(find.text('Flip the calibration after a meridian flip.'));
-    final brain = tester.getRect(find.byKey(GuidingTutorialKeys.brainBtn));
+    final brain = tester.getRect(find.byKey(TourTarget.guidingBrainButton.key));
     expect(
       brain.top - flipNote.bottom,
       lessThanOrEqualTo(SidePanel.sectionGap),

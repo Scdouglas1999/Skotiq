@@ -255,6 +255,7 @@ impl DeviceManager {
                 heartbeat_active: false,
                 desired_cooler: None,
                 desired_tracking: None,
+                declared_mount_frame: None,
             },
         );
     }
@@ -477,6 +478,7 @@ impl DeviceManager {
                 // binning from this, not from a poll it may never run.
                 if info.device_type == DeviceType::Camera {
                     self.publish_camera_settings(device_id).await;
+                    self.publish_unknown_pixel_size_notice(device_id).await;
                 }
 
                 // A focuser, wheel or rotator moved outside Skotiq is caught

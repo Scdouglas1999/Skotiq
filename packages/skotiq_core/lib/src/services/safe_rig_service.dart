@@ -450,9 +450,11 @@ class SafeRigService {
               'Camera status reports disconnected while disabling cooler',
             );
           }
+          // A cooler the camera cannot report may be on.
           coolerActive =
               coolerActive ||
-              status.coolerOn ||
+              status.coolerOn == true ||
+              (status.canCool && status.coolerOn == null) ||
               (status.coolerPower != null && status.coolerPower! > 0);
           // A fresh status that explicitly reports no cooling capability and
           // no active cooler is authoritative: there is nothing to disable.

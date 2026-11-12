@@ -173,3 +173,14 @@ pub(crate) fn check_asi_error(code: c_int) -> Result<(), DriverError> {
         _ => Err(DriverError::SdkError(format!("Unknown ASI error code: {}", code))),
     }
 }
+
+/// [`check_asi_error`] for a call on a camera that `connect` opened. The SDK
+/// drops a camera that leaves the bus from its list, and every later call on
+/// its ID answers INVALID_INDEX or INVALID_ID ("no camera of this ID is
+/// connected", ASICamera2.h), so on an open camera those two mean it was lost.
+pub(crate) fn check_open_camera_error(code: c_int) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_asi_error(code),
+    }
+}

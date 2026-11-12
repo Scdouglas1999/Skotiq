@@ -81,9 +81,7 @@
 
 ## dome.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.is_connected [http 400]
 > GET /api/v1/dome/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -111,9 +109,7 @@
 
 ## dome.name [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.name [http 400]
 > GET /api/v1/dome/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -141,9 +137,7 @@
 
 ## dome.description [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.description [http 400]
 > GET /api/v1/dome/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -171,9 +165,7 @@
 
 ## dome.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.driver_version [http 400]
 > GET /api/v1/dome/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -201,9 +193,7 @@
 
 ## dome.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.driver_info [http 400]
 > GET /api/v1/dome/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -231,9 +221,7 @@
 
 ## dome.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.interface_version [http 400]
 > GET /api/v1/dome/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -261,9 +249,7 @@
 
 ## dome.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.supported_actions [http 400]
 > GET /api/v1/dome/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -291,9 +277,7 @@
 
 ## dome.altitude [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.altitude [http 400]
 > GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=0]
@@ -321,9 +305,7 @@
 
 ## dome.azimuth [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.azimuth [http 400]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
@@ -367,9 +349,7 @@
 
 ## dome.azimuth [ascom 0x40C without Value]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## dome.azimuth [ascom 0x500]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
@@ -393,9 +373,7 @@
 
 ## dome.azimuth [wrong value type]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected f64)
 
 ## dome.at_home [ok]
 > GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
@@ -407,9 +385,7 @@
 
 ## dome.at_home [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.at_home [http 400]
 > GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=0]
@@ -437,9 +413,7 @@
 
 ## dome.at_park [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.at_park [http 400]
 > GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=0]
@@ -467,9 +441,7 @@
 
 ## dome.shutter_status [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.shutter_status [http 400]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
@@ -513,9 +485,7 @@
 
 ## dome.shutter_status [ascom 0x40C without Value]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## dome.shutter_status [ascom 0x500]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
@@ -539,9 +509,7 @@
 
 ## dome.shutter_status [wrong value type]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## dome.slewing [ok]
 > GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
@@ -553,9 +521,7 @@
 
 ## dome.slewing [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.slewing [http 400]
 > GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=0]
@@ -583,9 +549,7 @@
 
 ## dome.slaved [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.slaved [http 400]
 > GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=0]
@@ -641,9 +605,7 @@
 
 ## dome.can_find_home [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.can_find_home [http 400]
 > GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
@@ -671,9 +633,7 @@
 
 ## dome.can_park [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.can_park [http 400]
 > GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=0]
@@ -701,9 +661,7 @@
 
 ## dome.can_set_altitude [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.can_set_altitude [http 400]
 > GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=0]
@@ -731,9 +689,7 @@
 
 ## dome.can_set_azimuth [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.can_set_azimuth [http 400]
 > GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=0]
@@ -761,9 +717,7 @@
 
 ## dome.can_set_shutter [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.can_set_shutter [http 400]
 > GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=0]
@@ -791,9 +745,7 @@
 
 ## dome.can_slave [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.can_slave [http 400]
 > GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=0]
@@ -821,9 +773,7 @@
 
 ## dome.can_sync_azimuth [ascom 0x4FF without Value]
 > GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## dome.can_sync_azimuth [http 400]
 > GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=0]
@@ -1137,6 +1087,30 @@
 > PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
+## dome.slew_to_azimuth (DomeDriver, 370) [ok]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.slew_to_azimuth (DomeDriver, 370) [ascom 0x400]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(Operation not supported)
+
+## dome.slew_to_azimuth (DomeDriver, 370) [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.slew_to_azimuth (DomeDriver, 370) [http 400]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.slew_to_azimuth (DomeDriver, 370) [http 500]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.slew_to_azimuth (DomeDriver, 370) [malformed json]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
 ## dome.sync_to_azimuth [ok]
 > PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -1165,104 +1139,53 @@
 > PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## dome.get_status [ok]
+## dome.status (DomeDriver) [ok]
 > GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(DomeStatus { shutter_status: Closed, azimuth: 180.5, altitude: Some(45.5), slewing: false, at_home: false, at_park: true, slaved: false })
+= Ok(DomeState { azimuth: 180.5, altitude: Some(45.5), shutter: Some(Closed), slewing: false, at_home: false, at_park: true, can_set_altitude: true, can_set_azimuth: true, can_set_shutter: true, can_slave: true, slaved: false })
 
-## dome.get_status [ascom 0x400]
+## dome.status (DomeDriver) [ascom 0x400]
 > GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
+= Err(Operation not supported)
 
-## dome.get_status [ascom 0x4FF without Value]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+## dome.status (DomeDriver) [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Device error 1279: Unspecified driver fault)
 
-## dome.get_status [http 400]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+## dome.status (DomeDriver) [http 400]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(HTTP error 400: Method not implemented)
 
-## dome.get_status [http 500]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+## dome.status (DomeDriver) [http 500]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
 
-## dome.get_status [malformed json]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+## dome.status (DomeDriver) [malformed json]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

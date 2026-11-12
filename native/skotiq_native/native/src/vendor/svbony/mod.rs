@@ -244,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn connect_resets_only_the_image_shaping_controls() {
+    fn connect_resets_every_writable_control_but_the_exposure_and_the_cooler() {
         let control = |control_type: c_int, writable: bool| Control {
             control_type,
             min: 0,
@@ -265,8 +265,8 @@ mod tests {
             control(18, true),
             control(11, false),
         ]);
-        let reset: Vec<c_int> = controls.image_shaping().map(|c| c.control_type).collect();
-        assert_eq!(reset, vec![2, 7, 18]);
+        let reset: Vec<c_int> = controls.reset_at_connect().map(|c| c.control_type).collect();
+        assert_eq!(reset, vec![0, 2, 7, 13, 18]);
     }
 
     #[tokio::test]

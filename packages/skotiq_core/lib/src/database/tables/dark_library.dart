@@ -28,9 +28,11 @@ class DarkLibrary extends Table {
   /// Sensor temperature in degrees Celsius at time of capture
   RealColumn get temperature => real().nullable()();
 
-  IntColumn get gain => integer().withDefault(const Constant(0))();
+  /// The camera's gain and offset; null for a camera without that control
+  /// (FLI, Atik CCDs), whose frames record none.
+  IntColumn get gain => integer().nullable()();
 
-  IntColumn get offset => integer().withDefault(const Constant(0))();
+  IntColumn get offset => integer().nullable()();
 
   IntColumn get binX => integer().withDefault(const Constant(1))();
 

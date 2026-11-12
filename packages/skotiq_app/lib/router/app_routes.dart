@@ -1,7 +1,7 @@
 /// Every place the app can show, declared once.
 ///
 /// The router, the rail and phone bar, the command palette, the help menu,
-/// the tour and every in-app link read their paths from [AppRoute] and build
+/// the tours and every in-app link read their paths from [AppRoute] and build
 /// their locations with [AppRoutes], so a path or a query parameter name is
 /// written in this file and nowhere else.
 library;
@@ -9,11 +9,12 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show AppScreen, TutorialCategory;
+import 'package:skotiq_core/skotiq_core.dart' show AppScreen;
 
 import '../localization/skotiq_localizations.dart';
 import '../screens/analytics/analytics_route.dart';
 import '../screens/darkroom/darkroom_route.dart';
+import '../screens/equipment/equipment_route.dart';
 import '../screens/planner/planner_route.dart';
 import '../screens/sequencer/sequencer_route.dart';
 import '../screens/settings/settings_sections.dart';
@@ -79,7 +80,6 @@ enum AppRoute {
     icon: LucideIcons.moonStar,
     group: ShellNavGroup.observe,
     screen: AppScreen.dashboard,
-    tour: TutorialCategory.dashboardTour,
     showsItself: {ShellOverlay.runControls, ShellOverlay.autofocus},
   ),
   imaging(
@@ -89,7 +89,6 @@ enum AppRoute {
     icon: LucideIcons.camera,
     group: ShellNavGroup.observe,
     screen: AppScreen.imaging,
-    tour: TutorialCategory.imagingTour,
   ),
   sequencer(
     '/sequencer',
@@ -98,7 +97,6 @@ enum AppRoute {
     icon: LucideIcons.listOrdered,
     group: ShellNavGroup.observe,
     screen: AppScreen.sequencer,
-    tour: TutorialCategory.sequencerTour,
     showsItself: {ShellOverlay.runControls},
   ),
   guiding(
@@ -108,7 +106,6 @@ enum AppRoute {
     icon: LucideIcons.crosshair,
     group: ShellNavGroup.observe,
     screen: AppScreen.guiding,
-    tour: TutorialCategory.guidingTour,
   ),
   planner(
     '/planner',
@@ -123,7 +120,6 @@ enum AppRoute {
     icon: LucideIcons.plug,
     group: ShellNavGroup.prepare,
     screen: AppScreen.equipment,
-    tour: TutorialCategory.equipmentTour,
   ),
   flatWizard(
     '/flat-wizard',
@@ -132,7 +128,6 @@ enum AppRoute {
     group: ShellNavGroup.prepare,
     keywords: ['flat', 'calibration', 'wizard'],
     screen: AppScreen.flatWizard,
-    tour: TutorialCategory.flatWizardTour,
   ),
   weather(
     '/weather',
@@ -140,7 +135,6 @@ enum AppRoute {
     icon: LucideIcons.cloudSun,
     group: ShellNavGroup.prepare,
     screen: AppScreen.weather,
-    tour: TutorialCategory.weatherTour,
   ),
   darkroom(
     '/darkroom',
@@ -155,7 +149,6 @@ enum AppRoute {
     icon: LucideIcons.barChart3,
     group: ShellNavGroup.review,
     screen: AppScreen.analytics,
-    tour: TutorialCategory.analyticsTour,
   ),
 
   settings(
@@ -164,7 +157,6 @@ enum AppRoute {
     icon: LucideIcons.settings,
     palette: true,
     screen: AppScreen.settings,
-    tour: TutorialCategory.settingsTour,
   ),
   plateSolvingSettings('/settings/plate-solving', screen: AppScreen.settings),
   polarAlignment(
@@ -173,7 +165,6 @@ enum AppRoute {
     icon: LucideIcons.compass,
     palette: true,
     keywords: ['polar', 'align', 'drift', 'tppa'],
-    tour: TutorialCategory.polarAlignmentTour,
     showsItself: {ShellOverlay.polarAlignmentRun},
   ),
 
@@ -248,7 +239,7 @@ enum AppRoute {
   /// [pairing].
   replay('/replay/:runId'),
 
-  /// Renders Tonight with the first-night wizard open over it.
+  /// Opens the first-night walkthrough over Tonight.
   firstNightWizard('/tutorial/first-night'),
 
   /// First-run equipment setup, outside the shell so the rail does not
@@ -259,13 +250,11 @@ enum AppRoute {
     '/planetarium',
     label: TranslatedLabel('plannerTabPlanetarium'),
     screen: AppScreen.planetarium,
-    tour: TutorialCategory.planetariumTour,
   ),
   framing(
     '/framing',
     label: TranslatedLabel('plannerTabFraming'),
     screen: AppScreen.framing,
-    tour: TutorialCategory.framingTour,
   ),
   science('/science', screen: AppScreen.science),
   transients('/transients', screen: AppScreen.transients),
@@ -283,7 +272,6 @@ enum AppRoute {
     this.palette = false,
     this.keywords = const [],
     this.screen = AppScreen.unknown,
-    this.tour,
     this.showsItself = const {},
     this.inShell = true,
   });
@@ -310,9 +298,6 @@ enum AppRoute {
 
   /// The screen smart notifications compare against.
   final AppScreen screen;
-
-  /// The tour the help menu offers here.
-  final TutorialCategory? tour;
 
   final Set<ShellOverlay> showsItself;
 
@@ -555,6 +540,10 @@ abstract final class AppRoutes {
   /// Analytics > Science > Observing alerts.
   static String observingAlerts() =>
       analytics(tab: AnalyticsTab.science, scienceView: ScienceTab.transients);
+
+  /// Equipment on [tab], or on whatever tab it last showed when null.
+  static String equipment({EquipmentTab? tab}) =>
+      _location(AppRoute.equipment.path, {if (tab != null) 'tab': tab.word});
 
   static String sequencer({SequencerTab? tab}) =>
       _location(AppRoute.sequencer.path, {if (tab != null) 'tab': tab.word});

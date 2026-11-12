@@ -99,7 +99,7 @@ pub(crate) async fn get_native_capabilities(
                     ccd_temperature: status.as_ref().and_then(|s| s.sensor_temp),
                     set_ccd_temperature: status.as_ref().and_then(|s| s.target_temp),
                     cooler_power,
-                    cooler_on: status.as_ref().map(|s| s.cooler_on),
+                    cooler_on: status.as_ref().and_then(|s| s.cooler_on),
                     cooler_min_temp_c,
                     cooler_max_temp_c,
                     exposure_min,

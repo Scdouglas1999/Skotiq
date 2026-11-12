@@ -5,7 +5,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../widgets/frame_purpose_label.dart';
-import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../tours/tour_target.dart';
 import 'overlay_widgets.dart' show HistogramPainter;
 
 /// The glass HUD over the frame (05 §14, 06 §Imaging).
@@ -63,7 +63,7 @@ class FrameInfoPill extends ConsumerWidget {
     ];
 
     return Glass(
-      key: ImagingTutorialKeys.statsPanel,
+      key: TourTarget.imagingStatsPanel.key,
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd,
         vertical: SkotiqTokens.spaceXs + 2,
@@ -193,7 +193,7 @@ class HistogramHud extends ConsumerWidget {
     final raw = image != null && image.hasRawReady && image.rawU16 != null;
 
     return Glass(
-      key: ImagingTutorialKeys.histogram,
+      key: TourTarget.imagingHistogram.key,
       padding: const EdgeInsets.symmetric(
         horizontal: SkotiqTokens.spaceMd,
         vertical: SkotiqTokens.spaceSm + 2,

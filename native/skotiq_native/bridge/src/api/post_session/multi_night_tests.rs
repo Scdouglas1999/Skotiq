@@ -2,6 +2,7 @@
 //! star fields written to disk.
 
 use super::*;
+use skotiq_imaging::add_wcs_headers;
 use std::path::PathBuf;
 
 const W: u32 = 384;

@@ -40,8 +40,6 @@ pub struct CaptureFacts<'a> {
     /// read here: belonging to a run is the run's to add.
     pub identity: &'a FrameIdentity,
     pub commanded_secs: f64,
-    pub commanded_gain: Option<i32>,
-    pub commanded_offset: Option<i32>,
     pub binning: (u32, u32),
     /// FITS `IMAGETYP`.
     pub frame_type: &'a str,
@@ -140,8 +138,11 @@ pub async fn sample_frame_context(
     frame_ctx.filter_name = facts.filter.0.map(str::to_string);
     frame_ctx.filter_index = facts.filter.1;
 
-    frame_ctx.gain = image_data.gain.or(facts.commanded_gain);
-    frame_ctx.offset = image_data.offset.or(facts.commanded_offset);
+    // The camera layer has already decided these (the camera's report, the
+    // commanded value standing in for one it could not read, nothing for a
+    // camera without the control); a frame records them as they are.
+    frame_ctx.gain = image_data.gain;
+    frame_ctx.offset = image_data.offset;
     frame_ctx.sensor_temp_c = image_data.temperature;
     frame_ctx.set_temp_c = facts.set_temp_c;
 
@@ -325,8 +326,6 @@ pub(crate) async fn build_frame_context_for_save(
             rig: &ctx.run.rig,
             identity: &ctx.run.identity,
             commanded_secs: config.duration_secs,
-            commanded_gain: config.gain,
-            commanded_offset: config.offset,
             binning,
             frame_type: &config.frame_type,
             exposure_started_at,

@@ -9,6 +9,9 @@
 //   * a v64 database that never ran the services that used to create their
 //     own tables gets those tables in the shape the services gave them.
 //
+// Later schema versions that change a table on purpose are applied to the
+// base explicitly (`_withV67`), so nothing else can change unnoticed.
+//
 // `fixtures/README.md` says how the fixtures were made.
 import 'dart:convert';
 import 'dart:io';
@@ -65,6 +68,40 @@ Map<dynamic, dynamic> _asOfBase(Map<dynamic, dynamic> tables) => {
           },
 };
 
+/// What schema 67 changed since the base build: a calibration library's gain
+/// and offset may be empty (a camera without those controls), so the two
+/// tables are rebuilt with the columns nullable and without a default.
+const _v67NullableColumns = {
+  'dark_library': {'gain', 'offset'},
+  'flat_library': {'gain', 'offset'},
+};
+
+/// [tables] (a `dumpSchema` table map) as schema 67 leaves it.
+Map<dynamic, dynamic> _withV67(Map<dynamic, dynamic> tables) {
+  final out = jsonDecode(jsonEncode(tables)) as Map;
+  _v67NullableColumns.forEach((table, columns) {
+    for (final column in (out[table] as Map)['columns'] as List) {
+      if (columns.contains((column as Map)['name'])) {
+        column['notnull'] = 0;
+        column['default'] = null;
+      }
+    }
+  });
+  return out;
+}
+
+/// `dumpMasterSql` without the rows of the tables schema 67 rebuilt.
+Map<String, String?> _outsideV67(Map<String, String?> master, raw.Database db) {
+  final rebuilt = {
+    for (final row in db.select(
+      'SELECT type, name FROM sqlite_master WHERE tbl_name IN '
+      "('dark_library', 'flat_library')",
+    ))
+      '${row['type']}:${row['name']}',
+  };
+  return {...master}..removeWhere((key, _) => rebuilt.contains(key));
+}
+
 File _unpackPopulatedFixture(Directory dir) {
   final bytes = gzip.decode(
     File('$_fixtures/base_c04d55c8d_populated.db.gz').readAsBytesSync(),
@@ -104,8 +141,8 @@ void main() {
   group('a database written by the raw-DDL build', () {
     test('opens with its schema and row counts unchanged', () async {
       final file = _unpackPopulatedFixture(dir);
-      final masterBefore = _withRaw(file, dumpMasterSql);
-      final shapeBefore = _withRaw(file, dumpSchema)['tables']! as Map;
+      final masterBefore = _withRaw(file, (db) => _outsideV67(dumpMasterSql(db), db));
+      final tablesBefore = _withRaw(file, dumpSchema)['tables']! as Map;
       final countsBefore = _withRaw(file, dumpRowCounts);
       expect(
         _withRaw(file, (db) => db.select('PRAGMA user_version').first.values),
@@ -118,30 +155,29 @@ void main() {
       _withRaw(file, (db) {
         expect(db.select('PRAGMA integrity_check').first.values, ['ok']);
         expect(db.select('PRAGMA foreign_key_check'), isEmpty);
-        expect(db.select('PRAGMA user_version').first.values, [66]);
+        expect(db.select('PRAGMA user_version').first.values, [68]);
       });
       // Same tables, same indexes, same SQL text: nothing was rebuilt,
-      // altered or added, except the columns later steps add.
-      String withoutAdded(String key) =>
-          _columnsAddedAfterBase.keys.contains(key.split(':').last) ? '' : key;
-      final masterAfter = _withRaw(file, dumpMasterSql);
+      // altered or added but the two tables schema 67 rebuilt, which keep
+      // their structure apart from the nullable columns, and the tables later
+      // steps add columns to.
+      bool kept(String key) =>
+          !_columnsAddedAfterBase.keys.contains(key.split(':').last);
+      final masterAfter =
+          _withRaw(file, (db) => _outsideV67(dumpMasterSql(db), db));
       expect(
-        {
-          for (final e in masterAfter.entries)
-            if (withoutAdded(e.key).isNotEmpty) e.key: e.value,
-        },
-        {
-          for (final e in masterBefore.entries)
-            if (withoutAdded(e.key).isNotEmpty) e.key: e.value,
-        },
+        {for (final e in masterAfter.entries) if (kept(e.key)) e.key: e.value},
+        {for (final e in masterBefore.entries) if (kept(e.key)) e.key: e.value},
       );
-      final shapeAfter = _withRaw(file, dumpSchema)['tables']! as Map;
-      for (final table in _columnsAddedAfterBase.keys) {
-        expect(
-          jsonDecode(jsonEncode(_asOfBase(shapeAfter)[table])),
-          jsonDecode(jsonEncode(shapeBefore[table])),
-          reason: table,
-        );
+      final tablesAfter = jsonDecode(
+        jsonEncode(_asOfBase(_withRaw(file, dumpSchema)['tables']! as Map)),
+      ) as Map;
+      final expected = _withV67(tablesBefore);
+      for (final table in [
+        ..._v67NullableColumns.keys,
+        ..._columnsAddedAfterBase.keys,
+      ]) {
+        expect(tablesAfter[table], expected[table], reason: table);
       }
 
       final countsAfter = _withRaw(file, dumpRowCounts);
@@ -313,7 +349,7 @@ void main() {
     await _openAndClose(file);
 
     _withRaw(file, (db) {
-      expect(db.select('PRAGMA user_version').first.values, [66]);
+      expect(db.select('PRAGMA user_version').first.values, [68]);
       expect(db.select('SELECT COUNT(*) AS n FROM sky_tiles').first['n'], 2);
       expect(
         db.select(
@@ -339,7 +375,7 @@ void main() {
               as Map<String, dynamic>;
 
       final freshTables = _asOfBase(fresh['tables']! as Map);
-      final baseTables = base['tables'] as Map;
+      final baseTables = _withV67(base['tables'] as Map);
       expect(freshTables.keys.toSet(), {
         ...baseTables.keys,
         ..._onceLazyTables,

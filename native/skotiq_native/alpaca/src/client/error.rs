@@ -108,18 +108,6 @@ pub enum AlpacaError {
 
     #[error("HTTP client initialization failed: {0}")]
     ClientInitializationFailed(String),
-
-    #[error("Filter '{0}' not found")]
-    FilterNotFound(String),
-
-    #[error("Filter wheel is moving")]
-    FilterWheelMoving,
-
-    #[error("Invalid position: {0}")]
-    InvalidFilterPosition(i32),
-
-    #[error("Filter index {0} exceeds i32::MAX; impossible for a real filter wheel.")]
-    FilterIndexOutOfRange(usize),
 }
 
 impl AlpacaError {
@@ -161,10 +149,6 @@ impl AlpacaError {
             AlpacaError::ValidationFailed(_) => false,
             AlpacaError::RetryExhausted { .. } => false,
             AlpacaError::ClientInitializationFailed(_) => false,
-            AlpacaError::FilterNotFound(_) => false,
-            AlpacaError::FilterWheelMoving => false,
-            AlpacaError::InvalidFilterPosition(_) => false,
-            AlpacaError::FilterIndexOutOfRange(_) => false,
         }
     }
 

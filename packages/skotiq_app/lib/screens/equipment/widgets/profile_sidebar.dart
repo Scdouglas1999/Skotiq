@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/tutorial_keys/equipment_keys.dart';
+import '../../../tours/tour_target.dart';
 import 'profile_scan_notice.dart';
 
 /// Footer action that switches the app to the selected profile for this
@@ -153,7 +153,7 @@ class ProfileSidebar extends ConsumerWidget {
               // Spotlight target for the Equipment Setup tour's "Create a
               // Profile" step.
               key: tutorialTargets
-                  ? EquipmentTutorialKeys.createProfileBtn
+                  ? TourTarget.equipmentCreateProfileButton.key
                   : null,
               icon: LucideIcons.plus,
               tooltip: 'Create a profile',
@@ -292,7 +292,7 @@ class ProfileSidebar extends ConsumerWidget {
               // Spotlight target for the Equipment Setup tour's "Connect
               // Devices" step.
               key: tutorialTargets
-                  ? EquipmentTutorialKeys.quickConnectBar
+                  ? TourTarget.equipmentQuickConnectBar.key
                   : null,
               label: 'Connect all',
               icon: LucideIcons.plug,

@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/polar_alignment/polar_alignment_body_layout.dart';
 import 'package:skotiq_app/screens/polar_alignment/polar_alignment_screen.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/polar_alignment_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -95,7 +95,7 @@ void main() {
       expect(tester.takeException(), isNull);
 
       final frame =
-          tester.getRect(find.byKey(PolarAlignmentTutorialKeys.imageView));
+          tester.getRect(find.byKey(TourTarget.polarImageView.key));
       expect(frame.width, greaterThan(size.width * 0.7),
           reason: 'the live frame takes most of the width');
       expect(frame.height, greaterThan(size.height * 0.6));
@@ -118,7 +118,7 @@ void main() {
       await _pump(tester, size, _adjusting());
       expect(tester.takeException(), isNull);
       final frame =
-          tester.getRect(find.byKey(PolarAlignmentTutorialKeys.imageView));
+          tester.getRect(find.byKey(TourTarget.polarImageView.key));
       expect(frame.width, greaterThan(size.width * 0.45));
       expect(frame.height, greaterThan(100));
       expect(frame.bottom, lessThanOrEqualTo(size.height));

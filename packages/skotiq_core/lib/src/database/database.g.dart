@@ -23994,21 +23994,19 @@ class FlatLibrary extends Table with TableInfo<FlatLibrary, FlatLibraryRow> {
   late final GeneratedColumn<int> gain = GeneratedColumn<int>(
     'gain',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL DEFAULT 0',
-    defaultValue: const CustomExpression('0'),
+    $customConstraints: '',
   );
   static const VerificationMeta _offsetMeta = const VerificationMeta('offset');
   late final GeneratedColumn<int> offset = GeneratedColumn<int>(
     'offset',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    $customConstraints: 'NOT NULL DEFAULT 0',
-    defaultValue: const CustomExpression('0'),
+    $customConstraints: '',
   );
   static const VerificationMeta _binXMeta = const VerificationMeta('binX');
   late final GeneratedColumn<int> binX = GeneratedColumn<int>(
@@ -24252,11 +24250,11 @@ class FlatLibrary extends Table with TableInfo<FlatLibrary, FlatLibraryRow> {
       gain: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}gain'],
-      )!,
+      ),
       offset: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}offset'],
-      )!,
+      ),
       binX: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}bin_x'],
@@ -24304,8 +24302,10 @@ class FlatLibraryRow extends DataClass implements Insertable<FlatLibraryRow> {
   final int? equipmentProfileId;
   final String? opticalTrainId;
   final double? temperature;
-  final int gain;
-  final int offset;
+
+  /// NULL for a camera without gain or offset control (FLI, Atik CCDs).
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
   final int? width;
@@ -24320,8 +24320,8 @@ class FlatLibraryRow extends DataClass implements Insertable<FlatLibraryRow> {
     this.equipmentProfileId,
     this.opticalTrainId,
     this.temperature,
-    required this.gain,
-    required this.offset,
+    this.gain,
+    this.offset,
     required this.binX,
     required this.binY,
     this.width,
@@ -24347,8 +24347,12 @@ class FlatLibraryRow extends DataClass implements Insertable<FlatLibraryRow> {
     if (!nullToAbsent || temperature != null) {
       map['temperature'] = Variable<double>(temperature);
     }
-    map['gain'] = Variable<int>(gain);
-    map['offset'] = Variable<int>(offset);
+    if (!nullToAbsent || gain != null) {
+      map['gain'] = Variable<int>(gain);
+    }
+    if (!nullToAbsent || offset != null) {
+      map['offset'] = Variable<int>(offset);
+    }
     map['bin_x'] = Variable<int>(binX);
     map['bin_y'] = Variable<int>(binY);
     if (!nullToAbsent || width != null) {
@@ -24379,8 +24383,10 @@ class FlatLibraryRow extends DataClass implements Insertable<FlatLibraryRow> {
       temperature: temperature == null && nullToAbsent
           ? const Value.absent()
           : Value(temperature),
-      gain: Value(gain),
-      offset: Value(offset),
+      gain: gain == null && nullToAbsent ? const Value.absent() : Value(gain),
+      offset: offset == null && nullToAbsent
+          ? const Value.absent()
+          : Value(offset),
       binX: Value(binX),
       binY: Value(binY),
       width: width == null && nullToAbsent
@@ -24409,8 +24415,8 @@ class FlatLibraryRow extends DataClass implements Insertable<FlatLibraryRow> {
       ),
       opticalTrainId: serializer.fromJson<String?>(json['optical_train_id']),
       temperature: serializer.fromJson<double?>(json['temperature']),
-      gain: serializer.fromJson<int>(json['gain']),
-      offset: serializer.fromJson<int>(json['offset']),
+      gain: serializer.fromJson<int?>(json['gain']),
+      offset: serializer.fromJson<int?>(json['offset']),
       binX: serializer.fromJson<int>(json['bin_x']),
       binY: serializer.fromJson<int>(json['bin_y']),
       width: serializer.fromJson<int?>(json['width']),
@@ -24430,8 +24436,8 @@ class FlatLibraryRow extends DataClass implements Insertable<FlatLibraryRow> {
       'equipment_profile_id': serializer.toJson<int?>(equipmentProfileId),
       'optical_train_id': serializer.toJson<String?>(opticalTrainId),
       'temperature': serializer.toJson<double?>(temperature),
-      'gain': serializer.toJson<int>(gain),
-      'offset': serializer.toJson<int>(offset),
+      'gain': serializer.toJson<int?>(gain),
+      'offset': serializer.toJson<int?>(offset),
       'bin_x': serializer.toJson<int>(binX),
       'bin_y': serializer.toJson<int>(binY),
       'width': serializer.toJson<int?>(width),
@@ -24449,8 +24455,8 @@ class FlatLibraryRow extends DataClass implements Insertable<FlatLibraryRow> {
     Value<int?> equipmentProfileId = const Value.absent(),
     Value<String?> opticalTrainId = const Value.absent(),
     Value<double?> temperature = const Value.absent(),
-    int? gain,
-    int? offset,
+    Value<int?> gain = const Value.absent(),
+    Value<int?> offset = const Value.absent(),
     int? binX,
     int? binY,
     Value<int?> width = const Value.absent(),
@@ -24469,8 +24475,8 @@ class FlatLibraryRow extends DataClass implements Insertable<FlatLibraryRow> {
         ? opticalTrainId.value
         : this.opticalTrainId,
     temperature: temperature.present ? temperature.value : this.temperature,
-    gain: gain ?? this.gain,
-    offset: offset ?? this.offset,
+    gain: gain.present ? gain.value : this.gain,
+    offset: offset.present ? offset.value : this.offset,
     binX: binX ?? this.binX,
     binY: binY ?? this.binY,
     width: width.present ? width.value : this.width,
@@ -24575,8 +24581,8 @@ class FlatLibraryCompanion extends UpdateCompanion<FlatLibraryRow> {
   final Value<int?> equipmentProfileId;
   final Value<String?> opticalTrainId;
   final Value<double?> temperature;
-  final Value<int> gain;
-  final Value<int> offset;
+  final Value<int?> gain;
+  final Value<int?> offset;
   final Value<int> binX;
   final Value<int> binY;
   final Value<int?> width;
@@ -24663,8 +24669,8 @@ class FlatLibraryCompanion extends UpdateCompanion<FlatLibraryRow> {
     Value<int?>? equipmentProfileId,
     Value<String?>? opticalTrainId,
     Value<double?>? temperature,
-    Value<int>? gain,
-    Value<int>? offset,
+    Value<int?>? gain,
+    Value<int?>? offset,
     Value<int>? binX,
     Value<int>? binY,
     Value<int?>? width,
@@ -38401,20 +38407,18 @@ class $DarkLibraryTable extends DarkLibrary
   late final GeneratedColumn<int> gain = GeneratedColumn<int>(
     'gain',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
   );
   static const VerificationMeta _offsetMeta = const VerificationMeta('offset');
   @override
   late final GeneratedColumn<int> offset = GeneratedColumn<int>(
     'offset',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
-    defaultValue: const Constant(0),
   );
   static const VerificationMeta _binXMeta = const VerificationMeta('binX');
   @override
@@ -38654,11 +38658,11 @@ class $DarkLibraryTable extends DarkLibrary
       gain: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}gain'],
-      )!,
+      ),
       offset: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}offset'],
-      )!,
+      ),
       binX: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}bin_x'],
@@ -38712,8 +38716,11 @@ class DarkLibraryEntry extends DataClass
 
   /// Sensor temperature in degrees Celsius at time of capture
   final double? temperature;
-  final int gain;
-  final int offset;
+
+  /// The camera's gain and offset; null for a camera without that control
+  /// (FLI, Atik CCDs), whose frames record none.
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
 
@@ -38741,8 +38748,8 @@ class DarkLibraryEntry extends DataClass
     required this.filePath,
     required this.exposureTime,
     this.temperature,
-    required this.gain,
-    required this.offset,
+    this.gain,
+    this.offset,
     required this.binX,
     required this.binY,
     required this.frameType,
@@ -38761,8 +38768,12 @@ class DarkLibraryEntry extends DataClass
     if (!nullToAbsent || temperature != null) {
       map['temperature'] = Variable<double>(temperature);
     }
-    map['gain'] = Variable<int>(gain);
-    map['offset'] = Variable<int>(offset);
+    if (!nullToAbsent || gain != null) {
+      map['gain'] = Variable<int>(gain);
+    }
+    if (!nullToAbsent || offset != null) {
+      map['offset'] = Variable<int>(offset);
+    }
     map['bin_x'] = Variable<int>(binX);
     map['bin_y'] = Variable<int>(binY);
     map['frame_type'] = Variable<String>(frameType);
@@ -38790,8 +38801,10 @@ class DarkLibraryEntry extends DataClass
       temperature: temperature == null && nullToAbsent
           ? const Value.absent()
           : Value(temperature),
-      gain: Value(gain),
-      offset: Value(offset),
+      gain: gain == null && nullToAbsent ? const Value.absent() : Value(gain),
+      offset: offset == null && nullToAbsent
+          ? const Value.absent()
+          : Value(offset),
       binX: Value(binX),
       binY: Value(binY),
       frameType: Value(frameType),
@@ -38821,8 +38834,8 @@ class DarkLibraryEntry extends DataClass
       filePath: serializer.fromJson<String>(json['filePath']),
       exposureTime: serializer.fromJson<double>(json['exposureTime']),
       temperature: serializer.fromJson<double?>(json['temperature']),
-      gain: serializer.fromJson<int>(json['gain']),
-      offset: serializer.fromJson<int>(json['offset']),
+      gain: serializer.fromJson<int?>(json['gain']),
+      offset: serializer.fromJson<int?>(json['offset']),
       binX: serializer.fromJson<int>(json['binX']),
       binY: serializer.fromJson<int>(json['binY']),
       frameType: serializer.fromJson<String>(json['frameType']),
@@ -38841,8 +38854,8 @@ class DarkLibraryEntry extends DataClass
       'filePath': serializer.toJson<String>(filePath),
       'exposureTime': serializer.toJson<double>(exposureTime),
       'temperature': serializer.toJson<double?>(temperature),
-      'gain': serializer.toJson<int>(gain),
-      'offset': serializer.toJson<int>(offset),
+      'gain': serializer.toJson<int?>(gain),
+      'offset': serializer.toJson<int?>(offset),
       'binX': serializer.toJson<int>(binX),
       'binY': serializer.toJson<int>(binY),
       'frameType': serializer.toJson<String>(frameType),
@@ -38859,8 +38872,8 @@ class DarkLibraryEntry extends DataClass
     String? filePath,
     double? exposureTime,
     Value<double?> temperature = const Value.absent(),
-    int? gain,
-    int? offset,
+    Value<int?> gain = const Value.absent(),
+    Value<int?> offset = const Value.absent(),
     int? binX,
     int? binY,
     String? frameType,
@@ -38874,8 +38887,8 @@ class DarkLibraryEntry extends DataClass
     filePath: filePath ?? this.filePath,
     exposureTime: exposureTime ?? this.exposureTime,
     temperature: temperature.present ? temperature.value : this.temperature,
-    gain: gain ?? this.gain,
-    offset: offset ?? this.offset,
+    gain: gain.present ? gain.value : this.gain,
+    offset: offset.present ? offset.value : this.offset,
     binX: binX ?? this.binX,
     binY: binY ?? this.binY,
     frameType: frameType ?? this.frameType,
@@ -38979,8 +38992,8 @@ class DarkLibraryCompanion extends UpdateCompanion<DarkLibraryEntry> {
   final Value<String> filePath;
   final Value<double> exposureTime;
   final Value<double?> temperature;
-  final Value<int> gain;
-  final Value<int> offset;
+  final Value<int?> gain;
+  final Value<int?> offset;
   final Value<int> binX;
   final Value<int> binY;
   final Value<String> frameType;
@@ -39061,8 +39074,8 @@ class DarkLibraryCompanion extends UpdateCompanion<DarkLibraryEntry> {
     Value<String>? filePath,
     Value<double>? exposureTime,
     Value<double?>? temperature,
-    Value<int>? gain,
-    Value<int>? offset,
+    Value<int?>? gain,
+    Value<int?>? offset,
     Value<int>? binX,
     Value<int>? binY,
     Value<String>? frameType,
@@ -74367,8 +74380,8 @@ typedef $FlatLibraryCreateCompanionBuilder =
       Value<int?> equipmentProfileId,
       Value<String?> opticalTrainId,
       Value<double?> temperature,
-      Value<int> gain,
-      Value<int> offset,
+      Value<int?> gain,
+      Value<int?> offset,
       Value<int> binX,
       Value<int> binY,
       Value<int?> width,
@@ -74385,8 +74398,8 @@ typedef $FlatLibraryUpdateCompanionBuilder =
       Value<int?> equipmentProfileId,
       Value<String?> opticalTrainId,
       Value<double?> temperature,
-      Value<int> gain,
-      Value<int> offset,
+      Value<int?> gain,
+      Value<int?> offset,
       Value<int> binX,
       Value<int> binY,
       Value<int?> width,
@@ -74746,8 +74759,8 @@ class $FlatLibraryTableManager
                 Value<int?> equipmentProfileId = const Value.absent(),
                 Value<String?> opticalTrainId = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
-                Value<int> gain = const Value.absent(),
-                Value<int> offset = const Value.absent(),
+                Value<int?> gain = const Value.absent(),
+                Value<int?> offset = const Value.absent(),
                 Value<int> binX = const Value.absent(),
                 Value<int> binY = const Value.absent(),
                 Value<int?> width = const Value.absent(),
@@ -74780,8 +74793,8 @@ class $FlatLibraryTableManager
                 Value<int?> equipmentProfileId = const Value.absent(),
                 Value<String?> opticalTrainId = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
-                Value<int> gain = const Value.absent(),
-                Value<int> offset = const Value.absent(),
+                Value<int?> gain = const Value.absent(),
+                Value<int?> offset = const Value.absent(),
                 Value<int> binX = const Value.absent(),
                 Value<int> binY = const Value.absent(),
                 Value<int?> width = const Value.absent(),
@@ -84383,8 +84396,8 @@ typedef $$DarkLibraryTableCreateCompanionBuilder =
       required String filePath,
       required double exposureTime,
       Value<double?> temperature,
-      Value<int> gain,
-      Value<int> offset,
+      Value<int?> gain,
+      Value<int?> offset,
       Value<int> binX,
       Value<int> binY,
       Value<String> frameType,
@@ -84400,8 +84413,8 @@ typedef $$DarkLibraryTableUpdateCompanionBuilder =
       Value<String> filePath,
       Value<double> exposureTime,
       Value<double?> temperature,
-      Value<int> gain,
-      Value<int> offset,
+      Value<int?> gain,
+      Value<int?> offset,
       Value<int> binX,
       Value<int> binY,
       Value<String> frameType,
@@ -84671,8 +84684,8 @@ class $$DarkLibraryTableTableManager
                 Value<String> filePath = const Value.absent(),
                 Value<double> exposureTime = const Value.absent(),
                 Value<double?> temperature = const Value.absent(),
-                Value<int> gain = const Value.absent(),
-                Value<int> offset = const Value.absent(),
+                Value<int?> gain = const Value.absent(),
+                Value<int?> offset = const Value.absent(),
                 Value<int> binX = const Value.absent(),
                 Value<int> binY = const Value.absent(),
                 Value<String> frameType = const Value.absent(),
@@ -84703,8 +84716,8 @@ class $$DarkLibraryTableTableManager
                 required String filePath,
                 required double exposureTime,
                 Value<double?> temperature = const Value.absent(),
-                Value<int> gain = const Value.absent(),
-                Value<int> offset = const Value.absent(),
+                Value<int?> gain = const Value.absent(),
+                Value<int?> offset = const Value.absent(),
                 Value<int> binX = const Value.absent(),
                 Value<int> binY = const Value.absent(),
                 Value<String> frameType = const Value.absent(),

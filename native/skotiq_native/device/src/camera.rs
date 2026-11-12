@@ -39,9 +39,16 @@ pub enum LongExposureNoiseReduction {
 pub struct CameraStatus {
     pub state: CameraState,
     pub sensor_temp: Option<f64>,
+    /// Percent. `None` when the camera does not report it.
     pub cooler_power: Option<f64>,
+    /// The set-point the cooler holds. `None` when the camera cannot say and
+    /// this connection has not set one.
     pub target_temp: Option<f64>,
-    pub cooler_on: bool,
+    /// Whether the cooler is switched on, as the camera reports it or as this
+    /// connection last commanded it. `None` when neither is known: a camera
+    /// whose SDK cannot read its cooler back may be cooling from an earlier
+    /// session, so "off" would be a guess.
+    pub cooler_on: Option<bool>,
     pub gain: i32,
     pub offset: i32,
     pub bin_x: i32,

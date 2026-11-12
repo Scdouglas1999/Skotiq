@@ -143,7 +143,7 @@ class _DesktopGroupedList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      key: SettingsTutorialKeys.categories,
+      key: TourTarget.settingsCategories.key,
       padding: EdgeInsets.zero,
       itemCount: groups.length,
       itemBuilder: (context, index) {

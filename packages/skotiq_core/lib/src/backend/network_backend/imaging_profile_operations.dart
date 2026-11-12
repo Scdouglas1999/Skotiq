@@ -304,16 +304,16 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   /// it host-side. Returns `null` when no library dark matches.
   Future<String?> matchDarkFromLibrary({
     required double exposureTime,
-    required int gain,
-    int offset = 0,
+    required int? gain,
+    int? offset,
     int binX = 1,
     int binY = 1,
     double? temperature,
   }) async {
     final response = await _post('calibration/match-dark', {
       'exposureTime': exposureTime,
-      'gain': gain,
-      'offset': offset,
+      if (gain != null) 'gain': gain,
+      if (offset != null) 'offset': offset,
       'binX': binX,
       'binY': binY,
       if (temperature != null) 'temperature': temperature,

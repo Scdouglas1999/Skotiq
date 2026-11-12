@@ -690,3 +690,21 @@ async fn a_camera_connect_names_it_and_publishes_its_settings() {
         "{events:?}"
     );
 }
+
+/// A camera with no pitch (0.0) is told about it in words that say what is
+/// lost and where planning takes the value from; one with a pitch is not.
+#[test]
+fn a_camera_without_a_pixel_size_gets_a_notice_and_one_with_it_does_not() {
+    let text = super::unknown_pixel_size_notice("CCD47-10", 0.0, 0.0).expect("notice");
+    assert!(
+        text.starts_with("CCD47-10 does not report its pixel size"),
+        "{text}"
+    );
+    assert!(text.contains("without a pixel-scale hint"), "{text}");
+    assert!(!text.contains("  "), "{text}");
+    assert_eq!(
+        super::unknown_pixel_size_notice("PL09000", 12.0, 12.0),
+        None
+    );
+    assert!(super::unknown_pixel_size_notice("half", 12.0, 0.0).is_some());
+}

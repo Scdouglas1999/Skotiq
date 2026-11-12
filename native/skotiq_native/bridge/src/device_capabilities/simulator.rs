@@ -110,38 +110,43 @@ pub(crate) async fn get_simulator_capabilities(
                 ..Default::default()
             })
         }
-        DeviceType::Camera => DeviceCapabilities::Camera(CameraCapabilities {
-            max_width: crate::sim_frame::SIM_W as u32,
-            max_height: crate::sim_frame::SIM_H as u32,
-            bit_depth: 16,
-            has_shutter: true,
-            can_set_ccd_temperature: true,
-            can_set_cooler: true,
-            can_get_cooler_power: true,
-            can_bin: true,
-            max_bin_x: 4,
-            max_bin_y: 4,
-            can_asymmetric_bin: false,
-            can_set_gain: true,
-            gain_min: Some(0),
-            gain_max: Some(600),
-            can_set_offset: true,
-            offset_min: Some(0),
-            offset_max: Some(255),
-            can_abort_exposure: true,
-            can_stop_exposure: true,
-            can_subframe: true,
-            pixel_size_x: Some(3.76),
-            pixel_size_y: Some(3.76),
-            is_color: false,
-            exposure_min: Some(0.001),
-            exposure_max: Some(3600.0),
-            // Simulator advertises a representative regulated-cooling range so
-            // the setpoint UI and its clamping path are exercised end-to-end.
-            cooler_min_temp_c: Some(-40.0),
-            cooler_max_temp_c: Some(40.0),
-            ..Default::default()
-        }),
+        DeviceType::Camera => {
+            let traits = crate::api::devices::simulation::sim_imaging_camera_traits();
+            let cooled = !traits.no_cooler;
+            let gain = !traits.no_gain;
+            DeviceCapabilities::Camera(CameraCapabilities {
+                max_width: crate::sim_frame::SIM_W as u32,
+                max_height: crate::sim_frame::SIM_H as u32,
+                bit_depth: 16,
+                has_shutter: true,
+                can_set_ccd_temperature: cooled,
+                can_set_cooler: cooled,
+                can_get_cooler_power: cooled,
+                can_bin: true,
+                max_bin_x: 4,
+                max_bin_y: 4,
+                can_asymmetric_bin: false,
+                can_set_gain: gain,
+                gain_min: gain.then_some(0),
+                gain_max: gain.then_some(600),
+                can_set_offset: gain,
+                offset_min: gain.then_some(0),
+                offset_max: gain.then_some(255),
+                can_abort_exposure: true,
+                can_stop_exposure: true,
+                can_subframe: true,
+                pixel_size_x: Some(3.76),
+                pixel_size_y: Some(3.76),
+                is_color: false,
+                exposure_min: Some(0.001),
+                exposure_max: Some(3600.0),
+                // Simulator advertises a representative regulated-cooling range so
+                // the setpoint UI and its clamping path are exercised end-to-end.
+                cooler_min_temp_c: cooled.then_some(-40.0),
+                cooler_max_temp_c: cooled.then_some(40.0),
+                ..Default::default()
+            })
+        }
         DeviceType::Mount => DeviceCapabilities::Mount(MountCapabilities {
             can_slew: true,
             can_slew_async: true,

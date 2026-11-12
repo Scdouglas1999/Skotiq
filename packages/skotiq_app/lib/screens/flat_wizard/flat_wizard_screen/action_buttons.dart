@@ -107,7 +107,7 @@ class _ActionButtons extends ConsumerWidget {
                   // changed tab. The selected mode is the one the tour should
                   // spotlight, so only it claims it.
                   key: mode == state.mode
-                      ? FlatWizardTutorialKeys.startBtn
+                      ? TourTarget.flatStartButton.key
                       : null,
                   label: mode == FlatWizardMode.quick
                       ? 'Start capture'

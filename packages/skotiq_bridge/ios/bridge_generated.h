@@ -1770,7 +1770,7 @@ typedef struct wire_cst_camera_status {
   double *sensor_temp;
   double *cooler_power;
   double *target_temp;
-  bool cooler_on;
+  bool *cooler_on;
   int32_t gain;
   int32_t offset;
   int32_t bin_x;

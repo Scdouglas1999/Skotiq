@@ -226,3 +226,63 @@ async fn a_camera_without_16_bit_readout_connects_in_8_bit() {
     assert_eq!(frame.data[1], ((1001u16) & 0xff) << 8);
     camera.disconnect().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+async fn a_camera_unplugged_while_connected_reads_as_disconnected() {
+    let mut camera = connected(COOLED_MONO).await;
+    std::env::set_var("FAKE_ASI_GONE", "1");
+    let status = camera.get_status().await;
+    let started = camera.start_exposure(exposure(1.0, 1, None)).await;
+    let mut absent = ZwoCamera::new(COOLED_MONO);
+    let reconnect = absent.connect().await;
+    std::env::remove_var("FAKE_ASI_GONE");
+    assert!(
+        matches!(status, Err(DriverError::Disconnected)),
+        "{status:?}"
+    );
+    assert!(
+        matches!(started, Err(DriverError::Disconnected)),
+        "{started:?}"
+    );
+    // Not there when a connect looks for it: a wrong id, not a lost camera.
+    assert!(
+        matches!(reconnect, Err(DriverError::InvalidDevice(_))),
+        "{reconnect:?}"
+    );
+    camera.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+async fn a_focuser_unplugged_while_connected_reads_as_disconnected() {
+    let mut focuser = ZwoFocuser::new(0);
+    focuser.connect().await.expect("connect");
+    std::env::set_var("FAKE_EAF_GONE", "1");
+    let position = focuser.get_position().await;
+    let moved = focuser.move_to(2_000).await;
+    std::env::remove_var("FAKE_EAF_GONE");
+    assert!(
+        matches!(position, Err(DriverError::Disconnected)),
+        "{position:?}"
+    );
+    assert!(matches!(moved, Err(DriverError::Disconnected)), "{moved:?}");
+    focuser.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "needs the ZWO fake SDKs on LD_LIBRARY_PATH (see the file header)"]
+async fn a_wheel_unplugged_while_connected_reads_as_disconnected() {
+    let mut wheel = ZwoFilterWheel::new(0);
+    wheel.connect().await.expect("connect");
+    std::env::set_var("FAKE_EFW_GONE", "1");
+    let position = wheel.get_position().await;
+    let moved = wheel.move_to_position(2).await;
+    std::env::remove_var("FAKE_EFW_GONE");
+    assert!(
+        matches!(position, Err(DriverError::Disconnected)),
+        "{position:?}"
+    );
+    assert!(matches!(moved, Err(DriverError::Disconnected)), "{moved:?}");
+    wheel.disconnect().await.unwrap();
+}

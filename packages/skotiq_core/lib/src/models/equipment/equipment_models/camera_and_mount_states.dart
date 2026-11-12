@@ -16,7 +16,11 @@ class CameraStateSnapshot extends Equatable
   final int? gain;
   final int? offset;
   final String? binning;
-  final bool isCooling;
+
+  /// Whether the cooler is on, as the camera reports it or as this host last
+  /// set it; null when neither is known (a camera that cannot read its cooler
+  /// back may still be cooling from an earlier session).
+  final bool? coolerOn;
   final bool isWarming;
   final bool isExposing;
   final double? exposureProgress;
@@ -38,7 +42,7 @@ class CameraStateSnapshot extends Equatable
     this.gain,
     this.offset,
     this.binning,
-    this.isCooling = false,
+    this.coolerOn,
     this.isWarming = false,
     this.isExposing = false,
     this.exposureProgress,
@@ -48,6 +52,9 @@ class CameraStateSnapshot extends Equatable
   });
 
   bool get hasError => lastError != null;
+
+  /// The cooler is known to be on.
+  bool get isCooling => coolerOn == true;
 
   /// Whether the device is healthy (communicated within last 30 seconds)
   bool get isHealthy {
@@ -73,7 +80,8 @@ class CameraStateSnapshot extends Equatable
     int? gain,
     int? offset,
     String? binning,
-    bool? isCooling,
+    bool? coolerOn,
+    bool clearCoolerOn = false,
     bool? isWarming,
     bool? isExposing,
     double? exposureProgress,
@@ -92,7 +100,7 @@ class CameraStateSnapshot extends Equatable
       gain: gain ?? this.gain,
       offset: offset ?? this.offset,
       binning: binning ?? this.binning,
-      isCooling: isCooling ?? this.isCooling,
+      coolerOn: clearCoolerOn ? null : (coolerOn ?? this.coolerOn),
       isWarming: isWarming ?? this.isWarming,
       isExposing: isExposing ?? this.isExposing,
       exposureProgress: exposureProgress ?? this.exposureProgress,
@@ -114,7 +122,7 @@ class CameraStateSnapshot extends Equatable
     gain,
     offset,
     binning,
-    isCooling,
+    coolerOn,
     isWarming,
     isExposing,
     exposureProgress,

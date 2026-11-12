@@ -100,13 +100,17 @@ impl DeviceManager {
                 DeviceOpError::device_not_found(device_id)
             })?;
         drop(devices);
+        let frame = self
+            .mount_frame(device_id)
+            .await
+            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
 
         tracing::debug!(
             "mount_slew: Found device with driver_type={:?}",
             info.driver_type
         );
 
-        // Catalog/solver coordinates are J2000; real mounts (ASCOM default
+        // Catalog/solver coordinates are J2000; most mounts (ASCOM
         // equTopocentric, INDI EQUATORIAL_EOD_COORD, native LX200-protocol)
         // expect of-date coordinates — ~22′ apart in 2026. Convert at this
         // single choke point so every caller (sequencer, planetarium GOTO,
@@ -114,18 +118,17 @@ impl DeviceManager {
         // unless pinned to J2000 (`epoch::SimMountFrame`), so frame mixing
         // above this layer shows up offline instead of first on the rig.
         // See `device_manager::epoch` for the direction policy.
-        let (ra, dec) = if crate::device_manager::epoch::mount_frame_is_of_date(info.driver_type) {
-            let (ra_now, dec_now) = crate::device_manager::epoch::j2000_to_jnow(ra, dec);
+        let (ra, dec) = {
+            let (mount_ra, mount_dec) = frame.j2000_to_mount(ra, dec);
             tracing::debug!(
-                "mount_slew: J2000 ({:.5}h, {:.4}°) -> JNOW ({:.5}h, {:.4}°)",
+                "mount_slew: J2000 ({:.5}h, {:.4}°) -> {} ({:.5}h, {:.4}°)",
                 ra,
                 dec,
-                ra_now,
-                dec_now
+                frame,
+                mount_ra,
+                mount_dec
             );
-            (ra_now, dec_now)
-        } else {
-            (ra, dec)
+            (mount_ra, mount_dec)
         };
 
         match info.driver_type {

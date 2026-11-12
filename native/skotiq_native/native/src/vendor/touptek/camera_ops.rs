@@ -105,6 +105,15 @@ fn configure_stream(
     if rc < 0 {
         return Err(touptek_failure("switch to software trigger", name, rc));
     }
+    // A cancelled exposure must not come out later as a frame (a camera can keep cancel
+    // mode 1 from another program); an SDK that predates the option always drops it.
+    let rc = put(OGMACAM_OPTION_TRIGGER_CANCEL_MODE, 0);
+    if rc < 0 && rc != OGMACAM_E_NOTIMPL {
+        tracing::warn!(
+            "{name}: asking for cancelled exposures to be dropped failed: {}",
+            describe_hresult(rc)
+        );
+    }
 
     // The camera keeps the conversion gain another program left it in. Skotiq offers no
     // choice of it yet, so every frame is taken in low conversion gain, as NINA and INDI
@@ -360,25 +369,7 @@ impl DeviceDriver for TouptekCamera {
             None => device_info.name.clone(),
         };
 
-        let can_cool = (self.model_flags & OGMACAM_FLAG_TEC) != 0;
-        let can_set_temp = (self.model_flags & OGMACAM_FLAG_TEC_ONOFF) != 0;
-        let has_st4 = (self.model_flags & OGMACAM_FLAG_ST4) != 0;
-        let can_bin = (self.model_flags & OGMACAM_FLAG_BINSKIP_SUPPORTED) != 0;
-        let can_subframe = (self.model_flags & OGMACAM_FLAG_ROI_HARDWARE) != 0;
-        let can_set_offset = (self.model_flags & OGMACAM_FLAG_BLACKLEVEL) != 0;
-
-        self.core.capabilities = CameraCapabilities {
-            can_cool: can_cool && can_set_temp,
-            can_set_gain: true,
-            can_set_offset,
-            can_set_binning: can_bin,
-            can_subframe,
-            has_shutter: false,
-            has_guider_port: has_st4,
-            max_bin_x: if can_bin { 4 } else { 1 },
-            max_bin_y: if can_bin { 4 } else { 1 },
-            supports_readout_modes: false,
-        };
+        self.core.capabilities = model_capabilities(self.model_flags);
 
         let quirk_lookup_id = format!(
             "native:touptek:{}:{}",
@@ -454,11 +445,11 @@ impl DeviceDriver for TouptekCamera {
                 self.cooler_target_range = cooler.target_range;
                 self.tec_voltage_max = cooler.tec_voltage_max;
                 self.core.update_cooler(|state| {
-                    if let Some(enabled) = cooler.enabled {
-                        state.enabled = enabled;
+                    if cooler.enabled.is_some() {
+                        state.enabled = cooler.enabled;
                     }
-                    if let Some(target) = cooler.target_c {
-                        state.target_c = target;
+                    if cooler.target_c.is_some() {
+                        state.target_c = cooler.target_c;
                     }
                 });
             }
@@ -477,7 +468,7 @@ impl DeviceDriver for TouptekCamera {
             self.core.sensor_info.width,
             self.core.sensor_info.height,
             self.core.sensor_info.bit_depth,
-            if self.core.cooler().enabled {
+            if self.core.cooler().enabled == Some(true) {
                 ", cooler on"
             } else {
                 ""
@@ -614,7 +605,7 @@ impl CameraDriver for TouptekCamera {
                 self.cooler_power_locked(&lock, handle),
             )
         } else {
-            (false, None)
+            (Some(false), None)
         };
 
         let exposure_remaining = if self.core.state == CameraState::Exposing {
@@ -629,11 +620,11 @@ impl CameraDriver for TouptekCamera {
             state: self.core.state,
             sensor_temp,
             cooler_power,
-            target_temp: self
-                .core
-                .capabilities
-                .can_cool
-                .then(|| self.core.cooler().target_c),
+            target_temp: if self.core.capabilities.can_cool {
+                self.core.cooler().target_c
+            } else {
+                None
+            },
             cooler_on,
             gain,
             offset: self.core.offset,
@@ -786,6 +777,14 @@ impl CameraDriver for TouptekCamera {
                     self.core.exposure_started_at = None;
                     return Err(DriverError::Timeout(format!(
                         "{} reported that no frame arrived from the sensor",
+                        self.core.name
+                    )));
+                }
+                OGMACAM_EVENT_TRIGGERFAIL => {
+                    self.core.state = CameraState::Idle;
+                    self.core.exposure_started_at = None;
+                    return Err(DriverError::SdkError(format!(
+                        "{} could not read out the frame (bad frame data or a timeout); check its USB cable and power",
                         self.core.name
                     )));
                 }
@@ -1040,9 +1039,9 @@ impl CameraDriver for TouptekCamera {
         })?;
 
         self.core.update_cooler(|cooler| {
-            cooler.enabled = enabled;
+            cooler.enabled = Some(enabled);
             if let Some(target) = target_temp {
-                cooler.target_c = target;
+                cooler.target_c = Some(target);
             }
         });
         self.forget_cooler_power();

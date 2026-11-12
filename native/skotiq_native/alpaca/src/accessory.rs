@@ -5,7 +5,9 @@ use crate::{
     AlpacaSafetyMonitor, AlpacaSwitch,
 };
 use async_trait::async_trait;
-use skotiq_device::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
+use skotiq_device::ascom::dome::{self, DomeMembers};
+use skotiq_device::ascom::observing_conditions::{self, ObservingConditionsMembers, Sensor};
+use skotiq_device::ascom::{cover_calibrator, CalibratorStatus, CoverStatus, ShutterStatus};
 use skotiq_device::{
     AccessoryDriver, CoverCalibratorDriver, CoverCalibratorState, DomeDriver, DomeState,
     DriverError, RotatorDriver, SafetyMonitorDriver, SwitchDriver, WeatherDriver, WeatherReadings,
@@ -43,23 +45,43 @@ macro_rules! alpaca_accessory {
 }
 
 alpaca_accessory!(AlpacaDome, connected);
-alpaca_accessory!(AlpacaRotator, heartbeat);
+alpaca_accessory!(AlpacaRotator, connected);
 alpaca_accessory!(AlpacaSwitch, connected);
 alpaca_accessory!(AlpacaObservingConditions, connected);
-alpaca_accessory!(AlpacaSafetyMonitor, heartbeat);
+alpaca_accessory!(AlpacaSafetyMonitor, connected);
 alpaca_accessory!(AlpacaCoverCalibrator, connected);
 
-/// A capability read the dome status cannot do without, worded with the
-/// capability that failed. A failure of a named kind (not connected, timeout)
-/// stays that kind.
-fn capability(name: &str, err: crate::AlpacaError) -> DriverError {
-    let detail = format!("Failed to query Alpaca dome {name}: {err}");
-    match DriverError::from(err) {
-        DriverError::Backend(_) => DriverError::Backend(detail.into()),
-        DriverError::Timeout(_) => DriverError::Timeout(detail),
-        kind => kind,
-    }
+/// Implements a member trait of `skotiq_device::ascom` by calling the
+/// generated Alpaca member of the same name.
+macro_rules! alpaca_members {
+    ($trait:path, $device:ty { $($name:ident -> $ret:ty;)* }) => {
+        #[async_trait]
+        impl $trait for $device {
+            $(
+                async fn $name(&self) -> Result<$ret, DriverError> {
+                    Ok(<$device>::$name(self).await?)
+                }
+            )*
+        }
+    };
 }
+
+alpaca_members!(DomeMembers, AlpacaDome {
+    azimuth -> f64;
+    altitude -> f64;
+    at_home -> bool;
+    at_park -> bool;
+    shutter_status -> ShutterStatus;
+    slewing -> bool;
+    slaved -> bool;
+    can_find_home -> bool;
+    can_park -> bool;
+    can_set_altitude -> bool;
+    can_set_azimuth -> bool;
+    can_set_shutter -> bool;
+    can_slave -> bool;
+    can_sync_azimuth -> bool;
+});
 
 #[async_trait]
 impl DomeDriver for AlpacaDome {
@@ -76,7 +98,7 @@ impl DomeDriver for AlpacaDome {
     }
 
     async fn slew_to_azimuth(&self, azimuth_deg: f64) -> Result<(), DriverError> {
-        Ok(AlpacaDome::slew_to_azimuth(self, azimuth_deg).await?)
+        Ok(AlpacaDome::slew_to_azimuth(self, dome::slew_azimuth(azimuth_deg)?).await?)
     }
 
     async fn abort_slew(&self) -> Result<(), DriverError> {
@@ -96,36 +118,7 @@ impl DomeDriver for AlpacaDome {
     }
 
     async fn status(&self) -> Result<DomeState, DriverError> {
-        let status = self.get_status().await?;
-        let can_set_altitude = self
-            .can_set_altitude()
-            .await
-            .map_err(|e| capability("can_set_altitude", e))?;
-        let can_set_azimuth = self
-            .can_set_azimuth()
-            .await
-            .map_err(|e| capability("can_set_azimuth", e))?;
-        let can_set_shutter = self
-            .can_set_shutter()
-            .await
-            .map_err(|e| capability("can_set_shutter", e))?;
-        let can_slave = self
-            .can_slave()
-            .await
-            .map_err(|e| capability("can_slave", e))?;
-        Ok(DomeState {
-            azimuth: status.azimuth,
-            altitude: status.altitude,
-            shutter: Some(status.shutter_status),
-            slewing: status.slewing,
-            at_home: status.at_home,
-            at_park: status.at_park,
-            can_set_altitude,
-            can_set_azimuth,
-            can_set_shutter,
-            can_slave,
-            slaved: status.slaved,
-        })
+        Ok(dome::report(self).await?.state)
     }
 }
 
@@ -197,25 +190,41 @@ impl SwitchDriver for AlpacaSwitch {
     async fn max_value(&self, index: i32) -> Result<f64, DriverError> {
         Ok(self.max_switch_value(index).await?)
     }
+
+    async fn step(&self, index: i32) -> Result<f64, DriverError> {
+        Ok(self.switch_step(index).await?)
+    }
+}
+
+#[async_trait]
+impl ObservingConditionsMembers for AlpacaObservingConditions {
+    async fn sensor(&self, sensor: Sensor) -> Result<f64, DriverError> {
+        Ok(match sensor {
+            Sensor::CloudCover => self.cloud_cover().await,
+            Sensor::DewPoint => self.dew_point().await,
+            Sensor::Humidity => self.humidity().await,
+            Sensor::Pressure => self.pressure().await,
+            Sensor::RainRate => self.rain_rate().await,
+            Sensor::SkyBrightness => self.sky_brightness().await,
+            Sensor::SkyQuality => self.sky_quality().await,
+            Sensor::SkyTemperature => self.sky_temperature().await,
+            Sensor::StarFwhm => self.star_fwhm().await,
+            Sensor::Temperature => self.temperature().await,
+            Sensor::WindDirection => self.wind_direction().await,
+            Sensor::WindGust => self.wind_gust().await,
+            Sensor::WindSpeed => self.wind_speed().await,
+        }?)
+    }
+
+    async fn average_period(&self) -> Result<f64, DriverError> {
+        Ok(AlpacaObservingConditions::average_period(self).await?)
+    }
 }
 
 #[async_trait]
 impl WeatherDriver for AlpacaObservingConditions {
-    /// A sensor the station does not have, or one that fails to read, is
-    /// `None`; the station itself answering is what the heartbeat checks.
     async fn readings(&self) -> Result<WeatherReadings, DriverError> {
-        Ok(WeatherReadings {
-            temperature: self.temperature().await.ok(),
-            humidity: self.humidity().await.ok(),
-            pressure: self.pressure().await.ok(),
-            cloud_cover: self.cloud_cover().await.ok(),
-            dew_point: self.dew_point().await.ok(),
-            wind_speed: self.wind_speed().await.ok(),
-            wind_direction: self.wind_direction().await.ok(),
-            sky_quality: self.sky_quality().await.ok(),
-            sky_temperature: self.sky_temperature().await.ok(),
-            rain_rate: self.rain_rate().await.ok(),
-        })
+        observing_conditions::readings(self).await
     }
 }
 
@@ -265,22 +274,6 @@ impl CoverCalibratorDriver for AlpacaCoverCalibrator {
     }
 
     async fn status(&self) -> Result<CoverCalibratorState, DriverError> {
-        let status = self.get_status().await?;
-        let max_brightness = AlpacaCoverCalibrator::max_brightness(self)
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(
-                    "Failed to read cover calibrator max_brightness at {}: {}. Using default 255.",
-                    self.base_url(),
-                    e
-                );
-                255
-            });
-        Ok(CoverCalibratorState {
-            cover: status.cover_state,
-            calibrator: status.calibrator_state,
-            brightness: status.brightness.unwrap_or(0),
-            max_brightness,
-        })
+        cover_calibrator::state(self).await
     }
 }

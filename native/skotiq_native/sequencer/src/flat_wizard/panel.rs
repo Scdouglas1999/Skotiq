@@ -11,6 +11,7 @@ use crate::device_ops::{DeviceError, DeviceKind};
 use crate::instructions::InstructionContext;
 use crate::wizard::{wait_for_slew_complete, WizardProgressReporter};
 use crate::FlatWizardConfig;
+use skotiq_device::ascom::cover_calibrator::Settle;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Poll the cover state until `target_state` is observed, the
@@ -35,13 +36,14 @@ async fn wait_for_cover_state(
             .cover_calibrator_get_cover_state(device_id)
             .await
             .map_err(|e| e.context("Failed to read cover state"))?;
-        if state == target_state {
-            return Ok(());
-        }
-        if state == 5 {
-            return Err(DeviceError::Failed(
-                "Cover reported error state".to_string(),
-            ));
+        match Settle::cover(state.into(), target_state.into()) {
+            Settle::Done => return Ok(()),
+            Settle::Failed => {
+                return Err(DeviceError::Failed(
+                    "Cover reported error state".to_string(),
+                ))
+            }
+            Settle::Waiting => {}
         }
         if start.elapsed() > timeout {
             return Err(DeviceError::Timeout(format!(
@@ -73,13 +75,14 @@ async fn wait_for_calibrator_state(
             .cover_calibrator_get_calibrator_state(device_id)
             .await
             .map_err(|e| e.context("Failed to read calibrator state"))?;
-        if state == target_state {
-            return Ok(());
-        }
-        if state == 5 {
-            return Err(DeviceError::Failed(
-                "Calibrator reported error state".to_string(),
-            ));
+        match Settle::calibrator(state.into(), target_state.into()) {
+            Settle::Done => return Ok(()),
+            Settle::Failed => {
+                return Err(DeviceError::Failed(
+                    "Calibrator reported error state".to_string(),
+                ))
+            }
+            Settle::Waiting => {}
         }
         if start.elapsed() > timeout {
             return Err(DeviceError::Timeout(format!(

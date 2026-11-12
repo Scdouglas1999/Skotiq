@@ -236,7 +236,7 @@ async fn the_cooler_state_is_the_cameras_own() {
     let mut camera = connected(COOLED_COLOR).await;
     // The SDK opens a cooled camera with its cooler on, aiming at the model default (0 C here).
     let status = camera.get_status().await.unwrap();
-    assert!(status.cooler_on);
+    assert_eq!(status.cooler_on, Some(true));
     assert_eq!(status.target_temp, Some(0.0));
     assert_eq!(status.cooler_power, Some(50.0));
     assert_eq!(camera.get_cooler_power().await.unwrap(), 50.0);
@@ -246,7 +246,7 @@ async fn the_cooler_state_is_the_cameras_own() {
     );
     camera.set_cooler(false, None).await.unwrap();
     let status = camera.get_status().await.unwrap();
-    assert!(!status.cooler_on);
+    assert_eq!(status.cooler_on, Some(false));
     assert_eq!(status.cooler_power, Some(0.0));
     camera.disconnect().await.unwrap();
 }

@@ -8,6 +8,13 @@ import 'package:skotiq_core/skotiq_core.dart';
 import '../startup/startup_surface_queue.dart';
 import '../utils/startup_ui_context.dart';
 
+/// The background full check's request for a repair at the next start, set by
+/// the host once; [DatabaseRecoveryLauncher] shows it as a dialog and clears
+/// it. A toast is too small for advice the user has to act on before the next
+/// restart.
+final databaseRepairNoticeProvider =
+    StateProvider<DatabaseHealthNotice?>((ref) => null);
+
 /// Surfaces a one-shot dialog telling the user "your database was corrupted
 /// and recovered from backup" on the first launch after the SQLite
 /// integrity-check pre-flight rotated a corrupt `skotiq.db` into a
@@ -72,6 +79,48 @@ class _DatabaseRecoveryLauncherState
       ..expect(StartupSurface.databaseRecovery);
     // Post-frame so the navigator is laid out before we push the dialog.
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShow());
+    ref.listenManual<DatabaseHealthNotice?>(
+      databaseRepairNoticeProvider,
+      (_, notice) {
+        // Not while this widget is being built: showing it clears the
+        // provider.
+        if (notice != null) Timer.run(() => _showRepairNotice(notice));
+      },
+      fireImmediately: true,
+    );
+  }
+
+  /// Waits for the start-up prompts, then shows the notice once.
+  Future<void> _showRepairNotice(DatabaseHealthNotice notice) async {
+    if (!mounted) return;
+    ref.read(databaseRepairNoticeProvider.notifier).state = null;
+    await _queue.run(() async {
+      if (!mounted) return;
+      final uiContext = resolveStartupUiContext(ref, context);
+      if (uiContext == null || !uiContext.mounted) {
+        ref.read(uiNotificationProvider.notifier).showWarning(
+              notice.message,
+              title: notice.title,
+              duration: const Duration(seconds: 30),
+            );
+        return;
+      }
+      await showDialog<void>(
+        context: uiContext,
+        builder: (ctx) => AlertDialog(
+          title: Text(notice.title),
+          content: SingleChildScrollView(
+            child: SelectableText(notice.message),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   @override

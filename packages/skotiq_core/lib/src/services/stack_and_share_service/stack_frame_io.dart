@@ -18,11 +18,11 @@ extension _StackFrameIo on StackAndShareService {
     final meta = await _imagesDao.getImageById(frame.imageId);
     _ensureSameHost();
     Uint16List? darkData;
-    if (meta != null && meta.gain != null) {
+    if (meta != null) {
       final match = await _darkLibrary.findMatchingDark(
         exposureTime: meta.exposureDuration,
-        gain: meta.gain!,
-        offset: meta.offset ?? 0,
+        gain: meta.gain,
+        offset: meta.offset,
         binX: meta.binX,
         binY: meta.binY,
         temperature: meta.sensorTemp,

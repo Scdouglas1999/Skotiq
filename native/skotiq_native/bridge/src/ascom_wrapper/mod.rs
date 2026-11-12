@@ -6,6 +6,7 @@
 //! that applies to that interface.
 
 mod accessory;
+pub(crate) mod sta_device;
 pub mod camera;
 pub mod covercalibrator;
 pub mod dome;

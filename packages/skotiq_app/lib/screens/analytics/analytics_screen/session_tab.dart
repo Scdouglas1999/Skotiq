@@ -282,9 +282,9 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
             );
           }
           final hfr =
-              HfrChart(key: AnalyticsTutorialKeys.hfrChart, images: images);
+              HfrChart(key: TourTarget.analyticsHfrChart.key, images: images);
           final guiding = GuidingRmsChart(
-              key: AnalyticsTutorialKeys.guidingChart, images: images);
+              key: TourTarget.analyticsGuidingChart.key, images: images);
           final focuser = FocuserPositionChart(images: images);
           final temperature = TemperatureChart(images: images);
           // Say which frames are plotted rather than letting the reader assume
@@ -452,7 +452,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                       const SizedBox(height: SkotiqTokens.spaceMd),
                       imagesAsyncValue.when(
                         data: (images) => ImageThumbnailStrip(
-                            key: AnalyticsTutorialKeys.thumbnails,
+                            key: TourTarget.analyticsThumbnails.key,
                             images: images),
                         loading: () => const _AnalyticsLoading(
                           height: kAnalyticsThumbnailRailHeight,

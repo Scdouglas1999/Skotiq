@@ -166,19 +166,6 @@ impl SerialLink {
         let port = guard.as_mut().ok_or(DriverError::NotConnected)?;
         exchange(&mut Exchange { port })
     }
-
-    /// Sends `command` and returns the reply up to its terminator.
-    pub(crate) fn command(&self, command: &[u8], rule: &ReplyRule) -> Result<String, DriverError> {
-        self.exchange(|io| {
-            io.send(command)?;
-            io.read_reply(rule)
-        })
-    }
-
-    /// Sends a command the mount does not answer.
-    pub(crate) fn command_no_reply(&self, command: &[u8]) -> Result<(), DriverError> {
-        self.exchange(|io| io.send(command))
-    }
 }
 
 /// The port, held for one exchange.
@@ -597,7 +584,7 @@ mod tests {
     fn a_link_without_a_port_reports_not_connected() {
         let link = SerialLink::new();
         assert!(matches!(
-            link.command_no_reply(b":Q#"),
+            link.exchange(|io| io.send(b":Q#")),
             Err(DriverError::NotConnected)
         ));
     }

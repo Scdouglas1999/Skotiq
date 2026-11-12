@@ -313,7 +313,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Calibration frames',
     'Capture your first light',
     'Clear all tutorial progress and start fresh',
-    'Enable tutorials',
     'Equipment setup',
     'First night walkthrough',
     'Generate diagnostic dump',
@@ -326,8 +325,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Reset all progress',
     'Reset progress',
     'Run the one-click first-light flow again — short exposure,',
-    'Settings',
-    'Show tutorial prompts and guided tours',
     'Target planning',
     'Tutorial tours',
     'Walk back through the equipment onboarding wizard to scan',
@@ -694,7 +691,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Your 3-character MPC observatory code (e.g.,',
     'Your assigned AAVSO observer initials (1-5 chars,',
     'Your Sky atlas',
-    'Your Sky size limit (GB)',
     'Your Sky storage',
     'Your TNS bot id (tns_marker tns_id).',
     'Your TNS bot name (tns_marker name).',
@@ -943,7 +939,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Re-run onboarding tour',
     'Run the one-click first-light flow again — short exposure,':
         'Capture your first light',
-    'Show tutorial prompts and guided tours': 'Enable tutorials',
     'Walk back through the equipment onboarding wizard to scan':
         'Re-run equipment setup',
   },
@@ -1086,8 +1081,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Deep catalog lookups (APASS DR9)',
     'Generate SII/Ha, OIII/Ha, and SII/OIII products': 'Narrowband line ratios',
     'Map catalog offsets across each solved frame': 'Astrometric residuals',
-    'New frames stop being added to the atlas when it':
-        'Your Sky size limit (GB)',
     'Off unless you turn it on. Stacks each accepted,': 'Your Sky atlas',
     'Reference catalog your solver uses (ADES astCat, e.g.':
         'Astrometric catalog',

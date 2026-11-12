@@ -20,20 +20,6 @@ class _PinnedBackend extends BackendNotifier {
   }
 }
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'NoopTutorialProgressDao.${invocation.memberName} called in test',
-      );
-}
-
 DbCapturedImage _light({required int id, required bool accepted}) =>
     DbCapturedImage(
       id: id,
@@ -97,7 +83,6 @@ void main() {
           dbSessionImagesProvider(5).overrideWith(
             (ref) => Stream<List<DbCapturedImage>>.value(images),
           ),
-          tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
         ],
         child: const MaterialApp(
           home: Scaffold(

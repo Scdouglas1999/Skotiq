@@ -89,7 +89,7 @@ class FramingTargetSearch extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SkotiqTextField(
-              key: FramingTutorialKeys.targetSearch,
+              key: TourTarget.framingTargetSearch.key,
               controller: searchController,
               focusNode: searchFocusNode,
               hint: 'Search M42, NGC 7000, Orion',
@@ -361,7 +361,7 @@ class FramingTargetSection extends StatelessWidget {
       ],
       children: [
         KeyedSubtree(
-          key: FramingTutorialKeys.coordinates,
+          key: TourTarget.framingCoordinates.key,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
@@ -430,7 +430,7 @@ class FramingTargetSection extends StatelessWidget {
           ),
         const SizedBox(height: SkotiqTokens.spaceXs),
         AltitudeChart(
-          key: FramingTutorialKeys.altitudeChart,
+          key: TourTarget.framingAltitudeChart.key,
           raHours: aim.raHours,
           decDegrees: aim.decDegrees,
           targetName: aim.name,

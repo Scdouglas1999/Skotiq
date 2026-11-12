@@ -9,7 +9,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/tutorial_keys/polar_alignment_keys.dart';
+import '../../tours/tour_target.dart';
 import 'polar_alignment_activity.dart';
 import 'polar_alignment_body_layout.dart';
 import 'polar_alignment_error_format.dart';

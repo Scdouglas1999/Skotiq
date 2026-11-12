@@ -326,7 +326,7 @@ impl CameraDriver for FujifilmCamera {
             sensor_temp: None,
             cooler_power: None,
             target_temp: None,
-            cooler_on: false,
+            cooler_on: Some(false),
             gain: self.current_iso,
             offset: self.current_offset,
             bin_x: 1,

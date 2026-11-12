@@ -49,6 +49,11 @@ pub(crate) fn forget_open(camera: &MoravianCamera) {
     }
 }
 
+/// Tests that touch the open-camera registry take turns: one test's reset
+/// would otherwise empty another's registry mid-test.
+#[cfg(test)]
+pub(crate) static REGISTRY_TEST_TURN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[cfg(test)]
 pub(crate) fn forget_every_open_camera() {
     *OPEN.lock().unwrap_or_else(|e| e.into_inner()) = None;

@@ -108,7 +108,8 @@ part 'database/migration_v62.dart';
 part 'database/migration_v63.dart';
 part 'database/migration_v64.dart';
 part 'database/migration_v65.dart';
-part 'database/migration_v66.dart';
+part 'database/migration_v67.dart';
+part 'database/migration_v68.dart';
 part 'database/schema_helpers.dart';
 part 'database/default_settings.dart';
 part 'database/connection.dart';
@@ -206,7 +207,7 @@ class SkotiqDatabase extends _$SkotiqDatabase {
   SkotiqDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 66;
+  int get schemaVersion => 68;
 
   @override
   MigrationStrategy get migration => _buildMigrationStrategy();
@@ -219,6 +220,13 @@ class SkotiqDatabase extends _$SkotiqDatabase {
   /// headless daemon opens `SKOTIQ_DATABASE_DIR`, and `database_list`
   /// reports whichever one this connection actually holds.
   Future<Directory?> databaseDirectory() async {
+    final file = await databaseFile();
+    return file?.parent;
+  }
+
+  /// The file this connection holds, or null for an in-memory database. See
+  /// [databaseDirectory].
+  Future<File?> databaseFile() async {
     final rows = await customSelect('PRAGMA database_list').get();
     for (final row in rows) {
       if (row.data['name'] != 'main') continue;
@@ -228,7 +236,7 @@ class SkotiqDatabase extends _$SkotiqDatabase {
       // derived from nothing.
       final file = row.data['file'];
       if (file is! String || file.isEmpty) return null;
-      return Directory(p.dirname(file));
+      return File(file);
     }
     return null;
   }
