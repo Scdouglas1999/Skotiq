@@ -181,6 +181,76 @@ void main() {
       expect(body['stopReasonText'], 'Guiding paused for autofocus');
     });
 
+    // The built-in guider's scale, stars and calibration reach a linked
+    // client through these; the PHD2 routes cannot answer for it.
+    test('guider status and calibration answer for the guider asked about',
+        () async {
+      final backend = _MockBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(
+        () => backend.guiderGetStatus(deviceId: builtinGuiderDeviceId),
+      ).thenAnswer(
+        (_) async => const Phd2Status(
+          state: 'Guiding',
+          connected: true,
+          pixelScale: 3.22,
+          trackedStars: [
+            GuideStar(id: 0, x: 10, y: 12, snr: 18, isLock: true),
+          ],
+        ),
+      );
+      when(
+        () => backend.guiderGetCalibration(deviceId: builtinGuiderDeviceId),
+      ).thenAnswer(
+        (_) async => const Phd2CalibrationData(
+          isCalibrated: true,
+          rotationAngle: 10.2,
+          raRate: 16.0,
+          decRate: 12.0,
+        ),
+      );
+      final hostContainer = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(hostContainer.dispose);
+      final handlers = GuidingHandlers(hostContainer);
+      final query = 'deviceId=${Uri.encodeQueryComponent(builtinGuiderDeviceId)}';
+
+      final status = jsonDecode(
+        await (await handlers.handleGuiderGetStatus(
+          Request('GET', Uri.parse('http://localhost/api/guider/status?$query')),
+        )).readAsString(),
+      ) as Map;
+      final decoded = Phd2Status.fromJson(status.cast<String, dynamic>());
+      expect(decoded.pixelScale, 3.22);
+      expect(decoded.trackedStars.single.isLock, isTrue);
+
+      final calibration = jsonDecode(
+        await (await handlers.handleGuiderGetCalibration(
+          Request(
+            'GET',
+            Uri.parse('http://localhost/api/guider/calibration?$query'),
+          ),
+        )).readAsString(),
+      ) as Map;
+      expect(calibration['isCalibrated'], isTrue);
+      expect(calibration['raAngle'], 10.2);
+      expect(calibration['raRate'], 16.0);
+
+      final missing = await translateHandlerErrors(
+        handlers.handleGuiderGetStatus(
+          Request('GET', Uri.parse('http://localhost/api/guider/status')),
+        ),
+      );
+      expect(missing.statusCode, HttpStatus.badRequest);
+    });
+
     test('connect forwards the requested host and port to the host', () async {
       final backend = _MockBackend();
       when(

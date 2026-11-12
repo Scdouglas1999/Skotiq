@@ -59,22 +59,26 @@ final nightGuideRmsProvider = Provider<NightGuideRms>((ref) {
   );
 });
 
-/// How many frames the plan dithers after: the running step's own setting,
-/// else the first light step's, else a dither-interval trigger's. Null when
-/// the plan does not say.
+/// How many frames the run dithers after: the running exposure step's, else
+/// the first light step's, else a dither-interval trigger's. A step without
+/// its own number takes the app's dither setting when the run is sent, and so
+/// does a run with no plan loaded yet. Null when nothing dithers.
 final nightDitherEveryProvider = Provider<int?>((ref) {
+  final settings = ref.watch(appSettingsProvider).valueOrNull;
+  final appEvery = settings != null && settings.ditherEnabled
+      ? settings.ditherEveryFrames
+      : null;
+  int? positive(int? every) => every != null && every > 0 ? every : null;
+  int? forStep(ExposureNode node) => positive(node.ditherEvery ?? appEvery);
+
   final active = ref.watch(nightActiveStepProvider)?.node;
-  if (active is ExposureNode) {
-    final every = active.ditherEvery;
-    if (every != null && every > 0) return every;
-  }
+  if (active is ExposureNode) return forStep(active);
   final tree = ref.watch(nightPlanTreeProvider);
-  if (tree == null) return null;
+  if (tree == null) return positive(appEvery);
   for (final entry in tree.steps) {
     final node = entry.node;
     if (node is ExposureNode && node.frameType == FrameType.light) {
-      final every = node.ditherEvery;
-      if (every != null && every > 0) return every;
+      return forStep(node);
     }
   }
   for (final entry in tree.entries) {
@@ -87,13 +91,6 @@ final nightDitherEveryProvider = Provider<int?>((ref) {
   }
   return null;
 });
-
-/// The Guiding screen's mapping from the stored dither size to pixels.
-double ditherScalePixels(String scale) => switch (scale) {
-      'Small' => 2.0,
-      'Large' => 10.0,
-      _ => 5.0,
-    };
 
 /// A guide distance in arcseconds when [arcsecPerPixel] is known, else in
 /// pixels; null stays null.

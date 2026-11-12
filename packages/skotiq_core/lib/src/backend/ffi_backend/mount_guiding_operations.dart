@@ -534,38 +534,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
             snr: 0,
             starMass: 0,
           );
-    // Pull the built-in multi-star guider's per-star list off the native export
-    // and decode it into `trackedStars`. Without this the host FFI backend
-    // always returned `trackedStars: const []`, so the headless API serialized
-    // an empty array and the guider star-list panel stayed permanently empty on
-    // real hardware. The native call returns `{"count":0,"stars":[]}` when the
-    // built-in guider is not the active guider (e.g. PHD2/external), so the list
-    // is naturally empty for those backends — matching the aggregate-only PHD2
-    // status path. Failing this lookup must not break the (load-bearing) status
-    // poll, so fall back to an empty list.
-    List<GuideStar> trackedStars = const [];
-    try {
-      final trackedStarsJson = bridge.NativeBridge.isNativeAvailable
-          ? await bridge.apiBuiltinGuiderGetTrackedStarsJson()
-          : '{"count":0,"stars":[]}';
-      trackedStars = decodeTrackedStars(trackedStarsJson);
-    } catch (_) {
-      trackedStars = const [];
-    }
-    return Phd2Status(
-      state: status.state,
-      connected: status.connected,
-      rmsRa: status.rmsRa,
-      rmsDec: status.rmsDec,
-      rmsTotal: status.rmsTotal,
-      snr: status.snr,
-      starMass: status.starMass,
-      pixelScale: status.pixelScale,
-      // FRB Phd2Status carries no avgDistance; the legacy field reports 0.
-      avgDistance: 0.0,
-      trackedStars: trackedStars,
-      stopReason: status.stopReason,
-    );
+    return _guiderStatus(status);
   }
 
   @override
@@ -639,13 +608,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
       'phd2GetCalibrationData',
       () => bridge.apiPhd2GetCalibrationData(),
     );
-    return Phd2CalibrationData(
-      isCalibrated: data.isCalibrated,
-      rotationAngle: data.raAngle,
-      raRate: data.raRate,
-      decRate: data.decRate,
-      calibratedAt: data.isCalibrated ? DateTime.now() : null,
-    );
+    return _calibrationData(data);
   }
 
   @override
@@ -819,6 +782,37 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
+  Future<Phd2Status> guiderGetStatus({required String deviceId}) async {
+    // A status the UI polls, not a command: without the native library
+    // "disconnected" is the truthful answer, so this does not refuse.
+    if (!bridge.NativeBridge.isNativeAvailable) {
+      return const Phd2Status(state: 'Disconnected', connected: false);
+    }
+    final id = _canonicalGuiderDeviceId(deviceId);
+    final status = await bridge.apiGuiderGetStatus(deviceId: id);
+    // Only the built-in multi-star guider tracks more than its lock star.
+    final trackedStars = id == builtinGuiderDeviceId
+        ? decodeTrackedStars(
+            await bridge.apiBuiltinGuiderGetTrackedStarsJson(),
+          )
+        : const <GuideStar>[];
+    return _guiderStatus(status, trackedStars: trackedStars);
+  }
+
+  @override
+  Future<Phd2CalibrationData> guiderGetCalibration({
+    required String deviceId,
+  }) async {
+    final data = await _native(
+      'guiderGetCalibration',
+      () => bridge.apiGuiderGetCalibration(
+        deviceId: _canonicalGuiderDeviceId(deviceId),
+      ),
+    );
+    return _calibrationData(data);
+  }
+
+  @override
   Future<BuiltinGuiderConfig> builtinGuiderGetConfig() async {
     final config = await _native(
       'builtinGuiderGetConfig',
@@ -927,3 +921,28 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     );
   }
 }
+
+Phd2Status _guiderStatus(
+  bridge.Phd2Status status, {
+  List<GuideStar> trackedStars = const [],
+}) => Phd2Status(
+  state: status.state,
+  connected: status.connected,
+  rmsRa: status.rmsRa,
+  rmsDec: status.rmsDec,
+  rmsTotal: status.rmsTotal,
+  snr: status.snr,
+  starMass: status.starMass,
+  pixelScale: status.pixelScale,
+  trackedStars: trackedStars,
+  stopReason: status.stopReason,
+);
+
+Phd2CalibrationData _calibrationData(bridge.Phd2CalibrationData data) =>
+    Phd2CalibrationData(
+      isCalibrated: data.isCalibrated,
+      rotationAngle: data.raAngle,
+      raRate: data.raRate,
+      decRate: data.decRate,
+      calibratedAt: data.isCalibrated ? DateTime.now() : null,
+    );

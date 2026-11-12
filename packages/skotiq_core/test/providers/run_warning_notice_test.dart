@@ -1,0 +1,88 @@
+// One quality problem the run carries on through is announced once.
+//
+// The engine records it twice: a decision row, from which the notification
+// router raises "Problem noticed — the run continues", and a Warning in the
+// run's feed, which Tonight's run-warnings banner lists. The error bridge
+// toasted that Warning as well ("Sequence Warning"), so one problem read as
+// three notices with the same words.
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_core/skotiq_core.dart';
+
+class _MockFfiBackend extends Mock implements FfiBackend {}
+
+class _FixedBackendNotifier extends BackendNotifier {
+  _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
+    state = backend;
+  }
+}
+
+/// A sequencer Warning as the bridge publishes it (`ExecutorEvent::Warning`
+/// in `bridge/src/api/sequencer/event_bridge.rs`).
+SkotiqEvent _sequencerWarning(String message) => SkotiqEvent(
+  timestamp: DateTime.now().millisecondsSinceEpoch,
+  severity: EventSeverity.warning,
+  category: EventCategory.sequencer,
+  eventType: 'Error',
+  data: {'message': message},
+);
+
+/// `quality_problem_continuation` in the native executor, word for word.
+const _continuedProblem =
+    'Start guiding: Calibration axes look broken: RA angle 10.2°, Dec angle '
+    '79.9° — off-perpendicular by 20.3° (limit 20.0°). The guider may have '
+    'miscalibrated; recalibrate before continuing. The run continues. To have '
+    'problems like this stop the run instead, turn on Stop the run for '
+    'quality problems in Settings > Sequencer.';
+
+Future<(ProviderContainer, StreamController<SkotiqEvent>)> _bridge() async {
+  final backend = _MockFfiBackend();
+  final controller = StreamController<SkotiqEvent>.broadcast();
+  when(() => backend.eventStream).thenAnswer((_) => controller.stream);
+  final container = ProviderContainer(
+    overrides: [
+      backendProvider.overrideWith(
+        (ref) => _FixedBackendNotifier(ref, backend),
+      ),
+    ],
+  );
+  container.read(errorNotificationBridgeProvider);
+  return (container, controller);
+}
+
+void main() {
+  test('a continued quality problem is not toasted a second time', () async {
+    final (container, controller) = await _bridge();
+    addTearDown(container.dispose);
+    addTearDown(controller.close);
+
+    controller.add(_sequencerWarning(_continuedProblem));
+    await pumpEventQueue();
+
+    expect(
+      container.read(uiNotificationProvider),
+      isEmpty,
+      reason:
+          'the router announces it from the decision row and the run '
+          'warnings banner lists it',
+    );
+  });
+
+  test('another run warning still reaches the operator', () async {
+    final (container, controller) = await _bridge();
+    addTearDown(container.dispose);
+    addTearDown(controller.close);
+
+    controller.add(
+      _sequencerWarning(
+        'The mount stopped at its tracking limit; the run waits for the flip.',
+      ),
+    );
+    await pumpEventQueue();
+
+    expect(container.read(uiNotificationProvider), hasLength(1));
+  });
+}

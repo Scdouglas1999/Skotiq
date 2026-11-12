@@ -167,8 +167,6 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
   LoggingService get _logger => ref.read(loggingServiceProvider);
 
   CalibrationStateNotifier(this.ref) : super(const Phd2CalibrationData()) {
-    _logger.debug('CalibrationStateNotifier: Initializing...', source: 'PHD2');
-
     _events = _BackendGuidingEventBinding(ref, _onBackendEvent);
     _events.start();
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
@@ -179,46 +177,23 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
       state = const Phd2CalibrationData();
     });
 
-    // Fetch calibration data when PHD2 connects
-    ref.listen<GuiderState>(guiderStateProvider, (previous, next) {
-      _logger.debug(
-        'CalibrationStateNotifier: guiderState changed from ${previous?.connectionState} to ${next.connectionState}',
-        source: 'PHD2',
-      );
-      if (next.connectionState == DeviceConnectionState.connected &&
-          next.deviceId == 'phd2_guider' &&
-          !_hasFetched) {
-        _logger.debug(
-          'CalibrationStateNotifier: PHD2 connected, fetching calibration data...',
-          source: 'PHD2',
-        );
-        unawaited(refreshCalibrationData());
-      } else if (next.connectionState == DeviceConnectionState.disconnected) {
-        _logger.debug(
-          'CalibrationStateNotifier: PHD2 disconnected, resetting state',
-          source: 'PHD2',
-        );
+    // Read the calibration when a guider connects or another one takes its
+    // place; forget it when the guider goes away.
+    ref.listen<(DeviceConnectionState, String?)>(
+      guiderStateProvider.select((g) => (g.connectionState, g.deviceId)),
+      (previous, next) {
+        final (connection, _) = next;
+        if (connection == DeviceConnectionState.connecting) return;
         _hasFetched = false;
         state = const Phd2CalibrationData();
-      } else if (next.connectionState == DeviceConnectionState.connected &&
-          next.deviceId != 'phd2_guider') {
-        _hasFetched = false;
-        state = const Phd2CalibrationData();
-      }
-    });
-
-    // Also check current state on initialization
-    final guiderState = ref.read(guiderStateProvider);
-    _logger.debug(
-      'CalibrationStateNotifier: Initial guiderState.connectionState = ${guiderState.connectionState}',
-      source: 'PHD2',
+        if (connection == DeviceConnectionState.connected) {
+          unawaited(refreshCalibrationData());
+        }
+      },
     );
-    if (guiderState.connectionState == DeviceConnectionState.connected &&
-        guiderState.deviceId == 'phd2_guider') {
-      _logger.debug(
-        'CalibrationStateNotifier: Already connected on init, fetching calibration data...',
-        source: 'PHD2',
-      );
+
+    if (ref.read(guiderStateProvider).connectionState ==
+        DeviceConnectionState.connected) {
       unawaited(refreshCalibrationData());
     }
   }
@@ -227,21 +202,22 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     if (!mounted || event.category != EventCategory.guiding) return;
     switch (event.eventType) {
       case 'CalibrationComplete':
-        _logger.info('CalibrationComplete event received', source: 'PHD2');
+        _logger.info('Guider calibration complete', source: 'Guiding');
         state = state.copyWith(
           isCalibrated: true,
           calibratedAt: DateTime.now(),
         );
+        unawaited(refreshCalibrationData());
         break;
       case 'CalibrationFailed':
-        _logger.warning('CalibrationFailed event received', source: 'PHD2');
+        _logger.warning('Guider calibration failed', source: 'Guiding');
         state = state.copyWith(isCalibrated: false);
         break;
       case 'CalibrationDataFlipped':
-        _logger.info('Calibration data flipped', source: 'PHD2');
+        _logger.info('Calibration data flipped', source: 'Guiding');
         unawaited(refreshCalibrationData());
         break;
-      // PHD2's calibration can change between guiding sessions without a
+      // A calibration can change between guiding sessions without a
       // calibration event reaching here (restored, adjusted or redone in
       // PHD2). A value read once at connect went stale for the whole night.
       case 'GuidingStarted':
@@ -256,20 +232,19 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     final backendGeneration = _backendGeneration;
     final fetchGeneration = ++_fetchGeneration;
     try {
-      final data = await backend.phd2GetCalibrationData();
+      final guiderId =
+          ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
+      final data = await backend.guiderGetCalibration(deviceId: guiderId);
       if (!_isCurrentFetch(backend, backendGeneration, fetchGeneration)) return;
       _hasFetched = true;
-
-      if (_isCurrentFetch(backend, backendGeneration, fetchGeneration)) {
-        state = data;
-        _logger.info(
-          'Fetched calibration data - calibrated: ${data.isCalibrated}',
-          source: 'PHD2',
-        );
-      }
+      state = data;
+      _logger.info(
+        'Fetched calibration data - calibrated: ${data.isCalibrated}',
+        source: 'Guiding',
+      );
     } catch (e) {
       if (_isCurrentFetch(backend, backendGeneration, fetchGeneration)) {
-        _logger.error('Failed to fetch calibration data: $e', source: 'PHD2');
+        _logger.error('Failed to fetch calibration data: $e', source: 'Guiding');
       }
     }
   }

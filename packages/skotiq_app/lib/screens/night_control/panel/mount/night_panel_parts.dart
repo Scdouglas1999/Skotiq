@@ -219,13 +219,17 @@ class NightPanelButton extends StatelessWidget {
       isLoading: spec.busy,
       semanticsHint: reason ?? spec.tooltip,
     );
-    final message = reason ?? spec.tooltip;
-    final child = Semantics(
-      selected: spec.selected,
-      child: SizedBox(width: double.infinity, child: button),
+    // Always inside a tooltip, so the button keeps its place in the widget
+    // tree when a disabled reason comes or goes. Rebuilt under a new parent,
+    // Loop, Find star and Stop dropped out of the Linux accessibility tree
+    // each time looping enabled or disabled them.
+    return Tooltip(
+      message: reason ?? spec.tooltip ?? spec.label,
+      child: Semantics(
+        selected: spec.selected,
+        child: SizedBox(width: double.infinity, child: button),
+      ),
     );
-    if (message == null) return child;
-    return Tooltip(message: message, child: child);
   }
 }
 

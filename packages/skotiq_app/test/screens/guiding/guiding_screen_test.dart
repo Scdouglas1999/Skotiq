@@ -214,7 +214,9 @@ void main() {
 
     expect(find.text('Built-in guider connected'), findsOneWidget);
     expect(find.text('PHD2 connected'), findsNothing);
-    expect(find.text('Calibration'), findsNothing);
+    // Its calibration is shown, without PHD2's Clear and Flip.
+    expect(find.text('Calibration'), findsOneWidget);
+    expect(find.text('Flip'), findsNothing);
     expect(find.text('Brain settings'), findsNothing);
     expect(find.text('Guider settings'), findsOneWidget);
 

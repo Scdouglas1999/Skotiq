@@ -628,14 +628,29 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
             ),
             child: Column(
               children: [
-                _buildSettingRow('Pixels', widget.settlePixels, 0.5, 5.0,
-                    widget.onSettlePixelsChanged, colors),
+                _buildSettingRow(
+                    'Pixels',
+                    widget.settlePixels,
+                    GuideSettle.minPixels,
+                    GuideSettle.maxPixels,
+                    widget.onSettlePixelsChanged,
+                    colors),
                 const SizedBox(height: 8),
-                _buildSettingRow('Time (s)', widget.settleTime, 5, 60,
-                    widget.onSettleTimeChanged, colors),
+                _buildSettingRow(
+                    'Time (s)',
+                    widget.settleTime,
+                    GuideSettle.minSeconds,
+                    GuideSettle.maxSeconds,
+                    widget.onSettleTimeChanged,
+                    colors),
                 const SizedBox(height: 8),
-                _buildSettingRow('Timeout (s)', widget.settleTimeout, 30, 180,
-                    widget.onSettleTimeoutChanged, colors),
+                _buildSettingRow(
+                    'Timeout (s)',
+                    widget.settleTimeout,
+                    GuideSettle.minTimeoutSeconds,
+                    GuideSettle.maxTimeoutSeconds,
+                    widget.onSettleTimeoutChanged,
+                    colors),
               ],
             ),
           ),
@@ -773,57 +788,60 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
                 desktopExtent: SkotiqTokens.buttonHeight,
               ),
             ),
-            child: AnimatedContainer(
+            // Disabled is the design system's one opacity over the resting
+            // face, so an unavailable Pause no longer looks like a live one.
+            child: AnimatedOpacity(
               duration: const Duration(milliseconds: 150),
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(
-                horizontal: SkotiqTokens.spaceSm,
-              ),
-              decoration: BoxDecoration(
-                color: isOutline
-                    ? Colors.transparent
-                    : (isDisabled
-                        ? colors.well
-                        : color.withValues(alpha: 0.15)),
-                borderRadius: SkotiqTokens.borderRadiusLg,
-                border: Border.all(
-                  color: isDisabled
-                      ? colors.border
-                      : (isOutline
-                          ? colors.border
-                          : color.withValues(alpha: 0.3)),
+              opacity:
+                  isDisabled && !isThisBusy ? SkotiqTokens.opacityDisabled : 1,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: SkotiqTokens.spaceSm,
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: small ? MainAxisSize.min : MainAxisSize.max,
-                children: [
-                  if (isThisBusy)
-                    SizedBox(
-                      width: small ? 14 : 16,
-                      height: small ? 14 : 16,
-                      child: SkotiqSpinner(size: small ? 14 : 16, color: color),
-                    )
-                  else
-                    Icon(
-                      icon,
-                      size: small ? 14 : 16,
-                      color: isDisabled ? colors.textMuted : color,
-                    ),
-                  SizedBox(width: small ? 6 : 8),
-                  Flexible(
-                    child: Text(
-                      label,
-                      style: (small
-                              ? SkotiqTypography.labelQuiet
-                              : SkotiqTypography.labelSm)
-                          .copyWith(
-                              color: isDisabled ? colors.textMuted : color),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                decoration: BoxDecoration(
+                  color: isOutline
+                      ? Colors.transparent
+                      : color.withValues(alpha: 0.15),
+                  borderRadius: SkotiqTokens.borderRadiusLg,
+                  border: Border.all(
+                    color: isOutline
+                        ? colors.border
+                        : color.withValues(alpha: 0.3),
                   ),
-                ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: small ? MainAxisSize.min : MainAxisSize.max,
+                  children: [
+                    if (isThisBusy)
+                      SizedBox(
+                        width: small ? 14 : 16,
+                        height: small ? 14 : 16,
+                        child:
+                            SkotiqSpinner(size: small ? 14 : 16, color: color),
+                      )
+                    else
+                      Icon(
+                        icon,
+                        size: small ? 14 : 16,
+                        color: color,
+                      ),
+                    SizedBox(width: small ? 6 : 8),
+                    Flexible(
+                      child: Text(
+                        label,
+                        style: (small
+                                ? SkotiqTypography.labelQuiet
+                                : SkotiqTypography.labelSm)
+                            .copyWith(color: color),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

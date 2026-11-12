@@ -148,6 +148,13 @@ abstract class GuidingBackend {
     int size = 50,
   });
 
+  /// The guider's state, guide error and pixel scale, and for the built-in
+  /// multi-star guider the stars it tracks.
+  Future<Phd2Status> guiderGetStatus({required String deviceId});
+
+  /// The guider's calibration, in the shape PHD2 reports it.
+  Future<Phd2CalibrationData> guiderGetCalibration({required String deviceId});
+
   Future<BuiltinGuiderConfig> builtinGuiderGetConfig();
 
   Future<void> builtinGuiderSetConfig(BuiltinGuiderConfig config);

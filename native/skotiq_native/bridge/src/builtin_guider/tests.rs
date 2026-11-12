@@ -514,6 +514,24 @@ fn calibration_recovers_angles_rates_and_orthogonality() {
 }
 
 #[test]
+fn calibration_data_reports_rates_in_pixels_per_second_like_phd2() {
+    // 4 px and 3 px per 250 ms pulse: 16 and 12 px/s.
+    let east = Vec2 { x: 4.0, y: 0.0 };
+    let north = Vec2 { x: 0.0, y: 3.0 };
+    let calib = build_calibration(east, north, 250.0, 0.0).expect("calib");
+    let data = calibration_data(Some(calib));
+    assert!(data.is_calibrated);
+    assert!((data.ra_rate.expect("ra rate") - 16.0).abs() < 1e-9);
+    assert!((data.dec_rate.expect("dec rate") - 12.0).abs() < 1e-9);
+    assert!((data.ra_angle.expect("ra angle") - 0.0).abs() < 1e-9);
+    assert!((data.dec_angle.expect("dec angle") - 90.0).abs() < 1e-9);
+
+    let none = calibration_data(None);
+    assert!(!none.is_calibrated);
+    assert!(none.ra_rate.is_none() && none.ra_angle.is_none());
+}
+
+#[test]
 fn calibration_measures_non_orthogonal_axes() {
     // RA along +x, Dec at 60° from RA.
     let east = Vec2 { x: 4.0, y: 0.0 };

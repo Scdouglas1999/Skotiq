@@ -45,6 +45,8 @@ class GuidingHandlers implements RouteSource {
     GuidingApi.guiderGetLockPosition: handleGuiderGetLockPosition,
     GuidingApi.guiderDeselectStar: handleGuiderDeselectStar,
     GuidingApi.guiderGetStarImage: handleGuiderGetStarImage,
+    GuidingApi.guiderGetStatus: handleGuiderGetStatus,
+    GuidingApi.guiderGetCalibration: handleGuiderGetCalibration,
     GuidingApi.builtinGuiderGetConfig: handleBuiltinGuiderGetConfig,
     GuidingApi.builtinGuiderSetConfig: handleBuiltinGuiderSetConfig,
   };
@@ -247,28 +249,29 @@ class GuidingHandlers implements RouteSource {
     final backend = container.read(guidingBackendProvider);
     final status = await readPhd2StatusOrDisconnected(backend);
 
-    return jsonOk({
-      "state": status.state,
-      "connected": status.connected,
-      "rmsRa": status.rmsRa,
-      "rmsDec": status.rmsDec,
-      "rmsTotal": status.rmsTotal,
-      "snr": status.snr,
-      "starMass": status.starMass,
-      "avgDistance": status.avgDistance,
-      // Guide camera arcsec/px; null when the guider has no scale.
-      "pixelScale": status.pixelScale,
-      // Per-star list from the built-in multi-star guider, so the mobile/web
-      // guider UI can render a real star list instead of an empty panel. Empty
-      // for PHD2/external guiders (single aggregate lock star only).
-      "trackedStars": [for (final s in status.trackedStars) s.toJson()],
-      // Why the guider is stopped or held (autofocus, meridian_flip,
-      // tracking_limit_hold, ...), so a planned stop never reads as lost
-      // guiding to a watcher. Null while guiding runs.
-      "stopReason": status.stopReason,
-      "stopReasonText": guidingStopReasonText(status.stopReason),
-    });
+    return jsonOk(_statusJson(status));
   }
+
+  Map<String, Object?> _statusJson(Phd2Status status) => {
+    "state": status.state,
+    "connected": status.connected,
+    "rmsRa": status.rmsRa,
+    "rmsDec": status.rmsDec,
+    "rmsTotal": status.rmsTotal,
+    "snr": status.snr,
+    "starMass": status.starMass,
+    "avgDistance": status.avgDistance,
+    // Guide camera arcsec/px; null when the guider has no scale.
+    "pixelScale": status.pixelScale,
+    // Per-star list from the built-in multi-star guider. Empty for PHD2 and
+    // external guiders, which report one lock star.
+    "trackedStars": [for (final s in status.trackedStars) s.toJson()],
+    // Why the guider is stopped or held (autofocus, meridian_flip,
+    // tracking_limit_hold, ...), so a planned stop never reads as lost
+    // guiding to a watcher. Null while guiding runs.
+    "stopReason": status.stopReason,
+    "stopReasonText": guidingStopReasonText(status.stopReason),
+  };
 
   Future<Response> handlePhd2SetPaused(Request request) async {
     _logInfo('[API] POST /api/phd2/pause');
@@ -311,14 +314,15 @@ class GuidingHandlers implements RouteSource {
     _logInfo('[API] POST /api/phd2/get-calibration-data');
     final backend = container.read(guidingBackendProvider);
     final data = await backend.phd2GetCalibrationData();
-
-    return jsonOk({
-      "isCalibrated": data.isCalibrated,
-      "raAngle": data.rotationAngle,
-      "raRate": data.raRate,
-      "decRate": data.decRate,
-    });
+    return jsonOk(_calibrationJson(data));
   }
+
+  Map<String, Object?> _calibrationJson(Phd2CalibrationData data) => {
+    "isCalibrated": data.isCalibrated,
+    "raAngle": data.rotationAngle,
+    "raRate": data.raRate,
+    "decRate": data.decRate,
+  };
 
   Future<Response> handlePhd2FindStar(Request request) async {
     _logInfo('[API] POST /api/phd2/find-star');
@@ -643,9 +647,9 @@ class GuidingHandlers implements RouteSource {
     return jsonOk({"status": "ok", "deviceId": deviceId, "x": x, "y": y});
   }
 
-  Future<Response> handleGuiderGetLockPosition(Request request) async {
-    final rawDeviceId = request.url.queryParameters['deviceId'];
-    final deviceId = rawDeviceId?.trim();
+  /// The `deviceId` query parameter of a guider read.
+  String _queryDeviceId(Request request) {
+    final deviceId = request.url.queryParameters['deviceId']?.trim();
     if (deviceId == null || deviceId.isEmpty) {
       throw BadRequestError(
         field: 'deviceId',
@@ -653,6 +657,25 @@ class GuidingHandlers implements RouteSource {
         message: "Missing 'deviceId' query parameter",
       );
     }
+    return deviceId;
+  }
+
+  Future<Response> handleGuiderGetStatus(Request request) async {
+    final deviceId = _queryDeviceId(request);
+    final backend = container.read(guidingBackendProvider);
+    final status = await backend.guiderGetStatus(deviceId: deviceId);
+    return jsonOk({..._statusJson(status), "deviceId": deviceId});
+  }
+
+  Future<Response> handleGuiderGetCalibration(Request request) async {
+    final deviceId = _queryDeviceId(request);
+    final backend = container.read(guidingBackendProvider);
+    final data = await backend.guiderGetCalibration(deviceId: deviceId);
+    return jsonOk({..._calibrationJson(data), "deviceId": deviceId});
+  }
+
+  Future<Response> handleGuiderGetLockPosition(Request request) async {
+    final deviceId = _queryDeviceId(request);
 
     final backend = container.read(guidingBackendProvider);
     final (x, y) = await backend.guiderGetLockPosition(deviceId: deviceId);
@@ -670,14 +693,7 @@ class GuidingHandlers implements RouteSource {
   }
 
   Future<Response> handleGuiderGetStarImage(Request request) async {
-    final deviceId = request.url.queryParameters['deviceId'];
-    if (deviceId == null || deviceId.isEmpty) {
-      throw BadRequestError(
-        field: 'deviceId',
-        expected: 'string',
-        message: "Missing 'deviceId' query parameter",
-      );
-    }
+    final deviceId = _queryDeviceId(request);
     // Same contract as PHD2 star-image: absent → 50; supplied must be a
     // positive whole integer bounded by [_maxStarImageSize].
     final size =

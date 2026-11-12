@@ -173,6 +173,12 @@ enum GuidingApi implements ApiEndpoint {
   guiderGetStarImage(
     ApiRoute.get('/api/guider/star-image', resource: ApiResource.guiding),
   ),
+  guiderGetStatus(
+    ApiRoute.get('/api/guider/status', resource: ApiResource.guiding),
+  ),
+  guiderGetCalibration(
+    ApiRoute.get('/api/guider/calibration', resource: ApiResource.guiding),
+  ),
   builtinGuiderGetConfig(
     ApiRoute.get('/api/builtin-guider/config', resource: ApiResource.guiding),
   ),

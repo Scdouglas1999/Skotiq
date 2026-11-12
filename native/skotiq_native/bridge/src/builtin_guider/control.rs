@@ -438,45 +438,34 @@ pub async fn get_status() -> Result<Phd2Status, SkotiqError> {
     })
 }
 
-/// Convert the built-in guider's `east`/`north` calibration vectors into the
-/// PHD2-shaped `Phd2CalibrationData` (degrees, possibly None) so the unified
-/// `api_guider_get_calibration` can return one type across backends.
+/// The built-in guider's calibration in the shape PHD2 reports it, so the
+/// unified `api_guider_get_calibration` returns one type across backends.
 pub async fn get_calibration_data() -> Result<crate::api::phd2::Phd2CalibrationData, SkotiqError> {
-    let guard = state().read().await;
-    let calib = match guard.calibration {
-        Some(c) => c,
-        None => {
-            return Ok(crate::api::phd2::Phd2CalibrationData {
-                is_calibrated: false,
-                ra_angle: None,
-                dec_angle: None,
-                ra_rate: None,
-                dec_rate: None,
-            });
-        }
+    Ok(calibration_data(state().read().await.calibration))
+}
+
+/// Angles in degrees in (-180, 180] from the `east`/`north` vectors, and rates
+/// in pixels per second, the unit PHD2's `get_calibration_data` uses.
+pub(crate) fn calibration_data(
+    calibration: Option<GuideCalibration>,
+) -> crate::api::phd2::Phd2CalibrationData {
+    let Some(calib) = calibration else {
+        return crate::api::phd2::Phd2CalibrationData {
+            is_calibrated: false,
+            ra_angle: None,
+            dec_angle: None,
+            ra_rate: None,
+            dec_rate: None,
+        };
     };
-    // atan2 returns radians in (-π, π]; convert to degrees in (-180, 180].
-    let ra_angle = calib.east.y.atan2(calib.east.x).to_degrees();
-    let dec_angle = calib.north.y.atan2(calib.north.x).to_degrees();
-    // Pulse magnitude divided by configured calibration_ms gives pixels/ms,
-    // which we surface in the same shape PHD2 uses (rate as pixels/ms).
-    let ra_rate = if calib.pulse_ms > 0.0 {
-        Some(calib.ra_rate())
-    } else {
-        None
-    };
-    let dec_rate = if calib.pulse_ms > 0.0 {
-        Some(calib.dec_rate())
-    } else {
-        None
-    };
-    Ok(crate::api::phd2::Phd2CalibrationData {
+    let per_second = |px_per_ms: f64| (calib.pulse_ms > 0.0).then_some(px_per_ms * 1000.0);
+    crate::api::phd2::Phd2CalibrationData {
         is_calibrated: true,
-        ra_angle: Some(ra_angle),
-        dec_angle: Some(dec_angle),
-        ra_rate,
-        dec_rate,
-    })
+        ra_angle: Some(calib.east.y.atan2(calib.east.x).to_degrees()),
+        dec_angle: Some(calib.north.y.atan2(calib.north.x).to_degrees()),
+        ra_rate: per_second(calib.ra_rate()),
+        dec_rate: per_second(calib.dec_rate()),
+    }
 }
 
 pub fn device_id() -> &'static str {

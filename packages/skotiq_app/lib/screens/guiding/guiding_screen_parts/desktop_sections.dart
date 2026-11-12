@@ -323,9 +323,7 @@ mixin _GuidingDesktopSections
         children: [
           _buildControls(isConnected, phd2State),
           const SizedBox(height: SidePanel.sectionGap),
-          isPhd2Guider
-              ? _buildCalibrationSection(colors, isConnected, phd2State)
-              : _buildNonPhd2GuiderInfo(colors),
+          _buildGuiderCalibration(colors, isConnected, phd2State),
           const SizedBox(height: SidePanel.sectionGap),
           brainButton,
         ],
@@ -403,13 +401,35 @@ mixin _GuidingDesktopSections
     );
   }
 
-  /// Calibration as a side-panel section (06 §Guiding). The uncalibrated state
-  /// is ONE [SkotiqBanner], not a bordered hero with its own icon disc.
-  Widget _buildCalibrationSection(
+  /// The calibration of PHD2 or the built-in guider; another guider exposes
+  /// none.
+  Widget _buildGuiderCalibration(
     SkotiqColors colors,
     bool isConnected,
     Phd2State phd2State,
   ) {
+    final guiderId = ref.watch(guiderStateProvider).deviceId;
+    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
+    if (!isPhd2Guider && !ref.watch(isBuiltinGuiderProvider)) {
+      return _buildNonPhd2GuiderInfo(colors);
+    }
+    return _buildCalibrationSection(
+      colors,
+      isConnected,
+      phd2State,
+      isPhd2Guider: isPhd2Guider,
+    );
+  }
+
+  /// Calibration as a side-panel section (06 §Guiding). The uncalibrated state
+  /// is ONE [SkotiqBanner], not a bordered hero with its own icon disc. Only
+  /// PHD2 takes Clear and Flip; the built-in guider calibrates itself.
+  Widget _buildCalibrationSection(
+    SkotiqColors colors,
+    bool isConnected,
+    Phd2State phd2State, {
+    required bool isPhd2Guider,
+  }) {
     final calibration = ref.watch(calibrationStateProvider);
     final isCalibrating = phd2State == Phd2State.calibrating;
     final isCalibrated = calibration.isCalibrated;
@@ -476,33 +496,45 @@ mixin _GuidingDesktopSections
                     ),
                   ],
                 ),
-                const SizedBox(height: SkotiqTokens.spaceMd),
-                Row(
-                  children: [
-                    Expanded(
-                      child: SkotiqButton(
-                        label: 'Clear',
-                        icon: SkotiqIcons.delete,
-                        variant: ButtonVariant.secondary,
-                        size: ButtonSize.small,
-                        onPressed: isConnected ? _clearCalibration : null,
+                if (isPhd2Guider) ...[
+                  const SizedBox(height: SkotiqTokens.spaceMd),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SkotiqButton(
+                          label: 'Clear',
+                          icon: SkotiqIcons.delete,
+                          variant: ButtonVariant.secondary,
+                          size: ButtonSize.small,
+                          onPressed: isConnected ? _clearCalibration : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: SkotiqTokens.spaceSm),
-                    Expanded(
-                      child: SkotiqButton(
-                        label: 'Flip',
-                        icon: LucideIcons.flipHorizontal,
-                        variant: ButtonVariant.secondary,
-                        size: ButtonSize.small,
-                        onPressed: isConnected ? _flipCalibration : null,
+                      const SizedBox(width: SkotiqTokens.spaceSm),
+                      Expanded(
+                        child: SkotiqButton(
+                          label: 'Flip',
+                          icon: LucideIcons.flipHorizontal,
+                          variant: ButtonVariant.secondary,
+                          size: ButtonSize.small,
+                          onPressed: isConnected ? _flipCalibration : null,
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  Text(
+                    'Flip the calibration after a meridian flip.',
+                    style: SkotiqTypography.caption.copyWith(
+                      color: colors.textMuted,
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ],
+              if (!isPhd2Guider) ...[
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 Text(
-                  'Flip the calibration after a meridian flip.',
+                  'Skotiq calibrates this guider each time guiding starts. '
+                  'Pulse and multi-star settings live under Equipment.',
                   style: SkotiqTypography.caption.copyWith(
                     color: colors.textMuted,
                   ),

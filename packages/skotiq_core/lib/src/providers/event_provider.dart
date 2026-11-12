@@ -228,6 +228,7 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       // what happened (the step's error, the heartbeat's equipment Error).
       final message = _eventMessage(event);
       if (message == null) return;
+      if (_isAnnouncedRunWarning(event, message)) return;
 
       // A sequencer event the notification router classifies is the router's
       // to tell: a failed run (once per run, with its reason) and an
@@ -293,6 +294,15 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
     subscription?.cancel();
   });
 });
+
+/// True for the run's Warning about a quality problem it carries on through.
+/// The notification router announces that problem from its decision row and
+/// Tonight lists it with the run's warnings; a toast here made one problem
+/// three notices with the same words.
+bool _isAnnouncedRunWarning(core.SkotiqEvent event, String message) =>
+    event.category == core.EventCategory.sequencer &&
+    event.severity == core.EventSeverity.warning &&
+    message.trimRight().endsWith(kQualityProblemContinuesNote);
 
 /// The sentence a backend event carries, or null when it carries none.
 String? _eventMessage(core.SkotiqEvent event) {

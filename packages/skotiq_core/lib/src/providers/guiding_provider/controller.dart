@@ -270,6 +270,16 @@ class Phd2Controller {
     ) {
       if (next != null && next.trim().isNotEmpty) _lastGuiderId = next;
     }, fireImmediately: true);
+    // A guider connected through the device service (the built-in guider, a
+    // driver) sends no guiding Connected event.
+    ref.listen<bool>(
+      guiderStateProvider.select(
+        (state) => state.connectionState == DeviceConnectionState.connected,
+      ),
+      (previous, connected) {
+        if (connected && previous != true) unawaited(_refreshPixelScale());
+      },
+    );
     _eventSub = backend.eventStream.listen(
       (event) {
         if (event.category != EventCategory.guiding) return;
@@ -536,15 +546,23 @@ class Phd2Controller {
 
   /// Read the guide camera's pixel scale (arcsec/px) into [guiderStateProvider].
   ///
-  /// PHD2 computes it from its profile's focal length and pixel size, so it
-  /// is read when the link comes up and again when calibration or guiding
-  /// starts, the points at which a profile change would have taken effect.
-  /// A guider with no scale, or a failed read, leaves it null: the guide
-  /// chart then stays in pixels rather than converting with a guess.
+  /// PHD2 computes it from its profile's focal length and pixel size, the
+  /// built-in guider from the guide camera and the profile's guide focal
+  /// length. It is read when the guider connects and again when calibration
+  /// or guiding starts, the points at which a profile change would have taken
+  /// effect. A guider with no scale, or a failed read, leaves it null: guide
+  /// errors then stay in pixels rather than converting with a guess.
   Future<void> _refreshPixelScale() async {
+    final guiderId = ref.read(guiderStateProvider).deviceId;
     try {
-      final status = await backend.phd2GetStatus();
-      if (_disposed || !status.connected) return;
+      final status = await backend.guiderGetStatus(
+        deviceId: guiderId ?? kPhd2CanonicalId,
+      );
+      if (_disposed ||
+          !status.connected ||
+          ref.read(guiderStateProvider).deviceId != guiderId) {
+        return;
+      }
       ref.read(guiderStateProvider.notifier).setPixelScale(status.pixelScale);
     } catch (e) {
       if (_disposed) return;

@@ -505,11 +505,6 @@ class FocusSettingsNotifier extends StateNotifier<FocusSettings> {
   }
 }
 
-/// Dither settings for guiding (persists across navigation)
-final ditherSettingsProvider = StateProvider<DitherSettings>((ref) {
-  return const DitherSettings();
-});
-
 /// Slew coordinates for mount tab (persists across navigation)
 final slewCoordinatesProvider = StateProvider<SlewCoordinates>((ref) {
   return const SlewCoordinates();
