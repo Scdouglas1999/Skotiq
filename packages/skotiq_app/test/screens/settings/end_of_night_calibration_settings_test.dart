@@ -18,8 +18,8 @@ class _CapRig extends Fake implements EonRig {
   DateTime now() => DateTime(2026, 10, 22, 6);
 
   @override
-  Future<List<db.CapturedImage>> lightFramesSince(DateTime since) async => [
-        db.CapturedImage(
+  Future<List<db.DbCapturedImage>> lightFramesSince(DateTime since) async => [
+        db.DbCapturedImage(
           id: 1,
           filePath: '/n/L_1.fits',
           fileName: 'L_1.fits',

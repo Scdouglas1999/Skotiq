@@ -4,11 +4,11 @@ library;
 
 export 'src/database/database.dart'
     show
-        Sequence,
-        SequenceNode,
+        DbSequence,
+        DbSequenceNode,
         SequencesCompanion,
         SequenceNodesCompanion,
-        Target,
+        DbTarget,
         TargetsCompanion;
 export 'src/models/settings/app_settings.dart'
     show AppSettings, ObserverLocation;

@@ -10,18 +10,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_trend_cards.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/database/database.dart' as drift
-    show CapturedImage;
+    show DbCapturedImage;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 const _baseTs = '2025-01-01T20:00:00.000Z';
 
-drift.CapturedImage _img({
+drift.DbCapturedImage _img({
   required int id,
   required Duration offset,
   required bool solved,
 }) {
   final ts = DateTime.parse(_baseTs).add(offset);
-  return drift.CapturedImage(
+  return drift.DbCapturedImage(
     id: id,
     filePath: '/tmp/$id.fits',
     fileName: '$id.fits',
@@ -85,7 +85,7 @@ void main() {
 
   Future<void> pumpSolveCard(
     WidgetTester tester,
-    List<drift.CapturedImage> frames,
+    List<drift.DbCapturedImage> frames,
   ) async {
     await tester.pumpWidget(MaterialApp(
       theme: theme,
@@ -162,7 +162,7 @@ void main() {
 
   testWidgets('SolveRateTrendCard with two solved frames reads 100%',
       (tester) async {
-    final frames = <drift.CapturedImage>[
+    final frames = <drift.DbCapturedImage>[
       _img(id: 1, offset: const Duration(minutes: 0), solved: true),
       _img(id: 2, offset: const Duration(minutes: 4), solved: true),
     ];
@@ -173,7 +173,7 @@ void main() {
 
   testWidgets('SolveRateTrendCard with mixed history shows latest window',
       (tester) async {
-    final frames = <drift.CapturedImage>[
+    final frames = <drift.DbCapturedImage>[
       for (var i = 0; i < 6; i++)
         _img(id: i + 1, offset: Duration(minutes: i * 3), solved: true),
       // Last two frames fail to solve — rolling window over 8 last frames

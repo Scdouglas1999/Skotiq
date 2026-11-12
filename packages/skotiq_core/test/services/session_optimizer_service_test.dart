@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/database/database.dart'
-    show ImagingSession, Target;
+    show ImagingSession, DbTarget;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 class _MockLoggingService extends Mock implements LoggingService {}
@@ -120,7 +120,7 @@ void main() {
       );
     });
 
-    Target target({
+    DbTarget target({
       required int id,
       required String name,
       required double ra,
@@ -130,7 +130,7 @@ void main() {
       int totalPlannedSubs = 0,
       double totalIntegrationSecs = 0,
     }) {
-      return Target(
+      return DbTarget(
         id: id,
         name: name,
         ra: ra,

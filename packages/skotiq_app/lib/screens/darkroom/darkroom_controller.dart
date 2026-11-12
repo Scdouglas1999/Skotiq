@@ -61,7 +61,7 @@ const String kDarkroomImportNextStep =
     'Export the recipe again from the Darkroom that wrote it, or choose a '
     'different .skrecipe file.';
 
-class DarkroomController extends StateNotifier<DarkroomState> {
+class DarkroomController extends StateNotifier<DarkroomViewState> {
   /// Collaborators are resolved once, here, rather than read from [ref] on each
   /// use: [dispose] issues the last write and the stop request for a render
   /// that is still inside the engine, and by then the container that owns
@@ -76,7 +76,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
         _sidecars = ref.read(darkroomSidecarReaderProvider),
         _draftRevision =
             ref.read(darkroomDraftPreviewRevisionProvider.notifier),
-        super(const DarkroomState()) {
+        super(const DarkroomViewState()) {
     unawaited(_load());
   }
 
@@ -267,19 +267,19 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   /// cannot null a field out, so building the state whole is the only way to
   /// drop the previous recipe — and carrying it forward is what printed a
   /// deleted recipe's name in the header above the subtitle "No recipe yet",
-  /// left [DarkroomState.hasRecipe] true over a screen with no recipe on it,
-  /// and kept the deleted stack's steps in [DarkroomState.steps].
+  /// left [DarkroomViewState.hasRecipe] true over a screen with no recipe on it,
+  /// and kept the deleted stack's steps in [DarkroomViewState.steps].
   ///
   /// The operation catalogue survives because it describes this build's
   /// registry rather than any one recipe.
-  DarkroomState _noRecipe({String? loadError, DarkroomStartOffer? offer}) {
+  DarkroomViewState _noRecipe({String? loadError, DarkroomStartOffer? offer}) {
     _undoJournal.clear();
     _redoJournal.clear();
     _unrenderable.clear();
     _catalogStars = const [];
     _lastEditKey = null;
     _lastEditAt = null;
-    return DarkroomState(
+    return DarkroomViewState(
       loading: false,
       loadError: loadError,
       offer: offer,
@@ -1070,7 +1070,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   ///
   /// Three things decide the outcome and none of them is decided here:
   ///
-  ///  * WHERE it goes — [DarkroomState.insertIndexFor], which mirrors the
+  ///  * WHERE it goes — [DarkroomViewState.insertIndexFor], which mirrors the
   ///    engine's stage rule so the proposed order is one the engine can accept;
   ///  * WHAT it starts with — [_openingParamsFor], which takes the operation's
   ///    own documented defaults, or the registry's measurement of this master
@@ -1083,7 +1083,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
   /// restores the step list as it was, and the render that follows replays the
   /// stack WITH the new step.
   ///
-  /// Answers false when nothing was added; [DarkroomState.insertRefusal] then
+  /// Answers false when nothing was added; [DarkroomViewState.insertRefusal] then
   /// carries the reason.
   Future<bool> insertStep(DarkroomOpSpec op) async {
     if (state.recipeId == null || state.insertBusy) return false;
@@ -1944,5 +1944,5 @@ class DarkroomController extends StateNotifier<DarkroomState> {
 /// with the screen means every entry re-reads the row, which is the only way
 /// the editor and the database can be describing the same recipe.
 final darkroomControllerProvider = StateNotifierProvider.autoDispose
-    .family<DarkroomController, DarkroomState, DarkroomScope>(
+    .family<DarkroomController, DarkroomViewState, DarkroomScope>(
         (ref, scope) => DarkroomController(ref, scope));

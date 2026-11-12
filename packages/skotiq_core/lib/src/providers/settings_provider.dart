@@ -233,7 +233,7 @@ final bortleClassProvider = Provider<int>((ref) {
 /// The operator's profile with the obstructions the runs learned at the
 /// current site merged in (see [userHorizonProfileProvider] for the profile
 /// alone, which is what the horizon editor edits).
-final horizonProfileProvider = Provider<HorizonProfile>((ref) {
+final horizonProfileProvider = Provider<SiteHorizonProfile>((ref) {
   final profile = ref.watch(userHorizonProfileProvider);
   final site = ref.watch(appObserverLocationProvider);
   if (site == null) return profile;
@@ -248,7 +248,7 @@ final horizonProfileProvider = Provider<HorizonProfile>((ref) {
 });
 
 /// The operator's own horizon profile, without learned obstructions.
-final userHorizonProfileProvider = Provider<HorizonProfile>((ref) {
+final userHorizonProfileProvider = Provider<SiteHorizonProfile>((ref) {
   final json = ref.watch(
     appSettingsProvider.select(
       (settingsAsync) =>
@@ -256,5 +256,5 @@ final userHorizonProfileProvider = Provider<HorizonProfile>((ref) {
           '{"N":0,"NE":0,"E":0,"SE":0,"S":0,"SW":0,"W":0,"NW":0}',
     ),
   );
-  return HorizonProfile.fromJson(json);
+  return SiteHorizonProfile.fromJson(json);
 });

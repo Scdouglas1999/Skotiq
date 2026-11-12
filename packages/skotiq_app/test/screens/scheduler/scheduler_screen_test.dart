@@ -105,7 +105,7 @@ List<Override> _commonOverrides({
     ),
     schedulerAutoReevalProvider.overrideWith((ref) {}),
     allDbTargetsProvider.overrideWith(
-      (ref) => const Stream<List<ndb.Target>>.empty(),
+      (ref) => const Stream<List<ndb.DbTarget>>.empty(),
     ),
     integrationGoalsStreamProvider.overrideWith(
       (ref) => const Stream<List<IntegrationGoal>>.empty(),

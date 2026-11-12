@@ -5,8 +5,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database.dart'
-    show
-        PhotometryMeasurementRow,
+    show PhotometryMeasurementRow,
         FramePhotometricCalibrationRow,
         TransparencySampleRow,
         PsfFieldTileRow,

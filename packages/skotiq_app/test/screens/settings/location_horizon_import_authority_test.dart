@@ -117,7 +117,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     final settings = handle.container.read(appSettingsProvider).value!;
-    final profile = LegacyHorizonProfile.fromJson(
+    final profile = SiteHorizonProfile.fromJson(
       settings.horizonProfileJson,
     );
     expect(profile.altitudeAt('N'), 12);

@@ -106,7 +106,7 @@ class PostSessionIntegrationService {
   /// Returns one [PostSessionIntegrationOutcome] per non-empty filter group.
   /// Throws [ArgumentError] when [subs] is empty.
   Future<List<PostSessionIntegrationOutcome>> integrate({
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required IntegrationSettings settings,
     required String Function(String filterBucket) outputFitsPathBuilder,
     int? targetId,
@@ -192,7 +192,7 @@ class PostSessionIntegrationService {
   /// One filter group of [integrate]: integrate, persist, then the
   /// best-effort extras, reporting the lane to the pass view.
   Future<PostSessionIntegrationOutcome> _integrateLane({
-    required MapEntry<String, List<CapturedImage>> entry,
+    required MapEntry<String, List<DbCapturedImage>> entry,
     required IntegrationSettings settings,
     required String Function(String filterBucket) outputFitsPathBuilder,
     required int? targetId,
@@ -338,7 +338,7 @@ class PostSessionIntegrationService {
   ///
   /// Returns null when [subs] is empty.
   Future<IntegrateSessionResult?> previewIntegrate({
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required IntegrationSettings settings,
     bool generatePreview = true,
   }) async {

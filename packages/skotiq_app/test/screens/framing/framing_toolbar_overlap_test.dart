@@ -94,7 +94,7 @@ void main() {
         ),
         framingFOVProvider.overrideWith(
           (ref) async => const FramingEquipmentResult(
-            status: EquipmentStatus.ready,
+            status: FramingEquipmentStatus.ready,
             equipment: _equipment,
             profileName: 'Test Profile',
           ),

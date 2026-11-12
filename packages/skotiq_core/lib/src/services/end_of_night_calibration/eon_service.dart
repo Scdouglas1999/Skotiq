@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../database/database.dart' show CapturedImage;
+import '../../database/database.dart' show DbCapturedImage;
 import '../../models/sequence/sequence_models.dart';
 import '../calibration_master_builder.dart';
 import 'eon_plan.dart';
@@ -45,7 +45,7 @@ abstract class EonRig {
   DateTime now();
 
   /// Light frames recorded since [since], oldest first.
-  Future<List<CapturedImage>> lightFramesSince(DateTime since);
+  Future<List<DbCapturedImage>> lightFramesSince(DateTime since);
 
   /// The connected camera, or null when none is connected.
   Future<EonCameraInfo?> camera();
@@ -73,7 +73,7 @@ abstract class EonRig {
   /// Stop the calibration run started by [runSequence].
   Future<void> stopRun();
 
-  Future<List<CapturedImage>> framesOfRun(int runId);
+  Future<List<DbCapturedImage>> framesOfRun(int runId);
 
   Future<CalibrationMasterBuildResult> buildMaster(
     CalibrationMasterBuildRequest request,
@@ -455,7 +455,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     }
 
     final frames = result.runId == null
-        ? const <CapturedImage>[]
+        ? const <DbCapturedImage>[]
         : await _rig.framesOfRun(result.runId!);
     report.framesCaptured = frames.length;
     _set(EonPhase.buildingMasters, 'Building masters', report);
@@ -610,12 +610,12 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
   }
 
   Future<void> _buildMasters(
-    List<CapturedImage> frames,
+    List<DbCapturedImage> frames,
     EonFrameNeeds needs,
     EonSettings config,
     EonReport report,
   ) async {
-    final groups = <(String, int, int, int, int, int), List<CapturedImage>>{};
+    final groups = <(String, int, int, int, int, int), List<DbCapturedImage>>{};
     for (final frame in frames) {
       final type = frame.frameType.toLowerCase();
       if (type != 'dark' && type != 'bias') continue;

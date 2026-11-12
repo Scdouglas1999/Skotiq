@@ -75,7 +75,7 @@ void main() {
         plateSolverReadyProvider.overrideWith((ref) => solverReady),
         framingFOVProvider.overrideWith(
           (ref) async => const FramingEquipmentResult(
-            status: EquipmentStatus.noProfile,
+            status: FramingEquipmentStatus.noProfile,
           ),
         ),
       ],

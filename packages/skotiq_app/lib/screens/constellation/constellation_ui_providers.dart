@@ -1,9 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// The core barrel also exports a `ConstellationPrivacy` (the wire enum
-// `contributeTarget` consumes). This file declares the richer app-side enum of
-// the same name, so the core one is imported under a prefix to disambiguate.
-import 'package:skotiq_core/skotiq_core.dart' hide ConstellationPrivacy;
-import 'package:skotiq_core/skotiq_core.dart' as core show ConstellationPrivacy;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// App-side Riverpod surface for the Constellation screens (Pillar C).
@@ -31,17 +27,8 @@ Future<void> clearConstellationCredentials(SettingsDao settings) {
   ]);
 }
 
-/// What a contributor sends to the hub. `sums` (default) shares only the same
-/// additive accumulator the master integration already keeps — never the raw
-/// individual subframes. `subs` is the heavier, more revealing option a user
-/// can knowingly opt into for a hub that re-grades centrally.
-enum ConstellationPrivacy {
-  /// Additive co-add sums only (the `.skt` keystone bytes). Recommended.
-  sums,
-
-  /// Raw calibrated subframes. More to upload, more revealing.
-  subs;
-
+/// The consent sheet's words for each [ConstellationPrivacy] choice.
+extension ConstellationPrivacyText on ConstellationPrivacy {
   String get label => this == ConstellationPrivacy.sums
       ? 'Share co-add sums (recommended)'
       : 'Share raw subframes';
@@ -51,13 +38,6 @@ enum ConstellationPrivacy {
           'never your individual exposures. Others cannot recover your subs.'
       : 'Every calibrated subframe is uploaded so the hub can re-grade and '
           'reject centrally. Larger, slower, and more revealing of your rig.';
-
-  /// The core wire enum [ConstellationService.contributeTarget] consumes. The
-  /// two enums are kept name-aligned (`sums` | `subs`) so the persisted setting
-  /// round-trips through either side.
-  core.ConstellationPrivacy get wire => this == ConstellationPrivacy.sums
-      ? core.ConstellationPrivacy.sums
-      : core.ConstellationPrivacy.subs;
 }
 
 /// Whether the host-owned Constellation actions (Contribute, Pull & Blend,

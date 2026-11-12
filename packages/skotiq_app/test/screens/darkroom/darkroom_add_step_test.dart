@@ -321,14 +321,14 @@ void main() {
   }
 
   void open(DarkroomScope scope) {
-    container.listen<DarkroomState>(
+    container.listen<DarkroomViewState>(
       darkroomControllerProvider(scope),
       (_, __) {},
       fireImmediately: true,
     );
   }
 
-  Future<DarkroomState> settle(DarkroomScope scope) async {
+  Future<DarkroomViewState> settle(DarkroomScope scope) async {
     open(scope);
     for (var i = 0; i < 12; i++) {
       await Future<void>.delayed(Duration.zero);

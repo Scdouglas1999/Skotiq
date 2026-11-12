@@ -553,11 +553,7 @@ as DateTime,
 /// @nodoc
 mixin _$FlatWizardState {
 
-/// Current operating mode
- FlatWizardMode get mode;/// Global settings
- FlatWizardGlobalSettings get globalSettings;/// Per-filter settings
- List<FlatFilterSettings> get filterSettings;/// Saved filter presets
- List<FlatFilterPreset> get filterPresets;/// Current filter index being processed
+ FlatWizardMode get mode; FlatWizardGlobalSettings get globalSettings; List<FlatFilterSettings> get filterSettings; List<FlatFilterPreset> get filterPresets;/// Current filter index being processed
  int get currentFilterIndex;/// Current frame index for active filter
  int get currentFrameIndex;/// Is capture/calibration in progress
  bool get isCapturing;/// Is currently exposing (for countdown)
@@ -566,11 +562,8 @@ mixin _$FlatWizardState {
  double? get currentExposureDuration;/// ADU measurements for convergence graph
  List<AduMeasurement> get aduHistory;/// Sky brightness measurements for rate tracking
  List<SkyBrightnessMeasurement> get skyBrightnessHistory;/// Calculated sky brightness change rate (ADU/s)
- double? get skyAduRate;/// Twilight mode for sky flats
- TwilightMode get twilightMode;/// Most recent captured image path
- String? get lastImagePath;/// Most recent captured image data (for preview, runtime only)
-@RuntimeOnlyValueConverter() Object? get lastImageData;/// Error message if any
- String? get errorMessage;/// Warning message (non-fatal, informational)
+ double? get skyAduRate; TwilightMode get twilightMode; String? get lastImagePath;/// Most recent captured image data (for preview, runtime only)
+@RuntimeOnlyValueConverter() Object? get lastImageData; String? get errorMessage;/// Warning message (non-fatal, informational)
  String? get warningMessage;/// Status message for progress display
  String? get statusMessage;/// Visualization toggles
  bool get showAduGraph; bool get showExposureTimeline; bool get showSkyBrightness; bool get showFilterCards; bool get showHistogramOverlay;
@@ -801,22 +794,16 @@ class _FlatWizardState implements FlatWizardState {
   const _FlatWizardState({this.mode = FlatWizardMode.quick, this.globalSettings = const FlatWizardGlobalSettings(), final  List<FlatFilterSettings> filterSettings = const [], final  List<FlatFilterPreset> filterPresets = const [], this.currentFilterIndex = 0, this.currentFrameIndex = 0, this.isCapturing = false, this.isExposing = false, this.exposureStartTime, this.currentExposureDuration, final  List<AduMeasurement> aduHistory = const [], final  List<SkyBrightnessMeasurement> skyBrightnessHistory = const [], this.skyAduRate, this.twilightMode = TwilightMode.dusk, this.lastImagePath, @RuntimeOnlyValueConverter() this.lastImageData, this.errorMessage, this.warningMessage, this.statusMessage, this.showAduGraph = true, this.showExposureTimeline = true, this.showSkyBrightness = true, this.showFilterCards = true, this.showHistogramOverlay = false}): _filterSettings = filterSettings,_filterPresets = filterPresets,_aduHistory = aduHistory,_skyBrightnessHistory = skyBrightnessHistory;
   factory _FlatWizardState.fromJson(Map<String, dynamic> json) => _$FlatWizardStateFromJson(json);
 
-/// Current operating mode
 @override@JsonKey() final  FlatWizardMode mode;
-/// Global settings
 @override@JsonKey() final  FlatWizardGlobalSettings globalSettings;
-/// Per-filter settings
  final  List<FlatFilterSettings> _filterSettings;
-/// Per-filter settings
 @override@JsonKey() List<FlatFilterSettings> get filterSettings {
   if (_filterSettings is EqualUnmodifiableListView) return _filterSettings;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_filterSettings);
 }
 
-/// Saved filter presets
  final  List<FlatFilterPreset> _filterPresets;
-/// Saved filter presets
 @override@JsonKey() List<FlatFilterPreset> get filterPresets {
   if (_filterPresets is EqualUnmodifiableListView) return _filterPresets;
   // ignore: implicit_dynamic_type
@@ -855,13 +842,10 @@ class _FlatWizardState implements FlatWizardState {
 
 /// Calculated sky brightness change rate (ADU/s)
 @override final  double? skyAduRate;
-/// Twilight mode for sky flats
 @override@JsonKey() final  TwilightMode twilightMode;
-/// Most recent captured image path
 @override final  String? lastImagePath;
 /// Most recent captured image data (for preview, runtime only)
 @override@RuntimeOnlyValueConverter() final  Object? lastImageData;
-/// Error message if any
 @override final  String? errorMessage;
 /// Warning message (non-fatal, informational)
 @override final  String? warningMessage;

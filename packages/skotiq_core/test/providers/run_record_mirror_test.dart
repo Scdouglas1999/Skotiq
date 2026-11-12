@@ -54,11 +54,11 @@ _MockNetworkBackend _clientBackend(ProviderContainer host) {
   return backend;
 }
 
-db.CapturedImage _row(
+db.DbCapturedImage _row(
   int id, {
   required int sessionId,
   String type = 'light',
-}) => db.CapturedImage(
+}) => db.DbCapturedImage(
   id: id,
   filePath: 'C:/data/frame_$id.fits',
   fileName: 'frame_$id.fits',
@@ -76,7 +76,7 @@ db.CapturedImage _row(
 
 ProviderContainer _client(
   _MockNetworkBackend backend, {
-  List<db.CapturedImage> hostRows = const [],
+  List<db.DbCapturedImage> hostRows = const [],
 }) => ProviderContainer(
   overrides: [
     inMemoryDatabaseOverride(),

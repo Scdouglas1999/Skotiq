@@ -20,14 +20,7 @@ mixin _$FlatWizardGlobalSettings {
  double get tolerancePercent;/// Minimum exposure in seconds
  double get minExposure;/// Maximum exposure in seconds
  double get maxExposure;/// Number of frames to capture per filter
- int get frameCount;/// Default gain for flats
- int get gain;/// Default binning for flats
- int get binning;/// Save path for flat frames
- String? get savePath;/// Create date subfolder
- bool get createDateSubfolder;/// Create filter subfolders
- bool get createFilterSubfolders;// Magic-number defaults promoted from
-// hardcoded constants in flat_wizard_service.dart.
-/// Per-frame download timeout (seconds). Was hardcoded
+ int get frameCount; int get gain; int get binning; String? get savePath; bool get createDateSubfolder; bool get createFilterSubfolders;/// Per-frame download timeout (seconds). Was hardcoded
 /// `_imageDownloadTimeout = Duration(seconds: 60)`. Increase for very
 /// large sensors or slow USB hubs.
  int get imageDownloadTimeoutSeconds;
@@ -247,18 +240,11 @@ class _FlatWizardGlobalSettings implements FlatWizardGlobalSettings {
 @override@JsonKey() final  double maxExposure;
 /// Number of frames to capture per filter
 @override@JsonKey() final  int frameCount;
-/// Default gain for flats
 @override@JsonKey() final  int gain;
-/// Default binning for flats
 @override@JsonKey() final  int binning;
-/// Save path for flat frames
 @override final  String? savePath;
-/// Create date subfolder
 @override@JsonKey() final  bool createDateSubfolder;
-/// Create filter subfolders
 @override@JsonKey() final  bool createFilterSubfolders;
-// Magic-number defaults promoted from
-// hardcoded constants in flat_wizard_service.dart.
 /// Per-frame download timeout (seconds). Was hardcoded
 /// `_imageDownloadTimeout = Duration(seconds: 60)`. Increase for very
 /// large sensors or slow USB hubs.
@@ -339,8 +325,7 @@ as int,
 mixin _$FlatFilterSettings {
 
  String get filterName;/// Filter position in wheel (0-indexed)
- int get filterPosition;/// Whether this filter is enabled for capture
- bool get enabled;/// Null inherits the resolved camera/profile setting; zero is explicit.
+ int get filterPosition; bool get enabled;/// Null inherits the resolved camera/profile setting; zero is explicit.
  int? get gainOverride; int? get offsetOverride;/// Override histogram target (null = use global)
  double? get histogramTargetOverride;/// Override tolerance (null = use global)
  double? get toleranceOverride;/// Override min exposure (null = use global)
@@ -348,10 +333,7 @@ mixin _$FlatFilterSettings {
  double? get maxExposureOverride;/// Override frame count (null = use global)
  int? get frameCountOverride;/// Suggested exposure from history (informational)
  double? get suggestedExposure;/// Current calibrated exposure (set after tuning)
- double? get calibratedExposure;/// Frames captured so far
- int get capturedCount;/// Current measured ADU
- double? get currentAdu;/// Calibration status
- FilterCalibrationStatus get status;
+ double? get calibratedExposure; int get capturedCount; double? get currentAdu; FilterCalibrationStatus get status;
 /// Create a copy of FlatFilterSettings
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -565,7 +547,6 @@ class _FlatFilterSettings implements FlatFilterSettings {
 @override final  String filterName;
 /// Filter position in wheel (0-indexed)
 @override final  int filterPosition;
-/// Whether this filter is enabled for capture
 @override@JsonKey() final  bool enabled;
 /// Null inherits the resolved camera/profile setting; zero is explicit.
 @override final  int? gainOverride;
@@ -584,11 +565,8 @@ class _FlatFilterSettings implements FlatFilterSettings {
 @override final  double? suggestedExposure;
 /// Current calibrated exposure (set after tuning)
 @override final  double? calibratedExposure;
-/// Frames captured so far
 @override@JsonKey() final  int capturedCount;
-/// Current measured ADU
 @override final  double? currentAdu;
-/// Calibration status
 @override@JsonKey() final  FilterCalibrationStatus status;
 
 /// Create a copy of FlatFilterSettings

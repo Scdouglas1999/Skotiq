@@ -395,7 +395,7 @@ class SkyAtlasService {
   /// are the frame's pixel dimensions (the FITS dims), needed for the reference
   /// pixel.
   Future<AtlasFoldSummary?> autoFoldCapturedImage({
-    required CapturedImage image,
+    required DbCapturedImage image,
     required int imageWidth,
     required int imageHeight,
     SolvedWcsDistortion distortion = const SolvedWcsDistortion(),

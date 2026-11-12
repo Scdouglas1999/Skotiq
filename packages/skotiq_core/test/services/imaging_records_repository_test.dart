@@ -263,7 +263,7 @@ void main() {
           backend,
           pollInterval: const Duration(milliseconds: 5),
         );
-        final values = <List<CapturedImage>>[];
+        final values = <List<DbCapturedImage>>[];
         final errors = <Object>[];
         final subscription = pollingRepository
             .watchImagesForSession(6)

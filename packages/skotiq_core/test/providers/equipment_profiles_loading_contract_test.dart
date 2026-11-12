@@ -12,8 +12,8 @@ void main() {
   test(
     'equipment profiles remain loading until both database streams resolve',
     () async {
-      final profiles = Completer<List<db.EquipmentProfile>>();
-      final active = Completer<db.EquipmentProfile?>();
+      final profiles = Completer<List<db.DbEquipmentProfile>>();
+      final active = Completer<db.DbEquipmentProfile?>();
       final container = ProviderContainer(
         overrides: [
           inMemoryDatabaseOverride(),
@@ -52,7 +52,7 @@ void main() {
         overrides: [
           inMemoryDatabaseOverride(),
           allProfilesProvider.overrideWith(
-            (_) => Stream<List<db.EquipmentProfile>>.error(
+            (_) => Stream<List<db.DbEquipmentProfile>>.error(
               StateError('profile database unavailable'),
             ),
           ),

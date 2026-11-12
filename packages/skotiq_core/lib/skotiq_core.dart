@@ -4,23 +4,7 @@
 /// package.
 library;
 
-// Database - hide entity names that collide with domain-model classes of the
-// same name. The drift row types for `CapturedImage` / `EquipmentProfile` are
-// still reachable through this barrel via the `DbCapturedImage` /
-// `DbEquipmentProfile` typedef aliases re-exported below
-export 'src/database/database.dart'
-    hide
-        Target,
-        Sequence,
-        SequenceNode,
-        CapturedImage,
-        EquipmentProfile,
-        // The `darkroom_state` table; the app has a `DarkroomState` of its own.
-        DarkroomState;
-export 'src/database/database_aliases.dart';
-// Aliases for class names hidden from the barrel due to symbol collisions
-// (legacy HorizonProfile vs scheduler HorizonProfile).
-export 'src/legacy_aliases.dart';
+export 'src/database/database.dart';
 export 'src/database/integrity_check.dart';
 export 'src/database/recovery/crash_recovery.dart';
 export 'src/database/integration_stage_marker.dart';
@@ -244,7 +228,7 @@ export 'src/models/site/location_settings.dart';
 // Hide the legacy settings HorizonProfile so the scheduler's samples-based
 // HorizonProfile (services/scheduler/horizon_profile.dart) wins at the barrel.
 // Direct importers of site_horizon_profile.dart still see it.
-export 'src/models/site/site_horizon_profile.dart' hide HorizonProfile;
+export 'src/models/site/site_horizon_profile.dart';
 export 'src/providers/clock_provider.dart';
 export 'src/models/equipment_profile_model.dart';
 export 'src/providers/profiles_provider.dart';
@@ -306,8 +290,6 @@ export 'src/services/sesame_name_resolver.dart';
 export 'src/services/catalog_lookup/exoplanet_provider.dart';
 export 'src/services/catalog_lookup/gaia_provider.dart';
 export 'src/providers/annotation_settings_provider.dart';
-export 'src/providers/annotation_presets_provider.dart'
-    hide AnnotationPreset, annotationPresetsProvider, AnnotationPresetsNotifier;
 export 'src/providers/filter_offset_provider.dart';
 export 'src/providers/camera_presets_provider.dart';
 export 'src/providers/weather_providers.dart';

@@ -71,7 +71,7 @@ class CalibrationBacklogGroup {
 
   /// Evening date of the observing night, `yyyy-mm-dd`.
   final String night;
-  final List<CapturedImage> frames;
+  final List<DbCapturedImage> frames;
   final double exposureSeconds;
   final int? gain;
   final int? offset;
@@ -277,7 +277,7 @@ class CalibrationBacklogService {
   /// Resolve selected raw batches independently of metadata-based library
   /// coverage. No different batch or master can stand in for this approval.
   Future<List<CalibrationBacklogGroup>> scheduledForLights(
-    List<CapturedImage> lights,
+    List<DbCapturedImage> lights,
   ) async {
     final entries = await _selections();
     final selected = entries.map(
@@ -371,9 +371,9 @@ class CalibrationBacklogService {
   /// Group raw frames by kind, observing night and capture setting; darks
   /// and bias are further split where sensor temperatures jump.
   Future<List<CalibrationBacklogGroup>> groupFrames(
-    List<CapturedImage> frames,
+    List<DbCapturedImage> frames,
   ) async {
-    final buckets = <String, List<CapturedImage>>{};
+    final buckets = <String, List<DbCapturedImage>>{};
     for (final f in frames) {
       final kind = CalibrationFrameKind.parse(f.frameType);
       if (kind == null) continue;
@@ -733,19 +733,19 @@ class CalibrationBacklogService {
         );
   }
 
-  static String? _filterOf(CapturedImage f) {
+  static String? _filterOf(DbCapturedImage f) {
     final name = f.filter?.trim();
     return name == null || name.isEmpty ? null : name;
   }
 
-  static List<List<CapturedImage>> _temperatureClusters(
-    List<CapturedImage> frames,
+  static List<List<DbCapturedImage>> _temperatureClusters(
+    List<DbCapturedImage> frames,
   ) {
     final known = frames.where((f) => f.sensorTemp != null).toList()
       ..sort((a, b) => a.sensorTemp!.compareTo(b.sensorTemp!));
     final unknown = frames.where((f) => f.sensorTemp == null).toList();
     if (known.isEmpty) return [frames];
-    final clusters = <List<CapturedImage>>[
+    final clusters = <List<DbCapturedImage>>[
       [known.first],
     ];
     for (final f in known.skip(1)) {
@@ -905,7 +905,7 @@ class CalibrationBacklogNotifier
   }
 
   Future<Map<String, String>> prepareForLights(
-    List<CapturedImage> lights,
+    List<DbCapturedImage> lights,
   ) async {
     if (state.remote) {
       throw StateError('Build calibration on the imaging computer.');

@@ -40,12 +40,12 @@ db.ImagingSession _session({
   );
 }
 
-db.CapturedImage _imageRow({
+db.DbCapturedImage _imageRow({
   required int id,
   required int? sessionId,
   required DateTime capturedAt,
 }) {
-  return db.CapturedImage(
+  return db.DbCapturedImage(
     id: id,
     filePath: '/captures/frame_$id.fits',
     fileName: 'frame_$id.fits',
@@ -64,7 +64,7 @@ db.CapturedImage _imageRow({
 
 ProviderContainer _container({
   required List<db.ImagingSession> sessions,
-  required List<db.CapturedImage> images,
+  required List<db.DbCapturedImage> images,
 }) {
   final container = ProviderContainer(
     overrides: [

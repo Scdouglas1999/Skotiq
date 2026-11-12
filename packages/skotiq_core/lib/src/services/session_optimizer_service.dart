@@ -453,7 +453,7 @@ class SessionOptimizerService {
     required TargetSuggestionConfig config,
     required double latitude,
     required double longitude,
-    required List<db.Target> targets,
+    required List<db.DbTarget> targets,
     required List<db.ImagingSession> sessions,
     DateTime? observationTime,
     OpticalConfig? opticalConfig,

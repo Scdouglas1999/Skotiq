@@ -51,7 +51,7 @@ void main() {
         ),
       );
 
-      final hostTarget = db.Target(
+      final hostTarget = db.DbTarget(
         id: 8,
         name: 'M31',
         objectType: 'galaxy',
@@ -67,7 +67,7 @@ void main() {
         updatedAt: now,
         isFavorite: true,
       );
-      final hostSequence = db.Sequence(
+      final hostSequence = db.DbSequence(
         id: 9,
         name: 'M31 sequence',
         estimatedDurationMins: 120,

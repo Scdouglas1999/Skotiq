@@ -12,33 +12,33 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     implements EquipmentProfileLibrary {
   EquipmentProfilesDao(super.db);
 
-  Future<List<EquipmentProfile>> getAllProfiles() =>
+  Future<List<DbEquipmentProfile>> getAllProfiles() =>
       select(equipmentProfiles).get();
 
   @override
-  Stream<List<EquipmentProfile>> watchAllProfiles() =>
+  Stream<List<DbEquipmentProfile>> watchAllProfiles() =>
       select(equipmentProfiles).watch();
 
-  Future<EquipmentProfile?> getActiveProfile() {
+  Future<DbEquipmentProfile?> getActiveProfile() {
     return (select(
       equipmentProfiles,
     )..where((p) => p.isActive.equals(true))).getSingleOrNull();
   }
 
   @override
-  Stream<EquipmentProfile?> watchActiveProfile() {
+  Stream<DbEquipmentProfile?> watchActiveProfile() {
     return (select(
       equipmentProfiles,
     )..where((p) => p.isActive.equals(true))).watchSingleOrNull();
   }
 
-  Future<EquipmentProfile?> getProfileById(int id) {
+  Future<DbEquipmentProfile?> getProfileById(int id) {
     return (select(
       equipmentProfiles,
     )..where((p) => p.id.equals(id))).getSingleOrNull();
   }
 
-  Future<EquipmentProfile?> getDefaultProfile() {
+  Future<DbEquipmentProfile?> getDefaultProfile() {
     return (select(
       equipmentProfiles,
     )..where((p) => p.isDefault.equals(true))).getSingleOrNull();
@@ -72,7 +72,7 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  Future<bool> updateProfile(EquipmentProfile profile) async {
+  Future<bool> updateProfile(DbEquipmentProfile profile) async {
     return update(equipmentProfiles).replace(profile);
   }
 
@@ -99,11 +99,11 @@ class EquipmentProfilesDao extends DatabaseAccessor<SkotiqDatabase>
         return rows;
       }
 
-      final activeProfile = remaining.cast<EquipmentProfile?>().firstWhere(
+      final activeProfile = remaining.cast<DbEquipmentProfile?>().firstWhere(
         (p) => p!.isActive,
         orElse: () => null,
       );
-      final defaultProfile = remaining.cast<EquipmentProfile?>().firstWhere(
+      final defaultProfile = remaining.cast<DbEquipmentProfile?>().firstWhere(
         (p) => p!.isDefault,
         orElse: () => null,
       );

@@ -7,8 +7,7 @@ import '../models/hardware_presets/hardware_preset_models.dart';
 import '../models/onboarding/onboarding_state.dart';
 import '../backend/remote_host.dart';
 import '../database/database.dart'
-    show
-        kSimGuideCameraId,
+    show kSimGuideCameraId,
         kSimGuideCameraName,
         kSimGuideFocalLengthMm,
         usesSimulatedGuideCamera;

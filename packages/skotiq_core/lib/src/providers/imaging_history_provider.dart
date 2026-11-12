@@ -34,7 +34,7 @@ class ImagingHistoryQuery {
 /// Aggregated imaging history for a celestial object.
 class ImagingHistory {
   /// The matched target from the database (null if no match).
-  final db.Target? target;
+  final db.DbTarget? target;
 
   /// Exposure of the target's accepted light frames, in seconds.
   final double totalIntegrationSecs;
@@ -98,7 +98,7 @@ final imagingHistoryProvider =
       final allImages = await ref.watch(allDbImagesProvider.future);
       final allGoals = await ref.watch(integrationGoalsStreamProvider.future);
 
-      db.Target? matched;
+      db.DbTarget? matched;
 
       final queryLower = query.objectName.toLowerCase().trim();
 

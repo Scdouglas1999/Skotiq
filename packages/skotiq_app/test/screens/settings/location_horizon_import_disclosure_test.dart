@@ -127,7 +127,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await _advance(tester);
 
-    final stored = LegacyHorizonProfile.fromJson(
+    final stored = SiteHorizonProfile.fromJson(
       handle.container.read(appSettingsProvider).value!.horizonProfileJson,
     );
     expect(stored.altitudeAt('S'), 40);
@@ -142,7 +142,7 @@ void main() {
     await tester.tap(find.text('Import'));
     await _advance(tester);
 
-    final stored = LegacyHorizonProfile.fromJson(
+    final stored = SiteHorizonProfile.fromJson(
       handle.container.read(appSettingsProvider).value!.horizonProfileJson,
     );
     // The summary still reads as the per-sector maximum.
@@ -211,7 +211,7 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await _advance(tester);
 
-    final stored = LegacyHorizonProfile.fromJson(
+    final stored = SiteHorizonProfile.fromJson(
       handle.container.read(appSettingsProvider).value!.horizonProfileJson,
     );
     expect(

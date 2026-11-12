@@ -19,14 +19,14 @@ import 'package:skotiq_core/src/services/darkroom_build_service.dart';
 
 import 'darkroom_fake_native.dart';
 
-CapturedImage _image(
+DbCapturedImage _image(
   int id,
   String filter,
   DateTime at, {
   double? temp,
   String path = '/x.fits',
   double quality = 50,
-}) => CapturedImage(
+}) => DbCapturedImage(
   id: id,
   filePath: path,
   fileName: 'f$id.fits',
@@ -847,7 +847,7 @@ void main() {
   });
 
   group('unattended', () {
-    Future<List<CapturedImage>> frames() async => [
+    Future<List<DbCapturedImage>> frames() async => [
       for (final f in await db.imagesDao.getAllImages())
         f.copyWith(sensorTemp: const Value(-10)),
     ];

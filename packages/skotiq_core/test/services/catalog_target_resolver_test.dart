@@ -1,17 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' show Target;
+import 'package:skotiq_core/src/database/database.dart' show DbTarget;
 
 void main() {
   group('resolveDbTargetForCatalog', () {
-    Target dbTarget({
+    DbTarget dbTarget({
       required int id,
       required String name,
       required double ra,
       required double dec,
       String? catalogId,
     }) {
-      return Target(
+      return DbTarget(
         id: id,
         name: name,
         ra: ra,

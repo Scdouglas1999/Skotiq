@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart' show listEquals, mapEquals;
 
 import '../../../database/database.dart'
-    show
-        AstrometryResidualVectorRow,
+    show AstrometryResidualVectorRow,
         FramePhotometricCalibrationRow,
         LineRatioProductRow,
         MovingObjectCandidateRow,

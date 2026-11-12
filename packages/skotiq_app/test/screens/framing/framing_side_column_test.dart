@@ -62,7 +62,7 @@ const _m42 = FramingTarget(
 );
 
 const _ready = FramingEquipmentResult(
-  status: EquipmentStatus.ready,
+  status: FramingEquipmentStatus.ready,
   profileName: 'My First Rig',
   equipment: FramingEquipment(
     cameraName: 'Simulated Camera',
@@ -306,7 +306,7 @@ void main() {
       tester,
       state: const FramingState(target: _m42),
       equipment:
-          const FramingEquipmentResult(status: EquipmentStatus.noProfile),
+          const FramingEquipmentResult(status: FramingEquipmentStatus.noProfile),
     );
 
     expect(find.text('Set up equipment to plan a mosaic.'), findsOneWidget);

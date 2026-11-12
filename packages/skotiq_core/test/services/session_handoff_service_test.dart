@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide CapturedImage;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/database/database.dart'
-    show CapturedImage, ImagingSession, Target;
+    show DbCapturedImage, ImagingSession, DbTarget;
 
 void main() {
   group('SessionHandoffService bundle round-trip', () {
@@ -219,7 +219,7 @@ void main() {
         final now = DateTime(2026, 5, 18, 22);
         final previousNight = now.subtract(const Duration(days: 1));
 
-        final target = Target(
+        final target = DbTarget(
           id: 1,
           name: 'M31',
           catalogId: 'M31',
@@ -246,9 +246,9 @@ void main() {
           autofocusCount: 0,
           status: 'completed',
         );
-        final images = List<CapturedImage>.generate(
+        final images = List<DbCapturedImage>.generate(
           5,
-          (i) => CapturedImage(
+          (i) => DbCapturedImage(
             id: i,
             filePath: '/tmp/m31_$i.fits',
             fileName: 'm31_$i.fits',

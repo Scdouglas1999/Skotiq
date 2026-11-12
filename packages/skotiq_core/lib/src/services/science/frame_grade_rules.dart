@@ -79,7 +79,7 @@ class FrameGradeRules {
 
   /// Returns a rejection reason when the frame fails any active rule.
   ///
-  /// HFR, star count and guiding RMS live directly on the [db.CapturedImage]
+  /// HFR, star count and guiding RMS live directly on the [db.DbCapturedImage]
   /// data class and are read from it. Eccentricity and FWHM are supplied by
   /// the caller via [eccentricity] / [fwhm], exactly the way [gradeStats]
   /// takes its out-of-band metrics.
@@ -101,7 +101,7 @@ class FrameGradeRules {
   /// `starCount` of zero is the one exception and rejects outright; see
   /// [_unmeasurableFrameReason].
   String? gradeFrame(
-    db.CapturedImage img, {
+    db.DbCapturedImage img, {
     double? eccentricity,
     double? fwhm,
   }) {
@@ -232,7 +232,7 @@ class FrameGradeRules {
 
   /// Suggest thresholds from session statistics (75th percentile for max
   /// metrics, 25th for min stars).
-  static FrameGradeRules suggestFrom(List<db.CapturedImage> frames) {
+  static FrameGradeRules suggestFrom(List<db.DbCapturedImage> frames) {
     final hfrs =
         frames
             .map((f) => f.hfr)

@@ -6,9 +6,9 @@ import 'package:skotiq_core/skotiq_core.dart'
         FrameQualityAssessmentService,
         FrameQualityDisposition,
         FrameQualityLevel;
-import 'package:skotiq_core/src/database/database.dart' show CapturedImage;
+import 'package:skotiq_core/src/database/database.dart' show DbCapturedImage;
 
-CapturedImage _image({
+DbCapturedImage _image({
   required int id,
   double? qualityScore,
   double? hfr,
@@ -16,7 +16,7 @@ CapturedImage _image({
   double? guidingRmsTotal,
 }) {
   final now = DateTime(2026, 1, 1, 0, 0);
-  return CapturedImage(
+  return DbCapturedImage(
     id: id,
     filePath: '/tmp/$id.fits',
     fileName: '$id.fits',

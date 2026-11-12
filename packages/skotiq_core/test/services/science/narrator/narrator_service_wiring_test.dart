@@ -2,8 +2,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide CapturedImage;
-import 'package:skotiq_core/src/database/database.dart' show CapturedImage;
+import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/src/database/database.dart' show DbCapturedImage;
 import 'package:skotiq_core/src/services/science/narrator/narrator_context.dart';
 import 'package:skotiq_core/src/services/science/narrator/narrator_service.dart';
 
@@ -36,7 +36,7 @@ void main() {
     await db.close();
   });
 
-  CapturedImage image({
+  DbCapturedImage image({
     required int id,
     required double hfr,
     required int starCount,
@@ -48,7 +48,7 @@ void main() {
     double exposure = 300,
     double? background,
   }) {
-    return CapturedImage(
+    return DbCapturedImage(
       id: id,
       filePath: '/tmp/$id.fits',
       fileName: '$id.fits',
@@ -95,7 +95,7 @@ void main() {
   );
 
   ProviderContainer makeContainer({
-    List<CapturedImage> images = const [],
+    List<DbCapturedImage> images = const [],
     List<LightCurvePoint> lightCurve = const [],
     List<NarratorFilterIntegration> filterIntegration = const [],
     OpticalTrainDiagnostics? diagnostics,

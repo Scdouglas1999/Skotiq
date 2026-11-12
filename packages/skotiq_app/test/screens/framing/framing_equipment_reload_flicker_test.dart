@@ -26,7 +26,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/harness.dart';
 
 const _resolved = FramingEquipmentResult(
-  status: EquipmentStatus.ready,
+  status: FramingEquipmentStatus.ready,
   profileName: 'My First Rig',
   equipment: FramingEquipment(
     cameraName: 'Simulated Camera',

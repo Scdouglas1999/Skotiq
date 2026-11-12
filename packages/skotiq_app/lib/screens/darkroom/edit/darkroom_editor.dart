@@ -175,7 +175,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
 
   /// The registered image this editor is on, from the Edit tab's library, or
   /// null while the library is loading or when the image is not in it.
-  DarkroomLibraryImage? _openImage(DarkroomState state) {
+  DarkroomLibraryImage? _openImage(DarkroomViewState state) {
     final masterId = state.masterId ?? widget.scope.masterId;
     if (masterId == null) return null;
     final library = ref.watch(darkroomImageLibraryProvider).valueOrNull;
@@ -240,7 +240,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   /// While a render is in the engine it becomes the stop, following the flat
   /// wizard: the stop is cooperative, so the button says "Stopping…" until the
   /// render answers rather than pretending the request was instant.
-  Widget? _headerAction(DarkroomState state) {
+  Widget? _headerAction(DarkroomViewState state) {
     if (!state.hasRecipe && state.offer == null) return null;
     if (state.rendering) {
       return SkotiqButton(
@@ -263,7 +263,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   Widget _body(
     BuildContext context,
     SkotiqColors colors,
-    DarkroomState state,
+    DarkroomViewState state,
   ) {
     if (state.loading) {
       return const Center(
@@ -367,7 +367,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   Widget _editorOrCompare(
     BuildContext context,
     SkotiqColors colors,
-    DarkroomState state,
+    DarkroomViewState state,
   ) {
     final compareId = _compareRecipeId;
     final aLabel = state.recipeName.isEmpty
@@ -514,7 +514,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
   /// The steps handed over are the EDITED ones, unsaved changes included, so
   /// the file matches the picture the operator is looking at rather than the
   /// last state that reached the recipe row.
-  void _openExportSheet(DarkroomState state) {
+  void _openExportSheet(DarkroomViewState state) {
     final recipeId = state.recipeId;
     if (recipeId == null) return;
     // What the viewport is showing, when what it is showing is that the base

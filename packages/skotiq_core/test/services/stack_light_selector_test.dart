@@ -495,7 +495,7 @@ void main() {
     test('derives the per-frame reason matching the gate order', () async {
       const config = StackAndShareConfig(minQualityScore: 50);
 
-      final rejected = CapturedImage(
+      final rejected = DbCapturedImage(
         id: 1,
         filePath: '/x',
         fileName: 'x',
@@ -516,7 +516,7 @@ void main() {
         StackExclusionReason.rejected,
       );
 
-      final lowQuality = CapturedImage(
+      final lowQuality = DbCapturedImage(
         id: 2,
         filePath: '/y',
         fileName: 'y',

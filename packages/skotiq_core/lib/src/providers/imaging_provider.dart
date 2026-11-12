@@ -667,7 +667,7 @@ final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
     final byId = {for (final row in rows) row.id: row};
     return [
       for (final id in hostIds)
-        if (byId[id] case final db.CapturedImage row)
+        if (byId[id] case final db.DbCapturedImage row)
           capturedImageFromDbRow(row),
     ];
   }
@@ -719,7 +719,7 @@ final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
 /// mapping to push freshly persisted sequence frames into
 /// [sessionImagesProvider]; duplicating it there would let the two views of a
 /// frame drift apart.
-CapturedImage capturedImageFromDbRow(db.CapturedImage row) {
+CapturedImage capturedImageFromDbRow(db.DbCapturedImage row) {
   return CapturedImage(
     id: row.id.toString(),
     filePath: row.filePath,

@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/database_entities.dart'
-    show Sequence, SequenceNode, SequencesCompanion, SequenceNodesCompanion;
-import 'package:skotiq_core/skotiq_core.dart'
-    hide Sequence, SequenceNode; // Hide domain models
+    show DbSequence, DbSequenceNode, SequencesCompanion, SequenceNodesCompanion;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -658,7 +657,7 @@ class SequenceManagementHandlers implements RouteSource {
     return jsonOk({'nodes': nodes.map((n) => _nodeToJson(n)).toList()});
   }
 
-  Map<String, dynamic> _sequenceToJson(Sequence sequence) {
+  Map<String, dynamic> _sequenceToJson(DbSequence sequence) {
     return {
       'id': sequence.id,
       'name': sequence.name,
@@ -704,7 +703,7 @@ class SequenceManagementHandlers implements RouteSource {
         createdAt: version.createdAt,
       ).toJson();
 
-  Map<String, dynamic> _nodeToJson(SequenceNode node) {
+  Map<String, dynamic> _nodeToJson(DbSequenceNode node) {
     return {
       'id': node.id,
       'nodeId': node.nodeId,

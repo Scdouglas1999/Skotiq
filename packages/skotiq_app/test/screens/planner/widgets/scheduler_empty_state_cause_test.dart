@@ -47,7 +47,7 @@ Map<String, dynamic> _emptyDecisionState() {
   };
 }
 
-ndb.Target _target(int id, String name) => ndb.Target(
+ndb.DbTarget _target(int id, String name) => ndb.DbTarget(
       id: id,
       name: name,
       ra: 17.28,
@@ -74,7 +74,7 @@ IntegrationGoal _goal(int targetId) => IntegrationGoal(
 
 Future<void> _pumpQueue(
   WidgetTester tester, {
-  required List<ndb.Target> catalog,
+  required List<ndb.DbTarget> catalog,
   required List<IntegrationGoal> goals,
   int? activeProjectId,
   CampaignProgress? activeProjectProgress,
@@ -174,7 +174,7 @@ void main() {
       (tester) async {
     await _pumpQueue(
       tester,
-      catalog: const <ndb.Target>[],
+      catalog: const <ndb.DbTarget>[],
       goals: const <IntegrationGoal>[],
     );
 

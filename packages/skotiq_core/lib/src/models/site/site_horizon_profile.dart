@@ -42,7 +42,7 @@ const List<double> horizonDirectionAzimuths = [
 /// than as a 45°-sector maximum. The 8 compass fields remain the editor and the
 /// summary; editing any of them writes a samples-less profile, an explicit
 /// override by sector.
-class HorizonProfile {
+class SiteHorizonProfile {
   final Map<String, double> _altitudes;
 
   /// The imported skyline, sorted by ascending azimuth, or empty when this
@@ -55,7 +55,7 @@ class HorizonProfile {
   /// higher of these and the profile above, which they never change.
   final List<LearnedObstructionPoint> _learned;
 
-  HorizonProfile(
+  SiteHorizonProfile(
     this._altitudes, {
     List<({double azimuth, double altitude})> samples = const [],
     List<LearnedObstructionPoint> learned = const [],
@@ -63,9 +63,9 @@ class HorizonProfile {
        _learned = List.unmodifiable(learned);
 
   /// This profile with the obstructions learned at the site added.
-  HorizonProfile withLearnedObstructions(
+  SiteHorizonProfile withLearnedObstructions(
     List<LearnedObstructionPoint> learned,
-  ) => HorizonProfile(_altitudes, samples: _samples, learned: learned);
+  ) => SiteHorizonProfile(_altitudes, samples: _samples, learned: learned);
 
   /// How many learned obstructions are merged into this profile.
   int get learnedObstructionCount => _learned.length;
@@ -93,7 +93,7 @@ class HorizonProfile {
     return List.unmodifiable(normalized);
   }
 
-  factory HorizonProfile.fromJson(String json) {
+  factory SiteHorizonProfile.fromJson(String json) {
     try {
       final decoded = _decodeProfileJson(json);
       final altitudes = <String, double>{};
@@ -118,20 +118,20 @@ class HorizonProfile {
           }
         }
       }
-      return HorizonProfile(altitudes, samples: samples);
+      return SiteHorizonProfile(altitudes, samples: samples);
     } catch (_) {
       // Return flat horizon on parse failure - this is a data error,
       // not something we should silently swallow. Log it.
-      return HorizonProfile._default();
+      return SiteHorizonProfile._default();
     }
   }
 
-  factory HorizonProfile._default() {
+  factory SiteHorizonProfile._default() {
     final altitudes = <String, double>{};
     for (final dir in horizonDirections) {
       altitudes[dir] = 0.0;
     }
-    return HorizonProfile(altitudes);
+    return SiteHorizonProfile(altitudes);
   }
 
   /// Get the altitude at a specific compass direction
@@ -352,7 +352,7 @@ class HorizonProfile {
   ///
   /// The samples themselves are kept, and they are what [altitudeAtAzimuth]
   /// answers from — the summary is for the editor, not for the planner.
-  factory HorizonProfile.fromSamples(
+  factory SiteHorizonProfile.fromSamples(
     List<({double azimuth, double altitude})> samples,
   ) {
     final altitudes = <String, double>{
@@ -367,7 +367,7 @@ class HorizonProfile {
       final alt = s.altitude.clamp(0.0, 89.0);
       if (alt > altitudes[dir]!) altitudes[dir] = alt;
     }
-    return HorizonProfile(altitudes, samples: samples);
+    return SiteHorizonProfile(altitudes, samples: samples);
   }
 
   /// Parse a horizon dump (CSV or whitespace-separated "azimuth altitude"
@@ -380,7 +380,7 @@ class HorizonProfile {
   ///   * each data line must contain at least two numeric fields.
   ///
   /// Throws [FormatException] on a malformed line or if no samples are found.
-  factory HorizonProfile.parseHorizonText(String text) {
+  factory SiteHorizonProfile.parseHorizonText(String text) {
     final samples = <({double azimuth, double altitude})>[];
     final lines = text.split(RegExp(r'[\r\n]+'));
     for (var i = 0; i < lines.length; i++) {
@@ -415,6 +415,6 @@ class HorizonProfile {
         'Horizon import contained no usable azimuth/altitude pairs',
       );
     }
-    return HorizonProfile.fromSamples(samples);
+    return SiteHorizonProfile.fromSamples(samples);
   }
 }

@@ -206,23 +206,23 @@ final sessionHistoryProvider = Provider<SessionHistory>(
 // Convenience providers for watching data
 // Note: These use the database entity types (prefixed with db.)
 
-final allProfilesProvider = StreamProvider<List<db.EquipmentProfile>>((ref) {
+final allProfilesProvider = StreamProvider<List<db.DbEquipmentProfile>>((ref) {
   return ref.watch(equipmentProfileLibraryProvider).watchAllProfiles();
 });
 
-final activeProfileProvider = StreamProvider<db.EquipmentProfile?>((ref) {
+final activeProfileProvider = StreamProvider<db.DbEquipmentProfile?>((ref) {
   return ref.watch(equipmentProfileLibraryProvider).watchActiveProfile();
 });
 
-final allDbTargetsProvider = StreamProvider<List<db.Target>>((ref) {
+final allDbTargetsProvider = StreamProvider<List<db.DbTarget>>((ref) {
   return ref.watch(targetLibraryProvider).watchAllTargets();
 });
 
-final favoriteDbTargetsProvider = StreamProvider<List<db.Target>>((ref) {
+final favoriteDbTargetsProvider = StreamProvider<List<db.DbTarget>>((ref) {
   return ref.watch(targetLibraryProvider).watchFavoriteTargets();
 });
 
-final allDbSequencesProvider = StreamProvider<List<db.Sequence>>((ref) {
+final allDbSequencesProvider = StreamProvider<List<db.DbSequence>>((ref) {
   return ref.watch(sequenceLibraryProvider).watchAllSequences();
 });
 
@@ -230,7 +230,7 @@ final allSessionsProvider = StreamProvider<List<db.ImagingSession>>((ref) {
   return ref.watch(sessionHistoryProvider).watchAllSessions();
 });
 
-final allDbImagesProvider = StreamProvider<List<db.CapturedImage>>((ref) {
+final allDbImagesProvider = StreamProvider<List<db.DbCapturedImage>>((ref) {
   final rows = ref.watch(remoteImageRowsProvider);
   if (rows != null) return rows.watch();
   return ref.watch(imagesDaoProvider).watchAllImages();
@@ -274,7 +274,7 @@ final remoteImageRowsProvider = Provider<RemoteImageRows?>((ref) {
 /// arrives within one cycle.
 class RemoteImageRows {
   RemoteImageRows({
-    required Stream<List<db.CapturedImage>> Function() poll,
+    required Stream<List<db.DbCapturedImage>> Function() poll,
     required Future<Map<String, dynamic>?> Function(int id) fetchRow,
     required Future<List<Map<String, dynamic>>> Function(int sessionId)
     fetchSessionRows,
@@ -282,25 +282,25 @@ class RemoteImageRows {
        _fetchRow = fetchRow,
        _fetchSessionRows = fetchSessionRows;
 
-  final Stream<List<db.CapturedImage>> Function() _poll;
+  final Stream<List<db.DbCapturedImage>> Function() _poll;
   final Future<Map<String, dynamic>?> Function(int id) _fetchRow;
   final Future<List<Map<String, dynamic>>> Function(int sessionId)
   _fetchSessionRows;
 
   /// The newest full list from the poll.
-  List<db.CapturedImage>? _polled;
+  List<db.DbCapturedImage>? _polled;
 
   /// Rows fetched one at a time or by session since that list, by id.
-  final Map<int, db.CapturedImage> _fetched = {};
+  final Map<int, db.DbCapturedImage> _fetched = {};
   final Set<int> _inFlight = {};
-  final Set<StreamController<List<db.CapturedImage>>> _listeners = {};
-  StreamSubscription<List<db.CapturedImage>>? _pollSubscription;
+  final Set<StreamController<List<db.DbCapturedImage>>> _listeners = {};
+  StreamSubscription<List<db.DbCapturedImage>>? _pollSubscription;
   bool _sessionRefreshRunning = false;
   bool _sessionRefreshAgain = false;
   bool _disposed = false;
 
   /// The merged rows, newest capture first like `ImagesDao.watchAllImages`.
-  List<db.CapturedImage>? get current {
+  List<db.DbCapturedImage>? get current {
     final polled = _polled;
     if (polled == null) return null;
     if (_fetched.isEmpty) return polled;
@@ -309,9 +309,9 @@ class RemoteImageRows {
       ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
   }
 
-  Stream<List<db.CapturedImage>> watch() {
-    late final StreamController<List<db.CapturedImage>> controller;
-    controller = StreamController<List<db.CapturedImage>>(
+  Stream<List<db.DbCapturedImage>> watch() {
+    late final StreamController<List<db.DbCapturedImage>> controller;
+    controller = StreamController<List<db.DbCapturedImage>>(
       onListen: () {
         _listeners.add(controller);
         // A new listener is a rebuild of the provider, for instance after the
@@ -338,7 +338,7 @@ class RemoteImageRows {
     return controller.stream;
   }
 
-  void _onPolled(List<db.CapturedImage> rows) {
+  void _onPolled(List<db.DbCapturedImage> rows) {
     _polled = rows;
     // The poll is the truth for every row it carries; a row fetched after the
     // poll's request went out stays until the next one carries it too.
@@ -383,7 +383,7 @@ class RemoteImageRows {
       var added = false;
       for (final json in rows) {
         if (json == null) continue;
-        final row = db.CapturedImage.fromJson(json);
+        final row = db.DbCapturedImage.fromJson(json);
         _fetched[row.id] = row;
         added = true;
       }
@@ -418,7 +418,7 @@ class RemoteImageRows {
           return; // The poll brings the row instead.
         }
         if (_disposed) return;
-        for (final row in json.map(db.CapturedImage.fromJson)) {
+        for (final row in json.map(db.DbCapturedImage.fromJson)) {
           _fetched[row.id] = row;
         }
         _emit();
@@ -439,7 +439,7 @@ class RemoteImageRows {
   }
 }
 
-final capturedImageByIdProvider = FutureProvider.family<db.CapturedImage?, int>(
+final capturedImageByIdProvider = FutureProvider.family<db.DbCapturedImage?, int>(
   (ref, imageId) {
     if (ref.watch(backendProvider).remoteHost != null) {
       return ref.watch(imagingRecordsRepositoryProvider).getImageById(imageId);
@@ -482,7 +482,7 @@ class CapturedImageWcsData {
 final capturedImageWcsProvider =
     FutureProvider.family<CapturedImageWcsData?, int>((ref, imageId) async {
       final linked = ref.watch(backendProvider).remoteHost != null;
-      db.CapturedImage? row;
+      db.DbCapturedImage? row;
       ({
         double? cd1_1,
         double? cd1_2,

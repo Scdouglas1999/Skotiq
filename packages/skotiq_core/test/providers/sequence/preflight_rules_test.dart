@@ -8,8 +8,7 @@ import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/daos/polar_alignment_history_dao.dart';
 import 'package:skotiq_core/src/database/daos/targets_dao.dart';
-import 'package:skotiq_core/src/database/database.dart'
-    hide Sequence, SequenceNode;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart'
     show FrameType;
@@ -125,8 +124,8 @@ Future<ProviderContainer> _buildContainer({
   OpticalTrainBaseline? current,
   TimeSyncProbe? timeProbe,
   Future<void> Function(SkotiqDatabase db)? seed,
-  List<Target>? hostTargets,
-  List<CapturedImage>? hostImages,
+  List<DbTarget>? hostTargets,
+  List<DbCapturedImage>? hostImages,
 }) async {
   final QueryExecutor exec = NativeDatabase.memory();
   final db = SkotiqDatabase.forTesting(exec);
@@ -455,7 +454,7 @@ void main() {
     test(
       'uses host-backed target and image streams without local DAO',
       () async {
-        final targetRow = Target(
+        final targetRow = DbTarget(
           id: 99,
           name: 'M51',
           catalogId: 'M51',
@@ -471,9 +470,9 @@ void main() {
           updatedAt: DateTime.now(),
           isFavorite: false,
         );
-        final frames = <CapturedImage>[
+        final frames = <DbCapturedImage>[
           for (var i = 0; i < 10; i++)
-            CapturedImage(
+            DbCapturedImage(
               id: i,
               filePath: '/tmp/m51_$i.fits',
               fileName: 'm51_$i.fits',

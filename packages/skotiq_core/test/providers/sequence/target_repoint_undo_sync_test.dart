@@ -13,7 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/targets_dao.dart';
 import 'package:skotiq_core/src/database/database.dart'
-    show SkotiqDatabase, Target;
+    show SkotiqDatabase, DbTarget;
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_editor.dart';
@@ -72,7 +72,7 @@ void main() {
     await db.close();
   });
 
-  Future<Target> row() async => (await dao.getTargetById(rowId))!;
+  Future<DbTarget> row() async => (await dao.getTargetById(rowId))!;
 
   test('undo puts the catalog row back where the builder points', () async {
     editor.updateNode(original.copyWith(raHours: 21.42, decDegrees: -35.0));

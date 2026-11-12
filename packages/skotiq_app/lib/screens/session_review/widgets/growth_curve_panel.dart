@@ -4,7 +4,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../analytics/widgets/adaptive_chart_container.dart';
-import '../session_review_controller.dart' show BestNight, GrowthPoint;
+import '../session_review_controller.dart' show ReviewBestNight, GrowthPoint;
 
 /// Narrative-view card charting a target's multi-night growth: cumulative
 /// integration hours accrued against calendar date as nights are folded into
@@ -21,7 +21,7 @@ class GrowthCurvePanel extends StatelessWidget {
   final List<GrowthPoint> points;
 
   /// The standout night to badge, or null when none is distinguished.
-  final BestNight? best;
+  final ReviewBestNight? best;
 
   const GrowthCurvePanel({super.key, required this.points, this.best});
 
@@ -238,7 +238,7 @@ class GrowthCurvePanel extends StatelessWidget {
     );
   }
 
-  Widget _bestNightBadge(BestNight best) {
+  Widget _bestNightBadge(ReviewBestNight best) {
     return StatusPill(
       icon: SkotiqIcons.star,
       label: 'Best night',

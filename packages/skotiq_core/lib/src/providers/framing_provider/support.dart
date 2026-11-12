@@ -1,6 +1,6 @@
 part of '../framing_provider.dart';
 
-enum EquipmentStatus {
+enum FramingEquipmentStatus {
   /// No equipment profile configured
   noProfile,
 
@@ -15,7 +15,7 @@ enum EquipmentStatus {
 }
 
 class FramingEquipmentResult {
-  final EquipmentStatus status;
+  final FramingEquipmentStatus status;
   final FramingEquipment? equipment;
   final String? profileName;
   final String? message;
@@ -27,7 +27,7 @@ class FramingEquipmentResult {
     this.message,
   });
 
-  bool get isReady => status == EquipmentStatus.ready && equipment != null;
+  bool get isReady => status == FramingEquipmentStatus.ready && equipment != null;
 }
 
 /// Provides calculated FOV from current equipment profile or custom settings
@@ -36,7 +36,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
 
   if (framingState.useCustomEquipment && framingState.customEquipment != null) {
     return FramingEquipmentResult(
-      status: EquipmentStatus.ready,
+      status: FramingEquipmentStatus.ready,
       equipment: framingState.customEquipment,
       profileName: 'Custom Equipment',
     );
@@ -47,7 +47,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
 
   if (profile == null) {
     return const FramingEquipmentResult(
-      status: EquipmentStatus.noProfile,
+      status: FramingEquipmentStatus.noProfile,
       message:
           'No equipment profile selected. Create and activate a profile in Settings → Equipment to enable framing.',
     );
@@ -55,7 +55,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
 
   if (profile.focalLength <= 0) {
     return FramingEquipmentResult(
-      status: EquipmentStatus.noFocalLength,
+      status: FramingEquipmentStatus.noFocalLength,
       profileName: profile.name,
       message:
           'Optical specs not configured. Set the focal length in your equipment profile "${profile.name}" to enable FOV preview.',
@@ -186,7 +186,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
       pixelsX == null ||
       pixelsY == null) {
     return FramingEquipmentResult(
-      status: EquipmentStatus.noCameraSpecs,
+      status: FramingEquipmentStatus.noCameraSpecs,
       profileName: profile.name,
       message:
           cameraMessage ??
@@ -195,7 +195,7 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
   }
 
   return FramingEquipmentResult(
-    status: EquipmentStatus.ready,
+    status: FramingEquipmentStatus.ready,
     profileName: profile.name,
     equipment: FramingEquipment(
       cameraName: cameraName,

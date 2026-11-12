@@ -3,10 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-// skotiq_core re-exports a `ConnectionState` from its device-types model
-// that collides with Flutter's async `ConnectionState`. Hide the core one
-// here; everything else we need from the barrel is unaffected.
-import 'package:skotiq_core/skotiq_core.dart' hide ConnectionState;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../accessible_dropdown.dart';

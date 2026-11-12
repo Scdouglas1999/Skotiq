@@ -3,7 +3,7 @@ part of '../sky_atlas_service.dart';
 extension _SkyAtlasInternals on SkyAtlasService {
   /// A stable, sortable ISO date label for a captured image's fold, derived from
   /// its capture time (UTC) so the time-scrub timeline orders by acquisition.
-  String _foldLabelFor(CapturedImage image) {
+  String _foldLabelFor(DbCapturedImage image) {
     return image.capturedAt.toUtc().toIso8601String();
   }
 

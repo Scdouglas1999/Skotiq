@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/daos/targets_dao.dart';
-import '../../database/database.dart' show Target;
+import '../../database/database.dart' show DbTarget;
 import '../../models/sequence/sequence_models.dart';
 import '../database_provider.dart';
 
@@ -78,7 +78,7 @@ class TargetCatalogCoordinateSync {
   /// the row with the same (trimmed, case-insensitive) name — the identity
   /// `TargetsDao.findOrCreateByName` uses at run start, so both paths agree on
   /// which row a hand-typed target belongs to.
-  Future<Target?> _resolveRow(TargetsDao dao, TargetHeaderNode header) async {
+  Future<DbTarget?> _resolveRow(TargetsDao dao, TargetHeaderNode header) async {
     final boundId = header.catalogTargetId;
     if (boundId != null) return dao.getTargetById(boundId);
     final name = header.targetName.trim();

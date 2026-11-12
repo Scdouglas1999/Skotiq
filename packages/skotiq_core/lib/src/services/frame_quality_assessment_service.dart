@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import '../database/database.dart' show CapturedImage;
+import '../database/database.dart' show DbCapturedImage;
 
 /// Advisory quality level for a captured frame.
 ///
@@ -138,7 +138,7 @@ class FrameQualityAssessmentService {
 
   /// Assess a single frame with optional reference medians from the session.
   FrameQualityAssessment assessFrame(
-    CapturedImage image, {
+    DbCapturedImage image, {
     double? referenceHfr,
     double? referenceGuidingRms,
     int? referenceStarCount,
@@ -328,7 +328,7 @@ class FrameQualityAssessmentService {
   }
 
   /// Assess all frames in a set using session medians as reference points.
-  Map<int, FrameQualityAssessment> assessBatch(Iterable<CapturedImage> images) {
+  Map<int, FrameQualityAssessment> assessBatch(Iterable<DbCapturedImage> images) {
     final list = images.toList();
     final medianHfr = _median(
       list.map((i) => i.hfr).whereType<double>().where((v) => v > 0),
@@ -431,7 +431,7 @@ class FrameQualityAssessmentService {
   /// Treat this as a sorting aid, not a verdict. Use [FrameGradingMode]
   /// to control whether the score is allowed to escalate disposition.
   double computeHeuristicScore(
-    CapturedImage image, {
+    DbCapturedImage image, {
     double? referenceHfr,
     double? referenceGuidingRms,
   }) {

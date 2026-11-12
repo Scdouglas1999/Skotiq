@@ -121,7 +121,7 @@ void main() {
         ),
         framingFOVProvider.overrideWith(
           (ref) async => const FramingEquipmentResult(
-            status: EquipmentStatus.noProfile,
+            status: FramingEquipmentStatus.noProfile,
           ),
         ),
         currentImageProvider.overrideWith((ref) => _frame()),

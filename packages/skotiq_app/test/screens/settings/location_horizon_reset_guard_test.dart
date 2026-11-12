@@ -62,8 +62,8 @@ Future<HarnessHandle> _pumpReset(
   return handle;
 }
 
-LegacyHorizonProfile _stored(HarnessHandle handle) {
-  return LegacyHorizonProfile.fromJson(
+SiteHorizonProfile _stored(HarnessHandle handle) {
+  return SiteHorizonProfile.fromJson(
     handle.container.read(appSettingsProvider).value!.horizonProfileJson,
   );
 }

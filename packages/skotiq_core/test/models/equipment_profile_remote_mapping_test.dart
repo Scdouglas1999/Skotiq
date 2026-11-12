@@ -9,7 +9,7 @@ import 'package:skotiq_core/src/models/equipment_profile_remote_mapping.dart';
 /// and `switchName` included. These tests also lock in the
 /// preserve-from-existing guard so a slave-shaped save can never silently wipe
 /// host-side meridian overrides / flags.
-db.EquipmentProfile _sampleRow({
+db.DbEquipmentProfile _sampleRow({
   int id = 7,
   String? meridianFlipOverrides = '{"enabled":true,"flipAtDeg":1.5}',
   String? safetyMonitorName = 'My Safety',
@@ -18,7 +18,7 @@ db.EquipmentProfile _sampleRow({
   int sortOrder = 3,
   bool isActive = true,
 }) {
-  return db.EquipmentProfile(
+  return db.DbEquipmentProfile(
     id: id,
     name: 'Rig A',
     description: 'desc',

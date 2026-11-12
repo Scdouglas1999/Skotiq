@@ -1,14 +1,11 @@
 // Tests for the horizon obstruction-profile import parsers used by Feature 3
-// (backyard horizon mask). The 8-point compass profile lives in
-// settings_provider.dart and is exported through the barrel under the
-// `LegacyHorizonProfile` alias; we import the source directly here to reach
-// the factory constructors without the alias.
+// (backyard horizon mask).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/site/site_horizon_profile.dart';
 
 void main() {
-  group('HorizonProfile.parseHorizonText', () {
+  group('SiteHorizonProfile.parseHorizonText', () {
     test('parses Stellarium-style .hor whitespace pairs', () {
       const hor = '''
 # A backyard skyline
@@ -17,7 +14,7 @@ void main() {
 180 5
 270 15
 ''';
-      final profile = HorizonProfile.parseHorizonText(hor);
+      final profile = SiteHorizonProfile.parseHorizonText(hor);
       expect(profile.altitudeAt('N'), 25);
       expect(profile.altitudeAt('E'), 10);
       expect(profile.altitudeAt('S'), 5);
@@ -33,7 +30,7 @@ void main() {
 135,20
 ;trailing comment
 ''';
-      final profile = HorizonProfile.parseHorizonText(csv);
+      final profile = SiteHorizonProfile.parseHorizonText(csv);
       expect(profile.altitudeAt('NE'), 30);
       expect(profile.altitudeAt('SE'), 20);
       // Untouched sectors stay open sky.
@@ -45,49 +42,49 @@ void main() {
       // Three samples land in the N sector (337.5°-22.5°); the tallest wins so
       // the obstruction is never under-reported.
       const hor = '0 8\n10 22\n350 14';
-      final profile = HorizonProfile.parseHorizonText(hor);
+      final profile = SiteHorizonProfile.parseHorizonText(hor);
       expect(profile.altitudeAt('N'), 22);
     });
 
     test('wraps azimuths past 360 and below 0 onto the right sector', () {
       const hor = '360 12\n-90 18';
-      final profile = HorizonProfile.parseHorizonText(hor);
+      final profile = SiteHorizonProfile.parseHorizonText(hor);
       expect(profile.altitudeAt('N'), 12); // 360 -> 0 -> N
       expect(profile.altitudeAt('W'), 18); // -90 -> 270 -> W
     });
 
     test('clamps altitudes into the valid 0-89 range', () {
       const hor = '0 120\n90 -5';
-      final profile = HorizonProfile.parseHorizonText(hor);
+      final profile = SiteHorizonProfile.parseHorizonText(hor);
       expect(profile.altitudeAt('N'), 89);
       expect(profile.altitudeAt('E'), 0);
     });
 
     test('round-trips through JSON', () {
       const hor = '0 25\n180 5';
-      final profile = HorizonProfile.parseHorizonText(hor);
-      final restored = HorizonProfile.fromJson(profile.toJson());
+      final profile = SiteHorizonProfile.parseHorizonText(hor);
+      final restored = SiteHorizonProfile.fromJson(profile.toJson());
       expect(restored.altitudeAt('N'), 25);
       expect(restored.altitudeAt('S'), 5);
     });
 
     test('throws on a non-numeric field', () {
       expect(
-        () => HorizonProfile.parseHorizonText('0 abc'),
+        () => SiteHorizonProfile.parseHorizonText('0 abc'),
         throwsFormatException,
       );
     });
 
     test('throws on a line with too few fields', () {
       expect(
-        () => HorizonProfile.parseHorizonText('42'),
+        () => SiteHorizonProfile.parseHorizonText('42'),
         throwsFormatException,
       );
     });
 
     test('throws when no usable samples are present', () {
       expect(
-        () => HorizonProfile.parseHorizonText('# only comments\n\n'),
+        () => SiteHorizonProfile.parseHorizonText('# only comments\n\n'),
         throwsFormatException,
       );
     });
@@ -109,7 +106,7 @@ void main() {
     }
 
     test('a sample-backed profile answers at the file resolution', () {
-      final profile = HorizonProfile.parseHorizonText(thirtySix());
+      final profile = SiteHorizonProfile.parseHorizonText(thirtySix());
 
       expect(profile.sampleCount, 36);
       // The summary the settings page shows is unchanged: sector maximum.
@@ -123,7 +120,7 @@ void main() {
     });
 
     test('between samples it interpolates linearly, wrapping at 360', () {
-      final profile = HorizonProfile.parseHorizonText('0 10\n180 30');
+      final profile = SiteHorizonProfile.parseHorizonText('0 10\n180 30');
       expect(profile.altitudeAtAzimuth(90), closeTo(20, 1e-9));
       // 270 is halfway back round the wrap from 180 to 360/0.
       expect(profile.altitudeAtAzimuth(270), closeTo(20, 1e-9));
@@ -132,8 +129,8 @@ void main() {
     });
 
     test('the samples survive the JSON round trip', () {
-      final profile = HorizonProfile.parseHorizonText(thirtySix());
-      final restored = HorizonProfile.fromJson(profile.toJson());
+      final profile = SiteHorizonProfile.parseHorizonText(thirtySix());
+      final restored = SiteHorizonProfile.fromJson(profile.toJson());
 
       expect(restored.sampleCount, 36);
       expect(restored.altitudeAtAzimuth(160), closeTo(5, 1e-9));
@@ -144,7 +141,7 @@ void main() {
       const legacy =
           '{"N":25.0,"NE":0.0,"E":0.0,"SE":0.0,'
           '"S":29.0,"SW":0.0,"W":0.0,"NW":0.0}';
-      final profile = HorizonProfile.fromJson(legacy);
+      final profile = SiteHorizonProfile.fromJson(legacy);
 
       expect(profile.sampleCount, 0);
       expect(profile.altitudeAt('S'), 29);
@@ -154,7 +151,7 @@ void main() {
     });
 
     test('a hand-edited eight-value mask carries no samples', () {
-      final profile = HorizonProfile({
+      final profile = SiteHorizonProfile({
         for (final dir in horizonDirections) dir: 12.0,
       });
       expect(profile.sampleCount, 0);
@@ -163,13 +160,13 @@ void main() {
     });
 
     test('a single sample is a flat horizon, not an interpolation', () {
-      final profile = HorizonProfile.parseHorizonText('180 21');
+      final profile = SiteHorizonProfile.parseHorizonText('180 21');
       expect(profile.sampleCount, 0);
       expect(profile.altitudeAt('S'), 21);
     });
 
     test('a truncated blob still yields the compass values it has', () {
-      final profile = HorizonProfile.fromJson('{"N":25.0,"S":29.0');
+      final profile = SiteHorizonProfile.fromJson('{"N":25.0,"S":29.0');
       expect(profile.altitudeAt('N'), 25);
       expect(profile.altitudeAt('S'), 29);
     });

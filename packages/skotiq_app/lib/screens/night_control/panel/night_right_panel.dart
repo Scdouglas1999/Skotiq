@@ -9,7 +9,7 @@
 // a sequence step started, a lost guide star) puts a dot on the tab instead.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide EquipmentStatus;
+import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';

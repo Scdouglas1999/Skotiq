@@ -87,7 +87,7 @@ Future<void> pumpRail(
       appSettingsProvider.overrideWith(() => _SeededSettings(_site)),
       framingFOVProvider.overrideWith(
         (ref) async =>
-            const FramingEquipmentResult(status: EquipmentStatus.noProfile),
+            const FramingEquipmentResult(status: FramingEquipmentStatus.noProfile),
       ),
     ],
   );

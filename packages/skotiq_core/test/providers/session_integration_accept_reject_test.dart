@@ -89,7 +89,7 @@ void main() {
   group('ProjectTrackingService budget reflects accepted-only integration', () {
     const service = ProjectTrackingService();
 
-    db.Target makeTarget() => db.Target(
+    db.DbTarget makeTarget() => db.DbTarget(
       id: 1,
       name: 'M42',
       ra: 5.6,
@@ -105,8 +105,8 @@ void main() {
       isFavorite: true,
     );
 
-    db.CapturedImage makeLight(int id, {required bool accepted}) =>
-        db.CapturedImage(
+    db.DbCapturedImage makeLight(int id, {required bool accepted}) =>
+        db.DbCapturedImage(
           id: id,
           filePath: '/captures/M42_$id.fits',
           fileName: 'M42_$id.fits',

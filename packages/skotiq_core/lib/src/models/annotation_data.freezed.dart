@@ -968,20 +968,15 @@ $ObjectDataCopyWith<$Res>? get detailedData {
 /// @nodoc
 mixin _$ObjectData {
 
-// Basic info
  String? get description; String? get objectClass;// e.g., "Spiral Galaxy", "Open Cluster"
-// Stellar data (for stars)
  SpectralClass? get spectralType; double? get temperature;// Kelvin
  double? get mass;// Solar masses
  double? get radius;// Solar radii
  double? get luminosity;// Solar luminosities
  double? get distance;// parsecs
  double? get parallax;// milliarcseconds
- String? get properMotion;// Exoplanet data
- List<ExoplanetData>? get exoplanets;// DSO data (galaxies, nebulae, clusters)
- double? get surfaceBrightness; double? get redshift; String? get morphology;// External references
- String? get simbadId; String? get wikipediaUrl; Map<String, String>? get catalogIds;// {"NGC": "224", "M": "31"}
-// Cache metadata
+ String? get properMotion; List<ExoplanetData>? get exoplanets;// DSO data (galaxies, nebulae, clusters)
+ double? get surfaceBrightness; double? get redshift; String? get morphology; String? get simbadId; String? get wikipediaUrl; Map<String, String>? get catalogIds;// {"NGC": "224", "M": "31"}
  DateTime? get lastUpdated; String? get dataSource;
 /// Create a copy of ObjectData
 /// with the given fields replaced by the non-null parameter values.
@@ -1197,11 +1192,9 @@ class _ObjectData implements ObjectData {
   const _ObjectData({this.description, this.objectClass, this.spectralType, this.temperature, this.mass, this.radius, this.luminosity, this.distance, this.parallax, this.properMotion, final  List<ExoplanetData>? exoplanets, this.surfaceBrightness, this.redshift, this.morphology, this.simbadId, this.wikipediaUrl, final  Map<String, String>? catalogIds, this.lastUpdated, this.dataSource}): _exoplanets = exoplanets,_catalogIds = catalogIds;
   factory _ObjectData.fromJson(Map<String, dynamic> json) => _$ObjectDataFromJson(json);
 
-// Basic info
 @override final  String? description;
 @override final  String? objectClass;
 // e.g., "Spiral Galaxy", "Open Cluster"
-// Stellar data (for stars)
 @override final  SpectralClass? spectralType;
 @override final  double? temperature;
 // Kelvin
@@ -1216,9 +1209,7 @@ class _ObjectData implements ObjectData {
 @override final  double? parallax;
 // milliarcseconds
 @override final  String? properMotion;
-// Exoplanet data
  final  List<ExoplanetData>? _exoplanets;
-// Exoplanet data
 @override List<ExoplanetData>? get exoplanets {
   final value = _exoplanets;
   if (value == null) return null;
@@ -1231,7 +1222,6 @@ class _ObjectData implements ObjectData {
 @override final  double? surfaceBrightness;
 @override final  double? redshift;
 @override final  String? morphology;
-// External references
 @override final  String? simbadId;
 @override final  String? wikipediaUrl;
  final  Map<String, String>? _catalogIds;
@@ -1244,7 +1234,6 @@ class _ObjectData implements ObjectData {
 }
 
 // {"NGC": "224", "M": "31"}
-// Cache metadata
 @override final  DateTime? lastUpdated;
 @override final  String? dataSource;
 

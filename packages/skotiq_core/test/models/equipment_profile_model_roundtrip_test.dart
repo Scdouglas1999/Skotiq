@@ -140,7 +140,7 @@ void main() {
       // A host row read by the slave then re-emitted: the slave UI model is the
       // hop between the DB row and the wire, so its fromDatabase path must also
       // carry the three fields.
-      final row = db.EquipmentProfile(
+      final row = db.DbEquipmentProfile(
         id: 5,
         name: 'Host Rig',
         description: null,

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
-db.CapturedImage frame(
+db.DbCapturedImage frame(
   int id, {
   required String type,
   required double exposure,
@@ -14,7 +14,7 @@ db.CapturedImage frame(
   double? sensorTemp = -10.0,
 }) {
   final at = DateTime(2026, 10, 22, 6).add(Duration(seconds: id));
-  return db.CapturedImage(
+  return db.DbCapturedImage(
     id: id,
     filePath: '$dir/${type}_${exposure}s_$id.fits',
     fileName: '${type}_${exposure}s_$id.fits',
@@ -34,7 +34,7 @@ db.CapturedImage frame(
 }
 
 class FakeRig implements EonRig {
-  List<db.CapturedImage> lights = [
+  List<db.DbCapturedImage> lights = [
     for (var i = 0; i < 4; i++) frame(i, type: 'light', exposure: 90),
     for (var i = 4; i < 8; i++) frame(i, type: 'light', exposure: 120),
   ];
@@ -60,7 +60,7 @@ class FakeRig implements EonRig {
   DateTime now() => DateTime(2026, 10, 22, 6, 30);
 
   @override
-  Future<List<db.CapturedImage>> lightFramesSince(DateTime since) async {
+  Future<List<db.DbCapturedImage>> lightFramesSince(DateTime since) async {
     calls.add('lights since $since');
     return lights;
   }
@@ -123,7 +123,7 @@ class FakeRig implements EonRig {
   }
 
   @override
-  Future<List<db.CapturedImage>> framesOfRun(int runId) async {
+  Future<List<db.DbCapturedImage>> framesOfRun(int runId) async {
     var id = 100;
     return [
       for (var i = 0; i < framesPerDarkGroup; i++)

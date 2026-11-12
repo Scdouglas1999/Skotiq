@@ -11,8 +11,8 @@ const double catalogTargetMatchMaxSepArcsec = 30.0;
 /// Matching order: exact name, catalog id, then coordinate proximity within
 /// [catalogTargetMatchMaxSepArcsec]. Returns `null` when no library target
 /// matches — callers should skip integration-goal lookup in that case.
-db.Target? resolveDbTargetForCatalog({
-  required List<db.Target> candidates,
+db.DbTarget? resolveDbTargetForCatalog({
+  required List<db.DbTarget> candidates,
   required String targetName,
   String? catalogId,
   required double raHours,
@@ -45,7 +45,7 @@ db.Target? resolveDbTargetForCatalog({
   }
 
   const maxSepArcmin = catalogTargetMatchMaxSepArcsec / 60.0;
-  db.Target? best;
+  db.DbTarget? best;
   var bestSep = double.infinity;
 
   for (final target in candidates) {

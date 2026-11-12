@@ -15,7 +15,6 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Phd2StarImage {
 
-/// Frame number
  int get frame;/// Image width in pixels
  int get width;/// Image height in pixels
  int get height;/// Star centroid X position within the subframe
@@ -224,7 +223,6 @@ class _Phd2StarImage implements Phd2StarImage {
   const _Phd2StarImage({required this.frame, required this.width, required this.height, required this.starX, required this.starY, @Uint8ListConverter() required this.pixels});
   factory _Phd2StarImage.fromJson(Map<String, dynamic> json) => _$Phd2StarImageFromJson(json);
 
-/// Frame number
 @override final  int frame;
 /// Image width in pixels
 @override final  int width;
@@ -308,8 +306,7 @@ as Uint8List,
 mixin _$Phd2AlgoParam {
 
 /// Parameter name (e.g., "Aggressiveness", "Hysteresis")
- String get name;/// Parameter value
- double get value;
+ String get name; double get value;
 /// Create a copy of Phd2AlgoParam
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -509,7 +506,6 @@ class _Phd2AlgoParam implements Phd2AlgoParam {
 
 /// Parameter name (e.g., "Aggressiveness", "Hysteresis")
 @override final  String name;
-/// Parameter value
 @override final  double value;
 
 /// Create a copy of Phd2AlgoParam
@@ -577,9 +573,7 @@ as double,
 /// @nodoc
 mixin _$Phd2BrainParams {
 
-/// RA axis parameter names
- List<String> get raParamNames;/// Dec axis parameter names
- List<String> get decParamNames;/// RA axis parameters (name -> value)
+ List<String> get raParamNames; List<String> get decParamNames;/// RA axis parameters (name -> value)
  Map<String, double> get raParams;/// Dec axis parameters (name -> value)
  Map<String, double> get decParams;
 /// Create a copy of Phd2BrainParams
@@ -781,18 +775,14 @@ class _Phd2BrainParams implements Phd2BrainParams {
   const _Phd2BrainParams({required final  List<String> raParamNames, required final  List<String> decParamNames, required final  Map<String, double> raParams, required final  Map<String, double> decParams}): _raParamNames = raParamNames,_decParamNames = decParamNames,_raParams = raParams,_decParams = decParams;
   factory _Phd2BrainParams.fromJson(Map<String, dynamic> json) => _$Phd2BrainParamsFromJson(json);
 
-/// RA axis parameter names
  final  List<String> _raParamNames;
-/// RA axis parameter names
 @override List<String> get raParamNames {
   if (_raParamNames is EqualUnmodifiableListView) return _raParamNames;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_raParamNames);
 }
 
-/// Dec axis parameter names
  final  List<String> _decParamNames;
-/// Dec axis parameter names
 @override List<String> get decParamNames {
   if (_decParamNames is EqualUnmodifiableListView) return _decParamNames;
   // ignore: implicit_dynamic_type
@@ -887,8 +877,7 @@ mixin _$GuideErrorPoint {
 
 /// RA error (guide-camera pixels; see class docs)
  double get raError;/// Dec error (guide-camera pixels; see class docs)
- double get decError;/// Timestamp when this error was recorded
- DateTime get timestamp;
+ double get decError; DateTime get timestamp;
 /// Create a copy of GuideErrorPoint
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1091,7 +1080,6 @@ class _GuideErrorPoint implements GuideErrorPoint {
 @override final  double raError;
 /// Dec error (guide-camera pixels; see class docs)
 @override final  double decError;
-/// Timestamp when this error was recorded
 @override final  DateTime timestamp;
 
 /// Create a copy of GuideErrorPoint
@@ -1168,9 +1156,7 @@ mixin _$Phd2GuideStats {
  double get peakDec;/// SNR of guide star
  double get snr;/// Star mass (brightness)
  double get starMass;/// HFD (Half Flux Diameter)
- double get hfd;/// Guide star X position
- double get starX;/// Guide star Y position
- double get starY;/// Number of guide STEPS measured — corrections, not exposures.
+ double get hfd; double get starX; double get starY;/// Number of guide STEPS measured — corrections, not exposures.
 ///
 /// Zero while Loop Exposures is running (looping takes no corrections), so
 /// this is also the gate the RMS/Peak readouts use to decide whether they
@@ -1407,9 +1393,7 @@ class _Phd2GuideStats implements Phd2GuideStats {
 @override@JsonKey() final  double starMass;
 /// HFD (Half Flux Diameter)
 @override@JsonKey() final  double hfd;
-/// Guide star X position
 @override@JsonKey() final  double starX;
-/// Guide star Y position
 @override@JsonKey() final  double starY;
 /// Number of guide STEPS measured — corrections, not exposures.
 ///
@@ -1502,9 +1486,7 @@ as int,
 /// @nodoc
 mixin _$Phd2CalibrationData {
 
-/// Whether calibration is complete
- bool get isCalibrated;/// Calibration timestamp
- DateTime? get calibratedAt;/// RA calibration rate (pixels/ms)
+ bool get isCalibrated; DateTime? get calibratedAt;/// RA calibration rate (pixels/ms)
  double? get raRate;/// Dec calibration rate (pixels/ms)
  double? get decRate;/// Camera rotation angle (degrees)
  double? get rotationAngle;/// Dec guide mode ("Auto", "North", "South", "Off")
@@ -1710,9 +1692,7 @@ class _Phd2CalibrationData implements Phd2CalibrationData {
   const _Phd2CalibrationData({this.isCalibrated = false, this.calibratedAt, this.raRate, this.decRate, this.rotationAngle, this.decGuideMode});
   factory _Phd2CalibrationData.fromJson(Map<String, dynamic> json) => _$Phd2CalibrationDataFromJson(json);
 
-/// Whether calibration is complete
 @override@JsonKey() final  bool isCalibrated;
-/// Calibration timestamp
 @override final  DateTime? calibratedAt;
 /// RA calibration rate (pixels/ms)
 @override final  double? raRate;

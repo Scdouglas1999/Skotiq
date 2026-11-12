@@ -275,31 +275,31 @@ class ImagingRecordsRepository {
     await _sessionsDao!.updateNotes(id, notes);
   }
 
-  Future<db.CapturedImage?> getImageById(int id) async {
+  Future<db.DbCapturedImage?> getImageById(int id) async {
     if (_remote != null) {
       final row = await _remote.getCapturedImageById(id);
-      return row == null ? null : db.CapturedImage.fromJson(row);
+      return row == null ? null : db.DbCapturedImage.fromJson(row);
     }
     return _imagesDao!.getImageById(id);
   }
 
-  Future<List<db.CapturedImage>> getImagesForSession(int sessionId) async {
+  Future<List<db.DbCapturedImage>> getImagesForSession(int sessionId) async {
     if (_remote != null) {
       final rows = await _remote.getSessionImageRows(sessionId);
-      return rows.map(db.CapturedImage.fromJson).toList();
+      return rows.map(db.DbCapturedImage.fromJson).toList();
     }
     return _imagesDao!.getImagesForSession(sessionId);
   }
 
-  Future<List<db.CapturedImage>> getImagesForTarget(int targetId) async {
+  Future<List<db.DbCapturedImage>> getImagesForTarget(int targetId) async {
     if (_remote != null) {
       final rows = await _remote.getImagesForTarget(targetId);
-      return rows.map(db.CapturedImage.fromJson).toList();
+      return rows.map(db.DbCapturedImage.fromJson).toList();
     }
     return _imagesDao!.getImagesForTarget(targetId);
   }
 
-  Future<List<db.CapturedImage>> getRecentImagesForSession(
+  Future<List<db.DbCapturedImage>> getRecentImagesForSession(
     int sessionId, {
     int limit = 5,
     DateTime? atOrBefore,
@@ -308,7 +308,7 @@ class ImagingRecordsRepository {
       final rows = await _remote.getSessionImageRows(sessionId);
       final images =
           rows
-              .map(db.CapturedImage.fromJson)
+              .map(db.DbCapturedImage.fromJson)
               .where(
                 (image) =>
                     atOrBefore == null || !image.capturedAt.isAfter(atOrBefore),
@@ -327,7 +327,7 @@ class ImagingRecordsRepository {
     );
   }
 
-  Stream<List<db.CapturedImage>> watchImagesForSession(int sessionId) {
+  Stream<List<db.DbCapturedImage>> watchImagesForSession(int sessionId) {
     if (_remote != null) {
       return _pollRemoteSessionImages(
         _remote,

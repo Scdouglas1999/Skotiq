@@ -200,7 +200,7 @@ void main() {
       // result without querying any camera hardware.
       framingFOVProvider.overrideWith(
         (ref) async => const FramingEquipmentResult(
-          status: EquipmentStatus.ready,
+          status: FramingEquipmentStatus.ready,
           equipment: _equipment,
           profileName: 'Test Profile',
         ),

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
-db.CapturedImage light(
+db.DbCapturedImage light(
   int id, {
   double exposure = 90,
   int? gain = 76,
@@ -13,7 +13,7 @@ db.CapturedImage light(
   String frameType = 'light',
 }) {
   final at = DateTime(2026, 10, 22, 3).add(Duration(minutes: id));
-  return db.CapturedImage(
+  return db.DbCapturedImage(
     id: id,
     filePath: '/n/NGC0891_L_$id.fits',
     fileName: 'NGC0891_L_$id.fits',

@@ -98,7 +98,7 @@ List<Override> _commonOverrides({
       (ref) => Completer<SchedulerDecision>().future,
     ),
     allDbTargetsProvider.overrideWith(
-      (ref) => const Stream<List<ndb.Target>>.empty(),
+      (ref) => const Stream<List<ndb.DbTarget>>.empty(),
     ),
     integrationGoalsStreamProvider.overrideWith(
       (ref) => const Stream<List<IntegrationGoal>>.empty(),

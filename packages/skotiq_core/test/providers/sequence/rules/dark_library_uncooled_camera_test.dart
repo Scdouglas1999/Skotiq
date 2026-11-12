@@ -13,8 +13,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
-import 'package:skotiq_core/src/database/database.dart'
-    hide Sequence, SequenceNode;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/backend/device_capabilities.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';

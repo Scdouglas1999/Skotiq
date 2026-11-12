@@ -720,7 +720,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     _scheduleSourceChangeEvaluation();
   }
 
-  static List<StarSample> _starSamples(List<db.CapturedImage> rows) => [
+  static List<StarSample> _starSamples(List<db.DbCapturedImage> rows) => [
     for (final row in rows)
       if (row.frameType.toLowerCase() == 'light' && row.starCount != null)
         (

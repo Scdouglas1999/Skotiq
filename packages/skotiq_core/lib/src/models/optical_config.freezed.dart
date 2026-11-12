@@ -15,12 +15,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$OpticalConfig {
 
-/// Name of the telescope/OTA
  String? get telescopeName;/// Focal length in millimeters
  double? get focalLength;/// Aperture in millimeters
  double? get aperture;/// Focal ratio (f/number), computed from focalLength/aperture if not set
- double? get focalRatio;/// Camera name
- String? get cameraName;/// Sensor width in pixels
+ double? get focalRatio; String? get cameraName;/// Sensor width in pixels
  int? get sensorWidth;/// Sensor height in pixels
  int? get sensorHeight;/// Pixel size in microns
  double? get pixelSize;
@@ -227,7 +225,6 @@ class _OpticalConfig extends OpticalConfig {
   const _OpticalConfig({this.telescopeName, this.focalLength, this.aperture, this.focalRatio, this.cameraName, this.sensorWidth, this.sensorHeight, this.pixelSize}): super._();
   factory _OpticalConfig.fromJson(Map<String, dynamic> json) => _$OpticalConfigFromJson(json);
 
-/// Name of the telescope/OTA
 @override final  String? telescopeName;
 /// Focal length in millimeters
 @override final  double? focalLength;
@@ -235,7 +232,6 @@ class _OpticalConfig extends OpticalConfig {
 @override final  double? aperture;
 /// Focal ratio (f/number), computed from focalLength/aperture if not set
 @override final  double? focalRatio;
-/// Camera name
 @override final  String? cameraName;
 /// Sensor width in pixels
 @override final  int? sensorWidth;

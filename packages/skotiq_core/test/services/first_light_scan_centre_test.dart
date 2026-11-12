@@ -97,7 +97,7 @@ void main() {
     await db.close();
   });
 
-  Future<dbm.CapturedImage> seedSolvedLight() async {
+  Future<dbm.DbCapturedImage> seedSolvedLight() async {
     final id = await imagesDao.createImage(
       CapturedImagesCompanion.insert(
         filePath: '/tmp/light_0001.fits',

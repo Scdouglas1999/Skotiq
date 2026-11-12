@@ -2,7 +2,7 @@ import 'package:drift/drift.dart';
 
 import 'targets.dart';
 
-@DataClassName('Sequence')
+@DataClassName('DbSequence')
 @TableIndex(name: 'idx_sequences_name', columns: {#name})
 @TableIndex(name: 'idx_sequences_template', columns: {#isTemplate})
 @TableIndex(name: 'idx_sequences_updated', columns: {#updatedAt})
@@ -37,7 +37,7 @@ class Sequences extends Table {
   BoolColumn get isFavorite => boolean().withDefault(const Constant(false))();
 }
 
-@DataClassName('SequenceNode')
+@DataClassName('DbSequenceNode')
 @TableIndex(name: 'idx_nodes_sequence', columns: {#sequenceId})
 @TableIndex(name: 'idx_nodes_parent', columns: {#parentNodeId})
 @TableIndex(name: 'idx_nodes_target', columns: {#targetId})

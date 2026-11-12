@@ -47,7 +47,7 @@ const _equipment = FramingEquipment(
 );
 
 const _equipmentResult = FramingEquipmentResult(
-  status: EquipmentStatus.ready,
+  status: FramingEquipmentStatus.ready,
   equipment: _equipment,
   profileName: 'Test Profile',
 );

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 
-import '../../../database/database.dart' show DarkLibraryEntry, Target;
+import '../../../database/database.dart' show DarkLibraryEntry, DbTarget;
 import '../../../models/backend/device_types.dart';
 import 'package:skotiq_remote_protocol/wire_models.dart';
 import '../../../models/equipment/equipment_models.dart';
@@ -430,7 +430,7 @@ class HistoryDrivenQualityRule implements AsyncSequenceValidator {
     return issues;
   }
 
-  Target? _resolveTarget(TargetHeaderNode node, List<Target> targets) {
+  DbTarget? _resolveTarget(TargetHeaderNode node, List<DbTarget> targets) {
     final wanted = _normalizeName(node.targetName);
     for (final target in targets) {
       final name = _normalizeName(target.name);
