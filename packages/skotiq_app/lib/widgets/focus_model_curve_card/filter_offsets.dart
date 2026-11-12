@@ -75,7 +75,7 @@ class _FilterOffsetsStrip extends ConsumerWidget {
     String filterName,
     int currentOffset,
   ) async {
-    final authority = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
     final activeProfileId =
         ref.read(activeEquipmentProfileProvider)?.id.toString();
     final result = await showModalBottomSheet<int>(
@@ -90,7 +90,7 @@ class _FilterOffsetsStrip extends ConsumerWidget {
     if (!context.mounted) return;
     final currentProfileId =
         ref.read(activeEquipmentProfileProvider)?.id.toString();
-    if (!identical(ref.read(backendProvider), authority) ||
+    if (hostScope.isStale ||
         activeProfileId != profileId ||
         currentProfileId != profileId) {
       ScaffoldMessenger.of(context).showSnackBar(

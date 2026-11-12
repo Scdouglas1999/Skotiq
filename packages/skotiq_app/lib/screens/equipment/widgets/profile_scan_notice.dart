@@ -36,7 +36,7 @@ class _ProfileScanNoticeState extends ConsumerState<ProfileScanNotice> {
 
   Future<void> _scanAgain() async {
     if (_scanning) return;
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     setState(() {
       _scanning = true;
       _beforeScan = ref.read(profileScanCheckProvider(widget.profile));
@@ -47,7 +47,7 @@ class _ProfileScanNoticeState extends ConsumerState<ProfileScanNotice> {
       await ref.read(deviceBackendProvider).rescanDevices();
       await ref.read(unifiedDiscoveryProvider.notifier).discoverAll();
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), authority)) {
+      if (mounted && host.isCurrent) {
         context.showErrorSnackBar('Scan failed: ${userFacingError(e)}');
       }
     } finally {
