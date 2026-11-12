@@ -64,6 +64,8 @@ export 'src/models/errors/server_error.dart';
 export 'src/errors/error_text.dart';
 export 'src/models/imaging/imaging_models.dart';
 export 'src/models/imaging/frame_files.dart';
+export 'src/models/imaging/frame_gain.dart';
+export 'src/models/imaging/gain_kind.dart';
 export 'src/models/imaging/camera_preset.dart';
 export 'src/models/imaging/auto_stretch_settings.dart';
 // Stack-and-Share Loop (component C7): config, progress, result, export models.

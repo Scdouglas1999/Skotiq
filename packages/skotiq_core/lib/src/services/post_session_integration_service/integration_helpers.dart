@@ -89,7 +89,8 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
 
     final matchSet = await _calibrationLibrary.match(
       LightFrameContext(
-        gain: anchor.gain,
+        gain: anchor.comparableGain,
+        gainIsUnknownIso: anchor.hasUnknownIso,
         offset: anchor.offset,
         exposureSeconds: anchor.exposureDuration,
         temperature: anchor.sensorTemp,

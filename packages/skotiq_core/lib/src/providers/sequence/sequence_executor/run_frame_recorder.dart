@@ -7,6 +7,7 @@ import '../../../backend/remote_host.dart';
 import '../../../backend/frame_capture_metadata.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../database_provider.dart' show campaignsDaoProvider;
+import '../../../models/imaging/gain_kind.dart';
 import '../../../models/imaging/imaging_models.dart';
 import '../../../services/capture_preview_loader.dart';
 import '../../../services/frame_quality_score.dart';
@@ -475,6 +476,7 @@ class RunFrameRecorder {
           // FITS IMAGETYP, in the images DB's lowercase spelling.
           frameType: frameType,
           gain: capture.gain ?? attribution.gain,
+          gainKind: capture.gainIsIso ? GainKind.iso : GainKind.gain,
           offset: capture.offset ?? attribution.offset,
           binX: capture.binX ?? attribution.binX,
           binY: capture.binY ?? attribution.binY,

@@ -101,6 +101,7 @@ extension _ImagingServicePersistence on ImagingService {
       frameType: drift.Value(exposureSettings.frameType.name),
       exposureDuration: drift.Value(exposureSettings.exposureTime),
       gain: drift.Value(exposureSettings.gain),
+      gainKind: drift.Value(_ref.read(cameraSensitivityProvider).gainKind.recordName),
       offset: drift.Value(exposureSettings.offset),
       binX: drift.Value(exposureSettings.binningX),
       binY: drift.Value(exposureSettings.binningY),

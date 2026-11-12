@@ -12,6 +12,7 @@ import '../models/imaging/imaging_models.dart';
 import '../models/imaging/frame_files.dart';
 import '../providers/clock_provider.dart';
 import '../providers/equipment_provider.dart';
+import '../providers/capability_provider.dart' show cameraSensitivityProvider;
 import '../providers/equipment/device_capability_provider.dart';
 import '../providers/imaging_provider.dart';
 import '../providers/async_scope.dart';

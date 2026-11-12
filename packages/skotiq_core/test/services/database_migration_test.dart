@@ -801,10 +801,10 @@ CREATE TABLE captured_images (
     },
   );
 
-  test('fresh database is at schema 65 with stacked_results table', () async {
+  test('fresh database is at schema 66 with stacked_results table', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     try {
-      expect(db.schemaVersion, equals(65));
+      expect(db.schemaVersion, equals(66));
 
       // v48 (Night Narrator): the narrator_events table must exist on a
       // fresh install (drift createAll) just like on the upgrade path.
@@ -918,7 +918,7 @@ CREATE TABLE captured_images (
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(upgradedVersion.data['user_version'], equals(db.schemaVersion));
-      expect(db.schemaVersion, equals(65));
+      expect(db.schemaVersion, equals(66));
 
       final tableRow = await db
           .customSelect(

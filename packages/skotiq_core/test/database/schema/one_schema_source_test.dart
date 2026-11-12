@@ -44,6 +44,27 @@ const _onceLazyTables = {
   'conversational_builds',
 };
 
+/// Columns schema steps after the base build added, by table. The base
+/// comparisons leave them out; each step's own migration test covers it.
+const _columnsAddedAfterBase = {
+  'captured_images': {'gain_kind'},
+};
+
+/// [tables] (a [dumpSchema] `tables` map) without [_columnsAddedAfterBase].
+Map<dynamic, dynamic> _asOfBase(Map<dynamic, dynamic> tables) => {
+  for (final MapEntry(:key, :value) in tables.entries)
+    key: _columnsAddedAfterBase[key] == null
+        ? value
+        : {
+            ...(value as Map),
+            'columns': [
+              for (final column in (value['columns'] as List))
+                if (!_columnsAddedAfterBase[key]!.contains(column['name']))
+                  column,
+            ],
+          },
+};
+
 File _unpackPopulatedFixture(Directory dir) {
   final bytes = gzip.decode(
     File('$_fixtures/base_c04d55c8d_populated.db.gz').readAsBytesSync(),
@@ -84,6 +105,7 @@ void main() {
     test('opens with its schema and row counts unchanged', () async {
       final file = _unpackPopulatedFixture(dir);
       final masterBefore = _withRaw(file, dumpMasterSql);
+      final shapeBefore = _withRaw(file, dumpSchema)['tables']! as Map;
       final countsBefore = _withRaw(file, dumpRowCounts);
       expect(
         _withRaw(file, (db) => db.select('PRAGMA user_version').first.values),
@@ -96,11 +118,31 @@ void main() {
       _withRaw(file, (db) {
         expect(db.select('PRAGMA integrity_check').first.values, ['ok']);
         expect(db.select('PRAGMA foreign_key_check'), isEmpty);
-        expect(db.select('PRAGMA user_version').first.values, [65]);
+        expect(db.select('PRAGMA user_version').first.values, [66]);
       });
       // Same tables, same indexes, same SQL text: nothing was rebuilt,
-      // altered or added.
-      expect(_withRaw(file, dumpMasterSql), masterBefore);
+      // altered or added, except the columns later steps add.
+      String withoutAdded(String key) =>
+          _columnsAddedAfterBase.keys.contains(key.split(':').last) ? '' : key;
+      final masterAfter = _withRaw(file, dumpMasterSql);
+      expect(
+        {
+          for (final e in masterAfter.entries)
+            if (withoutAdded(e.key).isNotEmpty) e.key: e.value,
+        },
+        {
+          for (final e in masterBefore.entries)
+            if (withoutAdded(e.key).isNotEmpty) e.key: e.value,
+        },
+      );
+      final shapeAfter = _withRaw(file, dumpSchema)['tables']! as Map;
+      for (final table in _columnsAddedAfterBase.keys) {
+        expect(
+          jsonDecode(jsonEncode(_asOfBase(shapeAfter)[table])),
+          jsonDecode(jsonEncode(shapeBefore[table])),
+          reason: table,
+        );
+      }
 
       final countsAfter = _withRaw(file, dumpRowCounts);
       // The settings seed may grow with the build; nothing else may change.
@@ -241,7 +283,9 @@ void main() {
 
         await _openAndClose(file);
 
-        final shapeAfter = _withRaw(file, dumpSchema)['tables']! as Map;
+        final shapeAfter = _asOfBase(
+          _withRaw(file, dumpSchema)['tables']! as Map,
+        );
         expect(shapeAfter.keys.toSet(), shapeBefore.keys.toSet());
         for (final table in [..._onceLazyTables, 'captured_images']) {
           expect(shapeAfter[table], shapeBefore[table], reason: table);
@@ -269,7 +313,7 @@ void main() {
     await _openAndClose(file);
 
     _withRaw(file, (db) {
-      expect(db.select('PRAGMA user_version').first.values, [65]);
+      expect(db.select('PRAGMA user_version').first.values, [66]);
       expect(db.select('SELECT COUNT(*) AS n FROM sky_tiles').first['n'], 2);
       expect(
         db.select(
@@ -294,7 +338,7 @@ void main() {
               )
               as Map<String, dynamic>;
 
-      final freshTables = fresh['tables']! as Map;
+      final freshTables = _asOfBase(fresh['tables']! as Map);
       final baseTables = base['tables'] as Map;
       expect(freshTables.keys.toSet(), {
         ...baseTables.keys,
