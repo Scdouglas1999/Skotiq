@@ -8,6 +8,7 @@ import 'package:skotiq_core/src/services/device_service.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 
+import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
 
 class TestBackendNotifier extends BackendNotifier {
@@ -42,6 +43,7 @@ void main() {
         backendProvider.overrideWith(
           (ref) => TestBackendNotifier(ref, mockBackend),
         ),
+        inMemoryDatabaseOverride(),
       ],
     );
 

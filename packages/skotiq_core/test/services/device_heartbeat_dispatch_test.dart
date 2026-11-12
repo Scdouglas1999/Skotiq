@@ -11,6 +11,7 @@ import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/services/device_reconnect_coordinator.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
 
+import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
 
 /// Verifies that heartbeat events arriving on the equipment
@@ -44,6 +45,7 @@ void main() {
         backendProvider.overrideWith(
           (ref) => _TestBackendNotifier(ref, mockBackend),
         ),
+        inMemoryDatabaseOverride(),
       ],
     );
 
