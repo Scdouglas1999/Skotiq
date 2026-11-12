@@ -45,7 +45,9 @@ class _LogViewerState extends ConsumerState<LogViewer>
   List<LogEntry> _allLogs = [];
   Set<String> _availableSources = {};
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _backendGeneration = 0;
+
+  /// Log reads from the host; a host change drops the ones still answering.
+  late final _hostReads = ref.backendScopes(alive: () => mounted);
   int _nextRefreshRequest = 0;
   int _lastAppliedRequest = 0;
   Object? _actionToken;
@@ -63,7 +65,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
       backendProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
-        _backendGeneration++;
+        _hostReads.cancelAll();
         _lastAppliedRequest = 0;
         _actionToken = null;
         setState(() {
@@ -119,22 +121,16 @@ class _LogViewerState extends ConsumerState<LogViewer>
     // pull from /api/logs/recent so a remote session shows the host's
     // logs, not the local (empty) ring buffer. The local LoggingService
     // path is preserved for FFI / disconnected backends.
-    final backend = ref.read(backendProvider);
-    final backendGeneration = _backendGeneration;
+    final read = _hostReads.begin();
     final request = ++_nextRefreshRequest;
-    if (backend.remoteHost case final linkedHost?) {
+    if (read.value.remoteHost case final linkedHost?) {
       // Fire-and-forget refresh; the user's filters apply once the
       // response lands. Errors silently fall back to whatever was last
       // rendered — surfaced via the SnackBars on Clear/Export so the
       // operator still gets feedback when the action they triggered
       // failed.
       linkedHost.logs.fetchRecentServerLogs(limit: 500).then((logs) {
-        if (!mounted ||
-            backendGeneration != _backendGeneration ||
-            request < _lastAppliedRequest ||
-            !identical(ref.read(backendProvider), backend)) {
-          return;
-        }
+        if (read.isStale || request < _lastAppliedRequest) return;
         _lastAppliedRequest = request;
         setState(() {
           _allLogs = logs;
@@ -160,12 +156,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
     final loggingService = ref.read(loggingServiceProvider);
     final logs = loggingService.getRecentLogs();
 
-    if (!mounted ||
-        backendGeneration != _backendGeneration ||
-        request < _lastAppliedRequest ||
-        !identical(ref.read(backendProvider), backend)) {
-      return;
-    }
+    if (read.isStale || request < _lastAppliedRequest) return;
     _lastAppliedRequest = request;
 
     setState(() {
@@ -199,10 +190,8 @@ class _LogViewerState extends ConsumerState<LogViewer>
     }).toList();
   }
 
-  bool _isCurrentAction(Object token, SkotiqBackend backend) =>
-      mounted &&
-      identical(_actionToken, token) &&
-      identical(ref.read(backendProvider), backend);
+  bool _isCurrentAction(Object token, AsyncScope<SkotiqBackend> host) =>
+      host.isCurrent && identical(_actionToken, token);
 
   @override
   Widget build(BuildContext context) {

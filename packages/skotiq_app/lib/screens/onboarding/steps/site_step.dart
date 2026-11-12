@@ -341,9 +341,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   /// stored elevation attached to a position it does not belong to. And it
   /// changes nothing about the machine unasked: [mayEnableWifiRadio] is set
   /// only by the explicit "Turn Wi-Fi on for a precise fix" offer, and the
-  /// radio goes back off afterwards. Guards the async gap with a
-  /// backend-authority check so a host switch mid-read never applies the
-  /// reading to the replacement host.
+  /// radio goes back off afterwards. A host switch mid-read never applies
+  /// the reading to the replacement host.
   Future<void> _useDeviceLocation(
     AppSettingsState settings, {
     bool mayEnableWifiRadio = false,
@@ -357,7 +356,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
       googleKeyPresent: googleKey.isNotEmpty,
     );
     if (!consented || !mounted) return;
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     setState(() => _locating = true);
     try {
       final attempt = await ref.read(onboardingSiteLocatorProvider)(
@@ -366,7 +365,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
         mayEnableWifiRadio: mayEnableWifiRadio,
         googleApiKey: googleKey.isEmpty ? null : googleKey,
       );
-      if (!mounted || !identical(ref.read(backendProvider), authority)) {
+      if (!mounted || host.isStale) {
         return;
       }
       setState(() => _wifiRadioOffersPrecision = attempt.canRetryWithWifi);
@@ -393,7 +392,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
             longitude: lon,
             elevation: keepElevation ? null : 0,
           );
-      if (!mounted || !identical(ref.read(backendProvider), authority)) return;
+      if (!mounted || host.isStale) return;
       _latController.text = _trimNumber(lat);
       _lonController.text = _trimNumber(lon);
       if (!keepElevation) _elevController.clear();
@@ -414,7 +413,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
         '${location.isPrecise ? '' : attempt.canRetryWithWifi ? ' Turn Wi-Fi on for a precise fix.' : ' Correct the coordinates below if it is off.'}',
       );
     } catch (error) {
-      if (mounted && identical(ref.read(backendProvider), authority)) {
+      if (mounted && host.isCurrent) {
         context.showErrorSnackBar('Could not read device location: ${userFacingError(error)}');
       }
     } finally {

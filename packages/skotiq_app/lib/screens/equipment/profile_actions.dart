@@ -78,19 +78,12 @@ final selectedEquipmentProfileIdProvider = StateProvider<int?>((ref) {
 /// connect or disconnect its devices. The Equipment screen and Settings >
 /// Equipment profiles both get it from here.
 mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
-  int _profileOperationGeneration = 0;
+  /// Profile operations sent to the host. Each one supersedes the one before
+  /// it, and a host change drops them all.
+  late final _profileOperations = ref.backendScopes(alive: () => mounted);
 
   void bumpProfileMutationEpoch() {
     ref.read(profileMutationEpochProvider.notifier).state++;
-  }
-
-  bool isCurrentProfileOperation(
-    int generation,
-    SkotiqBackend authority,
-  ) {
-    return mounted &&
-        generation == _profileOperationGeneration &&
-        identical(ref.read(backendProvider), authority);
   }
 
   /// Call from `build`: an operation started against one imaging host must
@@ -98,7 +91,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   void watchProfileAuthority() {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (previous == null || identical(previous, next)) return;
-      _profileOperationGeneration++;
+      _profileOperations.cancelAll();
       bumpProfileMutationEpoch();
     });
   }
@@ -110,8 +103,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 
   Future<void> createEmptyProfile() async {
-    final authority = ref.read(backendProvider);
-    final generation = ++_profileOperationGeneration;
+    final operation = _profileOperations.beginLatest();
     try {
       final profileId = await ref
           .read(equipmentProfilesProvider.notifier)
@@ -121,11 +113,11 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
               ref.read(sortedProfilesProvider).map((profile) => profile.name),
             ),
           );
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       bumpProfileMutationEpoch();
       ref.read(selectedEquipmentProfileIdProvider.notifier).state = profileId;
     } catch (e) {
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
         context.l10n
@@ -142,18 +134,17 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Future<void> activateProfile(EquipmentProfileModel profile) async {
     final profileId = profile.id;
     if (profileId == null) return;
-    final authority = ref.read(backendProvider);
-    final generation = ++_profileOperationGeneration;
+    final operation = _profileOperations.beginLatest();
     try {
       await ref
           .read(equipmentProfilesProvider.notifier)
           .setActiveProfile(profileId);
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       bumpProfileMutationEpoch();
       context.showSuccessSnackBar('Now using "${profile.name}"');
     } catch (e) {
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
         failureText('Could not switch to "${profile.name}"', e),
@@ -162,8 +153,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 
   Future<void> setDefaultProfile(EquipmentProfileModel profile) async {
-    final authority = ref.read(backendProvider);
-    final generation = ++_profileOperationGeneration;
+    final operation = _profileOperations.beginLatest();
     try {
       // makeActive: false — the star means "Make Startup Default" and nothing
       // else. Switching which rig is in use is its own action now ("Use This
@@ -176,14 +166,14 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       await ref
           .read(equipmentProfilesProvider.notifier)
           .setDefaultProfile(profile.id, makeActive: false);
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       bumpProfileMutationEpoch();
       context.showSuccessSnackBar(
         context.l10n.text('equipmentDefaultProfileSet'),
       );
     } catch (e) {
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
         context.l10n.text('equipmentSetDefaultFailed', params: {'error': userFacingError(e)}),
@@ -192,8 +182,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 
   Future<void> duplicateProfile(int profileId) async {
-    final authority = ref.read(backendProvider);
-    final generation = ++_profileOperationGeneration;
+    final operation = _profileOperations.beginLatest();
     try {
       final profiles = ref.read(sortedProfilesProvider);
       final sourceProfile =
@@ -208,7 +197,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       final newId = await ref
           .read(equipmentProfilesProvider.notifier)
           .duplicateProfile(profileId, newName);
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       bumpProfileMutationEpoch();
       ref.read(selectedEquipmentProfileIdProvider.notifier).state = newId;
       if (!mounted) return;
@@ -216,7 +205,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         context.l10n.text('equipmentProfileDuplicated'),
       );
     } catch (e) {
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
         context.l10n.text('equipmentDuplicateFailed', params: {'error': userFacingError(e)}),
@@ -225,9 +214,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 
   Future<void> deleteProfile(int profileId) async {
-    final backendOwner = ref.read(backendProvider.notifier);
-    final backendAtDelete = backendOwner.currentBackend;
-    final generation = ++_profileOperationGeneration;
+    final operation = _profileOperations.beginLatest();
     try {
       // Resolve the row-to-delete from the remote-aware in-memory list, not the
       // local-only DAO: on a slave (NetworkBackend) the local SQLite is empty,
@@ -244,16 +231,16 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       // Keep the undo payload in the authority that owns it. A remote profile
       // is already fully represented by [deletedProfile], while a local
       // profile retains the service's versioned JSON for an exact restore.
-      final deletedProfileJson = backendAtDelete.remoteHost != null
+      final deletedProfileJson = operation.value.remoteHost != null
           ? null
           : await ref.read(profileServiceProvider).exportProfileToJson(
                 profileId,
               );
-      if (!isCurrentProfileOperation(generation, backendAtDelete)) return;
+      if (operation.isStale) return;
       await ref
           .read(equipmentProfilesProvider.notifier)
           .deleteProfile(profileId);
-      if (!isCurrentProfileOperation(generation, backendAtDelete)) return;
+      if (operation.isStale) return;
       bumpProfileMutationEpoch();
       final epochAtDelete = ref.read(profileMutationEpochProvider);
 
@@ -276,6 +263,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         // alive: the messenger and the container both outlive this route, so
         // the offer still works after the operator navigates away.
         final container = ProviderScope.containerOf(context, listen: false);
+        final deletedOn = AsyncScopes(container.read, backendProvider).begin();
         final colors = SkotiqColors.of(context);
         final l10n = context.l10n;
         messenger.hideCurrentSnackBar();
@@ -304,8 +292,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
                   l10n: l10n,
                   localExportJson: deletedProfileJson,
                   epochAtDelete: epochAtDelete,
-                  backendOwner: backendOwner,
-                  backendAtDelete: backendAtDelete,
+                  deletedOn: deletedOn,
                 ));
               },
             ),
@@ -313,7 +300,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         );
       }
     } catch (e) {
-      if (!isCurrentProfileOperation(generation, backendAtDelete)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
         context.l10n.text('equipmentDeleteFailed', params: {'error': userFacingError(e)}),
@@ -322,8 +309,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 
   Future<void> reorderProfiles(int oldIndex, int newIndex) async {
-    final authority = ref.read(backendProvider);
-    final generation = ++_profileOperationGeneration;
+    final operation = _profileOperations.beginLatest();
     try {
       final profiles = ref.read(sortedProfilesProvider);
       if (oldIndex < 0 || oldIndex >= profiles.length) {
@@ -349,11 +335,11 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       await ref
           .read(equipmentProfilesProvider.notifier)
           .reorderProfiles(orderedIds);
-      if (isCurrentProfileOperation(generation, authority)) {
+      if (operation.isCurrent) {
         bumpProfileMutationEpoch();
       }
     } catch (e) {
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(failureText('Failed to reorder', e));
     }
@@ -367,21 +353,20 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Future<void> importProfiles() async {
     if (_importingProfiles) return;
     _importingProfiles = true;
-    final authority = ref.read(backendProvider);
-    final generation = ++_profileOperationGeneration;
+    final operation = _profileOperations.beginLatest();
     String? fileName;
     try {
       final file = await ref.read(equipmentProfileImportPickerProvider)();
-      if (file == null || !isCurrentProfileOperation(generation, authority)) {
+      if (file == null || operation.isStale) {
         return;
       }
       fileName = file.name.isNotEmpty ? file.name : file.path;
       final json = await file.readAsString();
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       final ids = await ref
           .read(equipmentProfilesProvider.notifier)
           .importProfiles(json);
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       bumpProfileMutationEpoch();
       if (ids.isNotEmpty) {
         ref.read(selectedEquipmentProfileIdProvider.notifier).state =
@@ -392,7 +377,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         'Imported ${ids.length} profile${ids.length == 1 ? '' : 's'}',
       );
     } catch (e) {
-      if (!isCurrentProfileOperation(generation, authority)) return;
+      if (operation.isStale) return;
       if (!mounted) return;
       context.showErrorSnackBar(
         describeProfileImportFailure(e, fileName: fileName),
@@ -407,25 +392,24 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
     final profileId = profile.id;
     if (_exportingProfile || profileId == null) return;
     _exportingProfile = true;
-    final authority = ref.read(backendProvider);
-    bool sameHost() => identical(ref.read(backendProvider), authority);
+    final export = _profileOperations.begin();
     try {
       final fileName =
           '${profile.name.replaceAll(RegExp(r'[^\w\s-]'), '_')}_profile.json';
       final target = await ref.read(equipmentProfileExportPickerProvider)(
         fileName,
       );
-      if (target == null || !mounted || !sameHost()) return;
+      if (target == null || !mounted || export.isStale) return;
       final json = await ref
           .read(equipmentProfilesProvider.notifier)
           .exportProfile(profileId);
-      if (!mounted || !sameHost()) return;
+      if (!mounted || export.isStale) return;
       await XFile.fromData(
         utf8.encode(json),
         mimeType: 'application/json',
         name: fileName,
       ).saveTo(target.path);
-      if (!mounted || !sameHost()) return;
+      if (!mounted || export.isStale) return;
       await revealExportedFile(
         context,
         target.path,
@@ -433,7 +417,7 @@ mixin ProfileActions<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         desktopMessage: 'Profile exported to ${target.path}',
       );
     } catch (e) {
-      if (!mounted || !sameHost()) return;
+      if (!mounted || export.isStale) return;
       context.showErrorSnackBar(failureText('Export failed', e));
     } finally {
       _exportingProfile = false;
@@ -491,8 +475,7 @@ Future<void> restoreDeletedProfile(
   required SkotiqLocalizations l10n,
   required String? localExportJson,
   required int epochAtDelete,
-  required BackendNotifier backendOwner,
-  required SkotiqBackend backendAtDelete,
+  required AsyncScope<SkotiqBackend> deletedOn,
 }) async {
   void report(String message, Color background) {
     messenger
@@ -511,7 +494,7 @@ Future<void> restoreDeletedProfile(
     return;
   }
 
-  if (!backendOwner.isCurrentBackend(backendAtDelete)) {
+  if (deletedOn.isStale) {
     report(
       'Undo expired — the connected imaging host changed.',
       colors.warning,
@@ -521,12 +504,12 @@ Future<void> restoreDeletedProfile(
 
   try {
     final int restoredId;
-    if (backendAtDelete.remoteHost != null) {
+    if (deletedOn.value.remoteHost != null) {
       final notifier = container.read(equipmentProfilesProvider.notifier);
       restoredId = await notifier.updateProfile(
         deletedProfile.toInsertionCopy(name: deletedProfile.name),
       );
-      if (!backendOwner.isCurrentBackend(backendAtDelete)) return;
+      if (deletedOn.isStale) return;
       if (deletedProfile.isDefault) {
         await notifier.setDefaultProfile(restoredId, makeActive: true);
       } else if (deletedProfile.isActive) {
@@ -539,7 +522,7 @@ Future<void> restoreDeletedProfile(
       restoredId = await container
           .read(profileServiceProvider)
           .importProfileFromJson(localExportJson);
-      if (!backendOwner.isCurrentBackend(backendAtDelete)) return;
+      if (deletedOn.isStale) return;
       if (deletedProfile.isActive) {
         await container
             .read(equipmentProfilesProvider.notifier)

@@ -26,9 +26,10 @@ class ScienceHudPanel extends ConsumerStatefulWidget {
 class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
   bool _isSavingSessionConfig = false;
   bool _isSavingSelection = false;
-  int _authorityGeneration = 0;
-  int _configOperationGeneration = 0;
-  int _selectionOperationGeneration = 0;
+
+  /// Science session saves and photometry selection saves, each superseding
+  /// its own earlier one. A host change or a new imaging session drops both.
+  late final _hostOperations = ref.backendScopes(alive: () => mounted);
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   ProviderSubscription<SessionState>? _sessionSubscription;
 
@@ -55,18 +56,13 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
 
   @override
   void dispose() {
-    _authorityGeneration++;
-    _configOperationGeneration++;
-    _selectionOperationGeneration++;
     _backendSubscription?.close();
     _sessionSubscription?.close();
     super.dispose();
   }
 
   void _retireHostOperations() {
-    _authorityGeneration++;
-    _configOperationGeneration++;
-    _selectionOperationGeneration++;
+    _hostOperations.cancelAll();
     if (mounted && (_isSavingSessionConfig || _isSavingSelection)) {
       setState(() {
         _isSavingSessionConfig = false;
@@ -578,21 +574,14 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
     if (_isSavingSessionConfig) return;
     final sessionId = ref.read(sessionStateProvider).dbSessionId;
     if (sessionId == null) return;
-    final backend = ref.read(backendProvider);
-    final authorityGeneration = _authorityGeneration;
-    final operationGeneration = ++_configOperationGeneration;
+    final save = _hostOperations.beginLatest(#sessionConfig);
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _isSavingSessionConfig = true);
     try {
       await ref
           .read(scienceSessionConfigControllerProvider)
           .save(sessionId, config);
-      if (!_isCurrentConfigOperation(
-        backend,
-        sessionId,
-        authorityGeneration,
-        operationGeneration,
-      )) {
+      if (!_isCurrentSave(save, sessionId)) {
         return;
       }
       ref.invalidate(scienceSessionConfigProvider(sessionId));
@@ -605,23 +594,13 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
         );
       }
     } catch (error) {
-      if (_isCurrentConfigOperation(
-        backend,
-        sessionId,
-        authorityGeneration,
-        operationGeneration,
-      )) {
+      if (_isCurrentSave(save, sessionId)) {
         messenger.showSnackBar(
           SnackBar(content: Text('Could not save science session: ${userFacingError(error)}')),
         );
       }
     } finally {
-      if (_isCurrentConfigOperation(
-        backend,
-        sessionId,
-        authorityGeneration,
-        operationGeneration,
-      )) {
+      if (_isCurrentSave(save, sessionId)) {
         setState(() => _isSavingSessionConfig = false);
       }
     }
@@ -632,71 +611,33 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
     VoidCallback? onSuccess,
   }) async {
     if (_isSavingSelection) return;
-    final backend = ref.read(backendProvider);
     final sessionId = ref.read(sessionStateProvider).dbSessionId;
-    final authorityGeneration = _authorityGeneration;
-    final operationGeneration = ++_selectionOperationGeneration;
+    final save = _hostOperations.beginLatest(#selection);
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _isSavingSelection = true);
     try {
       await action();
-      if (!_isCurrentSelectionOperation(
-        backend,
-        sessionId,
-        authorityGeneration,
-        operationGeneration,
-      )) {
+      if (!_isCurrentSave(save, sessionId)) {
         return;
       }
       onSuccess?.call();
     } catch (error) {
-      if (_isCurrentSelectionOperation(
-        backend,
-        sessionId,
-        authorityGeneration,
-        operationGeneration,
-      )) {
+      if (_isCurrentSave(save, sessionId)) {
         messenger.showSnackBar(
           SnackBar(content: Text('Could not save photometry setup: ${userFacingError(error)}')),
         );
       }
     } finally {
-      if (_isCurrentSelectionOperation(
-        backend,
-        sessionId,
-        authorityGeneration,
-        operationGeneration,
-      )) {
+      if (_isCurrentSave(save, sessionId)) {
         setState(() => _isSavingSelection = false);
       }
     }
   }
 
-  bool _isCurrentConfigOperation(
-    SkotiqBackend backend,
-    int sessionId,
-    int authorityGeneration,
-    int operationGeneration,
-  ) {
-    return mounted &&
-        authorityGeneration == _authorityGeneration &&
-        operationGeneration == _configOperationGeneration &&
-        identical(ref.read(backendProvider), backend) &&
-        ref.read(sessionStateProvider).dbSessionId == sessionId;
-  }
-
-  bool _isCurrentSelectionOperation(
-    SkotiqBackend backend,
-    int? sessionId,
-    int authorityGeneration,
-    int operationGeneration,
-  ) {
-    return mounted &&
-        authorityGeneration == _authorityGeneration &&
-        operationGeneration == _selectionOperationGeneration &&
-        identical(ref.read(backendProvider), backend) &&
-        ref.read(sessionStateProvider).dbSessionId == sessionId;
-  }
+  /// [save] is still wanted and the imaging session is the one it saved for.
+  bool _isCurrentSave(AsyncScope<SkotiqBackend> save, int? sessionId) =>
+      save.isCurrent &&
+      ref.read(sessionStateProvider).dbSessionId == sessionId;
 
   void _retryAuthorities(int? sessionId) {
     ref.invalidate(scienceSettingsProvider);

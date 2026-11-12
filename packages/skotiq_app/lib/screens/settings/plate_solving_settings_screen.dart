@@ -121,7 +121,10 @@ class PlateSolvingSettings extends ConsumerStatefulWidget {
 
 class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
   bool _isChoosingPath = false;
-  int _pathChoiceGeneration = 0;
+
+  /// Path choices, saves and rescans sent to the host; a host change drops
+  /// what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
   Future<void> _browseAstapExecutable(PlateSolverPreference current) async {
     await _choosePath(
@@ -157,51 +160,36 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     required PlateSolverPreference Function(String path) update,
   }) async {
     if (_isChoosingPath) return;
-    final generation = ++_pathChoiceGeneration;
-    final authority = ref.read(backendProvider);
+    final choice = _hostScopes.beginLatest(#pathChoice);
     setState(() => _isChoosingPath = true);
 
     try {
       final path = await ref.read(plateSolverPathPickerProvider)(
         context: context,
         kind: kind,
-        isRemote: authority.remoteHost != null,
+        isRemote: choice.value.remoteHost != null,
         currentPath: currentPath,
       );
-      if (path == null || !_isCurrentPathChoice(generation, authority)) return;
+      if (path == null || choice.isStale) return;
 
-      await _savePreference(
-        update(path),
-        expectedAuthority: authority,
-      );
+      await _savePreference(update(path), startedOn: choice);
     } catch (error) {
-      if (mounted && _isCurrentPathChoice(generation, authority)) {
+      if (mounted && choice.isCurrent) {
         context.showErrorSnackBar(
           'Could not choose a plate-solver path: ${userFacingError(error)}',
         );
       }
     } finally {
-      if (_isCurrentPathChoice(generation, authority)) {
-        setState(() => _isChoosingPath = false);
-      }
+      if (choice.isCurrent) setState(() => _isChoosingPath = false);
     }
-  }
-
-  bool _isCurrentPathChoice(
-    int generation,
-    SkotiqBackend authority,
-  ) {
-    return mounted &&
-        generation == _pathChoiceGeneration &&
-        identical(ref.read(backendProvider), authority);
   }
 
   Future<void> _savePreference(
     PlateSolverPreference next, {
-    Object? expectedAuthority,
+    AsyncScope<SkotiqBackend>? startedOn,
   }) async {
-    final authority = expectedAuthority ?? ref.read(backendProvider);
-    if (!identical(ref.read(backendProvider), authority)) {
+    final save = startedOn ?? _hostScopes.begin();
+    if (save.isStale) {
       if (mounted) {
         context.showWarningSnackBar(
           'The imaging host changed while choosing that path. Choose it '
@@ -214,7 +202,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     try {
       final ok = await notifier.updatePreference(next);
       if (!mounted) return;
-      if (!identical(ref.read(backendProvider), authority)) {
+      if (save.isStale) {
         context.showWarningSnackBar(
           'The imaging host changed while saving. Verify the path on the '
           'current host.',
@@ -228,25 +216,21 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
             'then try again.');
       }
     } catch (e) {
-      if (!mounted || !identical(ref.read(backendProvider), authority)) return;
+      if (!mounted || save.isStale) return;
       context.showErrorSnackBar(
           'Failed to save plate-solver settings: ${userFacingError(e)}');
     }
   }
 
   Future<void> _rescan() async {
-    final authority = ref.read(backendProvider);
+    final rescan = _hostScopes.begin();
     final notifier = ref.read(plateSolverSettingsNotifierProvider.notifier);
     try {
       final started = await notifier.rescan();
-      if (!started ||
-          !mounted ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
+      if (!started || !mounted || rescan.isStale) return;
       context.showSuccessSnackBar('Re-scanned plate-solver paths.');
     } catch (e) {
-      if (!mounted || !identical(ref.read(backendProvider), authority)) return;
+      if (!mounted || rescan.isStale) return;
       context.showErrorSnackBar('Re-scan failed: ${userFacingError(e)}');
     }
   }
@@ -267,7 +251,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
       if (!_isChoosingPath || previous == null || identical(previous, next)) {
         return;
       }
-      _pathChoiceGeneration++;
+      _hostScopes.cancelAll();
       setState(() => _isChoosingPath = false);
     });
 
