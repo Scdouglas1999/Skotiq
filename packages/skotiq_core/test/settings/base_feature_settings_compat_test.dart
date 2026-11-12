@@ -933,6 +933,13 @@ void main() {
   }
 
   group('with nothing stored a feature holds its model\'s own defaults', () {
+    test('Science', () {
+      expect(
+        _science(ScienceSettings.fromRows(const {})),
+        _science(const ScienceSettings()),
+      );
+    });
+
     test('defect map', () {
       expect(
         _defectMap(DefectMapSettings.fromRows(const {})),
@@ -1050,6 +1057,11 @@ const Map<String, Object?> _changedOnPurpose = {
   },
   'decision log': {
     'reads': {'empty': _SameAs('missing')},
+  },
+  'science settings': {
+    'reads': {
+      'empty': {'frameGradeRulesJson': null},
+    },
   },
   'notification routing': {
     'reads': {'empty': _SameAs('missing')},

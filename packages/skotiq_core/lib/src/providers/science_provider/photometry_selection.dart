@@ -2,17 +2,20 @@ part of '../science_provider.dart';
 
 class SciencePhotometrySelectionNotifier
     extends AsyncNotifier<SciencePhotometrySelection> {
-  static const _enabledKey = 'science.photometry.differential_active';
-  static const _targetKey = 'science.photometry.target_anchor';
-  static const _comparisonsKey = 'science.photometry.comparison_anchors';
+  static const _enabled = StoreSettings.scienceDifferentialPhotometry;
+  static const _target = StoreSettings.sciencePhotometryTarget;
+  static const _comparisons = StoreSettings.sciencePhotometryComparisons;
   Future<void> _writeTail = Future<void>.value();
 
   @override
   Future<SciencePhotometrySelection> build() async {
     final settings = await _loadScienceSettingsMap(ref);
-    final enabled = _parseBool(settings[_enabledKey], false);
-    final target = _decodeAnchor(settings[_targetKey]);
-    final comparisons = _decodeAnchors(settings[_comparisonsKey], maxItems: 8);
+    final enabled = _enabled.decodeStrict(settings[_enabled.key]);
+    final target = _decodeAnchor(_target.valueIn(settings));
+    final comparisons = _decodeAnchors(
+      _comparisons.valueIn(settings),
+      maxItems: 8,
+    );
 
     return SciencePhotometrySelection(
       differentialEnabled: enabled,
@@ -43,7 +46,7 @@ class SciencePhotometrySelectionNotifier
 
   Future<void> setDifferentialEnabled(bool enabled) =>
       _serialized((current) async {
-        await _writeScienceSettings(ref, {_enabledKey: enabled.toString()});
+        await _writeScienceSettings(ref, _enabled.toRows(enabled));
         state = AsyncData(current.copyWith(differentialEnabled: enabled));
       });
 
@@ -55,9 +58,9 @@ class SciencePhotometrySelectionNotifier
             .toList(growable: false);
 
         await _writeScienceSettings(ref, {
-          _targetKey: value,
-          _comparisonsKey: jsonEncode(
-            comparisons.map((entry) => entry.toJson()).toList(),
+          ..._target.toRows(value),
+          ..._comparisons.toRows(
+            jsonEncode(comparisons.map((entry) => entry.toJson()).toList()),
           ),
         });
 
@@ -90,42 +93,31 @@ class SciencePhotometrySelectionNotifier
           .where((entry) => entry.objectId != current.target?.objectId)
           .toList(growable: false);
 
-      await _writeScienceSettings(ref, {
-        _comparisonsKey: jsonEncode(
-          filtered.map((entry) => entry.toJson()).toList(),
+      await _writeScienceSettings(
+        ref,
+        _comparisons.toRows(
+          jsonEncode(filtered.map((entry) => entry.toJson()).toList()),
         ),
-      });
+      );
       state = AsyncData(current.copyWith(comparisons: filtered));
     });
   }
 
   Future<void> clearComparisons() => _serialized((current) async {
-    await _writeScienceSettings(ref, {_comparisonsKey: '[]'});
+    await _writeScienceSettings(
+      ref,
+      _comparisons.toRows(_comparisons.fallback),
+    );
     state = AsyncData(current.copyWith(comparisons: const []));
   });
 
   Future<void> clearAll() => _serialized((_) async {
     await _writeScienceSettings(ref, {
-      _enabledKey: 'false',
-      _targetKey: '',
-      _comparisonsKey: '[]',
+      for (final Setting<Object?> setting in [_enabled, _target, _comparisons])
+        ...setting.toRows(setting.fallback),
     });
     state = const AsyncData(SciencePhotometrySelection());
   });
-
-  bool _parseBool(String? value, bool fallback) {
-    if (value == null || value.isEmpty) {
-      return fallback;
-    }
-    switch (value.toLowerCase()) {
-      case 'true':
-        return true;
-      case 'false':
-        return false;
-      default:
-        throw FormatException('Invalid persisted boolean "$value"');
-    }
-  }
 
   PhotometryAnchor? _decodeAnchor(String? raw) {
     if (raw == null || raw.trim().isEmpty) {

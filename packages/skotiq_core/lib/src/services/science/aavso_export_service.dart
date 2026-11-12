@@ -7,6 +7,7 @@ import '../../database/daos/images_dao.dart';
 import '../../database/daos/science_dao.dart';
 import '../../database/daos/settings_dao.dart';
 import '../../database/database.dart';
+import '../../settings/store_settings.dart';
 import 'photometric_bands.dart';
 import '../../utils/skotiq_data_directory.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -60,10 +61,10 @@ class AavsoExportService {
     String? filterBand,
     String? chartId,
   }) async {
-    final observerCode = await _settingsDao.getSetting(
-      'science.aavso.observer_code',
+    final observerCode = await _settingsDao.read(
+      StoreSettings.scienceAavsoObserverCode,
     );
-    if (observerCode == null || observerCode.trim().isEmpty) {
+    if (observerCode.trim().isEmpty) {
       throw const AavsoExportError(
         'AAVSO observer code is not set. '
         'Please set your observer code in Settings > Science before exporting.',

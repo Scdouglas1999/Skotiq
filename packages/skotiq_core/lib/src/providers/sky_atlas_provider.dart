@@ -15,6 +15,7 @@ import '../services/notification_service.dart'
 import '../services/sky_atlas/sky_atlas_models.dart';
 import '../services/sky_atlas/sky_atlas_service.dart';
 import '../services/sky_atlas/sky_atlas_seam.dart';
+import '../settings/store_settings.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'host_mutation_event_provider.dart';
@@ -50,8 +51,8 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
     autoFoldEnabled: () async {
       final value = await ref
           .read(settingsDaoProvider)
-          .getSetting(skyAtlasSettingKey);
-      return value?.trim().toLowerCase() == 'true';
+          .getSetting(StoreSettings.scienceSkyAtlas.key);
+      return StoreSettings.scienceSkyAtlas.decode(value?.trim(), false);
     },
     targetResolver: (targetId) async {
       final target = await targetsDao.getTargetById(targetId);
@@ -65,7 +66,7 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
     storageLimitBytes: () async {
       final raw = await ref
           .read(settingsDaoProvider)
-          .getSetting(skyAtlasLimitSettingKey);
+          .getSetting(StoreSettings.scienceSkyAtlasLimitGb.key);
       return parseSkyAtlasLimitGb(raw) * 1000 * 1000 * 1000;
     },
     onStorageLimitReached: (used, limit) {
@@ -174,18 +175,21 @@ final skyAtlasEnabledProvider = Provider<bool?>((ref) {
 final skyAtlasOffNoticeProvider = FutureProvider.autoDispose<int?>((ref) async {
   if (ref.watch(backendProvider).remoteHost != null) return null;
   final settings = ref.read(settingsDaoProvider);
-  if (await settings.getSetting(skyAtlasOffNoticeKey) != 'pending') {
+  if (await settings.read(StoreSettings.scienceSkyAtlasOffNotice) !=
+      'pending') {
     return null;
   }
   final bytes = await ref.read(skyAtlasServiceProvider).storageBytes();
   if (bytes > 0) return bytes;
-  await settings.setSetting(skyAtlasOffNoticeKey, 'shown');
+  await settings.write(StoreSettings.scienceSkyAtlasOffNotice, 'shown');
   return null;
 });
 
 /// Record that the user has answered the one-time notice.
 Future<void> markSkyAtlasOffNoticeShown(WidgetRef ref) async {
-  await ref.read(settingsDaoProvider).setSetting(skyAtlasOffNoticeKey, 'shown');
+  await ref
+      .read(settingsDaoProvider)
+      .write(StoreSettings.scienceSkyAtlasOffNotice, 'shown');
   ref.invalidate(skyAtlasOffNoticeProvider);
 }
 

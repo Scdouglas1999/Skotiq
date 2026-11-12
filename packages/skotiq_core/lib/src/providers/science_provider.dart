@@ -20,7 +20,7 @@ import '../services/science/frame_grade_rules.dart';
 import '../services/science/photometric_catalog_service.dart';
 import '../services/science/science_camera_auto_config.dart';
 import '../services/sky_atlas/sky_atlas_service.dart'
-    show defaultSkyAtlasLimitGb, parseSkyAtlasLimitGb, skyAtlasLimitSettingKey;
+    show defaultSkyAtlasLimitGb, parseSkyAtlasLimitGb;
 import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
