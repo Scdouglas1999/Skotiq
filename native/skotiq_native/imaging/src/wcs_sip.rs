@@ -394,9 +394,10 @@ impl SipWcs {
         };
         // CD maps the (distortion-corrected) pixel offsets to intermediate world
         // coords (degrees).
-        let xi_deg = self.cd1_1 * up + self.cd1_2 * vp;
-        let eta_deg = self.cd2_1 * up + self.cd2_2 * vp;
-        tan_deproject(self.crval1, self.crval2, xi_deg, eta_deg)
+        (
+            self.cd1_1 * up + self.cd1_2 * vp,
+            self.cd2_1 * up + self.cd2_2 * vp,
+        )
     }
 
     /// `(ra_deg, dec_deg)` → 0-based pixel `(x, y)`. `None` on the far hemisphere
@@ -962,6 +963,51 @@ mod tests {
         let bad = SipWcs::tan_only(10.0, 20.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0);
         assert!(!bad.is_invertible());
         assert!(bad.world_to_pixel(10.0, 20.0).is_none());
+    }
+
+    /// A solution referenced on one side of the frame, moved to the frame
+    /// center, is the same map from pixels to the sky and back.
+    #[test]
+    fn a_rereferenced_solution_is_the_same_projection() {
+        let (width, height) = (4656.0, 3520.0);
+        let solved = SipWcs {
+            a_order: 2,
+            b_order: 2,
+            a_coeffs: vec![0.0, 0.0, -5.5e-9, 0.0, -2.0e-7, 0.0, -2.7e-7, 0.0, 0.0],
+            b_coeffs: vec![0.0, 0.0, -2.1e-7, 0.0, -1.9e-7, 0.0, -4.0e-8, 0.0, 0.0],
+            ..SipWcs::tan_only(
+                14.6945, 61.1617, 3387.77, 2486.09, -1.49e-5, -1.705e-4, 1.705e-4, -1.5e-5,
+            )
+        };
+        let centered = solved
+            .rereferenced((width + 1.0) / 2.0, (height + 1.0) / 2.0, width, height)
+            .expect("a solvable fit");
+        assert_eq!((centered.crpix1, centered.crpix2), (2328.5, 1760.5));
+        let center = solved.pixel_to_world(2327.5, 1759.5);
+        assert_eq!((centered.crval1, centered.crval2), center);
+        // The tangent point moved 13', so the CD matrix is not the old one.
+        assert!((centered.cd1_1 - solved.cd1_1).abs() > 1e-8);
+        for &(x, y) in &[
+            (0.0, 0.0),
+            (4655.0, 0.0),
+            (0.0, 3519.0),
+            (4655.0, 3519.0),
+            (2327.5, 1759.5),
+            (1000.0, 3000.0),
+        ] {
+            let (ra, dec) = solved.pixel_to_world(x, y);
+            let (got_ra, got_dec) = centered.pixel_to_world(x, y);
+            let arcsec = ((got_ra - ra) * dec.to_radians().cos()).hypot(got_dec - dec) * 3600.0;
+            assert!(arcsec < 1e-6, "({x}, {y}): {arcsec:e}\"");
+            let (px, py) = centered.world_to_pixel(ra, dec).expect("on the frame");
+            assert!(
+                (px - x).hypot(py - y) < 1e-6,
+                "({x}, {y}) back as ({px}, {py})"
+            );
+        }
+        assert!(SipWcs::tan_only(0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+            .rereferenced(5.0, 5.0, 10.0, 10.0)
+            .is_none());
     }
 
     #[test]
