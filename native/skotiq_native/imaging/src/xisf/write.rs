@@ -516,7 +516,8 @@ pub(crate) fn rewrite_unit_metadata(path: &Path, unit: &XisfUnit) -> Result<(), 
         pad_to(&mut out, &mut written, new_start)?;
         source.seek(SeekFrom::Start(tail_start))?;
         std::io::copy(&mut source.take(file_len - tail_start), &mut out)?;
-        out.flush()?;
+        // On disk before it takes the name of the only copy of the frame.
+        out.into_inner().map_err(|e| e.into_error())?.sync_all()?;
         Ok(())
     })();
     if let Err(e) = result {

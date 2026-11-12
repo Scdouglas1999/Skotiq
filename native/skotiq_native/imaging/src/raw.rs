@@ -203,6 +203,9 @@ pub struct RawMetadata {
     /// this computer, which is right only when the camera is set to this
     /// computer's time zone.
     pub captured_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Whether `captured_at` rests on an offset the camera recorded. The
+    /// `DATE-OBS` card says which.
+    pub capture_offset_recorded: bool,
     pub temperature: Option<SensorTemperature>,
 }
 
@@ -303,7 +306,14 @@ fn describe_into(
     }
     if let Some(at) = meta.captured_at {
         header.set_string("DATE-OBS", &at.format("%Y-%m-%dT%H:%M:%S").to_string());
-        header.set_comment("DATE-OBS", "camera clock");
+        header.set_comment(
+            "DATE-OBS",
+            if meta.capture_offset_recorded {
+                "UTC, camera clock and its recorded offset"
+            } else {
+                "camera clock taken as this computer's zone"
+            },
+        );
     }
     if let Some(focal) = meta.focal_length_mm {
         header.set_float("FOCALLEN", focal as f64);
@@ -472,28 +482,35 @@ fn frame_temperature(
 
 /// The camera's EXIF clock decides; LibRaw's own reading only when the file
 /// holds none this crate can find.
+///
+/// The flag is true when the time rests on an offset the camera recorded.
+/// Without one the wall clock is read in this computer's zone, and LibRaw's
+/// timestamp is the same reading.
 fn capture_time(
     clock: Option<CameraClock>,
     libraw_timestamp: i64,
-) -> Option<chrono::DateTime<chrono::Utc>> {
-    match clock {
-        Some(clock) => clock.utc().or_else(|| {
-            clock
-                .wall
-                .and_local_timezone(chrono::Local)
-                .earliest()
-                .map(|t| t.with_timezone(&chrono::Utc))
-        }),
+) -> (Option<chrono::DateTime<chrono::Utc>>, bool) {
+    if let Some(exact) = clock.and_then(|clock| clock.utc()) {
+        return (Some(exact), true);
+    }
+    let assumed = match clock {
+        Some(clock) => clock
+            .wall
+            .and_local_timezone(chrono::Local)
+            .earliest()
+            .map(|t| t.with_timezone(&chrono::Utc)),
         None => (libraw_timestamp > 0)
             .then(|| chrono::DateTime::from_timestamp(libraw_timestamp, 0))
             .flatten(),
-    }
+    };
+    (assumed, false)
 }
 
 fn metadata_from(info: &RawInfoFfi, record: CameraRecord) -> RawMetadata {
     let make = text(&info.make);
     let maker = Maker::from_make(&make);
     let lens = text(&info.lens);
+    let (captured_at, capture_offset_recorded) = capture_time(record.clock, info.timestamp);
     RawMetadata {
         make,
         model: text(&info.model),
@@ -505,7 +522,8 @@ fn metadata_from(info: &RawInfoFfi, record: CameraRecord) -> RawMetadata {
             .map(|s| s.to_string().parse::<f64>().unwrap_or(s as f64)),
         f_number: positive(info.aperture),
         focal_length_mm: positive(info.focal_length),
-        captured_at: capture_time(record.clock, info.timestamp),
+        captured_at,
+        capture_offset_recorded,
         temperature: frame_temperature(maker, info, record.sensor_celsius),
     }
 }
@@ -701,6 +719,7 @@ mod tests {
                 f_number: Some(3.5),
                 focal_length_mm: Some(18.0),
                 captured_at: chrono::DateTime::from_timestamp(1_620_691_714, 0),
+                capture_offset_recorded: true,
                 temperature: Some(SensorTemperature {
                     celsius: 32.0,
                     source: TemperatureSource::CameraBody,
@@ -715,6 +734,19 @@ mod tests {
         assert_eq!(header.get_float("CCD-TEMP"), Some(32.0));
         assert_eq!(header.get_comment("CCD-TEMP"), Some("camera body temperature (C)"));
         assert_eq!(header.get_string("DATE-OBS"), Some("2021-05-11T00:08:34"));
+        assert_eq!(
+            header.get_comment("DATE-OBS"),
+            Some("UTC, camera clock and its recorded offset")
+        );
+        let mut unzoned = frame.metadata.clone();
+        unzoned.capture_offset_recorded = false;
+        let mut unzoned_header = FitsHeader::new();
+        describe_into(&mut unzoned_header, &unzoned, 4, 2, None);
+        assert_eq!(
+            unzoned_header.get_comment("DATE-OBS"),
+            Some("camera clock taken as this computer's zone"),
+            "a time that rests on this computer's zone is not presented as the camera's UTC"
+        );
         assert_eq!(header.get_string("BAYERPAT"), Some("RGGB"));
         assert_eq!(header.get_int("BLKLEVEL"), Some(511));
         assert_eq!(header.get_int("DATAMAX"), Some(16383));
@@ -739,12 +771,16 @@ mod tests {
         // LibRaw's reading: the same wall clock taken as US Eastern time.
         let libraw = 1_697_746_428;
         let clock = CameraClock { wall, offset: chrono::FixedOffset::east_opt(2 * 3600) };
+        let (at, recorded) = capture_time(Some(clock), libraw);
+        assert_eq!(at.map(|t| t.to_rfc3339()), Some("2023-10-19T14:13:48+00:00".to_string()));
+        assert!(recorded);
+        let unzoned = CameraClock { wall, offset: None };
+        assert!(!capture_time(Some(unzoned), libraw).1, "no offset: this computer's zone stands in");
         assert_eq!(
-            capture_time(Some(clock), libraw).map(|t| t.to_rfc3339()),
-            Some("2023-10-19T14:13:48+00:00".to_string())
+            capture_time(None, libraw),
+            (chrono::DateTime::from_timestamp(libraw, 0), false)
         );
-        assert_eq!(capture_time(None, libraw), chrono::DateTime::from_timestamp(libraw, 0));
-        assert_eq!(capture_time(None, 0), None);
+        assert_eq!(capture_time(None, 0), (None, false));
     }
 
     #[test]
