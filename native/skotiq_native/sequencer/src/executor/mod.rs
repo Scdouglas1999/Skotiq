@@ -28,7 +28,7 @@ mod runtime_config;
 mod setup;
 
 use crate::device_ops::SharedDeviceOps;
-use crate::node::instructions::autofocus::refocus_detail;
+use crate::node::instructions::autofocus::autofocus_detail;
 use crate::node::{
     CloudMotionSnapshot, ExecutionContext, Node, ProgressDetail, ProgressUpdate, RuntimeNode,
 };
@@ -296,6 +296,13 @@ impl SequenceExecutor {
     /// Get the current progress
     pub fn get_progress(&self) -> SequenceProgress {
         self.run_state.progress()
+    }
+
+    /// The name of the loaded plan.
+    pub fn sequence_name(&self) -> Option<&str> {
+        self.sequence
+            .as_ref()
+            .map(|sequence| sequence.name.as_str())
     }
 
     /// Write the sequence's totals into the progress snapshot. Indeterminate

@@ -460,6 +460,16 @@ typedef struct wire_cst_camera_capabilities {
   double *cooler_max_temp_c;
 } wire_cst_camera_capabilities;
 
+typedef struct wire_cst_record_string_u_32 {
+  struct wire_cst_list_prim_u_8_strict *field0;
+  uint32_t field1;
+} wire_cst_record_string_u_32;
+
+typedef struct wire_cst_list_record_string_u_32 {
+  struct wire_cst_record_string_u_32 *ptr;
+  int32_t len;
+} wire_cst_list_record_string_u_32;
+
 typedef struct wire_cst_checkpoint_info_api {
   struct wire_cst_list_prim_u_8_strict *sequence_name;
   struct wire_cst_list_prim_u_8_strict *timestamp;
@@ -468,6 +478,7 @@ typedef struct wire_cst_checkpoint_info_api {
   bool can_resume;
   int64_t age_seconds;
   struct wire_cst_list_prim_u_8_strict *ended;
+  struct wire_cst_list_record_string_u_32 *frames_done_by_step;
 } wire_cst_checkpoint_info_api;
 
 typedef struct wire_cst_cover_calibrator_capabilities {
@@ -3853,6 +3864,8 @@ struct wire_cst_list_record_string_map_string_f_64_none *frbgen_skotiq_bridge_cs
 
 struct wire_cst_list_record_string_string *frbgen_skotiq_bridge_cst_new_list_record_string_string(int32_t len);
 
+struct wire_cst_list_record_string_u_32 *frbgen_skotiq_bridge_cst_new_list_record_string_u_32(int32_t len);
+
 struct wire_cst_list_scheduler_score_entry *frbgen_skotiq_bridge_cst_new_list_scheduler_score_entry(int32_t len);
 
 struct wire_cst_list_star_crop_api *frbgen_skotiq_bridge_cst_new_list_star_crop_api(int32_t len);
@@ -3944,6 +3957,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_i_32);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_map_string_f_64_none);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_string);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_u_32);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_scheduler_score_entry);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_star_crop_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_switch_info);

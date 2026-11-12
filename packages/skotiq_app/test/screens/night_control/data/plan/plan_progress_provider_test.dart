@@ -86,6 +86,66 @@ void main() {
     expect(plan.rows.firstWhere((r) => r.filter == 'L').framesDone, 1);
   });
 
+  // Restored from its checkpoint, a run read "L 0/6" although four frames of
+  // it were on disk, and after it finished it counted only its own.
+  test('a run continued from its checkpoint counts the frames taken before it',
+      () {
+    final plan = TwoTargetPlan().sequence;
+    final lNode = plan.nodes.values
+        .whereType<ExposureNode>()
+        .firstWhere((node) => node.filter == 'L');
+    final restored = CheckpointInfo(
+      sequenceName: plan.name,
+      timestamp: DateTime(2026, 10, 19, 19),
+      completedExposures: 2,
+      completedIntegrationSecs: 120,
+      canResume: true,
+      ageSeconds: 60,
+      ended: 'stopped',
+      framesDoneByStep: {lNode.id: 2},
+    );
+    final ready = planContainer(
+      now: evening,
+      sequence: plan,
+      extra: [
+        restoredCheckpointProvider.overrideWith((ref) => restored),
+        framesDoneBeforeRunProvider
+            .overrideWith((ref) => restored.framesDoneByStep),
+      ],
+    );
+    addTearDown(ready.dispose);
+    expect(
+      ready.read(nightPlanProgressProvider)!.rows.map((r) => r.framesDone),
+      [2, 0],
+      reason: 'restored, not started yet',
+    );
+
+    final running = planContainer(
+      now: evening,
+      sequence: plan,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: DateTime(2026, 10, 19, 19, 50),
+      ),
+      progress: const SequenceProgress(state: SequenceExecutionState.running),
+      sessionFrames: [lightFrame('3', 'L', DateTime(2026, 10, 19, 19, 52))],
+      extra: [
+        runStartedAtProvider.overrideWith(
+          (ref) => DateTime(2026, 10, 19, 19, 51),
+        ),
+        framesDoneBeforeRunProvider
+            .overrideWith((ref) => restored.framesDoneByStep),
+      ],
+    );
+    addTearDown(running.dispose);
+    expect(
+      running.read(nightPlanProgressProvider)!.rows.first.framesDone,
+      3,
+      reason: "the two before the restore and this run's one",
+    );
+  });
+
   test('running: frames from the session, accepted integration, current row',
       () {
     final container = planContainer(

@@ -194,6 +194,11 @@ class CheckpointInfo {
   /// when the app died under the run.
   final String? ended;
 
+  /// Frames each exposure step of the plan already has, by node id: every
+  /// loop pass and every earlier run of it. Empty for a checkpoint written
+  /// before the host recorded it.
+  final Map<String, int> framesDoneByStep;
+
   const CheckpointInfo({
     required this.sequenceName,
     required this.timestamp,
@@ -202,6 +207,7 @@ class CheckpointInfo {
     required this.canResume,
     required this.ageSeconds,
     this.ended,
+    this.framesDoneByStep = const {},
   });
 
   /// Whether the app died under the run: the only run that was interrupted.
@@ -219,6 +225,11 @@ class CheckpointInfo {
       canResume: json['canResume'] as bool,
       ageSeconds: json['ageSeconds'] as int,
       ended: json['ended'] as String?,
+      framesDoneByStep: {
+        for (final MapEntry(:key, :value)
+            in ((json['framesDoneByStep'] as Map?) ?? const {}).entries)
+          key as String: (value as num).toInt(),
+      },
     );
   }
 
@@ -230,6 +241,7 @@ class CheckpointInfo {
     'canResume': canResume,
     'ageSeconds': ageSeconds,
     if (ended != null) 'ended': ended,
+    'framesDoneByStep': framesDoneByStep,
   };
 
   String get ageString {

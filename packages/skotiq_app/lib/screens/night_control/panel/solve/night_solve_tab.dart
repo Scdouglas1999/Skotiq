@@ -60,13 +60,24 @@ class _LastSolveSection extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider).valueOrNull;
     final clock = ref.watch(clockProvider);
 
+    // The operator's last solve pairs with the solver's result; a run's
+    // centering solves arrive as records only.
     NightSolveRecord? lastRecord;
+    NightSolveRecord? newestRunSolve;
     for (final record in records) {
-      if (record.kind == NightSolveKind.solve) {
-        lastRecord = record;
-        break;
+      if (record.kind != NightSolveKind.solve) continue;
+      if (record.byRun) {
+        newestRunSolve ??= record;
+      } else {
+        lastRecord ??= record;
       }
     }
+    final runSolve = newestRunSolve != null &&
+            (result == null ||
+                lastRecord == null ||
+                newestRunSolve.at.isAfter(lastRecord.at))
+        ? newestRunSolve
+        : null;
     final solved = result != null && result.success;
 
     // The solver's own timing pairs with the result shown; the controller's
@@ -83,6 +94,12 @@ class _LastSolveSection extends ConsumerWidget {
     if (solveState.isSolving || inFlight(ManualActionId.solve)) {
       status = l10n.text('nightScopeSolveSolving');
       statusColor = colors.warning;
+    } else if (runSolve != null) {
+      status = [
+        l10n.text('nightScopeSolveSolved'),
+        ClockFormat.hm(clock.toNightClock(runSolve.at)),
+      ].join(' · ');
+      statusColor = colors.success;
     } else if (inputs.solverMissing) {
       status = l10n.text('nightScopeSolverMissing');
       statusColor = colors.warning;
@@ -101,21 +118,31 @@ class _LastSolveSection extends ConsumerWidget {
       statusColor = solved ? colors.success : colors.error;
     }
 
-    final ra = solved ? _known(result.ra) : null;
-    final dec = solved ? _known(result.dec) : null;
-    final scale = solved ? _known(result.pixelScale, positive: true) : null;
-    final fieldW = solved ? _known(result.fieldWidth, positive: true) : null;
-    final fieldH = solved ? _known(result.fieldHeight, positive: true) : null;
-    final rotation = solved ? _known(result.rotation) : null;
-    final offTarget = ra == null || dec == null || target == null
-        ? null
-        : AstronomyCalculations.angularSeparation(
-              ra1Deg: ra,
-              dec1Deg: dec,
-              ra2Deg: target.raHours * 15,
-              dec2Deg: target.decDegrees,
-            ) *
-            3600;
+    // A run's solve reports its position and its distance from the run's
+    // target; the solver's other measurements stay with the operator's.
+    final fromResult = solved && runSolve == null;
+    final ra = runSolve != null
+        ? runSolve.raDegrees
+        : (fromResult ? _known(result.ra) : null);
+    final dec = runSolve != null
+        ? runSolve.decDegrees
+        : (fromResult ? _known(result.dec) : null);
+    final scale = fromResult ? _known(result.pixelScale, positive: true) : null;
+    final fieldW =
+        fromResult ? _known(result.fieldWidth, positive: true) : null;
+    final fieldH =
+        fromResult ? _known(result.fieldHeight, positive: true) : null;
+    final rotation = fromResult ? _known(result.rotation) : null;
+    final offTarget = runSolve?.offsetArcsec ??
+        (ra == null || dec == null || target == null
+            ? null
+            : AstronomyCalculations.angularSeparation(
+                  ra1Deg: ra,
+                  dec1Deg: dec,
+                  ra2Deg: target.raHours * 15,
+                  dec2Deg: target.decDegrees,
+                ) *
+                3600);
 
     // The controller's gating, so the action bar and this tab never
     // disagree. A solve started elsewhere (the Imaging screen) holds the solver too.
@@ -170,7 +197,10 @@ class _LastSolveSection extends ConsumerWidget {
             ),
           ],
         ),
-        if (result != null && !result.success && result.error != null)
+        if (runSolve == null &&
+            result != null &&
+            !result.success &&
+            result.error != null)
           NightPanelNote(result.error!, color: colors.error),
         if (inputs.solverMissing)
           NightPanelNote(

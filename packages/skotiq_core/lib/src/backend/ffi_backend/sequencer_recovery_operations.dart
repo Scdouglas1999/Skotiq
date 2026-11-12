@@ -576,6 +576,7 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
       canResume: info.canResume,
       ageSeconds: info.ageSeconds.toInt(),
       ended: info.ended,
+      framesDoneByStep: info.framesDoneByStep,
     );
   }
 

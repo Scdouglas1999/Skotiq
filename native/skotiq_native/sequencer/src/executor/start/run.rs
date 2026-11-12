@@ -380,7 +380,7 @@ impl Run {
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),
             // A burst a resume continues has its frames counted already.
-            node_frame_progress: Arc::new(StdRwLock::new(self.resume.snapshot().frames_taken)),
+            node_frame_progress: Arc::new(StdRwLock::new(self.resume.snapshot().frames.in_pass)),
             node_integration_credited: Arc::default(),
             node_names: Arc::new(StdRwLock::new(self.plan.node_display_names.clone())),
             run_state: self.control.state.clone(),
@@ -451,9 +451,12 @@ impl Run {
             )
             .await;
         let (result, unreachable_reason) = self.verdict(tree_result);
+        // The reason is settled by what happened up to here. The shutdown
+        // steps that put the rig away next are cleanup: a Park that succeeds
+        // there does not mean the run carried on past its fault.
+        let failure = failure_collector.finish(unreachable_reason).await;
         self.put_rig_away(result, &side_context).await;
-        self.finalize(result, unreachable_reason, failure_collector, started)
-            .await;
+        self.finalize(result, failure, started).await;
     }
 
     /// Drive the node tree with the run's other tasks until the tree has
@@ -693,8 +696,7 @@ impl Run {
     async fn finalize(
         &self,
         result: NodeStatus,
-        unreachable_reason: Option<String>,
-        failure_collector: crate::executor::failure_cause::FailureCollector,
+        mut failure: crate::executor::failure_cause::RunFailureReport,
         started: std::time::Instant,
     ) {
         let state = &self.control.state;
@@ -726,23 +728,22 @@ impl Run {
                 // The reason is the structural refusal if there is one, else
                 // the FIRST fault, never a cancelled cleanup step: see
                 // `executor::failure_cause`.
-                let mut report = failure_collector.finish(unreachable_reason).await;
-                if report.cause.is_none() && self.outside_failures.meridian_flip.is_latched() {
-                    report.cause = self.outside_failures.meridian_flip.message();
+                if failure.cause.is_none() && self.outside_failures.meridian_flip.is_latched() {
+                    failure.cause = self.outside_failures.meridian_flip.message();
                 }
-                if report.cascade.len() > 1 {
+                if failure.cascade.len() > 1 {
                     tracing::info!(
                         "Run failure cascade ({} links, cause first): {}",
-                        report.cascade.len(),
-                        report.cascade.join(" | ")
+                        failure.cascade.len(),
+                        failure.cascade.join(" | ")
                     );
                 }
                 // "Failed: <root name>" names a container and gives no
                 // reason; a run that has a reason reports the reason.
-                if let Some(reason) = report.cause.as_deref() {
+                if let Some(reason) = failure.cause.as_deref() {
                     state.set_message(reason);
                 }
-                let error = report
+                let error = failure
                     .cause
                     .unwrap_or_else(|| "Sequence failed".to_string());
                 state.emit(ExecutorEvent::SequenceFailed {

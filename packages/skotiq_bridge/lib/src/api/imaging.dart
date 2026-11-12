@@ -7,10 +7,8 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_auto_white_balance`, `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `display_data_summary`, `display_data_to_rgba`, `frame_metric_median`, `frame_stats_result`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `get_unified_image_storage`, `image_data_to_linear_f64`, `one_shot_focus_context`, `sanitize_camera_id`, `sim_exposure_cancelled`, `store_captured_image_atomically`, `thumbnail_generation_gate`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CapturedImageData`, `RawImageInfo`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_last_raw_image_info`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `image_data_to_linear_f64`, `one_shot_focus_context`, `sanitize_camera_id`, `thumbnail_generation_gate`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
 Future<AutofocusResultApi> apiRunAutofocus({
@@ -125,25 +123,25 @@ Future<void> apiCameraStartExposureConfigured({
   frameType: frameType,
 );
 
-/// Get the last captured image for a specific device (display-ready format)
-/// Reads from per-device atomic storage to ensure consistency with raw data
+/// The device's last captured frame, display-ready.
 Future<CapturedImageResult> apiGetLastImage({required String deviceId}) =>
     RustLib.instance.api.crateApiImagingApiGetLastImage(deviceId: deviceId);
 
-/// Get the last captured raw image data (u16) for a specific device
-/// This is used for saving FITS files with original bit depth
-/// Reads from per-device atomic storage to ensure consistency with display data
+/// The device's last captured frame as the camera delivered it (u16).
 Future<Uint16List> apiGetLastRawImageData({required String deviceId}) => RustLib
     .instance
     .api
     .crateApiImagingApiGetLastRawImageData(deviceId: deviceId);
 
-/// Clear stored image data for a specific device
-/// This is used to free memory when a camera is disconnected or when explicitly requested
+/// Free the device's stored frame (camera disconnected or on request).
 Future<void> apiClearDeviceImage({required String deviceId}) =>
     RustLib.instance.api.crateApiImagingApiClearDeviceImage(deviceId: deviceId);
 
-/// Cancel current exposure
+/// Cancel current exposure.
+///
+/// The abort generation moves first: it is what stops the exposure waiting
+/// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
+/// the stop, which must not be downloaded as a frame.
 Future<void> apiCameraCancelExposure({required String deviceId}) => RustLib
     .instance
     .api

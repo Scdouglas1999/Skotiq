@@ -9,7 +9,7 @@ use crate::instructions::{
     execute_autofocus, notify_autofocus_failed_continuing, AutofocusProgress, Setback,
 };
 use crate::node::context::ExecutionContext;
-use crate::node::instructions::autofocus::refocus_detail;
+use crate::node::instructions::autofocus::autofocus_detail;
 use crate::node::logic::sequential::execute_children_sequential;
 use crate::node::progress::ProgressUpdate;
 use crate::node::runtime::{Node, RuntimeNode};
@@ -204,7 +204,7 @@ pub async fn execute_recovery(
                             progress_node_id.clone(),
                             "Autofocus",
                             percent,
-                            refocus_detail(progress, total_steps),
+                            autofocus_detail(progress, total_steps),
                         ));
                     }
                 };

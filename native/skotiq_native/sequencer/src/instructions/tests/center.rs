@@ -113,8 +113,9 @@ async fn a_center_that_does_not_converge_notifies_and_the_run_goes_on() {
 }
 
 /// What the run's status line and the app read from a Center node: the
-/// attempt whose frame is being taken or corrected, and attempt 0 while the
-/// step starts and once it has centered.
+/// attempt whose frame is being taken or corrected with the distance its solve
+/// measured from the target, attempt 0 while the step starts, and the final
+/// distance once it has centered.
 #[tokio::test(start_paused = true)]
 async fn a_center_node_reports_the_attempt_it_is_on() {
     use crate::node::registry::InstructionNode;
@@ -130,8 +131,19 @@ async fn a_center_node_reports_the_attempt_it_is_on() {
     context.target_ra = Some(0.712);
     context.target_dec = Some(41.27);
     let lines = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let solves = Arc::new(std::sync::Mutex::new(Vec::new()));
     let sink = lines.clone();
+    let solve_sink = solves.clone();
     context.progress_callback = Some(Arc::new(move |update: crate::node::ProgressUpdate| {
+        if let Some(crate::node::ProgressDetail::Center {
+            attempt,
+            solved_ra_hours: Some(ra),
+            solved_dec_degrees: Some(dec),
+            ..
+        }) = update.detail
+        {
+            solve_sink.lock().unwrap().push((attempt, ra, dec));
+        }
         sink.lock()
             .unwrap()
             .push(update.legacy_message().expect("a progress line"));
@@ -156,14 +168,24 @@ async fn a_center_node_reports_the_attempt_it_is_on() {
         vec![
             "Center: attempt 0/2 (0%)",
             "Center: attempt 1/2 (0%)",
-            "Center: attempt 1/2 (25%)",
-            "Center: attempt 1/2 (38%)",
+            "Center: attempt 1/2 sep 36.0\" (25%)",
+            "Center: attempt 1/2 sep 36.0\" (38%)",
             "Center: attempt 2/2 (50%)",
-            "Center: attempt 2/2 (75%)",
-            "Center: attempt 0/2 (95%)",
-            "Center: attempt 0/2 (100%)",
+            "Center: attempt 2/2 sep 0.0\" (75%)",
+            "Center: sep 0.0\" (95%)",
+            "Center: sep 0.0\" (100%)",
         ]
     );
+    let solves = solves.lock().unwrap();
+    assert_eq!(
+        solves
+            .iter()
+            .map(|(attempt, _, _)| *attempt)
+            .collect::<Vec<_>>(),
+        vec![1, 2],
+        "each attempt's solve says where the frame solved, once"
+    );
+    assert!((solves[1].1 - 0.712).abs() < 1e-6 && (solves[1].2 - 41.27).abs() < 1e-6);
 }
 
 /// "Center where the mount points" takes the mount's read-back, which is of

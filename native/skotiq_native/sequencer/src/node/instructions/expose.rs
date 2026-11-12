@@ -11,7 +11,7 @@ use crate::instructions::{
     Setback,
 };
 use crate::node::context::ExecutionContext;
-use crate::node::instructions::autofocus::refocus_detail;
+use crate::node::instructions::autofocus::autofocus_detail;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
 use crate::scheduling::{
@@ -230,7 +230,7 @@ impl InstructionNode for ExposeInstruction {
                 Some(path_renderer),
                 &control,
                 |current, total, recorded_secs| {
-                    resume.set_frames_taken(node_id, current);
+                    resume.frame_taken(node_id, current);
                     if let Some(cb) = progress_cb {
                         let percent = if total > 0 {
                             100.0 * f64::from(current) / f64::from(total)
@@ -1031,7 +1031,7 @@ pub(crate) async fn check_exposure_triggers(
                             progress_node_id.clone(),
                             "Autofocus",
                             percent,
-                            refocus_detail(progress, total_steps),
+                            autofocus_detail(progress, total_steps),
                         ));
                     }
                 };

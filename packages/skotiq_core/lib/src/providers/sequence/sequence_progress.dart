@@ -49,6 +49,15 @@ final restoredCheckpointProvider = StateProvider<CheckpointInfo?>(
   (ref) => null,
 );
 
+/// Frames each exposure step of the loaded plan already had before the run
+/// that is ready or under way, by node id: the checkpoint's count when the run
+/// continues one, empty for a fresh run. Set by `SequenceExecutor` on a
+/// restore and kept through the continued run, so the plan's progress counts
+/// what was taken before it.
+final framesDoneBeforeRunProvider = StateProvider<Map<String, int>>(
+  (ref) => const {},
+);
+
 final sequenceProgressProvider =
     StateNotifierProvider<SequenceProgressNotifier, SequenceProgress>((ref) {
       return SequenceProgressNotifier();

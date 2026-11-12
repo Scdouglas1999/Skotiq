@@ -94,6 +94,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Map<String, int> dco_decode_Map_String_i_32_None(dynamic raw);
 
   @protected
+  Map<String, int> dco_decode_Map_String_u_32_None(dynamic raw);
+
+  @protected
   RustStreamSink<SkotiqEvent> dco_decode_StreamSink_skotiq_event_Dco(
     dynamic raw,
   );
@@ -587,6 +590,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
 
   @protected
+  List<(String, int)> dco_decode_list_record_string_u_32(dynamic raw);
+
+  @protected
   List<SchedulerScoreEntry> dco_decode_list_scheduler_score_entry(dynamic raw);
 
   @protected
@@ -817,6 +823,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (String, String) dco_decode_record_string_string(dynamic raw);
 
   @protected
+  (String, int) dco_decode_record_string_u_32(dynamic raw);
+
+  @protected
   RecoveryConfigUpdate dco_decode_recovery_config_update(dynamic raw);
 
   @protected
@@ -955,6 +964,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Map<String, int> sse_decode_Map_String_i_32_None(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  Map<String, int> sse_decode_Map_String_u_32_None(
     SseDeserializer deserializer,
   );
 
@@ -1590,6 +1604,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<(String, int)> sse_decode_list_record_string_u_32(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SchedulerScoreEntry> sse_decode_list_scheduler_score_entry(
     SseDeserializer deserializer,
   );
@@ -1882,6 +1901,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer);
+
+  @protected
   RecoveryConfigUpdate sse_decode_recovery_config_update(
     SseDeserializer deserializer,
   );
@@ -2071,6 +2093,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_list_record_string_i_32(
+      raw.entries.map((e) => (e.key, e.value)).toList(),
+    );
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_record_string_u_32> cst_encode_Map_String_u_32_None(
+    Map<String, int> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_list_record_string_u_32(
       raw.entries.map((e) => (e.key, e.value)).toList(),
     );
   }
@@ -2883,6 +2915,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_record_string_string(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_record_string_string(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_record_string_u_32>
+  cst_encode_list_record_string_u_32(List<(String, int)> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_record_string_u_32(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_record_string_u_32(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -4053,6 +4096,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.can_resume = cst_encode_bool(apiObj.canResume);
     wireObj.age_seconds = cst_encode_i_64(apiObj.ageSeconds);
     wireObj.ended = cst_encode_opt_String(apiObj.ended);
+    wireObj.frames_done_by_step = cst_encode_Map_String_u_32_None(
+      apiObj.framesDoneByStep,
+    );
   }
 
   @protected
@@ -5701,6 +5747,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_record_string_u_32(
+    (String, int) apiObj,
+    wire_cst_record_string_u_32 wireObj,
+  ) {
+    wireObj.field0 = cst_encode_String(apiObj.$1);
+    wireObj.field1 = cst_encode_u_32(apiObj.$2);
+  }
+
+  @protected
   void cst_api_fill_to_wire_recovery_config_update(
     RecoveryConfigUpdate apiObj,
     wire_cst_recovery_config_update wireObj,
@@ -7161,6 +7216,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_Map_String_u_32_None(
+    Map<String, int> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_StreamSink_skotiq_event_Dco(
     RustStreamSink<SkotiqEvent> self,
     SseSerializer serializer,
@@ -7968,6 +8029,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_record_string_u_32(
+    List<(String, int)> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_scheduler_score_entry(
     List<SchedulerScoreEntry> self,
     SseSerializer serializer,
@@ -8336,6 +8403,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_string_string(
     (String, String) self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_record_string_u_32(
+    (String, int) self,
     SseSerializer serializer,
   );
 
@@ -18921,6 +18994,24 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_record_string_string> Function(int)
           >();
 
+  ffi.Pointer<wire_cst_list_record_string_u_32> cst_new_list_record_string_u_32(
+    int len,
+  ) {
+    return _cst_new_list_record_string_u_32(len);
+  }
+
+  late final _cst_new_list_record_string_u_32Ptr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_record_string_u_32> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_record_string_u_32');
+  late final _cst_new_list_record_string_u_32 =
+      _cst_new_list_record_string_u_32Ptr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_record_string_u_32> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_scheduler_score_entry>
   cst_new_list_scheduler_score_entry(int len) {
     return _cst_new_list_scheduler_score_entry(len);
@@ -19711,6 +19802,20 @@ final class wire_cst_camera_capabilities extends ffi.Struct {
   external ffi.Pointer<ffi.Double> cooler_max_temp_c;
 }
 
+final class wire_cst_record_string_u_32 extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+
+  @ffi.Uint32()
+  external int field1;
+}
+
+final class wire_cst_list_record_string_u_32 extends ffi.Struct {
+  external ffi.Pointer<wire_cst_record_string_u_32> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_checkpoint_info_api extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> sequence_name;
 
@@ -19729,6 +19834,8 @@ final class wire_cst_checkpoint_info_api extends ffi.Struct {
   external int age_seconds;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> ended;
+
+  external ffi.Pointer<wire_cst_list_record_string_u_32> frames_done_by_step;
 }
 
 final class wire_cst_cover_calibrator_capabilities extends ffi.Struct {

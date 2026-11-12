@@ -89,6 +89,25 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
     }
   }
 
+  // A run continued from its checkpoint, ready or under way, already has the
+  // frames its steps took before it.
+  if (phase.isRunLive ||
+      phase == NightRunPhase.finished ||
+      ref.watch(restoredCheckpointProvider) != null) {
+    final before = ref.watch(framesDoneBeforeRunProvider);
+    for (final entry in tree.entries) {
+      final node = entry.node;
+      if (node is! ExposureNode || node.frameType != FrameType.light) continue;
+      final frames = before[node.id];
+      if (frames == null) continue;
+      done.update(
+        _filterKey(node.filter),
+        (count) => count + frames,
+        ifAbsent: () => frames,
+      );
+    }
+  }
+
   Duration secs(double s) => Duration(milliseconds: (s * 1000).round());
 
   final acceptedSecs = <String, double>{};

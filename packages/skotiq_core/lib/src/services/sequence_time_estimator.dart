@@ -54,6 +54,15 @@ class SequenceTimeEstimator {
 
   static const int _defaultScriptTimeoutSecs = 60;
 
+  /// The time [frames] frames of [node] take, each one's download included.
+  Duration exposureFramesDuration(ExposureNode node, int frames) => Duration(
+    milliseconds:
+        (frames *
+                (node.durationSecs + overhead.downloadOverheadPerExposureSecs) *
+                1000)
+            .round(),
+  );
+
   /// Minimum altitude for target visibility calculations (degrees)
   static const double _defaultMinAltitude = 0.0;
 

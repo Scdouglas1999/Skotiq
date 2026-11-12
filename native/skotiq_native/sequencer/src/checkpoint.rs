@@ -158,6 +158,11 @@ pub struct SessionCheckpoint {
     /// through it, keyed by the node's id; a resumed run takes the rest.
     #[serde(default)]
     pub exposure_frames_taken: HashMap<NodeId, u32>,
+    /// Frames each Take Exposures step has taken over the whole plan, every
+    /// loop pass and every run this one continues, keyed by the node's id.
+    /// Empty in checkpoints written before it existed.
+    #[serde(default)]
+    pub exposure_frames_done: HashMap<NodeId, u32>,
     /// How the run ended, when it ended on its own terms: stopped by the
     /// operator, failed, or ended early by a trigger (dawn, weather). `None`
     /// while it runs, so a checkpoint still `None` after the app restarts
@@ -226,6 +231,7 @@ impl SessionCheckpoint {
             // save_checkpoint time (loop nodes with current_iteration > 0).
             loop_iterations: HashMap::new(),
             exposure_frames_taken: HashMap::new(),
+            exposure_frames_done: HashMap::new(),
         }
     }
 
@@ -531,6 +537,7 @@ impl CheckpointManager {
                 can_resume: checkpoint.can_resume(),
                 age_seconds: checkpoint.age_seconds(),
                 ended: checkpoint.ended,
+                frames_done_by_step: checkpoint.exposure_frames_done,
             })),
             None => Ok(None),
         }
@@ -678,6 +685,9 @@ pub struct CheckpointInfo {
     /// How the run ended; `None` when the app died under it (interrupted).
     #[serde(default)]
     pub ended: Option<RunEnd>,
+    /// Frames each Take Exposures step of the plan has taken, by node id.
+    #[serde(default)]
+    pub frames_done_by_step: HashMap<NodeId, u32>,
 }
 
 #[cfg(test)]

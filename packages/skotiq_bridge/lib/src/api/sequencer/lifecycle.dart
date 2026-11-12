@@ -177,6 +177,10 @@ class CheckpointInfoApi {
   /// app died under it, which is the only interrupted run.
   final String? ended;
 
+  /// Frames each Take Exposures step of the plan already has, by node id;
+  /// empty for a checkpoint written before it was recorded.
+  final Map<String, int> framesDoneByStep;
+
   const CheckpointInfoApi({
     required this.sequenceName,
     required this.timestamp,
@@ -185,6 +189,7 @@ class CheckpointInfoApi {
     required this.canResume,
     required this.ageSeconds,
     this.ended,
+    required this.framesDoneByStep,
   });
 
   @override
@@ -195,7 +200,8 @@ class CheckpointInfoApi {
       completedIntegrationSecs.hashCode ^
       canResume.hashCode ^
       ageSeconds.hashCode ^
-      ended.hashCode;
+      ended.hashCode ^
+      framesDoneByStep.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -208,5 +214,6 @@ class CheckpointInfoApi {
           completedIntegrationSecs == other.completedIntegrationSecs &&
           canResume == other.canResume &&
           ageSeconds == other.ageSeconds &&
-          ended == other.ended;
+          ended == other.ended &&
+          framesDoneByStep == other.framesDoneByStep;
 }

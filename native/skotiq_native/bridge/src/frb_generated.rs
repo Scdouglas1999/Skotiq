@@ -8666,6 +8666,14 @@ impl SseDecode for std::collections::HashMap<String, i32> {
     }
 }
 
+impl SseDecode for std::collections::HashMap<String, u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <Vec<(String, u32)>>::sse_decode(deserializer);
+        return inner.into_iter().collect();
+    }
+}
+
 impl SseDecode
     for StreamSink<crate::event::bus::SkotiqEvent, flutter_rust_bridge::for_generated::DcoCodec>
 {
@@ -9432,6 +9440,8 @@ impl SseDecode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
         let mut var_canResume = <bool>::sse_decode(deserializer);
         let mut var_ageSeconds = <i64>::sse_decode(deserializer);
         let mut var_ended = <Option<String>>::sse_decode(deserializer);
+        let mut var_framesDoneByStep =
+            <std::collections::HashMap<String, u32>>::sse_decode(deserializer);
         return crate::api::sequencer::lifecycle::CheckpointInfoApi {
             sequence_name: var_sequenceName,
             timestamp: var_timestamp,
@@ -9440,6 +9450,7 @@ impl SseDecode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
             can_resume: var_canResume,
             age_seconds: var_ageSeconds,
             ended: var_ended,
+            frames_done_by_step: var_framesDoneByStep,
         };
     }
 }
@@ -11132,6 +11143,18 @@ impl SseDecode for Vec<(String, String)> {
     }
 }
 
+impl SseDecode for Vec<(String, u32)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<(String, u32)>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::event::sequencer::SchedulerScoreEntry> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12234,6 +12257,15 @@ impl SseDecode for (String, String) {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_field0 = <String>::sse_decode(deserializer);
         let mut var_field1 = <String>::sse_decode(deserializer);
+        return (var_field0, var_field1);
+    }
+}
+
+impl SseDecode for (String, u32) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_field0 = <String>::sse_decode(deserializer);
+        let mut var_field1 = <u32>::sse_decode(deserializer);
         return (var_field0, var_field1);
     }
 }
@@ -14549,6 +14581,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::sequencer::lifecycle::Checkpo
             self.can_resume.into_into_dart().into_dart(),
             self.age_seconds.into_into_dart().into_dart(),
             self.ended.into_into_dart().into_dart(),
+            self.frames_done_by_step.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -18317,6 +18350,13 @@ impl SseEncode for std::collections::HashMap<String, i32> {
     }
 }
 
+impl SseEncode for std::collections::HashMap<String, u32> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<(String, u32)>>::sse_encode(self.into_iter().collect(), serializer);
+    }
+}
+
 impl SseEncode
     for StreamSink<crate::event::bus::SkotiqEvent, flutter_rust_bridge::for_generated::DcoCodec>
 {
@@ -18793,6 +18833,7 @@ impl SseEncode for crate::api::sequencer::lifecycle::CheckpointInfoApi {
         <bool>::sse_encode(self.can_resume, serializer);
         <i64>::sse_encode(self.age_seconds, serializer);
         <Option<String>>::sse_encode(self.ended, serializer);
+        <std::collections::HashMap<String, u32>>::sse_encode(self.frames_done_by_step, serializer);
     }
 }
 
@@ -20177,6 +20218,16 @@ impl SseEncode for Vec<(String, String)> {
     }
 }
 
+impl SseEncode for Vec<(String, u32)> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <(String, u32)>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::event::sequencer::SchedulerScoreEntry> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20960,6 +21011,14 @@ impl SseEncode for (String, String) {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.0, serializer);
         <String>::sse_encode(self.1, serializer);
+    }
+}
+
+impl SseEncode for (String, u32) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.0, serializer);
+        <u32>::sse_encode(self.1, serializer);
     }
 }
 
@@ -22257,6 +22316,13 @@ mod io {
             vec.into_iter().collect()
         }
     }
+    impl CstDecode<std::collections::HashMap<String, u32>> for *mut wire_cst_list_record_string_u_32 {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> std::collections::HashMap<String, u32> {
+            let vec: Vec<(String, u32)> = self.cst_decode();
+            vec.into_iter().collect()
+        }
+    }
     impl
         CstDecode<
             StreamSink<
@@ -23198,6 +23264,7 @@ mod io {
                 can_resume: self.can_resume.cst_decode(),
                 age_seconds: self.age_seconds.cst_decode(),
                 ended: self.ended.cst_decode(),
+                frames_done_by_step: self.frames_done_by_step.cst_decode(),
             }
         }
     }
@@ -24349,6 +24416,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<(String, u32)>> for *mut wire_cst_list_record_string_u_32 {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<(String, u32)> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::event::sequencer::SchedulerScoreEntry>>
         for *mut wire_cst_list_scheduler_score_entry
     {
@@ -24836,6 +24913,12 @@ mod io {
     impl CstDecode<(String, String)> for wire_cst_record_string_string {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> (String, String) {
+            (self.field0.cst_decode(), self.field1.cst_decode())
+        }
+    }
+    impl CstDecode<(String, u32)> for wire_cst_record_string_u_32 {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> (String, u32) {
             (self.field0.cst_decode(), self.field1.cst_decode())
         }
     }
@@ -26416,6 +26499,7 @@ mod io {
                 can_resume: Default::default(),
                 age_seconds: Default::default(),
                 ended: core::ptr::null_mut(),
+                frames_done_by_step: core::ptr::null_mut(),
             }
         }
     }
@@ -27490,6 +27574,19 @@ mod io {
         }
     }
     impl Default for wire_cst_record_string_string {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_record_string_u_32 {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                field0: core::ptr::null_mut(),
+                field1: Default::default(),
+            }
+        }
+    }
+    impl Default for wire_cst_record_string_u_32 {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -32122,6 +32219,20 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_record_string_u_32(
+        len: i32,
+    ) -> *mut wire_cst_list_record_string_u_32 {
+        let wrap = wire_cst_list_record_string_u_32 {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
+                <wire_cst_record_string_u_32>::new_with_null_ptr(),
+                len,
+            ),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_scheduler_score_entry(
         len: i32,
     ) -> *mut wire_cst_list_scheduler_score_entry {
@@ -32529,6 +32640,7 @@ mod io {
         can_resume: bool,
         age_seconds: i64,
         ended: *mut wire_cst_list_prim_u_8_strict,
+        frames_done_by_step: *mut wire_cst_list_record_string_u_32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -33539,6 +33651,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_record_string_u_32 {
+        ptr: *mut wire_cst_record_string_u_32,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_scheduler_score_entry {
         ptr: *mut wire_cst_scheduler_score_entry,
         len: i32,
@@ -33911,6 +34029,12 @@ mod io {
     pub struct wire_cst_record_string_string {
         field0: *mut wire_cst_list_prim_u_8_strict,
         field1: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_record_string_u_32 {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+        field1: u32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

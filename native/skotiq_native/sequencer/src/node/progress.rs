@@ -47,6 +47,12 @@ pub enum ProgressDetail {
         attempt: u32,
         max_attempts: u32,
         last_separation_arcsec: Option<f64>,
+        /// Where the attempt's frame solved, on the step that reports the
+        /// solve; `None` on every other step.
+        #[serde(default)]
+        solved_ra_hours: Option<f64>,
+        #[serde(default)]
+        solved_dec_degrees: Option<f64>,
     },
     /// Autofocus run. `step` is 1-based and `total_steps` is the full sweep.
     Autofocus {
@@ -352,9 +358,11 @@ impl ProgressDetail {
                 attempt,
                 max_attempts,
                 last_separation_arcsec,
-            } => match last_separation_arcsec {
-                Some(sep) => format!("attempt {}/{} sep {:.1}\"", attempt, max_attempts, sep),
-                None => format!("attempt {}/{}", attempt, max_attempts),
+                ..
+            } => match (attempt, last_separation_arcsec) {
+                (0, Some(sep)) => format!("sep {:.1}\"", sep),
+                (_, Some(sep)) => format!("attempt {}/{} sep {:.1}\"", attempt, max_attempts, sep),
+                (_, None) => format!("attempt {}/{}", attempt, max_attempts),
             },
             ProgressDetail::Autofocus {
                 step,

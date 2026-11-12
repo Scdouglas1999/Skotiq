@@ -185,3 +185,65 @@ async fn a_status_from_an_earlier_pass_does_not_count_on_resume() {
     assert_eq!(frames_after, FRAMES);
     assert_eq!(waits_after, 1);
 }
+
+/// What the app reads to show a restored run's progress before and while it
+/// continues: the frames each step already has over the whole plan, every
+/// pass included. Restored from a two-pass plan stopped two frames into its
+/// second pass, the app showed 0 of 16 and pre-flight estimated all 16.
+#[tokio::test]
+async fn a_checkpoint_tells_the_app_the_frames_each_step_has() {
+    let dir = std::env::temp_dir().join(format!("sk-resume-frames-done-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let mut first = executor_for(&dir);
+    first
+        .load_sequence(app_built_plan(2))
+        .expect("sequence loads");
+    let mut first = start(first).await;
+    drain(&mut first, Some(StopAt::Frame(FRAMES + 2))).await;
+    drop(first);
+
+    let mut second = executor_for(&dir);
+    let restored = second
+        .get_checkpoint_info()
+        .expect("the stopped run kept its checkpoint");
+    assert_eq!(
+        restored.frames_done_by_step.get("frames").copied(),
+        Some(FRAMES + 2),
+        "both passes' frames count for the step"
+    );
+
+    second
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+    let mut second = start(second).await;
+    drain(&mut second, Some(StopAt::Frame(3))).await;
+    let stopped_again = second
+        .executor
+        .get_checkpoint_info()
+        .expect("the run stopped again keeps its checkpoint");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert_eq!(
+        stopped_again.frames_done_by_step.get("frames").copied(),
+        Some(FRAMES + 2 + 3),
+        "the continued run adds its frames to those it continued from"
+    );
+}
+
+/// A checkpoint written before the per-step frames were recorded still loads,
+/// with no per-step frames.
+#[test]
+fn a_checkpoint_without_per_step_frames_still_loads() {
+    let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(app_built_plan(1));
+    checkpoint
+        .exposure_frames_done
+        .insert("frames".to_string(), 3);
+    let mut json = serde_json::to_value(&checkpoint).expect("serializes");
+    json.as_object_mut()
+        .expect("an object")
+        .remove("exposure_frames_done");
+    let loaded: crate::checkpoint::SessionCheckpoint =
+        serde_json::from_value(json).expect("an older checkpoint loads");
+    assert!(loaded.exposure_frames_done.is_empty());
+}
