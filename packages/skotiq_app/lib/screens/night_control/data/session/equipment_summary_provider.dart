@@ -170,7 +170,10 @@ class _SlotFacts {
       );
 }
 
-_SlotFacts _cameraFacts(CameraStateSnapshot camera) {
+_SlotFacts _cameraFacts(
+  CameraStateSnapshot camera,
+  ExposureSensitivity sensitivity,
+) {
   final temp = camera.temperature;
   final cooling =
       camera.isCooling && temp != null && (temp - camera.targetTemp).abs() >= 0.5;
@@ -192,11 +195,11 @@ _SlotFacts _cameraFacts(CameraStateSnapshot camera) {
           : NightText.literal(nightCelsius(temp)),
     if (camera.coolerPower != null)
       NightText.literal('${camera.coolerPower!.round()}%'),
-    if (gain != null || offset != null)
+    if (gain != null || (offset != null && sensitivity.hasOffset))
       NightText.literal(
         [
-          if (gain != null) 'g$gain',
-          if (offset != null) 'o$offset',
+          if (gain != null) sensitivity.abbreviate(gain),
+          if (offset != null && sensitivity.hasOffset) 'o$offset',
         ].join(' '),
       ),
     if (binning != null && binning.isNotEmpty)
@@ -261,7 +264,10 @@ _SlotFacts _rotatorFacts(RotatorState rotator) =>
     ]);
 
 final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
-  final camera = ref.watch(cameraStateProvider.select(_cameraFacts));
+  final sensitivity = ref.watch(cameraSensitivityProvider);
+  final camera = ref.watch(
+    cameraStateProvider.select((c) => _cameraFacts(c, sensitivity)),
+  );
   final wheel = ref.watch(filterWheelStateProvider.select(_wheelFacts));
   final focuser = ref.watch(focuserStateProvider.select(_focuserFacts));
   final mount = ref.watch(mountStateProvider.select(_mountFacts));

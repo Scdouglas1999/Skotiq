@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 
 import '../../../database/database.dart' show DarkLibraryEntry, Target;
+import '../../../models/backend/device_capabilities.dart';
 import '../../../models/backend/device_types.dart';
 import 'package:skotiq_remote_protocol/wire_models.dart';
 import '../../../models/equipment/equipment_models.dart';
@@ -548,6 +549,66 @@ class UsbStabilityRule implements RefAwareSequenceValidator {
 /// Warns if the focuser is within 100 steps of either travel limit. The
 /// rule is a no-op if the focuser doesn't report position or max
 /// position (relative focusers report neither).
+/// Pre-flight rule: with a DSLR or mirrorless camera connected, every
+/// exposure's gain is one of the body's ISO speeds.
+///
+/// A gain far below the lowest speed is a position in the camera's ISO list,
+/// which is what sequences recorded before Skotiq used ISO numbers for these
+/// cameras; the camera would shoot at its lowest ISO. A gain between two
+/// speeds is taken at the nearest one, which is only worth a note.
+class IsoSpeedRule implements RefAwareSequenceValidator {
+  @override
+  String get name => 'IsoSpeed';
+
+  @override
+  List<ValidationIssue> validate(Sequence sequence, ValidationContext ctx) {
+    final sensitivity = ctx.ref.read(cameraSensitivityProvider);
+    if (sensitivity is! IsoSensitivity) return const [];
+    final strictness =
+        ctx.ref.read(appSettingsProvider).valueOrNull?.preflightStrictness;
+    final lowest = sensitivity.speeds.first;
+    final issues = <ValidationIssue>[];
+    for (final node in sequence.nodes.values) {
+      if (node is! ExposureNode || !node.isEnabled) continue;
+      final gain = node.gain;
+      if (gain == null) continue;
+      final taken = sensitivity.accept(gain);
+      if (gain * 2 < lowest) {
+        issues.add(
+          ValidationIssue(
+            severity: strictness == null
+                ? ValidationSeverity.warning
+                : _severityFor(ValidationSeverity.warning, strictness),
+            category: ValidationCategory.exposures,
+            title: 'ISO Not Set',
+            description:
+                'Exposure "${node.name}" asks for ISO $gain, below this '
+                'camera\'s lowest ISO $lowest. Sequences saved before Skotiq '
+                'used ISO numbers for DSLR and mirrorless cameras stored the '
+                'position in the camera\'s ISO list instead. The camera would '
+                'shoot at ISO $taken.',
+            affectedNodeId: node.id,
+            resolutionHint: 'Choose the ISO in the exposure step.',
+          ),
+        );
+      } else if (taken != gain) {
+        issues.add(
+          ValidationIssue(
+            severity: ValidationSeverity.info,
+            category: ValidationCategory.exposures,
+            title: 'ISO Rounded',
+            description:
+                'Exposure "${node.name}" asks for ISO $gain, which this camera '
+                'does not offer. It will shoot at ISO $taken.',
+            affectedNodeId: node.id,
+          ),
+        );
+      }
+    }
+    return issues;
+  }
+}
+
 class FocuserRangeRule implements RefAwareSequenceValidator {
   @override
   String get name => 'FocuserRange';

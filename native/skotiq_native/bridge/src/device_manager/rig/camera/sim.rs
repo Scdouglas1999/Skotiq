@@ -167,7 +167,7 @@ impl Camera for SimCamera {
             sensor_width: sim.sensor_width.max(1),
             sensor_height: sim.sensor_height.max(1),
             pixel_size_um: sim.pixel_size_x,
-            gain: sim.gain,
+            gain: crate::api::devices::simulation::sim_render_gain(device_id, sim.gain),
             offset: sim.offset,
             bin_x: sim.bin_x.max(1) as u32,
             bin_y: sim.bin_y.max(1) as u32,
@@ -243,7 +243,7 @@ impl Camera for SimCamera {
                 "This simulated camera has no gain control",
             ));
         }
-        cam.status.gain = gain;
+        cam.status.gain = crate::api::devices::simulation::sim_camera_accepted_gain(device_id, gain);
         Ok(())
     }
 

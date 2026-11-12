@@ -92,6 +92,10 @@ pub struct FrameContext {
     pub binning_x: u32,
     pub binning_y: u32,
     pub gain: Option<i32>,
+    /// `gain` is an ISO speed: the frame came from a DSLR or mirrorless body,
+    /// and the header adds `ISOSPEED`.
+    #[serde(default)]
+    pub gain_is_iso: bool,
     pub offset: Option<i32>,
     /// Exposure duration in seconds. Mirrors `EXPTIME` in the FITS header.
     pub duration_secs: f64,
@@ -290,6 +294,9 @@ pub struct FrameContext {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct FrameCaptureMetadata {
     pub gain: Option<i32>,
+    /// `gain` is an ISO speed (see [`FrameContext::gain_is_iso`]).
+    #[serde(default)]
+    pub gain_is_iso: bool,
     pub offset: Option<i32>,
     pub sensor_temp_c: Option<f64>,
     pub cooler_power_percent: Option<f64>,
@@ -320,6 +327,7 @@ impl From<&FrameContext> for FrameCaptureMetadata {
     fn from(ctx: &FrameContext) -> Self {
         Self {
             gain: ctx.gain,
+            gain_is_iso: ctx.gain_is_iso,
             offset: ctx.offset,
             sensor_temp_c: ctx.sensor_temp_c,
             cooler_power_percent: ctx.cooler_power_percent,

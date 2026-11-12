@@ -66,6 +66,7 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
       canSetGain: c.canSetGain,
       gainMin: c.gainMin,
       gainMax: c.gainMax,
+      isoSpeeds: c.isoSpeeds.toList(),
       canSetOffset: c.canSetOffset,
       offsetMin: c.offsetMin,
       offsetMax: c.offsetMax,

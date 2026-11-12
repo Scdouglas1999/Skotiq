@@ -178,6 +178,17 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
     final colors = widget.colors;
     final node = widget.node;
     final profile = ref.watch(activeEquipmentProfileProvider);
+    final sensitivity = ref.watch(cameraSensitivityProvider);
+    void setGain(int gain) {
+      setState(() => _userOverrides.add('gain'));
+      ref.read(currentSequenceProvider.notifier).updateNode(
+            node.copyWith(gain: gain),
+          );
+      ref
+          .read(sequencerDefaultsProvider.notifier)
+          .updateExposureDefaults(gain: gain);
+    }
+
     final exposureContext =
         ref.watch(smartNightExposureContextProvider).valueOrNull;
     final exposureRecommendation =
@@ -321,32 +332,29 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               Expanded(
                 child: NodePropertyField(
                   colors: colors,
-                  label: _isGainProfileDefault() ? 'Gain (profile)' : 'Gain',
-                  child: NodeNumberInputWithHint(
-                    colors: colors,
-                    value: _effectiveGain(profile).toDouble(),
-                    min: 0,
-                    max: 1000,
-                    isProfileDefault: _isGainProfileDefault(),
-                    hintText:
-                        _isGainProfileDefault() && profile?.defaultGain != null
-                            ? 'Profile: ${profile!.defaultGain}'
-                            : null,
-                    onChanged: (value) {
-                      final gain = value.toInt();
-                      setState(() => _userOverrides.add('gain'));
-                      ref.read(currentSequenceProvider.notifier).updateNode(
-                            node.copyWith(gain: gain),
-                          );
-                      ref
-                          .read(sequencerDefaultsProvider.notifier)
-                          .updateExposureDefaults(
-                            gain: gain,
-                          );
-                    },
+                  label: _isGainProfileDefault()
+                      ? '${sensitivity.label} (profile)'
+                      : sensitivity.label,
+                  child: SensitivityField(
+                    value: _effectiveGain(profile),
+                    sensitivity: sensitivity,
+                    onChanged: setGain,
+                    gainField: (_) => NodeNumberInputWithHint(
+                      colors: colors,
+                      value: _effectiveGain(profile).toDouble(),
+                      min: 0,
+                      max: 1000,
+                      isProfileDefault: _isGainProfileDefault(),
+                      hintText: _isGainProfileDefault() &&
+                              profile?.defaultGain != null
+                          ? 'Profile: ${profile!.defaultGain}'
+                          : null,
+                      onChanged: (value) => setGain(value.toInt()),
+                    ),
                   ),
                 ),
               ),
+              if (sensitivity.hasOffset) ...[
               const SizedBox(width: 12),
               Expanded(
                 child: NodePropertyField(
@@ -378,6 +386,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                   ),
                 ),
               ),
+              ],
             ],
           ),
 

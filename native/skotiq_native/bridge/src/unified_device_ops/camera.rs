@@ -388,6 +388,14 @@ impl CameraOps for UnifiedDeviceOps {
     async fn camera_get_model(&self, camera_id: &str) -> DeviceResult<Option<String>> {
         Ok(connected_camera_label(camera_id).await)
     }
+
+    async fn camera_get_iso_speeds(&self, camera_id: &str) -> DeviceResult<Vec<i32>> {
+        match crate::device_capabilities::get_device_capabilities(camera_id).await {
+            Ok(crate::device_capabilities::DeviceCapabilities::Camera(caps)) => Ok(caps.iso_speeds),
+            Ok(_) => Ok(Vec::new()),
+            Err(e) => Err(format!("Failed to read camera capabilities: {}", e).into()),
+        }
+    }
 }
 
 /// An exposure whose start was announced on the event stream. It announces

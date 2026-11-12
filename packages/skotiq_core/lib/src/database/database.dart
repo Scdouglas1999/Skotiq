@@ -18,6 +18,7 @@ import 'quality_stop_migration.dart';
 import 'solved_rotation_repair.dart';
 import 'single_instance_lock.dart';
 import 'sqlite_busy.dart';
+import '../models/imaging/gain_kind.dart';
 import 'tables/equipment_profiles.dart';
 import 'tables/imaging_sessions.dart';
 import 'tables/targets.dart';
@@ -108,6 +109,7 @@ part 'database/migration_v63.dart';
 part 'database/migration_v64.dart';
 part 'database/migration_v65.dart';
 part 'database/migration_v67.dart';
+part 'database/migration_v68.dart';
 part 'database/schema_helpers.dart';
 part 'database/default_settings.dart';
 part 'database/connection.dart';
@@ -205,7 +207,7 @@ class SkotiqDatabase extends _$SkotiqDatabase {
   SkotiqDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 67;
+  int get schemaVersion => 68;
 
   @override
   MigrationStrategy get migration => _buildMigrationStrategy();

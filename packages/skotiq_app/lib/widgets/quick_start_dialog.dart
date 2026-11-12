@@ -16,12 +16,16 @@ class QuickStartDialog extends ConsumerWidget {
   final VoidCallback onResumeProgress;
   final VoidCallback onSkip;
 
+  /// How the connected camera's gain reads ("Gain" or "ISO").
+  final ExposureSensitivity sensitivity;
+
   const QuickStartDialog({
     super.key,
     required this.quickStartContext,
     required this.onStartFresh,
     required this.onResumeProgress,
     required this.onSkip,
+    this.sensitivity = const GainSensitivity(),
   });
 
   static Future<void> show(
@@ -270,10 +274,10 @@ class QuickStartDialog extends ConsumerWidget {
               if (snapshot.cameraGain != null)
                 _EquipmentChip(
                   icon: LucideIcons.sliders,
-                  label: 'Gain: ${snapshot.cameraGain}',
+                  label: '${sensitivity.label}: ${snapshot.cameraGain}',
                   colors: colors,
                 ),
-              if (snapshot.cameraOffset != null)
+              if (snapshot.cameraOffset != null && sensitivity.hasOffset)
                 _EquipmentChip(
                   icon: LucideIcons.sliders,
                   label: 'Offset: ${snapshot.cameraOffset}',

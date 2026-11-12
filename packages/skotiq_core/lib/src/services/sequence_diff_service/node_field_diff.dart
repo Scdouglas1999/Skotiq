@@ -3,7 +3,11 @@ part of '../sequence_diff_service.dart';
 extension _SequenceDiffNodeFields on SequenceDiffService {
   /// Diff two nodes that share an id: the fields every node has, then the
   /// lines its [NodeKind.diff] lists.
-  List<FieldChange> _diffNodes(SequenceNode a, SequenceNode b) {
+  List<FieldChange> _diffNodes(
+    SequenceNode a,
+    SequenceNode b,
+    ExposureSensitivity sensitivity,
+  ) {
     final out = <FieldChange>[];
 
     // Common base-class fields first
@@ -41,7 +45,11 @@ extension _SequenceDiffNodeFields on SequenceDiffService {
     return [
       ...out,
       for (final (label, before, after) in a.kind.changes(a, b))
-        FieldChange(label, before, after),
+        FieldChange(
+          label == exposureGainDiffLabel ? sensitivity.label : label,
+          before,
+          after,
+        ),
     ];
   }
 

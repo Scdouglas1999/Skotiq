@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../models/backend/device_capabilities.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';

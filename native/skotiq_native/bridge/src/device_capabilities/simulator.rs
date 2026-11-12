@@ -86,6 +86,30 @@ pub(crate) async fn get_simulator_capabilities(
                 ..Default::default()
             })
         }
+        DeviceType::Camera
+            if !crate::api::devices::simulation::sim_camera_iso_speeds(&parsed.raw_id)
+                .is_empty() =>
+        {
+            let iso_speeds =
+                crate::api::devices::simulation::sim_camera_iso_speeds(&parsed.raw_id).to_vec();
+            DeviceCapabilities::Camera(CameraCapabilities {
+                max_width: crate::sim_frame::SIM_W as u32,
+                max_height: crate::sim_frame::SIM_H as u32,
+                bit_depth: 14,
+                has_shutter: true,
+                can_set_gain: true,
+                gain_min: iso_speeds.first().copied(),
+                gain_max: iso_speeds.last().copied(),
+                iso_speeds,
+                can_abort_exposure: true,
+                pixel_size_x: Some(3.76),
+                pixel_size_y: Some(3.76),
+                is_color: false,
+                exposure_min: Some(0.001),
+                exposure_max: Some(3600.0),
+                ..Default::default()
+            })
+        }
         DeviceType::Camera => {
             let traits = crate::api::devices::simulation::sim_imaging_camera_traits();
             let cooled = !traits.no_cooler;

@@ -703,6 +703,9 @@ async fn scan_indi_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, 
 /// screen shows for it.
 fn simulator_for_type(device_type: DeviceType) -> Option<(&'static str, &'static str)> {
     Some(match device_type {
+        DeviceType::Camera if crate::api::devices::simulation::sim_imaging_camera_is_dslr() => {
+            ("sim_camera_1", crate::api::devices::simulation::SIM_DSLR_NAME)
+        }
         DeviceType::Camera => ("sim_camera_1", "Simulated Camera"),
         DeviceType::Mount => ("sim_mount_1", "Simulated Mount"),
         DeviceType::Focuser => ("sim_focuser_1", "Simulated Focuser"),

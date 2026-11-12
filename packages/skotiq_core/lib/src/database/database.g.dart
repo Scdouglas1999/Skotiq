@@ -7672,6 +7672,17 @@ class $CapturedImagesTable extends CapturedImages
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _gainKindMeta = const VerificationMeta(
+    'gainKind',
+  );
+  @override
+  late final GeneratedColumn<String> gainKind = GeneratedColumn<String>(
+    'gain_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _offsetMeta = const VerificationMeta('offset');
   @override
   late final GeneratedColumn<int> offset = GeneratedColumn<int>(
@@ -8165,6 +8176,7 @@ class $CapturedImagesTable extends CapturedImages
     frameType,
     exposureDuration,
     gain,
+    gainKind,
     offset,
     binX,
     binY,
@@ -8286,6 +8298,12 @@ class $CapturedImagesTable extends CapturedImages
       context.handle(
         _gainMeta,
         gain.isAcceptableOrUnknown(data['gain']!, _gainMeta),
+      );
+    }
+    if (data.containsKey('gain_kind')) {
+      context.handle(
+        _gainKindMeta,
+        gainKind.isAcceptableOrUnknown(data['gain_kind']!, _gainKindMeta),
       );
     }
     if (data.containsKey('offset')) {
@@ -8678,6 +8696,10 @@ class $CapturedImagesTable extends CapturedImages
         DriftSqlType.int,
         data['${effectivePrefix}gain'],
       ),
+      gainKind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gain_kind'],
+      ),
       offset: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}offset'],
@@ -8874,6 +8896,13 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
   final String frameType;
   final double exposureDuration;
   final int? gain;
+
+  /// What [gain] is: `gain` (a camera's gain number), `iso` (the ISO speed
+  /// of a DSLR or mirrorless frame) or `isoListPosition` (a DSLR frame from
+  /// before Skotiq recorded ISO speeds, which stored the position in the
+  /// camera's ISO list; its ISO is unknown). Null reads as `gain`. See
+  /// `GainKind`.
+  final String? gainKind;
   final int? offset;
   final int binX;
   final int binY;
@@ -8939,6 +8968,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
     required this.frameType,
     required this.exposureDuration,
     this.gain,
+    this.gainKind,
     this.offset,
     required this.binX,
     required this.binY,
@@ -9004,6 +9034,9 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
     map['exposure_duration'] = Variable<double>(exposureDuration);
     if (!nullToAbsent || gain != null) {
       map['gain'] = Variable<int>(gain);
+    }
+    if (!nullToAbsent || gainKind != null) {
+      map['gain_kind'] = Variable<String>(gainKind);
     }
     if (!nullToAbsent || offset != null) {
       map['offset'] = Variable<int>(offset);
@@ -9146,6 +9179,9 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
       frameType: Value(frameType),
       exposureDuration: Value(exposureDuration),
       gain: gain == null && nullToAbsent ? const Value.absent() : Value(gain),
+      gainKind: gainKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gainKind),
       offset: offset == null && nullToAbsent
           ? const Value.absent()
           : Value(offset),
@@ -9281,6 +9317,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
       frameType: serializer.fromJson<String>(json['frameType']),
       exposureDuration: serializer.fromJson<double>(json['exposureDuration']),
       gain: serializer.fromJson<int?>(json['gain']),
+      gainKind: serializer.fromJson<String?>(json['gainKind']),
       offset: serializer.fromJson<int?>(json['offset']),
       binX: serializer.fromJson<int>(json['binX']),
       binY: serializer.fromJson<int>(json['binY']),
@@ -9341,6 +9378,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
       'frameType': serializer.toJson<String>(frameType),
       'exposureDuration': serializer.toJson<double>(exposureDuration),
       'gain': serializer.toJson<int?>(gain),
+      'gainKind': serializer.toJson<String?>(gainKind),
       'offset': serializer.toJson<int?>(offset),
       'binX': serializer.toJson<int>(binX),
       'binY': serializer.toJson<int>(binY),
@@ -9399,6 +9437,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
     String? frameType,
     double? exposureDuration,
     Value<int?> gain = const Value.absent(),
+    Value<String?> gainKind = const Value.absent(),
     Value<int?> offset = const Value.absent(),
     int? binX,
     int? binY,
@@ -9454,6 +9493,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
     frameType: frameType ?? this.frameType,
     exposureDuration: exposureDuration ?? this.exposureDuration,
     gain: gain.present ? gain.value : this.gain,
+    gainKind: gainKind.present ? gainKind.value : this.gainKind,
     offset: offset.present ? offset.value : this.offset,
     binX: binX ?? this.binX,
     binY: binY ?? this.binY,
@@ -9539,6 +9579,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
           ? data.exposureDuration.value
           : this.exposureDuration,
       gain: data.gain.present ? data.gain.value : this.gain,
+      gainKind: data.gainKind.present ? data.gainKind.value : this.gainKind,
       offset: data.offset.present ? data.offset.value : this.offset,
       binX: data.binX.present ? data.binX.value : this.binX,
       binY: data.binY.present ? data.binY.value : this.binY,
@@ -9657,6 +9698,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
           ..write('frameType: $frameType, ')
           ..write('exposureDuration: $exposureDuration, ')
           ..write('gain: $gain, ')
+          ..write('gainKind: $gainKind, ')
           ..write('offset: $offset, ')
           ..write('binX: $binX, ')
           ..write('binY: $binY, ')
@@ -9717,6 +9759,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
     frameType,
     exposureDuration,
     gain,
+    gainKind,
     offset,
     binX,
     binY,
@@ -9776,6 +9819,7 @@ class CapturedImage extends DataClass implements Insertable<CapturedImage> {
           other.frameType == this.frameType &&
           other.exposureDuration == this.exposureDuration &&
           other.gain == this.gain &&
+          other.gainKind == this.gainKind &&
           other.offset == this.offset &&
           other.binX == this.binX &&
           other.binY == this.binY &&
@@ -9833,6 +9877,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
   final Value<String> frameType;
   final Value<double> exposureDuration;
   final Value<int?> gain;
+  final Value<String?> gainKind;
   final Value<int?> offset;
   final Value<int> binX;
   final Value<int> binY;
@@ -9888,6 +9933,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
     this.frameType = const Value.absent(),
     this.exposureDuration = const Value.absent(),
     this.gain = const Value.absent(),
+    this.gainKind = const Value.absent(),
     this.offset = const Value.absent(),
     this.binX = const Value.absent(),
     this.binY = const Value.absent(),
@@ -9944,6 +9990,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
     this.frameType = const Value.absent(),
     required double exposureDuration,
     this.gain = const Value.absent(),
+    this.gainKind = const Value.absent(),
     this.offset = const Value.absent(),
     this.binX = const Value.absent(),
     this.binY = const Value.absent(),
@@ -10003,6 +10050,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
     Expression<String>? frameType,
     Expression<double>? exposureDuration,
     Expression<int>? gain,
+    Expression<String>? gainKind,
     Expression<int>? offset,
     Expression<int>? binX,
     Expression<int>? binY,
@@ -10059,6 +10107,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
       if (frameType != null) 'frame_type': frameType,
       if (exposureDuration != null) 'exposure_duration': exposureDuration,
       if (gain != null) 'gain': gain,
+      if (gainKind != null) 'gain_kind': gainKind,
       if (offset != null) 'offset': offset,
       if (binX != null) 'bin_x': binX,
       if (binY != null) 'bin_y': binY,
@@ -10118,6 +10167,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
     Value<String>? frameType,
     Value<double>? exposureDuration,
     Value<int?>? gain,
+    Value<String?>? gainKind,
     Value<int?>? offset,
     Value<int>? binX,
     Value<int>? binY,
@@ -10174,6 +10224,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
       frameType: frameType ?? this.frameType,
       exposureDuration: exposureDuration ?? this.exposureDuration,
       gain: gain ?? this.gain,
+      gainKind: gainKind ?? this.gainKind,
       offset: offset ?? this.offset,
       binX: binX ?? this.binX,
       binY: binY ?? this.binY,
@@ -10253,6 +10304,9 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
     }
     if (gain.present) {
       map['gain'] = Variable<int>(gain.value);
+    }
+    if (gainKind.present) {
+      map['gain_kind'] = Variable<String>(gainKind.value);
     }
     if (offset.present) {
       map['offset'] = Variable<int>(offset.value);
@@ -10402,6 +10456,7 @@ class CapturedImagesCompanion extends UpdateCompanion<CapturedImage> {
           ..write('frameType: $frameType, ')
           ..write('exposureDuration: $exposureDuration, ')
           ..write('gain: $gain, ')
+          ..write('gainKind: $gainKind, ')
           ..write('offset: $offset, ')
           ..write('binX: $binX, ')
           ..write('binY: $binY, ')
@@ -61560,6 +61615,7 @@ typedef $$CapturedImagesTableCreateCompanionBuilder =
       Value<String> frameType,
       required double exposureDuration,
       Value<int?> gain,
+      Value<String?> gainKind,
       Value<int?> offset,
       Value<int> binX,
       Value<int> binY,
@@ -61617,6 +61673,7 @@ typedef $$CapturedImagesTableUpdateCompanionBuilder =
       Value<String> frameType,
       Value<double> exposureDuration,
       Value<int?> gain,
+      Value<String?> gainKind,
       Value<int?> offset,
       Value<int> binX,
       Value<int> binY,
@@ -62094,6 +62151,11 @@ class $$CapturedImagesTableFilterComposer
 
   ColumnFilters<int> get gain => $composableBuilder(
     column: $table.gain,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gainKind => $composableBuilder(
+    column: $table.gainKind,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -62748,6 +62810,11 @@ class $$CapturedImagesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get gainKind => $composableBuilder(
+    column: $table.gainKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get offset => $composableBuilder(
     column: $table.offset,
     builder: (column) => ColumnOrderings(column),
@@ -63051,6 +63118,9 @@ class $$CapturedImagesTableAnnotationComposer
 
   GeneratedColumn<int> get gain =>
       $composableBuilder(column: $table.gain, builder: (column) => column);
+
+  GeneratedColumn<String> get gainKind =>
+      $composableBuilder(column: $table.gainKind, builder: (column) => column);
 
   GeneratedColumn<int> get offset =>
       $composableBuilder(column: $table.offset, builder: (column) => column);
@@ -63685,6 +63755,7 @@ class $$CapturedImagesTableTableManager
                 Value<String> frameType = const Value.absent(),
                 Value<double> exposureDuration = const Value.absent(),
                 Value<int?> gain = const Value.absent(),
+                Value<String?> gainKind = const Value.absent(),
                 Value<int?> offset = const Value.absent(),
                 Value<int> binX = const Value.absent(),
                 Value<int> binY = const Value.absent(),
@@ -63740,6 +63811,7 @@ class $$CapturedImagesTableTableManager
                 frameType: frameType,
                 exposureDuration: exposureDuration,
                 gain: gain,
+                gainKind: gainKind,
                 offset: offset,
                 binX: binX,
                 binY: binY,
@@ -63797,6 +63869,7 @@ class $$CapturedImagesTableTableManager
                 Value<String> frameType = const Value.absent(),
                 required double exposureDuration,
                 Value<int?> gain = const Value.absent(),
+                Value<String?> gainKind = const Value.absent(),
                 Value<int?> offset = const Value.absent(),
                 Value<int> binX = const Value.absent(),
                 Value<int> binY = const Value.absent(),
@@ -63852,6 +63925,7 @@ class $$CapturedImagesTableTableManager
                 frameType: frameType,
                 exposureDuration: exposureDuration,
                 gain: gain,
+                gainKind: gainKind,
                 offset: offset,
                 binX: binX,
                 binY: binY,
