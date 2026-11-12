@@ -776,17 +776,15 @@ pub static FAMILIES: &[Family] = &[
                             d.serial_number.as_deref(),
                             Some(d.discovery_index),
                         );
-                        found(d.camera_id, d.name, display, d.serial_number, None)
+                        found(d.address(), d.name, display, d.serial_number, None)
                     })
                     .collect())
             })
         }),
         open: Open::Now(|r| {
             Ok(NativeHandle::Camera(Box::new(
-                crate::vendor::moravian::MoravianCamera::new(number(
-                    r.address,
-                    "Invalid Moravian camera ID",
-                )?),
+                crate::vendor::moravian::MoravianCamera::from_address(r.address)
+                    .map_err(BadAddress)?,
             )))
         }),
     },
