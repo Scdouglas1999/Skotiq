@@ -1,202 +1,98 @@
-//! RAW image file support via LibRaw FFI
+//! Camera raw files (CR2, CR3, NEF, ARW, RAF, PEF, DNG, ORF, RW2 and every
+//! other format LibRaw reads) as linear sensor data.
 //!
-//! Direct FFI bindings to libraw.dll for native X-Trans RGB support.
-//! No synthetic Bayer conversion - preserves full X-Trans sharpness!
+//! A raw frame is the visible part of the sensor's color-filter mosaic, one
+//! sample per pixel at the sensor's own bit depth, exactly as the camera
+//! recorded it: not demosaiced, not white balanced, no tone curve, black level
+//! not subtracted. That is the data calibration and stacking need, the same
+//! shape a one-shot-color astronomy camera delivers.
 //!
-//! Supports 600+ camera models including Fujifilm X-Trans sensors.
-//!
-//! # `unwrap_or` policy
-//!
-//! * `params.unwrap_or(&default_params)` — caller passing `None` selects
-//!   the LibRaw out-of-the-box config (auto white-balance, no demosaic
-//!   overrides). The default-params binding lives on this stack frame.
-//! * The remaining sites (`user_sat.unwrap_or_default()`,
-//!   `gamma.unwrap_or([0.0, 0.0])`, `chromatic_aberration.unwrap_or([0.0, 0.0])`,
-//!   `max_memory_mb.unwrap_or_default()`) are all paired with a
-//!   `has_user_sat`/`has_gamma`/`has_chromatic_aberration`/`has_max_memory_mb`
-//!   flag set from `is_some()` on the same field. The C-side LibRaw config
-//!   reads the value ONLY when the flag is non-zero — so the unwrap_or
-//!   default value is dead code in the "absent" branch, present solely to
-//!   satisfy the C struct's required field width.
+//! LibRaw does the decoding. Every read of its structs happens in
+//! `libraw_shim.c`, which build.rs compiles against the headers of the linked
+//! library, so struct layouts always agree with the library at run time.
 
-use crate::{ImageData, PixelType};
-use image::GenericImageView;
-use std::ffi::{CStr, CString};
-use std::os::raw::{c_char, c_double, c_float, c_int, c_uint, c_ushort, c_void};
+use crate::{ColorFilterArray, FitsHeader, ImageData};
+use std::ffi::CStr;
+use std::os::raw::{c_char, c_float, c_int, c_longlong, c_uint, c_ushort, c_void};
 use std::path::Path;
 
-// LibRaw FFI declarations (matching libraw.dll structures and functions)
+const LIBRAW_SUCCESS: c_int = 0;
 
-const LIBRAW_SUCCESS: i32 = 0;
-
-// LibRaw image parameters structure
-#[repr(C)]
-struct libraw_iparams_t {
-    make: [c_char; 64],
-    model: [c_char; 64],
-    software: [c_char; 64],
-    raw_count: c_uint,
-    dng_version: c_uint,
-    is_foveon: c_uint,
-    colors: c_int,
-    filters: c_uint,
-    cdesc: [c_char; 5],
-}
-
-// LibRaw other parameters (exposure, etc.)
-#[repr(C)]
-struct libraw_imgother_t {
-    iso_speed: c_float,
-    shutter: c_float,
-    aperture: c_float,
-    focal_len: c_float,
-    timestamp: c_uint,
-    shot_order: c_uint,
-    gpsdata: [c_uint; 32],
-    desc: [c_char; 512],
-    artist: [c_char; 64],
-}
+/// LibRaw's value for a temperature the camera did not record.
+const NOT_RECORDED: f32 = -1000.0;
 
 #[repr(C)]
 struct libraw_data_t {
     _private: [u8; 0],
 }
 
+/// Mirrors `skotiq_raw_info_t` in libraw_shim.c field for field.
 #[repr(C)]
-struct libraw_processed_image_t {
-    type_: c_ushort,
-    height: c_ushort,
-    width: c_ushort,
-    colors: c_ushort,
-    bits: c_ushort,
-    data_size: c_uint,
-    // data follows immediately after
-}
-
-// Mirrors `skotiq_cfa_info_t` in libraw_shim.c. Field order and types MUST
-// stay in lockstep with the C definition — the C side fills it from the real
-// LibRaw struct, this is only a transport record.
-#[repr(C)]
-struct skotiq_cfa_info_t {
+struct RawInfoFfi {
+    make: [c_char; 64],
+    model: [c_char; 64],
+    lens: [c_char; 128],
+    iso: c_float,
+    shutter: c_float,
+    aperture: c_float,
+    focal_length: c_float,
+    timestamp: c_longlong,
+    sensor_temperature: c_float,
+    sensor_temperature2: c_float,
+    camera_temperature: c_float,
     width: c_int,
     height: c_int,
-    raw_width: c_int,
-    raw_height: c_int,
     top_margin: c_int,
     left_margin: c_int,
+    raw_width: c_int,
+    raw_height: c_int,
     raw_bps: c_int,
-    maximum: c_uint,
-    black: c_uint,
-    filters: c_int,
-    is_xtrans: c_int,
-    cfa: [c_char; 8],
+    white_level: c_uint,
+    filters: c_uint,
+    colors: c_int,
+    dng_version: c_int,
+    cfa_size: c_int,
+    cfa: [c_char; 36],
+    cfa_black: [c_uint; 36],
+    has_mosaic: c_int,
 }
 
-#[repr(C)]
-struct skotiq_libraw_config_t {
-    white_balance_mode: c_int,
-    user_mul: [c_float; 4],
-    output_color: c_int,
-    output_bps: c_int,
-    user_qual: c_int,
-    highlight: c_int,
-    bright: c_float,
-    no_auto_bright: c_int,
-    half_size: c_int,
-    bad_pixels: *const c_char,
-    dark_frame: *const c_char,
-    user_sat: c_int,
-    has_user_sat: c_int,
-    gamma: [c_double; 2],
-    has_gamma: c_int,
-    chromatic_aberration: [c_double; 2],
-    has_chromatic_aberration: c_int,
-    max_memory_mb: c_uint,
-    has_max_memory_mb: c_int,
-}
-
-// Platform-specific library name:
-// - Windows: libraw.dll (linked as "libraw")
-// - Linux/macOS: libraw.so/dylib (linked as "raw" since lib prefix is automatic)
 extern "C" {
-    fn skotiq_libraw_apply_config(data: *mut libraw_data_t, config: *const skotiq_libraw_config_t);
-    // Fill a `skotiq_cfa_info_t` from an unpacked processor (dims, margins,
-    // bit depth, saturation, CFA orientation). Returns 0 on success.
-    fn skotiq_libraw_extract_cfa_info(
-        data: *mut libraw_data_t,
-        info: *mut skotiq_cfa_info_t,
-    ) -> c_int;
-    // Copy the visible single-channel CFA mosaic (margins trimmed) into
-    // `out` (>= width*height u16 samples). Returns 0 on success.
-    fn skotiq_libraw_copy_cfa_mosaic(
-        data: *mut libraw_data_t,
-        out: *mut c_ushort,
-        out_len: usize,
-    ) -> c_int;
+    fn skotiq_raw_describe(data: *mut libraw_data_t, info: *mut RawInfoFfi) -> c_int;
+    fn skotiq_raw_copy_mosaic(data: *mut libraw_data_t, out: *mut c_ushort, out_len: usize)
+        -> c_int;
 }
 
 #[cfg_attr(target_os = "windows", link(name = "libraw"))]
 #[cfg_attr(not(target_os = "windows"), link(name = "raw"))]
 extern "C" {
     fn libraw_init(flags: c_uint) -> *mut libraw_data_t;
+    #[cfg(not(windows))]
     fn libraw_open_file(data: *mut libraw_data_t, path: *const c_char) -> c_int;
+    #[cfg(windows)]
+    fn libraw_open_wfile(data: *mut libraw_data_t, path: *const u16) -> c_int;
     fn libraw_open_buffer(data: *mut libraw_data_t, buffer: *const c_void, size: usize) -> c_int;
     fn libraw_unpack(data: *mut libraw_data_t) -> c_int;
-    fn libraw_raw2image(data: *mut libraw_data_t) -> c_int;
-    fn libraw_dcraw_process(data: *mut libraw_data_t) -> c_int;
-    fn libraw_dcraw_make_mem_image(
-        data: *mut libraw_data_t,
-        errcode: *mut c_int,
-    ) -> *mut libraw_processed_image_t;
-    fn libraw_dcraw_make_mem_thumb(
-        data: *mut libraw_data_t,
-        errcode: *mut c_int,
-    ) -> *mut libraw_processed_image_t;
-    fn libraw_dcraw_clear_mem(image: *mut libraw_processed_image_t);
     fn libraw_close(data: *mut libraw_data_t);
     fn libraw_strerror(errorcode: c_int) -> *const c_char;
-    fn libraw_unpack_thumb(data: *mut libraw_data_t) -> c_int;
-    fn libraw_get_iparams(data: *mut libraw_data_t) -> *const libraw_iparams_t;
-    fn libraw_get_imgother(data: *mut libraw_data_t) -> *const libraw_imgother_t;
-    fn libraw_get_raw_width(data: *mut libraw_data_t) -> c_int;
-    fn libraw_get_raw_height(data: *mut libraw_data_t) -> c_int;
 }
 
 #[derive(Debug)]
 pub enum RawError {
     Io(std::io::Error),
-    LibRawError(String),
-    UnsupportedFormat(String),
-    InvalidPath(String),
-    /// A user-supplied path could not be passed through the LibRaw C ABI
-    /// because it contained an interior NUL byte. Carries `which` (which
-    /// processing parameter — `bad_pixels` or `dark_frame`) plus the
-    /// underlying `NulError` so callers can pinpoint the offending input.
-    InvalidCStringPath {
-        which: &'static str,
-        path: String,
-        source: std::ffi::NulError,
-    },
-    NullPointer,
+    /// LibRaw could not open or decode the file; the text is LibRaw's.
+    Decode(String),
+    /// The file decodes, but not to one color-filter mosaic the app can
+    /// calibrate (linear DNG, sRAW, Foveon, a CMYG or 16×16 filter).
+    Unsupported(String),
 }
 
 impl std::fmt::Display for RawError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RawError::Io(e) => write!(f, "IO error: {}", e),
-            RawError::LibRawError(s) => write!(f, "LibRaw error: {}", s),
-            RawError::UnsupportedFormat(s) => write!(f, "Unsupported format: {}", s),
-            RawError::InvalidPath(s) => write!(f, "Invalid path: {}", s),
-            RawError::InvalidCStringPath {
-                which,
-                path,
-                source,
-            } => write!(
-                f,
-                "Invalid {} path {:?} (cannot be converted to a C string): {}",
-                which, path, source
-            ),
-            RawError::NullPointer => write!(f, "Null pointer from LibRaw"),
+            RawError::Io(e) => write!(f, "{e}"),
+            RawError::Decode(e) => write!(f, "the camera raw file could not be decoded: {e}"),
+            RawError::Unsupported(e) => write!(f, "{e}"),
         }
     }
 }
@@ -205,7 +101,6 @@ impl std::error::Error for RawError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             RawError::Io(e) => Some(e),
-            RawError::InvalidCStringPath { source, .. } => Some(source),
             _ => None,
         }
     }
@@ -217,626 +112,383 @@ impl From<std::io::Error> for RawError {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct RawMetadata {
-    pub camera_make: String,
-    pub camera_model: String,
-    pub iso_speed: Option<f32>,
-    pub shutter_speed: Option<f32>,
-    pub aperture: Option<f32>,
-    pub focal_length: Option<f32>,
-    pub timestamp: Option<i64>,
-    pub color_desc: String,
-    pub is_xtrans: bool,
-    pub raw_width: u32,
-    pub raw_height: u32,
+/// The camera maker, for the few facts makers record differently.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Maker {
+    Canon,
+    Nikon,
+    Sony,
+    Fujifilm,
+    /// Pentax and Ricoh bodies share one maker-note format.
+    Pentax,
+    /// Olympus and OM Digital Solutions (OM System).
+    Olympus,
+    Panasonic,
+    Other,
+}
+
+impl Maker {
+    /// From LibRaw's normalized make (`idata.make`).
+    pub fn from_make(make: &str) -> Self {
+        let make = make.to_ascii_lowercase();
+        if make.starts_with("canon") {
+            Maker::Canon
+        } else if make.starts_with("nikon") {
+            Maker::Nikon
+        } else if make.starts_with("sony") {
+            Maker::Sony
+        } else if make.starts_with("fuji") {
+            Maker::Fujifilm
+        } else if make.starts_with("pentax") || make.starts_with("ricoh") {
+            Maker::Pentax
+        } else if make.starts_with("olympus") || make.starts_with("om digital") {
+            Maker::Olympus
+        } else if make.starts_with("panasonic") || make.starts_with("leica") {
+            // Leica's L-mount and compact bodies are Panasonic-made and write
+            // Panasonic maker notes.
+            Maker::Panasonic
+        } else {
+            Maker::Other
+        }
+    }
+
+    /// Whether this maker's camera-body temperature is the reading to match
+    /// darks on when the sensor itself has none.
+    ///
+    /// Canon writes only `CameraTemperature`, measured on the sensor board,
+    /// which EOS capture tools report as the sensor temperature. LibRaw reads
+    /// Pentax's `CameraTemperature` but not its `SensorTemperature`. Olympus,
+    /// Sony, Nikon, Panasonic and Fujifilm either record the sensor itself or
+    /// only an ambient or body value that does not track the sensor.
+    fn body_temperature_stands_for_sensor(self) -> bool {
+        matches!(self, Maker::Canon | Maker::Pentax)
+    }
+}
+
+/// Where a frame's temperature reading comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TemperatureSource {
+    Sensor,
+    CameraBody,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum WhiteBalanceMode {
-    Camera,
-    Auto,
-    Custom(f32, f32, f32, f32), // R, G1, B, G2 multipliers
+pub struct SensorTemperature {
+    pub celsius: f32,
+    pub source: TemperatureSource,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ColorSpace {
-    Raw,
-    SRGB,
-    AdobeRGB,
-    WideGamut,
-    ProPhotoRGB,
-    XYZ,
-    ACES,
+/// What the camera recorded about a frame, in the app's terms.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct RawMetadata {
+    pub make: String,
+    pub model: String,
+    pub lens: Option<String>,
+    pub iso: Option<f32>,
+    pub exposure_seconds: Option<f64>,
+    pub f_number: Option<f32>,
+    pub focal_length_mm: Option<f32>,
+    /// The camera clock read as local time on this computer, as LibRaw reads
+    /// it: right when the camera is set to the local time zone.
+    pub captured_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub temperature: Option<SensorTemperature>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DemosaicAlgorithm {
-    Linear,
-    VNG,
-    PPG,
-    AHD,
-    DCB,
-    DHT, // Best for X-Trans
-    AAHD,
+impl RawMetadata {
+    pub fn maker(&self) -> Maker {
+        Maker::from_make(&self.make)
+    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HighlightMode {
-    Clip,
-    Unclip,
-    Blend,
-    Rebuild(u32), // 3-9
-}
-
+/// A camera raw frame: the visible color-filter mosaic and what describes it.
 #[derive(Debug, Clone)]
-pub struct RawProcessingParams {
-    pub white_balance: WhiteBalanceMode,
-    pub output_color: ColorSpace,
-    pub output_bps: u32, // 8 or 16
-    pub demosaic: DemosaicAlgorithm,
-    pub highlight_mode: HighlightMode,
-    pub brightness: f32,
-    pub user_sat: Option<i32>,
-    pub gamma: Option<(f64, f64)>, // power, slope
-    pub auto_bright: bool,
-    pub half_size: bool,
-    pub bad_pixels_path: Option<std::path::PathBuf>,
-    pub dark_frame_path: Option<std::path::PathBuf>,
-    pub chromatic_aberration: Option<(f64, f64)>, // (red_scale, blue_scale)
-    pub max_memory_mb: Option<usize>,
-}
-
-impl Default for RawProcessingParams {
-    fn default() -> Self {
-        Self {
-            white_balance: WhiteBalanceMode::Camera,
-            output_color: ColorSpace::SRGB,
-            output_bps: 8,
-            demosaic: DemosaicAlgorithm::DHT, // Good default for X-Trans
-            highlight_mode: HighlightMode::Clip,
-            brightness: 1.0,
-            user_sat: None,
-            gamma: None,        // Use default sRGB gamma
-            auto_bright: false, // Disable auto brightness for consistency
-            half_size: false,
-            bad_pixels_path: None,
-            dark_frame_path: None,
-            chromatic_aberration: None,
-            max_memory_mb: None,
-        }
-    }
-}
-
-/// Convert an optional filesystem `Path` into an owned `CString` for the
-/// LibRaw FFI, surfacing every failure mode with full context.
-///
-/// `which` identifies which `RawProcessingParams` field the path came from
-/// (e.g. `"bad_pixels"` / `"dark_frame"`) so the resulting `RawError` can
-/// pinpoint the offending input. Errors are never swallowed: a non-UTF-8
-/// path or an interior NUL byte both propagate.
-fn path_to_cstring(which: &'static str, path: Option<&Path>) -> Result<Option<CString>, RawError> {
-    let Some(path) = path else { return Ok(None) };
-    let path_str = path.to_str().ok_or_else(|| {
-        RawError::InvalidPath(format!(
-            "{} path {:?} is not valid UTF-8 and cannot be passed to LibRaw",
-            which, path
-        ))
-    })?;
-    let c_str = CString::new(path_str).map_err(|source| RawError::InvalidCStringPath {
-        which,
-        path: path_str.to_string(),
-        source,
-    })?;
-    Ok(Some(c_str))
-}
-
-/// Read a RAW file with native X-Trans support
-///
-/// Returns 3-channel RGB image data with NO synthetic Bayer conversion!
-/// Read a RAW file with native X-Trans support
-///
-/// Returns 3-channel RGB image data with NO synthetic Bayer conversion!
-pub fn read_raw(
-    path: &Path,
-    params: Option<&RawProcessingParams>,
-) -> Result<(ImageData, RawMetadata), RawError> {
-    let default_params = RawProcessingParams::default();
-    let params = params.unwrap_or(&default_params);
-    let path_str = path
-        .to_str()
-        .ok_or_else(|| RawError::InvalidPath("Path contains invalid UTF-8".to_string()))?;
-
-    if !path.exists() {
-        return Err(RawError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "File not found",
-        )));
-    }
-
-    tracing::info!("Reading RAW file: {}", path_str);
-
-    // SAFETY: Calling FFI functions from LibRaw C library. The processor lifecycle is managed
-    // carefully: init returns a valid pointer or null (checked), and we ensure cleanup via
-    // libraw_close in all code paths (error and success).
-    unsafe {
-        let processor = libraw_init(0);
-        if processor.is_null() {
-            return Err(RawError::NullPointer);
-        }
-
-        let c_path = CString::new(path_str)
-            .map_err(|_| RawError::InvalidPath("Path contains null bytes".to_string()))?;
-
-        let ret = libraw_open_file(processor, c_path.as_ptr());
-        if ret != LIBRAW_SUCCESS {
-            let err_msg = get_error_string(ret);
-            libraw_close(processor);
-            return Err(RawError::LibRawError(format!(
-                "libraw_open_file failed: {}",
-                err_msg
-            )));
-        }
-
-        // Access LibRaw metadata via its supported public getters.
-        let iparams = libraw_get_iparams(processor);
-        let other = libraw_get_imgother(processor);
-        if iparams.is_null() || other.is_null() {
-            libraw_close(processor);
-            return Err(RawError::NullPointer);
-        }
-
-        let iparams = &*iparams;
-        let other = &*other;
-
-        let camera_make = CStr::from_ptr(iparams.make.as_ptr())
-            .to_string_lossy()
-            .trim()
-            .to_string();
-
-        let camera_model = CStr::from_ptr(iparams.model.as_ptr())
-            .to_string_lossy()
-            .trim()
-            .to_string();
-
-        let color_desc = CStr::from_ptr(iparams.cdesc.as_ptr())
-            .to_string_lossy()
-            .to_string();
-
-        // Detect X-Trans (filters == 9 indicates X-Trans)
-        let is_xtrans = iparams.filters == 9;
-
-        let iso_speed = if other.iso_speed > 0.0 {
-            Some(other.iso_speed)
-        } else {
-            None
-        };
-
-        let shutter_speed = if other.shutter > 0.0 {
-            Some(other.shutter)
-        } else {
-            None
-        };
-
-        let aperture = if other.aperture > 0.0 {
-            Some(other.aperture)
-        } else {
-            None
-        };
-
-        let focal_length = if other.focal_len > 0.0 {
-            Some(other.focal_len)
-        } else {
-            None
-        };
-
-        let timestamp = if other.timestamp > 0 {
-            Some(other.timestamp as i64)
-        } else {
-            None
-        };
-        // Why: keep CString storage alive until LibRaw finishes processing —
-        // the FFI struct only holds raw pointers, not owned data.
-        let mut _bad_pixels_c_str: Option<CString> = None;
-        let mut _dark_frame_c_str: Option<CString> = None;
-
-        let white_balance_mode = match params.white_balance {
-            WhiteBalanceMode::Camera => 0,
-            WhiteBalanceMode::Auto => 1,
-            WhiteBalanceMode::Custom(_, _, _, _) => 2,
-        };
-
-        let user_mul = match params.white_balance {
-            WhiteBalanceMode::Custom(r, g1, b, g2) => [r, g1, b, g2],
-            _ => [0.0; 4],
-        };
-
-        // Why: a swallowed `CString::new` failure leaves LibRaw on its
-        // defaults while the caller believes the bad-pixels / dark-frame path
-        // is active. Surface the failure with enough context to identify which
-        // path is at fault, and close the already-opened LibRaw processor
-        // before propagating so it does not leak.
-        match path_to_cstring("bad_pixels", params.bad_pixels_path.as_deref()) {
-            Ok(value) => _bad_pixels_c_str = value,
-            Err(err) => {
-                libraw_close(processor);
-                return Err(err);
-            }
-        }
-        match path_to_cstring("dark_frame", params.dark_frame_path.as_deref()) {
-            Ok(value) => _dark_frame_c_str = value,
-            Err(err) => {
-                libraw_close(processor);
-                return Err(err);
-            }
-        }
-
-        let config = skotiq_libraw_config_t {
-            white_balance_mode,
-            user_mul,
-            output_color: match params.output_color {
-                ColorSpace::Raw => 0,
-                ColorSpace::SRGB => 1,
-                ColorSpace::AdobeRGB => 2,
-                ColorSpace::WideGamut => 3,
-                ColorSpace::ProPhotoRGB => 4,
-                ColorSpace::XYZ => 5,
-                ColorSpace::ACES => 6,
-            },
-            output_bps: params.output_bps as c_int,
-            user_qual: match params.demosaic {
-                DemosaicAlgorithm::Linear => 0,
-                DemosaicAlgorithm::VNG => 1,
-                DemosaicAlgorithm::PPG => 2,
-                DemosaicAlgorithm::AHD => 3,
-                DemosaicAlgorithm::DCB => 4,
-                DemosaicAlgorithm::DHT => 11,
-                DemosaicAlgorithm::AAHD => 12,
-            },
-            highlight: match params.highlight_mode {
-                HighlightMode::Clip => 0,
-                HighlightMode::Unclip => 1,
-                HighlightMode::Blend => 2,
-                HighlightMode::Rebuild(n) => (3 + n).min(9) as c_int,
-            },
-            bright: params.brightness,
-            no_auto_bright: if params.auto_bright { 0 } else { 1 },
-            half_size: if params.half_size { 1 } else { 0 },
-            bad_pixels: _bad_pixels_c_str
-                .as_ref()
-                .map_or(std::ptr::null(), |value| value.as_ptr()),
-            dark_frame: _dark_frame_c_str
-                .as_ref()
-                .map_or(std::ptr::null(), |value| value.as_ptr()),
-            user_sat: params.user_sat.unwrap_or_default(),
-            has_user_sat: if params.user_sat.is_some() { 1 } else { 0 },
-            gamma: params
-                .gamma
-                .map(|(power, slope)| [1.0 / power, slope])
-                .unwrap_or([0.0, 0.0]),
-            has_gamma: if params.gamma.is_some() { 1 } else { 0 },
-            chromatic_aberration: params
-                .chromatic_aberration
-                .map(|(r, b)| [r, b])
-                .unwrap_or([0.0, 0.0]),
-            has_chromatic_aberration: if params.chromatic_aberration.is_some() {
-                1
-            } else {
-                0
-            },
-            max_memory_mb: params.max_memory_mb.unwrap_or_default() as c_uint,
-            has_max_memory_mb: if params.max_memory_mb.is_some() { 1 } else { 0 },
-        };
-        skotiq_libraw_apply_config(processor, &config);
-
-        let metadata = RawMetadata {
-            camera_make,
-            camera_model,
-            iso_speed,
-            shutter_speed,
-            aperture,
-            focal_length,
-            timestamp,
-            color_desc,
-            is_xtrans,
-            raw_width: libraw_get_raw_width(processor) as u32,
-            raw_height: libraw_get_raw_height(processor) as u32,
-        };
-
-        let ret = libraw_unpack(processor);
-        if ret != LIBRAW_SUCCESS {
-            let err_msg = get_error_string(ret);
-            libraw_close(processor);
-            return Err(RawError::LibRawError(format!(
-                "libraw_unpack failed: {}",
-                err_msg
-            )));
-        }
-
-        // Process to RGB (LibRaw automatically handles X-Trans demosaicing!)
-        let ret = libraw_dcraw_process(processor);
-        if ret != LIBRAW_SUCCESS {
-            let err_msg = get_error_string(ret);
-            libraw_close(processor);
-            return Err(RawError::LibRawError(format!(
-                "libraw_dcraw_process failed: {}",
-                err_msg
-            )));
-        }
-
-        let mut errcode = 0;
-        let processed_image = libraw_dcraw_make_mem_image(processor, &mut errcode);
-        if processed_image.is_null() {
-            libraw_close(processor);
-            return Err(RawError::LibRawError(format!(
-                "libraw_dcraw_make_mem_image failed: {}",
-                errcode
-            )));
-        }
-
-        let img = &*processed_image;
-        let img_width = img.width as u32;
-        let img_height = img.height as u32;
-        let channels = img.colors as u32; // Should be 3 for RGB
-        let bits = img.bits as u32;
-
-        tracing::info!(
-            "Processed: {}x{}, {} channels, {} bits - Native RGB!",
-            img_width,
-            img_height,
-            channels,
-            bits
-        );
-
-        let pixel_count = (img_width * img_height * channels) as usize;
-        let data_size = img.data_size as usize;
-
-        // Get pointer to image data (located right after the struct header)
-        let header_size = std::mem::size_of::<libraw_processed_image_t>();
-        let data_ptr = (processed_image as *const u8).add(header_size);
-
-        let mut rgb_data = vec![0u16; pixel_count];
-
-        if bits == 16 {
-            let sample_size = std::mem::size_of::<u16>();
-            let sample_count = data_size / sample_size;
-            if !data_size.is_multiple_of(sample_size) || sample_count != pixel_count {
-                libraw_dcraw_clear_mem(processed_image);
-                libraw_close(processor);
-                return Err(RawError::LibRawError(format!(
-                    "LibRaw returned inconsistent 16-bit image size: {} bytes for {} samples",
-                    data_size, pixel_count
-                )));
-            }
-
-            std::ptr::copy_nonoverlapping(
-                data_ptr as *const u16,
-                rgb_data.as_mut_ptr(),
-                sample_count,
-            );
-        } else if bits == 8 {
-            if data_size != pixel_count {
-                libraw_dcraw_clear_mem(processed_image);
-                libraw_close(processor);
-                return Err(RawError::LibRawError(format!(
-                    "LibRaw returned inconsistent 8-bit image size: {} bytes for {} samples",
-                    data_size, pixel_count
-                )));
-            }
-
-            for (i, dest) in rgb_data.iter_mut().enumerate().take(pixel_count) {
-                let val = *data_ptr.add(i);
-                *dest = (val as u16) * 257; // Scale 0-255 to 0-65535
-            }
-        } else {
-            libraw_dcraw_clear_mem(processed_image);
-            libraw_close(processor);
-            return Err(RawError::UnsupportedFormat(format!(
-                "Unsupported bit depth: {}",
-                bits
-            )));
-        }
-
-        let data: Vec<u8> = rgb_data.iter().flat_map(|&val| val.to_le_bytes()).collect();
-
-        libraw_dcraw_clear_mem(processed_image);
-        libraw_close(processor);
-
-        // Create ImageData with 3 channels (native RGB!)
-        let image = ImageData {
-            width: img_width,
-            height: img_height,
-            channels, // 3 for RGB - NO synthetic Bayer conversion!
-            pixel_type: PixelType::U16,
-            data,
-        };
-
-        Ok((image, metadata))
-    }
-}
-
-/// Get LibRaw error string
-/// SAFETY: Calls libraw_strerror FFI function which returns a static string pointer.
-/// The pointer is checked for null and converted to a Rust String.
-unsafe fn get_error_string(code: c_int) -> String {
-    let ptr = libraw_strerror(code);
-    if ptr.is_null() {
-        format!("Unknown error code: {}", code)
-    } else {
-        CStr::from_ptr(ptr).to_string_lossy().to_string()
-    }
-}
-
-/// Extract thumbnail from RAW file (Fast Preview)
-pub fn extract_thumbnail(path: &Path) -> Result<ImageData, RawError> {
-    let path_str = path
-        .to_str()
-        .ok_or_else(|| RawError::InvalidPath("Path contains invalid UTF-8".to_string()))?;
-
-    if !path.exists() {
-        return Err(RawError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "File not found",
-        )));
-    }
-
-    // SAFETY: Calling FFI functions from LibRaw C library. The processor lifecycle is managed
-    // carefully: init returns a valid pointer or null (checked), and we ensure cleanup via
-    // libraw_close in all code paths (error and success).
-    unsafe {
-        let processor = libraw_init(0);
-        if processor.is_null() {
-            return Err(RawError::NullPointer);
-        }
-
-        let c_path = CString::new(path_str)
-            .map_err(|_| RawError::InvalidPath("Path contains null bytes".to_string()))?;
-
-        let ret = libraw_open_file(processor, c_path.as_ptr());
-        if ret != LIBRAW_SUCCESS {
-            libraw_close(processor);
-            return Err(RawError::LibRawError("Failed to open file".to_string()));
-        }
-
-        let ret = libraw_unpack_thumb(processor);
-        if ret != LIBRAW_SUCCESS {
-            libraw_close(processor);
-            return Err(RawError::LibRawError(
-                "Failed to unpack thumbnail".to_string(),
-            ));
-        }
-
-        let mut err = 0;
-        let processed = libraw_dcraw_make_mem_thumb(processor, &mut err);
-
-        if processed.is_null() || err != LIBRAW_SUCCESS {
-            libraw_close(processor);
-            return Err(RawError::LibRawError(format!(
-                "Failed to create memory thumbnail: {}",
-                err
-            )));
-        }
-
-        let width = (*processed).width as u32;
-        let height = (*processed).height as u32;
-        let colors = (*processed).colors as u32;
-        let bits = (*processed).bits as u32;
-        let data_size = (*processed).data_size as usize;
-
-        let data_ptr = (processed as *mut u8).add(std::mem::size_of::<libraw_processed_image_t>());
-        let data_slice = std::slice::from_raw_parts(data_ptr, data_size);
-
-        // Thumbnails are usually JPEG (compressed) or RGB bitmap
-        let type_ = (*processed).type_;
-
-        let image = if type_ == 1 {
-            // Bitmap (RGB)
-            let mut pixels = Vec::with_capacity(data_size);
-            pixels.extend_from_slice(data_slice);
-
-            ImageData {
-                width,
-                height,
-                channels: colors,
-                pixel_type: if bits == 16 {
-                    PixelType::U16
-                } else {
-                    PixelType::U8
-                },
-                data: pixels,
-            }
-        } else if type_ == 2 || type_ == 4 {
-            // JPEG or KODAK_THUMB (usually JPEG)
-            // Decode JPEG from memory
-            let img = image::load_from_memory(data_slice).map_err(|e| {
-                RawError::UnsupportedFormat(format!("Failed to decode thumbnail: {}", e))
-            })?;
-
-            let (w, h) = img.dimensions();
-            let rgba = img.to_rgba8();
-            let pixels = rgba.into_raw();
-
-            // Convert RGBA to RGB if needed, or keep RGBA
-            // ImageData supports 4 channels
-            ImageData {
-                width: w,
-                height: h,
-                channels: 4,
-                pixel_type: PixelType::U8,
-                data: pixels,
-            }
-        } else {
-            // Other format
-            libraw_dcraw_clear_mem(processed);
-            libraw_close(processor);
-            return Err(RawError::UnsupportedFormat(format!(
-                "Unsupported thumbnail type: {}",
-                type_
-            )));
-        };
-
-        libraw_dcraw_clear_mem(processed);
-        libraw_close(processor);
-
-        Ok(image)
-    }
-}
-
-/// A 2×2 colour-filter-array (Bayer) pattern in sensor row-major order
-/// (top-left, top-right, bottom-left, bottom-right).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CfaPattern {
-    Rggb,
-    Grbg,
-    Gbrg,
-    Bggr,
-}
-
-/// A decoded RAW frame as its native single-channel LINEAR CFA mosaic.
-///
-/// This is the astro-correct decode: `data` is the sensor's raw Bayer/X-Trans
-/// mosaic at native bit depth — NO demosaic, white balance, gamma, or colour
-/// transform — with the optical-black margins trimmed. `data.len()` is exactly
-/// `width * height`. Contrast with [`read_raw`], which returns a processed
-/// 3-channel sRGB image suitable only for previews/thumbnails and MUST NOT be
-/// fed to the calibration/stacking/photometry pipeline.
-///
-/// The extraction mirrors the INDI reference driver `read_libraw()`
-/// (indi-gphoto/gphoto_readimage.cpp:143-218): `unpack` + `raw2image`, then a
-/// margin-trimmed, de-strided copy of `imgdata.rawdata.raw_image`.
-#[derive(Debug, Clone)]
-pub struct CfaImage {
+pub struct RawFrame {
     pub width: u32,
     pub height: u32,
-    /// Single-channel, row-major, linear. `len() == width * height`.
+    /// Row-major, `width * height` samples, black level not subtracted.
     pub data: Vec<u16>,
-    /// The 2×2 Bayer orientation, or `None` for X-Trans / non-CFA sensors
-    /// whose mosaic cannot be faithfully described by a 2×2 pattern.
-    pub cfa_pattern: Option<CfaPattern>,
-    /// True for X-Trans (6×6) sensors; `cfa_pattern` is then `None`.
-    pub is_xtrans: bool,
-    /// True sensor bit depth (e.g. 12/14/16), derived from the saturation
-    /// level so `(1 << bits) - 1` is a truthful max ADU for the data.
+    pub cfa: ColorFilterArray,
+    /// The sensor's bit depth, from its white level.
     pub bits_per_pixel: u32,
-    /// Saturation / white level (max ADU) reported by LibRaw.
-    pub max_value: u32,
-    /// Global black level reported by LibRaw. Informational only — it is NOT
-    /// subtracted, matching the reference driver which leaves the mosaic
-    /// untouched so downstream calibration can model the pedestal itself.
-    pub black_level: u32,
+    /// The saturation level: the largest value a pixel can hold.
+    pub white_level: u32,
+    /// Black level at each position of the filter cell, row-major
+    /// (`cfa.cell_size()` squared entries).
+    pub black_levels: Vec<u32>,
+    pub metadata: RawMetadata,
 }
 
-/// Derive the true sensor bit depth from LibRaw's saturation level.
-///
-/// The data samples span `0..=maximum` at native bit depth (LibRaw does NOT
-/// left-shift the mosaic to fill 16 bits), so we report the smallest bit depth
-/// that contains `maximum`. That makes `(1 << bits) - 1` a truthful max ADU —
-/// unlike the reference driver, which hardcodes 16 and would tell the pipeline
-/// a 14-bit frame saturates at 65535. `raw_bps` is a best-effort fallback for
-/// the rare cameras where LibRaw leaves `maximum` at 0. Clamped to [8, 16].
-fn derive_bits_per_pixel(maximum: u32, raw_bps: c_int) -> u32 {
-    if maximum > 0 {
-        (u32::BITS - maximum.leading_zeros()).clamp(8, 16)
+impl RawFrame {
+    /// The black level over the whole cell, rounded.
+    pub fn black_level(&self) -> u32 {
+        let sum: u64 = self.black_levels.iter().map(|&b| b as u64).sum();
+        let count = self.black_levels.len().max(1) as u64;
+        ((sum + count / 2) / count) as u32
+    }
+
+    /// The frame's FITS header: what the camera recorded plus the levels.
+    pub fn header(&self) -> FitsHeader {
+        let mut header = FitsHeader::new();
+        describe_into(&mut header, &self.metadata, self.width, self.height, Some(&self.cfa));
+        header.set_int("BLKLEVEL", self.black_level() as i64);
+        header.set_comment("BLKLEVEL", "camera black level (ADU), not subtracted");
+        header.set_int("DATAMAX", self.white_level as i64);
+        header.set_comment("DATAMAX", "camera white (saturation) level (ADU)");
+        header.set_int("BITDEPTH", self.bits_per_pixel as i64);
+        header
+    }
+
+    pub fn to_image(&self) -> ImageData {
+        ImageData::from_u16(self.width, self.height, 1, &self.data)
+    }
+}
+
+/// The header cards every raw frame carries, known from the file's metadata
+/// alone. One place maps camera metadata to FITS keywords: a raw file read
+/// from disk and a frame converted from a camera download get the same cards.
+fn describe_into(
+    header: &mut FitsHeader,
+    meta: &RawMetadata,
+    width: u32,
+    height: u32,
+    cfa: Option<&ColorFilterArray>,
+) {
+    header.set_int("NAXIS1", width as i64);
+    header.set_int("NAXIS2", height as i64);
+    let instrument = [meta.make.as_str(), meta.model.as_str()]
+        .iter()
+        .filter(|s| !s.is_empty())
+        .copied()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if !instrument.is_empty() {
+        header.set_string("INSTRUME", &instrument);
+    }
+    if let Some(exposure) = meta.exposure_seconds {
+        header.set_float("EXPTIME", exposure);
+        header.set_comment("EXPTIME", "exposure time (s)");
+    }
+    if let Some(iso) = meta.iso {
+        let iso = iso.round() as i64;
+        header.set_int("ISOSPEED", iso);
+        // Calibration matches frames on GAIN; for a camera the ISO is it.
+        header.set_int("GAIN", iso);
+        header.set_comment("GAIN", "camera ISO");
+    }
+    if let Some(temperature) = meta.temperature {
+        header.set_float("CCD-TEMP", (temperature.celsius as f64 * 10.0).round() / 10.0);
+        header.set_comment(
+            "CCD-TEMP",
+            match temperature.source {
+                TemperatureSource::Sensor => "sensor temperature (C)",
+                TemperatureSource::CameraBody => "camera body temperature (C)",
+            },
+        );
+    }
+    if let Some(at) = meta.captured_at {
+        header.set_string("DATE-OBS", &at.format("%Y-%m-%dT%H:%M:%S").to_string());
+        header.set_comment("DATE-OBS", "camera clock");
+    }
+    if let Some(focal) = meta.focal_length_mm {
+        header.set_float("FOCALLEN", focal as f64);
+        header.set_comment("FOCALLEN", "lens focal length (mm)");
+    }
+    if let Some(f_number) = meta.f_number {
+        header.set_float("FOCRATIO", f_number as f64);
+    }
+    if let Some(lens) = &meta.lens {
+        header.set_string("LENS", lens);
+    }
+    if let Some(cfa) = cfa {
+        header.set_string("BAYERPAT", &cfa.letters());
+        header.set_int("XBAYROFF", 0);
+        header.set_int("YBAYROFF", 0);
+    }
+}
+
+/// Owns a LibRaw processor and closes it when dropped.
+struct Processor(*mut libraw_data_t);
+
+impl Processor {
+    fn new() -> Result<Self, RawError> {
+        // SAFETY: libraw_init takes flags and returns an owned handle or null.
+        let handle = unsafe { libraw_init(0) };
+        if handle.is_null() {
+            return Err(RawError::Decode("LibRaw could not start".to_string()));
+        }
+        Ok(Self(handle))
+    }
+
+    fn check(code: c_int, step: &str) -> Result<(), RawError> {
+        if code == LIBRAW_SUCCESS {
+            return Ok(());
+        }
+        // SAFETY: libraw_strerror returns a pointer to a static string.
+        let text = unsafe {
+            let ptr = libraw_strerror(code);
+            if ptr.is_null() {
+                format!("error {code}")
+            } else {
+                CStr::from_ptr(ptr).to_string_lossy().into_owned()
+            }
+        };
+        Err(RawError::Decode(format!("{step}: {text}")))
+    }
+
+    fn open_path(path: &Path) -> Result<Self, RawError> {
+        if !path.is_file() {
+            return Err(RawError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("{} does not exist", path.display()),
+            )));
+        }
+        let processor = Self::new()?;
+        #[cfg(not(windows))]
+        let code = {
+            use std::os::unix::ffi::OsStrExt;
+            let c_path = std::ffi::CString::new(path.as_os_str().as_bytes()).map_err(|_| {
+                RawError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "the path contains a NUL byte",
+                ))
+            })?;
+            // SAFETY: valid handle; LibRaw copies what it needs from the path.
+            unsafe { libraw_open_file(processor.0, c_path.as_ptr()) }
+        };
+        #[cfg(windows)]
+        let code = {
+            use std::os::windows::ffi::OsStrExt;
+            let wide: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+            // SAFETY: valid handle; `wide` is NUL-terminated UTF-16.
+            unsafe { libraw_open_wfile(processor.0, wide.as_ptr()) }
+        };
+        Self::check(code, "opening the file")?;
+        Ok(processor)
+    }
+
+    /// `bytes` must outlive the processor: LibRaw reads from the buffer during
+    /// unpack.
+    fn open_bytes(bytes: &[u8]) -> Result<Self, RawError> {
+        if bytes.is_empty() {
+            return Err(RawError::Decode("the file is empty".to_string()));
+        }
+        let processor = Self::new()?;
+        // SAFETY: valid handle and a live buffer of the stated length.
+        let code =
+            unsafe { libraw_open_buffer(processor.0, bytes.as_ptr() as *const c_void, bytes.len()) };
+        Self::check(code, "opening the file")?;
+        Ok(processor)
+    }
+
+    fn unpack(&self) -> Result<(), RawError> {
+        // SAFETY: valid, opened handle.
+        Self::check(unsafe { libraw_unpack(self.0) }, "decoding the sensor data")
+    }
+
+    fn describe(&self) -> Result<RawInfoFfi, RawError> {
+        // SAFETY: RawInfoFfi is plain old data; the shim fills every field.
+        let mut info: RawInfoFfi = unsafe { std::mem::zeroed() };
+        let code = unsafe { skotiq_raw_describe(self.0, &mut info) };
+        if code != 0 {
+            return Err(RawError::Decode(format!("reading the file's description (code {code})")));
+        }
+        Ok(info)
+    }
+
+    fn copy_mosaic(&self, width: u32, height: u32) -> Result<Vec<u16>, RawError> {
+        let mut data = vec![0u16; width as usize * height as usize];
+        // SAFETY: valid, unpacked handle; `data` holds width*height samples.
+        let code = unsafe { skotiq_raw_copy_mosaic(self.0, data.as_mut_ptr(), data.len()) };
+        if code != 0 {
+            return Err(RawError::Decode(format!("copying the sensor data (code {code})")));
+        }
+        Ok(data)
+    }
+}
+
+impl Drop for Processor {
+    fn drop(&mut self) {
+        // SAFETY: the handle came from libraw_init and is closed once.
+        unsafe { libraw_close(self.0) }
+    }
+}
+
+fn text(field: &[c_char]) -> String {
+    let bytes: Vec<u8> = field.iter().take_while(|&&c| c != 0).map(|&c| c as u8).collect();
+    String::from_utf8_lossy(&bytes).trim().to_string()
+}
+
+fn recorded(value: f32) -> Option<f32> {
+    (value > NOT_RECORDED + 1.0).then_some(value)
+}
+
+fn positive(value: f32) -> Option<f32> {
+    (value > 0.0).then_some(value)
+}
+
+/// The temperature to describe a frame by: the sensor's own reading when the
+/// camera recorded one, else the body reading for makers whose body reading
+/// tracks the sensor.
+fn frame_temperature(maker: Maker, info: &RawInfoFfi) -> Option<SensorTemperature> {
+    recorded(info.sensor_temperature)
+        .or_else(|| recorded(info.sensor_temperature2))
+        .map(|celsius| SensorTemperature {
+            celsius,
+            source: TemperatureSource::Sensor,
+        })
+        .or_else(|| {
+            maker
+                .body_temperature_stands_for_sensor()
+                .then(|| recorded(info.camera_temperature))
+                .flatten()
+                .map(|celsius| SensorTemperature {
+                    celsius,
+                    source: TemperatureSource::CameraBody,
+                })
+        })
+}
+
+fn metadata_from(info: &RawInfoFfi) -> RawMetadata {
+    let make = text(&info.make);
+    let maker = Maker::from_make(&make);
+    let lens = text(&info.lens);
+    RawMetadata {
+        make,
+        model: text(&info.model),
+        lens: (!lens.is_empty()).then_some(lens),
+        iso: positive(info.iso),
+        // LibRaw stores the exposure as f32; its shortest decimal is the value
+        // the camera wrote (1/100 s reads 0.01, not 0.009999999776).
+        exposure_seconds: positive(info.shutter)
+            .map(|s| s.to_string().parse::<f64>().unwrap_or(s as f64)),
+        f_number: positive(info.aperture),
+        focal_length_mm: positive(info.focal_length),
+        captured_at: (info.timestamp > 0)
+            .then(|| chrono::DateTime::from_timestamp(info.timestamp, 0))
+            .flatten(),
+        temperature: frame_temperature(maker, info),
+    }
+}
+
+fn color_filter_from(info: &RawInfoFfi) -> Result<ColorFilterArray, RawError> {
+    let size = info.cfa_size.clamp(0, 6) as usize;
+    let letters: String = info.cfa[..size * size].iter().map(|&c| c as u8 as char).collect();
+    ColorFilterArray::parse(&letters).ok_or_else(|| {
+        RawError::Unsupported(if size == 0 {
+            "this raw file holds no color-filter mosaic (a linear DNG, a small sRAW or a \
+             Foveon file); save full-size raw on the camera"
+                .to_string()
+        } else {
+            format!("the sensor's color filter ({letters}) is not one Skotiq can process")
+        })
+    })
+}
+
+/// The smallest bit depth that holds the white level, between 8 and 16; the
+/// container depth LibRaw reports when the white level is missing.
+fn bits_for_white_level(white_level: u32, raw_bps: c_int) -> u32 {
+    if white_level > 0 {
+        (u32::BITS - white_level.leading_zeros()).clamp(8, 16)
     } else if (8..=16).contains(&raw_bps) {
         raw_bps as u32
     } else {
@@ -844,359 +496,213 @@ fn derive_bits_per_pixel(maximum: u32, raw_bps: c_int) -> u32 {
     }
 }
 
-/// Map the 4-letter CFA descriptor (from `libraw_COLOR` × `cdesc`) to a 2×2
-/// Bayer orientation. Returns `None` for X-Trans (6×6 — cannot be described by
-/// a 2×2 pattern), for non-CFA data (`filters == 0`), and for any descriptor
-/// that isn't one of the four canonical Bayer orders — honestly declining to
-/// guess rather than silently mislabelling the mosaic for downstream debayer.
-fn cfa_pattern_from_bytes(cfa: &[u8; 4], is_xtrans: bool, filters: c_int) -> Option<CfaPattern> {
-    if is_xtrans || filters == 0 {
-        return None;
-    }
-    match cfa {
-        b"RGGB" => Some(CfaPattern::Rggb),
-        b"GRBG" => Some(CfaPattern::Grbg),
-        b"GBRG" => Some(CfaPattern::Gbrg),
-        b"BGGR" => Some(CfaPattern::Bggr),
-        _ => None,
-    }
-}
-
-/// Read a RAW frame from in-memory bytes into its native CFA mosaic.
-///
-/// Decodes directly from the buffer via `libraw_open_buffer` — no temp file,
-/// so no filename collisions between concurrent captures. `extension` is only
-/// used for diagnostics (LibRaw sniffs the real format from the bytes).
-pub fn read_cfa_mosaic_from_bytes(
-    data: &[u8],
-    extension: &str,
-) -> Result<(CfaImage, RawMetadata), RawError> {
-    if data.is_empty() {
-        return Err(RawError::LibRawError(
-            "empty RAW buffer supplied for CFA decode".to_string(),
+fn decode(processor: Processor) -> Result<RawFrame, RawError> {
+    processor.unpack()?;
+    let info = processor.describe()?;
+    let cfa = color_filter_from(&info)?;
+    if info.has_mosaic == 0 {
+        return Err(RawError::Unsupported(
+            "this raw file holds no color-filter mosaic (a linear DNG, a small sRAW or a \
+             Foveon file); save full-size raw on the camera"
+                .to_string(),
         ));
     }
-
-    tracing::debug!(
-        "read_cfa_mosaic_from_bytes: {} bytes, hint extension '{}'",
-        data.len(),
-        extension
-    );
-
-    // SAFETY: FFI into LibRaw. `processor` is checked non-null; `open_buffer`
-    // borrows `data` only for the duration of the call (LibRaw copies what it
-    // needs during identify/unpack); return code is checked; `decode_cfa_common`
-    // owns and closes the processor on every path.
-    unsafe {
-        let processor = libraw_init(0);
-        if processor.is_null() {
-            return Err(RawError::NullPointer);
-        }
-
-        let ret = libraw_open_buffer(processor, data.as_ptr() as *const c_void, data.len());
-        if ret != LIBRAW_SUCCESS {
-            let err_msg = get_error_string(ret);
-            libraw_close(processor);
-            return Err(RawError::LibRawError(format!(
-                "libraw_open_buffer failed: {}",
-                err_msg
-            )));
-        }
-
-        decode_cfa_common(processor)
-    }
-}
-
-/// Shared tail for the CFA decode: metadata read, unpack + raw2image, then the
-/// margin-trimmed single-channel copy. Takes ownership of `processor` and
-/// ALWAYS closes it before returning.
-///
-/// SAFETY: `processor` must be a valid, freshly `libraw_open_*`-ed handle. The
-/// caller must not use it after this returns.
-unsafe fn decode_cfa_common(
-    processor: *mut libraw_data_t,
-) -> Result<(CfaImage, RawMetadata), RawError> {
-    // Metadata (available post-open, pre-unpack)
-    let iparams = libraw_get_iparams(processor);
-    let other = libraw_get_imgother(processor);
-    if iparams.is_null() || other.is_null() {
-        libraw_close(processor);
-        return Err(RawError::NullPointer);
-    }
-    let iparams = &*iparams;
-    let other = &*other;
-
-    let camera_make = CStr::from_ptr(iparams.make.as_ptr())
-        .to_string_lossy()
-        .trim()
-        .to_string();
-    let camera_model = CStr::from_ptr(iparams.model.as_ptr())
-        .to_string_lossy()
-        .trim()
-        .to_string();
-    let color_desc = CStr::from_ptr(iparams.cdesc.as_ptr())
-        .to_string_lossy()
-        .to_string();
-    let is_xtrans_meta = iparams.filters == 9;
-
-    let iso_speed = (other.iso_speed > 0.0).then_some(other.iso_speed);
-    let shutter_speed = (other.shutter > 0.0).then_some(other.shutter);
-    let aperture = (other.aperture > 0.0).then_some(other.aperture);
-    let focal_length = (other.focal_len > 0.0).then_some(other.focal_len);
-    let timestamp = (other.timestamp > 0).then_some(other.timestamp as i64);
-
-    // Unpack + raw2image (NO dcraw_process → stays linear mono)
-    let ret = libraw_unpack(processor);
-    if ret != LIBRAW_SUCCESS {
-        let err_msg = get_error_string(ret);
-        libraw_close(processor);
-        return Err(RawError::LibRawError(format!(
-            "libraw_unpack failed: {}",
-            err_msg
-        )));
-    }
-
-    let ret = libraw_raw2image(processor);
-    if ret != LIBRAW_SUCCESS {
-        let err_msg = get_error_string(ret);
-        libraw_close(processor);
-        return Err(RawError::LibRawError(format!(
-            "libraw_raw2image failed: {}",
-            err_msg
-        )));
-    }
-
-    // Extract geometry / CFA orientation / bit depth from the struct
-    let mut info = skotiq_cfa_info_t {
-        width: 0,
-        height: 0,
-        raw_width: 0,
-        raw_height: 0,
-        top_margin: 0,
-        left_margin: 0,
-        raw_bps: 0,
-        maximum: 0,
-        black: 0,
-        filters: 0,
-        is_xtrans: 0,
-        cfa: [0; 8],
-    };
-    let ret = skotiq_libraw_extract_cfa_info(processor, &mut info);
-    if ret != 0 {
-        libraw_close(processor);
-        return Err(RawError::UnsupportedFormat(format!(
-            "this RAW has no single-channel CFA mosaic (LibRaw raw_image absent, code {}); \
-             Foveon/sRAW/already-colour data is not supported by the CFA decode path",
-            ret
-        )));
-    }
-
     if info.width <= 0 || info.height <= 0 {
-        libraw_close(processor);
-        return Err(RawError::LibRawError(format!(
-            "LibRaw reported non-positive CFA dimensions: {}x{}",
+        return Err(RawError::Decode(format!(
+            "the file reports an image of {} x {} pixels",
             info.width, info.height
         )));
     }
+    let (width, height) = (info.width as u32, info.height as u32);
+    let data = processor.copy_mosaic(width, height)?;
+    drop(processor);
 
-    let width = info.width as u32;
-    let height = info.height as u32;
-    let pixel_count = (width as usize) * (height as usize);
-
-    // Copy the visible mosaic (margins trimmed)
-    let mut data = vec![0u16; pixel_count];
-    let ret = skotiq_libraw_copy_cfa_mosaic(processor, data.as_mut_ptr(), data.len());
-    if ret != 0 {
-        libraw_close(processor);
-        return Err(RawError::LibRawError(format!(
-            "failed to copy CFA mosaic (code {})",
-            ret
-        )));
-    }
-
-    let raw_width_meta = info.raw_width.max(0) as u32;
-    let raw_height_meta = info.raw_height.max(0) as u32;
-
-    // Done with LibRaw — everything below is on owned Rust data.
-    libraw_close(processor);
-
-    // ---- True bit depth: derive from the saturation level so
-    // `(1 << bits) - 1` is a truthful max ADU for the data. -----------------
-    let max_value = info.maximum;
-    let bits_per_pixel = derive_bits_per_pixel(max_value, info.raw_bps);
-
-    // ---- CFA orientation. None for X-Trans (6×6, not a 2×2 pattern) and for
-    // non-CFA data; a genuine 2×2 Bayer maps to one of the four orientations.
-    let is_xtrans = info.is_xtrans != 0 || is_xtrans_meta;
-    let cfa_bytes = [
-        info.cfa[0] as u8,
-        info.cfa[1] as u8,
-        info.cfa[2] as u8,
-        info.cfa[3] as u8,
-    ];
-    let cfa_pattern = cfa_pattern_from_bytes(&cfa_bytes, is_xtrans, info.filters);
-
-    tracing::info!(
-        "CFA decode: {}x{} mono mosaic, pattern={:?}, xtrans={}, {}-bit (max_adu={}, black={})",
-        width,
-        height,
-        cfa_pattern,
-        is_xtrans,
-        bits_per_pixel,
-        max_value,
-        info.black,
-    );
-
-    let metadata = RawMetadata {
-        camera_make,
-        camera_model,
-        iso_speed,
-        shutter_speed,
-        aperture,
-        focal_length,
-        timestamp,
-        color_desc,
-        is_xtrans,
-        raw_width: raw_width_meta,
-        raw_height: raw_height_meta,
-    };
-
-    let image = CfaImage {
+    let cell = cfa.cell_size();
+    Ok(RawFrame {
         width,
         height,
         data,
-        cfa_pattern,
-        is_xtrans,
-        bits_per_pixel,
-        max_value,
-        black_level: info.black,
-    };
-
-    Ok((image, metadata))
+        cfa,
+        bits_per_pixel: bits_for_white_level(info.white_level, info.raw_bps),
+        white_level: info.white_level,
+        black_levels: info.cfa_black[..cell * cell].to_vec(),
+        metadata: metadata_from(&info),
+    })
 }
 
-/// Get appropriate file extension for a detected RAW format
-pub fn raw_format_extension(data: &[u8]) -> Option<&'static str> {
-    use crate::ImageFormat;
+/// Decode a raw file on disk.
+pub fn read_raw_file(path: &Path) -> Result<RawFrame, RawError> {
+    decode(Processor::open_path(path)?)
+}
 
-    match ImageFormat::from_magic_bytes(data) {
-        Some(ImageFormat::CanonCR2) => Some("cr2"),
-        Some(ImageFormat::CanonCR3) => Some("cr3"),
-        Some(ImageFormat::NikonNEF) => Some("nef"),
-        Some(ImageFormat::SonyARW) => Some("arw"),
-        Some(ImageFormat::FujifilmRAF) => Some("raf"),
-        Some(ImageFormat::PentaxPEF) => Some("pef"),
-        Some(ImageFormat::OlympusORF) => Some("orf"),
-        Some(ImageFormat::PanasonicRW2) => Some("rw2"),
-        Some(ImageFormat::GenericRAW) => Some("raw"),
-        _ => None,
-    }
+/// Decode a raw file held in memory, as a camera download delivers it.
+pub fn read_raw_bytes(bytes: &[u8]) -> Result<RawFrame, RawError> {
+    decode(Processor::open_bytes(bytes)?)
+}
+
+/// A raw file's header without decoding the sensor data. The black and white
+/// levels are only final after decoding, so `BLKLEVEL`, `DATAMAX` and
+/// `BITDEPTH` are left to [`read_raw_file`].
+pub fn read_raw_header(path: &Path) -> Result<FitsHeader, RawError> {
+    let processor = Processor::open_path(path)?;
+    let info = processor.describe()?;
+    let cfa = color_filter_from(&info).ok();
+    let mut header = FitsHeader::new();
+    describe_into(
+        &mut header,
+        &metadata_from(&info),
+        info.width.max(0) as u32,
+        info.height.max(0) as u32,
+        cfa.as_ref(),
+    );
+    Ok(header)
+}
+
+/// The extension a raw file in `data` usually has, from its first bytes.
+/// `None` when the bytes are not a camera raw format (a JPEG, for example).
+pub fn raw_format_extension(data: &[u8]) -> Option<&'static str> {
+    crate::ImageFormat::from_magic_bytes(data)
+        .filter(|format| format.is_raw())
+        .map(|format| format.extension())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn derive_bits_per_pixel_reports_true_depth_from_saturation() {
-        // 14-bit DSLR (Canon/Nikon/Sony): maximum ~16383 -> 14, NOT 16.
-        assert_eq!(derive_bits_per_pixel(16383, 14), 14);
-        assert_eq!(derive_bits_per_pixel(16000, 14), 14); // white below full range
-                                                          // 12-bit body.
-        assert_eq!(derive_bits_per_pixel(4095, 12), 12);
-        // 16-bit (e.g. GFX / some CCDs).
-        assert_eq!(derive_bits_per_pixel(65535, 16), 16);
-        // maximum missing -> fall back to raw_bps.
-        assert_eq!(derive_bits_per_pixel(0, 14), 14);
-        // both missing/bogus -> safe 16.
-        assert_eq!(derive_bits_per_pixel(0, 0), 16);
-        // never below 8 or above 16.
-        assert_eq!(derive_bits_per_pixel(3, 0), 8);
-        assert_eq!(derive_bits_per_pixel(u32::MAX, 99), 16);
+    fn info() -> RawInfoFfi {
+        // SAFETY: plain old data.
+        let mut info: RawInfoFfi = unsafe { std::mem::zeroed() };
+        info.sensor_temperature = NOT_RECORDED;
+        info.sensor_temperature2 = NOT_RECORDED;
+        info.camera_temperature = NOT_RECORDED;
+        info
     }
 
     #[test]
-    fn cfa_pattern_maps_all_four_bayer_orientations() {
-        // Standard Bayer filters value is non-zero; is_xtrans false.
-        let f: c_int = 0x1949_4949; // any non-zero, non-9 Bayer filters mask
+    fn makers_are_named_from_libraw_make() {
+        assert_eq!(Maker::from_make("Canon"), Maker::Canon);
+        assert_eq!(Maker::from_make("Nikon"), Maker::Nikon);
+        assert_eq!(Maker::from_make("Sony"), Maker::Sony);
+        assert_eq!(Maker::from_make("Fujifilm"), Maker::Fujifilm);
+        assert_eq!(Maker::from_make("Pentax"), Maker::Pentax);
+        assert_eq!(Maker::from_make("Ricoh"), Maker::Pentax);
+        assert_eq!(Maker::from_make("Olympus"), Maker::Olympus);
+        assert_eq!(Maker::from_make("OM Digital"), Maker::Olympus);
+        assert_eq!(Maker::from_make("Panasonic"), Maker::Panasonic);
+        assert_eq!(Maker::from_make("Hasselblad"), Maker::Other);
+    }
+
+    #[test]
+    fn a_sensor_reading_wins_over_a_body_reading() {
+        let mut olympus = info();
+        olympus.sensor_temperature = 32.0;
+        olympus.camera_temperature = 5.0;
         assert_eq!(
-            cfa_pattern_from_bytes(b"RGGB", false, f),
-            Some(CfaPattern::Rggb)
-        );
-        assert_eq!(
-            cfa_pattern_from_bytes(b"GRBG", false, f),
-            Some(CfaPattern::Grbg)
-        );
-        assert_eq!(
-            cfa_pattern_from_bytes(b"GBRG", false, f),
-            Some(CfaPattern::Gbrg)
-        );
-        assert_eq!(
-            cfa_pattern_from_bytes(b"BGGR", false, f),
-            Some(CfaPattern::Bggr)
+            frame_temperature(Maker::Olympus, &olympus),
+            Some(SensorTemperature { celsius: 32.0, source: TemperatureSource::Sensor })
         );
     }
 
     #[test]
-    fn cfa_pattern_is_none_for_xtrans_and_noncfa() {
-        // X-Trans (6×6) cannot be a 2×2 pattern.
-        assert_eq!(cfa_pattern_from_bytes(b"RGGB", true, 9), None);
-        // filters == 0 => already-colour / no CFA.
-        assert_eq!(cfa_pattern_from_bytes(b"RGGB", false, 0), None);
-        // Unknown descriptor => decline to guess rather than mislabel.
-        assert_eq!(cfa_pattern_from_bytes(b"XYZW", false, 0x1949_4949), None);
+    fn a_body_reading_is_used_only_where_it_tracks_the_sensor() {
+        let mut body_only = info();
+        body_only.camera_temperature = 21.0;
+        let body = Some(SensorTemperature { celsius: 21.0, source: TemperatureSource::CameraBody });
+        assert_eq!(frame_temperature(Maker::Canon, &body_only), body);
+        assert_eq!(frame_temperature(Maker::Pentax, &body_only), body);
+        for maker in [Maker::Nikon, Maker::Sony, Maker::Olympus, Maker::Panasonic, Maker::Fujifilm] {
+            assert_eq!(frame_temperature(maker, &body_only), None, "{maker:?}");
+        }
+        assert_eq!(frame_temperature(Maker::Canon, &info()), None);
     }
 
-    /// A `None` input must round-trip to `Ok(None)` (no error, no surprise
-    /// allocation), while a normal path produces a usable CString.
     #[test]
-    fn path_to_cstring_passes_through_normal_inputs() {
-        assert!(matches!(path_to_cstring("bad_pixels", None), Ok(None)));
-
-        let normal = std::path::PathBuf::from("/tmp/bad_pixels.txt");
-        let c_str = path_to_cstring("bad_pixels", Some(normal.as_path()))
-            .expect("clean path must succeed")
-            .expect("clean path must produce Some(CString)");
-        assert_eq!(c_str.to_str().unwrap(), "/tmp/bad_pixels.txt");
+    fn header_maps_camera_metadata_to_fits_cards() {
+        let frame = RawFrame {
+            width: 4,
+            height: 2,
+            data: vec![0; 8],
+            cfa: ColorFilterArray::parse("RGGB").unwrap(),
+            bits_per_pixel: 14,
+            white_level: 16383,
+            black_levels: vec![510, 511, 511, 510],
+            metadata: RawMetadata {
+                make: "Canon".into(),
+                model: "EOS M50".into(),
+                lens: Some("EF-M18-150mm f/3.5-6.3 IS STM".into()),
+                iso: Some(800.0),
+                exposure_seconds: Some(120.0),
+                f_number: Some(3.5),
+                focal_length_mm: Some(18.0),
+                captured_at: chrono::DateTime::from_timestamp(1_620_691_714, 0),
+                temperature: Some(SensorTemperature {
+                    celsius: 32.0,
+                    source: TemperatureSource::CameraBody,
+                }),
+            },
+        };
+        let header = frame.header();
+        assert_eq!(header.get_string("INSTRUME"), Some("Canon EOS M50"));
+        assert_eq!(header.get_float("EXPTIME"), Some(120.0));
+        assert_eq!(header.get_int("GAIN"), Some(800));
+        assert_eq!(header.get_int("ISOSPEED"), Some(800));
+        assert_eq!(header.get_float("CCD-TEMP"), Some(32.0));
+        assert_eq!(header.get_comment("CCD-TEMP"), Some("camera body temperature (C)"));
+        assert_eq!(header.get_string("DATE-OBS"), Some("2021-05-11T00:08:34"));
+        assert_eq!(header.get_string("BAYERPAT"), Some("RGGB"));
+        assert_eq!(header.get_int("BLKLEVEL"), Some(511));
+        assert_eq!(header.get_int("DATAMAX"), Some(16383));
+        assert_eq!(header.get_float("FOCALLEN"), Some(18.0));
+        assert_eq!(header.get_string("LENS"), Some("EF-M18-150mm f/3.5-6.3 IS STM"));
     }
 
-    /// A path containing an interior NUL byte must propagate
-    /// `RawError::InvalidCStringPath` with the offending field name and the
-    /// original string; silently dropping the path leaves LibRaw quietly
-    /// using its defaults.
     #[test]
-    fn path_to_cstring_propagates_interior_nul() {
-        // PathBuf::from accepts strings with NULs on Unix; on Windows we
-        // synthesise the same scenario by going through OsString. Both
-        // platforms surface the NUL via CString::new.
-        let bad_path = std::path::PathBuf::from("contains\0nul");
-        let err = path_to_cstring("bad_pixels", Some(bad_path.as_path()))
-            .expect_err("interior NUL must produce RawError::InvalidCStringPath");
-        match err {
-            RawError::InvalidCStringPath { which, path, .. } => {
-                assert_eq!(which, "bad_pixels");
-                assert!(
-                    path.contains('\0'),
-                    "stored path should preserve the original (NUL-bearing) string for diagnostics"
-                );
-            }
-            other => panic!(
-                "expected RawError::InvalidCStringPath, got {:?} ({})",
-                other, other
-            ),
+    fn missing_metadata_writes_no_card() {
+        let mut header = FitsHeader::new();
+        describe_into(&mut header, &RawMetadata::default(), 2, 2, None);
+        for key in ["INSTRUME", "EXPTIME", "GAIN", "CCD-TEMP", "DATE-OBS", "BAYERPAT", "LENS"] {
+            assert!(header.get(key).is_none(), "{key}");
         }
     }
 
-    /// Same propagation for `dark_frame` so both paths share a single helper
-    /// (no copy-paste rot where one swallows and the other doesn't).
     #[test]
-    fn path_to_cstring_dark_frame_path_propagates() {
-        let bad_path = std::path::PathBuf::from("dark\0frame");
-        let err = path_to_cstring("dark_frame", Some(bad_path.as_path()))
-            .expect_err("interior NUL must produce RawError::InvalidCStringPath");
-        match err {
-            RawError::InvalidCStringPath { which, .. } => assert_eq!(which, "dark_frame"),
-            other => panic!("expected RawError::InvalidCStringPath, got {:?}", other),
+    fn bit_depth_comes_from_the_white_level() {
+        assert_eq!(bits_for_white_level(16383, 14), 14);
+        assert_eq!(bits_for_white_level(3651, 12), 12);
+        assert_eq!(bits_for_white_level(4095, 12), 12);
+        assert_eq!(bits_for_white_level(65535, 16), 16);
+        assert_eq!(bits_for_white_level(0, 14), 14);
+        assert_eq!(bits_for_white_level(0, 0), 16);
+    }
+
+    #[test]
+    fn a_file_with_no_mosaic_says_what_to_change() {
+        let err = color_filter_from(&info()).unwrap_err();
+        assert!(err.to_string().contains("full-size raw"), "{err}");
+    }
+
+    #[test]
+    fn an_unknown_filter_is_refused_by_name() {
+        let mut cmyg = info();
+        cmyg.cfa_size = 2;
+        for (slot, letter) in cmyg.cfa.iter_mut().zip(b"CMYG") {
+            *slot = *letter as c_char;
         }
+        let err = color_filter_from(&cmyg).unwrap_err();
+        assert!(err.to_string().contains("CMYG"), "{err}");
+    }
+
+    #[test]
+    fn a_missing_file_is_an_io_error() {
+        let err = read_raw_file(Path::new("/nonexistent/IMG_0001.CR2")).unwrap_err();
+        assert!(matches!(err, RawError::Io(_)), "{err:?}");
+    }
+
+    #[test]
+    fn bytes_that_are_no_raw_are_refused() {
+        assert!(read_raw_bytes(&[]).is_err());
+        assert!(read_raw_bytes(&[0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10, b'J', b'F', b'I', b'F']).is_err());
+        assert_eq!(raw_format_extension(&[0xFF; 64]), None);
     }
 }

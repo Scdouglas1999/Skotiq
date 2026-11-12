@@ -41,7 +41,8 @@ mod numeric;
 pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
 mod phd2;
 mod platesolve;
-mod raw; // NEW: RAW file support
+mod frame_io;
+mod raw;
 pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
 pub mod registration; // NEW: High-quality star-based registration
 mod resample;
@@ -80,7 +81,8 @@ pub use normalization::*; // NEW: Export normalization types
 pub use optimizer::*; // NEW: Export integration-optimizer types
 pub use phd2::*;
 pub use platesolve::*;
-pub use raw::*; // NEW: Export RAW types
+pub use frame_io::*;
+pub use raw::*;
 /// The color-composite stages, under the name the bridge imports them by.
 pub use recipe::composite as color_composite;
 pub use registration::*; // NEW: Export registration types
@@ -111,6 +113,7 @@ pub enum ImageFormat {
     PentaxPEF,
     OlympusORF,
     PanasonicRW2,
+    AdobeDNG,
     GenericRAW,
 }
 
@@ -130,6 +133,7 @@ impl ImageFormat {
             ImageFormat::PentaxPEF => "pef",
             ImageFormat::OlympusORF => "orf",
             ImageFormat::PanasonicRW2 => "rw2",
+            ImageFormat::AdobeDNG => "dng",
             ImageFormat::GenericRAW => "raw",
         }
     }
@@ -147,7 +151,8 @@ impl ImageFormat {
             "nef" | "nrw" => Some(ImageFormat::NikonNEF),
             "arw" | "srf" | "sr2" => Some(ImageFormat::SonyARW),
             "raf" => Some(ImageFormat::FujifilmRAF),
-            "pef" | "dng" => Some(ImageFormat::PentaxPEF),
+            "pef" => Some(ImageFormat::PentaxPEF),
+            "dng" => Some(ImageFormat::AdobeDNG),
             "orf" => Some(ImageFormat::OlympusORF),
             "rw2" => Some(ImageFormat::PanasonicRW2),
             "raw" | "crw" | "mrw" | "erf" | "3fr" => Some(ImageFormat::GenericRAW),
@@ -250,6 +255,7 @@ impl ImageFormat {
                 | ImageFormat::PentaxPEF
                 | ImageFormat::OlympusORF
                 | ImageFormat::PanasonicRW2
+                | ImageFormat::AdobeDNG
                 | ImageFormat::GenericRAW
         )
     }
@@ -478,16 +484,10 @@ pub struct ImageReadResult {
     pub image: ImageData,
     pub format: ImageFormat,
     pub header: std::collections::HashMap<String, String>,
-    /// Parsed Bayer/CFA geometry for the frame, when the source format records it.
-    ///
-    /// Why: the `header` HashMap flattens every keyword through `format!("{:?}")`,
-    /// which quotes string values (e.g. `BAYERPAT` becomes `"\"RGGB\""`) and loses
-    /// the offset composition — making it unreliable as the OSC-detection signal.
-    /// This field carries the geometry parsed by [`read_bayer_geometry`] directly
-    /// from the typed FITS header, with `XBAYROFF`/`YBAYROFF` already composed into
-    /// `effective`. `None` means the frame is mono / not a CFA frame, or the format
-    /// (XISF, RAW) does not surface a Bayer pattern through this reader path.
-    pub bayer: Option<BayerGeometry>,
+    /// The frame's color filter at its pixel (0, 0), read from the typed
+    /// header before it was flattened (the flattened text has lost the types
+    /// and the subframe offsets it is composed from). `None` for a mono frame.
+    pub cfa: Option<ColorFilterArray>,
 }
 
 /// Write an image to TIFF format (16-bit if possible, otherwise 8-bit)
@@ -761,114 +761,40 @@ pub fn write_jpeg(path: &std::path::Path, image: &ImageData, quality: u8) -> Res
     Ok(())
 }
 
-/// Read an image file (auto-detect format)
+/// Read an image file in any format the app opens, with its metadata
+/// flattened to value text.
 pub fn read_image(path: &std::path::Path) -> Result<ImageReadResult, String> {
-    // Why: path with no extension OR with a non-UTF-8 extension
-    // returns empty string; `ImageFormat::from_extension("")` returns None and the
-    // ?-propagating ok_or_else fails CLOSED with "Unsupported file extension:" on the
-    // next line. Silent fallback to empty is the correct funneling into the error
-    // path.
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-    let format = ImageFormat::from_extension(ext)
-        .ok_or_else(|| format!("Unsupported file extension: {}", ext))?;
-
-    match format {
-        ImageFormat::Fits => {
-            let (image, fits_header) = read_fits(path).map_err(|e| e.to_string())?;
-
-            // Why: read the typed Bayer geometry BEFORE `fits_header.keywords`
-            // is consumed into the flattened HashMap below. The flattened form
-            // is value text with the type discarded, so the typed header is the
-            // only place the geometry can be parsed without guessing.
-            let bayer = read_bayer_geometry(&fits_header);
-
-            let header: std::collections::HashMap<String, String> = fits_header
-                .keywords
-                .into_iter()
-                .map(|(k, v)| (k, v.to_header_string()))
-                .collect();
-
-            Ok(ImageReadResult {
-                image,
-                format,
-                header,
-                bayer,
-            })
+    if ImageFormat::from_extension(ext) == Some(ImageFormat::Xisf) {
+        let (image, xisf_metadata) = read_xisf(path).map_err(|e| e.to_string())?;
+        // `fits_keywords` already arrive as on-card value text; the XISF
+        // properties are typed, so they get the same treatment as `FitsValue`.
+        let mut header: std::collections::HashMap<String, String> = xisf_metadata.fits_keywords;
+        for (k, v) in xisf_metadata.properties {
+            header.insert(k, v.to_header_string());
         }
-        ImageFormat::Xisf => {
-            let (image, xisf_metadata) = read_xisf(path).map_err(|e| e.to_string())?;
-
-            // `fits_keywords` already arrive as on-card value text; the XISF
-            // properties are typed, so they get the same treatment the FITS
-            // branch gives `FitsValue`.
-            let mut header: std::collections::HashMap<String, String> = xisf_metadata.fits_keywords;
-            for (k, v) in xisf_metadata.properties {
-                header.insert(k, v.to_header_string());
-            }
-
-            Ok(ImageReadResult {
-                image,
-                format,
-                header,
-                // Why: the XISF reader exposes CFA metadata only as flattened FITS
-                // keywords/properties (already in `header`); there is no typed
-                // geometry parse on this path, so we report `None` rather than
-                // guess from the stringified values. OSC detection for XISF is
-                // handled separately at the metadata layer.
-                bayer: None,
-            })
-        }
-        ImageFormat::CanonCR2
-        | ImageFormat::CanonCR3
-        | ImageFormat::NikonNEF
-        | ImageFormat::SonyARW
-        | ImageFormat::FujifilmRAF
-        | ImageFormat::PentaxPEF
-        | ImageFormat::OlympusORF
-        | ImageFormat::PanasonicRW2
-        | ImageFormat::GenericRAW => {
-            let (image, raw_metadata) = read_raw(path, None).map_err(|e| e.to_string())?;
-
-            let mut header = std::collections::HashMap::new();
-            header.insert("MAKE".to_string(), raw_metadata.camera_make);
-            header.insert("MODEL".to_string(), raw_metadata.camera_model);
-
-            if let Some(iso) = raw_metadata.iso_speed {
-                header.insert("ISO".to_string(), iso.to_string());
-            }
-            if let Some(shutter) = raw_metadata.shutter_speed {
-                header.insert("EXPTIME".to_string(), shutter.to_string());
-            }
-            if let Some(aperture) = raw_metadata.aperture {
-                header.insert("APERTURE".to_string(), aperture.to_string());
-            }
-            if let Some(focal) = raw_metadata.focal_length {
-                header.insert("FOCALLEN".to_string(), focal.to_string());
-            }
-            if let Some(ts) = raw_metadata.timestamp {
-                if let Some(dt) = chrono::DateTime::<chrono::Utc>::from_timestamp(ts, 0) {
-                    header.insert("DATETIME".to_string(), dt.to_rfc3339());
-                } else {
-                    header.insert("DATETIME".to_string(), ts.to_string());
-                }
-            }
-
-            Ok(ImageReadResult {
-                image,
-                format,
-                header,
-                // Why: LibRaw decodes RAW frames into the demosaiced RGB image
-                // already (the returned `image` is not a CFA mosaic), so there is
-                // no Bayer geometry to apply downstream — `None` is correct here.
-                bayer: None,
-            })
-        }
-        _ => Err(format!(
-            "Reading {:?} is not supported by the current image reader pipeline",
-            format
-        )),
+        return Ok(ImageReadResult {
+            image,
+            format: ImageFormat::Xisf,
+            header,
+            // The XISF reader exposes CFA metadata only as flattened text.
+            cfa: None,
+        });
     }
+    let format = frame_format(path).map_err(|e| e.to_string())?;
+    let (image, header) = read_frame(path).map_err(|e| e.to_string())?;
+    let cfa = read_color_filter_array(&header);
+    let flattened = header
+        .keywords
+        .into_iter()
+        .map(|(k, v)| (k, v.to_header_string()))
+        .collect();
+    Ok(ImageReadResult {
+        image,
+        format,
+        header: flattened,
+        cfa,
+    })
 }
 
 #[cfg(test)]
@@ -1120,53 +1046,35 @@ mod tests {
     }
 
     #[test]
-    fn read_image_exposes_bayer_geometry_for_cfa_fits() {
-        // A FITS frame tagged BAYERPAT='RGGB' (no offsets) must surface a
-        // populated, typed geometry on the read result — not a quoted/unreliable
-        // string buried in the flattened `header` HashMap.
+    fn read_image_exposes_the_color_filter_of_cfa_fits() {
         let fixture = write_temp_fits("rggb", Some(("RGGB", 0, 0)));
-
         let result = read_image(&fixture.path).expect("read_image should succeed for CFA FITS");
-
         assert_eq!(result.format, ImageFormat::Fits);
-        let geo = result
-            .bayer
-            .expect("CFA FITS with BAYERPAT must yield a parsed BayerGeometry");
-        assert_eq!(geo.effective, BayerPattern::RGGB);
-        assert_eq!(geo.source, BayerPattern::RGGB);
-        assert_eq!(geo.x_offset, 0);
-        assert_eq!(geo.y_offset, 0);
+        assert_eq!(result.cfa, Some(ColorFilterArray::Bayer(BayerPattern::RGGB)));
     }
 
     #[test]
-    fn read_image_composes_bayer_offsets_for_cfa_fits() {
-        // Odd X offset shifts RGGB to GRBG at the in-memory origin; the read
-        // result's `effective` must reflect the composition, while `source`
-        // preserves the on-disk BAYERPAT (regression guard).
+    fn read_image_composes_subframe_offsets_into_the_color_filter() {
+        // An odd X offset makes an RGGB sensor read GRBG at the crop's origin.
         let fixture = write_temp_fits("rggb_xoff", Some(("RGGB", 1, 0)));
-
         let result = read_image(&fixture.path).expect("read_image should succeed");
-        let geo = result.bayer.expect("CFA FITS must yield geometry");
-
-        assert_eq!(geo.source, BayerPattern::RGGB);
-        assert_eq!(geo.effective, BayerPattern::GRBG);
-        assert_eq!(geo.x_offset, 1);
-        assert_eq!(geo.y_offset, 0);
+        assert_eq!(result.cfa, Some(ColorFilterArray::Bayer(BayerPattern::GRBG)));
     }
 
     #[test]
-    fn read_image_yields_none_bayer_for_mono_fits() {
-        // A mono FITS frame (no BAYERPAT) must report `bayer == None` so the OSC
-        // path is never falsely triggered for a monochrome capture.
+    fn read_image_reads_an_xtrans_bayerpat() {
+        let letters = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+        let fixture = write_temp_fits("xtrans", Some((letters, 0, 0)));
+        let result = read_image(&fixture.path).expect("read_image should succeed");
+        assert_eq!(result.cfa.map(|c| c.letters()).as_deref(), Some(letters));
+    }
+
+    #[test]
+    fn read_image_yields_no_color_filter_for_mono_fits() {
+        // A mono frame must never take the one-shot-color path.
         let fixture = write_temp_fits("mono", None);
-
         let result = read_image(&fixture.path).expect("read_image should succeed for mono FITS");
-
         assert_eq!(result.format, ImageFormat::Fits);
-        assert!(
-            result.bayer.is_none(),
-            "mono FITS (no BAYERPAT) must yield bayer == None, got {:?}",
-            result.bayer
-        );
+        assert_eq!(result.cfa, None);
     }
 }

@@ -7,7 +7,9 @@ use skotiq_imaging::stack_master::{write_stack_master, FrameProvenance};
 use skotiq_imaging::stacking::{
     debayer_cfa_to_rgb, LiveStackConfig, LiveStacker, SensorMode, StackingStats,
 };
-use skotiq_imaging::{read_image, BayerPattern, DebayerAlgorithm, ImageData, StarDetectionConfig};
+use skotiq_imaging::{
+    read_image, BayerPattern, ColorFilterArray, DebayerAlgorithm, ImageData, StarDetectionConfig,
+};
 use std::sync::Mutex;
 use std::sync::OnceLock;
 
@@ -21,7 +23,7 @@ use std::sync::OnceLock;
 /// channel, byte-for-byte as before OSC support existed.
 #[derive(Debug, Clone, Copy)]
 struct ColorIngest {
-    pattern: BayerPattern,
+    pattern: ColorFilterArray,
     algorithm: DebayerAlgorithm,
 }
 
@@ -256,7 +258,7 @@ pub fn stacking_start(
     // Resolve whether this session debayers, and with which pattern/algorithm.
     //
     // The pattern is the config override first, then the reference frame's
-    // effective (offset-corrected) FITS BAYERPAT geometry.
+    // color filter (offset-corrected `BAYERPAT`, Bayer or X-Trans).
     //
     //   * Osc — *must* debayer; an unresolvable pattern is a hard error
     //     (debayering with a guessed mosaic would corrupt colour, and silently
@@ -265,8 +267,10 @@ pub fn stacking_start(
     //     frame carries Bayer geometry); otherwise stack as mono. A missing
     //     pattern is *not* an error.
     //   * Mono — never debayers, regardless of any override.
-    let frame_pattern = read_result.bayer.map(|geo| geo.effective);
-    let resolved_pattern = native_config.bayer_pattern.or(frame_pattern);
+    let resolved_pattern = native_config
+        .bayer_pattern
+        .map(ColorFilterArray::Bayer)
+        .or(read_result.cfa);
 
     let color = match native_config.sensor_mode {
         SensorMode::Osc => match resolved_pattern {
@@ -345,7 +349,7 @@ pub fn stacking_start_from_data(
     //     (there is nothing to auto-detect from a raw u16 buffer).
     //   * Mono — never debayers.
     let color = match native_config.sensor_mode {
-        SensorMode::Osc => match native_config.bayer_pattern {
+        SensorMode::Osc => match native_config.bayer_pattern.map(ColorFilterArray::Bayer) {
             Some(pattern) => Some(ColorIngest {
                 pattern,
                 algorithm: native_config.demosaic_algorithm,
@@ -359,7 +363,7 @@ pub fn stacking_start_from_data(
             }
         },
         SensorMode::Auto => native_config.bayer_pattern.map(|pattern| ColorIngest {
-            pattern,
+            pattern: ColorFilterArray::Bayer(pattern),
             algorithm: native_config.demosaic_algorithm,
         }),
         SensorMode::Mono => None,
@@ -860,7 +864,7 @@ mod tests {
         // the ingest path debayers with no extra processing on the first frame.
         let reference_rgb = debayer_cfa_to_rgb(
             &ImageData::from_u16(IMG_W, IMG_H, 1, &cfa),
-            BayerPattern::RGGB,
+            ColorFilterArray::Bayer(BayerPattern::RGGB),
             DebayerAlgorithm::Bilinear,
         )
         .expect("reference debayer")
@@ -883,7 +887,7 @@ mod tests {
         let cfa = uniform_rggb_cfa(8, 8);
         let rgb = debayer_cfa_to_rgb(
             &ImageData::from_u16(8, 8, 1, &cfa),
-            BayerPattern::RGGB,
+            ColorFilterArray::Bayer(BayerPattern::RGGB),
             DebayerAlgorithm::Bilinear,
         )
         .expect("debayer")

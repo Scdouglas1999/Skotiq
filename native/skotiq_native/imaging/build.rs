@@ -4,16 +4,18 @@ use std::path::Path;
 use std::path::PathBuf;
 
 fn main() {
+    let libraw_headers = libraw_header_dir();
     cc::Build::new()
         .file("src/libraw_shim.c")
-        .include("vendor/libraw")
+        .include(&libraw_headers)
         .warnings(false)
         .compile("skotiq_libraw_shim");
 
     println!("cargo:rerun-if-changed=src/libraw_shim.c");
-    println!("cargo:rerun-if-changed=vendor/libraw/libraw_const.h");
-    println!("cargo:rerun-if-changed=vendor/libraw/libraw_types.h");
-    println!("cargo:rerun-if-changed=vendor/libraw/libraw_version.h");
+    println!(
+        "cargo:rerun-if-changed={}",
+        libraw_headers.join("libraw_types.h").display()
+    );
     println!("cargo:rerun-if-changed=build.rs");
 
     // Get the workspace root (where libraw.dll/.lib lives)
@@ -145,6 +147,61 @@ fn main() {
         println!("cargo:rustc-link-search=native=/usr/local/lib");
         println!("cargo:rustc-link-search=native=/opt/homebrew/lib");
     }
+}
+
+/// The LibRaw headers the shim is compiled against.
+///
+/// The shim reads LibRaw's structs by field, so the headers must be the ones of
+/// the library that is linked: the struct layout changes between LibRaw
+/// releases (0.22 added maker-note fields ahead of `color` and `rawdata`).
+/// Windows links the checked-in `lib/libraw` build, whose headers are the
+/// vendored copy; every other target links the system library and uses its
+/// installed headers.
+fn libraw_header_dir() -> PathBuf {
+    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR"));
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "windows" {
+        return manifest_dir.join("vendor").join("libraw");
+    }
+    println!("cargo:rerun-if-env-changed=LIBRAW_INCLUDE_DIR");
+    if let Ok(dir) = env::var("LIBRAW_INCLUDE_DIR") {
+        return PathBuf::from(dir);
+    }
+    let mut candidates = Vec::new();
+    if let Ok(output) = std::process::Command::new("pkg-config")
+        .args(["--variable=includedir", "libraw"])
+        .output()
+    {
+        if output.status.success() {
+            let dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !dir.is_empty() {
+                candidates.push(PathBuf::from(dir).join("libraw"));
+            }
+        }
+    }
+    for dir in [
+        "/usr/include/libraw",
+        "/usr/local/include/libraw",
+        "/opt/homebrew/include/libraw",
+    ] {
+        candidates.push(PathBuf::from(dir));
+    }
+    if let Ok(cpath) = env::var("CPATH") {
+        for dir in env::split_paths(&cpath) {
+            candidates.push(dir.join("libraw"));
+        }
+    }
+    candidates
+        .into_iter()
+        .find(|dir| dir.join("libraw_types.h").exists())
+        .unwrap_or_else(|| {
+            panic!(
+                "build.rs: the LibRaw development headers were not found (looked for \
+                 libraw/libraw_types.h via pkg-config, /usr/include, /usr/local/include, \
+                 /opt/homebrew/include and CPATH). Install the libraw development package \
+                 (libraw-dev, libraw, or brew install libraw) or set LIBRAW_INCLUDE_DIR."
+            )
+        })
 }
 
 /// Resolve the cargo `target/<profile>` directory from `OUT_DIR`.

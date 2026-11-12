@@ -37,9 +37,9 @@ pub struct FujifilmCamera {
     /// `XSDK_ImageInformation::lImageBitDepth` (XAPI.H:123) for every RAW frame
     /// `XSDK_ReadImageInfo` describes.
     pub(crate) sdk_reported_bit_depth: Option<u32>,
-    /// True bit depth of the last decoded RAF: `CfaImage::bits_per_pixel`.
+    /// True bit depth of the last decoded RAF: `RawFrame::bits_per_pixel`.
     pub(crate) measured_bit_depth: Option<u32>,
-    /// Container full scale of the last decoded RAF: `CfaImage::max_value`,
+    /// Container full scale of the last decoded RAF: `RawFrame::white_level`,
     /// i.e. LibRaw's `color.maximum` saturation level.
     pub(crate) measured_white_level: Option<u32>,
 
@@ -115,8 +115,8 @@ impl FujifilmCamera {
     ///
     /// Authority order, highest first:
     ///
-    /// 1. **Measured from the frame** — `CfaImage::bits_per_pixel` and
-    ///    `CfaImage::max_value` (LibRaw `color.maximum`) for the RAF this
+    /// 1. **Measured from the frame** — `RawFrame::bits_per_pixel` and
+    ///    `RawFrame::white_level` (LibRaw `color.maximum`) for the RAF this
     ///    driver last decoded. Exact, and the only source that survives the
     ///    user changing the body's RAW settings behind our back.
     /// 2. **Reported by the camera** — `XSDK_ImageInformation::lImageBitDepth`

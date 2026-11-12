@@ -715,6 +715,277 @@ fn debayer_superpixel(pixels: &[u16], width: u32, height: u32, pattern: BayerPat
     }
 }
 
+/// The color filter in front of a one-shot-color sensor, as it lies at the
+/// image's own pixel (0, 0).
+///
+/// Bayer sensors repeat a 2×2 cell; Fujifilm X-Trans sensors repeat a 6×6 cell.
+/// The FITS spelling is the cell's letters row by row in `BAYERPAT` (4 letters
+/// for Bayer, 36 for X-Trans, the form Siril and PixInsight read).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorFilterArray {
+    Bayer(BayerPattern),
+    XTrans(XTransPattern),
+}
+
+/// A 6×6 X-Trans cell, row-major.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct XTransPattern([[BayerColor; 6]; 6]);
+
+impl XTransPattern {
+    pub fn color_at(&self, x: usize, y: usize) -> BayerColor {
+        self.0[y % 6][x % 6]
+    }
+}
+
+fn color_letter(color: BayerColor) -> char {
+    match color {
+        BayerColor::Red => 'R',
+        BayerColor::Green => 'G',
+        BayerColor::Blue => 'B',
+    }
+}
+
+fn letter_color(letter: char) -> Option<BayerColor> {
+    match letter.to_ascii_uppercase() {
+        'R' => Some(BayerColor::Red),
+        'G' => Some(BayerColor::Green),
+        'B' => Some(BayerColor::Blue),
+        _ => None,
+    }
+}
+
+impl ColorFilterArray {
+    /// Parse a cell from its letters: 4 for Bayer, 36 for X-Trans.
+    pub fn parse(letters: &str) -> Option<Self> {
+        let letters = letters.trim();
+        match letters.len() {
+            4 => BayerPattern::from_str(letters).map(Self::Bayer),
+            36 => {
+                let mut cell = [[BayerColor::Green; 6]; 6];
+                for (i, letter) in letters.chars().enumerate() {
+                    cell[i / 6][i % 6] = letter_color(letter)?;
+                }
+                // Every X-Trans row and column holds red and blue; a 36-letter
+                // string without that is not an X-Trans cell.
+                let complete = (0..6).all(|i| {
+                    let row: Vec<BayerColor> = (0..6).map(|j| cell[i][j]).collect();
+                    let col: Vec<BayerColor> = (0..6).map(|j| cell[j][i]).collect();
+                    [row, col].iter().all(|line| {
+                        line.contains(&BayerColor::Red) && line.contains(&BayerColor::Blue)
+                    })
+                });
+                complete.then_some(Self::XTrans(XTransPattern(cell)))
+            }
+            _ => None,
+        }
+    }
+
+    /// The cell's letters, row by row: the `BAYERPAT` value.
+    pub fn letters(&self) -> String {
+        let size = self.cell_size();
+        (0..size)
+            .flat_map(|y| (0..size).map(move |x| (x, y)))
+            .map(|(x, y)| color_letter(self.color_at(x, y)))
+            .collect()
+    }
+
+    /// Side of the repeating cell: 2 for Bayer, 6 for X-Trans.
+    pub fn cell_size(&self) -> usize {
+        match self {
+            Self::Bayer(_) => 2,
+            Self::XTrans(_) => 6,
+        }
+    }
+
+    pub fn color_at(&self, x: usize, y: usize) -> BayerColor {
+        match self {
+            Self::Bayer(pattern) => pattern.color_at(x, y),
+            Self::XTrans(pattern) => pattern.color_at(x, y),
+        }
+    }
+
+    /// The filter as seen from a crop whose top-left pixel is (`x`, `y`) of
+    /// this one (`XBAYROFF`/`YBAYROFF`).
+    pub fn shifted(&self, x: i64, y: i64) -> Self {
+        let size = self.cell_size() as i64;
+        let (dx, dy) = (x.rem_euclid(size) as usize, y.rem_euclid(size) as usize);
+        match self {
+            Self::Bayer(pattern) => Self::Bayer(crate::effective_bayer_pattern(
+                *pattern, dx as i64, dy as i64,
+            )),
+            Self::XTrans(pattern) => {
+                let mut cell = [[BayerColor::Green; 6]; 6];
+                for (row, line) in cell.iter_mut().enumerate() {
+                    for (col, color) in line.iter_mut().enumerate() {
+                        *color = pattern.color_at(col + dx, row + dy);
+                    }
+                }
+                Self::XTrans(XTransPattern(cell))
+            }
+        }
+    }
+
+    /// One luminance sample per whole filter cell (the mean of the cell), so a
+    /// reduced view of a mosaic holds every color equally rather than
+    /// whichever color the sampling grid lands on. Returns width, height and
+    /// samples.
+    pub fn bin_cells(&self, pixels: &[u16], width: u32, height: u32) -> (u32, u32, Vec<u16>) {
+        let cell = self.cell_size();
+        let (w, h) = (width as usize, height as usize);
+        let (out_w, out_h) = ((w / cell).max(1), (h / cell).max(1));
+        let (cell_w, cell_h) = (cell.min(w), cell.min(h));
+        let samples = (cell_w * cell_h) as u32;
+        let mut out = vec![0u16; out_w * out_h];
+        out.par_chunks_mut(out_w).enumerate().for_each(|(by, row)| {
+            for (bx, value) in row.iter_mut().enumerate() {
+                let mut sum = 0u32;
+                for y in by * cell_h..by * cell_h + cell_h {
+                    for x in bx * cell_w..bx * cell_w + cell_w {
+                        sum += pixels[y * w + x] as u32;
+                    }
+                }
+                *value = ((sum + samples / 2) / samples) as u16;
+            }
+        });
+        (out_w as u32, out_h as u32, out)
+    }
+
+    /// Demosaic a mosaic to RGB. X-Trans has one method (same-color
+    /// neighbor averaging); `algorithm` chooses among the Bayer methods.
+    pub fn demosaic(
+        &self,
+        pixels: &[u16],
+        width: u32,
+        height: u32,
+        algorithm: DebayerAlgorithm,
+    ) -> RgbImage {
+        match self {
+            Self::Bayer(pattern) => debayer_u16(pixels, width, height, *pattern, algorithm),
+            Self::XTrans(pattern) => demosaic_xtrans(pixels, width, height, pattern),
+        }
+    }
+}
+
+/// X-Trans demosaic: each missing color is the mean of the same-color samples
+/// in the 3×3 neighborhood, or the 5×5 one where the 3×3 has none (X-Trans
+/// leaves some 3×3 windows without red or blue). A linear method, so the output
+/// stays linear in the sensor signal.
+fn demosaic_xtrans(pixels: &[u16], width: u32, height: u32, pattern: &XTransPattern) -> RgbImage {
+    let w = width as usize;
+    let h = height as usize;
+    let len = w * h;
+    let mut red = vec![0u16; len];
+    let mut green = vec![0u16; len];
+    let mut blue = vec![0u16; len];
+    if len == 0 {
+        return RgbImage { width, height, red, green, blue };
+    }
+
+    let neighbor_mean = |x: usize, y: usize, color: BayerColor, radius: usize| -> Option<u16> {
+        let (mut sum, mut count) = (0u32, 0u32);
+        for yy in y.saturating_sub(radius)..=(y + radius).min(h - 1) {
+            for xx in x.saturating_sub(radius)..=(x + radius).min(w - 1) {
+                if pattern.color_at(xx, yy) == color {
+                    sum += pixels[yy * w + xx] as u32;
+                    count += 1;
+                }
+            }
+        }
+        (count > 0).then(|| ((sum + count / 2) / count) as u16)
+    };
+
+    red.par_chunks_mut(w)
+        .zip(green.par_chunks_mut(w))
+        .zip(blue.par_chunks_mut(w))
+        .enumerate()
+        .for_each(|(y, ((r_row, g_row), b_row))| {
+            for x in 0..w {
+                let own = pattern.color_at(x, y);
+                for (color, out) in [
+                    (BayerColor::Red, &mut r_row[x]),
+                    (BayerColor::Green, &mut g_row[x]),
+                    (BayerColor::Blue, &mut b_row[x]),
+                ] {
+                    *out = if color == own {
+                        pixels[y * w + x]
+                    } else {
+                        neighbor_mean(x, y, color, 1)
+                            .or_else(|| neighbor_mean(x, y, color, 2))
+                            .unwrap_or(0)
+                    };
+                }
+            }
+        });
+
+    RgbImage { width, height, red, green, blue }
+}
+
+#[cfg(test)]
+mod color_filter_array_tests {
+    use super::*;
+
+    /// The X-T3 cell as LibRaw and rawpy report it for a public X-T3 RAF.
+    const XT3: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+
+    #[test]
+    fn letters_round_trip_for_bayer_and_xtrans() {
+        for letters in ["RGGB", "BGGR", "GRBG", "GBRG", XT3] {
+            let cfa = ColorFilterArray::parse(letters).expect(letters);
+            assert_eq!(cfa.letters(), letters);
+        }
+        assert!(matches!(ColorFilterArray::parse(XT3), Some(ColorFilterArray::XTrans(_))));
+    }
+
+    #[test]
+    fn strings_that_are_no_filter_are_refused() {
+        assert_eq!(ColorFilterArray::parse("RGB"), None);
+        assert_eq!(ColorFilterArray::parse("CMYG"), None);
+        assert_eq!(ColorFilterArray::parse(&"G".repeat(36)), None);
+    }
+
+    #[test]
+    fn a_shift_moves_the_origin_inside_the_cell() {
+        let bayer = ColorFilterArray::parse("RGGB").unwrap();
+        assert_eq!(bayer.shifted(1, 0).letters(), "GRBG");
+        assert_eq!(bayer.shifted(-1, 1).letters(), "BGGR");
+
+        let xtrans = ColorFilterArray::parse(XT3).unwrap();
+        assert_eq!(xtrans.shifted(6, -12), xtrans);
+        let moved = xtrans.shifted(2, 1);
+        for y in 0..6 {
+            for x in 0..6 {
+                assert_eq!(moved.color_at(x, y), xtrans.color_at(x + 2, y + 1));
+            }
+        }
+    }
+
+    #[test]
+    fn binning_cells_averages_every_color_once() {
+        let cfa = ColorFilterArray::parse(XT3).unwrap();
+        let mosaic: Vec<u16> = (0..12 * 6).map(|i| if cfa.color_at(i % 12, i / 12) == BayerColor::Green { 30 } else { 12 }).collect();
+        let (w, h, binned) = cfa.bin_cells(&mosaic, 12, 6);
+        assert_eq!((w, h), (2, 1));
+        // 20 green and 16 red or blue sites per X-Trans cell.
+        assert_eq!(binned, vec![22, 22]);
+    }
+
+    #[test]
+    fn xtrans_demosaic_keeps_a_flat_field_flat_and_colors_separate() {
+        let cfa = ColorFilterArray::parse(XT3).unwrap();
+        let (w, h) = (24usize, 18usize);
+        let level = |c: BayerColor| match c {
+            BayerColor::Red => 1000u16,
+            BayerColor::Green => 2000,
+            BayerColor::Blue => 3000,
+        };
+        let mosaic: Vec<u16> = (0..w * h).map(|i| level(cfa.color_at(i % w, i / w))).collect();
+        let rgb = cfa.demosaic(&mosaic, w as u32, h as u32, DebayerAlgorithm::Bilinear);
+        assert!(rgb.red.iter().all(|&v| v == 1000));
+        assert!(rgb.green.iter().all(|&v| v == 2000));
+        assert!(rgb.blue.iter().all(|&v| v == 3000));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

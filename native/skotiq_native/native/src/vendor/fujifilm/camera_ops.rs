@@ -415,38 +415,22 @@ impl CameraDriver for FujifilmCamera {
         self.is_exposing = false;
 
         // Decode the RAF into its native linear CFA mosaic (single channel).
-        let cfa = process_raf_buffer(&buffer, self.model.is_xtrans())?;
+        let frame = process_raf_buffer(&buffer)?;
 
         // Adopt the decoder's ground truth — the highest-authority source.
-        // `max_value` IS LibRaw's `color.maximum` (the saturation level) and
-        // `bits_per_pixel` is derived from it. The RAF is decoded with `unpack`
-        // + `raw2image` and never `dcraw_process` (imaging/src/raw.rs:1097-1108,
-        // contract in imaging/src/libraw_shim.c:98-102), so the mosaic is
-        // RIGHT-JUSTIFIED at its native depth: the white level is already the
-        // container full scale and must not be scaled up into 16 bits.
-        if (8..=16).contains(&cfa.bits_per_pixel) {
-            self.measured_bit_depth = Some(cfa.bits_per_pixel);
+        // `white_level` IS LibRaw's `color.maximum` (the saturation level) and
+        // `bits_per_pixel` is derived from it. The mosaic is RIGHT-JUSTIFIED at
+        // its native depth: the white level is already the container full scale
+        // and must not be scaled up into 16 bits.
+        if (8..=16).contains(&frame.bits_per_pixel) {
+            self.measured_bit_depth = Some(frame.bits_per_pixel);
         }
-        if cfa.max_value > 0 {
-            self.measured_white_level = Some(cfa.max_value);
+        if frame.white_level > 0 {
+            self.measured_white_level = Some(frame.white_level);
         }
         self.refresh_raw_depth();
 
-        // Bayer orientation: X-Trans (6×6) has no valid 2×2 pattern → None
-        // (downstream then treats the mosaic as luminance rather than double-
-        // debayering it as if it were Bayer). GFX bodies are true Bayer → use
-        // LibRaw's detected orientation, falling back to the sensor default.
-        let bayer_pattern = if cfa.is_xtrans {
-            None
-        } else {
-            match cfa.cfa_pattern {
-                Some(skotiq_imaging::CfaPattern::Rggb) => Some(BayerPattern::Rggb),
-                Some(skotiq_imaging::CfaPattern::Grbg) => Some(BayerPattern::Grbg),
-                Some(skotiq_imaging::CfaPattern::Gbrg) => Some(BayerPattern::Gbrg),
-                Some(skotiq_imaging::CfaPattern::Bggr) => Some(BayerPattern::Bggr),
-                None => self.sensor_info.bayer_pattern,
-            }
-        };
+        let bayer_pattern = crate::camera_core::mosaic_bayer_pattern(&frame.cfa);
 
         let metadata = ImageMetadata {
             exposure_time: self.exposure_duration.as_secs_f64(),
@@ -454,7 +438,7 @@ impl CameraDriver for FujifilmCamera {
             offset: self.current_offset,
             bin_x: 1,
             bin_y: 1,
-            temperature: None,
+            temperature: frame.metadata.temperature.map(|t| t.celsius as f64),
             timestamp: chrono::Utc::now(),
             subframe: None,
             readout_mode: None,
@@ -462,11 +446,10 @@ impl CameraDriver for FujifilmCamera {
         };
 
         Ok(ImageData {
-            width: cfa.width,
-            height: cfa.height,
-            data: cfa.data,
-            // Truthful sensor bit depth derived from LibRaw's saturation level.
-            bits_per_pixel: cfa.bits_per_pixel,
+            width: frame.width,
+            height: frame.height,
+            bits_per_pixel: frame.bits_per_pixel,
+            data: frame.data,
             bayer_pattern,
             metadata,
         })

@@ -24,7 +24,7 @@
 //!
 //! Sites with their own `Why:` comment override the module-level reasoning.
 
-use crate::{BayerPattern, ImageData, PixelType};
+use crate::{BayerPattern, ColorFilterArray, ImageData, PixelType};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, Write};
@@ -1375,6 +1375,19 @@ pub fn read_bayer_geometry(header: &FitsHeader) -> Option<BayerGeometry> {
         x_offset,
         y_offset,
     })
+}
+
+/// The color filter of a frame at its pixel (0, 0): `BAYERPAT` (4 letters for
+/// Bayer, 36 for X-Trans) moved by `XBAYROFF`/`YBAYROFF`. `None` for a mono
+/// frame or a `BAYERPAT` that names no filter the app knows.
+pub fn read_color_filter_array(header: &FitsHeader) -> Option<ColorFilterArray> {
+    if let Some(geometry) = read_bayer_geometry(header) {
+        return Some(ColorFilterArray::Bayer(geometry.effective));
+    }
+    let cfa = ColorFilterArray::parse(header.get_string("BAYERPAT")?)?;
+    let x_offset = header.get_int("XBAYROFF").unwrap_or(0);
+    let y_offset = header.get_int("YBAYROFF").unwrap_or(0);
+    Some(cfa.shifted(x_offset, y_offset))
 }
 
 /// WCS (World Coordinate System) information from plate solving

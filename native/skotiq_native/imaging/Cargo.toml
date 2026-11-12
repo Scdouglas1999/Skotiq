@@ -27,3 +27,7 @@ flate2 = "1.1"
 
 [build-dependencies]
 cc = "1.1"
+
+[dev-dependencies]
+# Hashes the decoded mosaic in tests/camera_raw.rs to compare with an independent decoder.
+sha2 = "0.10"

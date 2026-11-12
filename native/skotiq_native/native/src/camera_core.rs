@@ -218,6 +218,19 @@ pub(crate) fn image_dimension(vendor: &str, axis: &str, value: usize) -> Result<
 
 /// The Bayer index the ASI-style SDKs (ZWO, Player One, SVBony) report:
 /// 0 RGGB, 1 BGGR, 2 GRBG, 3 GBRG. Anything else reads as RGGB.
+/// The device layer's name for a decoded raw frame's color filter. X-Trans has
+/// none, so an X-Trans mosaic is delivered without a pattern.
+pub(crate) fn mosaic_bayer_pattern(cfa: &skotiq_imaging::ColorFilterArray) -> Option<BayerPattern> {
+    use skotiq_imaging::BayerPattern as Cell;
+    match cfa {
+        skotiq_imaging::ColorFilterArray::Bayer(Cell::RGGB) => Some(BayerPattern::Rggb),
+        skotiq_imaging::ColorFilterArray::Bayer(Cell::GRBG) => Some(BayerPattern::Grbg),
+        skotiq_imaging::ColorFilterArray::Bayer(Cell::GBRG) => Some(BayerPattern::Gbrg),
+        skotiq_imaging::ColorFilterArray::Bayer(Cell::BGGR) => Some(BayerPattern::Bggr),
+        skotiq_imaging::ColorFilterArray::XTrans(_) => None,
+    }
+}
+
 pub(crate) fn bayer_from_asi_index(index: i32) -> BayerPattern {
     match index {
         0 => BayerPattern::Rggb,

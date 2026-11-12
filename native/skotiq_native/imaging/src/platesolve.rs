@@ -788,6 +788,38 @@ pub(crate) fn build_astap_args(
     args
 }
 
+/// A FITS copy of a camera raw file for a solver that reads only FITS,
+/// removed when dropped.
+struct SolverCopy {
+    path: PathBuf,
+}
+
+impl SolverCopy {
+    /// `None` when the file is no camera raw file and is solved as it is.
+    fn of(image_path: &Path) -> Result<Option<Self>, String> {
+        let is_raw = crate::frame_format(image_path).is_ok_and(|format| format.is_raw());
+        if !is_raw {
+            return Ok(None);
+        }
+        let (image, header) = crate::read_frame(image_path).map_err(|e| e.to_string())?;
+        let path = std::env::temp_dir().join(format!(
+            "skotiq-solve-raw-{}-{}.fits",
+            std::process::id(),
+            SCRATCH_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        crate::write_fits(&path, &image, &header).map_err(|e| {
+            format!("could not prepare the camera raw file for the solver: {e}")
+        })?;
+        Ok(Some(Self { path }))
+    }
+}
+
+impl Drop for SolverCopy {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
 /// A private working directory for one solver invocation.
 ///
 /// External solvers name their output after the file they were handed and write
@@ -1038,6 +1070,21 @@ impl AstapSolver {
                 }
             }
         };
+
+        // ASTAP reads FITS; a camera raw file is solved from a FITS copy of its
+        // mosaic, which the solver bins like any one-shot-color frame.
+        let converted = match SolverCopy::of(image_path) {
+            Ok(converted) => converted,
+            Err(error) => {
+                return PlateSolveResult {
+                    success: false,
+                    error: Some(error),
+                    solve_time_secs: start.elapsed().as_secs_f64(),
+                    ..Default::default()
+                }
+            }
+        };
+        let image_path = converted.as_ref().map_or(image_path, |copy| copy.path.as_path());
 
         // ASTAP writes `.ini` / `.wcs` against the base name of the file it is
         // given, so it is given a link inside a directory we own instead of
@@ -1940,6 +1987,18 @@ fn solve_with_astrometry(
     // .solved, .new, .wcs) into `--dir`, named after the input frame. Give it
     // a directory we own so none of it lands beside the operator's capture.
     // See `SolveScratch`.
+    let converted = match SolverCopy::of(image_path) {
+        Ok(converted) => converted,
+        Err(error) => {
+            return PlateSolveResult {
+                success: false,
+                error: Some(error),
+                solve_time_secs: start.elapsed().as_secs_f64(),
+                ..Default::default()
+            }
+        }
+    };
+    let image_path = converted.as_ref().map_or(image_path, |copy| copy.path.as_path());
     let scratch = SolveScratch::new(image_path);
     let output_dir = scratch.work_dir().to_path_buf();
     let image_path = scratch.input();
