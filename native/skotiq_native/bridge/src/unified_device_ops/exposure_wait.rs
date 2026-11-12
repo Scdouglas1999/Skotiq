@@ -113,16 +113,15 @@ where
         // closes, and from there the readout is polled from the base interval
         // again, so a frame is fetched when it is ready rather than up to a
         // whole backed-off interval later.
-        let poll_interval = poller.tick(&false);
         let until_exposure_end = exposure.saturating_sub(start_time.elapsed());
         let wait = if until_exposure_end.is_zero() {
             if !reading_out {
                 reading_out = true;
                 poller.reset();
             }
-            poll_interval
+            poller.tick(&false)
         } else {
-            poll_interval.min(until_exposure_end)
+            poller.tick(&false).min(until_exposure_end)
         };
         let remaining_timeout = timeout_after.saturating_sub(start_time.elapsed());
         tokio::time::sleep(wait.min(remaining_timeout)).await;
@@ -186,6 +185,36 @@ mod wait_tests {
         assert!(
             seen < duration + 0.25,
             "a {duration} s exposure was collected after {seen:.2} s"
+        );
+    }
+}
+
+#[cfg(test)]
+mod readout_tests {
+    use super::*;
+
+    /// A camera that reports its frame 0.3 s after the shutter closes: the
+    /// first poll at the end of the exposure sees "not ready", and the next
+    /// one must come from the base interval, not the 2 s backoff.
+    #[tokio::test]
+    async fn a_frame_ready_shortly_after_the_exposure_is_collected_within_the_base_polls() {
+        let started = std::time::Instant::now();
+        let (duration, readout) = (3.0, 0.3);
+        wait_for_camera_exposure_complete(
+            "readout-test-camera",
+            duration,
+            exposure_completion_timeout(duration),
+            exposure_abort_generation("readout-test-camera").await,
+            crate::api::get_state(),
+            || async move { Ok(started.elapsed().as_secs_f64() >= duration + readout) },
+        )
+        .await
+        .expect("exposure completes");
+        let seen = started.elapsed().as_secs_f64();
+        assert!(
+            seen < duration + readout + 0.5,
+            "a frame ready at {:.1} s was collected after {seen:.2} s",
+            duration + readout
         );
     }
 }
