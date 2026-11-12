@@ -66,6 +66,8 @@ parallel table, or a special case for one device, caller or mode.
 | Wire error body and shared DTOs | `ApiErrorBody`, DTOs under `packages/skotiq_remote_protocol/lib/src/wire/` |
 | Host start-up (GUI host and daemon) | steps `apps/desktop/lib/host/host_steps.dart`; always-on services by role `packages/skotiq_app/lib/startup/always_on_services.dart`; start-up prompts `packages/skotiq_app/lib/startup/startup_surface_queue.dart` |
 | Events | Rust `native/skotiq_native/bridge/src/event/` (`EventPayload` in `bus.rs`); Dart `packages/skotiq_core/lib/src/models/backend/event_types.dart`; recipe 3.6 |
+| What a sequencer error means for the run | decided where it happens: `ExecutorEvent::{Warning, StepProblem, RunHeld, Error}` in `sequencer/src/executor/types.rs` (`RunControl::warning/step_problem/held/error` for trigger actions), sent as `SequencerErrorKind` on `SequencerEvent::Error` (`bridge/src/event/sequencer.rs`); Dart reads it with `sequencerErrorKindOf` (`backend/sequencer_error_kind.dart`). Nothing infers it from severity or text. A run's failure is told only by `SequenceFailed`. |
+| Temperature compensation rule | a run: `FocusCompensation` in `sequencer/src/temperature_compensation.rs`; idle: its mirror `FocusCompensationRule` in `providers/equipment/focus_compensation_rule.dart`. Both run `sequencer/src/temperature_compensation_cases.json`; change the rule on both sides and add the case there. |
 | Database | drift tables `packages/skotiq_core/lib/src/database/tables/`, `.drift` files in `database/schema/`, registered in `database/database.dart`; DAOs `database/daos/`; migrations `database/database/migration_v<N>.dart` |
 
 ## 3. Recipes
