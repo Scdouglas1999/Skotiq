@@ -202,10 +202,7 @@ void main() {
 
 class _NoopSafetyBackend extends DisconnectedBackend {
   @override
-  Future<void> sequencerSetSafetyFailMode(String mode) async {}
-
-  @override
-  Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {}
+  Future<void> sequencerApplyRunConfig(String runConfigJson) async {}
 }
 
 class _TestBackendNotifier extends BackendNotifier {

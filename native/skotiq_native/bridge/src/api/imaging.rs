@@ -1679,18 +1679,6 @@ pub async fn api_read_frame_cutouts(
     .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {e}")))?
 }
 
-/// Set the file format captured frames are saved in: `format` is `FITS` or
-/// `XISF`; `xisf_compression` names an XISF codec as its `compression`
-/// attribute does (`zstd+sh`, `lz4`, ...) or `none`.
-pub fn api_set_capture_file_format(
-    format: String,
-    xisf_compression: String,
-    xisf_checksums: bool,
-) -> Result<(), SkotiqError> {
-    crate::capture_file_format::set(&format, &xisf_compression, xisf_checksums)
-        .map_err(SkotiqError::InvalidParameter)
-}
-
 /// Save the device's last captured frame, without moving its pixels across
 /// the FFI boundary: as the archive file (FITS or XISF, the capture format)
 /// at `file_path`, and, when `keep_camera_file` (a frame the operator keeps,
@@ -1783,7 +1771,9 @@ pub async fn api_save_fits_from_last_capture(
         &image,
         &file_path,
         &frame_ctx,
-        crate::api::sequencer::camera_file_saving().await,
+        skotiq_sequencer::executor_handle()
+            .run_config()
+            .camera_file_saving,
         keep_camera_file,
     )
     .await

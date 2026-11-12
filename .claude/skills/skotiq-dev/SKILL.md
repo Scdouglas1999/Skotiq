@@ -56,7 +56,7 @@ parallel table, or a special case for one device, caller or mode.
 | Filter-name matching | `find_filter_match` in `native/skotiq_native/bridge/src/filter_matching.rs` (the wheel) and `matchingFilterIndex` in `packages/skotiq_core/lib/src/providers/sequence/filter_name_matching.dart` (the editor): one rule, both tested against `packages/skotiq_core/test/fixtures/filter_matching_cases.json`. Change both and add a case. |
 | Executor wire (Dart node -> Rust config) | `packages/skotiq_core/lib/src/providers/sequence/sequence_executor/sequence_serializer.dart` |
 | The sequence run as the app shows it | `RunRecord` in `packages/skotiq_core/lib/src/providers/sequence/run_record.dart`, one value written only through `RunRecordNotifier`: on the host by the event fold (`foldRunEvent` in `sequence/sequence_progress.dart`) and `SequenceExecutor`, on a linked client by the mirror (`remote_sync/sequencer_mirror.dart` and the `sequenceRun` / `runRecord` channels). `sequenceExecutionStateProvider`, `sequenceProgressProvider`, `nodeExposureTallyProvider` and the other run views are `select`s of it; add a field to the record, never a second provider. |
-| A run | under `sequencer/src/`: `executor/start/run.rs` (`Run`, `Teardown`), state cell `executor/run_state.rs` (`RunCell`, `RunControl`), settings `executor/run_config.rs` (`RunConfig`, `RunConfigStore`), what node contexts share `instructions/context.rs` (`RunShared`, `InstructionContext`, `Setback`, `InstructionResult::settle`), checkpoints `executor/checkpoint_writer.rs`, triggers `triggers/standard.rs`, recovery `recovery/policy.rs`, device access `device_ops/` |
+| A run | under `sequencer/src/`: `executor/start/run.rs` (`Run`, `Teardown`), state cell `executor/run_state.rs` (`RunCell`, `RunControl`), settings `executor/run_config.rs` (`RunConfig`, `RunConfigStore`; how frames are saved is part of it), status and settings without the executor lock `executor_handle()` (`ExecutorHandle` in `executor/mod.rs`; take `get_executor().write()` only to change what the executor itself holds), what node contexts share `instructions/context.rs` (`RunShared`, `InstructionContext`, `Setback`, `InstructionResult::settle`), checkpoints `executor/checkpoint_writer.rs`, triggers `triggers/standard.rs`, recovery `recovery/policy.rs`, device access `device_ops/` |
 | Device types (Dart) | `DeviceType` (label, noun) in `packages/skotiq_core/lib/src/models/backend/device_types.dart`; per-type slot table `deviceSlots` in `providers/equipment/device_slots.dart`; one connect/disconnect in `services/device_service/connections/device_connections.dart`; icon and accent in `packages/skotiq_app/lib/utils/device_type_ui.dart` |
 | Device vocabulary and drivers (Rust) | `native/skotiq_native/device/src/` (`DeviceKind`, `Vendor`, `DriverError`, driver traits, ASCOM member lists); vendor families `native/src/catalog.rs`; bridge handles and policy `bridge/src/device_manager/` |
 | Settings | `packages/skotiq_core/lib/src/settings/app_settings_table.dart` (each setting once); kinds in `setting.dart`; read `appSettingsProvider` or `AppSettingDefs.<field>`. Settings pages: `packages/skotiq_app/lib/screens/settings/`, sections `settings_sections.dart` (`SettingsSectionId`, `openSettings`), field binding `widgets/settings_widgets/settings_field_binding.dart`. Layout class of a settings pane (split view or narrow single pane): `SettingsFormScope.narrow`, set once by `SettingsScreen`; the kit blocks in `widgets/settings_widgets/` read it, pages never take or pass it |
@@ -117,8 +117,13 @@ Read the nearest existing example first and copy its shape. Every recipe ends wi
    binding (write, rollback and bound notice come with it). Then
    `dart run tools/production/settings_search_index_gen.dart`.
 4. Link to it with `openSettings(context, SettingsSectionId.x)`, never a route string.
-5. A run reads settings through `RunConfig`; the push table is `_settingsPushes` in
-   `packages/skotiq_core/lib/src/providers/sequence/sequence_executor/runtime_config_sync.dart`.
+5. A setting the executor reads: add the field to `RunConfig` (and its `Section`) in
+   `sequencer/src/executor/run_config.rs` (a rule that refuses a value goes in `RunConfig::validate`),
+   and give the catalog entry `runConfig: '<field path>'`. A value worked out from more than one
+   setting is built in `RunConfigSync.build` (`providers/sequence/run_config_sync.dart`), the one
+   sender: the whole config goes to the host's executor in one call and follows the settings from
+   start-up; sections a run keeps from its start are `kRunConfigKeptForTheRun`. No FFI function,
+   no API route, no Dart push per setting.
 
 ### 3.4 Device vendor (native SDK or serial protocol)
 1. Driver in `native/skotiq_native/native/src/vendor/<vendor>/` implementing the `skotiq_device`

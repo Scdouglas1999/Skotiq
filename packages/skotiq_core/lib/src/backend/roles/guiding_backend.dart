@@ -19,10 +19,9 @@ import '../../services/phd2_probe.dart';
 ///     calibration alike.
 ///   * Plate solving — see [ImagingBackend].
 ///   * Auto-dithering during a sequence — the sequencer drives that through
-///     [SequencerBackend.sequencerUpdateDitherConfig]; the guider role is the
+///     [SequencerBackend.sequencerApplyRunConfig]; the guider role is the
 ///     transport.
 abstract class GuidingBackend {
-
   /// Probe whether a PHD2 instance is reachable on the given host/port.
   ///
   /// Used by the onboarding "Test connection" step before any device is paired.

@@ -9,47 +9,11 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 Map<String, Future<void> Function()> _sequencerOperations(FfiBackend b) => {
   'sequencerSetDevices': () => b.sequencerSetDevices(cameraId: 'c'),
-  'sequencerSetSafetyFailMode': () => b.sequencerSetSafetyFailMode('abort'),
-  'sequencerSetStopOnQualityProblems': () =>
-      b.sequencerSetStopOnQualityProblems(false),
-  'sequencerSetParkPolicy': () =>
-      b.sequencerSetParkPolicy(parkOnUnsafeWeather: true, parkBeforeDawn: true),
-  'sequencerSetDeviceRetries': () =>
-      b.sequencerSetDeviceRetries(cameraRetries: 3, filterWheelRetries: 3),
-  'sequencerSetSafetyCheckIntervalSeconds': () =>
-      b.sequencerSetSafetyCheckIntervalSeconds(30),
+  'sequencerApplyRunConfig': () => b.sequencerApplyRunConfig('{}'),
   'sequencerSetSavePath': () => b.sequencerSetSavePath('/tmp'),
   'sequencerSetActiveSequenceRunId': () => b.sequencerSetActiveSequenceRunId(1),
-  'sequencerSetDecisionLoggingEnabled': () =>
-      b.sequencerSetDecisionLoggingEnabled(true),
-  'sequencerUpdateDitherConfig': () => b.sequencerUpdateDitherConfig(
-    pixels: 3,
-    settlePixels: 1,
-    settleTime: 5,
-    settleTimeout: 30,
-    raOnly: false,
-  ),
-  'sequencerUpdateMeridianFlipConfig': () =>
-      b.sequencerUpdateMeridianFlipConfig('{}'),
-  'sequencerUpdateLocation': () =>
-      b.sequencerUpdateLocation(latitude: 40, longitude: -105),
-  'sequencerUpdateFilterOffsets': () =>
-      b.sequencerUpdateFilterOffsets(const {'L': 0}),
   'sequencerUpdatePendingIntegrationCarryOver': () =>
       b.sequencerUpdatePendingIntegrationCarryOver(const {}),
-  'sequencerUpdateAutofocusConfig': () =>
-      b.sequencerUpdateAutofocusConfig('{}'),
-  'sequencerUpdateAutofocusInterval': () =>
-      b.sequencerUpdateAutofocusInterval(25),
-  'sequencerUpdateDefaultQualityCheck': () =>
-      b.sequencerUpdateDefaultQualityCheck(
-        maxConsecutiveRejects: 3,
-        enabled: true,
-      ),
-  'sequencerUpdateRejectFolderPath': () =>
-      b.sequencerUpdateRejectFolderPath('/tmp/reject'),
-  'sequencerUpdateObserverProfile': () =>
-      b.sequencerUpdateObserverProfile(observerName: 'observer'),
   'sequencerSkip': b.sequencerSkip,
   'sequencerSkipToNode': () => b.sequencerSkipToNode('n1'),
   'sequencerPluginNodeFinished': () =>

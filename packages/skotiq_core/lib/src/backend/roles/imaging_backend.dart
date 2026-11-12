@@ -30,16 +30,6 @@ import '../../models/plate_solver.dart'
 ///   * Sequencer image grading / quality config — see [SequencerBackend].
 ///   * Profile / settings — see [ProfileSettingsBackend].
 abstract class ImagingBackend {
-  /// Set the file format this host saves captured frames in, manual and
-  /// sequence alike: [format] is `FITS` or `XISF`, [xisfCompression] an XISF
-  /// codec name (`zstd+sh`, `lz4`, `none`). Only the host that writes the
-  /// frames is told; a linked client's settings reach it through the host.
-  Future<void> setCaptureFileFormat({
-    required String format,
-    required String xisfCompression,
-    required bool xisfChecksums,
-  });
-
   /// Set cards in the metadata of a frame file on this host, FITS or XISF,
   /// keeping its pixels and everything else it holds.
   Future<void> updateFrameCards(String filePath, List<FitsKeywordWrite> cards);

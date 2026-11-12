@@ -104,7 +104,7 @@ pub use lifecycle::{RunStopping, StopOrigin};
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;
-pub use run_config::{CameraFileSaving, RunConfig, RunConfigStore};
+pub use run_config::{ArchiveFormat, CameraFileSaving, FrameFormat, RunConfig, RunConfigStore};
 use run_config::{RunStaging, SkyFeed};
 pub(crate) use run_state::{RunCell, RunControl};
 use trigger_context::*;
@@ -290,6 +290,14 @@ impl SequenceExecutor {
         self.run_state.get()
     }
 
+    pub fn handle(&self) -> ExecutorHandle {
+        ExecutorHandle {
+            run_state: self.run_state.clone(),
+            settings: self.settings.clone(),
+            trigger_manager: self.trigger_manager.clone(),
+        }
+    }
+
     pub fn get_progress(&self) -> SequenceProgress {
         self.run_state.progress()
     }
@@ -325,11 +333,78 @@ impl Default for SequenceExecutor {
     }
 }
 
-static EXECUTOR: std::sync::OnceLock<Arc<RwLock<SequenceExecutor>>> = std::sync::OnceLock::new();
+/// The parts of an executor that callers outside a run read and change
+/// without holding the executor: the run's state and progress, and the
+/// operator's settings. Each has its own lock, so a status read or a settings
+/// change never waits behind a start, a stop or each other.
+#[derive(Clone)]
+pub struct ExecutorHandle {
+    run_state: RunCell,
+    settings: RunConfigStore,
+    trigger_manager: Arc<RwLock<TriggerManager>>,
+}
 
-/// Get the global executor instance
+impl ExecutorHandle {
+    pub fn state(&self) -> ExecutorState {
+        self.run_state.get()
+    }
+
+    pub fn progress(&self) -> SequenceProgress {
+        self.run_state.progress()
+    }
+
+    /// The current operator settings.
+    pub fn run_config(&self) -> RunConfig {
+        self.settings.snapshot()
+    }
+
+    /// Replace the operator settings. Each section that differs from the
+    /// current value takes effect and is announced once; equal sections do
+    /// nothing. A value that fails [`RunConfig::validate`] changes nothing
+    /// and is refused with the reason.
+    pub async fn apply_run_config(&self, config: RunConfig) -> Result<(), String> {
+        self.settings
+            .apply(config, &self.trigger_manager, &self.run_state)
+            .await
+    }
+
+    /// Change some of the operator settings, on the terms of
+    /// [`Self::apply_run_config`].
+    pub async fn update_run_config(&self, edit: impl FnOnce(&mut RunConfig)) -> Result<(), String> {
+        self.settings
+            .update(&self.trigger_manager, &self.run_state, edit)
+            .await
+    }
+}
+
+struct GlobalExecutor {
+    executor: Arc<RwLock<SequenceExecutor>>,
+    handle: ExecutorHandle,
+}
+
+static EXECUTOR: std::sync::OnceLock<GlobalExecutor> = std::sync::OnceLock::new();
+
+fn global_executor() -> &'static GlobalExecutor {
+    EXECUTOR.get_or_init(|| {
+        let executor = SequenceExecutor::new();
+        let handle = executor.handle();
+        GlobalExecutor {
+            executor: Arc::new(RwLock::new(executor)),
+            handle,
+        }
+    })
+}
+
+/// The process's executor. Take it for write only to change what the
+/// executor itself holds (the loaded sequence, the run, its wiring), and only
+/// briefly; read status and change settings through [`executor_handle`].
 pub fn get_executor() -> &'static Arc<RwLock<SequenceExecutor>> {
-    EXECUTOR.get_or_init(|| Arc::new(RwLock::new(SequenceExecutor::new())))
+    &global_executor().executor
+}
+
+/// The handle of the process's executor.
+pub fn executor_handle() -> &'static ExecutorHandle {
+    &global_executor().handle
 }
 
 /// What a trigger-initiated dither attempt should be recorded as.

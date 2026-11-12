@@ -227,9 +227,13 @@ fn update_recovery_config_writes_through_runtime() {
         audible_alert_when_entered: false,
         park_and_close_when_recovery_gives_up: true,
     };
-    let mut executor = executor;
+    let executor = executor;
     rt.block_on(async {
-        executor.update_recovery_config(cfg.clone()).await;
+        executor
+            .handle()
+            .update_run_config(|config| config.recovery = cfg.clone())
+            .await
+            .unwrap();
     });
     let handle = executor.run_config_store();
     let rc = handle.read();

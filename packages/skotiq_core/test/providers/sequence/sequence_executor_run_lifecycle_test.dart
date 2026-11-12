@@ -196,98 +196,9 @@ void _stubBackendForStart(MockBackend backend) {
     ),
   ).thenAnswer((_) async {});
   when(() => backend.sequencerLoadJson(any())).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetSafetyFailMode(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetParkPolicy(
-      parkOnUnsafeWeather: any(named: 'parkOnUnsafeWeather'),
-      parkBeforeDawn: any(named: 'parkBeforeDawn'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetDeviceRetries(
-      cameraRetries: any(named: 'cameraRetries'),
-      filterWheelRetries: any(named: 'filterWheelRetries'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetStopOnQualityProblems(any()),
-  ).thenAnswer((_) async {});
   when(() => backend.setLocation(any())).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateLocation(
-      latitude: any(named: 'latitude'),
-      longitude: any(named: 'longitude'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateDefaultQualityCheck(
-      hfrThreshold: any(named: 'hfrThreshold'),
-      hfrBaselinePercent: any(named: 'hfrBaselinePercent'),
-      eccentricityThreshold: any(named: 'eccentricityThreshold'),
-      starCountMin: any(named: 'starCountMin'),
-      maxConsecutiveRejects: any(named: 'maxConsecutiveRejects'),
-      enabled: any(named: 'enabled'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateRejectFolderPath(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerClearDefaultAdaptiveExposure(),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateDefaultAdaptiveExposure(
-      enabled: any(named: 'enabled'),
-      targetSnr: any(named: 'targetSnr'),
-      referenceSkyBrightnessMag: any(named: 'referenceSkyBrightnessMag'),
-      minExposureSecs: any(named: 'minExposureSecs'),
-      maxExposureSecs: any(named: 'maxExposureSecs'),
-      perFilterEnabled: any(named: 'perFilterEnabled'),
-      perFilterMinSecs: any(named: 'perFilterMinSecs'),
-      perFilterMaxSecs: any(named: 'perFilterMaxSecs'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateAutofocusInterval(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateAutofocusConfig(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateDitherConfig(
-      pixels: any(named: 'pixels'),
-      settlePixels: any(named: 'settlePixels'),
-      settleTime: any(named: 'settleTime'),
-      settleTimeout: any(named: 'settleTimeout'),
-      raOnly: any(named: 'raOnly'),
-    ),
-  ).thenAnswer((_) async {});
-  // The start path seeds the meridian-flip trigger from the operator's
-  // settings; without it the Rust trigger keeps `MeridianFlipConfig::default()`
-  // and the whole Settings -> Meridian Flip panel is inert on the flip that
-  // actually fires unattended.
-  when(
-    () => backend.sequencerUpdateMeridianFlipConfig(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateFilterOffsets(any()),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerUpdateObserverProfile(
-      observerName: any(named: 'observerName'),
-      siteElevationM: any(named: 'siteElevationM'),
-      cameraMake: any(named: 'cameraMake'),
-      cameraModel: any(named: 'cameraModel'),
-      telescopeName: any(named: 'telescopeName'),
-      telescopeFocalLengthMm: any(named: 'telescopeFocalLengthMm'),
-      telescopeApertureMm: any(named: 'telescopeApertureMm'),
-    ),
-  ).thenAnswer((_) async {});
-  when(
-    () => backend.sequencerSetDecisionLoggingEnabled(any()),
-  ).thenAnswer((_) async {});
+  // The operator's settings, as the one run configuration.
+  when(() => backend.sequencerApplyRunConfig(any())).thenAnswer((_) async {});
 }
 
 void main() {
@@ -2168,16 +2079,16 @@ void main() {
   ///   WARN Trigger fired: Altitude Limit (altitude_limit) - action: NextTarget
   ///   ... once per 60 s cooldown, all run
   ///
-  /// `sequencerUpdateLocation` takes non-nullable doubles, so an unset site
-  /// arrives in Rust as a real place off West Africa. Vega is below 30° from
+  /// A (0, 0) site sent as a site arrives in Rust as a real place off West
+  /// Africa. Vega is below 30° from
   /// there at that hour, so the always-armed altitude trigger voted to abandon
   /// the target. With more than one target, every one would be skipped in turn.
   ///
   /// The Rust side already handles a genuinely absent location — it computes an
   /// altitude only when RA, Dec, lat and lon are all present and returns false
-  /// from the condition otherwise. Withholding the push is what lets that work.
+  /// from the condition otherwise. Sending no site is what lets that work.
   group('F. an unset observing location is not pushed as Null Island', () {
-    test('no location configured means no location pushed', () async {
+    test('no location configured means no site in the run config', () async {
       final container = buildContainer();
       // Settings must be RESOLVED, not merely absent: the defect is that a
       // loaded-but-unconfigured profile reports latitude 0 / longitude 0 and
@@ -2202,12 +2113,14 @@ void main() {
       final executor = container.read(sequenceExecutorProvider);
       await executor.start();
 
-      verifyNever(
-        () => backend.sequencerUpdateLocation(
-          latitude: any(named: 'latitude'),
-          longitude: any(named: 'longitude'),
-        ),
-      );
+      final sent = verify(
+        () => backend.sequencerApplyRunConfig(captureAny()),
+      ).captured;
+      for (final config in sent) {
+        final decoded = jsonDecode(config as String) as Map<String, dynamic>;
+        expect(decoded['latitude'], isNull);
+        expect(decoded['longitude'], isNull);
+      }
 
       await executor.stop();
     });
@@ -2230,12 +2143,12 @@ void main() {
       final executor = container.read(sequenceExecutorProvider);
       await executor.start();
 
-      verify(
-        () => backend.sequencerUpdateLocation(
-          latitude: 39.9719,
-          longitude: -75.3576,
-        ),
-      ).called(1);
+      final sent = verify(
+        () => backend.sequencerApplyRunConfig(captureAny()),
+      ).captured;
+      final atStart = jsonDecode(sent.last as String) as Map<String, dynamic>;
+      expect(atStart['latitude'], 39.9719);
+      expect(atStart['longitude'], -75.3576);
 
       await executor.stop();
     });

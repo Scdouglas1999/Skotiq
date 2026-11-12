@@ -94,12 +94,19 @@ fn test_progress_tracking() {
 
 #[tokio::test]
 async fn test_location_configuration() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
-    executor.set_location(Some(45.5), Some(-122.6)).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(45.5);
+            config.longitude = Some(-122.6);
+        })
+        .await
+        .unwrap();
 
-    assert_eq!(executor.run_config().latitude, Some(45.5));
-    assert_eq!(executor.run_config().longitude, Some(-122.6));
+    assert_eq!(executor.handle().run_config().latitude, Some(45.5));
+    assert_eq!(executor.handle().run_config().longitude, Some(-122.6));
 }
 
 /// An unset observing site reaches the executor as `Some(0, 0)` (that is what
@@ -109,21 +116,35 @@ async fn test_location_configuration() {
 /// the altitude limits gate on the wrong sky.
 #[tokio::test]
 async fn null_island_is_an_unset_site_not_a_site_at_0n_0e() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
-    executor.set_location(Some(0.0), Some(0.0)).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(0.0);
+            config.longitude = Some(0.0);
+        })
+        .await
+        .unwrap();
 
-    assert_eq!(executor.run_config().latitude, None);
-    assert_eq!(executor.run_config().longitude, None);
+    assert_eq!(executor.handle().run_config().latitude, None);
+    assert_eq!(executor.handle().run_config().longitude, None);
 }
 
 #[tokio::test]
 async fn update_location_also_rejects_null_island() {
-    let mut executor = SequenceExecutor::new();
-    executor.update_location(Some(0.0), Some(0.0)).await;
+    let executor = SequenceExecutor::new();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(0.0);
+            config.longitude = Some(0.0);
+        })
+        .await
+        .unwrap();
 
-    assert_eq!(executor.run_config().latitude, None);
-    assert_eq!(executor.run_config().longitude, None);
+    assert_eq!(executor.handle().run_config().latitude, None);
+    assert_eq!(executor.handle().run_config().longitude, None);
     let handle = executor.run_config_store();
     let rc = handle.read();
     assert_eq!(rc.latitude, None);
@@ -132,14 +153,16 @@ async fn update_location_also_rejects_null_island() {
 
 #[tokio::test]
 async fn safety_fail_mode_updates_runtime_config() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
     executor
-        .set_safety_fail_mode(crate::SafetyFailMode::WarnOnly)
-        .await;
+        .handle()
+        .update_run_config(|config| config.safety_fail_mode = crate::SafetyFailMode::WarnOnly)
+        .await
+        .unwrap();
 
     assert_eq!(
-        executor.run_config().safety_fail_mode,
+        executor.handle().run_config().safety_fail_mode,
         crate::SafetyFailMode::WarnOnly
     );
     assert_eq!(
@@ -290,15 +313,23 @@ fn weather_verdict_stale_warning_emits_once_then_rearms() {
 
 #[tokio::test]
 async fn safety_check_interval_updates_runtime_config() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
-    executor.set_safety_check_interval_secs(45).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.safety_check_interval_secs = 45)
+        .await
+        .unwrap();
 
     assert_eq!(executor.settings.read().safety_check_interval_secs, 45);
 
-    executor.set_safety_check_interval_secs(3).await;
+    let refused = executor
+        .handle()
+        .update_run_config(|config| config.safety_check_interval_secs = 3)
+        .await;
 
-    assert_eq!(executor.settings.read().safety_check_interval_secs, 5);
+    assert!(refused.is_err(), "a 3 s poll cadence is refused");
+    assert_eq!(executor.settings.read().safety_check_interval_secs, 45);
 }
 
 #[test]
@@ -959,10 +990,18 @@ fn trigger_action_quiesce_budget_covers_the_default_retry_ladder() {
 /// accepted and nothing changes.
 #[tokio::test]
 async fn update_dither_config_writes_through_runtime_config() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
     executor
-        .update_dither_config(7.5, 0.5, 8.0, 60.0, true)
-        .await;
+        .handle()
+        .update_run_config(|config| {
+            config.dither.pixels = 7.5;
+            config.dither.settle_pixels = 0.5;
+            config.dither.settle_time = 8.0;
+            config.dither.settle_timeout = 60.0;
+            config.dither.ra_only = true;
+        })
+        .await
+        .unwrap();
     let handle = executor.run_config_store();
     let rc = handle.read();
     assert!((rc.dither.pixels - 7.5).abs() < f64::EPSILON);
@@ -978,10 +1017,17 @@ async fn update_dither_config_writes_through_runtime_config() {
 /// the altitude/dawn/meridian evaluators read.
 #[tokio::test]
 async fn update_location_writes_through_runtime_config() {
-    let mut executor = SequenceExecutor::new();
-    executor.update_location(Some(40.7), Some(-74.0)).await;
-    assert_eq!(executor.run_config().latitude, Some(40.7));
-    assert_eq!(executor.run_config().longitude, Some(-74.0));
+    let executor = SequenceExecutor::new();
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(40.7);
+            config.longitude = Some(-74.0);
+        })
+        .await
+        .unwrap();
+    assert_eq!(executor.handle().run_config().latitude, Some(40.7));
+    assert_eq!(executor.handle().run_config().longitude, Some(-74.0));
     {
         let handle = executor.run_config_store();
         let rc = handle.read();
@@ -1073,8 +1119,13 @@ async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs
     }
 
     executor
-        .update_location(Some(NEW_YORK.0), Some(NEW_YORK.1))
-        .await;
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(NEW_YORK.0);
+            config.longitude = Some(NEW_YORK.1);
+        })
+        .await
+        .unwrap();
     let first = wait_for(&executor, "the pushed New York location", |s| {
         s.settings.observer_latitude == Some(NEW_YORK.0)
             && s.telemetry.dawn_time.is_some()
@@ -1083,8 +1134,13 @@ async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs
     .await;
 
     executor
-        .update_location(Some(SYDNEY.0), Some(SYDNEY.1))
-        .await;
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(SYDNEY.0);
+            config.longitude = Some(SYDNEY.1);
+        })
+        .await
+        .unwrap();
     // `dawn_time.is_some()` matters: the push invalidates the cache, and it
     // is the monitor's NEXT tick that recomputes it for the new site.
     // Waiting only for "different" would accept the transient `None`.
@@ -1251,10 +1307,14 @@ async fn the_stall_watchdog_holds_off_while_a_trigger_action_is_in_flight() {
 /// `runtime_config` AND patches the live trigger state so the gate honours it.
 #[tokio::test]
 async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
 
     // A pushed value lands verbatim in the runtime config...
-    executor.update_max_sun_altitude(Some(-6.0)).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.max_sun_altitude_degrees = Some(-6.0))
+        .await
+        .unwrap();
     {
         let handle = executor.run_config_store();
         let rc = handle.read();
@@ -1280,7 +1340,11 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
     // A None / non-finite push resolves to the DEFAULT (-12°) in the live
     // trigger state so the gate is NEVER weaker than the Dart W1 gate, while
     // the runtime config records the raw None (unset).
-    executor.update_max_sun_altitude(None).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.max_sun_altitude_degrees = None)
+        .await
+        .unwrap();
     {
         let handle = executor.run_config_store();
         assert_eq!(handle.read().max_sun_altitude_degrees, None);
@@ -1314,11 +1378,15 @@ fn default_max_sun_altitude_matches_dart_nautical_darkness() {
 /// so the next filter change reads the updated map.
 #[tokio::test]
 async fn update_filter_offsets_writes_through_runtime_config() {
-    let mut executor = SequenceExecutor::new();
+    let executor = SequenceExecutor::new();
     let mut offsets = std::collections::HashMap::new();
     offsets.insert("Ha".to_string(), 250);
     offsets.insert("OIII".to_string(), -120);
-    executor.update_filter_offsets(offsets.clone()).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.filter_focus_offsets = offsets.clone())
+        .await
+        .unwrap();
     let handle = executor.run_config_store();
     let rc = handle.read();
     assert_eq!(rc.filter_focus_offsets.get("Ha"), Some(&250));
@@ -2253,7 +2321,11 @@ async fn guiding_this_run_started_arms_star_lost_and_a_later_drop_fires_it() {
     executor.set_device_ops(Arc::new(ops));
     executor.set_devices(None, Some("mount-1".to_string()), None, None, None);
     // The recovery holds the run only when quality problems stop it.
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     executor
         .load_sequence(guided_delay_sequence(true))
@@ -2353,10 +2425,14 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
         config[key] = value.clone();
     }
     executor
-        .update_autofocus_config(
-            serde_json::from_value(config).expect("a stored autofocus config deserializes"),
-        )
-        .await;
+        .handle()
+        .update_run_config(|run_config| {
+            run_config.autofocus = Some(
+                serde_json::from_value(config).expect("a stored autofocus config deserializes"),
+            )
+        })
+        .await
+        .unwrap();
     {
         let mut manager = executor.trigger_manager.write().await;
         for id in [
@@ -3060,8 +3136,10 @@ async fn run_with_bad_guiding_trigger(
         );
     }
     executor
-        .set_stop_on_quality_problems(stop_on_quality_problems)
-        .await;
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = stop_on_quality_problems)
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     executor.load_sequence(sequence).expect("sequence loads");
     executor.start().await.expect("run starts");
@@ -3179,8 +3257,10 @@ async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecent
         );
     }
     executor
-        .set_stop_on_quality_problems(stop_on_quality_problems)
-        .await;
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = stop_on_quality_problems)
+        .await
+        .unwrap();
     let mut events = executor.subscribe();
     let mut decision_rx = executor.subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
@@ -3506,8 +3586,16 @@ fn waiting_sequence() -> SequenceDefinition {
 async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSettle, Vec<String>) {
     let mut events = executor.subscribe();
     executor
-        .update_dither_config(4.0, 0.7, 9.0, 45.0, false)
-        .await;
+        .handle()
+        .update_run_config(|config| {
+            config.dither.pixels = 4.0;
+            config.dither.settle_pixels = 0.7;
+            config.dither.settle_time = 9.0;
+            config.dither.settle_timeout = 45.0;
+            config.dither.ra_only = false;
+        })
+        .await
+        .unwrap();
     let settle = executor
         .trigger_manager
         .read()
@@ -3561,9 +3649,24 @@ async fn a_dither_push_takes_effect_and_is_announced_once_idle_or_running() {
 async fn settings_pushed_while_idle_are_what_the_next_run_starts_with() {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
-    executor.update_location(Some(41.5), Some(-71.25)).await;
-    executor.update_max_sun_altitude(Some(-6.0)).await;
-    executor.set_stop_on_quality_problems(true).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(41.5);
+            config.longitude = Some(-71.25);
+        })
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| config.max_sun_altitude_degrees = Some(-6.0))
+        .await
+        .unwrap();
+    executor
+        .handle()
+        .update_run_config(|config| config.stop_on_quality_problems = true)
+        .await
+        .unwrap();
     executor
         .load_sequence(waiting_sequence())
         .expect("sequence loads");

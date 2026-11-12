@@ -1,0 +1,99 @@
+{
+  "dither": {
+    "pixels": 5.0,
+    "settle_pixels": 1.5,
+    "settle_time": 30.0,
+    "settle_timeout": 120.0,
+    "ra_only": false
+  },
+  "autofocus": {
+    "type": "Autofocus",
+    "method": "Hyperbolic",
+    "step_size": 50,
+    "steps_out": 4,
+    "exposure_duration": 4.0,
+    "filter": null,
+    "filter_settings": {},
+    "binning": "One",
+    "number_of_attempts": 1,
+    "exposures_per_point": 1,
+    "r_squared_threshold": 0.7,
+    "failure_hfr_tolerance_ratio": 1.6,
+    "outer_crop_ratio": 1.0,
+    "inner_crop_ratio": 0.0,
+    "use_brightest_n_stars": 10,
+    "focuser_settle_time_ms": 500,
+    "backlash_compensation": 0,
+    "backlash_out_compensation": 0,
+    "measured_backlash_in": null,
+    "disable_guiding_during_af": false,
+    "max_duration_secs": 600.0
+  },
+  "autofocus_interval_frames": 25,
+  "latitude": null,
+  "longitude": null,
+  "filter_focus_offsets": {},
+  "safety_fail_mode": "FailClosed",
+  "weather_resume_after_safe_secs": 300,
+  "default_quality_check": null,
+  "observer_profile": {
+    "observer_name": null,
+    "site_elevation_m": null,
+    "camera_make": null,
+    "camera_model": null,
+    "telescope_name": null,
+    "telescope_focal_length_mm": null,
+    "telescope_aperture_mm": null
+  },
+  "recovery": {
+    "retry_interval_secs": 600.0,
+    "max_duration_secs": 5400.0,
+    "stop_tracking_during_recovery": false,
+    "abort_on_meridian": true,
+    "audible_alert_when_entered": true,
+    "park_and_close_when_recovery_gives_up": false
+  },
+  "default_adaptive_exposure": null,
+  "park_policy": {
+    "park_on_unsafe_weather": true,
+    "park_before_dawn": true
+  },
+  "meridian_flip": {
+    "type": "MeridianFlip",
+    "trigger_method": "MinutesPastMeridian",
+    "minutes_past_meridian": 5.0,
+    "minutes_before_limit": 10.0,
+    "hour_angle_threshold": 0.5,
+    "tracking_limit_wait_minutes": 0.0,
+    "pause_before_meridian_minutes": 0.0,
+    "tracking_limit_policy": "FlipEarly",
+    "pause_guiding": true,
+    "auto_center": true,
+    "refocus_after": false,
+    "settle_time": 10.0,
+    "resume_guiding": true,
+    "max_retries": 3,
+    "retry_delays_secs": [
+      30.0,
+      60.0,
+      120.0
+    ],
+    "failure_action": "PauseAndAlert",
+    "guider_settle_pixels": 1.5,
+    "guider_settle_time": 10.0,
+    "guider_settle_timeout": 60.0
+  },
+  "decision_logging_enabled": true,
+  "frame_format": {
+    "format": "FITS",
+    "xisf_compression": "none",
+    "xisf_checksums": false
+  },
+  "camera_file_saving": "converted",
+  "stop_on_quality_problems": false,
+  "device_retry": {
+    "camera_retries": 3,
+    "filter_wheel_retries": 3
+  },
+  "reject_folder_path": null
+}
