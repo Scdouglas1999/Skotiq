@@ -16,6 +16,65 @@ pub const SIM_GUIDE_PIXEL_UM: f64 = 3.75;
 /// Focal length of the simulated guide scope, in millimeters (a 60 mm f/4).
 pub const SIM_GUIDE_FOCAL_LENGTH_MM: f64 = 240.0;
 
+/// `SKOTIQ_SIM_CAMERA=dslr` makes the simulated imaging camera a DSLR: its
+/// sensitivity is the ISO speeds below, and it has no cooler and no offset,
+/// so every DSLR screen can be driven without a body on the desk.
+pub const SIM_CAMERA_KIND_ENV: &str = "SKOTIQ_SIM_CAMERA";
+
+/// The simulated DSLR's ISO speeds: a Canon EOS list, extended speeds
+/// included.
+pub const SIM_DSLR_ISO_SPEEDS: &[i32] = &[
+    100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000,
+    5000, 6400, 8000, 10000, 12800, 25600, 51200,
+];
+
+/// Display name of the simulated imaging camera in DSLR mode.
+pub const SIM_DSLR_NAME: &str = "Simulated DSLR";
+
+/// Whether the simulated imaging camera is a DSLR (read once per process).
+pub(crate) fn sim_imaging_camera_is_dslr() -> bool {
+    static DSLR: OnceLock<bool> = OnceLock::new();
+    *DSLR.get_or_init(|| {
+        std::env::var(SIM_CAMERA_KIND_ENV).is_ok_and(|v| v.trim().eq_ignore_ascii_case("dslr"))
+    })
+}
+
+/// The ISO speeds the simulated camera at `device_id` offers; empty for a
+/// gain camera.
+pub(crate) fn sim_camera_iso_speeds(device_id: &str) -> &'static [i32] {
+    if sim_imaging_camera_is_dslr() && !is_sim_guide_camera(device_id) {
+        SIM_DSLR_ISO_SPEEDS
+    } else {
+        &[]
+    }
+}
+
+/// The gain the simulated camera at `device_id` takes for `requested`: an
+/// ISO camera goes to its nearest speed, as a body does.
+pub(crate) fn sim_camera_accepted_gain(device_id: &str, requested: i32) -> i32 {
+    let speeds = sim_camera_iso_speeds(device_id);
+    let wanted = f64::from(requested.max(1));
+    speeds
+        .iter()
+        .copied()
+        .min_by(|a, b| {
+            let da = (f64::from(*a) / wanted).ln().abs();
+            let db = (f64::from(*b) / wanted).ln().abs();
+            da.total_cmp(&db)
+        })
+        .unwrap_or(requested)
+}
+
+/// The gain the frame renderer models for the simulated camera: ISO 800 is
+/// rendered as the gain camera's 100.
+pub(crate) fn sim_render_gain(device_id: &str, gain: i32) -> i32 {
+    if sim_camera_iso_speeds(device_id).is_empty() {
+        gain
+    } else {
+        gain / 8
+    }
+}
+
 /// Whether the two simulated cameras have traded ids, as two USB cameras do
 /// when a hub drops and the SDK enumerates them again in the other order (the
 /// reference rig, Nov 8 2026: `native:zwo:1` came back as the guide camera).
@@ -99,7 +158,7 @@ pub(crate) fn sim_camera_unit(device_id: &str) -> &'static SimCameraUnit {
     if is_sim_guide_camera(device_id) {
         SIM_GUIDE_UNIT.get_or_init(|| SimCameraUnit::new(SimulatedCamera::guide_camera()))
     } else {
-        SIM_IMAGING_UNIT.get_or_init(|| SimCameraUnit::new(SimulatedCamera::default()))
+        SIM_IMAGING_UNIT.get_or_init(|| SimCameraUnit::new(SimulatedCamera::imaging_camera()))
     }
 }
 
@@ -136,6 +195,21 @@ impl Default for SimulatedCamera {
 }
 
 impl SimulatedCamera {
+    /// The simulated imaging camera: the cooled astronomy camera, or an
+    /// uncooled DSLR at ISO 800 with `SKOTIQ_SIM_CAMERA=dslr`.
+    pub(crate) fn imaging_camera() -> Self {
+        let mut camera = Self::default();
+        if sim_imaging_camera_is_dslr() {
+            camera.status.can_cool = false;
+            camera.status.target_temp = None;
+            camera.status.cooler_power = None;
+            camera.status.can_set_offset = false;
+            camera.status.offset = 0;
+            camera.status.gain = 800;
+        }
+        camera
+    }
+
     /// The simulated guide camera: uncooled, small, mono.
     pub(crate) fn guide_camera() -> Self {
         let mut camera = Self::default();

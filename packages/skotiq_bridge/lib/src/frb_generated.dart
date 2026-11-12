@@ -13626,8 +13626,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CameraCapabilities dco_decode_camera_capabilities(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 35)
-      throw Exception('unexpected arr length: expect 35 but see ${arr.length}');
+    if (arr.length != 36)
+      throw Exception('unexpected arr length: expect 36 but see ${arr.length}');
     return CameraCapabilities(
       maxWidth: dco_decode_u_32(arr[0]),
       maxHeight: dco_decode_u_32(arr[1]),
@@ -13643,27 +13643,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       canSetGain: dco_decode_bool(arr[11]),
       gainMin: dco_decode_opt_box_autoadd_i_32(arr[12]),
       gainMax: dco_decode_opt_box_autoadd_i_32(arr[13]),
-      canSetOffset: dco_decode_bool(arr[14]),
-      offsetMin: dco_decode_opt_box_autoadd_i_32(arr[15]),
-      offsetMax: dco_decode_opt_box_autoadd_i_32(arr[16]),
-      canAbortExposure: dco_decode_bool(arr[17]),
-      canStopExposure: dco_decode_bool(arr[18]),
-      canSubframe: dco_decode_bool(arr[19]),
-      pixelSizeX: dco_decode_opt_box_autoadd_f_64(arr[20]),
-      pixelSizeY: dco_decode_opt_box_autoadd_f_64(arr[21]),
-      isColor: dco_decode_bool(arr[22]),
-      bayerPattern: dco_decode_opt_String(arr[23]),
-      sensorType: dco_decode_opt_String(arr[24]),
-      hasFastReadout: dco_decode_bool(arr[25]),
-      readoutModes: dco_decode_list_String(arr[26]),
-      exposureMin: dco_decode_opt_box_autoadd_f_64(arr[27]),
-      exposureMax: dco_decode_opt_box_autoadd_f_64(arr[28]),
-      ccdTemperature: dco_decode_opt_box_autoadd_f_64(arr[29]),
-      setCcdTemperature: dco_decode_opt_box_autoadd_f_64(arr[30]),
-      coolerPower: dco_decode_opt_box_autoadd_f_64(arr[31]),
-      coolerOn: dco_decode_opt_box_autoadd_bool(arr[32]),
-      coolerMinTempC: dco_decode_opt_box_autoadd_f_64(arr[33]),
-      coolerMaxTempC: dco_decode_opt_box_autoadd_f_64(arr[34]),
+      isoSpeeds: dco_decode_list_prim_i_32_strict(arr[14]),
+      canSetOffset: dco_decode_bool(arr[15]),
+      offsetMin: dco_decode_opt_box_autoadd_i_32(arr[16]),
+      offsetMax: dco_decode_opt_box_autoadd_i_32(arr[17]),
+      canAbortExposure: dco_decode_bool(arr[18]),
+      canStopExposure: dco_decode_bool(arr[19]),
+      canSubframe: dco_decode_bool(arr[20]),
+      pixelSizeX: dco_decode_opt_box_autoadd_f_64(arr[21]),
+      pixelSizeY: dco_decode_opt_box_autoadd_f_64(arr[22]),
+      isColor: dco_decode_bool(arr[23]),
+      bayerPattern: dco_decode_opt_String(arr[24]),
+      sensorType: dco_decode_opt_String(arr[25]),
+      hasFastReadout: dco_decode_bool(arr[26]),
+      readoutModes: dco_decode_list_String(arr[27]),
+      exposureMin: dco_decode_opt_box_autoadd_f_64(arr[28]),
+      exposureMax: dco_decode_opt_box_autoadd_f_64(arr[29]),
+      ccdTemperature: dco_decode_opt_box_autoadd_f_64(arr[30]),
+      setCcdTemperature: dco_decode_opt_box_autoadd_f_64(arr[31]),
+      coolerPower: dco_decode_opt_box_autoadd_f_64(arr[32]),
+      coolerOn: dco_decode_opt_box_autoadd_bool(arr[33]),
+      coolerMinTempC: dco_decode_opt_box_autoadd_f_64(arr[34]),
+      coolerMaxTempC: dco_decode_opt_box_autoadd_f_64(arr[35]),
     );
   }
 
@@ -14448,26 +14449,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   FrameCaptureMetadata dco_decode_frame_capture_metadata(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 17)
-      throw Exception('unexpected arr length: expect 17 but see ${arr.length}');
+    if (arr.length != 18)
+      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
     return FrameCaptureMetadata(
       gain: dco_decode_opt_box_autoadd_i_32(arr[0]),
-      offset: dco_decode_opt_box_autoadd_i_32(arr[1]),
-      sensorTempC: dco_decode_opt_box_autoadd_f_64(arr[2]),
-      coolerPowerPercent: dco_decode_opt_box_autoadd_f_64(arr[3]),
-      mountRaHours: dco_decode_opt_box_autoadd_f_64(arr[4]),
-      mountDecDegrees: dco_decode_opt_box_autoadd_f_64(arr[5]),
-      mountAltitudeDeg: dco_decode_opt_box_autoadd_f_64(arr[6]),
-      mountAzimuthDeg: dco_decode_opt_box_autoadd_f_64(arr[7]),
-      pierSide: dco_decode_opt_String(arr[8]),
-      focuserPosition: dco_decode_opt_box_autoadd_i_32(arr[9]),
-      focuserTemperatureC: dco_decode_opt_box_autoadd_f_64(arr[10]),
-      rotatorAngleDeg: dco_decode_opt_box_autoadd_f_64(arr[11]),
-      exposureSecs: dco_decode_f_64(arr[12]),
-      binX: dco_decode_u_32(arr[13]),
-      binY: dco_decode_u_32(arr[14]),
-      frameType: dco_decode_String(arr[15]),
-      targetId: dco_decode_opt_String(arr[16]),
+      gainIsIso: dco_decode_bool(arr[1]),
+      offset: dco_decode_opt_box_autoadd_i_32(arr[2]),
+      sensorTempC: dco_decode_opt_box_autoadd_f_64(arr[3]),
+      coolerPowerPercent: dco_decode_opt_box_autoadd_f_64(arr[4]),
+      mountRaHours: dco_decode_opt_box_autoadd_f_64(arr[5]),
+      mountDecDegrees: dco_decode_opt_box_autoadd_f_64(arr[6]),
+      mountAltitudeDeg: dco_decode_opt_box_autoadd_f_64(arr[7]),
+      mountAzimuthDeg: dco_decode_opt_box_autoadd_f_64(arr[8]),
+      pierSide: dco_decode_opt_String(arr[9]),
+      focuserPosition: dco_decode_opt_box_autoadd_i_32(arr[10]),
+      focuserTemperatureC: dco_decode_opt_box_autoadd_f_64(arr[11]),
+      rotatorAngleDeg: dco_decode_opt_box_autoadd_f_64(arr[12]),
+      exposureSecs: dco_decode_f_64(arr[13]),
+      binX: dco_decode_u_32(arr[14]),
+      binY: dco_decode_u_32(arr[15]),
+      frameType: dco_decode_String(arr[16]),
+      targetId: dco_decode_opt_String(arr[17]),
     );
   }
 
@@ -17706,6 +17708,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_canSetGain = sse_decode_bool(deserializer);
     var var_gainMin = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_gainMax = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_isoSpeeds = sse_decode_list_prim_i_32_strict(deserializer);
     var var_canSetOffset = sse_decode_bool(deserializer);
     var var_offsetMin = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_offsetMax = sse_decode_opt_box_autoadd_i_32(deserializer);
@@ -17742,6 +17745,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       canSetGain: var_canSetGain,
       gainMin: var_gainMin,
       gainMax: var_gainMax,
+      isoSpeeds: var_isoSpeeds,
       canSetOffset: var_canSetOffset,
       offsetMin: var_offsetMin,
       offsetMax: var_offsetMax,
@@ -18825,6 +18829,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_gain = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_gainIsIso = sse_decode_bool(deserializer);
     var var_offset = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_sensorTempC = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_coolerPowerPercent = sse_decode_opt_box_autoadd_f_64(deserializer);
@@ -18843,6 +18848,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_targetId = sse_decode_opt_String(deserializer);
     return FrameCaptureMetadata(
       gain: var_gain,
+      gainIsIso: var_gainIsIso,
       offset: var_offset,
       sensorTempC: var_sensorTempC,
       coolerPowerPercent: var_coolerPowerPercent,
@@ -23004,6 +23010,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.canSetGain, serializer);
     sse_encode_opt_box_autoadd_i_32(self.gainMin, serializer);
     sse_encode_opt_box_autoadd_i_32(self.gainMax, serializer);
+    sse_encode_list_prim_i_32_strict(self.isoSpeeds, serializer);
     sse_encode_bool(self.canSetOffset, serializer);
     sse_encode_opt_box_autoadd_i_32(self.offsetMin, serializer);
     sse_encode_opt_box_autoadd_i_32(self.offsetMax, serializer);
@@ -23841,6 +23848,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_box_autoadd_i_32(self.gain, serializer);
+    sse_encode_bool(self.gainIsIso, serializer);
     sse_encode_opt_box_autoadd_i_32(self.offset, serializer);
     sse_encode_opt_box_autoadd_f_64(self.sensorTempC, serializer);
     sse_encode_opt_box_autoadd_f_64(self.coolerPowerPercent, serializer);

@@ -12,6 +12,7 @@ class FrameCaptureKeys {
   const FrameCaptureKeys._();
 
   static const gain = 'gain';
+  static const gainIsIso = 'gain_is_iso';
   static const offset = 'offset';
   static const sensorTempC = 'sensor_temp_c';
   static const coolerPowerPercent = 'cooler_power_percent';
@@ -47,6 +48,7 @@ class FrameCaptureKeys {
 class FrameCapture {
   const FrameCapture({
     this.gain,
+    this.gainIsIso = false,
     this.offset,
     this.sensorTempC,
     this.coolerPowerPercent,
@@ -66,6 +68,9 @@ class FrameCapture {
   });
 
   final int? gain;
+
+  /// [gain] is the ISO speed of a DSLR or mirrorless frame.
+  final bool gainIsIso;
   final int? offset;
   final double? sensorTempC;
   final double? coolerPowerPercent;
@@ -107,6 +112,7 @@ class FrameCapture {
 
     return FrameCapture(
       gain: asInt(FrameCaptureKeys.gain),
+      gainIsIso: data[FrameCaptureKeys.gainIsIso] == true,
       offset: asInt(FrameCaptureKeys.offset),
       sensorTempC: asDouble(FrameCaptureKeys.sensorTempC),
       coolerPowerPercent: asDouble(FrameCaptureKeys.coolerPowerPercent),
@@ -134,6 +140,7 @@ class FrameCapture {
 Map<String, dynamic> frameCaptureToEventData(bridge.FrameCaptureMetadata c) {
   return <String, dynamic>{
     FrameCaptureKeys.gain: c.gain,
+    FrameCaptureKeys.gainIsIso: c.gainIsIso,
     FrameCaptureKeys.offset: c.offset,
     FrameCaptureKeys.sensorTempC: c.sensorTempC,
     FrameCaptureKeys.coolerPowerPercent: c.coolerPowerPercent,

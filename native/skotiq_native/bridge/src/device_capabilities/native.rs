@@ -35,6 +35,7 @@ pub(crate) async fn get_native_capabilities(
                 let native_caps = camera.capabilities();
                 let sensor_info = camera.get_sensor_info();
                 let gain_range = camera.get_gain_range().await.ok();
+                let iso_speeds = camera.get_iso_speeds().await.unwrap_or_default();
                 let offset_range = camera.get_offset_range().await.ok();
                 // Why: vendor SDK readout-mode enumeration is optional (only ZWO
                 // and QHY expose multi-mode sensors). Empty vec → UI hides the
@@ -84,6 +85,7 @@ pub(crate) async fn get_native_capabilities(
                     can_set_gain: native_caps.can_set_gain,
                     gain_min: gain_range.map(|(min, _)| min),
                     gain_max: gain_range.map(|(_, max)| max),
+                    iso_speeds,
                     can_set_offset: native_caps.can_set_offset,
                     offset_min: offset_range.map(|(min, _)| min),
                     offset_max: offset_range.map(|(_, max)| max),

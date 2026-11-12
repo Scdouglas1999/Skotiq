@@ -427,6 +427,11 @@ typedef struct wire_cst_api_depth_report {
   struct wire_cst_api_depth_forecast *forecast;
 } wire_cst_api_depth_report;
 
+typedef struct wire_cst_list_prim_i_32_strict {
+  int32_t *ptr;
+  int32_t len;
+} wire_cst_list_prim_i_32_strict;
+
 typedef struct wire_cst_camera_capabilities {
   uint32_t max_width;
   uint32_t max_height;
@@ -442,6 +447,7 @@ typedef struct wire_cst_camera_capabilities {
   bool can_set_gain;
   int32_t *gain_min;
   int32_t *gain_max;
+  struct wire_cst_list_prim_i_32_strict *iso_speeds;
   bool can_set_offset;
   int32_t *offset_min;
   int32_t *offset_max;
@@ -751,11 +757,6 @@ typedef struct wire_cst_equipment_event {
   union EquipmentEventKind kind;
 } wire_cst_equipment_event;
 
-typedef struct wire_cst_list_prim_i_32_strict {
-  int32_t *ptr;
-  int32_t len;
-} wire_cst_list_prim_i_32_strict;
-
 typedef struct wire_cst_filter_wheel_capabilities {
   int32_t position_count;
   int32_t *current_position;
@@ -783,6 +784,7 @@ typedef struct wire_cst_focuser_capabilities {
 
 typedef struct wire_cst_frame_capture_metadata {
   int32_t *gain;
+  bool gain_is_iso;
   int32_t *offset;
   double *sensor_temp_c;
   double *cooler_power_percent;

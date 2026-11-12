@@ -26,6 +26,7 @@ core.SkotiqEvent _throughTheWire(
 
 const _capture = bridge.FrameCaptureMetadata(
   gain: 100,
+  gainIsIso: true,
   offset: 50,
   sensorTempC: -10,
   coolerPowerPercent: 42,

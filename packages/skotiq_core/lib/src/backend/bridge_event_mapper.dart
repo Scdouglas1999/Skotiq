@@ -1151,6 +1151,7 @@ bridge.FrameCaptureMetadata _frameCaptureFromData(Map<String, dynamic> data) {
   final c = FrameCapture.fromEventData(data);
   return bridge.FrameCaptureMetadata(
     gain: c.gain,
+    gainIsIso: c.gainIsIso,
     offset: c.offset,
     sensorTempC: c.sensorTempC,
     coolerPowerPercent: c.coolerPowerPercent,

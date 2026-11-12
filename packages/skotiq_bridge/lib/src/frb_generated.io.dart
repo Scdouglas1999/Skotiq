@@ -4032,6 +4032,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.can_set_gain = cst_encode_bool(apiObj.canSetGain);
     wireObj.gain_min = cst_encode_opt_box_autoadd_i_32(apiObj.gainMin);
     wireObj.gain_max = cst_encode_opt_box_autoadd_i_32(apiObj.gainMax);
+    wireObj.iso_speeds = cst_encode_list_prim_i_32_strict(apiObj.isoSpeeds);
     wireObj.can_set_offset = cst_encode_bool(apiObj.canSetOffset);
     wireObj.offset_min = cst_encode_opt_box_autoadd_i_32(apiObj.offsetMin);
     wireObj.offset_max = cst_encode_opt_box_autoadd_i_32(apiObj.offsetMax);
@@ -4988,6 +4989,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wire_cst_frame_capture_metadata wireObj,
   ) {
     wireObj.gain = cst_encode_opt_box_autoadd_i_32(apiObj.gain);
+    wireObj.gain_is_iso = cst_encode_bool(apiObj.gainIsIso);
     wireObj.offset = cst_encode_opt_box_autoadd_i_32(apiObj.offset);
     wireObj.sensor_temp_c = cst_encode_opt_box_autoadd_f_64(apiObj.sensorTempC);
     wireObj.cooler_power_percent = cst_encode_opt_box_autoadd_f_64(
@@ -19806,6 +19808,13 @@ final class wire_cst_api_depth_report extends ffi.Struct {
   external ffi.Pointer<wire_cst_api_depth_forecast> forecast;
 }
 
+final class wire_cst_list_prim_i_32_strict extends ffi.Struct {
+  external ffi.Pointer<ffi.Int32> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_camera_capabilities extends ffi.Struct {
   @ffi.Uint32()
   external int max_width;
@@ -19846,6 +19855,8 @@ final class wire_cst_camera_capabilities extends ffi.Struct {
   external ffi.Pointer<ffi.Int32> gain_min;
 
   external ffi.Pointer<ffi.Int32> gain_max;
+
+  external ffi.Pointer<wire_cst_list_prim_i_32_strict> iso_speeds;
 
   @ffi.Bool()
   external bool can_set_offset;
@@ -20370,13 +20381,6 @@ final class wire_cst_equipment_event extends ffi.Struct {
   external EquipmentEventKind kind;
 }
 
-final class wire_cst_list_prim_i_32_strict extends ffi.Struct {
-  external ffi.Pointer<ffi.Int32> ptr;
-
-  @ffi.Int32()
-  external int len;
-}
-
 final class wire_cst_filter_wheel_capabilities extends ffi.Struct {
   @ffi.Int32()
   external int position_count;
@@ -20433,6 +20437,9 @@ final class wire_cst_focuser_capabilities extends ffi.Struct {
 
 final class wire_cst_frame_capture_metadata extends ffi.Struct {
   external ffi.Pointer<ffi.Int32> gain;
+
+  @ffi.Bool()
+  external bool gain_is_iso;
 
   external ffi.Pointer<ffi.Int32> offset;
 

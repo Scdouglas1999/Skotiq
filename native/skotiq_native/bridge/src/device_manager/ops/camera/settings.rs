@@ -179,7 +179,8 @@ impl DeviceManager {
                         crate::device_manager::ops::sim_gate::not_connected_camera(),
                     ));
                 }
-                cam.status.gain = gain;
+                cam.status.gain =
+                    crate::api::devices::simulation::sim_camera_accepted_gain(device_id, gain);
                 Ok(())
             }
             _ => Err(DeviceOpError::not_connected(

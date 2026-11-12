@@ -8,7 +8,7 @@ import '../../../error.dart';
 import '../../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `abort_sim_exposure`, `advance_sim_cooler`, `begin_sim_exposure_for`, `get_sim_camera_for`, `get_sim_last_exposure_for`, `guide_camera`, `is_sim_guide_camera`, `new`, `next_sim_frame_seed`, `sim_camera_fault_prefix`, `sim_camera_state`, `sim_camera_unit`, `sim_exposure_elapsed_is_complete`, `sim_exposure_is_complete`, `sim_exposure_phase`, `take_sim_exposure_for_download`, `unplug_sim_camera`
+// These functions are ignored because they are not marked as `pub`: `abort_sim_exposure`, `advance_sim_cooler`, `begin_sim_exposure_for`, `get_sim_camera_for`, `get_sim_last_exposure_for`, `guide_camera`, `imaging_camera`, `is_sim_guide_camera`, `new`, `next_sim_frame_seed`, `sim_camera_accepted_gain`, `sim_camera_fault_prefix`, `sim_camera_iso_speeds`, `sim_camera_state`, `sim_camera_unit`, `sim_exposure_elapsed_is_complete`, `sim_exposure_is_complete`, `sim_exposure_phase`, `sim_imaging_camera_is_dslr`, `sim_render_gain`, `take_sim_exposure_for_download`, `unplug_sim_camera`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SimCameraUnit`, `SimExposurePhase`, `SimExposureRequest`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`

@@ -20,6 +20,9 @@ part 'sequencer.freezed.dart';
 /// temperature, pointing, focuser position and rotator angle.
 class FrameCaptureMetadata {
   final int? gain;
+
+  /// `gain` is an ISO speed (a DSLR or mirrorless frame).
+  final bool gainIsIso;
   final int? offset;
   final double? sensorTempC;
   final double? coolerPowerPercent;
@@ -47,6 +50,7 @@ class FrameCaptureMetadata {
 
   const FrameCaptureMetadata({
     this.gain,
+    required this.gainIsIso,
     this.offset,
     this.sensorTempC,
     this.coolerPowerPercent,
@@ -68,6 +72,7 @@ class FrameCaptureMetadata {
   @override
   int get hashCode =>
       gain.hashCode ^
+      gainIsIso.hashCode ^
       offset.hashCode ^
       sensorTempC.hashCode ^
       coolerPowerPercent.hashCode ^
@@ -91,6 +96,7 @@ class FrameCaptureMetadata {
       other is FrameCaptureMetadata &&
           runtimeType == other.runtimeType &&
           gain == other.gain &&
+          gainIsIso == other.gainIsIso &&
           offset == other.offset &&
           sensorTempC == other.sensorTempC &&
           coolerPowerPercent == other.coolerPowerPercent &&

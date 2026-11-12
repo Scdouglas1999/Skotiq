@@ -168,4 +168,12 @@ pub trait CameraOps: Send + Sync {
     async fn camera_get_model(&self, _camera_id: &str) -> DeviceResult<Option<String>> {
         Ok(None)
     }
+
+    /// The ISO speeds a DSLR or mirrorless camera offers; empty for a gain
+    /// camera. A camera with speeds reports its gain as the ISO number, and
+    /// its frames say so (`ISOSPEED`). Defaulted for test doubles and the
+    /// null ops.
+    async fn camera_get_iso_speeds(&self, _camera_id: &str) -> DeviceResult<Vec<i32>> {
+        Ok(Vec::new())
+    }
 }

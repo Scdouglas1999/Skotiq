@@ -25,6 +25,8 @@ pub(crate) struct FrameHeader {
     pub filter: Option<String>,
     pub filter_position: Option<i32>,
     pub gain: Option<i32>,
+    /// `gain` is an ISO speed, also written as `ISOSPEED` (Siril, PixInsight).
+    pub gain_is_iso: bool,
     pub offset: Option<i32>,
     pub ccd_temp: Option<f64>,
     pub set_temp: Option<f64>,
@@ -119,6 +121,7 @@ impl FrameHeader {
             filter: ctx.filter_name.clone(),
             filter_position: ctx.filter_index,
             gain: ctx.gain,
+            gain_is_iso: ctx.gain_is_iso,
             offset: ctx.offset,
             ccd_temp: ctx.sensor_temp_c,
             set_temp: ctx.set_temp_c,
@@ -204,6 +207,9 @@ impl FrameHeader {
 
         if let Some(gain) = self.gain {
             header.set_int("GAIN", gain as i64);
+            if self.gain_is_iso {
+                header.set_int("ISOSPEED", gain as i64);
+            }
         }
         if let Some(offset) = self.offset {
             header.set_int("OFFSET", offset as i64);

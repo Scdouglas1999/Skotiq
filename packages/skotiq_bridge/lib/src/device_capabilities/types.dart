@@ -53,6 +53,12 @@ class CameraCapabilities {
   /// Maximum gain value
   final int? gainMax;
 
+  /// The ISO speeds a DSLR or mirrorless body offers, lowest first, Auto
+  /// excluded. Not empty means the camera's sensitivity is set in ISO: the
+  /// gain it takes and reports is the ISO number, and `gain_min`/`gain_max`
+  /// are the lowest and highest speed. Empty for a gain camera.
+  final Int32List isoSpeeds;
+
   /// Whether the camera supports offset adjustment
   final bool canSetOffset;
 
@@ -137,6 +143,7 @@ class CameraCapabilities {
     required this.canSetGain,
     this.gainMin,
     this.gainMax,
+    required this.isoSpeeds,
     required this.canSetOffset,
     this.offsetMin,
     this.offsetMax,
@@ -176,6 +183,7 @@ class CameraCapabilities {
       canSetGain.hashCode ^
       gainMin.hashCode ^
       gainMax.hashCode ^
+      isoSpeeds.hashCode ^
       canSetOffset.hashCode ^
       offsetMin.hashCode ^
       offsetMax.hashCode ^
@@ -217,6 +225,7 @@ class CameraCapabilities {
           canSetGain == other.canSetGain &&
           gainMin == other.gainMin &&
           gainMax == other.gainMax &&
+          isoSpeeds == other.isoSpeeds &&
           canSetOffset == other.canSetOffset &&
           offsetMin == other.offsetMin &&
           offsetMax == other.offsetMax &&
