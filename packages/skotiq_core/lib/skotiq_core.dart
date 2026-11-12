@@ -192,11 +192,12 @@ export 'src/providers/host_settings/host_settings_providers.dart';
 export 'src/providers/equipment_provider.dart';
 export 'src/providers/unified_discovery_provider.dart';
 export 'src/providers/event_provider.dart';
-// framing_provider exposes the UI-facing FramingMosaicConfig /
+// framing_models holds the UI-facing FramingMosaicConfig /
 // FramingMosaicPanel (grid-based: columns/rows/overlapPercent). The
 // service-layer MosaicConfig / MosaicPanel in mosaic_service.dart
 // (geometry-flavored: centerRa/panelWidthArcmin/...) live under their
 // canonical names and are now safe to re-export from the barrel.
+export 'src/models/framing_models.dart';
 export 'src/providers/framing_provider.dart';
 // framingImageCacheServiceProvider is the canonical DI handle for the survey
 // snapshot cache; export it so framing UI (action rail, screen) can resolve

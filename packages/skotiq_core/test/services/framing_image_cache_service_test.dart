@@ -3,8 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/providers/framing_provider.dart'
-    show SurveySource;
+import 'package:skotiq_core/src/models/framing_models.dart' show SurveySource;
 import 'package:skotiq_core/src/services/framing_image_cache_service.dart';
 
 void main() {

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../framing_provider.dart';
+import '../../../models/framing_models.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
 

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/framing_image_cache_service.dart';
-import 'framing_provider.dart' show SurveySource;
+import '../models/framing_models.dart' show SurveySource;
 
 /// Canonical dependency-injection handle for [FramingImageCacheService].
 ///
