@@ -59,10 +59,10 @@ class _RemoteDirectoryPickerDialogState
   /// double-pop).
   bool _validating = false;
 
-  /// Monotonic token for browse requests. Overlapping navigations (rapid
-  /// folder taps) each bump this; a slower earlier response whose token is
-  /// stale is discarded instead of clobbering the latest path.
-  int _loadGeneration = 0;
+  /// Browses and validations against the host. A browse superseded by a newer
+  /// one (rapid folder taps), and anything that finishes after the host
+  /// changed or the dialog closed, is dropped.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
   /// Last path handed to [_load], so Retry can re-issue the same browse.
   String? _lastRequestedPath;
@@ -74,11 +74,10 @@ class _RemoteDirectoryPickerDialogState
   }
 
   Future<void> _load(String? path) async {
-    final backend = ref.read(backendProvider);
-    final generation = ++_loadGeneration;
+    final scope = _hostScopes.beginLatest();
     _lastRequestedPath = path;
 
-    final linkedHost = backend.remoteHost;
+    final linkedHost = scope.value.remoteHost;
 
     if (linkedHost == null) {
       setState(() {
@@ -96,28 +95,17 @@ class _RemoteDirectoryPickerDialogState
     });
 
     try {
-      final listing = await linkedHost.files.browseRemoteDirectories(path: path);
-      // Silently discard if the dialog closed or a newer navigation superseded
-      // this one — the fresher request owns the UI.
-      if (!mounted || generation != _loadGeneration) return;
-      // If the backend was swapped out from under us (reconnect/disconnect),
-      // stale host data must not appear. Surface an actionable error rather
-      // than applying it or leaving an endless spinner.
-      if (!identical(ref.read(backendProvider), backend)) {
-        setState(() {
-          _loading = false;
-          _loadError = 'The connection to the host changed. '
-              'Reconnect and try again.';
-        });
-        return;
-      }
+      final listing =
+          await linkedHost.files.browseRemoteDirectories(path: path);
+      // A host change has already said so on screen (see build).
+      if (scope.isStale) return;
       setState(() {
         _listing = listing;
         _selectedPath = listing.currentPath ?? path;
         _loading = false;
       });
     } catch (error) {
-      if (!mounted || generation != _loadGeneration) return;
+      if (scope.isStale) return;
       setState(() {
         _loading = false;
         _loadError = isAccessLevelRefusal(error)
@@ -130,12 +118,12 @@ class _RemoteDirectoryPickerDialogState
 
   Future<void> _selectCurrentDirectory() async {
     if (_validating) return;
-    final backend = ref.read(backendProvider);
+    final scope = _hostScopes.begin();
     final selectedPath = _selectedPath;
     if (selectedPath == null) {
       return;
     }
-    final linkedHost = backend.remoteHost;
+    final linkedHost = scope.value.remoteHost;
     if (linkedHost == null) {
       setState(() {
         _validationError =
@@ -157,7 +145,7 @@ class _RemoteDirectoryPickerDialogState
         mustBeWritable: true,
       );
     } catch (error) {
-      if (!mounted) return;
+      if (scope.isStale) return;
       setState(() {
         _validating = false;
         _validationError = isAccessLevelRefusal(error)
@@ -168,16 +156,9 @@ class _RemoteDirectoryPickerDialogState
       return;
     }
 
-    if (!mounted) return;
-    // Do not pop a path validated against a host we are no longer talking to.
-    if (!identical(ref.read(backendProvider), backend)) {
-      setState(() {
-        _validating = false;
-        _validationError =
-            'The connection to the host changed. Choose the folder again.';
-      });
-      return;
-    }
+    // A path validated against a host this app no longer talks to is not
+    // returned; the host change has already said so on screen.
+    if (scope.isStale) return;
 
     if (validation['valid'] == true) {
       final normalized = validation['normalizedPath'];
@@ -200,10 +181,10 @@ class _RemoteDirectoryPickerDialogState
   Widget build(BuildContext context) {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (previous == null || identical(previous, next) || !mounted) return;
-      // Invalidate both kinds of pending request and require an explicit retry
-      // against the new host. Retaining host A's listing after reconnecting to
-      // host B makes a perfectly valid path look as though it was browsed on B.
-      _loadGeneration++;
+      // Drop every pending request and require an explicit retry against the
+      // new host. Retaining host A's listing after reconnecting to host B
+      // makes a perfectly valid path look as though it was browsed on B.
+      _hostScopes.cancelAll();
       setState(() {
         _loading = false;
         _validating = false;
