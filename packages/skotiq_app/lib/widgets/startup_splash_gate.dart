@@ -242,12 +242,15 @@ class _SkotiqSplashGateState extends ConsumerState<SkotiqSplashGate>
                     const SizedBox(height: SkotiqTokens.space4xl),
                     Opacity(
                       opacity: showStatus ? 1 : 0,
-                      child: Text(
-                        status ?? ' ',
-                        textAlign: TextAlign.center,
+                      // The gate covers content with no Material above it,
+                      // where an inherited text style draws the debug
+                      // underline.
+                      child: DefaultTextStyle(
                         style: SkotiqTypography.bodySm.copyWith(
                           color: colors.textSecondary,
                         ),
+                        textAlign: TextAlign.center,
+                        child: Text(status ?? ' '),
                       ),
                     ),
                   ],

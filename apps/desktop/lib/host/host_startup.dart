@@ -5,6 +5,7 @@ import 'package:skotiq_app/startup/always_on_services.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../headless/headless_auth_config.dart';
+import '../startup_timeline.dart';
 import 'host_server.dart';
 
 /// The two processes that own the hardware.
@@ -136,6 +137,7 @@ Future<void> runHostStartup(
       try {
         await step.run(host);
         host._timings[step.name] = clock.elapsed;
+        startupTimeline.mark('step: ${step.name}');
         host.logger.info(
           'Start-up step done: ${step.name}',
           source: host.logSource,

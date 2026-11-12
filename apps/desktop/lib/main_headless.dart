@@ -11,6 +11,7 @@ import 'headless/headless_auth_config.dart';
 import 'headless/headless_shutdown.dart';
 import 'host/host_startup.dart';
 import 'host/host_steps.dart';
+import 'startup_timeline.dart';
 
 const _headlessLogSource = 'HeadlessMain';
 
@@ -128,6 +129,7 @@ const _headlessLogSource = 'HeadlessMain';
 ///   SKOTIQ_RELAY_ALLOW_INSECURE_TLS=true
 ///                         Same as --relay-allow-insecure-tls.
 void main(List<String> args) async {
+  startupTimeline.mark('headless main');
   WidgetsFlutterBinding.ensureInitialized();
 
   // Operator-facing stdout banner. The LoggingService isn't bootable yet
@@ -198,6 +200,7 @@ void main(List<String> args) async {
     final runtimeLogger = activeContainer.read(loggingServiceProvider);
     logger = runtimeLogger;
     await runtimeLogger.initialize();
+    startupTimeline.mark('logger');
 
     final startup = host = HostStartup(
       kind: HostKind.daemon,
@@ -210,6 +213,7 @@ void main(List<String> args) async {
     );
     await runHostStartup(startup, HostStartupPhase.core, hostStartupSteps);
     await runHostStartup(startup, HostStartupPhase.services, hostStartupSteps);
+    startupTimeline.mark('running');
 
     // Operator-facing console message announcing service readiness. Logged
     // through the structured logger too so it shows up in log files alongside
@@ -220,6 +224,7 @@ void main(List<String> args) async {
       'Headless mode running; waiting for SIGINT/SIGTERM',
       source: _headlessLogSource,
     );
+    startupTimeline.log(runtimeLogger, _headlessLogSource, 'Start-up timeline');
 
     // Bounded, idempotent, repeated-signal-safe shutdown. Every teardown step
     // is time-bounded and guarded so a single hung/throwing stop() cannot wedge
