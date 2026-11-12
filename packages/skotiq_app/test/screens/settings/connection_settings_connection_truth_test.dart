@@ -104,7 +104,7 @@ void main() {
     expect(find.text('Connecting...'), findsNothing);
   });
 
-  // The page said "Saved on this computer only" over discovery switches that
+  // The page said "Saved on this device only" over discovery switches that
   // a linked client reads from and writes to the imaging host.
   testWidgets('a linked client labels each group by where it is stored',
       (tester) async {
@@ -134,7 +134,7 @@ void main() {
     );
 
     double top(Finder finder) => tester.getTopLeft(finder).dy;
-    final local = find.textContaining('Saved on this computer only');
+    final local = find.textContaining('Saved on this device only');
     final host = find.textContaining('Saved on the imaging host (10.0.0.5)');
     expect(local, findsOneWidget);
     expect(host, findsOneWidget);
