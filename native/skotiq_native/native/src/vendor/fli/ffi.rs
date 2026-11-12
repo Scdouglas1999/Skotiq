@@ -26,6 +26,10 @@ pub(crate) const FLI_CAMERA_STATUS_MASK: u32 = 0x0000_0003;
 pub(crate) const FLI_CAMERA_STATUS_IDLE: u32 = 0x00;
 pub(crate) const FLI_CAMERA_DATA_READY: u32 = 0x8000_0000;
 
+// The slot a wheel answers before it has found one; newer CFW firmware reads
+// it from the wheel (libfli-filter-focuser.c fli_getfilterpos).
+pub(crate) const FLI_FILTER_POSITION_UNKNOWN: c_long = 0xff;
+
 /// Convert a c_long returned by libfli into i32, surfacing SDK corruption as
 /// `DriverError::SdkError` rather than wrapping. On Windows (LLP64) c_long is
 /// already i32 and the cast is identity; on LP64 *nix this trims to i32 and

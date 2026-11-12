@@ -22,6 +22,16 @@ impl std::fmt::Debug for FliFilterWheel {
     }
 }
 
+/// The slot FLIGetFilterPos answered, 0-based, or -1 when the wheel does not
+/// know it: older wheels answer -1 before their first move, newer firmware
+/// FLI_FILTER_POSITION_UNKNOWN.
+fn wheel_slot(position: c_long) -> Result<i32, DriverError> {
+    if position == FLI_FILTER_POSITION_UNKNOWN {
+        return Ok(-1);
+    }
+    fli_c_long_to_i32(position, "filter position")
+}
+
 impl FliFilterWheel {
     pub fn new(device_path: String) -> Self {
         let device_id = device_path.replace("/", "_").replace("\\", "_");
@@ -140,9 +150,7 @@ impl FilterWheelDriver for FliFilterWheel {
         let result = unsafe { (sdk.get_filter_pos)(self.handle, &mut position) };
         check_fli_error(result, "get filter position")?;
 
-        // Why: filter wheel position is a small non-negative integer (<= filter_count <= ~16);
-        // SDK returns c_long. Use helper to fail closed on absurd values.
-        fli_c_long_to_i32(position, "filter position")
+        wheel_slot(position)
     }
 
     async fn move_to_position(&mut self, position: i32) -> Result<(), DriverError> {
@@ -223,5 +231,18 @@ impl FilterWheelDriver for FliFilterWheel {
     async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), DriverError> {
         // libfli has no call to store a filter name
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_wheel_that_has_not_found_a_slot_reads_as_unknown() {
+        assert_eq!(wheel_slot(FLI_FILTER_POSITION_UNKNOWN).unwrap(), -1);
+        assert_eq!(wheel_slot(-1).unwrap(), -1);
+        assert_eq!(wheel_slot(0).unwrap(), 0);
+        assert_eq!(wheel_slot(6).unwrap(), 6);
     }
 }
