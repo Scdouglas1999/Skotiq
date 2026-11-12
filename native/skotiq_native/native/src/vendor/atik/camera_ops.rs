@@ -74,7 +74,7 @@ impl CameraDriver for AtikCamera {
             sensor_temp,
             cooler_power,
             target_temp,
-            cooler_on: self.core.cooler.enabled,
+            cooler_on: self.core.cooler().enabled,
             gain: self.core.gain,
             offset: self.core.offset,
             bin_x: self.core.bin_x,
@@ -279,7 +279,7 @@ impl CameraDriver for AtikCamera {
         // already holds rather than inventing a temperature. Switching off
         // goes through ArtemisCoolerWarmUp and needs no setpoint at all.
         let setpoint_c = if enabled {
-            Some(target_temp.unwrap_or(self.core.cooler.target_c))
+            Some(target_temp.unwrap_or(self.core.cooler().target_c))
         } else {
             None
         };
@@ -318,10 +318,12 @@ impl CameraDriver for AtikCamera {
             }
         }
 
-        self.core.cooler.enabled = enabled;
-        if let Some(target) = setpoint_c {
-            self.core.cooler.target_c = target;
-        }
+        self.core.update_cooler(|cooler| {
+            cooler.enabled = enabled;
+            if let Some(target) = setpoint_c {
+                cooler.target_c = target;
+            }
+        });
         Ok(())
     }
 

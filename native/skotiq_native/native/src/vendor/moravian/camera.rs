@@ -2,32 +2,11 @@
 
 use super::*;
 
-// Handle wrapper for Send + Sync
-
-pub(crate) struct HandleWrapper(pub(crate) PCCamera);
-// SAFETY: HandleWrapper wraps a raw `*mut c_void` camera handle. The handle is opaque to us — we never deref it. It is only handed back to the gxccd SDK functions, which are only reachable through the `MoravianSdk` lock guard, so no concurrent access ever happens to the underlying SDK state via this pointer.
-unsafe impl Send for HandleWrapper {}
-// SAFETY: Same justification as `impl Send`. The pointer is opaque and access to it is gated by both the wrapping `Mutex<HandleWrapper>` (held inside MoravianCamera) and the `MoravianSdk` lock guard.
-unsafe impl Sync for HandleWrapper {}
-
 pub struct MoravianCamera {
     pub(crate) camera_id: c_int,
-    pub(crate) device_id: String,
-    pub(crate) name: String,
-    pub(crate) handle: Mutex<HandleWrapper>,
-    pub(crate) connected: bool,
-    pub(crate) capabilities: CameraCapabilities,
-    pub(crate) sensor_info: SensorInfo,
-    pub(crate) state: CameraState,
-    pub(crate) current_gain: i32,
-    pub(crate) current_offset: i32,
-    pub(crate) current_bin_x: i32,
-    pub(crate) current_bin_y: i32,
-    pub(crate) subframe: Option<SubFrame>,
-    pub(crate) cooler_on: bool,
-    pub(crate) target_temp: f64,
-    pub(crate) exposure_duration: f64,
-    pub(crate) exposure_started_at: Option<std::time::Instant>,
+    pub(crate) core: CameraCore,
+    /// The initialized camera; null while disconnected.
+    pub(crate) handle: SdkHandle<PCCamera>,
     /// Binned (width, height) requested at the last `start_exposure`; used to
     /// size the `gxccd_read_image` buffer (which takes no ROI of its own).
     pub(crate) last_frame_dims: Option<(u32, u32)>,
@@ -36,7 +15,7 @@ pub struct MoravianCamera {
 impl std::fmt::Debug for MoravianCamera {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("MoravianCamera")
-            .field("name", &self.name)
+            .field("name", &self.core.name)
             .field("camera_id", &self.camera_id)
             .finish()
     }
@@ -46,22 +25,12 @@ impl MoravianCamera {
     pub fn new(camera_id: c_int) -> Self {
         Self {
             camera_id,
-            device_id: format!("moravian_{}", camera_id),
-            name: format!("Moravian Camera {}", camera_id),
-            handle: Mutex::new(HandleWrapper(std::ptr::null_mut())),
-            connected: false,
-            capabilities: CameraCapabilities::default(),
-            sensor_info: SensorInfo::default(),
-            state: CameraState::Idle,
-            current_gain: 0,
-            current_offset: 0,
-            current_bin_x: 1,
-            current_bin_y: 1,
-            subframe: None,
-            cooler_on: false,
-            target_temp: 0.0,
-            exposure_duration: 0.0,
-            exposure_started_at: None,
+            core: CameraCore::new(
+                format!("moravian_{}", camera_id),
+                format!("Moravian Camera {}", camera_id),
+                0.0,
+            ),
+            handle: SdkHandle(std::ptr::null_mut()),
             last_frame_dims: None,
         }
     }
@@ -70,11 +39,11 @@ impl MoravianCamera {
 #[async_trait]
 impl DeviceDriver for MoravianCamera {
     fn id(&self) -> &str {
-        &self.device_id
+        &self.core.device_id
     }
 
     fn name(&self) -> &str {
-        &self.name
+        &self.core.name
     }
 
     fn vendor(&self) -> Vendor {
@@ -82,11 +51,11 @@ impl DeviceDriver for MoravianCamera {
     }
 
     fn is_connected(&self) -> bool {
-        self.connected
+        self.core.connected
     }
 
     async fn connect(&mut self) -> Result<(), DriverError> {
-        if self.connected {
+        if self.core.connected {
             return Ok(());
         }
 
@@ -128,7 +97,7 @@ impl DeviceDriver for MoravianCamera {
             } >= 0
             {
                 // SAFETY: name_buf is 256 bytes; the SDK guarantees NUL-termination within on success.
-                self.name = unsafe { std::ffi::CStr::from_ptr(name_buf.as_ptr()) }
+                self.core.name = unsafe { std::ffi::CStr::from_ptr(name_buf.as_ptr()) }
                     .to_string_lossy()
                     .trim()
                     .to_string();
@@ -256,7 +225,7 @@ impl DeviceDriver for MoravianCamera {
                 None
             };
 
-            self.sensor_info = SensorInfo {
+            self.core.sensor_info = SensorInfo {
                 width,
                 height,
                 pixel_size_x,
@@ -267,7 +236,7 @@ impl DeviceDriver for MoravianCamera {
                 bayer_pattern,
             };
 
-            self.capabilities = CameraCapabilities {
+            self.core.capabilities = CameraCapabilities {
                 can_cool: has_cooler != 0,
                 can_set_gain: has_gain != 0,
                 can_set_offset: false, // Moravian doesn't have separate offset
@@ -281,50 +250,44 @@ impl DeviceDriver for MoravianCamera {
             };
         }
 
-        {
-            let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *h = HandleWrapper(handle);
-        }
+        self.handle = SdkHandle(handle);
         cleanup_guard.defuse();
 
         // The current gxccd SDK has no separate Open() step — the handle from
         // gxccd_initialize_usb is ready for imaging.
-        self.connected = true;
-        self.state = CameraState::Idle;
+        self.core.connected = true;
+        self.core.state = CameraState::Idle;
 
         tracing::info!(
             "Connected to Moravian camera: {} ({}x{})",
-            self.name,
-            self.sensor_info.width,
-            self.sensor_info.height
+            self.core.name,
+            self.core.sensor_info.width,
+            self.core.sensor_info.height
         );
 
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
+        if !self.core.connected {
             return Ok(());
         }
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         // Release camera (no separate Close() in the current SDK).
         // SAFETY: handle was Initialize()'d (we're on the connected path); gxccd_release() pairs with gxccd_initialize_usb() and is the required final cleanup per gxccd.h:206-211.
         unsafe { (sdk.release)(handle) };
 
-        {
-            let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *h = HandleWrapper(std::ptr::null_mut());
-        }
-        self.connected = false;
-        self.state = CameraState::Idle;
-        self.exposure_started_at = None;
+        self.handle = SdkHandle(std::ptr::null_mut());
+        self.core.connected = false;
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
         self.last_frame_dims = None;
 
-        tracing::info!("Disconnected from Moravian camera: {}", self.name);
+        tracing::info!("Disconnected from Moravian camera: {}", self.core.name);
 
         Ok(())
     }
