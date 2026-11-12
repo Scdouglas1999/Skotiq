@@ -6,25 +6,50 @@ use super::*;
 pub struct PlayerOneCamera {
     pub(crate) camera_id: i32,
     pub(crate) camera_info: Option<POACameraProperties>,
-    pub(crate) device_id: String,
-    pub(crate) connected: bool,
-    pub(crate) current_bin: i32,
-    pub(crate) current_width: i32,
-    pub(crate) current_height: i32,
+    /// `core.gain`/`core.offset` are the last values this driver applied or read
+    /// back successfully: the fallback for the frame metadata (FITS GAIN/OFFSET)
+    /// when a POAGetConfig read fails on a frame we already hold. `core.cooler`
+    /// is the fallback when `POA_COOLER`/`POA_TARGET_TEMP` cannot be read back.
+    /// `core.name` is the device id: the SDK's model name is only logged.
+    pub(crate) core: CameraCore,
     pub(crate) image_format: POAImgFormat,
-    pub(crate) exposure_time: f64,
-    pub(crate) current_subframe: Option<SubFrame>,
-    /// Last gain/offset this driver applied or read back successfully. They are
-    /// the fallback for the frame metadata (FITS GAIN/OFFSET) when a POAGetConfig
-    /// read fails on a frame we already hold: reporting the last applied value is
-    /// the truth about that exposure, where a literal 0 would not be.
-    pub(crate) current_gain: i32,
-    pub(crate) current_offset: i32,
-    // Driver-level cooler state. Used by `get_status` (`&self`) when the SDK
-    // read-back is unavailable; written by `set_cooler` after the SDK accepts
-    // the change. `Mutex` provides interior mutability across the immutable
-    // `get_status` call path.
-    pub(crate) cooler_state: Mutex<CoolerState>,
+}
+
+fn player_one_capabilities(info: &POACameraProperties) -> CameraCapabilities {
+    CameraCapabilities {
+        can_cool: info.is_has_cooler != 0,
+        can_set_gain: true,
+        can_set_offset: true,
+        can_set_binning: true,
+        can_subframe: true,
+        has_shutter: false,
+        has_guider_port: info.is_has_st4_port != 0,
+        max_bin_x: 4,
+        max_bin_y: 4,
+        supports_readout_modes: false,
+    }
+}
+
+fn player_one_sensor_info(info: &POACameraProperties) -> SensorInfo {
+    // max_width/max_height/bit_depth are c_int sensor properties; they are never
+    // negative for a real camera, and a negative one reads as 0 because this
+    // description has no error path.
+    SensorInfo {
+        width: u32::try_from(info.max_width).unwrap_or(0),
+        height: u32::try_from(info.max_height).unwrap_or(0),
+        pixel_size_x: info.pixel_size,
+        pixel_size_y: info.pixel_size,
+        // `max_adu` is the pixel-container full scale, NOT the ADC range:
+        // connect() hard-fails unless POASetImageFormat(Raw16) succeeds, so every
+        // frame this driver delivers is a 16-bit container whose samples span
+        // [0, 65535]. See [`raw16_container_max_adu`] and the `SensorInfo::max_adu`
+        // contract.
+        max_adu: raw16_container_max_adu(u32::try_from(info.bit_depth).unwrap_or(0)),
+        bit_depth: u32::try_from(info.bit_depth).unwrap_or(0),
+        color: info.is_color_camera != 0,
+        bayer_pattern: (info.is_color_camera != 0)
+            .then(|| bayer_from_asi_index(info.bayer_pattern)),
+    }
 }
 
 impl PlayerOneCamera {
@@ -32,17 +57,12 @@ impl PlayerOneCamera {
         Self {
             camera_id,
             camera_info: None,
-            device_id: format!("native:playerone:{}", camera_id),
-            connected: false,
-            current_bin: 1,
-            current_width: 0,
-            current_height: 0,
+            core: CameraCore::new(
+                format!("native:playerone:{}", camera_id),
+                format!("native:playerone:{}", camera_id),
+                0.0,
+            ),
             image_format: POAImgFormat::Raw16,
-            exposure_time: 0.0,
-            current_subframe: None,
-            current_gain: 0,
-            current_offset: 0,
-            cooler_state: Mutex::new(CoolerState::off(0.0)),
         }
     }
 
@@ -53,8 +73,8 @@ impl PlayerOneCamera {
         let result = unsafe { (sdk.get_camera_properties_by_id)(self.camera_id, &mut info) };
         check_poa_error(result, "GetCameraProperties")?;
 
-        self.current_width = info.max_width;
-        self.current_height = info.max_height;
+        self.core.capabilities = player_one_capabilities(&info);
+        self.core.sensor_info = player_one_sensor_info(&info);
         self.camera_info = Some(info);
         Ok(())
     }

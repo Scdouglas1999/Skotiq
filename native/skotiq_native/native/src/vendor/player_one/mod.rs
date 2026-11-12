@@ -17,7 +17,7 @@
 //! yet. The cooler/gain/offset paths here default to the same "fall back to
 //! cached value or zero" semantics as the other vendor crates:
 //!
-//! * `get_control_int(GAIN/OFFSET).unwrap_or(self.current_gain/offset)` — a
+//! * `get_control_int(GAIN/OFFSET).unwrap_or(self.core.gain/offset)` — a
 //!   failed read reports the value this driver last applied: the same two
 //!   numbers become the FITS GAIN/OFFSET cards in `download_image`. The status
 //!   poll stays non-fatal; the next tick retries the live read. `connect` seeds
@@ -44,7 +44,7 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
-use crate::camera_core::CoolerState;
+use crate::camera_core::{bayer_from_asi_index, CameraCore};
 use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use async_trait::async_trait;
 use skotiq_device::camera::*;
@@ -52,7 +52,6 @@ use skotiq_device::Vendor;
 use skotiq_device::*;
 use skotiq_imaging::buffer_pool::global_u8_pool;
 use std::ffi::{c_char, c_int, c_long, CStr};
-use std::sync::Mutex;
 
 mod camera;
 mod camera_ops;
