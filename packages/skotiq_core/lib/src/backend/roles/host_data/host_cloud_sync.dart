@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../services/sync/sync_service.dart';
 
 /// Cloud sync as run by a linked imaging host.
 ///
