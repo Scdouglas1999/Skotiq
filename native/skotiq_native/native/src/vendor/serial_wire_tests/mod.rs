@@ -30,6 +30,7 @@ macro_rules! step {
 }
 
 mod fakes;
+mod ioptron_documented;
 mod sessions;
 mod skywatcher_sessions;
 

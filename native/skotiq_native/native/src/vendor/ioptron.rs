@@ -586,7 +586,9 @@ const V3_MODELS: &[(&str, &str)] = &[
     ("0036", "HAE29C EQ"),
     ("0037", "HAE29C-EC EQ"),
     ("0038", "HAE29C AA"),
-    ("0039", "HAE29C-EC EQ"),
+    // INDI repeats 0037's "HAE29C-EC EQ" here. Every other dual-mode block
+    // runs EQ, EC EQ, AA, EC AA, and an alt-az mount must not be pulse guided.
+    ("0039", "HAE29C-EC AA"),
     ("0040", "CEM40"),
     ("0041", "CEM40-EC"),
     ("0043", "GEM45"),
