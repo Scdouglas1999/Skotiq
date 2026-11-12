@@ -18,7 +18,6 @@ import '../providers/database_provider.dart';
 import '../providers/hardware_presets_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/settings_provider.dart';
-import '../providers/tutorial_provider.dart';
 import '../services/hardware_presets/hardware_presets_service.dart';
 
 /// Bootstrap gate read by the `EquipmentOnboardingLauncher` widget on app

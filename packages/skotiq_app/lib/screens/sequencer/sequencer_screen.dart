@@ -13,7 +13,7 @@ import '../../services/sequence_action_service.dart';
 import '../../utils/count_label.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../widgets/animated_tab_bar_view.dart';
-import '../../widgets/tutorial_keys/sequencer_keys.dart';
+import '../../tours/tour_target.dart';
 import 'run_status_presentation.dart';
 import 'widgets/batch_operations_toolbar.dart';
 import 'widgets/delete_node_confirmation.dart';
@@ -520,7 +520,7 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
 
                 if (isRunning)
                   SequenceProgressBar(
-                      key: SequencerTutorialKeys.progressBar, colors: colors),
+                      key: TourTarget.sequencerProgressBar.key, colors: colors),
 
                 // Tab content. Each tab is lazily gated so Templates /
                 // Sequences / History are not constructed (and their async

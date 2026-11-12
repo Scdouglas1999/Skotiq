@@ -353,11 +353,14 @@ class _ProfileMenuButtonState extends ConsumerState<_ProfileMenuButton> {
 
   @override
   Widget build(BuildContext context) {
-    return SkotiqIconButton(
-      key: _anchorKey,
-      icon: LucideIcons.moreVertical,
-      tooltip: 'Profile actions',
-      onPressed: _openMenu,
+    return KeyedSubtree(
+      key: TourTarget.equipmentProfileMenu.key,
+      child: SkotiqIconButton(
+        key: _anchorKey,
+        icon: LucideIcons.moreVertical,
+        tooltip: 'Profile actions',
+        onPressed: _openMenu,
+      ),
     );
   }
 }

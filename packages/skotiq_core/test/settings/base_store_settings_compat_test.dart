@@ -23,6 +23,7 @@ import 'package:skotiq_core/src/providers/annotation_settings_provider.dart';
 import 'package:skotiq_core/src/providers/constellation_provider.dart'
     show resolveConstellationAccountId, resolveConstellationCredentials;
 import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/src/settings/store_settings.dart';
 import 'package:skotiq_core/src/providers/frame_watch_settings_provider.dart';
 import 'package:skotiq_core/src/providers/glance_mode_provider.dart';
 import 'package:skotiq_core/src/providers/home_assistant_provider.dart';
@@ -39,7 +40,6 @@ import 'package:skotiq_core/src/providers/scheduler_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';
 import 'package:skotiq_core/src/providers/session_optimizer_provider.dart'
     show dismissedSessionInsightsProvider;
-import 'package:skotiq_core/src/providers/tutorial_provider.dart';
 import 'package:skotiq_core/src/services/home_assistant/home_assistant_discovery_config.dart';
 import 'package:skotiq_core/src/services/push_notification_service.dart'
     show PushNotificationConfig;
@@ -159,11 +159,11 @@ final _probes = <_Probe>[
   _Probe(
     name: 'tutorials enabled',
     keys: const ['tutorials_enabled'],
-    read: (c) async {
-      c.read(tutorialProvider);
-      await _settle();
-      return c.read(tutorialProvider).tutorialsEnabled;
-    },
+    // Nothing in the app reads this any more; the row is still stored and
+    // scoped, so it is probed through the settings store itself.
+    read: (c) async =>
+        await c.read(settingsDaoProvider).read(StoreSettings.tutorialsEnabled) ??
+        StoreSettings.tutorialsEnabled.fallback,
     rowSets: const {
       'off': {'tutorials_enabled': 'false'},
       'on': {'tutorials_enabled': 'true'},
@@ -171,16 +171,12 @@ final _probes = <_Probe>[
       'empty': {'tutorials_enabled': ''},
     },
     writes: {
-      'turn off': (c) async {
-        c.read(tutorialProvider);
-        await _settle();
-        await c.read(tutorialProvider.notifier).setTutorialsEnabled(false);
-      },
-      'turn on': (c) async {
-        c.read(tutorialProvider);
-        await _settle();
-        await c.read(tutorialProvider.notifier).setTutorialsEnabled(true);
-      },
+      'turn off': (c) => c
+          .read(settingsDaoProvider)
+          .write(StoreSettings.tutorialsEnabled, false),
+      'turn on': (c) => c
+          .read(settingsDaoProvider)
+          .write(StoreSettings.tutorialsEnabled, true),
     },
   ),
   _Probe(

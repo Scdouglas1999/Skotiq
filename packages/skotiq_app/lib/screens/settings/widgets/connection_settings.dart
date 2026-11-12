@@ -8,7 +8,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/tutorial_keys/settings_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../../../widgets/work_locally.dart';
 import '../../equipment/dialogs/indi_server_dialog.dart';
 import 'connection_settings_alpaca_dialog.dart';
@@ -68,7 +68,7 @@ class ConnectionSettings extends ConsumerWidget {
     }
 
     return SettingsPage(
-      key: SettingsTutorialKeys.connection,
+      key: TourTarget.settingsConnection.key,
       title: 'Connection',
       description: 'Server connection settings',
       isMobile: isMobile,

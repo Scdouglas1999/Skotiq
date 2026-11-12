@@ -12,7 +12,6 @@ import 'package:skotiq_app/screens/settings/settings_sections.dart';
 import 'package:skotiq_core/skotiq_core.dart'
     show
         AppScreen,
-        FirstNightWizardModel,
         buildReadinessReport,
         darkroomActivityRoute,
         darkroomFramingRoute,
@@ -348,8 +347,6 @@ void main() {
         darkroomFramingRoute('NGC 891'),
         darkroomActivityRoute,
         for (final step in kNextUseSteps) step.deepLinkRoute,
-        for (final step in FirstNightWizardModel.steps)
-          if (step.hasDeepLink) step.deepLinkRoute,
         for (final item in allFailing.items)
           if (item.fixRoute case final route?) route,
       ];

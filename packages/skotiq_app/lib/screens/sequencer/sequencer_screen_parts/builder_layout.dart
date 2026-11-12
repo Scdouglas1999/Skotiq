@@ -278,7 +278,7 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                         .read(sequencerLeftPanelWidthProvider.notifier)
                         .state = w.clamp(dims.leftMin, dims.leftMax),
                     child: _ToolboxPanel(
-                      key: SequencerTutorialKeys.nodePalette,
+                      key: TourTarget.sequencerNodePalette.key,
                       colors: colors,
                       onCollapse: () {
                         ref
@@ -299,12 +299,12 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                       child: Column(
                         children: [
                           SequenceToolbar(
-                            key: SequencerTutorialKeys.toolbar,
+                            key: TourTarget.sequencerToolbar.key,
                             colors: colors,
                           ),
                           Expanded(
                             child: SequenceTree(
-                              key: SequencerTutorialKeys.canvas,
+                              key: TourTarget.sequencerCanvas.key,
                               colors: colors,
                             ),
                           ),
@@ -340,7 +340,7 @@ class _DesktopBuilderLayout extends ConsumerWidget {
                         .read(sequencerRightPanelWidthProvider.notifier)
                         .state = w.clamp(dims.rightMin, dims.rightMax),
                     child: NodePropertiesPanel(
-                      key: SequencerTutorialKeys.propertiesPanel,
+                      key: TourTarget.sequencerPropertiesPanel.key,
                       colors: colors,
                       onCollapse: () {
                         ref

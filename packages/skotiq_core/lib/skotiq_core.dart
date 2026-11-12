@@ -19,8 +19,7 @@ export 'src/database/database.dart'
         DarkroomState;
 export 'src/database/database_aliases.dart';
 // Aliases for class names hidden from the barrel due to symbol collisions
-// (legacy HorizonProfile vs scheduler HorizonProfile; tutorial-step
-// FirstNightWizard model vs skotiq_app FirstNightWizard widget).
+// (legacy HorizonProfile vs scheduler HorizonProfile).
 export 'src/legacy_aliases.dart';
 export 'src/database/integrity_check.dart';
 export 'src/database/recovery/crash_recovery.dart';
@@ -39,7 +38,6 @@ export 'src/database/daos/settings_dao.dart';
 export 'src/database/daos/weather_settings_dao.dart';
 export 'src/database/daos/flat_history_dao.dart';
 export 'src/database/daos/tutorial_progress_dao.dart';
-export 'src/database/daos/tutorial_dao.dart';
 export 'src/database/daos/polar_alignment_history_dao.dart';
 export 'src/database/daos/science_dao.dart';
 export 'src/database/daos/dark_library_dao.dart';
@@ -108,12 +106,6 @@ export 'src/models/hips/hips_tile_id.dart';
 export 'src/models/hips/hips_survey_registry.dart';
 export 'src/models/annotation_data.dart';
 export 'src/models/annotation_settings.dart';
-export 'src/models/tutorial/tutorial_models.dart';
-// The model-layer FirstNightWizard class collides with the widget class of
-// the same name in skotiq_app. We hide it from the barrel so callers
-// either import tutorial_step.dart directly (the widget does) or just use
-// FirstNightWizardStep.
-export 'src/models/tutorial/tutorial_step.dart' hide FirstNightWizard;
 export 'src/models/phd2_models.dart';
 export 'src/models/weather/weather_models.dart';
 export 'src/models/autofocus_progress.dart';
@@ -298,7 +290,6 @@ export 'src/providers/gaia_provider.dart';
 export 'src/providers/annotation_settings_provider.dart';
 export 'src/providers/annotation_presets_provider.dart'
     hide AnnotationPreset, annotationPresetsProvider, AnnotationPresetsNotifier;
-export 'src/providers/tutorial_provider.dart';
 export 'src/providers/filter_offset_provider.dart';
 export 'src/providers/camera_presets_provider.dart';
 export 'src/providers/weather_providers.dart';

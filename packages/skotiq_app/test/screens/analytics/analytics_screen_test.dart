@@ -18,28 +18,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../harness/provider_teardown.dart';
 
-/// Test-only TutorialNotifier that reports tutorials disabled so the
-/// `ContextualTourPrompt` short-circuits before scheduling its 500 ms
-/// `Future.delayed`. Without this override the test framework reports a
-/// pending timer at teardown because the prompt is still waiting to fade in.
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    // The disabled notifier never reads from the DAO; if any helper does,
-    // surface it loudly rather than swallow it.
-    throw UnimplementedError(
-      'NoopTutorialProgressDao.${invocation.memberName} called in test',
-    );
-  }
-}
-
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 class _FixedBackendNotifier extends BackendNotifier {
@@ -59,7 +37,6 @@ List<Override> _commonOverrides() {
     allDbImagesProvider.overrideWith(
       (ref) => Stream<List<DbCapturedImage>>.value(const []),
     ),
-    tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
   ];
 }
 

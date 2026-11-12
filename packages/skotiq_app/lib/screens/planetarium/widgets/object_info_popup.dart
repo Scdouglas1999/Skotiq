@@ -10,7 +10,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/slew_dropdown_button.dart';
-import '../../../widgets/tutorial_keys/planetarium_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../planetarium_screen.dart';
 
 // NOTE (design tokens): the `ImageOverlayColors.foreground*` text/icons and `ImageOverlayColors.shadow*`
@@ -221,7 +221,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
           child: GestureDetector(
             onTap: _consumeTap,
             child: Container(
-              key: PlanetariumTutorialKeys.objectPopup,
+              key: TourTarget.planetariumObjectPopup.key,
               width: layout.width,
               constraints: BoxConstraints(maxHeight: layout.height),
               decoration: BoxDecoration(
@@ -628,7 +628,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
             children: [
               Expanded(
                 child: PopupActionButton(
-                  key: PlanetariumTutorialKeys.sendFraming,
+                  key: TourTarget.planetariumSendToFraming.key,
                   icon: SkotiqIcons.frame,
                   label: 'Framing',
                   colors: widget.colors,
@@ -638,7 +638,7 @@ class _ObjectInfoPopupState extends ConsumerState<ObjectInfoPopup>
               const SizedBox(width: 8),
               Expanded(
                 child: PopupActionButton(
-                  key: PlanetariumTutorialKeys.addSequence,
+                  key: TourTarget.planetariumAddToSequence.key,
                   icon: LucideIcons.listPlus,
                   label: 'Sequence',
                   colors: widget.colors,

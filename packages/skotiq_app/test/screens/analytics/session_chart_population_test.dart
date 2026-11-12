@@ -6,19 +6,6 @@ import 'package:skotiq_app/screens/analytics/widgets/session_chart.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
 DbCapturedImage _image({
   required int id,
   required String type,
@@ -57,7 +44,6 @@ Widget _app(List<DbCapturedImage> images) {
       allSessionsProvider.overrideWith(
         (ref) => Stream.value(const <ImagingSession>[]),
       ),
-      tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
     ],
     child: MaterialApp(
       theme: SkotiqTheme.dark,

@@ -7,20 +7,7 @@
 /// See `skotiq_core.dart` for the `hide` clauses that motivate these.
 library;
 
-import 'models/tutorial/tutorial_step.dart' as tutorial_step;
 import 'providers/settings_provider.dart' as settings_provider;
-
-/// Model-layer first-night-wizard helper exposed from
-/// `src/models/tutorial/tutorial_step.dart`. The barrel hides the original
-/// `FirstNightWizard` because the `skotiq_app` widget of the same name
-/// would shadow it. UI code that needs the model wrapper imports
-/// `FirstNightWizardModel` instead.
-///
-/// The model is the static `steps` provider that maps
-/// `TutorialDefinitions.firstNight` into `FirstNightWizardStep` rows for the
-/// wizard widget. Tests that reach in for the static `steps` getter use this
-/// alias.
-typedef FirstNightWizardModel = tutorial_step.FirstNightWizard;
 
 /// Legacy 8-point compass horizon profile exposed from
 /// `src/providers/settings_provider.dart`. The barrel hides the original

@@ -17,6 +17,7 @@ import '../your_sky/your_sky_screen.dart';
 import '../constellation/constellation_screen.dart';
 import '../collaborative_sky/collaborative_sky_screen.dart';
 import '../../localization/skotiq_localizations.dart';
+import '../../tours/tour_target.dart';
 import '../../utils/authority_bound_dialog.dart';
 import '../../utils/darkroom_navigation.dart' show unavailableControlName;
 import '../../utils/plan_tonight_sequencer_helper.dart';
@@ -312,10 +313,12 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         PlannerTab.framing => AdaptiveTab(
             label: l10n.text('plannerTabFraming'),
             icon: LucideIcons.crop,
+            buttonKey: TourTarget.planTabFraming.key,
           ),
         PlannerTab.planetarium => AdaptiveTab(
             label: l10n.text('plannerTabPlanetarium'),
             icon: LucideIcons.globe,
+            buttonKey: TourTarget.planTabPlanetarium.key,
           ),
         PlannerTab.discover => AdaptiveTab(
             label: l10n.text('plannerTabYourSky'),

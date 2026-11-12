@@ -10,7 +10,7 @@ import '../view_controls.dart'
 import '../mobile_widgets.dart' show CompassCalibrationDialog;
 import '../../providers/device_orientation_provider.dart';
 import '../../../../services/mount_command_service.dart';
-import '../../../../widgets/tutorial_keys/planetarium_keys.dart';
+import '../../../../tours/tour_target.dart';
 
 /// Top command bar for the redesigned planetarium shell.
 ///
@@ -104,6 +104,7 @@ class PlanetariumCommandBar extends ConsumerWidget {
           ],
           const _BarDivider(),
           CommandBarIconButton(
+            key: TourTarget.planetariumLayersButton.key,
             icon: SkotiqIcons.list,
             tooltip: 'Layers',
             isActive: layersOpen,
@@ -124,7 +125,7 @@ class PlanetariumCommandBar extends ConsumerWidget {
             const _BarDivider(),
           ],
           CommandBarIconButton(
-            key: PlanetariumTutorialKeys.search,
+            key: TourTarget.planetariumSearch.key,
             icon: LucideIcons.panelRight,
             tooltip: 'Plan / object panel',
             isActive: panelOpen,

@@ -25,7 +25,8 @@ abstract final class StoreSettings {
     sync: SettingSync.thisComputer,
   );
 
-  /// The tours and hints are offered.
+  /// Once switched tours and hints off. Nothing reads it now; the row is kept
+  /// so stored settings and settings sync stay as they were.
   static const tutorialsEnabled = BoolSetting(
     'tutorialsEnabled',
     'tutorials_enabled',

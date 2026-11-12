@@ -15,8 +15,8 @@ import '../../localization/skotiq_localizations.dart';
 import '../../router/app_routes.dart';
 import '../../startup/startup_surface_queue.dart';
 import '../../widgets/command_palette/command_palette.dart';
-import '../../widgets/onboarding_tour_replay_launcher.dart';
-import '../../widgets/tutorial_overlay.dart';
+import '../../tours/tour_overlay.dart';
+import '../../tours/tour_target.dart';
 import '../../widgets/mobile_sequence_overlay.dart';
 import '../../widgets/running_sequence_mini_bar.dart';
 import '../../widgets/notification_toast_overlay.dart';
@@ -465,18 +465,12 @@ class _AppShellState extends ConsumerState<AppShell> {
         // chrome and restore it unchanged when the IME closes.
         final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-        // The first-launch tour is replay-only: OnboardingTourReplayLauncher
-        // watches firstLaunchTourStatusProvider and overlays OnboardingOverlay on
-        // top of the whole shell when the user re-runs it from Settings → Help.
-        // Mounted at the shell level so the spotlight cutouts can target the
-        // live side-navigation TutorialKeys.
         // The splash wraps the shell's content rather than the Navigator so
         // routes pushed during startup — checkpoint recovery, onboarding,
         // update prompts — paint above it and stay interactive.
         final Widget shell = SkotiqSplashGate(
           ready: startupReady,
-          child: OnboardingTourReplayLauncher(
-            child: TutorialOverlay(
+          child: TourOverlay(
               // Ctrl/Cmd+K anywhere in the shell. BOTH activators are bound
               // rather than one chosen from the platform: a Mac with an external
               // PC keyboard sends Control, and an operator who has learned one of
@@ -522,23 +516,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                                     FocusTraversalOrder(
                                       order: const NumericFocusOrder(0),
                                       child: SideNavigation(
-                                        key: TutorialKeys.sideNavigation,
-                                        tutorialKeys: {
-                                          AppRoute.tonight:
-                                              TutorialKeys.navDashboard,
-                                          AppRoute.imaging:
-                                              TutorialKeys.navImaging,
-                                          AppRoute.sequencer:
-                                              TutorialKeys.navSequencer,
-                                          AppRoute.guiding:
-                                              TutorialKeys.navGuiding,
-                                          AppRoute.planner:
-                                              TutorialKeys.navPlanner,
-                                          AppRoute.equipment:
-                                              TutorialKeys.navEquipment,
-                                          AppRoute.analytics:
-                                              TutorialKeys.navAnalytics,
-                                        },
                                         currentIndex: currentIndex,
                                         onTabSelected: (index) =>
                                             _onTabSelected(index, context),
@@ -712,7 +689,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                 ),
               ),
             ),
-          ),
         );
 
         if (!useBottomNav) return shell;

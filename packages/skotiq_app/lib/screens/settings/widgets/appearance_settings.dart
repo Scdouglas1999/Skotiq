@@ -5,7 +5,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/red_night_filter.dart';
-import '../../../widgets/tutorial_keys/settings_keys.dart';
+import '../../../tours/tour_target.dart';
 import 'settings_widgets.dart';
 
 /// The stored value of each theme, and how it is offered.
@@ -58,7 +58,7 @@ class AppearanceSettings extends ConsumerWidget {
           _ => AppThemeMode.dark,
         };
         return SettingsPage(
-          key: SettingsTutorialKeys.appearance,
+          key: TourTarget.settingsAppearance.key,
           title: 'Appearance',
           // The one lead line a settings page may carry, and it earns it: red
           // night is the mode nobody guesses the reason for.

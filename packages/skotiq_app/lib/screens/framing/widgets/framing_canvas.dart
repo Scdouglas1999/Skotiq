@@ -19,7 +19,7 @@ import 'package:skotiq_core/src/models/framing_plate_scale.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/models/framing_hips_projection.dart';
 
-import '../../../widgets/tutorial_keys/framing_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../painters/framing_background_painters.dart';
 import '../painters/framing_painters.dart';
 import 'framing_overlays.dart';
@@ -585,7 +585,7 @@ class _FramingCanvasState extends ConsumerState<FramingCanvas> {
                     child: Transform.translate(
                       offset: overlayOffset,
                       child: CustomPaint(
-                        key: FramingTutorialKeys.fovRect,
+                        key: TourTarget.framingFovRect.key,
                         painter: FramingFOVPainter(
                           fovWidth: _equipment!.fovWidthDeg,
                           fovHeight: _equipment!.fovHeightDeg,

@@ -19,7 +19,7 @@ import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/geolocation_consent.dart';
 import '../../../widgets/site/place_search.dart';
-import '../../../widgets/tutorial_keys/settings_keys.dart';
+import '../../../tours/tour_target.dart';
 import 'learned_obstructions_section.dart';
 import 'settings_widgets.dart';
 
@@ -157,7 +157,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
         _migrateLegacyTimezone(settings);
 
         return SettingsPage(
-          key: SettingsTutorialKeys.location,
+          key: TourTarget.settingsLocation.key,
           title: 'Location',
           description: 'Observatory location for calculations',
           isMobile: widget.isMobile,

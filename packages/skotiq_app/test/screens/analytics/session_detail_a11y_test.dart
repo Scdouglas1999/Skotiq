@@ -28,20 +28,6 @@ class _PinnedBackend extends BackendNotifier {
   }
 }
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError(
-        'NoopTutorialProgressDao.${invocation.memberName} called in test',
-      );
-}
-
 /// A night that HAS a master, so all seven controls are live.
 ///
 /// The Darkroom action is disabled with its reason on a night with nothing to
@@ -110,7 +96,6 @@ void main() {
           dbSessionImagesProvider(5).overrideWith(
             (ref) => Stream<List<DbCapturedImage>>.value(const []),
           ),
-          tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
           dawnMasterResolverProvider.overrideWithValue(_OneMasterResolver()),
         ],
         child: const MaterialApp(

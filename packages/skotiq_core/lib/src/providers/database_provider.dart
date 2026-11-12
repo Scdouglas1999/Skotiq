@@ -14,6 +14,7 @@ import '../database/daos/settings_dao.dart';
 import '../database/daos/science_dao.dart';
 import '../database/daos/guide_rms_history_dao.dart';
 import '../database/daos/narrator_events_dao.dart';
+import '../database/daos/tutorial_progress_dao.dart';
 import '../services/imaging_records_repository.dart';
 import 'backend_provider.dart';
 import 'host_settings/host_settings_providers.dart';
@@ -47,6 +48,12 @@ final imagesDaoProvider = Provider<ImagesDao>((ref) {
 
 final sequencesDaoProvider = Provider<SequencesDao>((ref) {
   return SequencesDao(ref.watch(databaseProvider));
+});
+
+/// Guided-tour progress and dismissed prompts. Always this computer's
+/// database: what a user has been shown is theirs, not the imaging host's.
+final tutorialProgressDaoProvider = Provider<TutorialProgressDao>((ref) {
+  return TutorialProgressDao(ref.watch(databaseProvider));
 });
 
 /// Settings DAO provider

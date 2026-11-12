@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../localization/skotiq_localizations.dart';
+import '../../tours/tour_target.dart';
 import 'catalog_settings_screen.dart';
 import 'delivery_settings.dart';
 import '../equipment/widgets/profiles_manager.dart';
@@ -312,8 +313,11 @@ SettingsSectionDef _sectionDef(
           'center',
           'wcs',
         ],
-        build: (context) => PlateSolvingSettings(
-            isMobile: SettingsFormScope.isMobileOf(context)),
+        build: (context) => KeyedSubtree(
+          key: TourTarget.settingsPlateSolving.key,
+          child: PlateSolvingSettings(
+              isMobile: SettingsFormScope.isMobileOf(context)),
+        ),
       ),
     SettingsSectionId.autofocus => SettingsSectionDef(
         id: id,

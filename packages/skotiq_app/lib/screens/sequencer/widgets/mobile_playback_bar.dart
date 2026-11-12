@@ -6,6 +6,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../services/sequence_action_service.dart';
+import '../../../tours/tour_target.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'preflight_validation_dialog.dart';
 import 'run_dashboard/sequence_status_visuals.dart';
@@ -58,6 +59,7 @@ class MobilePlaybackBar extends ConsumerWidget {
             children: [
               // Play / Pause / Resume — the primary transport button.
               _MobilePlaybackButton(
+                key: TourTarget.sequencerTransport.key,
                 colors: colors,
                 icon: canPause ? LucideIcons.pause : LucideIcons.play,
                 label: canPause ? 'Pause' : (canResume ? 'Resume' : 'Start'),
@@ -178,6 +180,7 @@ class _MobilePlaybackButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   const _MobilePlaybackButton({
+    super.key,
     required this.colors,
     required this.icon,
     required this.label,

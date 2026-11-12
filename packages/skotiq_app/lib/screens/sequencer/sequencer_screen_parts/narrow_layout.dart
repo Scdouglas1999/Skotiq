@@ -23,7 +23,7 @@ class _NarrowDesktopLayout extends ConsumerWidget {
             ),
             Expanded(
               child: SequenceTree(
-                  key: SequencerTutorialKeys.canvas, colors: colors),
+                  key: TourTarget.sequencerCanvas.key, colors: colors),
             ),
           ],
         ),

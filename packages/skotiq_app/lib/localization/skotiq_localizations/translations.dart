@@ -453,6 +453,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'firstNightWizardSkipForever': 'Skip forever',
     'firstNightWizardStepLabel': 'Step {current} of {total}',
     'firstNightWizardShowMeOnScreen': 'Show me on the {screen} screen',
+    'firstNightWizardReturn': 'Back to the walkthrough',
     // Equipment screen profile management (snackbars + dialogs).
     'equipmentSettingsTitle': 'Equipment settings',
     'equipmentDefaultProfileSet': 'Default profile set',
@@ -2074,6 +2075,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'firstNightWizardSkipForever': 'Omitir para siempre',
     'firstNightWizardStepLabel': 'Paso {current} de {total}',
     'firstNightWizardShowMeOnScreen': 'Muéstrame en la pantalla {screen}',
+    'firstNightWizardReturn': 'Volver a la guía',
     // Equipment screen profile management (snackbars + dialogs).
     'equipmentSettingsTitle': 'Ajustes de equipo',
     'equipmentDefaultProfileSet': 'Perfil predeterminado establecido',

@@ -35,7 +35,6 @@ import 'sequence/sequence_catalog_sync.dart';
 import 'sequence/sequence_selection.dart';
 import 'session_provider.dart';
 import 'smart_night_draft_provider.dart';
-import 'tutorial_provider.dart' show tutorialProgressDaoProvider;
 
 /// Stable screen-id prefix used to persist next-use step dismissals in the
 /// `tutorial_progress` table via [TutorialProgressDao.dismissPromptForScreen].

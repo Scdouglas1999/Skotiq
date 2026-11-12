@@ -303,8 +303,8 @@ class _DeviceDashboard extends ConsumerWidget {
               ? const SwitchControlCard()
               : ConnectedDeviceCard(
                   key: switch (slot.type) {
-                    DeviceType.camera => EquipmentTutorialKeys.cameraCard,
-                    DeviceType.mount => EquipmentTutorialKeys.mountCard,
+                    DeviceType.camera => TourTarget.equipmentCameraCard.key,
+                    DeviceType.mount => TourTarget.equipmentMountCard.key,
                     _ => null,
                   },
                   type: slot.type,

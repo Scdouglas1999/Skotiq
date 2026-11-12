@@ -91,7 +91,7 @@ class _MobileBuilderLayout extends ConsumerWidget {
               // File/edit actions (New, Open, Save, Undo) — mobile remote
               // clients need the same affordances as the desktop builder.
               SequenceToolbar(
-                  key: SequencerTutorialKeys.toolbar, colors: colors),
+                  key: TourTarget.sequencerToolbar.key, colors: colors),
 
               MobilePlaybackBar(colors: colors),
 
@@ -101,7 +101,7 @@ class _MobileBuilderLayout extends ConsumerWidget {
 
               if (isRunning)
                 SequenceProgressBar(
-                    key: SequencerTutorialKeys.progressBar, colors: colors),
+                    key: TourTarget.sequencerProgressBar.key, colors: colors),
 
               // Tree (portrait: full width; landscape: split with properties).
               Expanded(
@@ -197,7 +197,7 @@ class _LandscapePropertiesPane extends ConsumerWidget {
               ),
             )
           : NodePropertiesPanel(
-              key: SequencerTutorialKeys.propertiesPanel,
+              key: TourTarget.sequencerPropertiesPanel.key,
               colors: colors,
               // The landscape pane is narrow (~40% of a phone's long edge), so
               // use the mobile-sheet rendering, which is built to reflow/scroll

@@ -19,7 +19,7 @@ import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_column
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree_shortcuts.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/visual_timeline.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/tutorial_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -291,7 +291,7 @@ void main() {
     final handle = await _pumpTree(tester, sequence);
 
     expect(find.text('Ha · OIII'), findsOneWidget);
-    expect(find.byKey(SequencerTutorialKeys.captureNode), findsOneWidget);
+    expect(find.byKey(TourTarget.sequencerCaptureNode.key), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     // Unfolding hands the anchor back to the first member's own row — still
@@ -300,7 +300,7 @@ void main() {
         .read(unfoldedGroupIdsProvider.notifier)
         .unfold(_groupIdUnder(sequence, root.id));
     await tester.pumpAndSettle();
-    expect(find.byKey(SequencerTutorialKeys.captureNode), findsOneWidget);
+    expect(find.byKey(TourTarget.sequencerCaptureNode.key), findsOneWidget);
     expect(find.text('Ha subs'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await _drainValidationDebounce(tester);

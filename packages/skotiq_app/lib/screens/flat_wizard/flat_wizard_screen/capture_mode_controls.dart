@@ -14,6 +14,9 @@ class _QuickCaptureControls extends ConsumerWidget {
     final state = ref.watch(flatWizardProvider);
     final notifier = ref.read(flatWizardProvider.notifier);
     final cameraConfig = ref.watch(flatCameraConfigProvider);
+    // Only the mode on show carries the tour targets: the tab view keeps the
+    // outgoing mode mounted across a switch.
+    final isSelected = state.mode == FlatWizardMode.quick;
 
     // Label-to-the-LEFT form rows (05 §8), not a stack of h6 captions each
     // sitting above its control.
@@ -22,7 +25,12 @@ class _QuickCaptureControls extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const FormRow(label: 'Filter', child: _FilterSelector()),
+          FormRow(
+            label: 'Filter',
+            child: _FilterSelector(
+              key: isSelected ? TourTarget.flatFilterSelect.key : null,
+            ),
+          ),
           if (state.filterSettings.isNotEmpty)
             _FilterSettingsRow(
                 index: state.currentFilterIndex
@@ -36,6 +44,7 @@ class _QuickCaptureControls extends ConsumerWidget {
           FormRow(
             label: 'Histogram target',
             child: _HistogramTargetSlider(
+              key: isSelected ? TourTarget.flatTargetAdu.key : null,
               value: state.globalSettings.histogramTarget,
               onChanged: notifier.setHistogramTarget,
               config: cameraConfig,
@@ -53,6 +62,7 @@ class _QuickCaptureControls extends ConsumerWidget {
           FormRow(
             label: 'Frames',
             child: _FrameCountInput(
+              key: isSelected ? TourTarget.flatFrameCount.key : null,
               value: state.globalSettings.frameCount,
               onChanged: notifier.setFrameCount,
             ),
@@ -87,7 +97,7 @@ class _BatchCaptureControls extends ConsumerWidget {
           // GlobalKey attached twice throws "specified multiple times in the
           // widget tree".
           _FilterChecklist(
-            key: isSelected ? FlatWizardTutorialKeys.filterSelect : null,
+            key: isSelected ? TourTarget.flatFilterSelect.key : null,
           ),
           const SizedBox(height: _groupGap),
           const SectionTitle(
@@ -101,7 +111,7 @@ class _BatchCaptureControls extends ConsumerWidget {
           FormRow(
             label: 'Histogram target',
             child: _HistogramTargetSlider(
-              key: isSelected ? FlatWizardTutorialKeys.targetAdu : null,
+              key: isSelected ? TourTarget.flatTargetAdu.key : null,
               value: state.globalSettings.histogramTarget,
               onChanged: notifier.setHistogramTarget,
               config: cameraConfig,
@@ -119,7 +129,7 @@ class _BatchCaptureControls extends ConsumerWidget {
           FormRow(
             label: 'Frames',
             child: _FrameCountInput(
-              key: isSelected ? FlatWizardTutorialKeys.frameCount : null,
+              key: isSelected ? TourTarget.flatFrameCount.key : null,
               value: state.globalSettings.frameCount,
               onChanged: notifier.setFrameCount,
             ),
@@ -169,7 +179,7 @@ class _SkyFlatsControls extends ConsumerWidget {
             ),
           ),
           _FilterChecklist(
-            key: isSelected ? FlatWizardTutorialKeys.filterSelect : null,
+            key: isSelected ? TourTarget.flatFilterSelect.key : null,
           ),
           const SizedBox(height: _groupGap),
           const SectionTitle(
@@ -183,7 +193,7 @@ class _SkyFlatsControls extends ConsumerWidget {
           FormRow(
             label: 'Histogram target',
             child: _HistogramTargetSlider(
-              key: isSelected ? FlatWizardTutorialKeys.targetAdu : null,
+              key: isSelected ? TourTarget.flatTargetAdu.key : null,
               value: state.globalSettings.histogramTarget,
               onChanged: notifier.setHistogramTarget,
               config: cameraConfig,
@@ -201,7 +211,7 @@ class _SkyFlatsControls extends ConsumerWidget {
           FormRow(
             label: 'Frames',
             child: _FrameCountInput(
-              key: isSelected ? FlatWizardTutorialKeys.frameCount : null,
+              key: isSelected ? TourTarget.flatFrameCount.key : null,
               value: state.globalSettings.frameCount,
               onChanged: notifier.setFrameCount,
             ),

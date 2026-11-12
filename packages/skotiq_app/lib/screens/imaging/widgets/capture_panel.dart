@@ -11,7 +11,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
 import '../../../widgets/remote_directory_picker_dialog.dart';
-import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../../night_control/panel/camera/camera_panel_vm.dart'
     show NightCoolerState, nightCoolerState;
 import 'panel_widgets.dart';
@@ -228,7 +228,7 @@ class CapturePanel extends ConsumerWidget {
               children: [
                 Expanded(
                   child: InlineNumberField(
-                    key: ImagingTutorialKeys.gainControl,
+                    key: TourTarget.imagingGainControl.key,
                     value: exposureSettings.gain.toString(),
                     semanticLabel: 'Gain',
                     onChanged: (value) {

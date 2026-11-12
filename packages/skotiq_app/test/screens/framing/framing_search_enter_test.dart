@@ -11,7 +11,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/framing_screen.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/framing_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart' hide FramingView;
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -107,7 +107,7 @@ void main() {
   }
 
   Finder searchField() => find.descendant(
-        of: find.byKey(FramingTutorialKeys.targetSearch),
+        of: find.byKey(TourTarget.framingTargetSearch.key),
         matching: find.byType(EditableText),
       );
 

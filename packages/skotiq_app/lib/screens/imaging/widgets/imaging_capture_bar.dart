@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'imaging_view_prefs.dart';
 import 'measured_width.dart';
@@ -196,7 +196,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                     enabled: snapshotEnabled,
                     onTap: onSnapshot,
                     child: SkotiqButton(
-                      key: ImagingTutorialKeys.snapshotBtn,
+                      key: TourTarget.imagingSnapshotButton.key,
                       label: snapshotLabel,
                       icon: isSingleCapture
                           ? SkotiqIcons.loading
@@ -214,7 +214,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                     enabled: loopEnabled,
                     onTap: onToggleLoop,
                     child: SkotiqButton(
-                      key: ImagingTutorialKeys.loopBtn,
+                      key: TourTarget.imagingLoopButton.key,
                       label: loopLabel,
                       icon: isStoppingCapture
                           ? SkotiqIcons.loading
@@ -260,7 +260,7 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                       child: Semantics(
                         label: 'Filter',
                         child: SkotiqDropdown(
-                          key: ImagingTutorialKeys.filterSelector,
+                          key: TourTarget.imagingFilterSelector.key,
                           value: _shownFilter(filterState, exposureSettings),
                           items: filterState.filterNames,
                           isExpanded: true,
@@ -431,7 +431,7 @@ class _ExposureFieldState extends State<_ExposureField> {
     return Semantics(
       label: 'Exposure${widget.hostSuffix}, seconds',
       child: SkotiqTextField(
-        key: ImagingTutorialKeys.exposureSlider,
+        key: TourTarget.imagingExposureSlider.key,
         controller: _controller,
         focusNode: _focusNode,
         prefixIcon: SkotiqIcons.clock,

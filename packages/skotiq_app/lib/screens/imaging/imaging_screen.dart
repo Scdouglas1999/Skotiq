@@ -26,7 +26,7 @@ import 'widgets/live_preview_area.dart';
 import 'widgets/meridian_flip_countdown_banner.dart';
 import 'widgets/preview_display_scale.dart' show previewFitScaleProvider;
 import 'widgets/stacking_panel.dart';
-import '../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../tours/tour_target.dart';
 
 part 'imaging_screen/imaging_screen_actions.dart';
 
@@ -172,7 +172,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
               icon: SkotiqIcons.camera,
               title: 'Imaging',
               tabs: AdaptiveTabBar(
-                key: ImagingTutorialKeys.tabBar,
+                key: TourTarget.imagingTabBar.key,
                 horizontalPadding: 0,
                 tabs: <AdaptiveTab>[
                   for (final ImagingTab tab in ImagingTab.values)
@@ -417,7 +417,7 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
       children: <Widget>[
         Positioned.fill(
           child: LivePreviewArea(
-            key: ImagingTutorialKeys.previewArea,
+            key: TourTarget.imagingPreviewArea.key,
             colors: colors,
             zoomLevel: viewerState.zoomLevel,
             panOffset: viewerState.panOffset,
@@ -540,6 +540,7 @@ class _ControlsSheet extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(right: 2),
                             child: SkotiqChip(
+                              key: ImagingSidePanel.sections[i].buttonKey,
                               label: ImagingSidePanel.sections[i].tooltip,
                               icon: ImagingSidePanel.sections[i].icon,
                               selected: i == selectedSection,
@@ -628,7 +629,7 @@ class _SheetSnapshotButton extends ConsumerWidget {
         DeviceConnectionState.connected;
     final enabled = connected && !isSingleCapture && !isLooping;
     return SkotiqButton(
-      key: ImagingTutorialKeys.snapshotBtn,
+      key: TourTarget.imagingSnapshotButton.key,
       label: isSingleCapture
           ? (isStoppingCapture
               ? 'Stopping…'
@@ -664,7 +665,7 @@ class _SheetLoopButton extends ConsumerWidget {
         DeviceConnectionState.connected;
     final enabled = connected && !isSingleCapture && !isStoppingCapture;
     return SkotiqButton(
-      key: ImagingTutorialKeys.loopBtn,
+      key: TourTarget.imagingLoopButton.key,
       label: isStoppingCapture
           ? 'Stopping…'
           : isLooping

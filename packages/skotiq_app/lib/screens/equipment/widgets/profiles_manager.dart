@@ -4,7 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/tutorial_keys/equipment_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../dialogs/profile_editor_dialog.dart';
 import '../profile_actions.dart';
 import 'profile_sidebar.dart';
@@ -33,7 +33,7 @@ class _ProfilesManagerState extends ConsumerState<ProfilesManager>
     final selectedProfileId = ref.watch(selectedEquipmentProfileIdProvider);
     final list = ProfileSidebar(
       key: widget.tutorialTargets
-          ? EquipmentTutorialKeys.profileSelector
+          ? TourTarget.equipmentProfileSelector.key
           : null,
       tutorialTargets: widget.tutorialTargets,
       selectedProfileId: selectedProfileId,
