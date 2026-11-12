@@ -8,9 +8,11 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
   void _handleWebSocketWithQuery(
     WebSocketChannel socket,
     Map<String, String> query,
-    String? authIdentity,
-  ) {
+    String? authIdentity, {
+    required bool adminAccess,
+  }) {
     _socketAuthIdentities[socket] = authIdentity;
+    if (adminAccess) _adminSockets.add(socket);
     // replay on reconnect. Accept `?since=<int>&instance=<uuid>`. If
     // both are valid AND the instance matches AND the seq is within the
     // ring buffer's covered range, replay the missed events BEFORE
@@ -35,7 +37,10 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
           _sendResyncRequired(socket, reason: 'missed_too_many');
         } else {
           for (final ev in replay) {
-            final encoded = _encodeStampedEventForWire(ev, replay: true);
+            final encoded = _encodeStampedEventForWire(
+              _eventFor(socket, ev),
+              replay: true,
+            );
             if (encoded == null) continue;
             try {
               socket.sink.add(encoded);
@@ -129,6 +134,7 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
       _collaborationManager.removeViewer(viewerId);
     }
     _socketAuthIdentities.remove(socket);
+    _adminSockets.remove(socket);
     _socketLastSeenAt.remove(socket);
     _sockets.remove(socket);
     _publishConnectedClientCount();

@@ -89,7 +89,9 @@ running sequence picks up the ones it uses. Credentials stay with a link that
 has admin access, which needs the code, because a code proves someone can see
 the imaging computer's screen. Where a setting or page needs that access, the
 row says **Change this on the imaging computer, or link with admin access**,
-and a desktop offers **Link with admin access**, which asks for the code.
+and a desktop offers **Link with admin access**, which asks for the code. A
+link without admin access sees whether each stored credential is set, never
+the credential itself.
 
 ### When the link breaks
 

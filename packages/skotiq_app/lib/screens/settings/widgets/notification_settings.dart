@@ -258,6 +258,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
     final authority = ref.watch(backendProvider);
     final isRemoteController = authority.remoteHost != null;
+    final credentialsHidden = hostRefusesAdminOnly(ref);
     final AsyncValue<PushNotificationConfig>? pushConfigAsync =
         isRemoteController ? null : ref.watch(pushNotificationConfigProvider);
     // Real delivery state, so the critical-alert row can stop asserting a
@@ -672,7 +673,9 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     icon: LucideIcons.messageSquare,
                     title: 'Webhook URL',
                     subtitle: 'Discord channel webhook for notifications',
+                    isLast: credentialsHidden,
                     trailing: AdminOnlyControl(
+                      text: adminOnlyCredentialAdvice(settings.discordWebhook),
                       child: settingsTrailingTextInput(
                         context: context,
                         controller: _discordController,
@@ -689,20 +692,23 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                       ),
                     ),
                   ),
-                  SettingRow(
-                    icon: LucideIcons.send,
-                    title: 'Test Discord',
-                    subtitle:
-                        'Send a test notification to your Discord channel',
-                    trailing: SkotiqButton(
-                      label: 'Test',
-                      variant: ButtonVariant.primary,
-                      size: ButtonSize.small,
-                      isLoading: _activeTest == _NotificationTest.discord,
-                      onPressed: _activeTest == null ? _testDiscord : null,
+                  // The test sends from this computer with the typed URL,
+                  // which a link without admin access never has.
+                  if (!credentialsHidden)
+                    SettingRow(
+                      icon: LucideIcons.send,
+                      title: 'Test Discord',
+                      subtitle:
+                          'Send a test notification to your Discord channel',
+                      trailing: SkotiqButton(
+                        label: 'Test',
+                        variant: ButtonVariant.primary,
+                        size: ButtonSize.small,
+                        isLoading: _activeTest == _NotificationTest.discord,
+                        onPressed: _activeTest == null ? _testDiscord : null,
+                      ),
+                      isLast: true,
                     ),
-                    isLast: true,
-                  ),
                 ],
               ),
             if (isRemoteController)
@@ -714,6 +720,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     title: 'API key',
                     subtitle: 'Pushover application API key',
                     trailing: AdminOnlyControl(
+                      text: adminOnlyCredentialAdvice(settings.pushoverKey),
                       child: SettingsTextInput(
                         controller: _pushoverKeyController,
                         authoritativeValue: settings.pushoverKey,
@@ -733,7 +740,9 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     icon: LucideIcons.user,
                     title: 'User key',
                     subtitle: 'Pushover user/group key',
+                    isLast: credentialsHidden,
                     trailing: AdminOnlyControl(
+                      text: adminOnlyCredentialAdvice(settings.pushoverUser),
                       child: SettingsTextInput(
                         controller: _pushoverUserController,
                         authoritativeValue: settings.pushoverUser,
@@ -749,19 +758,20 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                       ),
                     ),
                   ),
-                  SettingRow(
-                    icon: LucideIcons.send,
-                    title: 'Test Pushover',
-                    subtitle: 'Send a test notification to your device',
-                    trailing: SkotiqButton(
-                      label: 'Test',
-                      variant: ButtonVariant.primary,
-                      size: ButtonSize.small,
-                      isLoading: _activeTest == _NotificationTest.pushover,
-                      onPressed: _activeTest == null ? _testPushover : null,
+                  if (!credentialsHidden)
+                    SettingRow(
+                      icon: LucideIcons.send,
+                      title: 'Test Pushover',
+                      subtitle: 'Send a test notification to your device',
+                      trailing: SkotiqButton(
+                        label: 'Test',
+                        variant: ButtonVariant.primary,
+                        size: ButtonSize.small,
+                        isLoading: _activeTest == _NotificationTest.pushover,
+                        onPressed: _activeTest == null ? _testPushover : null,
+                      ),
+                      isLast: true,
                     ),
-                    isLast: true,
-                  ),
                 ],
               ),
             // The per-event routing matrix and every transport's credentials,

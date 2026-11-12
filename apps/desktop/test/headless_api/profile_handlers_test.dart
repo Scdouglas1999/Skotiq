@@ -547,6 +547,75 @@ void main() {
           'https://discord.com/api/webhooks/1/abc',
         );
       });
+
+      Future<Map<String, dynamic>> getAs(HeadlessTokenScope scope) async {
+        final response = await translateHandlerErrors(
+          handlers.handleGetSettings(
+            Request(
+              'GET',
+              Uri.parse('http://localhost/api/settings'),
+              context: {
+                authGrantContextKey: HeadlessAuthGrant.fromCoarse(scope),
+              },
+            ),
+          ),
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        return body['settings'] as Map<String, dynamic>;
+      }
+
+      test('a link without admin access reads whether a credential is set, '
+          'never its value', () async {
+        await postAs(HeadlessTokenScope.admin, {
+          'discordWebhook': 'https://discord.com/api/webhooks/1/abc',
+        });
+
+        final control = await getAs(HeadlessTokenScope.control);
+        expect(control['discordWebhook'], credentialSetMarker);
+        expect(control['pushoverKey'], '', reason: 'not set reads as empty');
+
+        final admin = await getAs(HeadlessTokenScope.admin);
+        expect(
+          admin['discordWebhook'],
+          'https://discord.com/api/webhooks/1/abc',
+        );
+        expect(
+          {...control}..remove('discordWebhook'),
+          {...admin}..remove('discordWebhook'),
+          reason: 'only the credential differs',
+        );
+      });
+
+      test('the settings a link without admin access read come back as a '
+          'save that keeps every credential', () async {
+        await postAs(HeadlessTokenScope.admin, {
+          'discordWebhook': 'https://discord.com/api/webhooks/1/abc',
+          'pushoverKey': 'app-token',
+        });
+        // This rig has no site, which a settings save cannot post back.
+        final read = (await getAs(HeadlessTokenScope.control))
+          ..removeWhere(
+            (key, _) => const {
+              'location',
+              'latitude',
+              'longitude',
+              'elevation',
+              'locationStatus',
+            }.contains(key),
+          );
+
+        final response = await postAs(HeadlessTokenScope.control, {
+          ...read,
+          'ditherEnabled': false,
+        });
+
+        expect(response.statusCode, HttpStatus.ok);
+        final after = await stored();
+        expect(after.ditherEnabled, isFalse);
+        expect(after.discordWebhook, 'https://discord.com/api/webhooks/1/abc');
+        expect(after.pushoverKey, 'app-token');
+      });
     });
 
     test('a profile save naming its fields keeps the other fields of the '

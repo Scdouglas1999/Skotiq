@@ -313,7 +313,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
     // Full-snapshot variant emitted when the host couldn't read the
     // previous settings (first-write / recovery path).
-    if (key == '__snapshot__') {
+    if (key == settingsSnapshotKey) {
       final snapshot = event.data['value'];
       if (snapshot is Map<String, dynamic>) {
         try {

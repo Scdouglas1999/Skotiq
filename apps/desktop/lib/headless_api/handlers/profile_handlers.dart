@@ -398,13 +398,19 @@ class ProfileHandlers implements RouteSource {
     settings['elevation'] = site?.elevation;
     settings['locationStatus'] = site == null ? 'not configured' : 'configured';
 
-    return jsonOk({"settings": settings});
+    return jsonOk({
+      "settings": requestHasAdminAccess(request)
+          ? settings
+          : withCredentialsHidden(settings),
+    });
   }
 
   /// The host's `app_settings` key/value rows that linked clients mirror:
   /// every row except the presentation preferences of this computer's own
   /// screen. The rows the settings notifier owns are served from its state, so
   /// a value it holds but has not persisted yet is not reported as missing.
+  /// A request without admin access reads whether each credential is set,
+  /// not its value.
   Future<Response> handleGetSettingsStore(Request request) async {
     final rows = await container.read(settingsDaoProvider).getAllSettings();
     final current = await container.read(appSettingsProvider.future);
@@ -417,9 +423,10 @@ class ProfileHandlers implements RouteSource {
       for (final key in AppSettingsNotifier.hostStoreKeys)
         if (owned[key] != null) key: owned[key]!,
     };
+    final adminAccess = requestHasAdminAccess(request);
     return jsonOk({
-      'settings': settings,
-      'adminAccess': requestHasAdminAccess(request),
+      'settings': adminAccess ? settings : rowsWithCredentialsHidden(settings),
+      'adminAccess': adminAccess,
     });
   }
 
@@ -794,7 +801,11 @@ class ProfileHandlers implements RouteSource {
     // just wrote.
     final commandId = request.headers['x-skotiq-command-id'];
     final payload = await readJsonObject(request);
-    final settingsJson = requireObject(payload, 'settings');
+    // A caller without admin access read each set credential as the marker;
+    // posted back, it is not a change.
+    final settingsJson = withoutCredentialMarkers(
+      requireObject(payload, 'settings'),
+    );
 
     final backend = container.read(profileSettingsBackendProvider);
     final settingsNotifier = container.read(appSettingsProvider.notifier);
@@ -1080,7 +1091,7 @@ class ProfileHandlers implements RouteSource {
   /// Fan out one `settings.changed` event per
   /// changed field between [previous] and [next]. When [previous] is
   /// null, the entire `next` snapshot is emitted as a single event with
-  /// key `__snapshot__` so the client can still rehydrate.
+  /// key [settingsSnapshotKey] so the client can still rehydrate.
   ///
   /// `commandId` is stamped onto `correlatingCommandId` so the
   /// originating client can filter its own echo.
@@ -1109,7 +1120,7 @@ class ProfileHandlers implements RouteSource {
     if (previous == null) {
       // First-write or recovery path: emit a full snapshot so the
       // remote applies the entire object at once.
-      emit(buildEvent(key: '__snapshot__', value: next.toJson()));
+      emit(buildEvent(key: settingsSnapshotKey, value: next.toJson()));
       return;
     }
 

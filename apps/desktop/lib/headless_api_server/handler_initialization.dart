@@ -205,8 +205,14 @@ class _WebSocketRoutes implements RouteSource {
     // The collaboration viewer id is the authenticated principal, whatever the
     // client puts in its `collaboration.join` payload.
     final authIdentity = _server._authIdentityFrom(request);
+    final adminAccess = ctx.requestHasAdminAccess(request);
     return webSocketHandler((socket, _) {
-      _server._handleWebSocketWithQuery(socket, query, authIdentity);
+      _server._handleWebSocketWithQuery(
+        socket,
+        query,
+        authIdentity,
+        adminAccess: adminAccess,
+      );
     }).call(request);
   }
 

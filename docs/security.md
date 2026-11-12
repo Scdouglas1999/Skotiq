@@ -67,6 +67,18 @@ request context (`authGrantContextKey`), and a handler that finds none treats
 the request as not admin. `GET /api/settings/store` answers `adminAccess` so a
 client can mark these rows before anyone edits them.
 
+A request or WebSocket without admin access never receives a credential's
+value. `GET /api/settings`, `GET /api/settings/store`, the `settings.changed`
+events on `/events` (live and replayed) and `GET /api/runtime/recent-events`
+carry `(set on the imaging host)` in place of a credential that is set, and an
+empty value for one that is not (`credentialSetMarker`, `credential_settings.dart`).
+The host takes that marker posted back to `POST /api/settings` as "unchanged",
+so a client that saves the document it read leaves the credentials alone. The
+rows saying where the host sends a keyring secret (`notification_transport_*`,
+`cloud_sync_*`) hold no secret themselves and stay readable. Backups, which
+hold the credentials, are admin only, and no settings value is written to the
+logs.
+
 **Fail-closed on unknown scope.** `HeadlessAuthPolicy.requiredScopeFor` resolves
 the scope required by a route from its metadata. If a route ever declares a
 scope name the parser does not recognize, the policy returns

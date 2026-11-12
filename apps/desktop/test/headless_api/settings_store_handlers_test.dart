@@ -254,6 +254,27 @@ void main() {
     );
   });
 
+  test('a link without admin access reads whether a credential row is set, '
+      'never its value', () async {
+    await db.settingsDao.setSettings({
+      'discord_webhook': 'https://discord.com/api/webhooks/1/secret',
+      'pushover_user': '',
+    });
+    await container.read(appSettingsProvider.future);
+
+    final control = await getStore();
+    expect(control['discord_webhook'], credentialSetMarker);
+    expect(control['pushover_user'], '');
+
+    final admin =
+        (await getStoreBody(scope: HeadlessTokenScope.admin))['settings']
+            as Map;
+    expect(
+      admin['discord_webhook'],
+      'https://discord.com/api/webhooks/1/secret',
+    );
+  });
+
   test('a row saying where the host sends a credential changes only with '
       'admin access', () async {
     await container.read(appSettingsProvider.future);

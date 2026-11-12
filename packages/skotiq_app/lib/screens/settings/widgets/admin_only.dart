@@ -14,6 +14,13 @@ import '../../link_rig/link_rig_dialog.dart';
 const String adminOnlyAdvice =
     'Change this on the imaging computer, or link with admin access.';
 
+/// The admin-only line for a credential: whether it is set, which is all the
+/// host tells a link without admin access ([credentialSetMarker]).
+String adminOnlyCredentialAdvice(String value) => value.isEmpty
+    ? 'Not set. Set it on the imaging computer, or link with admin access.'
+    : 'Set on the imaging computer. Change it there, or link with admin '
+        'access.';
+
 /// True on a linked client whose link the imaging host says lacks admin
 /// access. False on the host itself, and while the host has not said.
 bool hostRefusesAdminOnly(WidgetRef ref) =>
