@@ -218,8 +218,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
                 label: 'Last push',
                 value: status.lastPushAt == null
                     ? 'Never'
-                    : DateFormat('MMM d, yyyy HH:mm')
-                        .format(status.lastPushAt!.toLocal()),
+                    : ClockFormat.monthDayYearHm(status.lastPushAt!.toLocal()),
               ),
               if (status.lastError != null || _error != null) ...[
                 const SizedBox(height: 12),
@@ -487,7 +486,6 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
       itemCount: _bundles.length,
       itemBuilder: (context, index) {
         final bundle = _bundles[index];
-        final sizeKb = (bundle.sizeBytes / 1024).toStringAsFixed(1);
         return ListTile(
           leading: Icon(LucideIcons.archive, color: colors.primary),
           title: Text(
@@ -497,8 +495,8 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
             ),
           ),
           subtitle: Text(
-            '$sizeKb KB | '
-            '${DateFormat('MMM d, yyyy HH:mm').format(bundle.createdAt.toLocal())}'
+            '${ByteFormat.size(bundle.sizeBytes)} | '
+            '${ClockFormat.monthDayYearHm(bundle.createdAt.toLocal())}'
             '${bundle.sha256.isEmpty ? ' | no integrity hash' : ''}',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textSecondary,
