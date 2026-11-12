@@ -675,6 +675,16 @@ class SequenceExecutor {
     }
     await admit?.call();
 
+    // Clear the previous run's progress, as [_acquireAndStartRun] does: the
+    // integration total and the per-node badges accumulate otherwise. A run
+    // id already set means a run is under way, and its progress stands.
+    if (_ref.read(currentRunIdProvider) == null) {
+      _ref.read(runRecordProvider.notifier)
+        ..resetProgress()
+        ..resetTally()
+        ..setFramesDoneBeforeRun(const {});
+    }
+
     // The session row first: it must exist before the first frame event
     // arrives, or that frame is stamped with no session.
     final openedSession =
@@ -765,12 +775,6 @@ class SequenceExecutor {
       return existing;
     }
     try {
-      // Clear the previous run's progress, as [_acquireAndStartRun] does: the
-      // integration total and the per-node badges accumulate otherwise.
-      final run = _ref.read(runRecordProvider.notifier);
-      run.resetProgress();
-      run.resetTally();
-      run.setFramesDoneBeforeRun(const {});
       return await _openRunRecords(sequenceName: label.name);
     } catch (e) {
       _logger.warning(

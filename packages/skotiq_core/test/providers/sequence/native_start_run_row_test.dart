@@ -25,6 +25,16 @@ import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
 
 import '../../mocks/mock_backend.dart';
 
+/// A backend whose unstubbed members answer with a completed `Future<void>`,
+/// so the launch's settings pushes run without stubbing each one.
+class _PermissiveBackend extends MockBackend {
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final result = super.noSuchMethod(invocation);
+    return result ?? Future<void>.value();
+  }
+}
+
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
@@ -62,7 +72,7 @@ void main() {
 
   setUp(() {
     container = null;
-    backend = MockBackend();
+    backend = _PermissiveBackend();
     eventController = StreamController<bridge_event.SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => eventController.stream);
     when(

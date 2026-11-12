@@ -127,7 +127,7 @@ class RunEventHandler {
     // The record's own fold first; what follows adds what only the executor
     // knows and words the progress message for the run view.
     final progressNotifier = _ref.read(runRecordProvider.notifier);
-    foldRunEvent(progressNotifier, event);
+    foldRunEvent(progressNotifier, event, executorDecidesLifecycle: true);
     switch (event) {
       case NodeStarted():
         // Frame indices restart at 1 for every node, so a verdict an aborted

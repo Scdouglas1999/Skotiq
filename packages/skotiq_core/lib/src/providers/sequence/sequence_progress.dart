@@ -168,15 +168,21 @@ void applySequencerEventToSequenceProviders(
 /// tally, stop authorship, and the lifecycle when no local executor owns it.
 ///
 /// Called once per event: by `RunEventHandler` for a run the executor is
-/// attached to, by [applySequencerEventToSequenceProviders] for any other
-/// event on a host, and by the remote-sync mirror on a linked client.
+/// attached to ([executorDecidesLifecycle]), by
+/// [applySequencerEventToSequenceProviders] for any other event on a host, and
+/// by the remote-sync mirror on a linked client.
 ///
-/// A local executor that owns the run (it opened the `sequence_runs` row, so
-/// the record has a run id) is the authority on its lifecycle: it publishes
-/// `finalizing` on a terminal and settles only after durable cleanup, so a
-/// settled state is not written from here for such a run.
-void foldRunEvent(RunRecordNotifier run, SequencerRunEvent event) {
-  final executorOwnsRun = run.record.runId != null;
+/// A local executor is the authority on the lifecycle of a run it is attached
+/// to or still finalizing (it opened the `sequence_runs` row, so the record
+/// has a run id): it publishes `finalizing` on a terminal, settles only after
+/// durable cleanup, and ignores a late terminal for a run that already has its
+/// verdict. The lifecycle is not written from here for such a run.
+void foldRunEvent(
+  RunRecordNotifier run,
+  SequencerRunEvent event, {
+  bool executorDecidesLifecycle = false,
+}) {
+  final executorOwnsRun = executorDecidesLifecycle || run.record.runId != null;
 
   applyRunEventToNodeExposureTally(run, event);
   // Authorship rows precede the cause-neutral cancel notice, so they are

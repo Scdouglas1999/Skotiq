@@ -2262,6 +2262,7 @@ void main() {
       await c
           .read(sessionStateProvider.notifier)
           .startSession(targetName: name);
+      when(() => backend.sequencerStart()).thenAnswer((_) async {});
       await executor.startLoadedRun();
       eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();

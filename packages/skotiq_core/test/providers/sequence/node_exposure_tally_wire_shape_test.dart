@@ -96,7 +96,7 @@ void main() {
       }),
     );
 
-    expect(tally.state, isEmpty);
+    expect(tally.state.tally, isEmpty);
   });
 
   test('the node boundary cannot credit node 2 with node 1 frames', () {
@@ -166,7 +166,7 @@ void main() {
       }),
     );
 
-    expect(tally.state, isEmpty);
+    expect(tally.state.tally, isEmpty);
   });
 
   test('a fresh pass over a node clears the previous pass frames', () {
