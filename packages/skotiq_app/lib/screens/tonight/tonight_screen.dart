@@ -6,6 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
+import '../../utils/held_future.dart';
 import '../../utils/plan_tonight_sequencer_helper.dart';
 import '../planetarium/show_in_sky.dart';
 import 'one_tap_target_provider.dart';
@@ -39,23 +40,9 @@ class _TonightScreenState extends ConsumerState<TonightScreen> {
       // The plan centers every target by plate solving; the sequencer refuses
       // to start it on a rig without a solver.
       preflight: () async {
-        // Both are auto-disposed: held open until read, or the reads can
-        // outlive them and never resolve.
-        final held = [
-          ref.listenManual(plateSolverDetectionProvider, (_, __) {}),
-          ref.listenManual(plateSolverPreferenceProvider, (_, __) {}),
-        ];
-        try {
-          final detection =
-              await ref.read(plateSolverDetectionProvider.future);
-          final preference =
-              await ref.read(plateSolverPreferenceProvider.future);
-          if (detection.supports(preference.choice)) return null;
-        } finally {
-          for (final subscription in held) {
-            subscription.close();
-          }
-        }
+        final detection = await readHeld(ref, plateSolverDetectionProvider);
+        final preference = await readHeld(ref, plateSolverPreferenceProvider);
+        if (detection.supports(preference.choice)) return null;
         final rig = ref.read(remoteLaunchTargetProvider)?.name;
         return 'Image tonight centers the target by plate solving, and no '
             'plate solver is set up ${rig == null ? 'on this computer' : 'on $rig'}. '

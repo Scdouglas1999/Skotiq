@@ -7,6 +7,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 import '../widgets/auto_build_options_dialog.dart';
+import 'held_future.dart';
 
 Future<SingleTargetSequenceResult> buildPlanTonightTargetSequence({
   required WidgetRef ref,
@@ -109,9 +110,12 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
     );
   }
 
-  final settings = await ref.read(appSettingsProvider.future);
+  // The screens that plan from here do not watch the exposure context, so
+  // it is held while it is read: read bare, a reload that started while it
+  // loaded was never finished and planning waited for good.
+  final settings = await readHeld(ref, appSettingsProvider);
   final exposureContext =
-      await ref.read(smartNightExposureContextProvider.future);
+      await readHeld(ref, smartNightExposureContextProvider);
 
   final window = SmartNightService(
     suggestionService: ref.read(targetSuggestionServiceProvider),
