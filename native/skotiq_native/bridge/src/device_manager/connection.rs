@@ -491,11 +491,6 @@ impl DeviceManager {
                     crate::device_manager::motion_guard::ensure_sampler();
                 }
 
-                // Also register in app state
-                self.app_state
-                    .register_device(info.clone(), ConnectionState::Connected)
-                    .await;
-
                 // Auto-start heartbeat monitoring for the connected device
                 let heartbeat_config = policy(info.device_type).heartbeat;
                 if let Err(e) = self
@@ -1250,10 +1245,6 @@ impl DeviceManager {
             EventSeverity::Info,
         );
 
-        self.app_state
-            .remove_device(device_info.device_type, device_id)
-            .await;
-
         if !disconnect_errors.is_empty() {
             return Err(format!(
                 "Disconnected {} from Skotiq state, but driver cleanup reported: {}",
@@ -1288,8 +1279,6 @@ impl DeviceManager {
             }
         };
 
-        self.app_state.remove_device(device_type, device_id).await;
-
         self.app_state.publish_equipment_event(
             EquipmentEvent::Error {
                 device_type: device_type.as_str().to_string(),
@@ -1300,7 +1289,7 @@ impl DeviceManager {
         );
     }
 
-    /// Heartbeat threshold reached: mark the device unhealthy and mirror registry state.
+    /// Heartbeat threshold reached: mark the device unhealthy.
     ///
     /// Real reconnection is handled exclusively by `reconnection_loop` when
     /// `auto_reconnect` is enabled (FB-); the heartbeat task must not sleep
@@ -1325,10 +1314,6 @@ impl DeviceManager {
             }
             dev.info.clone()
         };
-
-        self.app_state
-            .remove_device(info.device_type, device_id)
-            .await;
 
         Some(info)
     }
