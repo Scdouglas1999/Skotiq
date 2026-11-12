@@ -20,7 +20,6 @@ final polarAlignmentConfigSaveErrorProvider = StateProvider<String?>(
 /// Notifier that persists polar alignment configuration to database
 class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
   final Ref ref;
-  static const String _settingsKey = 'polar_alignment_config';
 
   /// Bumped on every user edit. The async initial load captures the revision
   /// before its `await` and only applies the loaded config if the revision is
@@ -37,7 +36,7 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
     try {
       final setting = await ref
           .read(settingsDaoProvider)
-          .getSetting(_settingsKey);
+          .read(StoreSettings.polarAlignment);
 
       // If the user edited while we were reading the DB, honour their edit and
       // discard the stale on-disk value rather than overwriting it.
@@ -50,7 +49,7 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
         return;
       }
 
-      if (setting != null && setting.isNotEmpty) {
+      if (setting != null) {
         final json = jsonDecode(setting) as Map<String, dynamic>;
         state = PolarAlignmentConfig.fromJson(json);
         developer.log(
@@ -78,7 +77,9 @@ class PolarAlignmentConfigNotifier extends StateNotifier<PolarAlignmentConfig> {
   Future<void> _saveConfig() async {
     try {
       final json = jsonEncode(state.toJson());
-      await ref.read(settingsDaoProvider).setSetting(_settingsKey, json);
+      await ref
+          .read(settingsDaoProvider)
+          .write(StoreSettings.polarAlignment, json);
       // Clear any previously-surfaced save error now that a save succeeded.
       ref.read(polarAlignmentConfigSaveErrorProvider.notifier).state = null;
       developer.log(

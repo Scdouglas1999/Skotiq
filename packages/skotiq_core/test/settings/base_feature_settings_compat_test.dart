@@ -1048,6 +1048,9 @@ const Map<String, Object?> _changedOnPurpose = {
       'unreadable': {'saveOriginal': true},
     },
   },
+  'notification routing': {
+    'reads': {'empty': _SameAs('missing')},
+  },
 };
 
 /// A change to the value the base build read from the rows labeled [label].
