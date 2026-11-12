@@ -19,7 +19,8 @@ import '../../data/session/equipment_summary_provider.dart'
 import '../../data/session/guide_series_provider.dart';
 import '../../data/session/session_events_provider.dart';
 import '../../../guiding/widgets/guide_star_view.dart';
-import '../mount/night_panel_parts.dart';
+import '../../night_control_contracts.dart';
+import '../panel_widgets.dart';
 import 'guide_metrics.dart';
 import 'guide_scatter.dart';
 import '../../../settings/settings_sections.dart';
@@ -40,7 +41,6 @@ class NightGuideStarSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final state = ref.watch(phd2StateProvider);
     final stats = ref.watch(guideStatsProvider);
     final image = ref.watch(starImageProvider);
@@ -145,7 +145,7 @@ class NightGuideStarSection extends ConsumerWidget {
               NightPanelNote(
                 key: const ValueKey<String>('nightGuide.stopReason'),
                 guideStopReasonLabel(l10n, stopReason),
-                color: colors.info,
+                tone: MetricTone.neutral,
               ),
             if (settleTimeout != null)
               NightPanelNote(
@@ -160,7 +160,7 @@ class NightGuideStarSection extends ConsumerWidget {
               ),
             NightPanelNote(
               lostText,
-              color: lost.isEmpty ? null : colors.warning,
+              tone: lost.isEmpty ? null : MetricTone.warning,
             ),
             if (settle != null)
               NightPanelNote(
@@ -194,7 +194,6 @@ class _NightGuideCalibrationSectionState
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final calibration = ref.watch(calibrationStateProvider);
     final clock = ref.watch(clockProvider);
     final inputs = ref.watch(nightActionInputsProvider);
@@ -228,7 +227,8 @@ class _NightGuideCalibrationSectionState
     return NightPanelSection(
       title: l10n.text('nightScopeGuideCalibration'),
       trailing: status,
-      trailingColor: calibration.isCalibrated ? colors.success : colors.warning,
+      trailingTone:
+          calibration.isCalibrated ? MetricTone.good : MetricTone.warning,
       children: [
         NightPanelValues(
           items: [
