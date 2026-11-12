@@ -656,10 +656,10 @@ impl InstructionContext {
             serde_json::json!({ "node_id": self.node_id }),
         );
         tracing::warn!("{}", continuation.operator_message);
-        let warning = continuation.warning(continuation.operator_message.clone());
-        self.run.emit_decision(continuation.decision);
+        let (decision, line) = continuation.split();
+        self.run.emit_decision(decision);
         if let Some(event_tx) = &self.run.event_tx {
-            let _ = event_tx.send(warning);
+            let _ = event_tx.send(line.into_event());
         }
     }
 }

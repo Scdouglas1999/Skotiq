@@ -49,14 +49,33 @@ fn a_failure_with_no_message_still_fails() {
     );
 }
 
+/// The record a trigger-fired autofocus writes through
+/// `record_autofocus_failed_continuing`.
+fn trigger_continuation(
+    reason: &str,
+    position_before: Option<i32>,
+    position_after: Option<i32>,
+    origin_restored: Option<bool>,
+) -> ContinuedHappening {
+    autofocus_failure_continuation(
+        "Autofocus trigger 'Autofocus Interval'",
+        serde_json::json!({
+            "trigger_id": "autofocus_interval",
+            "trigger_name": "Autofocus Interval",
+        }),
+        reason,
+        position_before,
+        position_after,
+        origin_restored,
+    )
+}
+
 /// Owner decision (2026-08-14): a trigger-fired autofocus that misses its
 /// curve fit must not pause an unattended run. The run keeps the pre-sweep
 /// focus and the replay log says so, naming both positions.
 #[test]
 fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
+    let continuation = trigger_continuation(
         "curve fit R² 0.31 below minimum 0.80",
         Some(21_400),
         Some(21_400),
@@ -75,13 +94,6 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
         continuation.decision.notice,
         Some(crate::decision::RunNotice::AutofocusContinued)
     );
-    assert!(matches!(
-        continuation.warning(continuation.operator_message.clone()),
-        super::ExecutorEvent::NoticedWarning {
-            notice: crate::decision::RunNotice::AutofocusContinued,
-            ..
-        }
-    ));
     assert_eq!(
         continuation.decision.details["focuser_position_before"],
         serde_json::json!(21_400)
@@ -99,6 +111,14 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
         "the operator must be told the run carried on: {}",
         continuation.operator_message
     );
+    let (_, line) = continuation.split();
+    assert!(matches!(
+        line.into_event(),
+        ExecutorEvent::NoticedWarning {
+            notice: crate::decision::RunNotice::AutofocusContinued,
+            ..
+        }
+    ));
 }
 
 /// A failed RETURN move is a different night: the motor is parked somewhere
@@ -106,14 +126,8 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
 /// continues, but the notice must not claim the focuser came home.
 #[test]
 fn a_failed_position_restore_is_called_out_not_smoothed_over() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
-        "focuser timed out",
-        Some(21_400),
-        Some(19_950),
-        Some(false),
-    );
+    let continuation =
+        trigger_continuation("focuser timed out", Some(21_400), Some(19_950), Some(false));
 
     assert!(
         continuation
@@ -134,9 +148,7 @@ fn a_failed_position_restore_is_called_out_not_smoothed_over() {
 /// restore would warn about focus on a run whose focuser never moved.
 #[test]
 fn an_autofocus_that_never_moved_the_focuser_does_not_warn_about_restore() {
-    let continuation = autofocus_trigger_continuation(
-        "autofocus_interval",
-        "Autofocus Interval",
+    let continuation = trigger_continuation(
         "Autofocus is already running on this equipment host",
         Some(21_400),
         Some(21_400),

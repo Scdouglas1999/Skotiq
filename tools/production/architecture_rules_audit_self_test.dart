@@ -328,6 +328,100 @@ Future<void> main() async {
   );
 
   await check(
+    'a model importing a provider file fails',
+    (root) => _write(
+      root,
+      'packages/skotiq_core/lib/src/models/hips/survey.dart',
+      "import '../../providers/framing_provider.dart' show SurveySource;\n",
+    ),
+    exitCode: 1,
+    stderrHas: [
+      '[core-layers]',
+      'survey.dart:1: imports src/providers/framing_provider.dart',
+      'Plain values (data classes, enums, result types',
+    ],
+  );
+
+  await check(
+    'a backend file importing the core barrel or a provider by package URI '
+    'fails',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/backend/roles/host_notes.dart',
+        "import 'package:skotiq_core/skotiq_core.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/database/daos/notes_dao.dart',
+        "import 'dart:async';\n"
+            "export 'package:skotiq_core/src/providers/database_provider.dart';\n",
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      'host_notes.dart:1: imports skotiq_core.dart',
+      'notes_dao.dart:2: imports src/providers/database_provider.dart',
+    ],
+  );
+
+  await check(
+    'a service importing providers fails without a baseline entry',
+    (root) => _write(
+      root,
+      'packages/skotiq_core/lib/src/services/night/night_service.dart',
+      "import '../../providers/backend_provider.dart';\n",
+    ),
+    exitCode: 1,
+    stderrHas: [
+      '[core-layers]',
+      'night_service.dart:1: imports src/providers/backend_provider.dart',
+    ],
+  );
+
+  await check(
+    'a listed service passes up to its count and fails above it',
+    (root) async {
+      await _baseline(root, coreLayers: {'services/night_service.dart': 1});
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/services/night/night_service.dart',
+        "import '../../providers/backend_provider.dart';\n"
+            "import '../../providers/database_provider.dart';\n",
+      );
+    },
+    exitCode: 1,
+    stderrHas: ['baseline allows 1 under "services/night_service.dart"'],
+  );
+
+  await check('a listed service, providers importing providers, and a '
+      'services folder named providers pass', (root) async {
+    await _baseline(root, coreLayers: {'services/night_service.dart': 1});
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/services/night/night_service.dart',
+      "import '../../providers/backend_provider.dart';\n"
+          "import '../../models/night.dart';\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/providers/night_provider.dart',
+      "import 'backend_provider.dart';\n"
+          "import 'package:skotiq_core/skotiq_core.dart';\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/services/weather/radar_service.dart',
+      "import 'providers/radar_source.dart';\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/models/night.dart',
+      '// Not `import ../providers/x.dart`.\n',
+    );
+  }, exitCode: 0);
+
+  await check(
     '--sync-baseline lowers and drops entries and never adds one',
     (root) async {
       await _baseline(
@@ -441,6 +535,7 @@ Future<void> _baseline(
   Directory root, {
   Map<String, int> srcImport = const {},
   Map<String, int> nodeDispatch = const {},
+  Map<String, int> coreLayers = const {},
 }) => _write(
   root,
   'tools/production/architecture_rules_baseline.json',
@@ -450,6 +545,12 @@ Future<void> _baseline(
     'nodeDispatch': {
       'allowed': {
         for (final e in nodeDispatch.entries)
+          e.key: {'count': e.value, 'reason': 'self-test'},
+      },
+    },
+    'coreLayers': {
+      'allowed': {
+        for (final e in coreLayers.entries)
           e.key: {'count': e.value, 'reason': 'self-test'},
       },
     },

@@ -1,4 +1,6 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../models/backend/event_types.dart';
+import '../../../models/defect_map.dart';
+import '../../../models/science/science_models.dart';
 
 /// Frame calibration, its settings and the defect maps of a linked imaging
 /// host, which holds the calibration masters and the frames they apply to.

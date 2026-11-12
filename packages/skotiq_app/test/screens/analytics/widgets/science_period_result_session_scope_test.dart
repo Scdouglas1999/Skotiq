@@ -113,8 +113,8 @@ Widget _tab() => ProviderScope(
         sessionFrameQualityMetricsProvider.overrideWith(
           (ref, id) => Stream.value(const <ScienceFrameQualityMetricsRow>[]),
         ),
-        sessionTileMetricsProvider.overrideWith(
-          (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+        frameTileMetricsProvider.overrideWith(
+          (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
         ),
         dbSessionImagesProvider.overrideWith(
           (ref, id) => Stream.value(const <DbCapturedImage>[]),

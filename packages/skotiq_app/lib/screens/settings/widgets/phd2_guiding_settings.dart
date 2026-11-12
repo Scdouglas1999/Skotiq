@@ -48,7 +48,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
   /// equipment profile that replied.
   Future<void> _testConnection(AppSettingsState settings) async {
     if (_testing) return;
-    final authority = ref.read(backendProvider);
+    final startedOn = ref.backendScope();
     final host = settings.phd2Host.trim().isEmpty
         ? 'localhost'
         : settings.phd2Host.trim();
@@ -75,7 +75,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
 
     if (!mounted) return;
     // A host switch mid-probe means the answer describes the previous rig.
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (startedOn.isStale) {
       setState(() {
         _testing = false;
         _testOutcome = null;
@@ -178,7 +178,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
   }
 
   Future<void> _selectPhd2Path() async {
-    final authority = ref.read(backendProvider);
+    final startedOn = ref.backendScope();
     final isRemote = ref.read(isRemoteModeProvider);
     String? initialDir;
     if (!isRemote && Platform.isWindows) {
@@ -214,7 +214,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
     if (!mounted) {
       return;
     }
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (startedOn.isStale) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -230,7 +230,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
       try {
         await ref.read(appSettingsProvider.notifier).setPhd2Path(result);
       } catch (e) {
-        if (mounted && identical(ref.read(backendProvider), authority)) {
+        if (mounted && startedOn.isCurrent) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(

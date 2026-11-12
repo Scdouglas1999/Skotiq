@@ -20,6 +20,9 @@ enum AscomWeatherCommand {
     RainRate(oneshot::Sender<Result<f64, String>>),
     /// The heartbeat's liveness read.
     GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
+    SkyBrightness(oneshot::Sender<Result<f64, String>>),
+    WindGust(oneshot::Sender<Result<f64, String>>),
+    StarFwhm(oneshot::Sender<Result<f64, String>>),
 }
 
 pub struct AscomObservingConditionsWrapper {
@@ -100,6 +103,15 @@ impl AscomObservingConditionsWrapper {
                     }
                     AscomWeatherCommand::GetInterfaceVersion(reply) => {
                         let _ = reply.send(weather.interface_version().map_err(|e| e.to_string()));
+                    }
+                    AscomWeatherCommand::SkyBrightness(reply) => {
+                        let _ = reply.send(weather.sky_brightness().map_err(|e| e.to_string()));
+                    }
+                    AscomWeatherCommand::WindGust(reply) => {
+                        let _ = reply.send(weather.wind_gust().map_err(|e| e.to_string()));
+                    }
+                    AscomWeatherCommand::StarFwhm(reply) => {
+                        let _ = reply.send(weather.star_fwhm().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork
@@ -225,6 +237,34 @@ impl AscomObservingConditionsWrapper {
             .await
             .map_err(|error| format!("Send error: {}", error))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
+    }
+
+    pub async fn sky_brightness(&self) -> Result<f64, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomWeatherCommand::SkyBrightness(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        Self::recv_with_timeout(rx, Timeouts::property_read(), "sky_brightness").await
+    }
+
+    pub async fn wind_gust(&self) -> Result<f64, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomWeatherCommand::WindGust(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        Self::recv_with_timeout(rx, Timeouts::property_read(), "wind_gust").await
+    }
+
+    /// Seeing, as the FWHM of a star in arc seconds.
+    pub async fn star_fwhm(&self) -> Result<f64, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomWeatherCommand::StarFwhm(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        Self::recv_with_timeout(rx, Timeouts::property_read(), "star_fwhm").await
     }
 }
 

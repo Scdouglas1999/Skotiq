@@ -26,7 +26,7 @@
 //!   slave). It never pauses, stops or parks the run (owner decision
 //!   2026-10-06); the frames are still graded and the rejects kept.
 //! * **A metric never taken grades Pass.** When a measurement is `None`
-//!   (detection did not run, `calculate_image_hfr` returned None) the frame
+//!   (detection did not run, `measure_light_frame` found no HFR) the frame
 //!   passes rather than rejecting: a missing measurement is not a known-bad
 //!   frame, and narrowband on a dim nebula legitimately defeats the detector.
 //! * **…but a measured zero is evidence.** `star_count: Some(0)` is not
@@ -879,9 +879,8 @@ mod tests {
     // measured, so `grade_frame` was handed `None` and passed the frame.
     // These tests drive the same chain `run_exposure_loop` drives —
     // `detect_stars(StarDetectionConfig::default())` (verbatim what
-    // `UnifiedDeviceOps::measure_frame_eccentricity` and
-    // `detect_stars_in_image` use) → `frame_eccentricity` → `FrameMetrics`
-    // → `grade_frame` — starting from pixels.
+    // `UnifiedDeviceOps::measure_light_frame` uses) → `frame_eccentricity`
+    // → `FrameMetrics` → `grade_frame` — starting from pixels.
 
     /// A field of identically-smeared elliptical Gaussians on a flat
     /// background: what wind shake or a dropped guide correction does to

@@ -4,6 +4,7 @@ import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../utils/device_id.dart';
 import '../profiles_provider.dart';
+import '../../models/equipment_profile_model.dart';
 import 'device_slots.dart';
 
 /// The computed status of a single device slot for one profile.

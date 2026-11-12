@@ -117,7 +117,8 @@ impl Harness {
         run.teardown.node_tree_has_ended();
         let dispatcher = Dispatcher::new(
             &run,
-            ExecutionContext::new("root".into(), ops.clone()),
+            run.build_context(std::time::Instant::now(), requests.clone())
+                .await,
             requests,
         )
         .await;
@@ -705,7 +706,7 @@ async fn refused_probe_return_honors_failure_policy_without_exposing() {
                 failure_action: action,
                 ..Default::default()
             }));
-        let mount = h.dispatcher.rig.context.mount_id.clone().unwrap();
+        let mount = h.dispatcher.rig.devices().mount_id.clone().unwrap();
         h.ops.mount_park(&mount).await.unwrap();
         let state = h.dispatcher.rig.trigger_state.clone();
         let mut claim = TriggerCameraClaim::acquire(

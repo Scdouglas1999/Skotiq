@@ -137,7 +137,6 @@ pub struct SequenceExecutor {
     pub save_path: Option<std::path::PathBuf>,
     /// Trigger manager for monitoring conditions
     trigger_manager: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     /// Checkpoint manager for crash recovery.
     /// stored behind an `Arc` so the streaming-checkpoint task
     /// (spawned inside `start()`) shares the SAME instance — including its
@@ -229,7 +228,6 @@ impl SequenceExecutor {
             cover_calibrator_id: None,
             save_path: None,
             trigger_manager: Arc::new(RwLock::new(trigger_manager)),
-            triggers_enabled: true,
             checkpoint_manager: None,
             run: None,
             depth_goal_ops: None,
@@ -453,6 +451,22 @@ pub(crate) struct ContinuedHappening {
     notice: crate::decision::RunNotice,
 }
 
+/// The run's warning line for a continued happening, marked with the notice its
+/// decision row carries so the app lists it without telling it a second time.
+pub(crate) struct NoticeLine {
+    notice: crate::decision::RunNotice,
+    pub(crate) message: String,
+}
+
+impl NoticeLine {
+    pub(crate) fn into_event(self) -> ExecutorEvent {
+        ExecutorEvent::NoticedWarning {
+            notice: self.notice,
+            message: self.message,
+        }
+    }
+}
+
 impl ContinuedHappening {
     fn new(
         notice: crate::decision::RunNotice,
@@ -466,43 +480,17 @@ impl ContinuedHappening {
         }
     }
 
-    /// The run's warning line for it, marked with the decision row's notice.
-    pub(crate) fn warning(&self, message: String) -> ExecutorEvent {
-        ExecutorEvent::NoticedWarning {
-            notice: self.notice,
-            message,
-        }
+    /// The decision row and the warning line, to be sent where the run sends
+    /// each.
+    pub(crate) fn split(self) -> (crate::decision::DecisionEvent, NoticeLine) {
+        (
+            self.decision,
+            NoticeLine {
+                notice: self.notice,
+                message: self.operator_message,
+            },
+        )
     }
-}
-
-/// Build the continuation record for a non-converging trigger autofocus. Lives
-/// outside the trigger loop so the policy — continue on the last-good focus,
-/// never pause, park or end the run — is testable without standing up an
-/// executor.
-///
-/// `origin_restored` is the `autofocus_origin_restored` marker from the failed
-/// result: `Some(true)` the focuser went back to where it started, `Some(false)`
-/// the return move failed and the motor is off its origin, `None` the run never
-/// moved the focuser at all (e.g. admission rejected).
-pub(crate) fn autofocus_trigger_continuation(
-    trigger_id: &str,
-    trigger_name: &str,
-    reason: &str,
-    position_before: Option<i32>,
-    position_after: Option<i32>,
-    origin_restored: Option<bool>,
-) -> ContinuedHappening {
-    autofocus_failure_continuation(
-        &format!("Autofocus trigger '{trigger_name}'"),
-        serde_json::json!({
-            "trigger_id": trigger_id,
-            "trigger_name": trigger_name,
-        }),
-        reason,
-        position_before,
-        position_after,
-        origin_restored,
-    )
 }
 
 /// The continuation record for any autofocus that did not converge while the

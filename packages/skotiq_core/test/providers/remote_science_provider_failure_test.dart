@@ -37,7 +37,9 @@ void main() {
       container.read(sessionTransparencySamplesProvider(9).future),
       container.read(sessionPsfTilesProvider(9).future),
       container.read(sessionFrameQualityMetricsProvider(9).future),
-      container.read(sessionTileMetricsProvider(9).future),
+      container.read(
+        frameTileMetricsProvider((sessionId: 9, capturedImageId: null)).future,
+      ),
       container.read(sessionResidualVectorsProvider(9).future),
       container.read(sessionMovingObjectCandidatesProvider(9).future),
       container.read(sessionLineRatioProductsProvider(9).future),

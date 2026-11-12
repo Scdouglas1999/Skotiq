@@ -102,7 +102,9 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   // because the two actions have different latencies and we don't want
   // the "Rescanning..." spinner blocking the much longer "Scan All".
   bool _isRescanning = false;
-  int _operationGeneration = 0;
+
+  /// The scan or rescan in progress; a host change drops it.
+  late final _operations = ref.backendScopes(alive: () => mounted);
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   late AnimationController _expandController;
   late Animation<double> _expandAnimation;
@@ -118,7 +120,7 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
       backendProvider,
       (previous, next) {
         if (identical(previous, next)) return;
-        _operationGeneration++;
+        _operations.cancelAll();
         if (mounted && (_isScanning || _isRescanning)) {
           setState(() {
             _isScanning = false;
@@ -173,7 +175,6 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _operationGeneration++;
     _backendSubscription?.close();
     _expandController.dispose();
     _lastScanTimer?.cancel();
@@ -193,25 +194,23 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
 
   Future<void> _scanForDevices() async {
     if (_isScanning || _isRescanning) return;
-    final authority = ref.read(backendProvider);
-    final generation = ++_operationGeneration;
+    final scan = _operations.beginLatest();
     setState(() => _isScanning = true);
     try {
       // discoverAll clears stale grouped results before scanning.
       await ref.read(unifiedDiscoveryProvider.notifier).discoverAll();
-      if (_isCurrentOperation(generation, authority, scanning: true)) {
+      if (_isCurrentOperation(scan, scanning: true)) {
         final completedAt =
             ref.read(unifiedDiscoveryProvider).lastDiscoveryCompletedAt;
         ref.read(lastScanTimeProvider.notifier).state =
             completedAt ?? DateTime.now();
       }
     } catch (e) {
-      if (mounted &&
-          _isCurrentOperation(generation, authority, scanning: true)) {
+      if (mounted && _isCurrentOperation(scan, scanning: true)) {
         context.showErrorSnackBar('Equipment scan failed: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentOperation(generation, authority, scanning: true)) {
+      if (_isCurrentOperation(scan, scanning: true)) {
         setState(() => _isScanning = false);
       }
     }
@@ -238,42 +237,35 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
   /// resolves to the FfiBackend and drives the local hot-plug pass unchanged.
   Future<void> _rescanEquipment() async {
     if (_isRescanning || _isScanning) return;
-    final authority = ref.read(backendProvider);
-    final backend = ref.read(deviceBackendProvider);
-    final generation = ++_operationGeneration;
+    final rescan = _operations.beginLatest();
     setState(() => _isRescanning = true);
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
-      await backend.rescanDevices();
-      if (mounted &&
-          _isCurrentOperation(generation, authority, rescanning: true) &&
-          identical(ref.read(deviceBackendProvider), backend)) {
+      await rescan.value.rescanDevices();
+      if (mounted && _isCurrentOperation(rescan, rescanning: true)) {
         context.showSuccessSnackBar('Equipment rescan complete');
       }
     } catch (e) {
       // A failed rescan must say so: silence here is indistinguishable from a
       // scan that ran and found nothing.
-      if (_isCurrentOperation(generation, authority, rescanning: true)) {
+      if (_isCurrentOperation(rescan, rescanning: true)) {
         messenger?.showSnackBar(
           SnackBar(content: Text('Rescan failed: ${userFacingError(e)}')),
         );
       }
     } finally {
-      if (_isCurrentOperation(generation, authority, rescanning: true)) {
+      if (_isCurrentOperation(rescan, rescanning: true)) {
         setState(() => _isRescanning = false);
       }
     }
   }
 
   bool _isCurrentOperation(
-    int generation,
-    SkotiqBackend authority, {
+    AsyncScope<SkotiqBackend> operation, {
     bool scanning = false,
     bool rescanning = false,
   }) =>
-      mounted &&
-      generation == _operationGeneration &&
-      identical(ref.read(backendProvider), authority) &&
+      operation.isCurrent &&
       (!scanning || _isScanning) &&
       (!rescanning || _isRescanning);
 

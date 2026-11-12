@@ -21,13 +21,11 @@ mod recovery;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use tokio::sync::broadcast;
-use tokio::sync::mpsc;
 use tokio::sync::RwLock;
 
 use crate::device_ops::SharedDeviceOps;
 use crate::executor::ExecutorEvent;
-use crate::instructions::{execute_autofocus, InstructionContext};
+use crate::instructions::{execute_autofocus, InstructionContext, RunShared};
 use crate::meridian::{self, julian_day, local_sidereal_time};
 use crate::meridian_events::{FlipEventEmitter, FlipStep, MeridianFlipEvent, PierSide};
 use crate::triggers::TriggerState;
@@ -138,21 +136,53 @@ pub struct FlipContext {
     pub simulate: bool,
 }
 
+impl FlipContext {
+    /// The flip an instruction of a run makes: at the instruction's target,
+    /// with the run's mount, camera, focuser and cover, the instruction's
+    /// cancellation and the run's trigger state, refocusing afterwards with
+    /// `autofocus` on the instruction's filter. `None` when the run has no
+    /// mount or the instruction no target coordinates.
+    pub async fn for_instruction(
+        ctx: &InstructionContext,
+        autofocus: Option<AutofocusConfig>,
+    ) -> Option<Self> {
+        let rig = &ctx.run.rig;
+        Some(Self {
+            // A display label; the flip is aimed by the coordinates.
+            target_name: ctx
+                .target_name
+                .clone()
+                .unwrap_or_else(|| "Unknown".to_string()),
+            target_ra_hours: ctx.target_ra?,
+            target_dec_degrees: ctx.target_dec?,
+            mount_id: rig.mount_id.clone()?,
+            camera_id: rig.camera_id.clone(),
+            focuser_id: rig.focuser_id.clone(),
+            // Through the accessor: a run whose plan names no cover still has
+            // the connected panel checked before the flip, so a closed dust
+            // cap stops it instead of a failed solve after it.
+            cover_calibrator_id: ctx.cover_calibrator_id().await.ok(),
+            cancellation_token: Some(ctx.cancellation_token.clone()),
+            trigger_state: ctx.run.trigger_state.clone(),
+            autofocus_config: autofocus.map(|config| PostFlipAutofocusConfig {
+                config,
+                current_filter: ctx.current_filter.clone(),
+                filterwheel_id: rig.filterwheel_id.clone(),
+                filter_focus_offsets: rig.filter_focus_offsets.clone(),
+            }),
+            simulate: false,
+        })
+    }
+}
+
 /// Executes a complete meridian flip sequence
 pub struct MeridianFlipExecutor {
     config: MeridianFlipConfig,
-    device_ops: SharedDeviceOps,
+    /// The instruction context of the run the flip belongs to: its device
+    /// layer, its event feed (the flip's verdict, retries and notices) and its
+    /// decision log. The post-flip refocus runs against it.
+    run: RunShared,
     event_emitter: FlipEventEmitter,
-    event_tx: Option<mpsc::Sender<MeridianFlipEvent>>,
-    /// parent executor's broadcast handle for ExecutorEvent.
-    /// Plumbed into the post-flip refocus InstructionContext so FITS-save
-    /// failures and other instruction-level errors surface to UI subscribers.
-    executor_event_tx: Option<broadcast::Sender<ExecutorEvent>>,
-    /// The run's decision log and its run id, so a post-flip refocus that did
-    /// not converge writes the row the app raises its "Autofocus failed —
-    /// continuing" notification from.
-    decision_tx: Option<crate::decision::DecisionSender>,
-    active_sequence_run_id: Arc<parking_lot::RwLock<Option<i64>>>,
     abort_requested: Arc<AtomicBool>,
     /// Number of flip attempts made by the most recent [`Self::execute`] call.
     /// `1` means the flip succeeded (or failed) on its first attempt; anything
@@ -186,16 +216,18 @@ pub struct MeridianFlipExecutor {
 pub type RunMessageSink = Arc<dyn Fn(String) + Send + Sync>;
 
 impl MeridianFlipExecutor {
-    /// Create a new flip executor
+    /// A flip outside any run, such as the standalone flip the app asks for:
+    /// the device layer and nothing to report to.
     pub fn new(config: MeridianFlipConfig, device_ops: SharedDeviceOps) -> Self {
+        Self::in_run(config, RunShared::new(device_ops))
+    }
+
+    /// A flip a run makes, from a step of its plan or a trigger.
+    pub fn in_run(config: MeridianFlipConfig, run: RunShared) -> Self {
         Self {
             config,
-            device_ops,
+            run,
             event_emitter: FlipEventEmitter::new(),
-            event_tx: None,
-            executor_event_tx: None,
-            decision_tx: None,
-            active_sequence_run_id: Arc::new(parking_lot::RwLock::new(None)),
             abort_requested: Arc::new(AtomicBool::new(false)),
             attempts_made: 0,
             failed_attempts: Vec::new(),
@@ -231,33 +263,6 @@ impl MeridianFlipExecutor {
         &self.failed_attempts
     }
 
-    /// Set event channel for progress updates
-    pub fn with_event_channel(mut self, tx: mpsc::Sender<MeridianFlipEvent>) -> Self {
-        self.event_tx = Some(tx);
-        self
-    }
-
-    /// set the parent executor's broadcast handle so the
-    /// post-flip refocus inherits the same event surface as the rest of the
-    /// sequence. Without this the refocus's FITS-save failures and per-step
-    /// errors emit only to the tracing log (silent for the user).
-    pub fn with_executor_event_tx(mut self, tx: broadcast::Sender<ExecutorEvent>) -> Self {
-        self.executor_event_tx = Some(tx);
-        self
-    }
-
-    /// Set the run's decision log, so the post-flip refocus records (and the
-    /// app announces) a refocus that did not converge.
-    pub fn with_decision_tx(
-        mut self,
-        tx: crate::decision::DecisionSender,
-        active_sequence_run_id: Arc<parking_lot::RwLock<Option<i64>>>,
-    ) -> Self {
-        self.decision_tx = Some(tx);
-        self.active_sequence_run_id = active_sequence_run_id;
-        self
-    }
-
     /// Get abort handle for external abort requests
     pub fn abort_handle(&self) -> Arc<AtomicBool> {
         self.abort_requested.clone()
@@ -286,7 +291,7 @@ impl MeridianFlipExecutor {
         } else {
             Some(
                 crate::instructions::MountMotion::begin_with(
-                    &self.device_ops,
+                    &self.run.device_ops,
                     ctx.trigger_state.clone(),
                     "meridian flip",
                     crate::GuidingStopReason::MeridianFlip,
@@ -308,7 +313,7 @@ impl MeridianFlipExecutor {
     }
 
     fn announce_outcome(&self, ctx: &FlipContext, result: &FlipResult) {
-        let Some(tx) = &self.executor_event_tx else {
+        let Some(tx) = &self.run.event_tx else {
             return;
         };
         let event = match result {
@@ -387,7 +392,7 @@ impl MeridianFlipExecutor {
         // If the target is below the minimum altitude, continuing with the flip
         // would slew to an object that's about to set, risking equipment damage
         // or wasted imaging time.
-        if let Some((lat, lon)) = self.device_ops.get_observer_location() {
+        if let Some((lat, lon)) = self.run.device_ops.get_observer_location() {
             let altitude = meridian::calculate_altitude(
                 ctx.target_ra_hours,
                 ctx.target_dec_degrees,
@@ -436,6 +441,7 @@ impl MeridianFlipExecutor {
         // parked mount in the morning.
         if let Some(cc_id) = ctx.cover_calibrator_id.as_deref() {
             match self
+                .run
                 .device_ops
                 .cover_calibrator_get_cover_state(cc_id)
                 .await
@@ -502,7 +508,7 @@ impl MeridianFlipExecutor {
 
         // capture the mount's tracking state BEFORE we touch
         // it so cancel paths can restore it.
-        let pre_flip_tracking = match self.device_ops.mount_is_tracking(&ctx.mount_id).await {
+        let pre_flip_tracking = match self.run.device_ops.mount_is_tracking(&ctx.mount_id).await {
             Ok(t) => Some(t),
             Err(e) => {
                 tracing::warn!(
@@ -528,7 +534,12 @@ impl MeridianFlipExecutor {
         // capture pre-flip coordinates so the
         // pier-side-Unknown verification path can fall back to coordinate
         // convergence.
-        let pre_flip_coords = match self.device_ops.mount_get_coordinates(&ctx.mount_id).await {
+        let pre_flip_coords = match self
+            .run
+            .device_ops
+            .mount_get_coordinates(&ctx.mount_id)
+            .await
+        {
             Ok(coords) => Some(coords),
             Err(e) => {
                 tracing::warn!(
@@ -987,13 +998,14 @@ impl MeridianFlipExecutor {
         // on its exposure node while the flip retried.
         // The flip stopped an active guider before its first step (see
         // `execute`); a guider that is not active has nothing to pause.
-        if matches!(self.device_ops.guider_is_active().await, Ok(false)) {
+        if matches!(self.run.device_ops.guider_is_active().await, Ok(false)) {
             return Ok(());
         }
-        self.device_ops
+        self.run
+            .device_ops
             .guider_note_stop_reason(Some(crate::GuidingStopReason::MeridianFlip))
             .await;
-        match self.device_ops.guider_stop().await {
+        match self.run.device_ops.guider_stop().await {
             Ok(()) => Ok(()),
             Err(crate::device_ops::DeviceError::NO_GUIDER) => {
                 tracing::info!("[MERIDIAN] No guider configured — nothing to pause");
@@ -1012,7 +1024,8 @@ impl MeridianFlipExecutor {
             return Ok(());
         }
         tracing::info!("[MERIDIAN] Turning tracking on for the flip slew...");
-        self.device_ops
+        self.run
+            .device_ops
             .mount_set_tracking(&ctx.mount_id, true)
             .await
             .map_err(String::from)
@@ -1038,13 +1051,14 @@ impl MeridianFlipExecutor {
         *self.reached_pier_side.lock() = Some(new_pier_side);
         // Guiding is stopped for the flip now, not for a tracking-limit hold
         // that waits for a flip which has happened.
-        self.device_ops
+        self.run
+            .device_ops
             .guider_note_stop_reason(Some(crate::GuidingStopReason::MeridianFlip))
             .await;
         // The pier change is the flip: counted now, while centering and
         // guiding are still being set up, so the run's flip count and the
         // "next flip" displays do not wait for (or miss) the rest.
-        if let Some(tx) = &self.executor_event_tx {
+        if let Some(tx) = &self.run.event_tx {
             let _ = tx.send(ExecutorEvent::MeridianFlipOutcome {
                 outcome: PIER_CHANGED_OUTCOME.to_string(),
                 target_name: ctx.target_name.clone(),
@@ -1070,15 +1084,11 @@ impl MeridianFlipExecutor {
             serde_json::json!({ "target_name": ctx.target_name }),
         );
         tracing::warn!("[MERIDIAN] {}", continuation.operator_message);
-        let warning = continuation.warning(continuation.operator_message.clone());
-        if let Some(tx) = &self.decision_tx {
-            let mut decision = continuation.decision;
-            decision.sequence_run_id = *self.active_sequence_run_id.read();
-            let _ = tx.send(decision);
-        }
-        self.say(continuation.operator_message);
-        if let Some(tx) = &self.executor_event_tx {
-            let _ = tx.send(warning);
+        let (decision, line) = continuation.split();
+        self.run.emit_decision(decision);
+        self.say(line.message.clone());
+        if let Some(tx) = &self.run.event_tx {
+            let _ = tx.send(line.into_event());
         }
     }
 
@@ -1123,7 +1133,7 @@ impl MeridianFlipExecutor {
     /// A notice for the operator in the run's feed; the flip goes on.
     fn warn_operator(&self, message: String) {
         tracing::warn!("[MERIDIAN] {}", message);
-        if let Some(tx) = &self.executor_event_tx {
+        if let Some(tx) = &self.run.event_tx {
             let _ = tx.send(ExecutorEvent::Warning { message });
         }
     }
@@ -1153,12 +1163,14 @@ impl MeridianFlipExecutor {
         );
 
         *self.flip_slew_start.lock() = self
+            .run
             .device_ops
             .mount_get_coordinates(mount_id)
             .await
             .ok()
             .map(|start| (start, tokio::time::Instant::now()));
-        self.device_ops
+        self.run
+            .device_ops
             .mount_slew_to_coordinates(mount_id, ra_hours, dec_degrees)
             .await?;
 
@@ -1177,7 +1189,7 @@ impl MeridianFlipExecutor {
             let start_deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
             loop {
                 if self.is_cancelled(ctx) {
-                    if let Err(e) = self.device_ops.mount_abort_slew(mount_id).await {
+                    if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
                         tracing::error!(
                             "[MERIDIAN] mount_abort_slew failed during cancellation before slew start: {}",
                             e
@@ -1185,7 +1197,7 @@ impl MeridianFlipExecutor {
                     }
                     return Err("Abort requested during slew".to_string());
                 }
-                if self.device_ops.mount_is_slewing(mount_id).await? {
+                if self.run.device_ops.mount_is_slewing(mount_id).await? {
                     break; // slew has begun; fall through to completion poll
                 }
                 if tokio::time::Instant::now() > start_deadline {
@@ -1208,7 +1220,7 @@ impl MeridianFlipExecutor {
             if self.is_cancelled(ctx) {
                 // explicit error logging on abort_slew failure during
                 // a cancellation path — silent drop here would mask a stuck mount.
-                if let Err(e) = self.device_ops.mount_abort_slew(mount_id).await {
+                if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
                     tracing::error!(
                         "[MERIDIAN] mount_abort_slew failed during cancellation of slew: {}",
                         e
@@ -1217,14 +1229,14 @@ impl MeridianFlipExecutor {
                 return Err("Abort requested during slew".to_string());
             }
 
-            let is_slewing = self.device_ops.mount_is_slewing(mount_id).await?;
+            let is_slewing = self.run.device_ops.mount_is_slewing(mount_id).await?;
             if !is_slewing {
                 break;
             }
 
             if tokio::time::Instant::now() > slew_timeout {
                 // log abort_slew failure during timeout path.
-                if let Err(e) = self.device_ops.mount_abort_slew(mount_id).await {
+                if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
                     tracing::error!(
                         "[MERIDIAN] mount_abort_slew failed after slew timeout: {}",
                         e
@@ -1249,7 +1261,12 @@ impl MeridianFlipExecutor {
         let Some((start, sent_at)) = *self.flip_slew_start.lock() else {
             return false;
         };
-        match self.device_ops.mount_get_coordinates(&ctx.mount_id).await {
+        match self
+            .run
+            .device_ops
+            .mount_get_coordinates(&ctx.mount_id)
+            .await
+        {
             Ok(now) => {
                 !crate::instructions::pointing_moved(start, now, sent_at.elapsed().as_secs_f64())
             }
@@ -1264,8 +1281,9 @@ impl MeridianFlipExecutor {
         ctx: &FlipContext,
         pre_flip_pier_side: PierSide,
     ) -> Option<Result<PierSide, String>> {
-        let freed = crate::limit_backoff::back_off_limit(&*self.device_ops, &ctx.mount_id).await;
-        crate::limit_backoff::notify(&*self.device_ops, "flip slew", &freed).await;
+        let freed =
+            crate::limit_backoff::back_off_limit(&*self.run.device_ops, &ctx.mount_id).await;
+        crate::limit_backoff::notify(&*self.run.device_ops, "flip slew", &freed).await;
         // A mount that could not be freed keeps the verification's own
         // failure; the notice says why.
         freed.ok()?;
@@ -1330,7 +1348,7 @@ impl MeridianFlipExecutor {
             pre_flip_pier_side,
             new_pier_side
         );
-        let (post_ra, post_dec) = self.device_ops.mount_get_coordinates(mount_id).await?;
+        let (post_ra, post_dec) = self.run.device_ops.mount_get_coordinates(mount_id).await?;
         // Compare in the frame the mount READS BACK in, not the J2000 frame the
         // target is held in: the device layer precesses what it sends and
         // leaves read-backs alone, so a raw comparison misses by the
@@ -1339,6 +1357,7 @@ impl MeridianFlipExecutor {
         // (d9c7e5d77). If the frame cannot be resolved, the raw target is the
         // only reference there is; the comparison then errs toward failing.
         let (expect_ra, expect_dec) = match self
+            .run
             .device_ops
             .mount_readback_frame(mount_id, ctx.target_ra_hours, ctx.target_dec_degrees)
             .await
@@ -1392,7 +1411,8 @@ impl MeridianFlipExecutor {
         tracing::info!("[MERIDIAN] Confirming the mount tracks after the flip...");
         const CONFIRM_BOUND: std::time::Duration = std::time::Duration::from_secs(120);
         let deadline = tokio::time::Instant::now() + CONFIRM_BOUND;
-        self.device_ops
+        self.run
+            .device_ops
             .mount_set_tracking(&ctx.mount_id, true)
             .await?;
         loop {
@@ -1400,7 +1420,7 @@ impl MeridianFlipExecutor {
                 return Err("Abort requested while confirming tracking".to_string());
             }
             let problem = match crate::tracking_check::confirm_mount_tracks(
-                &self.device_ops,
+                &self.run.device_ops,
                 &ctx.mount_id,
                 crate::tracking_check::TRACKING_CHECK_WINDOW,
             )
@@ -1414,7 +1434,8 @@ impl MeridianFlipExecutor {
                          tracking on again",
                         other
                     );
-                    self.device_ops
+                    self.run
+                        .device_ops
                         .mount_set_tracking(&ctx.mount_id, true)
                         .await?;
                     other.to_string()
@@ -1445,6 +1466,7 @@ impl MeridianFlipExecutor {
             self.wait_for_mount_to_settle(ctx).await?;
             // The retry ladder increases acquisition exposure after the first attempt.
             let image = self
+                .run
                 .device_ops
                 .camera_start_exposure(crate::device_ops::ExposureRequest::new(
                     camera_id,
@@ -1509,11 +1531,13 @@ impl MeridianFlipExecutor {
             // Sync the mount model to the actual position, then re-slew to target.
             // This corrects mount pointing errors that survived the flip; a bare
             // re-slew without the sync would land at the same wrong spot.
-            self.device_ops
+            self.run
+                .device_ops
                 .mount_sync(&ctx.mount_id, result.ra_degrees / 15.0, result.dec_degrees)
                 .await?;
 
-            self.device_ops
+            self.run
+                .device_ops
                 .mount_slew_to_coordinates(
                     &ctx.mount_id,
                     ctx.target_ra_hours,
@@ -1528,7 +1552,7 @@ impl MeridianFlipExecutor {
             loop {
                 if self.is_cancelled(ctx) {
                     // log abort_slew failure during cancellation.
-                    if let Err(e) = self.device_ops.mount_abort_slew(&ctx.mount_id).await {
+                    if let Err(e) = self.run.device_ops.mount_abort_slew(&ctx.mount_id).await {
                         tracing::error!(
                         "[MERIDIAN] mount_abort_slew failed during cancellation of centering slew: {}",
                         e
@@ -1537,14 +1561,14 @@ impl MeridianFlipExecutor {
                     return Err("Abort requested during centering slew".to_string());
                 }
 
-                let is_slewing = self.device_ops.mount_is_slewing(&ctx.mount_id).await?;
+                let is_slewing = self.run.device_ops.mount_is_slewing(&ctx.mount_id).await?;
                 if !is_slewing {
                     break;
                 }
 
                 if tokio::time::Instant::now() > slew_timeout {
                     // log abort_slew failure during timeout.
-                    if let Err(e) = self.device_ops.mount_abort_slew(&ctx.mount_id).await {
+                    if let Err(e) = self.run.device_ops.mount_abort_slew(&ctx.mount_id).await {
                         tracing::error!(
                             "[MERIDIAN] mount_abort_slew failed after centering slew timeout: {}",
                             e
@@ -1574,7 +1598,7 @@ impl MeridianFlipExecutor {
         let max = (min * 6).max(std::time::Duration::from_secs(60));
         let cancelled = || self.is_cancelled(ctx);
         match crate::tracking_check::wait_until_mount_settled(
-            &self.device_ops,
+            &self.run.device_ops,
             &ctx.mount_id,
             min,
             max,
@@ -1651,7 +1675,7 @@ impl MeridianFlipExecutor {
             .clone()
             .unwrap_or_else(|| self.abort_requested.clone());
 
-        let mut run = crate::instructions::RunShared::new(self.device_ops.clone());
+        let mut run = self.run.clone();
         run.rig.camera_id = Some(camera_id);
         run.rig.mount_id = Some(ctx.mount_id.clone());
         run.rig.focuser_id = Some(focuser_id);
@@ -1659,11 +1683,6 @@ impl MeridianFlipExecutor {
         run.rig.cover_calibrator_id = ctx.cover_calibrator_id.clone();
         run.rig.filter_focus_offsets = autofocus.filter_focus_offsets.clone();
         run.trigger_state = ctx.trigger_state.clone();
-        run.event_tx = self.executor_event_tx.clone();
-        // The run's decision log when the caller attached one, so a refocus
-        // that did not converge is recorded and announced.
-        run.decision_tx = self.decision_tx.clone();
-        run.active_sequence_run_id = self.active_sequence_run_id.clone();
         // The post-flip refocus is not a sequence node and saves no frames.
         let instruction_ctx = InstructionContext {
             target_ra: Some(ctx.target_ra_hours),
@@ -1764,7 +1783,7 @@ impl MeridianFlipExecutor {
             }
         }
         if let Err(problem) = &resumed {
-            self.device_ops.guider_stop().await.map_err(|stop| {
+            self.run.device_ops.guider_stop().await.map_err(|stop| {
                 format!("{problem}; stopping failed guiding also failed: {stop}")
             })?;
         }
@@ -1804,7 +1823,7 @@ impl MeridianFlipExecutor {
             None => None,
         };
         match crate::instructions::start_guiding_holding_on_settle_timeout(
-            &self.device_ops,
+            &self.run.device_ops,
             Some(crate::GuideStarFloor::for_new_field(reference)),
             settle,
             self.config.max_post_settle_rms_pixels,
@@ -1814,7 +1833,7 @@ impl MeridianFlipExecutor {
             Ok(crate::instructions::GuidingStarted::Settled) => {}
             Ok(crate::instructions::GuidingStarted::HeldWithoutSettling { note }) => {
                 self.warn_operator(note);
-                if let Ok(status) = self.device_ops.guider_get_status().await {
+                if let Ok(status) = self.run.device_ops.guider_get_status().await {
                     if let Some(warning) = crate::instructions::settle_bar_warning(
                         ctx.trigger_state.as_ref(),
                         settle,
@@ -1849,7 +1868,7 @@ impl MeridianFlipExecutor {
             if self.is_cancelled(ctx) {
                 return Err("Abort requested while verifying post-flip guiding".to_string());
             }
-            match self.device_ops.guider_get_status().await {
+            match self.run.device_ops.guider_get_status().await {
                 Ok(status) if status.is_guiding => {
                     tracing::info!(
                         "[MERIDIAN] Guiding re-locked after flip: {}",
@@ -1897,7 +1916,7 @@ impl MeridianFlipExecutor {
                 return Err("Abort requested while validating post-flip guiding RMS".to_string());
             }
             tokio::time::sleep(rms_interval).await;
-            match self.device_ops.guider_get_status().await {
+            match self.run.device_ops.guider_get_status().await {
                 Ok(status) => {
                     max_rms = max_rms.max(status.rms_total);
                     sample_count += 1;
@@ -1924,7 +1943,7 @@ impl MeridianFlipExecutor {
         );
         // The star guided on from here is the measure for later recoveries.
         if let Some(state) = &ctx.trigger_state {
-            if let Ok(Some(star)) = self.device_ops.guider_star_quality().await {
+            if let Ok(Some(star)) = self.run.device_ops.guider_star_quality().await {
                 state.write().await.target.guide_star_reference = Some(star);
             }
         }
@@ -1955,7 +1974,7 @@ impl MeridianFlipExecutor {
     }
 
     async fn get_pier_side(&self, mount_id: &str) -> Result<PierSide, String> {
-        Ok(self.device_ops.mount_side_of_pier(mount_id).await?)
+        Ok(self.run.device_ops.mount_side_of_pier(mount_id).await?)
     }
 
     /// Hour angle of the J2000 target `ra_hours`/`dec_degrees`, taken against
@@ -1975,6 +1994,7 @@ impl MeridianFlipExecutor {
         // mount's pier-side property, not this LST calculation. The warning surfaces the
         // missing-location config in the log so operators know to fix it.
         let longitude_deg = self
+            .run
             .device_ops
             .get_observer_location()
             .map(|(_lat, lon)| lon)
@@ -2021,6 +2041,7 @@ impl MeridianFlipExecutor {
     async fn restore_tracking_on_cancel(&self, ctx: &FlipContext, pre_flip_tracking: Option<bool>) {
         if matches!(pre_flip_tracking, Some(true)) {
             if let Err(e) = self
+                .run
                 .device_ops
                 .mount_set_tracking(&ctx.mount_id, true)
                 .await
@@ -2047,6 +2068,7 @@ impl MeridianFlipExecutor {
             FlipFailureAction::PauseAndAlert => {
                 tracing::warn!("[MERIDIAN] Flip failed - pausing and alerting user");
                 if let Err(e) = self
+                    .run
                     .device_ops
                     .send_notification(
                         "error",
@@ -2073,7 +2095,10 @@ impl MeridianFlipExecutor {
                 let retry_count = self.config.safety_action_retry_count;
                 if let Err(e) = self
                     .retry_safety_action("mount_set_tracking(false)", || async {
-                        self.device_ops.mount_set_tracking(mount_id, false).await
+                        self.run
+                            .device_ops
+                            .mount_set_tracking(mount_id, false)
+                            .await
                     })
                     .await
                 {
@@ -2083,6 +2108,7 @@ impl MeridianFlipExecutor {
                         e
                     );
                     let _ = self
+                        .run
                         .device_ops
                         .send_notification(
                             "critical",
@@ -2103,7 +2129,7 @@ impl MeridianFlipExecutor {
                 // error logging. Some mounts will refuse a park while slewing.
                 if let Err(e) = self
                     .retry_safety_action("mount_abort_slew", || async {
-                        self.device_ops.mount_abort_slew(mount_id).await
+                        self.run.device_ops.mount_abort_slew(mount_id).await
                     })
                     .await
                 {
@@ -2123,13 +2149,14 @@ impl MeridianFlipExecutor {
                 // Err so callers see the failed-flip-then-failed-park outcome.
                 match self
                     .retry_safety_action("mount_park", || async {
-                        self.device_ops.mount_park(mount_id).await
+                        self.run.device_ops.mount_park(mount_id).await
                     })
                     .await
                 {
                     Ok(()) => {
                         tracing::info!("[MERIDIAN] Mount parked successfully after failed flip");
                         if let Err(e) = self
+                            .run
                             .device_ops
                             .send_notification(
                                 "error",
@@ -2162,6 +2189,7 @@ impl MeridianFlipExecutor {
                             park_err
                         );
                         if let Err(e) = self
+                            .run
                             .device_ops
                             .send_notification(
                                 "critical",
@@ -2230,22 +2258,15 @@ impl MeridianFlipExecutor {
     }
 
     fn emit_event(&self, event: MeridianFlipEvent) {
-        self.event_emitter.emit(event.clone());
+        self.event_emitter.emit(&event);
 
-        // A flip in its retry ladder is the run standing still,
-        // and nothing on the Sequencer screen said so. `event_tx` below is the
-        // flip DIALOG's channel, which a trigger-fired flip never has (only the
-        // node-driven flip sets it), so a retry ladder that held a run for two
-        // and a half minutes produced: status chip "Running", `Progress 4/8 ·
-        // 50%`, `Mount: Tracking`, and a finish time that came and went. The
-        // only honest account of the flip appeared after the operator's Stop,
-        // in the Session Report.
-        //
-        // The run's own event stream reaches every operator surface, so the
-        // retry goes there too. `MeridianFlipOutcome` already carries the
-        // verdict, so only the mid-ladder notice is forwarded — a completed or
-        // failed flip must not be announced twice.
-        if let Some(tx) = &self.executor_event_tx {
+        // A flip in its retry ladder is the run standing still: a retry
+        // ladder that held a run for two and a half minutes showed "Running",
+        // `Progress 4/8 · 50%` and a finish time that came and went. The run's
+        // event stream reaches every operator surface, so the retry goes there.
+        // `MeridianFlipOutcome` already carries the verdict, so only the
+        // mid-ladder notice is forwarded; a flip is not announced twice.
+        if let Some(tx) = &self.run.event_tx {
             if let MeridianFlipEvent::RetryScheduled {
                 attempt,
                 max_attempts,
@@ -2268,18 +2289,6 @@ impl MeridianFlipExecutor {
                     ),
                     structured_detail: None,
                 });
-            }
-        }
-
-        // try_send drops the event on a full channel rather than blocking;
-        // the emitter has already logged it so the record is preserved, and
-        // a blocking send could deadlock the executor against a slow subscriber.
-        if let Some(tx) = &self.event_tx {
-            if let Err(e) = tx.try_send(event) {
-                tracing::trace!(
-                    "[MERIDIAN] Event channel send dropped: {} (logged via emitter)",
-                    e
-                );
             }
         }
     }
@@ -2308,6 +2317,18 @@ fn normalize_ra_diff_hours(diff: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::sync::broadcast;
+
+    /// A flip in a run whose event feed is `events`.
+    fn flip_reporting_to(
+        config: MeridianFlipConfig,
+        ops: SharedDeviceOps,
+        events: broadcast::Sender<ExecutorEvent>,
+    ) -> MeridianFlipExecutor {
+        let mut run = RunShared::new(ops);
+        run.event_tx = Some(events);
+        MeridianFlipExecutor::in_run(config, run)
+    }
     use crate::device_ops::{
         CameraOps, ConnectionOps, CoverCalibratorOps, DomeOps, FilterWheelOps, FocuserOps,
         FrameStoreOps, GuiderOps, MountOps, OperatorNotifyOps, PlateSolveOps, RotatorOps,
@@ -2996,15 +3017,15 @@ mod tests {
             Ok(())
         }
 
-        async fn calculate_image_hfr(&self, _image_data: &ImageData) -> DeviceResult<Option<f64>> {
-            Ok(Some(2.0))
-        }
-
-        async fn detect_stars_in_image(
+        async fn measure_light_frame(
             &self,
             _image_data: &ImageData,
-        ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-            Ok(vec![])
+        ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
+            Ok(crate::device_ops::LightFrameMeasurement {
+                hfr: Some(2.0),
+                star_count: Some(0),
+                ..Default::default()
+            })
         }
     }
 
@@ -3521,7 +3542,7 @@ mod tests {
         };
 
         let (event_tx, mut event_rx) = broadcast::channel(64);
-        let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(event_tx);
+        let mut executor = flip_reporting_to(config, ops, event_tx);
         let ctx = make_ctx(&state);
 
         match executor.execute(&ctx).await {
@@ -3584,7 +3605,7 @@ mod tests {
         };
 
         let (event_tx, mut event_rx) = broadcast::channel(64);
-        let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(event_tx);
+        let mut executor = flip_reporting_to(config, ops, event_tx);
         let ctx = make_ctx_stopping_on_quality_problems(&state);
 
         match executor.execute(&ctx).await {
@@ -4365,20 +4386,18 @@ mod tests {
         assert!((back.max_post_settle_rms_pixels - 1.5).abs() < 1e-9);
     }
 
-    /// A flip in its retry ladder must say so on the RUN's event stream, not only
-    /// on the flip dialog's channel: a trigger-fired flip has no `event_tx` (only
-    /// the node-driven flip sets one), and the run's broadcast is the channel
-    /// every operator surface listens to — otherwise the screen reports Running,
-    /// on-schedule progress and a passing finish time while no frame is being
-    /// captured.
+    /// A flip in its retry ladder must say so on the run's event stream, the
+    /// channel every operator surface listens to; otherwise the screen reports
+    /// Running, on-schedule progress and a passing finish time while no frame
+    /// is being captured.
     #[tokio::test(start_paused = true)]
     async fn a_scheduled_retry_reaches_the_runs_event_stream() {
         let (tx, mut rx) = tokio::sync::broadcast::channel(8);
-        let flip = MeridianFlipExecutor::new(
+        let flip = flip_reporting_to(
             MeridianFlipConfig::default(),
             Arc::new(crate::device_ops::NullDeviceOps),
-        )
-        .with_executor_event_tx(tx);
+            tx,
+        );
 
         flip.emit_event(MeridianFlipEvent::RetryScheduled {
             attempt: 2,
@@ -4444,9 +4463,11 @@ mod tests {
         };
         let (event_tx, mut events) = tokio::sync::broadcast::channel(256);
         let (decision_tx, mut decisions) = tokio::sync::broadcast::channel(64);
-        let mut executor = MeridianFlipExecutor::new(config, ops)
-            .with_executor_event_tx(event_tx)
-            .with_decision_tx(decision_tx, Arc::new(parking_lot::RwLock::new(Some(7))));
+        let mut run = RunShared::new(ops);
+        run.event_tx = Some(event_tx);
+        run.decision_tx = Some(decision_tx);
+        run.active_sequence_run_id = Arc::new(parking_lot::RwLock::new(Some(7)));
+        let mut executor = MeridianFlipExecutor::in_run(config, run);
         let mut ctx = make_ctx(&state);
         ctx.focuser_id = Some("mock-focuser".to_string());
         ctx.autofocus_config = Some(PostFlipAutofocusConfig {
@@ -4611,7 +4632,7 @@ mod tests {
                 ..Default::default()
             };
             let (tx, mut rx) = broadcast::channel(64);
-            let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+            let mut executor = flip_reporting_to(config, ops, tx);
             let ts = Arc::new(RwLock::new(TriggerState::new()));
             let ctx = FlipContext {
                 trigger_state: Some(ts.clone()),
@@ -4662,7 +4683,7 @@ mod tests {
                 ..Default::default()
             };
             let (tx, _rx) = broadcast::channel(64);
-            let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+            let mut executor = flip_reporting_to(config, ops, tx);
             let mut quality_stops = TriggerState::new();
             quality_stops.settings.stop_on_quality_problems = true;
             let ts = Arc::new(RwLock::new(quality_stops));
@@ -4717,7 +4738,7 @@ mod tests {
             ..Default::default()
         };
         let (tx, mut rx) = broadcast::channel(64);
-        let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+        let mut executor = flip_reporting_to(config, ops, tx);
         // Both settle settings below the rig's 0.64 px: the restart bar is
         // the looser of the two, and still below the measured RMS.
         let mut trigger_state = TriggerState::new();
@@ -4880,7 +4901,7 @@ mod tests {
             ..Default::default()
         };
         let (tx, mut rx) = broadcast::channel(256);
-        let mut executor = MeridianFlipExecutor::new(config, ops).with_executor_event_tx(tx);
+        let mut executor = flip_reporting_to(config, ops, tx);
         let mut guiding_run = TriggerState::new();
         guiding_run.set_guiding_enabled(true);
         let ts = Arc::new(RwLock::new(guiding_run));
@@ -5091,8 +5112,7 @@ mod tests {
         let messages = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
         let sink = messages.clone();
         let (tx, mut rx) = broadcast::channel(64);
-        let mut executor = MeridianFlipExecutor::new(config, ops)
-            .with_executor_event_tx(tx)
+        let mut executor = flip_reporting_to(config, ops, tx)
             .with_run_message(Arc::new(move |m| sink.lock().unwrap().push(m)));
         let result = executor.execute(&make_ctx(&state)).await;
         assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");

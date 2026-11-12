@@ -17,7 +17,7 @@
 
 import 'dart:async';
 
-import '../../providers/sequence/run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 
 /// One stop episode: everything published by a single stop of a single run.
 class _StopEpisode {

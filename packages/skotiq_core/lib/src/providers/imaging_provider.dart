@@ -12,6 +12,7 @@ import '../services/darkroom_build_service.dart' show observingNight;
 import 'host_settings/host_settings_providers.dart'
     show settingsRowChangesProvider;
 import 'profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import 'session_provider.dart';
 import 'settings_provider.dart';
 import 'runtime_mirror/channels/session_frames_channel.dart'

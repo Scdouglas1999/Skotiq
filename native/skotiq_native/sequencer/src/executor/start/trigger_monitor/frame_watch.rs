@@ -626,8 +626,8 @@ impl FrameWatchStage {
         let (lat, lon) = {
             let rc = rig.runtime_config.read();
             (
-                rc.latitude.or(rig.context.latitude),
-                rc.longitude.or(rig.context.longitude),
+                rc.latitude.or(rig.devices().latitude),
+                rc.longitude.or(rig.devices().longitude),
             )
         };
         let (Some(lat), Some(lon)) = (lat, lon) else {
@@ -736,8 +736,8 @@ impl FrameWatchStage {
         let (lat, lon) = {
             let rc = dispatcher.rig.runtime_config.read();
             (
-                rc.latitude.or(dispatcher.rig.context.latitude),
-                rc.longitude.or(dispatcher.rig.context.longitude),
+                rc.latitude.or(dispatcher.rig.devices().latitude),
+                rc.longitude.or(dispatcher.rig.devices().longitude),
             )
         };
         let next = match (lat, lon) {
@@ -821,7 +821,7 @@ impl FrameWatchStage {
         dispatcher.run.warning(message.clone());
         if let Err(e) = dispatcher
             .rig
-            .device_ops
+            .device_ops()
             .send_notification("warning", "Obstruction", &message, None)
             .await
         {

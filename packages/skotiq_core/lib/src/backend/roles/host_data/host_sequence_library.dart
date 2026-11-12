@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 
 /// Saved sequences, templates and their versions on a linked imaging host.
 ///

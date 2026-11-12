@@ -104,11 +104,19 @@ final sessionFrameQualityMetricsProvider =
           .watchFrameQualityMetricsForSession(sessionId);
     });
 
-final sessionTileMetricsProvider =
-    StreamProvider.family<List<ScienceTileMetricRow>, int>((ref, sessionId) {
+/// The tile metrics of one frame of a session; see
+/// [ScienceProducts.watchFrameTileMetrics].
+final frameTileMetricsProvider = StreamProvider.autoDispose
+    .family<
+      List<ScienceTileMetricRow>,
+      ({int sessionId, int? capturedImageId})
+    >((ref, frame) {
       return ref
           .watch(scienceProductsProvider)
-          .watchTileMetricsForSession(sessionId);
+          .watchFrameTileMetrics(
+            frame.sessionId,
+            capturedImageId: frame.capturedImageId,
+          );
     });
 
 final sessionResidualVectorsProvider =

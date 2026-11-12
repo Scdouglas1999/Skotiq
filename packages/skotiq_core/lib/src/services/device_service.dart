@@ -6,6 +6,7 @@ import 'device_service/connect_attempts.dart';
 import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart' show settingsDaoProvider;
 import '../providers/focuser_backlash_provider.dart'
@@ -18,7 +19,7 @@ import '../providers/settings_provider.dart';
 import '../providers/ui_notification_provider.dart';
 import '../providers/operation_progress_provider.dart';
 import '../providers/filter_offset_provider.dart';
-import '../providers/current_screen_provider.dart';
+import '../models/app_screen.dart';
 import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';

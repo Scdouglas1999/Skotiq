@@ -1,7 +1,9 @@
 //! Fujifilm X Acquire SDK Wrapper
 //!
 //! Provides native support for Fujifilm cameras (GFX and X-series) via the X Acquire SDK.
-//! The SDK is Windows-only and provided as XAPI.dll plus model-specific DLLs.
+//! The SDK is Windows-only and provided as XAPI.dll plus model-specific DLLs. The rules
+//! that turn a request into camera settings (`exposure`, `errors`, `models`) build on
+//! every platform so they are tested everywhere.
 //!
 //! ## Thread Safety
 //!
@@ -9,44 +11,76 @@
 //! the guard from `FujifilmSdk::lock()`, which holds the SDK's lock. The bulb
 //! start/stop helpers are the one exception; their comment says why.
 //!
-//! ## Important SDK Behaviors
+//! ## SDK behavior this driver depends on
 //!
-//! 1. **Dynamic Range First**: Must set DR to 100 before querying ISO values
-//! 2. **100ms Delays**: Required between operations for hardware settling
-//! 3. **Retry Detection**: Camera detection may need 3 attempts with exponential backoff
-//! 4. **Bulb Sequence**: Must follow exact S1ON → BULBS2_ON → wait → N_BULBS1OFF sequence
+//! From the SDK Programming Reference and the owner's FujiCOM driver and NINA plugin,
+//! both proven on real bodies:
+//!
+//! 1. **Dynamic range first**: set DR to 100 before querying ISO values.
+//! 2. **Open by enumeration index**: `XSDK_OpenEx` takes "ENUM:<n>" (n from the
+//!    last `XSDK_Detect`), not a serial number.
+//! 3. **600 ms after close**: the reference requires it before the SDK is used again.
+//! 4. **Bulb**: `XSDK_SetShutterSpeed(BULB, lBulb = 1)`, then S1ON, a 500 ms pause,
+//!    BULBS2_ON, wait, N_BULBS1OFF.
+//! 5. **The buffer**: `XSDK_ReadImage` removes the frame it returns; a cancelled
+//!    exposure still leaves a frame behind, which must be discarded.
+//! 6. **Detection may need retries** with backoff.
 //!
 //! ## SDK Requirements
 //!
 //! - XAPI.dll (main SDK)
 //! - FF0000API.dll through FF0020API.dll (model-specific modules)
-//!
-//! Based on the Nina Fujifilm plugin: https://github.com/Scdouglas1999/NINA-Fujifilm-Native-Plugin
 
-#![cfg(target_os = "windows")]
-#![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
+// FFI types mirror the SDK headers in full, and off Windows only tests use the rules.
+#![allow(dead_code)]
 
-use async_trait::async_trait;
-use skotiq_device::camera::*;
-use skotiq_device::Vendor;
-use skotiq_device::*;
-use std::ffi::{c_char, c_long, c_ulong, c_void, CString};
-use std::path::PathBuf;
-use std::time::{Duration, Instant};
-
-mod camera;
-mod camera_ops;
-mod discovery;
-mod ffi;
+mod errors;
+mod exposure;
 mod models;
+
+#[cfg(target_os = "windows")]
+mod camera;
+#[cfg(target_os = "windows")]
+mod camera_ops;
+#[cfg(target_os = "windows")]
+mod discovery;
+#[cfg(target_os = "windows")]
+mod ffi;
+#[cfg(target_os = "windows")]
 mod raw;
+#[cfg(target_os = "windows")]
 mod sdk;
 #[cfg(test)]
 mod tests;
 
-pub use camera::*;
-pub use discovery::*;
-use ffi::*;
 pub use models::*;
+
+#[cfg(target_os = "windows")]
+use errors::*;
+#[cfg(target_os = "windows")]
+use exposure::*;
+
+#[cfg(target_os = "windows")]
+use async_trait::async_trait;
+#[cfg(target_os = "windows")]
+pub use camera::*;
+#[cfg(target_os = "windows")]
+pub use discovery::*;
+#[cfg(target_os = "windows")]
+use ffi::*;
+#[cfg(target_os = "windows")]
 use raw::*;
+#[cfg(target_os = "windows")]
 use sdk::*;
+#[cfg(target_os = "windows")]
+use skotiq_device::camera::*;
+#[cfg(target_os = "windows")]
+use skotiq_device::Vendor;
+#[cfg(target_os = "windows")]
+use skotiq_device::*;
+#[cfg(target_os = "windows")]
+use std::ffi::{c_char, c_long, c_ulong, c_void, CString};
+#[cfg(target_os = "windows")]
+use std::path::PathBuf;
+#[cfg(target_os = "windows")]
+use std::time::{Duration, Instant};

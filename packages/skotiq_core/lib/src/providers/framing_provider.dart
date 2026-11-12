@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 
 import '../database/daos/settings_dao.dart';
 import '../models/equipment/equipment_models.dart';
+import '../models/framing_models.dart';
 import '../models/framing_plate_scale.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/target/target_models.dart';
@@ -29,7 +30,6 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'framing_image_cache_provider.dart';
 import 'profiles_provider.dart';
-import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'framing_provider/models.dart';
 part 'framing_provider/support.dart';
@@ -873,15 +873,3 @@ final framingProvider = StateNotifierProvider<FramingNotifier, FramingState>((
 ) {
   return FramingNotifier(ref);
 });
-
-double _normalizeRaHoursMaybeDegrees(double ra) {
-  if (ra.isNaN || ra.isInfinite) return ra;
-
-  // Normal case: already in hours.
-  if (ra >= 0.0 && ra < 24.0) return ra;
-
-  // Legacy bug / external sources: treat as degrees and convert to hours.
-  var deg = ra % 360.0;
-  if (deg < 0.0) deg += 360.0;
-  return deg / 15.0;
-}

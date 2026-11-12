@@ -56,8 +56,33 @@ pub struct FujifilmCamera {
 
     pub(crate) current_iso: i32,
     pub(crate) current_offset: i32,
-    pub(crate) supported_isos: Vec<c_long>,
-    pub(crate) supports_bulb: bool,
+    /// The fixed ISO values the body reported, lowest first.
+    pub(crate) supported_isos: Vec<i32>,
+    /// Whether long exposure noise reduction is still on after connect tried
+    /// to switch it off: the body then shoots a dark after every frame.
+    pub(crate) long_exposure_nr: bool,
+}
+
+/// Live view JPEG quality (`SDK_LIVEVIEW_QUALITY_*`).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub enum LiveViewQuality {
+    /// The default: a GFX100S II refuses `Normal` outright (owner's NINA plugin,
+    /// 3.1.0.0), and every body tested accepts `Fine`.
+    #[default]
+    Fine,
+    Normal,
+    /// Lowest bandwidth.
+    Basic,
+}
+
+impl LiveViewQuality {
+    pub(crate) fn to_sdk_code(self) -> c_long {
+        match self {
+            LiveViewQuality::Fine => SDK_LIVEVIEW_QUALITY_FINE,
+            LiveViewQuality::Normal => SDK_LIVEVIEW_QUALITY_NORMAL,
+            LiveViewQuality::Basic => SDK_LIVEVIEW_QUALITY_BASIC,
+        }
+    }
 }
 
 impl FujifilmCamera {
@@ -107,7 +132,7 @@ impl FujifilmCamera {
             current_iso: 800,
             current_offset: 0,
             supported_isos: Vec::new(),
-            supports_bulb: true,
+            long_exposure_nr: false,
         }
     }
 
@@ -135,6 +160,104 @@ impl FujifilmCamera {
         self.sensor_info.max_adu = resolve_max_adu(self.measured_white_level, bit_depth);
     }
 
+    /// Set the shutter speed (`code`, or bulb when `bulb` is 1), repeating
+    /// while the camera reports itself busy: three more tries 250 ms apart, as
+    /// the owner's drivers do.
+    pub(crate) async fn set_shutter(
+        &self,
+        sdk: &FujifilmSdk,
+        code: c_long,
+        bulb: c_long,
+        seconds: f64,
+    ) -> Result<(), DriverError> {
+        let mut retries_left = 3;
+        loop {
+            // SAFETY: `self.camera_handle.0` is the connected XSDK handle; XSDK_SetShutterSpeed takes (handle, c_long, c_long) POD arguments per XAPI.h.
+            let result = unsafe { (sdk.set_shutter_speed)(self.camera_handle.0, code, bulb) };
+            if result == XSDK_COMPLETE {
+                return Ok(());
+            }
+            let (api_code, err_code) = last_error(self.camera_handle.0, sdk);
+            if retries_left == 0 || !is_busy(err_code) {
+                return Err(sdk_failure(
+                    &format!("setting the shutter for a {seconds} s exposure"),
+                    api_code,
+                    err_code,
+                ));
+            }
+            retries_left -= 1;
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+    }
+
+    /// Select the supported ISO nearest to `requested` and record what the
+    /// camera accepted.
+    pub(crate) async fn apply_iso(
+        &mut self,
+        sdk: &FujifilmSdk,
+        requested: i32,
+    ) -> Result<(), DriverError> {
+        let iso = nearest_sensitivity(&self.supported_isos, requested);
+        if iso != requested {
+            tracing::info!(
+                "Fujifilm {}: ISO {} is not one of the camera's fixed values; using ISO {}",
+                self.id,
+                requested,
+                iso
+            );
+        }
+        // SAFETY: `self.camera_handle.0` is the connected XSDK handle; XSDK_SetSensitivity takes (handle, c_long) POD per XAPI.h.
+        let result = unsafe { (sdk.set_sensitivity)(self.camera_handle.0, iso as c_long) };
+        if result != XSDK_COMPLETE {
+            return Err(sdk_error(
+                self.camera_handle.0,
+                sdk,
+                &format!("setting ISO {iso}"),
+            ));
+        }
+        self.current_iso = iso;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        Ok(())
+    }
+
+    /// The shutter codes the body offers in its current mode and ISO.
+    pub(crate) fn shutter_speeds(&self, sdk: &FujifilmSdk) -> ShutterSpeeds {
+        let mut count: c_long = 0;
+        let mut bulb_capable: c_long = 0;
+        // SAFETY: `self.camera_handle.0` is the connected XSDK handle; a NULL code buffer asks only for the count (SDK Programming Reference 4.1.9.4); both out-pointers are valid stack c_long locals.
+        let result = unsafe {
+            (sdk.cap_shutter_speed)(
+                self.camera_handle.0,
+                &mut count,
+                std::ptr::null_mut(),
+                &mut bulb_capable,
+            )
+        };
+        if result != XSDK_COMPLETE || count <= 0 {
+            tracing::warn!(
+                "Fujifilm {}: the camera reported no shutter speeds (result {}); exposures of a second or more use bulb",
+                self.id,
+                result
+            );
+            return ShutterSpeeds::default();
+        }
+        let mut codes: Vec<c_long> = vec![0; count as usize];
+        // SAFETY: `codes` holds exactly the `count` entries the first call reported, and `count` tells the SDK that capacity.
+        let result = unsafe {
+            (sdk.cap_shutter_speed)(
+                self.camera_handle.0,
+                &mut count,
+                codes.as_mut_ptr(),
+                &mut bulb_capable,
+            )
+        };
+        if result != XSDK_COMPLETE {
+            return ShutterSpeeds::default();
+        }
+        codes.truncate(count.max(0) as usize);
+        ShutterSpeeds::from_reported(&codes)
+    }
+
     pub(crate) async fn start_bulb_exposure(
         &mut self,
         duration_secs: f64,
@@ -147,12 +270,13 @@ impl FujifilmCamera {
         let mut shot_opt: c_long = 0;
         let mut af_status: c_long = 0;
 
-        // SAFETY: `self.camera_handle.0` was opened via XSDK_OpenEx in connect() and is still valid (connected==true); XSDK_SetShutterSpeed takes (handle, c_long, c_long) all POD arguments per XAPI.h.
-        unsafe { (sdk.set_shutter_speed)(self.camera_handle.0, XSDK_SHUTTER_BULB, 0) };
+        // lBulb = 1 selects bulb; the shutter code is then ignored (SDK
+        // Programming Reference 4.1.9.5).
+        self.set_shutter(sdk, BULB_CODE as c_long, 1, duration_secs)
+            .await?;
         tokio::time::sleep(Duration::from_millis(100)).await;
 
-        // Start bulb: Half-press (S1ON)
-        // SAFETY: `self.camera_handle.0` is the valid XSDK_OpenEx handle; `&mut shot_opt` and `&mut af_status` are valid stack out-pointers to c_long; XSDK_RELEASE_S1ON is the documented half-press release flag from XAPI.h.
+        // SAFETY: `self.camera_handle.0` was opened via XSDK_OpenEx in connect() and is still valid (connected==true); `&mut shot_opt` and `&mut af_status` are valid stack out-pointers to c_long; XSDK_RELEASE_S1ON is the documented half-press release flag from XAPI.h.
         let result = unsafe {
             (sdk.release)(
                 self.camera_handle.0,
@@ -162,12 +286,17 @@ impl FujifilmCamera {
             )
         };
         if result != XSDK_COMPLETE {
-            return check_xapi_error(self.camera_handle.0, sdk);
+            return Err(sdk_error(
+                self.camera_handle.0,
+                sdk,
+                "half-pressing the shutter for a bulb exposure",
+            ));
         }
-        tokio::time::sleep(Duration::from_millis(50)).await;
+        // Both owner drivers wait 500 ms between the half press and the full
+        // press; shorter pauses left bodies without an exposure.
+        tokio::time::sleep(Duration::from_millis(500)).await;
 
-        // Full press to open shutter (BULBS2_ON)
-        // SAFETY: `self.camera_handle.0` still valid; out-pointers valid c_long stack locals; XSDK_RELEASE_BULBS2_ON opens the shutter in bulb mode per XAPI.h's mandatory S1ON→BULBS2_ON sequence (also documented in this module's header).
+        // SAFETY: `self.camera_handle.0` still valid; out-pointers valid c_long stack locals; XSDK_RELEASE_BULBS2_ON opens the shutter in bulb mode per XAPI.h's mandatory S1ON→BULBS2_ON sequence.
         let result = unsafe {
             (sdk.release)(
                 self.camera_handle.0,
@@ -177,7 +306,21 @@ impl FujifilmCamera {
             )
         };
         if result != XSDK_COMPLETE {
-            return check_xapi_error(self.camera_handle.0, sdk);
+            let error = sdk_error(
+                self.camera_handle.0,
+                sdk,
+                "opening the shutter for a bulb exposure",
+            );
+            // SAFETY: as above; N_S1OFF releases the half press so the body is not left holding it.
+            unsafe {
+                (sdk.release)(
+                    self.camera_handle.0,
+                    XSDK_RELEASE_N_S1OFF,
+                    &mut shot_opt,
+                    &mut af_status,
+                )
+            };
+            return Err(error);
         }
 
         self.is_bulb_mode = true;
@@ -188,6 +331,8 @@ impl FujifilmCamera {
         Ok(())
     }
 
+    /// Close the bulb shutter. The exposure the frame records becomes the time
+    /// the shutter was actually held open.
     pub(crate) async fn stop_bulb_exposure(&mut self) -> Result<(), DriverError> {
         // Unlocked on purpose: the bulb helpers sleep while the shutter is held, so
         // their callers release the SDK lock first (download_image, abort_exposure,
@@ -197,8 +342,7 @@ impl FujifilmCamera {
         let mut shot_opt: c_long = 0;
         let mut af_status: c_long = 0;
 
-        // End bulb: Release S2 and S1
-        // SAFETY: `self.camera_handle.0` valid since `connected == true`; out-pointers valid c_long stack locals; XSDK_RELEASE_N_BULBS1OFF closes the shutter, completing the documented bulb sequence (header §Important SDK Behaviors).
+        // SAFETY: `self.camera_handle.0` valid since `connected == true`; out-pointers valid c_long stack locals; XSDK_RELEASE_N_BULBS1OFF closes the shutter, completing the documented bulb sequence.
         let result = unsafe {
             (sdk.release)(
                 self.camera_handle.0,
@@ -208,12 +352,71 @@ impl FujifilmCamera {
             )
         };
         if result != XSDK_COMPLETE {
-            return check_xapi_error(self.camera_handle.0, sdk);
+            return Err(sdk_error(
+                self.camera_handle.0,
+                sdk,
+                "closing the shutter of the bulb exposure",
+            ));
+        }
+        if let Some(opened) = self.exposure_start {
+            self.exposure_duration = opened.elapsed();
         }
 
         self.is_bulb_mode = false;
         tokio::time::sleep(Duration::from_millis(100)).await;
 
+        Ok(())
+    }
+
+    /// End the running exposure and throw away the frame it leaves behind: a
+    /// cancelled or stopped exposure still lands a frame in the buffer, and
+    /// left there it would be downloaded as the next exposure's frame
+    /// (measured on a GFX100S II, owner's NINA plugin 3.1.0.0).
+    pub(crate) async fn end_exposure_and_discard_frame(&mut self) -> Result<(), DriverError> {
+        if !self.is_exposing {
+            return Ok(());
+        }
+        if self.is_bulb_mode {
+            self.stop_bulb_exposure().await?;
+        } else {
+            let sdk = FujifilmSdk::lock().await?;
+            let mut shot_opt: c_long = 0;
+            let mut status: c_long = 0;
+            // SAFETY: `self.camera_handle.0` is the connected XSDK handle; out-pointers are valid stack c_long locals; XSDK_RELEASE_CANCEL ends a timed exposure in progress (XAPI.h).
+            let result = unsafe {
+                (sdk.release)(
+                    self.camera_handle.0,
+                    XSDK_RELEASE_CANCEL,
+                    &mut shot_opt,
+                    &mut status,
+                )
+            };
+            if result != XSDK_COMPLETE {
+                tracing::warn!(
+                    "Fujifilm {}: the camera refused to cancel the timed exposure ({}); it runs to the end and its frame is discarded before the next exposure",
+                    self.id,
+                    sdk_error(self.camera_handle.0, &sdk, "cancelling the exposure")
+                );
+            }
+        }
+        self.is_exposing = false;
+        self.exposure_start = None;
+
+        // The frame appears once the body has read out the sensor.
+        let mut discarded = 0;
+        for _ in 0..12 {
+            tokio::time::sleep(Duration::from_millis(250)).await;
+            let sdk = FujifilmSdk::lock().await?;
+            discarded += discard_buffered_frames(self.camera_handle.0, &sdk);
+            if discarded > 0 && frames_in_buffer(self.camera_handle.0, &sdk).is_ok_and(|n| n == 0) {
+                break;
+            }
+        }
+        tracing::info!(
+            "Fujifilm {}: exposure ended early; discarded {} frame(s) it left in the camera",
+            self.id,
+            discarded
+        );
         Ok(())
     }
 
@@ -292,14 +495,17 @@ impl FujifilmCamera {
             (sdk.get_prop)(
                 self.camera_handle.0,
                 API_CODE_GET_FOCUS_POS,
-                0, // lApiParam
+                API_PARAM_ONE_VALUE,
                 &mut pos,
             )
         };
 
         if result != XSDK_COMPLETE {
-            check_xapi_error(self.camera_handle.0, &sdk)?;
-            return Err(DriverError::SdkError("Failed to get focus position".into()));
+            return Err(sdk_error(
+                self.camera_handle.0,
+                &sdk,
+                "reading the focus position",
+            ));
         }
 
         Ok(pos as i32)
@@ -333,13 +539,17 @@ impl FujifilmCamera {
             (sdk.set_prop)(
                 self.camera_handle.0,
                 API_CODE_SET_FOCUS_POS,
-                0, // lApiParam
+                API_PARAM_ONE_VALUE,
                 position as c_long,
             )
         };
 
         if result != XSDK_COMPLETE {
-            return check_xapi_error(self.camera_handle.0, &sdk);
+            return Err(sdk_error(
+                self.camera_handle.0,
+                &sdk,
+                "moving the lens focus",
+            ));
         }
 
         // Use blocking sleep to allow focus motor to settle
@@ -392,7 +602,7 @@ impl FujifilmCamera {
             (sdk.set_prop)(
                 handle,
                 API_CODE_SET_LIVE_VIEW_IMAGE_QUALITY,
-                0,
+                API_PARAM_ONE_VALUE,
                 quality_code,
             )
         };
@@ -410,7 +620,7 @@ impl FujifilmCamera {
             (sdk.set_prop)(
                 handle,
                 API_CODE_SET_LIVE_VIEW_IMAGE_SIZE,
-                0,
+                API_PARAM_ONE_VALUE,
                 SDK_LIVEVIEW_SIZE_L,
             )
         };
@@ -422,7 +632,7 @@ impl FujifilmCamera {
         std::thread::sleep(Duration::from_millis(50));
 
         // SAFETY: `handle` valid; XSDK_SetProp's 3-argument start-action form takes (handle, api_code, api_param) with no value — this is the variadic action invocation per XAPI.h for API_CODE_START_LIVE_VIEW.
-        let result = unsafe { (sdk.set_prop)(handle, API_CODE_START_LIVE_VIEW, 0) };
+        let result = unsafe { (sdk.set_prop)(handle, API_CODE_START_LIVE_VIEW, API_PARAM_NONE) };
         if result != XSDK_COMPLETE {
             return Err(DriverError::SdkError(format!(
                 "Failed to start live view: SDK returned {}",
@@ -469,10 +679,9 @@ impl FujifilmCamera {
             ));
         }
 
-        if img_format != XSDK_IMAGEFORMAT_LIVE {
+        if BufferedImage::from_format(img_format) != BufferedImage::LiveView {
             return Err(DriverError::SdkError(format!(
-                "Expected live view format ({}), got format {}",
-                XSDK_IMAGEFORMAT_LIVE, img_format
+                "Expected a live view frame, got image format 0x{img_format:X}"
             )));
         }
 
@@ -492,10 +701,8 @@ impl FujifilmCamera {
             ));
         }
 
-        // Delete the image from the buffer to make room for the next frame
-        // SAFETY: `handle` valid; XSDK_DeleteImage takes only the handle and clears the SDK-side image queue entry per XAPI.h. No out-pointers.
-        unsafe { (sdk.delete_image)(handle) };
-
+        // XSDK_ReadImage already removed the frame from the buffer; deleting
+        // again would drop the next one.
         Ok(buffer) // Returns JPEG data
     }
 
@@ -514,7 +721,7 @@ impl FujifilmCamera {
         let handle = self.camera_handle.0;
 
         // SAFETY: `handle` was copied from `self.camera_handle.0` which is valid while `connected == true`; XSDK_SetProp's 3-argument action form for API_CODE_STOP_LIVE_VIEW takes only (handle, api_code, api_param) per XAPI.h.
-        let result = unsafe { (sdk.set_prop)(handle, API_CODE_STOP_LIVE_VIEW, 0) };
+        let result = unsafe { (sdk.set_prop)(handle, API_CODE_STOP_LIVE_VIEW, API_PARAM_NONE) };
 
         if result != XSDK_COMPLETE {
             tracing::warn!("Failed to stop live view cleanly: SDK returned {}", result);

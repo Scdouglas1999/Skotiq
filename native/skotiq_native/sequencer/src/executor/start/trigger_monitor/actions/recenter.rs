@@ -99,9 +99,9 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
                 serde_json::json!({ "trigger_id": trigger_id }),
             );
             tracing::warn!("[DRIFT] {}", continuation.operator_message);
-            let warning = continuation.warning(continuation.operator_message.clone());
-            decisions.send(continuation.decision);
-            run.send(warning);
+            let (decision, line) = continuation.split();
+            decisions.send(decision);
+            run.send(line.into_event());
         }
     } else {
         tracing::warn!(

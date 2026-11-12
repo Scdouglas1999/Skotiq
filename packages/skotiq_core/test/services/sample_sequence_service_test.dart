@@ -10,7 +10,7 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart'
     show FrameType;
 import 'package:skotiq_core/src/providers/sequence/filter_name_matching.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/logic_node_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/logic_node_rules.dart';
 import 'package:skotiq_core/src/services/sample_sequence_service.dart';
 import 'package:path/path.dart' as p;
 

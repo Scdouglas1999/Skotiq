@@ -16,8 +16,9 @@
 /// so there is no serialization gap between what is checked and what executes.
 ///
 /// The rules mirror the Dart ones they stand in for (see
-/// `sequence_validation.dart` `TargetCoordinatesUnsetRule` and
-/// `rules/target_rules.dart` `TargetCoordinatesRule` / `SlewCoordinatesRule`)
+/// `models/sequence/validation/structural_rules.dart`
+/// `TargetCoordinatesUnsetRule` and `rules/target_rules.dart`
+/// `TargetCoordinatesRule` / `SlewCoordinatesRule`)
 /// including their severity split: an unset target that nothing enabled
 /// consumes is a warning, not a block, so an unrelated run is not held hostage
 /// by a half-built target.

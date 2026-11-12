@@ -14,6 +14,7 @@ import 'api/devices/environment.dart';
 import 'api/devices/filter_wheel.dart';
 import 'api/devices/focuser.dart';
 import 'api/devices/mount.dart';
+import 'api/devices/rotator.dart';
 import 'api/devices/simulation/camera.dart';
 import 'api/devices/simulation/environment.dart';
 import 'api/devices/simulation/filter_wheel.dart';
@@ -121,7 +122,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -778521816;
+  int get rustContentHash => 1126674630;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -527,37 +528,28 @@ abstract class RustLibApi extends BaseApi {
     required String argsJson,
   });
 
-  Future<List<String>>
-  crateApiDevicesSimulationFilterWheelApiFilterwheelGetNames({
+  Future<List<String>> crateApiDevicesFilterWheelApiFilterwheelGetNames({
     required String deviceId,
   });
 
-  Future<void> crateApiDevicesSimulationFilterWheelApiFilterwheelSetByName({
-    required String deviceId,
-    required String name,
-  });
-
-  Future<void>
-  crateApiDevicesSimulationFilterWheelApiFilterwheelSetFilterNames({
+  Future<void> crateApiDevicesFilterWheelApiFilterwheelSetFilterNames({
     required String deviceId,
     required List<String> names,
   });
 
-  Future<void> crateApiDevicesSimulationFilterWheelApiFilterwheelSetPosition({
+  Future<void> crateApiDevicesFilterWheelApiFilterwheelSetPosition({
     required String deviceId,
     required int position,
   });
 
-  Future<void> crateApiDevicesSimulationFocuserApiFocuserHalt({
-    required String deviceId,
-  });
+  Future<void> crateApiDevicesFocuserApiFocuserHalt({required String deviceId});
 
-  Future<void> crateApiDevicesSimulationFocuserApiFocuserMoveRelative({
+  Future<void> crateApiDevicesFocuserApiFocuserMoveRelative({
     required String deviceId,
     required int delta,
   });
 
-  Future<void> crateApiDevicesSimulationFocuserApiFocuserMoveTo({
+  Future<void> crateApiDevicesFocuserApiFocuserMoveTo({
     required String deviceId,
     required int position,
   });
@@ -570,10 +562,6 @@ abstract class RustLibApi extends BaseApi {
   Future<EquipmentProfile?> crateApiStorageApiGetActiveProfile();
 
   Future<CameraCapabilities> crateApiDiagnosticsApiGetCameraCapabilities({
-    required String deviceId,
-  });
-
-  Future<CameraStatus> crateApiDevicesSimulationCameraApiGetCameraStatus({
     required String deviceId,
   });
 
@@ -609,8 +597,7 @@ abstract class RustLibApi extends BaseApi {
   Future<FilterWheelCapabilities>
   crateApiDiagnosticsApiGetFilterwheelCapabilities({required String deviceId});
 
-  Future<FilterWheelStatus>
-  crateApiDevicesSimulationFilterWheelApiGetFilterwheelStatus({
+  Future<FilterWheelStatus> crateApiDevicesFilterWheelApiGetFilterwheelStatus({
     required String deviceId,
   });
 
@@ -618,7 +605,7 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
   });
 
-  Future<FocuserStatus> crateApiDevicesSimulationFocuserApiGetFocuserStatus({
+  Future<FocuserStatus> crateApiDevicesFocuserApiGetFocuserStatus({
     required String deviceId,
   });
 
@@ -636,7 +623,7 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
   });
 
-  Future<MountStatus> crateApiDevicesSimulationMountApiGetMountStatus({
+  Future<MountStatus> crateApiDevicesMountApiGetMountStatus({
     required String deviceId,
   });
 
@@ -650,7 +637,7 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
   });
 
-  Future<RotatorStatus> crateApiDevicesSimulationRotatorApiGetRotatorStatus({
+  Future<RotatorStatus> crateApiDevicesRotatorApiGetRotatorStatus({
     required String deviceId,
   });
 
@@ -782,36 +769,32 @@ abstract class RustLibApi extends BaseApi {
     required double exposureSecs,
   });
 
-  Future<void> crateApiDevicesSimulationMountApiMountPark({
-    required String deviceId,
-  });
+  Future<void> crateApiDevicesMountApiMountPark({required String deviceId});
 
-  Future<void> crateApiDevicesSimulationMountApiMountPulseGuide({
+  Future<void> crateApiDevicesMountApiMountPulseGuide({
     required String deviceId,
     required String direction,
     required int durationMs,
   });
 
-  Future<void> crateApiDevicesSimulationMountApiMountSetTracking({
+  Future<void> crateApiDevicesMountApiMountSetTracking({
     required String deviceId,
     required int enabled,
   });
 
-  Future<void> crateApiDevicesSimulationMountApiMountSlewToCoordinates({
+  Future<void> crateApiDevicesMountApiMountSlewToCoordinates({
     required String deviceId,
     required double ra,
     required double dec,
   });
 
-  Future<void> crateApiDevicesSimulationMountApiMountSyncToCoordinates({
+  Future<void> crateApiDevicesMountApiMountSyncToCoordinates({
     required String deviceId,
     required double ra,
     required double dec,
   });
 
-  Future<void> crateApiDevicesSimulationMountApiMountUnpark({
-    required String deviceId,
-  });
+  Future<void> crateApiDevicesMountApiMountUnpark({required String deviceId});
 
   List<DeviceType> crateApiHeartbeatApiNativeReconnectedDeviceTypes();
 
@@ -952,26 +935,24 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiHotplugApiRescanDevices();
 
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorHalt({
-    required String deviceId,
-  });
+  Future<void> crateApiDevicesRotatorApiRotatorHalt({required String deviceId});
 
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorMoveRelative({
+  Future<void> crateApiDevicesRotatorApiRotatorMoveRelative({
     required String deviceId,
     required double delta,
   });
 
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorMoveTo({
+  Future<void> crateApiDevicesRotatorApiRotatorMoveTo({
     required String deviceId,
     required double angle,
   });
 
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorSetReverse({
+  Future<void> crateApiDevicesRotatorApiRotatorSetReverse({
     required String deviceId,
     required bool reverse,
   });
 
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorSyncToPa({
+  Future<void> crateApiDevicesRotatorApiRotatorSyncToPa({
     required String deviceId,
     required double pa,
   });
@@ -1287,28 +1268,6 @@ abstract class RustLibApi extends BaseApi {
     required bool advisory,
   });
 
-  Future<void> crateApiDevicesCameraApiSetCameraBinning({
-    required String deviceId,
-    required int binX,
-    required int binY,
-  });
-
-  Future<void> crateApiDevicesSimulationCameraApiSetCameraCooler({
-    required String deviceId,
-    required int enabled,
-    double? targetTemp,
-  });
-
-  Future<void> crateApiDevicesSimulationCameraApiSetCameraGain({
-    required String deviceId,
-    required int gain,
-  });
-
-  Future<void> crateApiDevicesSimulationCameraApiSetCameraOffset({
-    required String deviceId,
-    required int offset,
-  });
-
   Future<void> crateApiImagingApiSetCaptureFileFormat({
     required String format,
     required String xisfCompression,
@@ -1454,15 +1413,6 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiStorageApiUpdateSettings({required AppSettings settings});
 
-  Future<void> crateApiDevicesCameraCancelExposure({required String deviceId});
-
-  Future<void> crateApiDevicesFilterWheelFilterWheelSetPosition({
-    required String deviceId,
-    required int position,
-  });
-
-  Future<void> crateApiDevicesFocuserFocuserHalt({required String deviceId});
-
   Future<CameraStatus> crateApiDevicesCameraGetCameraStatus({
     required String deviceId,
   });
@@ -1475,10 +1425,6 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
   });
 
-  Future<MountStatus> crateApiDevicesMountMountGetStatus({
-    required String deviceId,
-  });
-
   Future<MountTimeInfo> crateApiDevicesMountMountGetTime({
     required String deviceId,
   });
@@ -1487,14 +1433,6 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
     required int axis,
     required double rate,
-  });
-
-  Future<void> crateApiDevicesMountMountPark({required String deviceId});
-
-  Future<void> crateApiDevicesMountMountPulseGuide({
-    required String deviceId,
-    required String direction,
-    required int durationMs,
   });
 
   Future<void> crateApiDevicesMountMountSetPark({required String deviceId});
@@ -1512,11 +1450,6 @@ abstract class RustLibApi extends BaseApi {
     required double utcOffsetHours,
   });
 
-  Future<void> crateApiDevicesMountMountSetTracking({
-    required String deviceId,
-    required int enabled,
-  });
-
   Future<void> crateApiDevicesMountMountSetTrackingRate({
     required String deviceId,
     required int rate,
@@ -1532,14 +1465,6 @@ abstract class RustLibApi extends BaseApi {
     required double azimuth,
   });
 
-  Future<void> crateApiDevicesMountMountSync({
-    required String deviceId,
-    required double ra,
-    required double dec,
-  });
-
-  Future<void> crateApiDevicesMountMountUnpark({required String deviceId});
-
   Future<SecondaryRigStatusApi>
   crateApiSecondaryRigSecondaryRigStatusApiDefault();
 
@@ -1549,12 +1474,12 @@ abstract class RustLibApi extends BaseApi {
     double? targetTemp,
   });
 
-  Future<void> crateApiDevicesFilterWheelSetCameraGain({
+  Future<void> crateApiDevicesCameraSetCameraGain({
     required String deviceId,
     required int gain,
   });
 
-  Future<void> crateApiDevicesFilterWheelSetCameraOffset({
+  Future<void> crateApiDevicesCameraSetCameraOffset({
     required String deviceId,
     required int offset,
   });
@@ -1585,15 +1510,6 @@ abstract class RustLibApi extends BaseApi {
   Future<SolveHints> crateApiPlateSolveSolveHintsDefault();
 
   Future<StarDetectionConfigApi> crateApiImagingStarDetectionConfigApiDefault();
-
-  Future<void> crateApiDevicesCameraStartExposure({
-    required String deviceId,
-    required double durationSecs,
-    required int gain,
-    required int offset,
-    required int binX,
-    required int binY,
-  });
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -4491,8 +4407,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<String>>
-  crateApiDevicesSimulationFilterWheelApiFilterwheelGetNames({
+  Future<List<String>> crateApiDevicesFilterWheelApiFilterwheelGetNames({
     required String deviceId,
   }) {
     return handler.executeNormal(
@@ -4500,7 +4415,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           return wire
-              .wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names(
+              .wire__crate__api__devices__filter_wheel__api_filterwheel_get_names(
                 port_,
                 arg0,
               );
@@ -4509,8 +4424,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_list_String,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationFilterWheelApiFilterwheelGetNamesConstMeta,
+        constMeta: kCrateApiDevicesFilterWheelApiFilterwheelGetNamesConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
@@ -4518,51 +4432,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta
-  get kCrateApiDevicesSimulationFilterWheelApiFilterwheelGetNamesConstMeta =>
+  get kCrateApiDevicesFilterWheelApiFilterwheelGetNamesConstMeta =>
       const TaskConstMeta(
         debugName: "api_filterwheel_get_names",
         argNames: ["deviceId"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationFilterWheelApiFilterwheelSetByName({
-    required String deviceId,
-    required String name,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_String(name);
-          return wire
-              .wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name(
-                port_,
-                arg0,
-                arg1,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationFilterWheelApiFilterwheelSetByNameConstMeta,
-        argValues: [deviceId, name],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationFilterWheelApiFilterwheelSetByNameConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_filterwheel_set_by_name",
-        argNames: ["deviceId", "name"],
-      );
-
-  @override
-  Future<void>
-  crateApiDevicesSimulationFilterWheelApiFilterwheelSetFilterNames({
+  Future<void> crateApiDevicesFilterWheelApiFilterwheelSetFilterNames({
     required String deviceId,
     required List<String> names,
   }) {
@@ -4572,7 +4449,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_list_String(names);
           return wire
-              .wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names(
+              .wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names(
                 port_,
                 arg0,
                 arg1,
@@ -4583,7 +4460,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta:
-            kCrateApiDevicesSimulationFilterWheelApiFilterwheelSetFilterNamesConstMeta,
+            kCrateApiDevicesFilterWheelApiFilterwheelSetFilterNamesConstMeta,
         argValues: [deviceId, names],
         apiImpl: this,
       ),
@@ -4591,14 +4468,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta
-  get kCrateApiDevicesSimulationFilterWheelApiFilterwheelSetFilterNamesConstMeta =>
+  get kCrateApiDevicesFilterWheelApiFilterwheelSetFilterNamesConstMeta =>
       const TaskConstMeta(
         debugName: "api_filterwheel_set_filter_names",
         argNames: ["deviceId", "names"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationFilterWheelApiFilterwheelSetPosition({
+  Future<void> crateApiDevicesFilterWheelApiFilterwheelSetPosition({
     required String deviceId,
     required int position,
   }) {
@@ -4608,7 +4485,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_i_32(position);
           return wire
-              .wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position(
+              .wire__crate__api__devices__filter_wheel__api_filterwheel_set_position(
                 port_,
                 arg0,
                 arg1,
@@ -4619,7 +4496,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta:
-            kCrateApiDevicesSimulationFilterWheelApiFilterwheelSetPositionConstMeta,
+            kCrateApiDevicesFilterWheelApiFilterwheelSetPositionConstMeta,
         argValues: [deviceId, position],
         apiImpl: this,
       ),
@@ -4627,45 +4504,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta
-  get kCrateApiDevicesSimulationFilterWheelApiFilterwheelSetPositionConstMeta =>
+  get kCrateApiDevicesFilterWheelApiFilterwheelSetPositionConstMeta =>
       const TaskConstMeta(
         debugName: "api_filterwheel_set_position",
         argNames: ["deviceId", "position"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationFocuserApiFocuserHalt({
+  Future<void> crateApiDevicesFocuserApiFocuserHalt({
     required String deviceId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__simulation__focuser__api_focuser_halt(
-                port_,
-                arg0,
-              );
+          return wire.wire__crate__api__devices__focuser__api_focuser_halt(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationFocuserApiFocuserHaltConstMeta,
+        constMeta: kCrateApiDevicesFocuserApiFocuserHaltConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesSimulationFocuserApiFocuserHaltConstMeta =>
+  TaskConstMeta get kCrateApiDevicesFocuserApiFocuserHaltConstMeta =>
       const TaskConstMeta(
         debugName: "api_focuser_halt",
         argNames: ["deviceId"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationFocuserApiFocuserMoveRelative({
+  Future<void> crateApiDevicesFocuserApiFocuserMoveRelative({
     required String deviceId,
     required int delta,
   }) {
@@ -4675,7 +4551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_i_32(delta);
           return wire
-              .wire__crate__api__devices__simulation__focuser__api_focuser_move_relative(
+              .wire__crate__api__devices__focuser__api_focuser_move_relative(
                 port_,
                 arg0,
                 arg1,
@@ -4685,23 +4561,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationFocuserApiFocuserMoveRelativeConstMeta,
+        constMeta: kCrateApiDevicesFocuserApiFocuserMoveRelativeConstMeta,
         argValues: [deviceId, delta],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationFocuserApiFocuserMoveRelativeConstMeta =>
+  TaskConstMeta get kCrateApiDevicesFocuserApiFocuserMoveRelativeConstMeta =>
       const TaskConstMeta(
         debugName: "api_focuser_move_relative",
         argNames: ["deviceId", "delta"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationFocuserApiFocuserMoveTo({
+  Future<void> crateApiDevicesFocuserApiFocuserMoveTo({
     required String deviceId,
     required int position,
   }) {
@@ -4710,26 +4584,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_i_32(position);
-          return wire
-              .wire__crate__api__devices__simulation__focuser__api_focuser_move_to(
-                port_,
-                arg0,
-                arg1,
-              );
+          return wire.wire__crate__api__devices__focuser__api_focuser_move_to(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationFocuserApiFocuserMoveToConstMeta,
+        constMeta: kCrateApiDevicesFocuserApiFocuserMoveToConstMeta,
         argValues: [deviceId, position],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationFocuserApiFocuserMoveToConstMeta =>
+  TaskConstMeta get kCrateApiDevicesFocuserApiFocuserMoveToConstMeta =>
       const TaskConstMeta(
         debugName: "api_focuser_move_to",
         argNames: ["deviceId", "position"],
@@ -4817,38 +4689,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDiagnosticsApiGetCameraCapabilitiesConstMeta =>
       const TaskConstMeta(
         debugName: "api_get_camera_capabilities",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<CameraStatus> crateApiDevicesSimulationCameraApiGetCameraStatus({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__simulation__camera__api_get_camera_status(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_camera_status,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesSimulationCameraApiGetCameraStatusConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationCameraApiGetCameraStatusConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_get_camera_status",
         argNames: ["deviceId"],
       );
 
@@ -5112,8 +4952,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<FilterWheelStatus>
-  crateApiDevicesSimulationFilterWheelApiGetFilterwheelStatus({
+  Future<FilterWheelStatus> crateApiDevicesFilterWheelApiGetFilterwheelStatus({
     required String deviceId,
   }) {
     return handler.executeNormal(
@@ -5121,7 +4960,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           return wire
-              .wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status(
+              .wire__crate__api__devices__filter_wheel__api_get_filterwheel_status(
                 port_,
                 arg0,
               );
@@ -5130,8 +4969,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_filter_wheel_status,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationFilterWheelApiGetFilterwheelStatusConstMeta,
+        constMeta: kCrateApiDevicesFilterWheelApiGetFilterwheelStatusConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
@@ -5139,7 +4977,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta
-  get kCrateApiDevicesSimulationFilterWheelApiGetFilterwheelStatusConstMeta =>
+  get kCrateApiDevicesFilterWheelApiGetFilterwheelStatusConstMeta =>
       const TaskConstMeta(
         debugName: "api_get_filterwheel_status",
         argNames: ["deviceId"],
@@ -5177,7 +5015,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<FocuserStatus> crateApiDevicesSimulationFocuserApiGetFocuserStatus({
+  Future<FocuserStatus> crateApiDevicesFocuserApiGetFocuserStatus({
     required String deviceId,
   }) {
     return handler.executeNormal(
@@ -5185,7 +5023,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           return wire
-              .wire__crate__api__devices__simulation__focuser__api_get_focuser_status(
+              .wire__crate__api__devices__focuser__api_get_focuser_status(
                 port_,
                 arg0,
               );
@@ -5194,16 +5032,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_focuser_status,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationFocuserApiGetFocuserStatusConstMeta,
+        constMeta: kCrateApiDevicesFocuserApiGetFocuserStatusConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationFocuserApiGetFocuserStatusConstMeta =>
+  TaskConstMeta get kCrateApiDevicesFocuserApiGetFocuserStatusConstMeta =>
       const TaskConstMeta(
         debugName: "api_get_focuser_status",
         argNames: ["deviceId"],
@@ -5321,31 +5157,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<MountStatus> crateApiDevicesSimulationMountApiGetMountStatus({
+  Future<MountStatus> crateApiDevicesMountApiGetMountStatus({
     required String deviceId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__simulation__mount__api_get_mount_status(
-                port_,
-                arg0,
-              );
+          return wire.wire__crate__api__devices__mount__api_get_mount_status(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_mount_status,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationMountApiGetMountStatusConstMeta,
+        constMeta: kCrateApiDevicesMountApiGetMountStatusConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesSimulationMountApiGetMountStatusConstMeta =>
+  TaskConstMeta get kCrateApiDevicesMountApiGetMountStatusConstMeta =>
       const TaskConstMeta(
         debugName: "api_get_mount_status",
         argNames: ["deviceId"],
@@ -5451,7 +5286,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<RotatorStatus> crateApiDevicesSimulationRotatorApiGetRotatorStatus({
+  Future<RotatorStatus> crateApiDevicesRotatorApiGetRotatorStatus({
     required String deviceId,
   }) {
     return handler.executeNormal(
@@ -5459,7 +5294,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           return wire
-              .wire__crate__api__devices__simulation__rotator__api_get_rotator_status(
+              .wire__crate__api__devices__rotator__api_get_rotator_status(
                 port_,
                 arg0,
               );
@@ -5468,16 +5303,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_rotator_status,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationRotatorApiGetRotatorStatusConstMeta,
+        constMeta: kCrateApiDevicesRotatorApiGetRotatorStatusConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationRotatorApiGetRotatorStatusConstMeta =>
+  TaskConstMeta get kCrateApiDevicesRotatorApiGetRotatorStatusConstMeta =>
       const TaskConstMeta(
         debugName: "api_get_rotator_status",
         argNames: ["deviceId"],
@@ -6548,35 +6381,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesSimulationMountApiMountPark({
-    required String deviceId,
-  }) {
+  Future<void> crateApiDevicesMountApiMountPark({required String deviceId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__simulation__mount__api_mount_park(
-                port_,
-                arg0,
-              );
+          return wire.wire__crate__api__devices__mount__api_mount_park(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationMountApiMountParkConstMeta,
+        constMeta: kCrateApiDevicesMountApiMountParkConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesSimulationMountApiMountParkConstMeta =>
+  TaskConstMeta get kCrateApiDevicesMountApiMountParkConstMeta =>
       const TaskConstMeta(debugName: "api_mount_park", argNames: ["deviceId"]);
 
   @override
-  Future<void> crateApiDevicesSimulationMountApiMountPulseGuide({
+  Future<void> crateApiDevicesMountApiMountPulseGuide({
     required String deviceId,
     required String direction,
     required int durationMs,
@@ -6587,34 +6417,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_String(direction);
           var arg2 = cst_encode_i_32(durationMs);
-          return wire
-              .wire__crate__api__devices__simulation__mount__api_mount_pulse_guide(
-                port_,
-                arg0,
-                arg1,
-                arg2,
-              );
+          return wire.wire__crate__api__devices__mount__api_mount_pulse_guide(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationMountApiMountPulseGuideConstMeta,
+        constMeta: kCrateApiDevicesMountApiMountPulseGuideConstMeta,
         argValues: [deviceId, direction, durationMs],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationMountApiMountPulseGuideConstMeta =>
+  TaskConstMeta get kCrateApiDevicesMountApiMountPulseGuideConstMeta =>
       const TaskConstMeta(
         debugName: "api_mount_pulse_guide",
         argNames: ["deviceId", "direction", "durationMs"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationMountApiMountSetTracking({
+  Future<void> crateApiDevicesMountApiMountSetTracking({
     required String deviceId,
     required int enabled,
   }) {
@@ -6623,33 +6451,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_u_8(enabled);
-          return wire
-              .wire__crate__api__devices__simulation__mount__api_mount_set_tracking(
-                port_,
-                arg0,
-                arg1,
-              );
+          return wire.wire__crate__api__devices__mount__api_mount_set_tracking(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationMountApiMountSetTrackingConstMeta,
+        constMeta: kCrateApiDevicesMountApiMountSetTrackingConstMeta,
         argValues: [deviceId, enabled],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationMountApiMountSetTrackingConstMeta =>
+  TaskConstMeta get kCrateApiDevicesMountApiMountSetTrackingConstMeta =>
       const TaskConstMeta(
         debugName: "api_mount_set_tracking",
         argNames: ["deviceId", "enabled"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationMountApiMountSlewToCoordinates({
+  Future<void> crateApiDevicesMountApiMountSlewToCoordinates({
     required String deviceId,
     required double ra,
     required double dec,
@@ -6661,7 +6487,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_f_64(ra);
           var arg2 = cst_encode_f_64(dec);
           return wire
-              .wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates(
+              .wire__crate__api__devices__mount__api_mount_slew_to_coordinates(
                 port_,
                 arg0,
                 arg1,
@@ -6672,23 +6498,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationMountApiMountSlewToCoordinatesConstMeta,
+        constMeta: kCrateApiDevicesMountApiMountSlewToCoordinatesConstMeta,
         argValues: [deviceId, ra, dec],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationMountApiMountSlewToCoordinatesConstMeta =>
+  TaskConstMeta get kCrateApiDevicesMountApiMountSlewToCoordinatesConstMeta =>
       const TaskConstMeta(
         debugName: "api_mount_slew_to_coordinates",
         argNames: ["deviceId", "ra", "dec"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationMountApiMountSyncToCoordinates({
+  Future<void> crateApiDevicesMountApiMountSyncToCoordinates({
     required String deviceId,
     required double ra,
     required double dec,
@@ -6700,7 +6524,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg1 = cst_encode_f_64(ra);
           var arg2 = cst_encode_f_64(dec);
           return wire
-              .wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates(
+              .wire__crate__api__devices__mount__api_mount_sync_to_coordinates(
                 port_,
                 arg0,
                 arg1,
@@ -6711,47 +6535,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationMountApiMountSyncToCoordinatesConstMeta,
+        constMeta: kCrateApiDevicesMountApiMountSyncToCoordinatesConstMeta,
         argValues: [deviceId, ra, dec],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationMountApiMountSyncToCoordinatesConstMeta =>
+  TaskConstMeta get kCrateApiDevicesMountApiMountSyncToCoordinatesConstMeta =>
       const TaskConstMeta(
         debugName: "api_mount_sync_to_coordinates",
         argNames: ["deviceId", "ra", "dec"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationMountApiMountUnpark({
-    required String deviceId,
-  }) {
+  Future<void> crateApiDevicesMountApiMountUnpark({required String deviceId}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__simulation__mount__api_mount_unpark(
-                port_,
-                arg0,
-              );
+          return wire.wire__crate__api__devices__mount__api_mount_unpark(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationMountApiMountUnparkConstMeta,
+        constMeta: kCrateApiDevicesMountApiMountUnparkConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesSimulationMountApiMountUnparkConstMeta =>
+  TaskConstMeta get kCrateApiDevicesMountApiMountUnparkConstMeta =>
       const TaskConstMeta(
         debugName: "api_mount_unpark",
         argNames: ["deviceId"],
@@ -7871,38 +7690,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_rescan_devices", argNames: []);
 
   @override
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorHalt({
+  Future<void> crateApiDevicesRotatorApiRotatorHalt({
     required String deviceId,
   }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__simulation__rotator__api_rotator_halt(
-                port_,
-                arg0,
-              );
+          return wire.wire__crate__api__devices__rotator__api_rotator_halt(
+            port_,
+            arg0,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationRotatorApiRotatorHaltConstMeta,
+        constMeta: kCrateApiDevicesRotatorApiRotatorHaltConstMeta,
         argValues: [deviceId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesSimulationRotatorApiRotatorHaltConstMeta =>
+  TaskConstMeta get kCrateApiDevicesRotatorApiRotatorHaltConstMeta =>
       const TaskConstMeta(
         debugName: "api_rotator_halt",
         argNames: ["deviceId"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorMoveRelative({
+  Future<void> crateApiDevicesRotatorApiRotatorMoveRelative({
     required String deviceId,
     required double delta,
   }) {
@@ -7912,7 +7730,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_f_64(delta);
           return wire
-              .wire__crate__api__devices__simulation__rotator__api_rotator_move_relative(
+              .wire__crate__api__devices__rotator__api_rotator_move_relative(
                 port_,
                 arg0,
                 arg1,
@@ -7922,23 +7740,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationRotatorApiRotatorMoveRelativeConstMeta,
+        constMeta: kCrateApiDevicesRotatorApiRotatorMoveRelativeConstMeta,
         argValues: [deviceId, delta],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationRotatorApiRotatorMoveRelativeConstMeta =>
+  TaskConstMeta get kCrateApiDevicesRotatorApiRotatorMoveRelativeConstMeta =>
       const TaskConstMeta(
         debugName: "api_rotator_move_relative",
         argNames: ["deviceId", "delta"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorMoveTo({
+  Future<void> crateApiDevicesRotatorApiRotatorMoveTo({
     required String deviceId,
     required double angle,
   }) {
@@ -7947,33 +7763,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_f_64(angle);
-          return wire
-              .wire__crate__api__devices__simulation__rotator__api_rotator_move_to(
-                port_,
-                arg0,
-                arg1,
-              );
+          return wire.wire__crate__api__devices__rotator__api_rotator_move_to(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationRotatorApiRotatorMoveToConstMeta,
+        constMeta: kCrateApiDevicesRotatorApiRotatorMoveToConstMeta,
         argValues: [deviceId, angle],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationRotatorApiRotatorMoveToConstMeta =>
+  TaskConstMeta get kCrateApiDevicesRotatorApiRotatorMoveToConstMeta =>
       const TaskConstMeta(
         debugName: "api_rotator_move_to",
         argNames: ["deviceId", "angle"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorSetReverse({
+  Future<void> crateApiDevicesRotatorApiRotatorSetReverse({
     required String deviceId,
     required bool reverse,
   }) {
@@ -7983,7 +7797,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_bool(reverse);
           return wire
-              .wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse(
+              .wire__crate__api__devices__rotator__api_rotator_set_reverse(
                 port_,
                 arg0,
                 arg1,
@@ -7993,23 +7807,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta:
-            kCrateApiDevicesSimulationRotatorApiRotatorSetReverseConstMeta,
+        constMeta: kCrateApiDevicesRotatorApiRotatorSetReverseConstMeta,
         argValues: [deviceId, reverse],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationRotatorApiRotatorSetReverseConstMeta =>
+  TaskConstMeta get kCrateApiDevicesRotatorApiRotatorSetReverseConstMeta =>
       const TaskConstMeta(
         debugName: "api_rotator_set_reverse",
         argNames: ["deviceId", "reverse"],
       );
 
   @override
-  Future<void> crateApiDevicesSimulationRotatorApiRotatorSyncToPa({
+  Future<void> crateApiDevicesRotatorApiRotatorSyncToPa({
     required String deviceId,
     required double pa,
   }) {
@@ -8019,7 +7831,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_f_64(pa);
           return wire
-              .wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa(
+              .wire__crate__api__devices__rotator__api_rotator_sync_to_pa(
                 port_,
                 arg0,
                 arg1,
@@ -8029,15 +7841,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesSimulationRotatorApiRotatorSyncToPaConstMeta,
+        constMeta: kCrateApiDevicesRotatorApiRotatorSyncToPaConstMeta,
         argValues: [deviceId, pa],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta
-  get kCrateApiDevicesSimulationRotatorApiRotatorSyncToPaConstMeta =>
+  TaskConstMeta get kCrateApiDevicesRotatorApiRotatorSyncToPaConstMeta =>
       const TaskConstMeta(
         debugName: "api_rotator_sync_to_pa",
         argNames: ["deviceId", "pa"],
@@ -10435,149 +10246,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesCameraApiSetCameraBinning({
-    required String deviceId,
-    required int binX,
-    required int binY,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_i_32(binX);
-          var arg2 = cst_encode_i_32(binY);
-          return wire.wire__crate__api__devices__camera__api_set_camera_binning(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesCameraApiSetCameraBinningConstMeta,
-        argValues: [deviceId, binX, binY],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesCameraApiSetCameraBinningConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_set_camera_binning",
-        argNames: ["deviceId", "binX", "binY"],
-      );
-
-  @override
-  Future<void> crateApiDevicesSimulationCameraApiSetCameraCooler({
-    required String deviceId,
-    required int enabled,
-    double? targetTemp,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_u_8(enabled);
-          var arg2 = cst_encode_opt_box_autoadd_f_64(targetTemp);
-          return wire
-              .wire__crate__api__devices__simulation__camera__api_set_camera_cooler(
-                port_,
-                arg0,
-                arg1,
-                arg2,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesSimulationCameraApiSetCameraCoolerConstMeta,
-        argValues: [deviceId, enabled, targetTemp],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationCameraApiSetCameraCoolerConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_set_camera_cooler",
-        argNames: ["deviceId", "enabled", "targetTemp"],
-      );
-
-  @override
-  Future<void> crateApiDevicesSimulationCameraApiSetCameraGain({
-    required String deviceId,
-    required int gain,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_i_32(gain);
-          return wire
-              .wire__crate__api__devices__simulation__camera__api_set_camera_gain(
-                port_,
-                arg0,
-                arg1,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesSimulationCameraApiSetCameraGainConstMeta,
-        argValues: [deviceId, gain],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesSimulationCameraApiSetCameraGainConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_set_camera_gain",
-        argNames: ["deviceId", "gain"],
-      );
-
-  @override
-  Future<void> crateApiDevicesSimulationCameraApiSetCameraOffset({
-    required String deviceId,
-    required int offset,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_i_32(offset);
-          return wire
-              .wire__crate__api__devices__simulation__camera__api_set_camera_offset(
-                port_,
-                arg0,
-                arg1,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesSimulationCameraApiSetCameraOffsetConstMeta,
-        argValues: [deviceId, offset],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationCameraApiSetCameraOffsetConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_set_camera_offset",
-        argNames: ["deviceId", "offset"],
-      );
-
-  @override
   Future<void> crateApiImagingApiSetCaptureFileFormat({
     required String format,
     required String xisfCompression,
@@ -11672,91 +11340,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesCameraCancelExposure({required String deviceId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire.wire__crate__api__devices__camera__cancel_exposure(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesCameraCancelExposureConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesCameraCancelExposureConstMeta =>
-      const TaskConstMeta(debugName: "cancel_exposure", argNames: ["deviceId"]);
-
-  @override
-  Future<void> crateApiDevicesFilterWheelFilterWheelSetPosition({
-    required String deviceId,
-    required int position,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_i_32(position);
-          return wire
-              .wire__crate__api__devices__filter_wheel__filter_wheel_set_position(
-                port_,
-                arg0,
-                arg1,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesFilterWheelFilterWheelSetPositionConstMeta,
-        argValues: [deviceId, position],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesFilterWheelFilterWheelSetPositionConstMeta =>
-      const TaskConstMeta(
-        debugName: "filter_wheel_set_position",
-        argNames: ["deviceId", "position"],
-      );
-
-  @override
-  Future<void> crateApiDevicesFocuserFocuserHalt({required String deviceId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire.wire__crate__api__devices__focuser__focuser_halt(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesFocuserFocuserHaltConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesFocuserFocuserHaltConstMeta =>
-      const TaskConstMeta(debugName: "focuser_halt", argNames: ["deviceId"]);
-
-  @override
   Future<CameraStatus> crateApiDevicesCameraGetCameraStatus({
     required String deviceId,
   }) {
@@ -11864,36 +11447,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "mount_get_site", argNames: ["deviceId"]);
 
   @override
-  Future<MountStatus> crateApiDevicesMountMountGetStatus({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire.wire__crate__api__devices__mount__mount_get_status(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_mount_status,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesMountMountGetStatusConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesMountMountGetStatusConstMeta =>
-      const TaskConstMeta(
-        debugName: "mount_get_status",
-        argNames: ["deviceId"],
-      );
-
-  @override
   Future<MountTimeInfo> crateApiDevicesMountMountGetTime({
     required String deviceId,
   }) {
@@ -11954,64 +11507,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "mount_move_axis",
         argNames: ["deviceId", "axis", "rate"],
-      );
-
-  @override
-  Future<void> crateApiDevicesMountMountPark({required String deviceId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire.wire__crate__api__devices__mount__mount_park(port_, arg0);
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesMountMountParkConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesMountMountParkConstMeta =>
-      const TaskConstMeta(debugName: "mount_park", argNames: ["deviceId"]);
-
-  @override
-  Future<void> crateApiDevicesMountMountPulseGuide({
-    required String deviceId,
-    required String direction,
-    required int durationMs,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_String(direction);
-          var arg2 = cst_encode_u_32(durationMs);
-          return wire.wire__crate__api__devices__mount__mount_pulse_guide(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesMountMountPulseGuideConstMeta,
-        argValues: [deviceId, direction, durationMs],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesMountMountPulseGuideConstMeta =>
-      const TaskConstMeta(
-        debugName: "mount_pulse_guide",
-        argNames: ["deviceId", "direction", "durationMs"],
       );
 
   @override
@@ -12115,39 +11610,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesMountMountSetTracking({
-    required String deviceId,
-    required int enabled,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_u_8(enabled);
-          return wire.wire__crate__api__devices__mount__mount_set_tracking(
-            port_,
-            arg0,
-            arg1,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesMountMountSetTrackingConstMeta,
-        argValues: [deviceId, enabled],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesMountMountSetTrackingConstMeta =>
-      const TaskConstMeta(
-        debugName: "mount_set_tracking",
-        argNames: ["deviceId", "enabled"],
-      );
-
-  @override
   Future<void> crateApiDevicesMountMountSetTrackingRate({
     required String deviceId,
     required int rate,
@@ -12247,67 +11709,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesMountMountSync({
-    required String deviceId,
-    required double ra,
-    required double dec,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_f_64(ra);
-          var arg2 = cst_encode_f_64(dec);
-          return wire.wire__crate__api__devices__mount__mount_sync(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesMountMountSyncConstMeta,
-        argValues: [deviceId, ra, dec],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesMountMountSyncConstMeta =>
-      const TaskConstMeta(
-        debugName: "mount_sync",
-        argNames: ["deviceId", "ra", "dec"],
-      );
-
-  @override
-  Future<void> crateApiDevicesMountMountUnpark({required String deviceId}) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire.wire__crate__api__devices__mount__mount_unpark(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesMountMountUnparkConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesMountMountUnparkConstMeta =>
-      const TaskConstMeta(debugName: "mount_unpark", argNames: ["deviceId"]);
-
-  @override
   Future<SecondaryRigStatusApi>
   crateApiSecondaryRigSecondaryRigStatusApiDefault() {
     return handler.executeNormal(
@@ -12373,7 +11774,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiDevicesFilterWheelSetCameraGain({
+  Future<void> crateApiDevicesCameraSetCameraGain({
     required String deviceId,
     required int gain,
   }) {
@@ -12382,7 +11783,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_i_32(gain);
-          return wire.wire__crate__api__devices__filter_wheel__set_camera_gain(
+          return wire.wire__crate__api__devices__camera__set_camera_gain(
             port_,
             arg0,
             arg1,
@@ -12392,21 +11793,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesFilterWheelSetCameraGainConstMeta,
+        constMeta: kCrateApiDevicesCameraSetCameraGainConstMeta,
         argValues: [deviceId, gain],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesFilterWheelSetCameraGainConstMeta =>
+  TaskConstMeta get kCrateApiDevicesCameraSetCameraGainConstMeta =>
       const TaskConstMeta(
         debugName: "set_camera_gain",
         argNames: ["deviceId", "gain"],
       );
 
   @override
-  Future<void> crateApiDevicesFilterWheelSetCameraOffset({
+  Future<void> crateApiDevicesCameraSetCameraOffset({
     required String deviceId,
     required int offset,
   }) {
@@ -12415,25 +11816,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_i_32(offset);
-          return wire
-              .wire__crate__api__devices__filter_wheel__set_camera_offset(
-                port_,
-                arg0,
-                arg1,
-              );
+          return wire.wire__crate__api__devices__camera__set_camera_offset(
+            port_,
+            arg0,
+            arg1,
+          );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiDevicesFilterWheelSetCameraOffsetConstMeta,
+        constMeta: kCrateApiDevicesCameraSetCameraOffsetConstMeta,
         argValues: [deviceId, offset],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiDevicesFilterWheelSetCameraOffsetConstMeta =>
+  TaskConstMeta get kCrateApiDevicesCameraSetCameraOffsetConstMeta =>
       const TaskConstMeta(
         debugName: "set_camera_offset",
         argNames: ["deviceId", "offset"],
@@ -12707,58 +12107,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "star_detection_config_api_default",
         argNames: [],
-      );
-
-  @override
-  Future<void> crateApiDevicesCameraStartExposure({
-    required String deviceId,
-    required double durationSecs,
-    required int gain,
-    required int offset,
-    required int binX,
-    required int binY,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_f_64(durationSecs);
-          var arg2 = cst_encode_i_32(gain);
-          var arg3 = cst_encode_i_32(offset);
-          var arg4 = cst_encode_i_32(binX);
-          var arg5 = cst_encode_i_32(binY);
-          return wire.wire__crate__api__devices__camera__start_exposure(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDevicesCameraStartExposureConstMeta,
-        argValues: [deviceId, durationSecs, gain, offset, binX, binY],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDevicesCameraStartExposureConstMeta =>
-      const TaskConstMeta(
-        debugName: "start_exposure",
-        argNames: [
-          "deviceId",
-          "durationSecs",
-          "gain",
-          "offset",
-          "binX",
-          "binY",
-        ],
       );
 
   @protected

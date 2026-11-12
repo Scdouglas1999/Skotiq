@@ -14,6 +14,7 @@ import 'api/devices/environment.dart';
 import 'api/devices/filter_wheel.dart';
 import 'api/devices/focuser.dart';
 import 'api/devices/mount.dart';
+import 'api/devices/rotator.dart';
 import 'api/devices/simulation/camera.dart';
 import 'api/devices/simulation/environment.dart';
 import 'api/devices/simulation/filter_wheel.dart';
@@ -11232,18 +11233,17 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void
-  wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names(
+  void wire__crate__api__devices__filter_wheel__api_filterwheel_get_names(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names(
+    return _wire__crate__api__devices__filter_wheel__api_filterwheel_get_names(
       port_,
       device_id,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_namesPtr =
+  late final _wire__crate__api__devices__filter_wheel__api_filterwheel_get_namesPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11252,63 +11252,28 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_get_names',
       );
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names =
-      _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_namesPtr
+  late final _wire__crate__api__devices__filter_wheel__api_filterwheel_get_names =
+      _wire__crate__api__devices__filter_wheel__api_filterwheel_get_namesPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
   void
-  wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> name,
-  ) {
-    return _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name(
-      port_,
-      device_id,
-      name,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_namePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name',
-      );
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name =
-      _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_namePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  void
-  wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names(
+  wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     ffi.Pointer<wire_cst_list_String> names,
   ) {
-    return _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names(
+    return _wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names(
       port_,
       device_id,
       names,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_namesPtr =
+  late final _wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_namesPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11318,10 +11283,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names',
       );
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names =
-      _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_namesPtr
+  late final _wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names =
+      _wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_namesPtr
           .asFunction<
             void Function(
               int,
@@ -11330,20 +11295,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void
-  wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position(
+  void wire__crate__api__devices__filter_wheel__api_filterwheel_set_position(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     int position,
   ) {
-    return _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position(
+    return _wire__crate__api__devices__filter_wheel__api_filterwheel_set_position(
       port_,
       device_id,
       position,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_positionPtr =
+  late final _wire__crate__api__devices__filter_wheel__api_filterwheel_set_positionPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11353,25 +11317,25 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_set_position',
       );
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position =
-      _wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_positionPtr
+  late final _wire__crate__api__devices__filter_wheel__api_filterwheel_set_position =
+      _wire__crate__api__devices__filter_wheel__api_filterwheel_set_positionPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
-  void wire__crate__api__devices__simulation__focuser__api_focuser_halt(
+  void wire__crate__api__devices__focuser__api_focuser_halt(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__focuser__api_focuser_halt(
+    return _wire__crate__api__devices__focuser__api_focuser_halt(
       port_,
       device_id,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__focuser__api_focuser_haltPtr =
+  late final _wire__crate__api__devices__focuser__api_focuser_haltPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11380,28 +11344,27 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_halt',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_halt',
       );
-  late final _wire__crate__api__devices__simulation__focuser__api_focuser_halt =
-      _wire__crate__api__devices__simulation__focuser__api_focuser_haltPtr
+  late final _wire__crate__api__devices__focuser__api_focuser_halt =
+      _wire__crate__api__devices__focuser__api_focuser_haltPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void
-  wire__crate__api__devices__simulation__focuser__api_focuser_move_relative(
+  void wire__crate__api__devices__focuser__api_focuser_move_relative(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     int delta,
   ) {
-    return _wire__crate__api__devices__simulation__focuser__api_focuser_move_relative(
+    return _wire__crate__api__devices__focuser__api_focuser_move_relative(
       port_,
       device_id,
       delta,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__focuser__api_focuser_move_relativePtr =
+  late final _wire__crate__api__devices__focuser__api_focuser_move_relativePtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11411,27 +11374,27 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_move_relative',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_move_relative',
       );
-  late final _wire__crate__api__devices__simulation__focuser__api_focuser_move_relative =
-      _wire__crate__api__devices__simulation__focuser__api_focuser_move_relativePtr
+  late final _wire__crate__api__devices__focuser__api_focuser_move_relative =
+      _wire__crate__api__devices__focuser__api_focuser_move_relativePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
-  void wire__crate__api__devices__simulation__focuser__api_focuser_move_to(
+  void wire__crate__api__devices__focuser__api_focuser_move_to(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     int position,
   ) {
-    return _wire__crate__api__devices__simulation__focuser__api_focuser_move_to(
+    return _wire__crate__api__devices__focuser__api_focuser_move_to(
       port_,
       device_id,
       position,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__focuser__api_focuser_move_toPtr =
+  late final _wire__crate__api__devices__focuser__api_focuser_move_toPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11441,10 +11404,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_move_to',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_move_to',
       );
-  late final _wire__crate__api__devices__simulation__focuser__api_focuser_move_to =
-      _wire__crate__api__devices__simulation__focuser__api_focuser_move_toPtr
+  late final _wire__crate__api__devices__focuser__api_focuser_move_to =
+      _wire__crate__api__devices__focuser__api_focuser_move_toPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
@@ -11514,33 +11477,6 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__diagnostics__api_get_camera_capabilities =
       _wire__crate__api__diagnostics__api_get_camera_capabilitiesPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__devices__simulation__camera__api_get_camera_status(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__simulation__camera__api_get_camera_status(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__camera__api_get_camera_statusPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_get_camera_status',
-      );
-  late final _wire__crate__api__devices__simulation__camera__api_get_camera_status =
-      _wire__crate__api__devices__simulation__camera__api_get_camera_statusPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -11755,18 +11691,17 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void
-  wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status(
+  void wire__crate__api__devices__filter_wheel__api_get_filterwheel_status(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status(
+    return _wire__crate__api__devices__filter_wheel__api_get_filterwheel_status(
       port_,
       device_id,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_statusPtr =
+  late final _wire__crate__api__devices__filter_wheel__api_get_filterwheel_statusPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11775,10 +11710,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_get_filterwheel_status',
       );
-  late final _wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status =
-      _wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_statusPtr
+  late final _wire__crate__api__devices__filter_wheel__api_get_filterwheel_status =
+      _wire__crate__api__devices__filter_wheel__api_get_filterwheel_statusPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -11810,17 +11745,17 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__devices__simulation__focuser__api_get_focuser_status(
+  void wire__crate__api__devices__focuser__api_get_focuser_status(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__focuser__api_get_focuser_status(
+    return _wire__crate__api__devices__focuser__api_get_focuser_status(
       port_,
       device_id,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__focuser__api_get_focuser_statusPtr =
+  late final _wire__crate__api__devices__focuser__api_get_focuser_statusPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11829,10 +11764,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_get_focuser_status',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_get_focuser_status',
       );
-  late final _wire__crate__api__devices__simulation__focuser__api_get_focuser_status =
-      _wire__crate__api__devices__simulation__focuser__api_get_focuser_statusPtr
+  late final _wire__crate__api__devices__focuser__api_get_focuser_status =
+      _wire__crate__api__devices__focuser__api_get_focuser_statusPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -11925,17 +11860,17 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__devices__simulation__mount__api_get_mount_status(
+  void wire__crate__api__devices__mount__api_get_mount_status(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__mount__api_get_mount_status(
+    return _wire__crate__api__devices__mount__api_get_mount_status(
       port_,
       device_id,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__mount__api_get_mount_statusPtr =
+  late final _wire__crate__api__devices__mount__api_get_mount_statusPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -11944,10 +11879,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_get_mount_status',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_get_mount_status',
       );
-  late final _wire__crate__api__devices__simulation__mount__api_get_mount_status =
-      _wire__crate__api__devices__simulation__mount__api_get_mount_statusPtr
+  late final _wire__crate__api__devices__mount__api_get_mount_status =
+      _wire__crate__api__devices__mount__api_get_mount_statusPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -12017,17 +11952,17 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__devices__simulation__rotator__api_get_rotator_status(
+  void wire__crate__api__devices__rotator__api_get_rotator_status(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__rotator__api_get_rotator_status(
+    return _wire__crate__api__devices__rotator__api_get_rotator_status(
       port_,
       device_id,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__rotator__api_get_rotator_statusPtr =
+  late final _wire__crate__api__devices__rotator__api_get_rotator_statusPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -12036,10 +11971,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_get_rotator_status',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_get_rotator_status',
       );
-  late final _wire__crate__api__devices__simulation__rotator__api_get_rotator_status =
-      _wire__crate__api__devices__simulation__rotator__api_get_rotator_statusPtr
+  late final _wire__crate__api__devices__rotator__api_get_rotator_status =
+      _wire__crate__api__devices__rotator__api_get_rotator_statusPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -12925,17 +12860,14 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__devices__simulation__mount__api_mount_park(
+  void wire__crate__api__devices__mount__api_mount_park(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__mount__api_mount_park(
-      port_,
-      device_id,
-    );
+    return _wire__crate__api__devices__mount__api_mount_park(port_, device_id);
   }
 
-  late final _wire__crate__api__devices__simulation__mount__api_mount_parkPtr =
+  late final _wire__crate__api__devices__mount__api_mount_parkPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -12944,21 +12876,21 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_park',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_park',
       );
-  late final _wire__crate__api__devices__simulation__mount__api_mount_park =
-      _wire__crate__api__devices__simulation__mount__api_mount_parkPtr
+  late final _wire__crate__api__devices__mount__api_mount_park =
+      _wire__crate__api__devices__mount__api_mount_parkPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__devices__simulation__mount__api_mount_pulse_guide(
+  void wire__crate__api__devices__mount__api_mount_pulse_guide(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> direction,
     int duration_ms,
   ) {
-    return _wire__crate__api__devices__simulation__mount__api_mount_pulse_guide(
+    return _wire__crate__api__devices__mount__api_mount_pulse_guide(
       port_,
       device_id,
       direction,
@@ -12966,7 +12898,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__devices__simulation__mount__api_mount_pulse_guidePtr =
+  late final _wire__crate__api__devices__mount__api_mount_pulse_guidePtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -12977,10 +12909,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_pulse_guide',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_pulse_guide',
       );
-  late final _wire__crate__api__devices__simulation__mount__api_mount_pulse_guide =
-      _wire__crate__api__devices__simulation__mount__api_mount_pulse_guidePtr
+  late final _wire__crate__api__devices__mount__api_mount_pulse_guide =
+      _wire__crate__api__devices__mount__api_mount_pulse_guidePtr
           .asFunction<
             void Function(
               int,
@@ -12990,19 +12922,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__devices__simulation__mount__api_mount_set_tracking(
+  void wire__crate__api__devices__mount__api_mount_set_tracking(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     int enabled,
   ) {
-    return _wire__crate__api__devices__simulation__mount__api_mount_set_tracking(
+    return _wire__crate__api__devices__mount__api_mount_set_tracking(
       port_,
       device_id,
       enabled,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__mount__api_mount_set_trackingPtr =
+  late final _wire__crate__api__devices__mount__api_mount_set_trackingPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -13012,22 +12944,21 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_set_tracking',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_set_tracking',
       );
-  late final _wire__crate__api__devices__simulation__mount__api_mount_set_tracking =
-      _wire__crate__api__devices__simulation__mount__api_mount_set_trackingPtr
+  late final _wire__crate__api__devices__mount__api_mount_set_tracking =
+      _wire__crate__api__devices__mount__api_mount_set_trackingPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
-  void
-  wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates(
+  void wire__crate__api__devices__mount__api_mount_slew_to_coordinates(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double ra,
     double dec,
   ) {
-    return _wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates(
+    return _wire__crate__api__devices__mount__api_mount_slew_to_coordinates(
       port_,
       device_id,
       ra,
@@ -13035,7 +12966,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinatesPtr =
+  late final _wire__crate__api__devices__mount__api_mount_slew_to_coordinatesPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -13046,10 +12977,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_slew_to_coordinates',
       );
-  late final _wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates =
-      _wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinatesPtr
+  late final _wire__crate__api__devices__mount__api_mount_slew_to_coordinates =
+      _wire__crate__api__devices__mount__api_mount_slew_to_coordinatesPtr
           .asFunction<
             void Function(
               int,
@@ -13059,14 +12990,13 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void
-  wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates(
+  void wire__crate__api__devices__mount__api_mount_sync_to_coordinates(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double ra,
     double dec,
   ) {
-    return _wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates(
+    return _wire__crate__api__devices__mount__api_mount_sync_to_coordinates(
       port_,
       device_id,
       ra,
@@ -13074,7 +13004,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinatesPtr =
+  late final _wire__crate__api__devices__mount__api_mount_sync_to_coordinatesPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -13085,10 +13015,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_sync_to_coordinates',
       );
-  late final _wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates =
-      _wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinatesPtr
+  late final _wire__crate__api__devices__mount__api_mount_sync_to_coordinates =
+      _wire__crate__api__devices__mount__api_mount_sync_to_coordinatesPtr
           .asFunction<
             void Function(
               int,
@@ -13098,17 +13028,17 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__devices__simulation__mount__api_mount_unpark(
+  void wire__crate__api__devices__mount__api_mount_unpark(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__mount__api_mount_unpark(
+    return _wire__crate__api__devices__mount__api_mount_unpark(
       port_,
       device_id,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__mount__api_mount_unparkPtr =
+  late final _wire__crate__api__devices__mount__api_mount_unparkPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -13117,10 +13047,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_unpark',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_unpark',
       );
-  late final _wire__crate__api__devices__simulation__mount__api_mount_unpark =
-      _wire__crate__api__devices__simulation__mount__api_mount_unparkPtr
+  late final _wire__crate__api__devices__mount__api_mount_unpark =
+      _wire__crate__api__devices__mount__api_mount_unparkPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -13953,17 +13883,17 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__hotplug__api_rescan_devicesPtr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__devices__simulation__rotator__api_rotator_halt(
+  void wire__crate__api__devices__rotator__api_rotator_halt(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
   ) {
-    return _wire__crate__api__devices__simulation__rotator__api_rotator_halt(
+    return _wire__crate__api__devices__rotator__api_rotator_halt(
       port_,
       device_id,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_haltPtr =
+  late final _wire__crate__api__devices__rotator__api_rotator_haltPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -13972,28 +13902,27 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_halt',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_halt',
       );
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_halt =
-      _wire__crate__api__devices__simulation__rotator__api_rotator_haltPtr
+  late final _wire__crate__api__devices__rotator__api_rotator_halt =
+      _wire__crate__api__devices__rotator__api_rotator_haltPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void
-  wire__crate__api__devices__simulation__rotator__api_rotator_move_relative(
+  void wire__crate__api__devices__rotator__api_rotator_move_relative(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double delta,
   ) {
-    return _wire__crate__api__devices__simulation__rotator__api_rotator_move_relative(
+    return _wire__crate__api__devices__rotator__api_rotator_move_relative(
       port_,
       device_id,
       delta,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_move_relativePtr =
+  late final _wire__crate__api__devices__rotator__api_rotator_move_relativePtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -14003,10 +13932,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_move_relative',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_relative',
       );
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_move_relative =
-      _wire__crate__api__devices__simulation__rotator__api_rotator_move_relativePtr
+  late final _wire__crate__api__devices__rotator__api_rotator_move_relative =
+      _wire__crate__api__devices__rotator__api_rotator_move_relativePtr
           .asFunction<
             void Function(
               int,
@@ -14015,19 +13944,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__devices__simulation__rotator__api_rotator_move_to(
+  void wire__crate__api__devices__rotator__api_rotator_move_to(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double angle,
   ) {
-    return _wire__crate__api__devices__simulation__rotator__api_rotator_move_to(
+    return _wire__crate__api__devices__rotator__api_rotator_move_to(
       port_,
       device_id,
       angle,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_move_toPtr =
+  late final _wire__crate__api__devices__rotator__api_rotator_move_toPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -14037,10 +13966,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_move_to',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_to',
       );
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_move_to =
-      _wire__crate__api__devices__simulation__rotator__api_rotator_move_toPtr
+  late final _wire__crate__api__devices__rotator__api_rotator_move_to =
+      _wire__crate__api__devices__rotator__api_rotator_move_toPtr
           .asFunction<
             void Function(
               int,
@@ -14049,19 +13978,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse(
+  void wire__crate__api__devices__rotator__api_rotator_set_reverse(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     bool reverse,
   ) {
-    return _wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse(
+    return _wire__crate__api__devices__rotator__api_rotator_set_reverse(
       port_,
       device_id,
       reverse,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_set_reversePtr =
+  late final _wire__crate__api__devices__rotator__api_rotator_set_reversePtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -14071,27 +14000,27 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_set_reverse',
       );
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse =
-      _wire__crate__api__devices__simulation__rotator__api_rotator_set_reversePtr
+  late final _wire__crate__api__devices__rotator__api_rotator_set_reverse =
+      _wire__crate__api__devices__rotator__api_rotator_set_reversePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, bool)
           >();
 
-  void wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa(
+  void wire__crate__api__devices__rotator__api_rotator_sync_to_pa(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double pa,
   ) {
-    return _wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa(
+    return _wire__crate__api__devices__rotator__api_rotator_sync_to_pa(
       port_,
       device_id,
       pa,
     );
   }
 
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_paPtr =
+  late final _wire__crate__api__devices__rotator__api_rotator_sync_to_paPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -14101,10 +14030,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_sync_to_pa',
       );
-  late final _wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa =
-      _wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_paPtr
+  late final _wire__crate__api__devices__rotator__api_rotator_sync_to_pa =
+      _wire__crate__api__devices__rotator__api_rotator_sync_to_paPtr
           .asFunction<
             void Function(
               int,
@@ -15913,142 +15842,6 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdictPtr
           .asFunction<void Function(int, ffi.Pointer<ffi.Bool>, bool)>();
 
-  void wire__crate__api__devices__camera__api_set_camera_binning(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    int bin_x,
-    int bin_y,
-  ) {
-    return _wire__crate__api__devices__camera__api_set_camera_binning(
-      port_,
-      device_id,
-      bin_x,
-      bin_y,
-    );
-  }
-
-  late final _wire__crate__api__devices__camera__api_set_camera_binningPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Int32,
-            ffi.Int32,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_set_camera_binning',
-      );
-  late final _wire__crate__api__devices__camera__api_set_camera_binning =
-      _wire__crate__api__devices__camera__api_set_camera_binningPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              int,
-            )
-          >();
-
-  void wire__crate__api__devices__simulation__camera__api_set_camera_cooler(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    int enabled,
-    ffi.Pointer<ffi.Double> target_temp,
-  ) {
-    return _wire__crate__api__devices__simulation__camera__api_set_camera_cooler(
-      port_,
-      device_id,
-      enabled,
-      target_temp,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__camera__api_set_camera_coolerPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint8,
-            ffi.Pointer<ffi.Double>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_cooler',
-      );
-  late final _wire__crate__api__devices__simulation__camera__api_set_camera_cooler =
-      _wire__crate__api__devices__simulation__camera__api_set_camera_coolerPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              ffi.Pointer<ffi.Double>,
-            )
-          >();
-
-  void wire__crate__api__devices__simulation__camera__api_set_camera_gain(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    int gain,
-  ) {
-    return _wire__crate__api__devices__simulation__camera__api_set_camera_gain(
-      port_,
-      device_id,
-      gain,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__camera__api_set_camera_gainPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Int32,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_gain',
-      );
-  late final _wire__crate__api__devices__simulation__camera__api_set_camera_gain =
-      _wire__crate__api__devices__simulation__camera__api_set_camera_gainPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
-          >();
-
-  void wire__crate__api__devices__simulation__camera__api_set_camera_offset(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    int offset,
-  ) {
-    return _wire__crate__api__devices__simulation__camera__api_set_camera_offset(
-      port_,
-      device_id,
-      offset,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__camera__api_set_camera_offsetPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Int32,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_offset',
-      );
-  late final _wire__crate__api__devices__simulation__camera__api_set_camera_offset =
-      _wire__crate__api__devices__simulation__camera__api_set_camera_offsetPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
-          >();
-
   void wire__crate__api__imaging__api_set_capture_file_format(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> format,
@@ -16994,87 +16787,6 @@ class RustLibWire implements BaseWire {
             WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_app_settings>)
           >();
 
-  void wire__crate__api__devices__camera__cancel_exposure(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__camera__cancel_exposure(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__devices__camera__cancel_exposurePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__cancel_exposure',
-      );
-  late final _wire__crate__api__devices__camera__cancel_exposure =
-      _wire__crate__api__devices__camera__cancel_exposurePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__devices__filter_wheel__filter_wheel_set_position(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    int position,
-  ) {
-    return _wire__crate__api__devices__filter_wheel__filter_wheel_set_position(
-      port_,
-      device_id,
-      position,
-    );
-  }
-
-  late final _wire__crate__api__devices__filter_wheel__filter_wheel_set_positionPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Int32,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__filter_wheel_set_position',
-      );
-  late final _wire__crate__api__devices__filter_wheel__filter_wheel_set_position =
-      _wire__crate__api__devices__filter_wheel__filter_wheel_set_positionPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
-          >();
-
-  void wire__crate__api__devices__focuser__focuser_halt(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__focuser__focuser_halt(port_, device_id);
-  }
-
-  late final _wire__crate__api__devices__focuser__focuser_haltPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__focuser__focuser_halt',
-      );
-  late final _wire__crate__api__devices__focuser__focuser_halt =
-      _wire__crate__api__devices__focuser__focuser_haltPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
   void wire__crate__api__devices__camera__get_camera_status(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
@@ -17172,33 +16884,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__devices__mount__mount_get_status(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__mount__mount_get_status(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__devices__mount__mount_get_statusPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_status',
-      );
-  late final _wire__crate__api__devices__mount__mount_get_status =
-      _wire__crate__api__devices__mount__mount_get_statusPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
   void wire__crate__api__devices__mount__mount_get_time(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
@@ -17258,66 +16943,6 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               int,
               double,
-            )
-          >();
-
-  void wire__crate__api__devices__mount__mount_park(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__mount__mount_park(port_, device_id);
-  }
-
-  late final _wire__crate__api__devices__mount__mount_parkPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_park');
-  late final _wire__crate__api__devices__mount__mount_park =
-      _wire__crate__api__devices__mount__mount_parkPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__devices__mount__mount_pulse_guide(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> direction,
-    int duration_ms,
-  ) {
-    return _wire__crate__api__devices__mount__mount_pulse_guide(
-      port_,
-      device_id,
-      direction,
-      duration_ms,
-    );
-  }
-
-  late final _wire__crate__api__devices__mount__mount_pulse_guidePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint32,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_pulse_guide',
-      );
-  late final _wire__crate__api__devices__mount__mount_pulse_guide =
-      _wire__crate__api__devices__mount__mount_pulse_guidePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
             )
           >();
 
@@ -17425,36 +17050,6 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__devices__mount__mount_set_tracking(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    int enabled,
-  ) {
-    return _wire__crate__api__devices__mount__mount_set_tracking(
-      port_,
-      device_id,
-      enabled,
-    );
-  }
-
-  late final _wire__crate__api__devices__mount__mount_set_trackingPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint8,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_tracking',
-      );
-  late final _wire__crate__api__devices__mount__mount_set_tracking =
-      _wire__crate__api__devices__mount__mount_set_trackingPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
-          >();
-
   void wire__crate__api__devices__mount__mount_set_tracking_rate(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
@@ -17550,64 +17145,6 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__devices__mount__mount_sync(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    double ra,
-    double dec,
-  ) {
-    return _wire__crate__api__devices__mount__mount_sync(
-      port_,
-      device_id,
-      ra,
-      dec,
-    );
-  }
-
-  late final _wire__crate__api__devices__mount__mount_syncPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Double,
-            ffi.Double,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_sync');
-  late final _wire__crate__api__devices__mount__mount_sync =
-      _wire__crate__api__devices__mount__mount_syncPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              double,
-              double,
-            )
-          >();
-
-  void wire__crate__api__devices__mount__mount_unpark(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__mount__mount_unpark(port_, device_id);
-  }
-
-  late final _wire__crate__api__devices__mount__mount_unparkPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_unpark');
-  late final _wire__crate__api__devices__mount__mount_unpark =
-      _wire__crate__api__devices__mount__mount_unparkPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
   void wire__crate__api__secondary_rig__secondary_rig_status_api_default(
     int port_,
   ) {
@@ -17662,19 +17199,19 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__devices__filter_wheel__set_camera_gain(
+  void wire__crate__api__devices__camera__set_camera_gain(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     int gain,
   ) {
-    return _wire__crate__api__devices__filter_wheel__set_camera_gain(
+    return _wire__crate__api__devices__camera__set_camera_gain(
       port_,
       device_id,
       gain,
     );
   }
 
-  late final _wire__crate__api__devices__filter_wheel__set_camera_gainPtr =
+  late final _wire__crate__api__devices__camera__set_camera_gainPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -17684,27 +17221,27 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__set_camera_gain',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_gain',
       );
-  late final _wire__crate__api__devices__filter_wheel__set_camera_gain =
-      _wire__crate__api__devices__filter_wheel__set_camera_gainPtr
+  late final _wire__crate__api__devices__camera__set_camera_gain =
+      _wire__crate__api__devices__camera__set_camera_gainPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
-  void wire__crate__api__devices__filter_wheel__set_camera_offset(
+  void wire__crate__api__devices__camera__set_camera_offset(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     int offset,
   ) {
-    return _wire__crate__api__devices__filter_wheel__set_camera_offset(
+    return _wire__crate__api__devices__camera__set_camera_offset(
       port_,
       device_id,
       offset,
     );
   }
 
-  late final _wire__crate__api__devices__filter_wheel__set_camera_offsetPtr =
+  late final _wire__crate__api__devices__camera__set_camera_offsetPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -17714,10 +17251,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__set_camera_offset',
+        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_offset',
       );
-  late final _wire__crate__api__devices__filter_wheel__set_camera_offset =
-      _wire__crate__api__devices__filter_wheel__set_camera_offsetPtr
+  late final _wire__crate__api__devices__camera__set_camera_offset =
+      _wire__crate__api__devices__camera__set_camera_offsetPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
@@ -17879,56 +17416,6 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__imaging__star_detection_config_api_default =
       _wire__crate__api__imaging__star_detection_config_api_defaultPtr
           .asFunction<void Function(int)>();
-
-  void wire__crate__api__devices__camera__start_exposure(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    double duration_secs,
-    int gain,
-    int offset,
-    int bin_x,
-    int bin_y,
-  ) {
-    return _wire__crate__api__devices__camera__start_exposure(
-      port_,
-      device_id,
-      duration_secs,
-      gain,
-      offset,
-      bin_x,
-      bin_y,
-    );
-  }
-
-  late final _wire__crate__api__devices__camera__start_exposurePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Double,
-            ffi.Int32,
-            ffi.Int32,
-            ffi.Int32,
-            ffi.Int32,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__camera__start_exposure',
-      );
-  late final _wire__crate__api__devices__camera__start_exposure =
-      _wire__crate__api__devices__camera__start_exposurePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              double,
-              int,
-              int,
-              int,
-              int,
-            )
-          >();
 
   ffi.Pointer<wire_cst_api_acquisition_settings>
   cst_new_box_autoadd_api_acquisition_settings() {

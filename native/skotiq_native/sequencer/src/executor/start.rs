@@ -169,7 +169,6 @@ impl SequenceExecutor {
                     rig: rig.clone(),
                     settings: self.settings.clone(),
                     trigger_manager: self.trigger_manager.clone(),
-                    triggers_enabled: self.triggers_enabled,
                     budget_registry: budget_registry.clone(),
                     smart_exposure_states: smart_exposure_states.clone(),
                     resume: resume.clone(),
@@ -196,7 +195,6 @@ impl SequenceExecutor {
             },
             device_ops,
             triggers: self.trigger_manager.clone(),
-            triggers_enabled: self.triggers_enabled,
             decisions: DecisionLog {
                 tx: self.decision_tx.clone(),
                 run_id: self.active_sequence_run_id.clone(),

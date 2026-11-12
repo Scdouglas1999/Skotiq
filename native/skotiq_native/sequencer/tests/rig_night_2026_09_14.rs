@@ -343,18 +343,24 @@ impl FrameStoreOps for ReplayRig {
     ) -> DeviceResult<()> {
         self.inner.save_fits(d, f, ctx).await
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        Ok(shape(d).map(|s| s.hfr))
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<skotiq_sequencer::LightFrameMeasurement> {
         let stars = skotiq_imaging::detect_stars(
             &imaging(d),
             &skotiq_imaging::StarDetectionConfig::default(),
         );
-        Ok(stars.iter().map(|s| (s.x, s.y, s.hfr)).collect())
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        Ok(shape(d).map(|s| s.eccentricity))
+        let shape = shape(d);
+        Ok(skotiq_sequencer::LightFrameMeasurement {
+            hfr: shape.map(|s| s.hfr),
+            star_count: Some(stars.len() as u32),
+            star_shape: shape.map(|s| skotiq_sequencer::FrameStarShape {
+                eccentricity: s.eccentricity,
+                elongation: None,
+            }),
+            trail: None,
+        })
     }
 }
 

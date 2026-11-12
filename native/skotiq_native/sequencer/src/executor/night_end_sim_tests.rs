@@ -133,6 +133,59 @@ async fn dawn_park_still_runs_the_plans_shutdown_steps() {
     assert!(notified(&calls, "Warm camera: done"), "calls={calls:?}");
 }
 
+/// Nothing a checkpoint says turns the run's triggers off. A checkpoint
+/// written by an older build, or edited by hand, with `"triggers_enabled":
+/// false` resumes a run that still parks at dawn.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_checkpoint_that_says_triggers_are_off_still_parks_at_dawn() {
+    let dir = std::env::temp_dir().join(format!(
+        "skotiq_triggers_off_checkpoint_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(night_plan(node(
+        "home",
+        "Home mount",
+        NodeType::HomeMount,
+    )));
+    checkpoint.executor_state = super::ExecutorState::Running;
+    checkpoint.is_active = true;
+    checkpoint.camera_id = Some("cam-1".to_string());
+    checkpoint.mount_id = Some("mount-1".to_string());
+    let mut file = serde_json::to_value(&checkpoint).unwrap();
+    file["trigger_state"] = serde_json::json!({ "triggers_enabled": false });
+    std::fs::write(
+        dir.join("skotiq_session.checkpoint"),
+        serde_json::to_string(&file).unwrap(),
+    )
+    .unwrap();
+
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.cooler_idle.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_checkpoint_dir(&dir);
+    executor.set_device_ops(ops.clone() as SharedDeviceOps);
+    executor
+        .resume_from_checkpoint()
+        .await
+        .expect("the checkpoint resumes");
+    executor.start().await.expect("executor starts");
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "dawn must park the resumed run; calls={calls:?}"
+    );
+}
+
 /// A stop that arrives while dawn is putting the rig away is a request: the
 /// executor shared behind a lock is free again at once and reads `Stopping`,
 /// the plan's Warm camera is not cut short, and the stop is confirmed when it

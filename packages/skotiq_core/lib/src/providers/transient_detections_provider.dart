@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../database/daos/living_sky_retention_dao.dart';
+import 'database_provider.dart';
 import '../database/daos/transient_detections_dao.dart';
 import '../database/database.dart';
 import '../services/logging_service.dart';
@@ -17,7 +17,6 @@ import '../services/transients/transient_submission_service.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import 'backend_provider.dart';
-import 'database_provider.dart' show imagesDaoProvider;
 import 'remote_snapshot_stream.dart';
 import 'sky_atlas_provider.dart'
     show isAtlasChangingEvent, remoteAtlasRefetchMinInterval;

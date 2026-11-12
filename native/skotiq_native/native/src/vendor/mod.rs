@@ -15,7 +15,6 @@ pub mod sdk_loader;
 // Camera SDKs
 pub mod atik;
 pub mod fli;
-#[cfg(target_os = "windows")]
 pub mod fujifilm;
 pub mod gphoto2;
 pub mod moravian;

@@ -62,6 +62,9 @@ const TRIGGER_STATE_FIELDS: [&str; 45] = [
     "last_applied_filter_offset",
 ];
 
+/// Read and ignored: no checkpoint may turn off dawn or weather parking.
+const IGNORED_FIELD: &str = "triggers_enabled";
+
 fn fixture_trigger_state() -> serde_json::Map<String, serde_json::Value> {
     let fixture: serde_json::Value = serde_json::from_str(FIXTURE).unwrap();
     fixture["trigger_state"].as_object().unwrap().clone()
@@ -148,7 +151,6 @@ fn every_trigger_state_field_of_a_base_checkpoint_is_restored() {
         .expect("the base checkpoint carries trigger state");
 
     assert_eq!(snapshot.safety_fail_mode, SafetyFailMode::WarnOnly);
-    assert!(!snapshot.triggers_enabled);
     assert_eq!(snapshot.filter_focus_offsets.get("Ha"), Some(&42));
     assert_eq!(snapshot.filter_focus_offsets.get("OIII"), Some(&-17));
 
@@ -157,14 +159,19 @@ fn every_trigger_state_field_of_a_base_checkpoint_is_restored() {
     let again = TriggerStateSnapshot::from_state(
         &state,
         snapshot.safety_fail_mode,
-        snapshot.triggers_enabled,
         snapshot.filter_focus_offsets.clone(),
     );
     let again = serde_json::to_value(&again).unwrap();
     let again = again.as_object().unwrap();
 
-    let expected = fixture_trigger_state();
-    for name in TRIGGER_STATE_FIELDS {
+    let mut expected = fixture_trigger_state();
+    // The fixture turns triggers off; that is read and dropped (see
+    // `TriggerStateSnapshot`), so it does not survive the restore.
+    expected.remove(IGNORED_FIELD);
+    for name in TRIGGER_STATE_FIELDS
+        .into_iter()
+        .filter(|name| *name != IGNORED_FIELD)
+    {
         assert_eq!(
             again.get(name),
             expected.get(name),
