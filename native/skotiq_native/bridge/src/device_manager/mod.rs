@@ -5,6 +5,7 @@
 //! device type). The per-protocol connect and health-check helpers live in
 //! `crate::dispatch`.
 
+pub(crate) mod accessory;
 pub(crate) mod connection;
 pub(crate) mod epoch;
 pub(crate) mod handle;

@@ -7,6 +7,7 @@
 
 use super::{Exclusive, RigDriver};
 use crate::api::devices::simulation::get_sim_focuser;
+use crate::device_capabilities::FocuserCapabilities;
 use crate::device_manager::ops::{sim_faults, sim_gate};
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
@@ -37,6 +38,10 @@ pub(crate) trait Focuser: RigDriver {
 
     /// The largest position and the size of one step in microns.
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError>;
+
+    /// What the focuser supports, with its position, motion and temperature
+    /// now. A property the driver does not answer is reported absent.
+    async fn capabilities(&self, device_id: &str) -> Result<FocuserCapabilities, SkotiqError>;
 }
 
 fn move_failed(protocol: &str, device: &str, position: i32, error: SkotiqError) -> String {
@@ -49,7 +54,7 @@ fn move_failed(protocol: &str, device: &str, position: i32, error: SkotiqError) 
 /// A vendor SDK focuser.
 pub(crate) struct VendorFocuser {
     device_id: String,
-    pub(crate) driver: Exclusive<Box<dyn FocuserDriver + Send + Sync>>,
+    driver: Exclusive<Box<dyn FocuserDriver + Send + Sync>>,
 }
 
 impl VendorFocuser {
@@ -167,6 +172,28 @@ impl Focuser for VendorFocuser {
         let focuser = self.driver.read().await;
         Ok((focuser.get_max_position(), focuser.get_step_size()))
     }
+
+    /// A busy SDK reads as a focuser at rest; the status poll corrects it
+    /// within one tick.
+    async fn capabilities(&self, _device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
+        let position = self.driver.read().await.get_position().await.ok();
+        let temperature = self.driver.read().await.get_temperature().await.ok().flatten();
+        let is_moving = self.driver.read().await.is_moving().await.unwrap_or(false);
+        let (max_position, step_size) = {
+            let focuser = self.driver.read().await;
+            (focuser.get_max_position(), focuser.get_step_size())
+        };
+        Ok(FocuserCapabilities {
+            max_position,
+            step_size: Some(step_size),
+            absolute: true,
+            position,
+            temperature,
+            is_moving,
+            can_halt: true,
+            ..Default::default()
+        })
+    }
 }
 
 /// An ASCOM focuser. Every call is a command on the wrapper's channel, run by
@@ -174,7 +201,7 @@ impl Focuser for VendorFocuser {
 #[cfg(windows)]
 pub(crate) struct AscomFocuser {
     device_id: String,
-    pub(crate) driver: Exclusive<crate::ascom_wrapper::focuser::AscomFocuserWrapper>,
+    driver: Exclusive<crate::ascom_wrapper::focuser::AscomFocuserWrapper>,
 }
 
 #[cfg(windows)]
@@ -287,6 +314,19 @@ impl Focuser for AscomFocuser {
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError> {
         let focuser = self.driver.read().await;
         Ok((focuser.get_max_position(), focuser.get_step_size()))
+    }
+
+    async fn capabilities(&self, device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
+        let readings = self
+            .driver
+            .read()
+            .await
+            .capability_readings()
+            .await
+            .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?;
+        Ok(crate::device_capabilities::focuser_capabilities_from_ascom(
+            readings,
+        ))
     }
 }
 
@@ -415,6 +455,26 @@ impl Focuser for AlpacaFocuserHandle {
             }
         };
         Ok((max_step, step_size))
+    }
+
+    /// The ASCOM `unwrap_or` defaults: an unanswered optional property means
+    /// the feature is absent. IFocuserV3 has no CanHalt; Halt is a required
+    /// method, so halt is always offered.
+    async fn capabilities(&self, _device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
+        let focuser = &self.focuser;
+        Ok(FocuserCapabilities {
+            max_position: focuser.max_step().await.unwrap_or(0),
+            max_increment: focuser.max_increment().await.unwrap_or(0),
+            step_size: focuser.step_size().await.ok(),
+            absolute: focuser.absolute().await.unwrap_or(false),
+            temp_comp_available: focuser.temp_comp_available().await.unwrap_or(false),
+            temp_comp: focuser.temp_comp().await.unwrap_or(false),
+            temperature: focuser.temperature().await.ok(),
+            is_moving: focuser.is_moving().await.unwrap_or(false),
+            position: focuser.position().await.ok(),
+            can_halt: true,
+            ..Default::default()
+        })
     }
 }
 
@@ -578,6 +638,30 @@ impl Focuser for IndiFocuserHandle {
         };
         Ok((max_position, step_size))
     }
+
+    async fn capabilities(&self, _device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
+        let properties = self
+            .client
+            .read()
+            .await
+            .get_properties(self.device_name())
+            .await;
+        let has = |name: &str| properties.iter().any(|p| p.name == name);
+        let max_position = self.focuser.get_max_step().await.unwrap_or(0);
+        Ok(FocuserCapabilities {
+            max_position,
+            max_increment: max_position,
+            step_size: self.focuser.get_step_size().await,
+            absolute: has("ABS_FOCUS_POSITION"),
+            temp_comp_available: has("FOCUS_TEMPERATURE_COMP") || has("FOCUS_TEMP_COMP"),
+            temp_comp: self.focuser.is_temp_comp_enabled().await.unwrap_or(false),
+            temperature: self.focuser.get_temperature().await.ok(),
+            is_moving: self.focuser.is_moving().await,
+            position: self.focuser.get_position().await.ok(),
+            can_halt: has("FOCUS_ABORT_MOTION"),
+            ..Default::default()
+        })
+    }
 }
 
 /// The simulated focuser singleton.
@@ -675,5 +759,22 @@ impl Focuser for SimFocuser {
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError> {
         let sim = sim_gate::read_focuser_status().await?;
         Ok((sim.max_position, sim.step_size))
+    }
+
+    /// The travel and step the simulated focuser moves within; the position,
+    /// motion and temperature are left to the live readings, as the
+    /// capability cache refreshes them.
+    async fn capabilities(&self, _device_id: &str) -> Result<FocuserCapabilities, SkotiqError> {
+        let sim = get_sim_focuser().read().await.status.clone();
+        Ok(FocuserCapabilities {
+            max_position: sim.max_position,
+            max_increment: 50000,
+            step_size: Some(sim.step_size),
+            absolute: sim.is_absolute,
+            temp_comp_available: true,
+            can_halt: true,
+            can_reverse: true,
+            ..Default::default()
+        })
     }
 }

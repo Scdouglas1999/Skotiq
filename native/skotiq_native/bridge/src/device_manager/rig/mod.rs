@@ -33,12 +33,11 @@ pub(crate) mod focuser;
 
 use async_trait::async_trait;
 use skotiq_device::DriverError;
-use std::any::Any;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// What every rig device answers besides its own operations.
 #[async_trait]
-pub(crate) trait RigDriver: Any + Send + Sync {
+pub(crate) trait RigDriver: Send + Sync {
     async fn disconnect(&self) -> Result<(), DriverError>;
 
     /// One cheap call that tells whether the device still answers.

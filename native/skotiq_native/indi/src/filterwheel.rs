@@ -26,6 +26,11 @@ impl IndiFilterWheel {
         &self.device_name
     }
 
+    /// The shared server connection this device is reached through.
+    pub fn client(&self) -> &Arc<RwLock<IndiClient>> {
+        &self.client
+    }
+
     pub async fn connect(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client.connect_device(&self.device_name).await
