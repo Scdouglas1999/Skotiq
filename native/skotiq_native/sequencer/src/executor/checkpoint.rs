@@ -35,7 +35,7 @@
 //!     that lives in [`crate::checkpoint`]. This file is only the
 //!     executor-side bridge.
 
-use super::{CheckpointSources, CheckpointWriter, RunRig, SequenceExecutor};
+use super::{CheckpointSources, CheckpointWriter, ExecutorState, RunRig, SequenceExecutor};
 use std::sync::Arc;
 
 impl SequenceExecutor {
@@ -210,6 +210,18 @@ impl SequenceExecutor {
             return Err("Checkpoint cannot be resumed".to_string());
         }
 
+        // A run that ended in this launch leaves the executor in its terminal
+        // state, and a start recycles such an executor, node tree included.
+        // Recycled here instead, before the tree is marked, the start that
+        // follows finds nothing to wipe: stopping, restoring and starting
+        // again without a restart used to run the whole plan a second time.
+        if matches!(
+            self.run_state.get(),
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            self.reset().await;
+        }
+
         self.load_sequence(checkpoint.sequence.clone())?;
         self.current_checkpoint = Some(checkpoint.clone());
         self.resume_prepared = true;
@@ -225,8 +237,9 @@ impl SequenceExecutor {
         // short-circuits already-Success nodes.
         if let Some(ref mut root) = self.root_node {
             let imaging = crate::node::resume::imaging_steps(root.as_ref());
+            let kept = crate::node::resume::kept_on_resume(root.as_ref());
             for node_id in checkpoint.get_completed_nodes() {
-                if imaging.contains(&node_id) {
+                if kept.contains(&node_id) {
                     root.mark_completed(&node_id);
                 }
             }
