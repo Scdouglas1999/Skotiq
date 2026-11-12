@@ -4,10 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'equipment_provider.dart';
 import 'profiles_provider.dart';
-// sequence_provider.dart re-exports sequence/sequence_validation.dart, so the
-// unified ValidationResult / ValidationIssue types are reachable through that
-// single import. Don't add a direct import of sequence_validation.dart — the
-// analyzer flags it as `unnecessary_import` and we want one canonical path.
 import 'sequence_provider.dart';
 import '../models/sequence/validation/structural_rules.dart';
 import '../models/sequence/validation/validation_issue.dart';

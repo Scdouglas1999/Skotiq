@@ -10,8 +10,6 @@ import '../models/sequence/validation/structural_rules.dart';
 import '../models/sequence/validation/validation_issue.dart';
 import '../providers/sequence_provider.dart' show currentSequenceProvider;
 import '../providers/settings_provider.dart';
-// Prefixed: settings_provider.dart also exports a legacy `HorizonProfile`;
-// the in-sequence TargetSchedulerNode uses the scheduler samples-based one.
 import '../database/quality_stop_migration.dart';
 
 part 'sequence_file_service/sequence_document_codec.dart';
