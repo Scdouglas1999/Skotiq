@@ -259,12 +259,7 @@ impl DeviceDriver for ZwoFocuser {
         self.max_position = info.max_step;
         self.name = safe_cstr_to_string(info.name.as_ptr(), 64);
 
-        // Resolve step size via the quirks DB using the SDK-reported model as the
-        // matchable token. The model lives only in `name`, never in `device_id`,
-        // so a synthesized lookup id is required for ModelContains matchers
-        // ("EAF-S", "EAF-2", "EAF") to differentiate the gear-ratio variants.
-        let lookup_id = format!("native:zwo:{}", self.name);
-        self.step_size_um = crate::quirks::get_focuser_step_size_um(&lookup_id);
+        self.step_size_um = crate::quirks::get_focuser_step_size_um(&Vendor::Zwo, &self.name);
         if self.step_size_um.is_none() {
             tracing::warn!(
                 "ZWO EAF model '{}' has no step-size quirk entry; get_step_size will return an error",

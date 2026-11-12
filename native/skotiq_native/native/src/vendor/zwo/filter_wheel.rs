@@ -215,7 +215,11 @@ impl ZwoFilterWheel {
             return Ok(position);
         }
 
-        match crate::quirks::get_position_delay_after_move_ms(&self.device_id) {
+        match crate::quirks::get_position_delay_after_move_ms(
+            &Vendor::Zwo,
+            DeviceKind::FilterWheel,
+            &self.name,
+        ) {
             Some(delay_ms) if delay_ms > 0 => {
                 tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
             }

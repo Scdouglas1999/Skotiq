@@ -380,8 +380,9 @@ impl CameraDriver for AtikCamera {
         };
 
         if let Some(target) = setpoint_c {
-            let quirk_lookup_id = format!("native:atik:{}", self.core.name);
-            if let Some((min_temp, max_temp)) = crate::quirks::get_cooler_range(&quirk_lookup_id) {
+            if let Some((min_temp, max_temp)) =
+                crate::quirks::get_cooler_range(&Vendor::Atik, &self.core.name)
+            {
                 if target < min_temp || target > max_temp {
                     return Err(DriverError::InvalidParameter(format!(
                         "Atik cooler target {target}C is outside the supported range {min_temp}C..={max_temp}C for {}",

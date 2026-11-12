@@ -488,7 +488,11 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
-        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&self.core.device_id) {
+        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(
+            &Vendor::PlayerOne,
+            DeviceKind::Camera,
+            &self.core.name,
+        ) {
             tracing::debug!(
                 "Applying temperature RequiresDelayMs quirk: sleeping {}ms before reading {}",
                 delay_ms,
