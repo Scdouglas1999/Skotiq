@@ -76,11 +76,11 @@ pub(crate) async fn get_alpaca_capabilities(
                 // boolean Tracking property and is not a rate capability.
                 can_set_tracking_rate,
                 supported_tracking_rates,
-                // Why: ASCOM EquatorialSystem enum (0=Other, 1=Topocentric…). Treating an
-                // unreadable value as "0 → not equatorial" is conservative: AltAz-only
-                // mounts return 0 explicitly, so the downstream UI shouldn't enable
-                // RA/Dec controls if the property is missing.
-                is_equatorial: telescope.equatorial_system().await.unwrap_or(0) > 0,
+                // An unreadable AlignmentMode is not classified as equatorial.
+                is_equatorial: telescope
+                    .alignment_mode()
+                    .await
+                    .is_ok_and(|mode| skotiq_alpaca::AlignmentMode::from(mode).is_equatorial()),
                 can_find_home: telescope.can_find_home().await.unwrap_or(false), // Why: ASCOM ITelescopeV3.CanFindHome (optional)
                 tracking: telescope.tracking().await.ok(),
                 can_abort_slew: true, // Most mounts support abort

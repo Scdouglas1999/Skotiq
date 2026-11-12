@@ -39,17 +39,6 @@ pub struct AscomMountCapabilities {
     pub is_equatorial: bool,
 }
 
-/// Worker reply for a `FindHome` the driver says it cannot perform
-/// (`CanFindHome` false). [`AscomMountWrapper::find_home`] turns it into
-/// [`DriverError::NotSupported`] so the refusal reaches the caller as
-/// "unsupported" rather than as a driver fault.
-const FIND_HOME_UNSUPPORTED: &str = "Mount does not support FindHome";
-
-/// Worker reply for a `SetPark` the driver says it cannot perform
-/// (`CanSetPark` false); [`AscomMountWrapper::set_park`] turns it into
-/// [`DriverError::NotSupported`].
-const SET_PARK_UNSUPPORTED: &str = "Mount does not support SetPark";
-
 /// Command sent to the ASCOM worker thread
 enum AscomMountCommand {
     Connect(oneshot::Sender<Result<(), DriverError>>),
@@ -238,9 +227,7 @@ impl AscomMountWrapper {
                                     );
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(DriverError::SdkError(
-                                        "Mount does not support Sync".to_string(),
-                                    )));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(DriverError::SdkError(format!(
@@ -261,9 +248,7 @@ impl AscomMountWrapper {
                                     let _ = reply.send(m.park().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(DriverError::SdkError(
-                                        "Mount does not support Park".to_string(),
-                                    )));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(DriverError::SdkError(format!(
@@ -355,7 +340,9 @@ impl AscomMountWrapper {
                                 can_move_axis_secondary: ascom_caps
                                     .can_move_axis_secondary
                                     .unwrap_or(false),
-                                is_equatorial: m.alignment_mode().map(|m| m > 0).unwrap_or(false),
+                                is_equatorial: m.alignment_mode().is_ok_and(|mode| {
+                                    skotiq_device::ascom::AlignmentMode::from(mode).is_equatorial()
+                                }),
                             };
                             let _ = reply.send(Ok(caps));
                         } else {
@@ -568,9 +555,7 @@ impl AscomMountWrapper {
                                     let _ = reply.send(m.find_home().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(DriverError::SdkError(
-                                        FIND_HOME_UNSUPPORTED.to_string(),
-                                    )));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(DriverError::SdkError(format!(
@@ -599,9 +584,7 @@ impl AscomMountWrapper {
                                     let _ = reply.send(m.set_park().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(DriverError::SdkError(
-                                        SET_PARK_UNSUPPORTED.to_string(),
-                                    )));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(DriverError::SdkError(format!(
@@ -719,12 +702,7 @@ impl AscomMountWrapper {
     pub async fn find_home(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::FindHome(tx)).await?;
-        match super::recv_with_timeout("Mount", rx, Timeouts::find_home(), "find_home").await {
-            Err(DriverError::SdkError(message)) if message == FIND_HOME_UNSUPPORTED => {
-                Err(DriverError::NotSupported)
-            }
-            other => other,
-        }
+        super::recv_with_timeout("Mount", rx, Timeouts::find_home(), "find_home").await
     }
 
     /// Store the current position as the park position through the COM
@@ -733,12 +711,7 @@ impl AscomMountWrapper {
     pub async fn set_park(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetPark(tx)).await?;
-        match super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_park").await {
-            Err(DriverError::SdkError(message)) if message == SET_PARK_UNSUPPORTED => {
-                Err(DriverError::NotSupported)
-            }
-            other => other,
-        }
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_park").await
     }
 
     /// `AtHome`: whether the mount is stopped at its home position. ASCOM sets
@@ -1211,9 +1184,7 @@ mod tests {
     async fn find_home_on_a_driver_without_home_is_not_supported() {
         let wrapper = build_test_wrapper(|cmd| {
             if let AscomMountCommand::FindHome(reply) = cmd {
-                let _ = reply.send(Err(DriverError::SdkError(
-                    FIND_HOME_UNSUPPORTED.to_string(),
-                )));
+                let _ = reply.send(Err(DriverError::NotSupported));
             }
             false
         });
@@ -1228,7 +1199,7 @@ mod tests {
     async fn set_park_on_a_driver_without_set_park_is_not_supported() {
         let wrapper = build_test_wrapper(|cmd| {
             if let AscomMountCommand::SetPark(reply) = cmd {
-                let _ = reply.send(Err(DriverError::SdkError(SET_PARK_UNSUPPORTED.to_string())));
+                let _ = reply.send(Err(DriverError::NotSupported));
             }
             false
         });
