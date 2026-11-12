@@ -45,6 +45,118 @@ void main() {
   });
 
   group('applyRemoteSyncEvent', () {
+    // A linked client's Disconnect all let go of the guide camera first; the
+    // host's notice of that emptied the client's camera slot, so the client
+    // never asked for the imaging camera and the host kept it connected.
+    test('the host letting go of the guide camera leaves the imaging camera '
+        'in its slot', () async {
+      final backend = _connectedBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+          activeEquipmentProfileProvider.overrideWithValue(
+            const EquipmentProfileModel(
+              id: 1,
+              name: 'Sim Rig',
+              cameraId: 'sim_camera_1',
+              guideCameraId: 'sim_camera_2',
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(cameraStateProvider.notifier)
+        ..setConnecting('sim_camera_1', 'Simulated Camera')
+        ..setConnected();
+
+      SkotiqEvent hostSays(String action, String deviceId) => SkotiqEvent(
+        timestamp: 1,
+        severity: EventSeverity.info,
+        category: EventCategory.system,
+        eventType: hostStateChangedEventType,
+        data: {
+          'entityType': HostMutationEntity.equipment,
+          'action': action,
+          'entityId': deviceId,
+          'deviceType': 'camera',
+          'deviceId': deviceId,
+        },
+      );
+
+      await applyRemoteSyncEvent(
+        container,
+        hostSays(HostMutationAction.disconnected, 'sim_camera_2'),
+      );
+      expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
+      expect(
+        container.read(cameraStateProvider).connectionState,
+        DeviceConnectionState.connected,
+      );
+
+      // Another camera's disconnect, guide camera or not, is not this one's.
+      await applyRemoteSyncEvent(
+        container,
+        hostSays(HostMutationAction.disconnected, 'sim_camera_9'),
+      );
+      expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
+
+      await applyRemoteSyncEvent(
+        container,
+        hostSays(HostMutationAction.connected, 'sim_camera_2'),
+      );
+      expect(container.read(cameraStateProvider).deviceId, 'sim_camera_1');
+
+      await applyRemoteSyncEvent(
+        container,
+        hostSays(HostMutationAction.disconnected, 'sim_camera_1'),
+      );
+      expect(
+        container.read(cameraStateProvider).connectionState,
+        DeviceConnectionState.disconnected,
+      );
+    });
+
+    test('a slot showing a failed connect keeps showing it through the '
+        'host\'s Disconnected', () async {
+      final backend = _connectedBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(focuserStateProvider.notifier)
+        ..setConnecting('sim_focuser_1', 'Simulated Focuser')
+        ..connectFailed(StateError('unplugged'));
+
+      await applyRemoteSyncEvent(
+        container,
+        const SkotiqEvent(
+          timestamp: 1,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'Disconnected',
+          data: {'device_type': 'focuser', 'device_id': 'sim_focuser_1'},
+        ),
+      );
+
+      final slot = container.read(focuserStateProvider);
+      expect(slot.connectionState, DeviceConnectionState.error);
+      expect(slot.retryDeviceId, 'sim_focuser_1');
+    });
+
     test('equipment Connected updates mount chip without hydration', () async {
       final backend = _connectedBackend();
       when(

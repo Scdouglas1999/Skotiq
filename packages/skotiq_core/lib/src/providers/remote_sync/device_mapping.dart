@@ -12,8 +12,24 @@ void _applyDisconnectedDevice(Object reader, Map<String, dynamic> data) {
   }
   final deviceId = data['device_id'] as String?;
   if (_isHostGuideCamera(reader, parsed, deviceId)) return;
+  _emptySlotFor(reader, parsed, deviceId);
+}
 
-  readDeviceConnectionNotifier(reader, parsed).setDisconnected();
+/// Empty [type]'s slot because the host let go of [deviceId].
+///
+/// Only when the slot holds that device. Emptying it for another device's
+/// disconnect leaves this client showing nothing where the host still holds
+/// a device (its own Disconnect all then skips it), and a slot that holds
+/// no device but shows why a connect failed keeps saying so.
+void _emptySlotFor(Object reader, DeviceType type, String? deviceId) {
+  final notifier = readDeviceConnectionNotifier(reader, type);
+  final held = notifier.deviceId;
+  if (held == null || held.isEmpty) {
+    if (notifier.connectionState == DeviceConnectionState.error) return;
+  } else if (deviceId != null && deviceId.isNotEmpty && held != deviceId) {
+    return;
+  }
+  notifier.setDisconnected();
 }
 
 void _applyConnectingDevice(
