@@ -1,5 +1,6 @@
 // An idle companion polls the imaging host only as often as its screens need:
-// guiding events coalesce into one PHD2 status read, the mount position and
+// guiding events cost it no status read (the host reads its guider once per
+// burst and sends the result), the mount position and
 // device health are probed at a companion's slower pace, and the narrator feed
 // ignores per-tick telemetry.
 
@@ -14,6 +15,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 import '../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
+
+class _MockHostBackend extends Mock implements FfiBackend {}
 
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -85,23 +88,50 @@ void main() {
     ],
   );
 
-  test('a burst of guiding events costs one or two PHD2 status reads', () {
+  test('a burst of guiding events costs the host one or two guider status '
+      'reads, and a companion none', () {
     fakeAsync((async) {
-      final container = containerFor();
-      for (var i = 0; i < 20; i++) {
-        unawaited(
-          applyRemoteSyncEvent(
-            container,
-            _event(EventCategory.guiding, 'AppState'),
-            networkBackend: backend,
+      final host = _MockHostBackend();
+      final hostEvents = StreamController<SkotiqEvent>.broadcast();
+      when(() => host.eventStream).thenAnswer((_) => hostEvents.stream);
+      when(
+        () => host.guiderGetStatus(deviceId: any(named: 'deviceId')),
+      ).thenAnswer((_) async {
+        statusReads++;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        return kPhd2DisconnectedStatus;
+      });
+      final hostContainer = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, host),
           ),
+        ],
+      );
+      hostContainer.read(guiderStateProvider.notifier)
+        ..setConnecting(kPhd2CanonicalId, kPhd2DisplayName)
+        ..setConnected();
+      hostContainer.listen(hostGuiderStatusProvider, (_, _) {});
+      async.elapse(const Duration(seconds: 10));
+      statusReads = 0;
+
+      final companion = containerFor();
+      for (var i = 0; i < 20; i++) {
+        final event = _event(EventCategory.guiding, 'AppState');
+        hostEvents.add(event);
+        unawaited(
+          applyRemoteSyncEvent(companion, event, networkBackend: backend),
         );
         async.elapse(const Duration(milliseconds: 20));
       }
       async.elapse(const Duration(seconds: 10));
       // One read in flight absorbs the burst; at most one follow-up.
       expect(statusReads, inInclusiveRange(1, 2));
-      container.dispose();
+      verifyNever(() => backend.phd2GetStatus());
+      hostContainer.dispose();
+      companion.dispose();
+      unawaited(hostEvents.close());
     });
   });
 

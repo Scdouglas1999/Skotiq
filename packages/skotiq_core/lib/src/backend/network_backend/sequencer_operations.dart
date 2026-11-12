@@ -523,33 +523,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     }
   }
 
-  /// G2 (remote-only): fetch the master's currently-open editor sequence so a
-  /// slave connecting mid-session can seed its sequencer canvas immediately
-  /// instead of waiting for the master's next edit-triggered mirror frame.
-  ///
-  /// Returns the same payload shape the live editor mirror broadcasts over the
-  /// WS `/events` stream (`{sequence, databaseId?, isDirty}`), suitable for
-  /// feeding straight into `_applySequenceEditorMirror`. Returns `null` when no
-  /// sequence is open host-side (`{open: false}`) or the endpoint is missing on
-  /// an older headless host. Not part of the abstract backend — only a
-  /// NetworkBackend slave ever calls this.
-  Future<Map<String, dynamic>?> getOpenEditorSequence() async {
-    final response = await _get('sequencer/editor-sequence');
-    if (response['open'] != true) return null;
-    final sequence = response['sequence'];
-    if (sequence is! Map) return null;
-    return <String, dynamic>{
-      'sequence': Map<String, dynamic>.from(sequence),
-      if (response['databaseId'] is int) 'databaseId': response['databaseId'],
-      'isDirty': response['isDirty'] == true,
-      // Carry the active-plan owner through to _applySequenceEditorMirror so a
-      // mid-session slave learns who owns the host's plan on connect. Absent on
-      // an older host -> parsed back to manual by ActivePlanOwnerWire.fromWire.
-      if (response['activePlanOwner'] != null)
-        'activePlanOwner': response['activePlanOwner'],
-    };
-  }
-
   /// Remote-only: put this client's open plan into the host's sequence
   /// editor, so the host runs and mirrors the plan the operator sees here.
   ///

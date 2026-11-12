@@ -72,16 +72,33 @@ final openPlanLifecycleProvider = Provider<void>((ref) {
   });
 });
 
+/// The document of an open plan: what `/api/sequencer/editor-sequence`, the
+/// open-plan channel and the kept plan all carry. [owner] is left out of the
+/// kept plan, which is always the operator's.
+Map<String, dynamic> openPlanDocument(
+  SequenceFileService files,
+  Sequence sequence, {
+  required bool unsaved,
+  ActivePlanOwner? owner,
+}) => {
+  'sequence': files.sequenceToMap(sequence),
+  if (sequence.databaseId != null) 'databaseId': sequence.databaseId,
+  'isDirty': unsaved,
+  if (owner != null) 'activePlanOwner': owner.wireValue,
+};
+
 /// The plan open in the editor as the document to keep, or null when no plan
-/// is open. The same shape `/api/sequencer/editor-sequence` carries.
+/// is open.
 String? openPlanJson(T Function<T>(ProviderListenable<T>) read) {
   final sequence = read(currentSequenceProvider);
   if (sequence == null) return null;
-  return jsonEncode({
-    'sequence': read(sequenceFileServiceProvider).sequenceToMap(sequence),
-    if (sequence.databaseId != null) 'databaseId': sequence.databaseId,
-    'isDirty': read(currentSequenceProvider.notifier).isDirty,
-  });
+  return jsonEncode(
+    openPlanDocument(
+      read(sequenceFileServiceProvider),
+      sequence,
+      unsaved: read(currentSequenceProvider.notifier).isDirty,
+    ),
+  );
 }
 
 /// A plan [restoreOpenPlan] put back in the editor.

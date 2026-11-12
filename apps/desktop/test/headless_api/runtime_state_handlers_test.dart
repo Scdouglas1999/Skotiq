@@ -10,6 +10,8 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/runtime_state_handlers.dart';
 import 'package:skotiq_desktop/headless_api/validation.dart';
 
+import 'handler_test_helpers.dart';
+
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
 class _FixedBackendNotifier extends BackendNotifier {
@@ -36,7 +38,7 @@ void main() {
     when(
       () => backend.eventStream,
     ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
-    container = ProviderContainer(
+    container = createHeadlessTestContainer(
       overrides: [
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, backend),

@@ -51,6 +51,14 @@ abstract class RuntimeMirrorChannel<T> {
   /// Whether a linked client sends the values it computes itself to the host.
   bool get clientReports => false;
 
+  /// Whether the periodic re-read of the host's values applies this channel
+  /// again when the host's value has not changed. A channel sets it when
+  /// something on the client can move the provider away from the host's value
+  /// (a button that showed its result before the host refused the command),
+  /// or when the re-read itself is news (the host still holds the device).
+  /// Its [apply] must leave a provider that already matches untouched.
+  bool get reappliesOnReread => false;
+
   T readSource(Object reader) => readProvider(reader, source);
 
   Map<String, dynamic>? encodeCurrent(Object reader) =>
