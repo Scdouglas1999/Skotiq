@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
-import '../database/daos/sky_atlas_dao.dart';
+import 'database_provider.dart';
 import '../database/database.dart';
 import '../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
 import '../models/backend/host_mutation_event.dart';
@@ -18,7 +18,6 @@ import '../services/sky_atlas/sky_atlas_service.dart';
 import '../services/sky_atlas/sky_atlas_seam.dart';
 import '../settings/store_settings.dart';
 import 'backend_provider.dart';
-import 'database_provider.dart';
 import 'host_mutation_event_provider.dart';
 import 'remote_snapshot_stream.dart';
 import 'science_provider.dart' show scienceSettingsProvider;

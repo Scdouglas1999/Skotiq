@@ -1,8 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/imaging/stack_and_share_models.dart';
-import '../../providers/database_provider.dart';
 import '../../services/live_stacking_service.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
@@ -142,13 +140,3 @@ class StackedResultsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 }
-
-/// Riverpod provider for [StackedResultsDao].
-///
-/// Lives alongside the DAO (rather than in the central `database_provider.dart`)
-/// to keep the Stack-and-Share Loop's persistence layer self-contained. Reads
-/// the shared [databaseProvider] so it participates in the same lifecycle and
-/// test overrides as every other DAO.
-final stackedResultsDaoProvider = Provider<StackedResultsDao>((ref) {
-  return StackedResultsDao(ref.watch(databaseProvider));
-});
