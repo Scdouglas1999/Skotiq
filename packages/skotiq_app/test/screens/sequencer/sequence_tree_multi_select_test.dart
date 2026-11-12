@@ -56,8 +56,6 @@ Future<HarnessHandle> _pumpTree(WidgetTester tester, Sequence sequence) async {
     size: const Size(1200, 900),
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The ledger ETA clock is a real periodic stream; in the fake-async
       // zone its timer outlives every pump and fails teardown.
       ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),

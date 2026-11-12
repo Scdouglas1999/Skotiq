@@ -118,8 +118,8 @@ void main() {
           backendProvider.overrideWith(
             (ref) => _SwappableBackendNotifier(ref, backend),
           ),
-          sequenceExecutionStateProvider.overrideWith(
-            (ref) => SequenceExecutionState.running,
+          runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.running)),
           ),
         ],
         child: MaterialApp(

@@ -51,7 +51,9 @@ List<Override> _overrides(
   notifier.state = _seedSequence();
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
-    sequenceExecutionStateProvider.overrideWith((ref) => state),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
+    ),
     liveValidationProvider.overrideWith((ref) => _FixedLiveValidation(issues)),
     // The ledger ETA clock is a real periodic stream; in the fake-async
     // zone its timer outlives every pump and fails teardown.

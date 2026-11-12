@@ -34,7 +34,9 @@ Future<ProviderContainer> _pump(
   double width = 1316,
 }) async {
   final container = ProviderContainer(
-    overrides: [liveSequenceStatsProvider.overrideWith((ref) => stats)],
+    overrides: [runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(stats: stats)),
+)],
   );
   addTearDown(container.dispose);
   tester.view.physicalSize = Size(width, 600);

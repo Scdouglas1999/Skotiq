@@ -26,8 +26,6 @@ void main() {
       size: const Size(390, 844),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
       ],
       settle: false,
     );
@@ -58,8 +56,6 @@ void main() {
       size: const Size(1400, 900),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
       ],
       settle: false,
     );

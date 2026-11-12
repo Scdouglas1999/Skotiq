@@ -94,7 +94,9 @@ class _RecordingExecutor extends SequenceExecutor {
       executor = _RecordingExecutor(ref);
       return executor;
     }),
-    sequenceExecutionStateProvider.overrideWith((ref) => state),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
+    ),
   ]);
   // Force the executor override to build so `executor` is captured before any
   // command runs.

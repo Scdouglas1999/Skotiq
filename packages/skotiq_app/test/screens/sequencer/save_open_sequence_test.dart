@@ -57,8 +57,6 @@ void main() {
       extraOverrides: [
         currentSequenceProvider
             .overrideWith((ref) => CurrentSequenceNotifier(ref: ref)),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
         sequenceRepositoryProvider.overrideWithValue(repository),
         ledgerClockProvider
             .overrideWith((ref) => const Stream<DateTime>.empty()),

@@ -235,7 +235,9 @@ void main() {
       extra: [
         allDbImagesProvider.overrideWith((ref) => Stream.value(rows)),
         // The start as a client that missed it records it: when it joined.
-        runStartedAtProvider.overrideWith((ref) => now),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(ref, RunRecord(startedAt: now)),
+        ),
       ],
     );
     addTearDown(client.dispose);

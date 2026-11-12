@@ -47,8 +47,6 @@ List<Override> _overrides() {
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
     // Idle = editable; the builder shows its add/edit affordances.
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
   ];
 }
 
@@ -131,8 +129,6 @@ void main() {
       size: const Size(844, 390),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
       ],
       settle: false,
     );

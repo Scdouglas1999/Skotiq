@@ -31,8 +31,6 @@ List<Override> _overrides() {
   );
   return [
     currentSequenceProvider.overrideWith((_) => notifier),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
   ];
 }
 

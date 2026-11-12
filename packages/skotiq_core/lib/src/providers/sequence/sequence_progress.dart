@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/remote_host.dart';
 import '../../models/backend/event_types.dart';
-import '../../models/backend/sequencer_status.dart' show CheckpointInfo;
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
 import '../equipment/camera_state_provider.dart';
@@ -14,8 +13,8 @@ import 'run_stop_classification.dart';
 import 'sequencer_run_event.dart';
 
 /// Where the run stands.
-final sequenceExecutionStateProvider = Provider<SequenceExecutionState>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.lifecycle)),
+final sequenceExecutionStateProvider = runRecordProvider.select(
+  (run) => run.lifecycle,
 );
 
 /// Whether the executor is driving simulated device ops.
@@ -39,29 +38,28 @@ final executorSimulationModeProvider = FutureProvider<bool>((ref) async {
 /// admitted. During this window the execution state may legitimately remain
 /// idle while settings and preflight validation are awaited, so backend swaps
 /// must consult this latch as well as [sequenceExecutionStateProvider].
-final sequenceLaunchInFlightProvider = Provider<bool>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.launching)),
+final sequenceLaunchInFlightProvider = runRecordProvider.select(
+  (run) => run.launching,
 );
 
 /// The checkpoint `SequenceExecutor.restoreFromCheckpoint` restored and the
 /// next Start will continue, or null. While set, the run is loaded and ready
 /// but nothing has executed.
-final restoredCheckpointProvider = Provider<CheckpointInfo?>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.restoredCheckpoint)),
+final restoredCheckpointProvider = runRecordProvider.select(
+  (run) => run.restoredCheckpoint,
 );
 
 /// Frames each exposure step of the loaded plan already had before the run
 /// that is ready or under way, by node id: the checkpoint's count when the run
 /// continues one, empty for a fresh run, so the plan's progress counts what
 /// was taken before it.
-final framesDoneBeforeRunProvider = Provider<Map<String, int>>(
-  (ref) =>
-      ref.watch(runRecordProvider.select((run) => run.framesDoneBeforeRun)),
+final framesDoneBeforeRunProvider = runRecordProvider.select(
+  (run) => run.framesDoneBeforeRun,
 );
 
 /// The run's counters, current step and per-step status.
-final sequenceProgressProvider = Provider<SequenceProgress>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.progress)),
+final sequenceProgressProvider = runRecordProvider.select(
+  (run) => run.progress,
 );
 
 /// The run's progress as a step list draws it: the current step and filter
@@ -97,8 +95,8 @@ final sequenceStepProgressProvider = Provider<SequenceProgress>((ref) {
 ///
 /// Cleared when a run starts, so one night's cause can never be attached to the
 /// next one's stop.
-final sequenceStopEvidenceProvider = Provider<SequenceStopDecision?>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.stopEvidence)),
+final sequenceStopEvidenceProvider = runRecordProvider.select(
+  (run) => run.stopEvidence,
 );
 
 /// The stop authorship a sequencer event carries, or null when the event names

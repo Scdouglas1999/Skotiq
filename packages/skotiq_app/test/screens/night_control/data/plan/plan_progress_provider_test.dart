@@ -74,11 +74,7 @@ void main() {
         lightFrame('earlier', 'L', DateTime(2026, 10, 19, 19, 20)),
         lightFrame('1', 'L', DateTime(2026, 10, 19, 19, 52)),
       ],
-      extra: [
-        runStartedAtProvider.overrideWith(
-          (ref) => DateTime(2026, 10, 19, 19, 51),
-        ),
-      ],
+      run: RunRecord(startedAt: DateTime(2026, 10, 19, 19, 51)),
     );
     addTearDown(container.dispose);
 
@@ -107,11 +103,10 @@ void main() {
     final ready = planContainer(
       now: evening,
       sequence: plan,
-      extra: [
-        restoredCheckpointProvider.overrideWith((ref) => restored),
-        framesDoneBeforeRunProvider
-            .overrideWith((ref) => restored.framesDoneByStep),
-      ],
+      run: RunRecord(
+        restoredCheckpoint: restored,
+        framesDoneBeforeRun: restored.framesDoneByStep,
+      ),
     );
     addTearDown(ready.dispose);
     expect(
@@ -130,13 +125,10 @@ void main() {
       ),
       progress: const SequenceProgress(state: SequenceExecutionState.running),
       sessionFrames: [lightFrame('3', 'L', DateTime(2026, 10, 19, 19, 52))],
-      extra: [
-        runStartedAtProvider.overrideWith(
-          (ref) => DateTime(2026, 10, 19, 19, 51),
-        ),
-        framesDoneBeforeRunProvider
-            .overrideWith((ref) => restored.framesDoneByStep),
-      ],
+      run: RunRecord(
+        startedAt: DateTime(2026, 10, 19, 19, 51),
+        framesDoneBeforeRun: restored.framesDoneByStep,
+      ),
     );
     addTearDown(running.dispose);
     expect(

@@ -37,12 +37,6 @@ class _FixedMount extends MountStateNotifier {
   }
 }
 
-class _RunProgress extends RunRecordNotifier {
-  _RunProgress(SequenceProgress fixed) {
-    state = state.copyWith(progress: fixed);
-  }
-}
-
 const _connected = MountState(
   connectionState: DeviceConnectionState.connected,
   deviceId: 'mount-1',
@@ -86,10 +80,16 @@ Future<void> _pumpCard(
         if (commands != null)
           mountCommandServiceProvider.overrideWithValue(commands),
         mountStateProvider.overrideWith((ref) => _FixedMount(ref, _connected)),
-        sequenceExecutionStateProvider.overrideWith((ref) => runState),
         runRecordProvider.overrideWith(
-          (ref) => _RunProgress(
-            SequenceProgress(state: runState, currentTarget: runTarget),
+          (ref) => RunRecordNotifier(
+            ref,
+            RunRecord(
+              lifecycle: runState,
+              progress: SequenceProgress(
+                state: runState,
+                currentTarget: runTarget,
+              ),
+            ),
           ),
         ),
       ],

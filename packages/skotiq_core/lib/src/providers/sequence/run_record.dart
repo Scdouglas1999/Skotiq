@@ -26,7 +26,9 @@ const Object _keep = Object();
 /// a linked client by the mirror of the host's record. Everything else reads a
 /// narrow view of it (`sequenceExecutionStateProvider`,
 /// `sequenceProgressProvider`, `nodeExposureTallyProvider` and the rest), each
-/// a `select` of one field.
+/// a `select` of one field, so a listener hears every change of its field as
+/// it is written and nothing else. A test seeds a run by overriding
+/// [runRecordProvider] with a notifier built from a record.
 @immutable
 class RunRecord {
   const RunRecord({
@@ -168,8 +170,10 @@ final runRecordProvider = StateNotifierProvider<RunRecordNotifier, RunRecord>(
 /// Recovery shows its phase through `showPhase`. Nothing else writes run
 /// state.
 class RunRecordNotifier extends StateNotifier<RunRecord> {
-  /// [_ref] is absent only for a notifier a test builds on its own.
-  RunRecordNotifier([this._ref]) : super(const RunRecord());
+  /// [_ref] is absent only for a notifier a test builds on its own; a test
+  /// may also start it from [initial].
+  RunRecordNotifier([this._ref, RunRecord initial = const RunRecord()])
+    : super(initial);
 
   final Ref? _ref;
 

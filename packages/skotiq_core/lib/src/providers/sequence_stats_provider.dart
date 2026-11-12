@@ -463,14 +463,10 @@ final sessionDiagnosticsDaoProvider = Provider<SessionDiagnosticsDao>((ref) {
 
 /// Live stats tracker for the currently running sequence.
 /// Null when no sequence is running.
-final liveSequenceStatsProvider = Provider<SequenceRunStats?>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.stats)),
-);
+final liveSequenceStatsProvider = runRecordProvider.select((run) => run.stats);
 
 /// The database row ID of the current run (for updating on completion).
-final currentRunIdProvider = Provider<int?>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.runId)),
-);
+final currentRunIdProvider = runRecordProvider.select((run) => run.runId);
 
 /// Immutable, one-shot result of a fully-finalized sequence run.
 ///
@@ -523,18 +519,14 @@ class SequenceTerminalRunResult {
 /// terminal run by the executor; a change opens the Session Report and starts
 /// end-of-night work, which a client joining after the host's run must not do,
 /// so the host's result is not shown here (see [shownTerminalRunResultProvider]).
-final sequenceTerminalRunResultProvider = Provider<SequenceTerminalRunResult?>(
-  (ref) => ref.watch(
-    runRecordProvider.select(
-      (run) => run.terminalFromHost ? null : run.terminal,
-    ),
-  ),
+final sequenceTerminalRunResultProvider = runRecordProvider.select(
+  (run) => run.terminalFromHost ? null : run.terminal,
 );
 
 /// The last terminal run result the screens describe: this app's own run, or
 /// on a linked client the host's.
-final shownTerminalRunResultProvider = Provider<SequenceTerminalRunResult?>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.terminal)),
+final shownTerminalRunResultProvider = runRecordProvider.select(
+  (run) => run.terminal,
 );
 
 /// The last imaging run, retained when automatic calibration replaces the live
@@ -545,9 +537,8 @@ class CompletedImagingRun {
   final SequenceRunStats? stats;
 }
 
-final completedImagingRunProvider = Provider<CompletedImagingRun?>(
-  (ref) =>
-      ref.watch(runRecordProvider.select((run) => run.completedImagingRun)),
+final completedImagingRunProvider = runRecordProvider.select(
+  (run) => run.completedImagingRun,
 );
 
 /// The recorded sequence runs of whichever machine is the imaging host.

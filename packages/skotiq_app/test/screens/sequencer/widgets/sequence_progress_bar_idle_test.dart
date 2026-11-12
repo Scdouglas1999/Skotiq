@@ -27,7 +27,9 @@ SequenceProgressBarState _stateOf(WidgetTester tester) =>
 Widget _harness(SequenceExecutionState execState, {bool offstage = false}) {
   return ProviderScope(
     overrides: [
-      sequenceExecutionStateProvider.overrideWith((ref) => execState),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: execState)),
+      ),
     ],
     child: MaterialApp(
       theme: SkotiqTheme.dark,

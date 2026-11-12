@@ -42,11 +42,15 @@ Widget _harness({
 }) {
   return ProviderScope(
     overrides: [
-      sequenceExecutionStateProvider.overrideWith((ref) => execState),
-      if (progress != null)
-        runRecordProvider.overrideWith(
-          (ref) => _FixedProgressNotifier(progress),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(
+          ref,
+          RunRecord(
+            lifecycle: execState,
+            progress: progress ?? const SequenceProgress(),
+          ),
         ),
+      ),
     ],
     child: MaterialApp(
       theme: SkotiqTheme.dark,
@@ -60,12 +64,6 @@ Widget _harness({
       ),
     ),
   );
-}
-
-class _FixedProgressNotifier extends RunRecordNotifier {
-  _FixedProgressNotifier(SequenceProgress initial) {
-    state = state.copyWith(progress: initial);
-  }
 }
 
 void main() {

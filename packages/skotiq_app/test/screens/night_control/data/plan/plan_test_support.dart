@@ -110,12 +110,6 @@ class _SeededSequence extends CurrentSequenceNotifier {
   }
 }
 
-class _FixedProgress extends RunRecordNotifier {
-  _FixedProgress(SequenceProgress seed) {
-    state = state.copyWith(progress: seed);
-  }
-}
-
 class _FixedSession extends SessionStateNotifier {
   _FixedSession(super.ref, SessionState seed) {
     state = seed;
@@ -161,6 +155,7 @@ ProviderContainer planContainer({
   Sequence? sequence,
   SequenceExecutionState execution = SequenceExecutionState.idle,
   SequenceProgress progress = const SequenceProgress(),
+  RunRecord run = const RunRecord(),
   SessionState session = const SessionState(),
   bool site = true,
   TonightNight? night,
@@ -196,8 +191,12 @@ ProviderContainer planContainer({
             ? CurrentSequenceNotifier(ref: ref)
             : _SeededSequence(ref, sequence),
       ),
-      sequenceExecutionStateProvider.overrideWith((ref) => execution),
-      runRecordProvider.overrideWith((ref) => _FixedProgress(progress)),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(
+          ref,
+          run.copyWith(lifecycle: execution, progress: progress),
+        ),
+      ),
       sessionStateProvider.overrideWith((ref) => _FixedSession(ref, session)),
       eventHistoryProvider.overrideWith((ref) => _FixedHistory(events)),
       recentSessionFramesProvider.overrideWithValue(sessionFrames),

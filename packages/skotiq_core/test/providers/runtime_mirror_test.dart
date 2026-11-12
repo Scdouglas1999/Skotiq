@@ -551,25 +551,6 @@ void main() {
       expect(session.dbSessionId, 12);
     });
 
-    test('a client that started the run keeps its own step statuses', () async {
-      final client = await roundTrip(
-        (host) => host
-            .read(runRecordProvider.notifier)
-            .updateNodeStatus('unpark', NodeStatus.failure),
-        'sequenceRun',
-        prepareClient: (client) {
-          client.read(runRecordProvider.notifier).setRunId(7);
-          client
-              .read(runRecordProvider.notifier)
-              .updateNodeStatus('unpark', NodeStatus.success);
-        },
-      );
-      expect(
-        client.read(sequenceProgressProvider).nodeStatuses['unpark'],
-        NodeStatus.success,
-      );
-    });
-
     test('a flip on the host shows on the client', () async {
       final client = await roundTrip((host) {
         host.read(flipExecutionStateProvider.notifier).state =

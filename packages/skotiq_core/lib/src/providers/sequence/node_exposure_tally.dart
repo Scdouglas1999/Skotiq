@@ -29,8 +29,6 @@
 /// reporting against the node cannot erase the frames it took.
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../models/backend/event_types.dart';
 import 'run_record.dart';
 import 'sequencer_run_event.dart';
@@ -59,9 +57,7 @@ class NodeExposureTally {
 }
 
 /// Per-node captured-frame tally, keyed by node id.
-final nodeExposureTallyProvider = Provider<Map<String, NodeExposureTally>>(
-  (ref) => ref.watch(runRecordProvider.select((run) => run.tally)),
-);
+final nodeExposureTallyProvider = runRecordProvider.select((run) => run.tally);
 
 /// Fold ONE sequencer event into the per-node exposure tally.
 ///

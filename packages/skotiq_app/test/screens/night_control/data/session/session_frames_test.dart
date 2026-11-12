@@ -91,7 +91,9 @@ void main() {
     final stats = SequenceRunStats();
     stats.endTime = stats.startTime.add(const Duration(hours: 8));
     final h = await sessionHarness(overrides: [
-      liveSequenceStatsProvider.overrideWith((ref) => stats),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(ref, RunRecord(stats: stats)),
+      ),
       nightSessionNowProvider
           .overrideWithValue(stats.startTime.add(const Duration(hours: 12))),
       nightCaptureFreeBytesProvider.overrideWithValue(null),
@@ -281,7 +283,9 @@ void main() {
       ..ditherCount = 28;
     final h = await sessionHarness(
       overrides: <Override>[
-        liveSequenceStatsProvider.overrideWith((ref) => live),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(ref, RunRecord(stats: live)),
+        ),
         nightCaptureFreeBytesProvider.overrideWithValue(null),
       ],
     );
@@ -315,7 +319,9 @@ void main() {
       ..ditherCount = 2;
     final h = await sessionHarness(
       overrides: <Override>[
-        liveSequenceStatsProvider.overrideWith((ref) => live),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(ref, RunRecord(stats: live)),
+        ),
         nightCaptureFreeBytesProvider.overrideWithValue(null),
       ],
     );

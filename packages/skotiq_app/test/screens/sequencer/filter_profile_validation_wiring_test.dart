@@ -46,8 +46,6 @@ List<Override> _overrides() {
   editor.state = _sequenceWithFilter('Ha');
   return [
     currentSequenceProvider.overrideWith((_) => editor),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
     activeEquipmentProfileProvider.overrideWith(
       (ref) => EquipmentProfileModel(
         name: 'Test Rig',

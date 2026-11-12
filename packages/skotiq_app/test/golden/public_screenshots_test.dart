@@ -429,7 +429,7 @@ class _ScreenshotSequence extends CurrentSequenceNotifier {
 
 class _ScreenshotProgress extends RunRecordNotifier {
   _ScreenshotProgress() {
-    showPhase(SequenceExecutionState.running);
+    setLifecycle(SequenceExecutionState.running);
     setTotals(36, 6480);
     // Six frames in, two of each filter, and the seventh - an Ha - is
     // exposing. Everything below has to agree with that: the ring, the
@@ -715,9 +715,6 @@ final _sharedOverrides = <Override>[
   smartNightExposureContextProvider.overrideWith((ref) async => null),
   currentSequenceProvider.overrideWith((ref) => _ScreenshotSequence()),
   selectedNodeIdProvider.overrideWith((ref) => 'nb-smart'),
-  sequenceExecutionStateProvider.overrideWith(
-    (ref) => SequenceExecutionState.running,
-  ),
   runRecordProvider.overrideWith((ref) => _ScreenshotProgress()),
   schedulerPreviewDecisionProvider.overrideWith((ref) async {
     return _schedulerDecision;

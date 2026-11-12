@@ -210,12 +210,6 @@ final List<AlwaysOnService> alwaysOnServices = [
 
   // Run and session.
   AlwaysOnService(
-    'last ended run',
-    lastEndedRunProvider,
-    _windows,
-    'Tonight showing the finished night whichever screen was open at its end',
-  ),
-  AlwaysOnService(
     'session frames seed',
     sessionNightSeedProvider,
     _everyRole,

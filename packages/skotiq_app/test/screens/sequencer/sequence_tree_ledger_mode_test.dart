@@ -99,8 +99,6 @@ Future<HarnessHandle> _pumpTree(
     settle: false,
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The minute clock is a real periodic stream; in the fake-async zone
       // its timer outlives every pump and fails teardown. ETA anchoring is
       // exercised through ledgerEtasFor's fake-clock unit tests instead.

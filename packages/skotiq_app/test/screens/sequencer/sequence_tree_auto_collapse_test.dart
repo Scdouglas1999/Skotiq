@@ -123,8 +123,6 @@ Future<HarnessHandle> _pumpTree(
     extraOverrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
       runRecordProvider.overrideWith((_) => progress),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The minute clock is a real periodic stream whose timer outlives every
       // pump in the fake-async zone.
       ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
@@ -352,8 +350,6 @@ void main() {
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
         runRecordProvider.overrideWith((_) => progress),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
         ledgerClockProvider
             .overrideWith((ref) => const Stream<DateTime>.empty()),
       ],
