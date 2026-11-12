@@ -82,7 +82,10 @@ pub fn auto_stretch_stf(image: &ImageData) -> StretchParams {
     if image.is_empty() {
         return StretchParams::default();
     }
-    stf_params_from_levels(&LevelCounts::of_le_bytes(&image.data))
+    match display_levels(image) {
+        None => stf_params_from_levels(&LevelCounts::of_le_bytes(&image.data)),
+        Some(levels) => stf_params_from_levels(&LevelCounts::of_channel(&levels, 0, 1)),
+    }
 }
 
 /// Apply stretch to an image, returning 8-bit output for display
@@ -90,11 +93,51 @@ pub fn apply_stretch(image: &ImageData, params: &StretchParams) -> Vec<u8> {
     let Some(table) = StretchTable::new(params) else {
         return vec![0u8; image.width as usize * image.height as usize];
     };
-    image
-        .data
-        .par_chunks_exact(2)
-        .map(|chunk| table.at(u16::from_le_bytes([chunk[0], chunk[1]])))
-        .collect()
+    match display_levels(image) {
+        None => image
+            .data
+            .par_chunks_exact(2)
+            .map(|chunk| table.at(u16::from_le_bytes([chunk[0], chunk[1]])))
+            .collect(),
+        Some(levels) => levels.par_iter().map(|&level| table.at(level)).collect(),
+    }
+}
+
+/// The samples of an image that is not 16-bit, on the 16-bit level scale the
+/// stretch works in; `None` for a 16-bit image, whose bytes are the levels.
+///
+/// Float samples are ADU, as the integration masters write them, unless every
+/// sample lies in [0, 1]: that is the [0, 1] float convention (PixInsight's),
+/// and it is spread over the full scale.
+fn display_levels(image: &ImageData) -> Option<Vec<u16>> {
+    let pixel_type = image.pixel_type;
+    let size = pixel_type.byte_size();
+    let scale = match pixel_type {
+        crate::PixelType::U16 => return None,
+        crate::PixelType::U8 => 257.0,
+        crate::PixelType::U32 => 1.0,
+        crate::PixelType::F32 | crate::PixelType::F64 => {
+            let unit_range = image
+                .data
+                .par_chunks_exact(size)
+                .all(|bytes| !(crate::samples::sample_from_le(bytes, pixel_type) > 1.0));
+            if unit_range {
+                65535.0
+            } else {
+                1.0
+            }
+        }
+    };
+    Some(
+        image
+            .data
+            .par_chunks_exact(size)
+            .map(|bytes| {
+                let level = crate::samples::sample_from_le(bytes, pixel_type) * scale;
+                level.round().clamp(0.0, 65535.0) as u16
+            })
+            .collect(),
+    )
 }
 
 /// Apply stretch to RGB image (3 channels), returning 8-bit RGB output for display
@@ -836,5 +879,45 @@ mod tests {
             "highlight {} must stay in [0, 1]",
             params.highlights
         );
+    }
+
+    /// An integration master saved as 32-bit float (ADU values) shows the
+    /// same picture as the same master saved as 16-bit: one display byte per
+    /// pixel, the same STF.
+    #[test]
+    fn float_master_stretches_like_its_16_bit_twin() {
+        let (u16_image, _, _) = synthetic_frame_with_stars(64, 48, 6553, 1500, 20);
+        let levels = u16_image.as_u16().unwrap();
+        let adu: Vec<f32> = levels.iter().map(|&v| f32::from(v)).collect();
+        let float_image = ImageData::from_f32(64, 48, 1, &adu);
+
+        let params = auto_stretch_stf(&float_image);
+        let expected = auto_stretch_stf(&u16_image);
+        assert_eq!(params.shadows, expected.shadows);
+        assert_eq!(params.midtones, expected.midtones);
+
+        let display = apply_stretch(&float_image, &params);
+        assert_eq!(display.len(), 64 * 48);
+        assert_eq!(display, apply_stretch(&u16_image, &expected));
+    }
+
+    /// Float data in [0, 1] is spread over the full scale rather than read as
+    /// a black frame of one-ADU values.
+    #[test]
+    fn unit_range_float_is_spread_over_the_full_scale() {
+        let (u16_image, _, _) = synthetic_frame_with_stars(64, 48, 6553, 1500, 20);
+        let unit: Vec<f32> = u16_image
+            .as_u16()
+            .unwrap()
+            .iter()
+            .map(|&v| f32::from(v) / 65535.0)
+            .collect();
+        let float_image = ImageData::from_f32(64, 48, 1, &unit);
+
+        let params = auto_stretch_stf(&float_image);
+        let expected = auto_stretch_stf(&u16_image);
+        assert!((params.shadows - expected.shadows).abs() < 1e-4);
+        assert!((params.midtones - expected.midtones).abs() < 1e-3);
+        assert_eq!(apply_stretch(&float_image, &params).len(), 64 * 48);
     }
 }
