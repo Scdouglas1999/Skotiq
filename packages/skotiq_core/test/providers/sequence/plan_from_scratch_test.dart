@@ -9,7 +9,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/target_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/target_rules.dart';
 
 void main() {
   late ProviderContainer container;

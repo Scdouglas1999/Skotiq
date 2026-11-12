@@ -9,6 +9,8 @@ import 'profiles_provider.dart';
 // single import. Don't add a direct import of sequence_validation.dart — the
 // analyzer flags it as `unnecessary_import` and we want one canonical path.
 import 'sequence_provider.dart';
+import '../models/sequence/validation/structural_rules.dart';
+import '../models/sequence/validation/validation_issue.dart';
 import 'settings_provider.dart';
 
 // Live validation provider

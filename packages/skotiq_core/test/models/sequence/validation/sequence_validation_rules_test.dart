@@ -1,11 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/exposure_rules.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/logic_node_rules.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/structure_rules.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/target_rules.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/timing_rules.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/exposure_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/logic_node_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/structure_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/target_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/timing_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/structural_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 
 /// Pure-validator tests. Each rule gets a positive (fires) and a negative
 /// (clean) case. Ref-aware rules live in a separate test file because they

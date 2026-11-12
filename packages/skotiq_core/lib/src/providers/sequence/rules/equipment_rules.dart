@@ -4,6 +4,7 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../../utils/device_id.dart';
 import '../../equipment_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// Cross-checks the device types required by enabled nodes against the
 /// currently-connected equipment.

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/import/canonical_sequence_node.dart';
 import 'package:skotiq_core/src/models/import/import_result.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 import 'package:skotiq_core/src/services/import/sequence_importer.dart';
 
 void main() {

@@ -1,5 +1,5 @@
 import '../../models/sequence/sequence_models.dart';
-import 'sequence_validation.dart';
+import '../../models/sequence/validation/validation_issue.dart';
 
 /// Base type for editor-side errors raised by [CurrentSequenceNotifier].
 ///

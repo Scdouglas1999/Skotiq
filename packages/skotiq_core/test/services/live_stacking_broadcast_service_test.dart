@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 // Validation rules are internal — import the implementation path
 // directly. Same convention as the smart_exposure rules tests.
-import 'package:skotiq_core/src/providers/sequence/rules/live_stacking_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/live_stacking_rules.dart';
 
 LiveStackingNode _makeNode({
   String name = 'Live Stacking',

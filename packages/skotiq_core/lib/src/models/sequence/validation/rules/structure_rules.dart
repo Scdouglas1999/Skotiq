@@ -1,5 +1,5 @@
-import '../../../models/sequence/sequence_models.dart';
-import '../sequence_validation.dart';
+import '../../sequence_models.dart';
+import '../validation_issue.dart';
 
 /// Errors out when the sequence has zero nodes or its root container has no
 /// children. A newly-created sequence already contains an empty root node, but

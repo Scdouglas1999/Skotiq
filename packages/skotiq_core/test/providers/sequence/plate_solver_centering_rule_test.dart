@@ -13,6 +13,7 @@ import 'package:skotiq_core/src/providers/plate_solver_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/plate_solver_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 
 final _probeProvider = Provider<Ref>((ref) => ref);
 

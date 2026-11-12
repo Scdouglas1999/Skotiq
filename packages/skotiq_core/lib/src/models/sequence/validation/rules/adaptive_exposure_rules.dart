@@ -1,5 +1,5 @@
-import '../../../models/sequence/sequence_models.dart';
-import '../sequence_validation.dart';
+import '../../sequence_models.dart';
+import '../validation_issue.dart';
 
 /// Sky-brightness adaptive exposure validation rules.
 ///

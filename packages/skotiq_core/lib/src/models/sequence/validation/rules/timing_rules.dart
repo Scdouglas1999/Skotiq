@@ -1,5 +1,5 @@
-import '../../../models/sequence/sequence_models.dart';
-import '../sequence_validation.dart';
+import '../../sequence_models.dart';
+import '../validation_issue.dart';
 
 /// Warns when a WaitTime node's `waitUntil` is in the past. The sequence
 /// will skip the wait entirely, which may not be what the user intended.

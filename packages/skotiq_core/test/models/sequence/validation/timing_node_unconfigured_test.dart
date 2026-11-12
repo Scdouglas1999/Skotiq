@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/timing_rules.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/timing_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/structural_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 
 /// A "Wait for Time" node dropped from the palette starts with no time and no
 /// twilight condition. Pre-flight said nothing about it and the run completed

@@ -13,7 +13,10 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/smart_exposure_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/smart_exposure_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/structural_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 
 /// Publishes a fixed [FilterWheelState] so a rule can be driven against a
 /// wheel that is connected (or not) without any device layer.

@@ -40,6 +40,7 @@ import '../settings_provider.dart';
 // tracking, USB disconnect aggregation.
 import '../../models/sequence/run_stop_classification.dart';
 import 'sequence_validation.dart' as validation;
+import '../../models/sequence/validation/validation_issue.dart' as validation;
 import 'sequence_executor/eta_smoothing.dart';
 import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';

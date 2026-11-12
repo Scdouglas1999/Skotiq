@@ -2,7 +2,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/adaptive_exposure_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/adaptive_exposure_rules.dart';
 
 Sequence _sequenceWith(ExposureNode node) {
   // Minimal sequence shell wrapping one exposure node. The validators

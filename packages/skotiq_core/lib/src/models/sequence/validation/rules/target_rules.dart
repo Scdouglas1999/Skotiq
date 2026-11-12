@@ -1,5 +1,5 @@
-import '../../../models/sequence/sequence_models.dart';
-import '../sequence_validation.dart';
+import '../../sequence_models.dart';
+import '../validation_issue.dart';
 
 /// Validates RA / Dec on TargetHeaderNode and the equivalent custom-coord
 /// path on SlewNode. RA must be in [0, 24); Dec must be in [-90, +90].

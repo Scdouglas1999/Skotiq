@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/exposure_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/exposure_rules.dart';
 
 /// A sequence whose only imaging node is a Science Photometry burst reported
 /// "0 frames / 0m" in the header and "No exposure nodes found" in pre-flight,

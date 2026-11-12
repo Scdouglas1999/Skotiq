@@ -2,7 +2,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/sequence/rules/science_photometry_rules.dart';
+import 'package:skotiq_core/src/models/sequence/validation/rules/science_photometry_rules.dart';
 
 Sequence _sequenceWith(SciencePhotometryNode node) {
   return Sequence.create(
