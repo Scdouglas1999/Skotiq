@@ -319,6 +319,35 @@ impl QhyCamera {
         Ok(())
     }
 
+    /// After `InitQHYCCD` the camera holds its read mode's own gain and
+    /// offset: put back the ones Skotiq set and take the camera's for the
+    /// rest, so status and frame headers name the values in use.
+    pub(crate) fn settle_gain_and_offset(&mut self, sdk: &QhySdk) -> Result<(), DriverError> {
+        if self.gain_written {
+            let gain = self.current_gain;
+            self.write(
+                sdk,
+                QhyControl::CONTROL_GAIN,
+                f64::from(gain),
+                &format!("keep the gain {gain} in the new read mode"),
+            )?;
+        } else if let Some(gain) = self.read(sdk, QhyControl::CONTROL_GAIN) {
+            self.current_gain = gain as i32;
+        }
+        if self.offset_written {
+            let offset = self.current_offset;
+            self.write(
+                sdk,
+                QhyControl::CONTROL_OFFSET,
+                f64::from(offset),
+                &format!("keep the offset {offset} in the new read mode"),
+            )?;
+        } else if let Some(offset) = self.read(sdk, QhyControl::CONTROL_OFFSET) {
+            self.current_offset = offset as i32;
+        }
+        Ok(())
+    }
+
     /// QHY's sensor power protection (UVLO): 2 and 9 mean the sensor lost
     /// its supply; frames are garbage until the camera is power-cycled (NINA).
     pub(crate) fn check_sensor_power(&self, sdk: &QhySdk) -> Result<(), DriverError> {

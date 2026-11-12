@@ -77,7 +77,7 @@ fn qhy_driver_against_the_vendor_model() {
 mod vendor_model {
     use skotiq_device::{BayerPattern, CameraDriver, CameraState, DeviceDriver, DriverError};
     use skotiq_device::{
-        ExposureParams, FilterWheelDriver, FrameType, ImageData, SubFrame,
+        ExposureParams, FilterWheelDriver, FrameType, ImageData, ReadoutMode, SubFrame,
     };
     use skotiq_native::vendor::qhy::{self, QhyCamera, QhyFilterWheel};
     use std::ffi::{c_char, c_uint};
@@ -486,6 +486,43 @@ mod vendor_model {
             Some("High Gain Mode")
         );
         assert_eq!(frame.metadata.gain, 70);
+        camera.disconnect().await.unwrap();
+        model().assert_no_faults();
+    }
+
+    #[tokio::test]
+    #[ignore = "run by qhy_driver_against_the_vendor_model"]
+    async fn after_a_read_mode_change_the_gain_reported_is_the_one_the_camera_uses() {
+        let mut camera = connected(COLOR_WITH_WHEEL, COLOR_ID).await;
+        assert_eq!(camera.get_status().await.unwrap().gain, 0);
+        let mode = ReadoutMode {
+            name: "High Gain Mode".into(),
+            description: String::new(),
+            index: 1,
+            gain_min: None,
+            gain_max: None,
+            offset_min: None,
+            offset_max: None,
+        };
+        camera.set_readout_mode(&mode).await.unwrap();
+        let s = model().status();
+        assert_eq!(
+            (s.gain, s.offset),
+            (56.0, 20.0),
+            "the new mode's own defaults"
+        );
+        let status = camera.get_status().await.unwrap();
+        assert_eq!(
+            (status.gain, status.offset),
+            (56, 20),
+            "status after the mode change"
+        );
+        let frame = take(&mut camera, light(0.05, 1, None)).await;
+        assert_eq!(
+            (frame.metadata.gain, frame.metadata.offset),
+            (56, 20),
+            "frame header"
+        );
         camera.disconnect().await.unwrap();
         model().assert_no_faults();
     }
