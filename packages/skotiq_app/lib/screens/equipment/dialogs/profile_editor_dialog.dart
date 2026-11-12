@@ -15,6 +15,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/hardware/hardware_preset_picker_dialog.dart';
 import '../../../widgets/help/field_help_label.dart';
+import '../../../widgets/sensitivity_field.dart';
 import '../utils/profile_save_errors.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/device_format_utils.dart';

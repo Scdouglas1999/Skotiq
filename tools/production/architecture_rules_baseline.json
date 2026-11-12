@@ -214,8 +214,8 @@
         "reason": "Declares Riverpod providers; reads backendProvider, coImagingSessionServiceProvider, imagesDaoProvider, narratorServiceProvider, notificationRouterProvider, sessionsDaoProvider, skyAtlasServiceProvider; also uses fetchAllRemoteSequenceRuns re-exported there."
       },
       "services/imaging_service.dart": {
-        "count": 11,
-        "reason": "Declares Riverpod providers; reads backendProvider; drives CameraStateNotifier; scopes host work with AsyncScope (Riverpod)."
+        "count": 12,
+        "reason": "Declares Riverpod providers; reads backendProvider and cameraSensitivityProvider (what a manual frame's gain is); drives CameraStateNotifier; scopes host work with AsyncScope (Riverpod)."
       },
       "services/in_app_transport.dart": {
         "count": 1,

@@ -44,6 +44,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../widgets/sensitivity_field.dart';
 import '../filter_source.dart';
 
 import 'node_summary.dart';
@@ -576,22 +577,44 @@ class _GainEditor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return _NumericFieldEditor(
-      title: 'Gain',
-      icon: LucideIcons.gauge,
-      initialValue: (node.gain ?? 0).toDouble(),
-      min: 0,
-      max: 1000,
-      decimals: 0,
-      onCommit: (value) {
-        final gain = value.toInt();
-        ref
-            .read(currentSequenceProvider.notifier)
-            .updateNode(node.copyWith(gain: gain));
-        ref
-            .read(sequencerDefaultsProvider.notifier)
-            .updateExposureDefaults(gain: gain);
+    void commit(int gain) {
+      ref
+          .read(currentSequenceProvider.notifier)
+          .updateNode(node.copyWith(gain: gain));
+      ref
+          .read(sequencerDefaultsProvider.notifier)
+          .updateExposureDefaults(gain: gain);
+    }
+
+    return SensitivityField(
+      value: node.gain,
+      onChanged: commit,
+      isoField: (context, iso) {
+        final current = node.gain == null ? null : iso.accept(node.gain!);
+        return _MenuList(
+          title: iso.label,
+          rows: [
+            for (final speed in iso.speeds)
+              _MenuRow(
+                label: iso.describe(speed),
+                selected: current == speed,
+                onTap: () {
+                  commit(speed);
+                  Navigator.of(context).pop();
+                },
+              ),
+          ],
+        );
       },
+      gainField: (_) => _NumericFieldEditor(
+        title: 'Gain',
+        icon: LucideIcons.gauge,
+        initialValue: (node.gain ?? 0).toDouble(),
+        min: 0,
+        max: 1000,
+        decimals: 0,
+        onCommit: (value) => commit(value.toInt()),
+      ),
     );
   }
 }

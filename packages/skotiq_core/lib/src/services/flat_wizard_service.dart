@@ -194,6 +194,7 @@ class FlatWizardService {
       binY: binY,
       canSetGain: gainSupported,
       canSetOffset: offsetSupported,
+      sensitivity: ExposureSensitivity.of(caps),
       gainMin: caps?.gainMin,
       gainMax: caps?.gainMax,
       offsetMin: caps?.offsetMin,

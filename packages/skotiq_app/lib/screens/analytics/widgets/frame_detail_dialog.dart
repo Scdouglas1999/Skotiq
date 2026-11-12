@@ -7,6 +7,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart'
     show DbCapturedImage, FramePhotometricCalibrationRow;
 import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/models.dart' show FrameGain, GainKind;
 import 'package:skotiq_core/providers.dart' show isRemoteModeProvider;
 import 'package:skotiq_core/services.dart'
     show FrameQualityAssessment, imagingRecordsRepositoryProvider;
@@ -201,8 +202,13 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
       ('Frame type', image.frameType),
       ('Exposure', '${_trim(image.exposureDuration)} s'),
       ('Filter', filterLabel(image.filter)),
-      if (image.gain != null) ('Gain', '${image.gain}'),
-      if (image.offset != null) ('Offset', '${image.offset}'),
+      if (image.gain != null)
+        (
+          image.recordedGainKind.label,
+          image.recordedGainKind.valueText(image.gain!),
+        ),
+      if (image.offset != null && image.recordedGainKind == GainKind.gain)
+        ('Offset', '${image.offset}'),
       ('Binning', '${image.binX}x${image.binY}'),
       if (image.sensorTemp != null)
         ('Sensor temperature', formatCelsius(image.sensorTemp!)),

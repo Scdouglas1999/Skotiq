@@ -16,6 +16,25 @@ pub struct CameraCapabilities {
     pub supports_readout_modes: bool,
 }
 
+/// Where a camera's long exposure noise reduction stands after connect.
+///
+/// With it on, a DSLR or mirrorless body shoots a dark frame of the same
+/// length after every exposure and subtracts it: every frame takes twice as
+/// long and carries a calibration nobody chose. Skotiq turns it off at
+/// connect wherever the body lets it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum LongExposureNoiseReduction {
+    /// The camera has no such setting (astronomy cameras).
+    #[default]
+    NotApplicable,
+    /// Off: it was off already or the driver turned it off.
+    Off,
+    /// The body has it, it is on, and the camera refused to turn it off.
+    StaysOn,
+    /// The body may have it, but the driver cannot reach the setting.
+    Unreachable,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CameraStatus {
     pub state: CameraState,

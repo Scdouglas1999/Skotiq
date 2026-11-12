@@ -624,6 +624,9 @@ pub struct SchedulerScoreEntry {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct FrameCaptureMetadata {
     pub gain: Option<i32>,
+    /// `gain` is an ISO speed (a DSLR or mirrorless frame).
+    #[serde(default)]
+    pub gain_is_iso: bool,
     pub offset: Option<i32>,
     pub sensor_temp_c: Option<f64>,
     pub cooler_power_percent: Option<f64>,
@@ -651,6 +654,7 @@ impl From<&skotiq_sequencer::scheduling::FrameCaptureMetadata> for FrameCaptureM
     fn from(m: &skotiq_sequencer::scheduling::FrameCaptureMetadata) -> Self {
         Self {
             gain: m.gain,
+            gain_is_iso: m.gain_is_iso,
             offset: m.offset,
             sensor_temp_c: m.sensor_temp_c,
             cooler_power_percent: m.cooler_power_percent,

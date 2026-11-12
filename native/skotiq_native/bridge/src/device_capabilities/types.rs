@@ -91,6 +91,11 @@ pub struct CameraCapabilities {
     pub gain_min: Option<i32>,
     /// Maximum gain value
     pub gain_max: Option<i32>,
+    /// The ISO speeds a DSLR or mirrorless body offers, lowest first, Auto
+    /// excluded. Not empty means the camera's sensitivity is set in ISO: the
+    /// gain it takes and reports is the ISO number, and `gain_min`/`gain_max`
+    /// are the lowest and highest speed. Empty for a gain camera.
+    pub iso_speeds: Vec<i32>,
     /// Whether the camera supports offset adjustment
     pub can_set_offset: bool,
     /// Minimum offset value
@@ -419,6 +424,9 @@ pub struct SwitchInfo {
     pub value: f64,
 }
 
+// One value per capability query, mirrored to Dart by value; boxing the
+// camera variant would change the bridged type for no runtime gain.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DeviceCapabilities {
     Mount(MountCapabilities),

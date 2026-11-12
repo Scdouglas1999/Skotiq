@@ -98,7 +98,8 @@ final darkroomTargetCalibrationProvider = FutureProvider.autoDispose
     ]..sort();
     final match = await library.match(
       LightFrameContext(
-        gain: f.gain,
+        gain: f.comparableGain,
+        gainIsUnknownIso: f.hasUnknownIso,
         offset: f.offset,
         exposureSeconds: f.exposureDuration,
         temperature: temps.isEmpty ? null : temps[temps.length ~/ 2],

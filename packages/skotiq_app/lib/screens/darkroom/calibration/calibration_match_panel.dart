@@ -107,7 +107,11 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
       return value;
     }
 
-    final gain = wholeNumber(_gain, 'Gain', minimum: 0);
+    final gain = wholeNumber(
+      _gain,
+      ref.read(cameraSensitivityProvider).label,
+      minimum: 0,
+    );
     final offset = wholeNumber(_offset, 'Offset', minimum: 0);
     final binX = wholeNumber(_binX, 'Bin X', minimum: 1, maximum: 16);
     final binY = wholeNumber(_binY, 'Bin Y', minimum: 1, maximum: 16);
@@ -225,7 +229,7 @@ class _CalibrationMatchPanelState extends ConsumerState<CalibrationMatchPanel> {
             runSpacing: SkotiqTokens.spaceSm,
             children: [
               _field(_exposure, 'Exposure s', 92),
-              _field(_gain, 'Gain', 72),
+              _field(_gain, ref.watch(cameraSensitivityProvider).label, 72),
               _field(_offset, 'Offset', 72),
               _field(_temp, 'Temp °C', 72),
               _field(_filter, 'Filter', 80),

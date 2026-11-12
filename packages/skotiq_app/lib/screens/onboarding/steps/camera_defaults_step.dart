@@ -10,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/help/field_help_label.dart';
 import '../../../widgets/hardware/hardware_preset_picker_dialog.dart';
+import '../../../widgets/sensitivity_field.dart';
 
 /// One-tap "use the library entry for the camera you already picked". Exposed
 /// so tests can target it without matching on the camera's name.
@@ -302,6 +303,7 @@ class _OnboardingCameraDefaultsStepState
 
   @override
   Widget build(BuildContext context) {
+    final sensitivity = ref.watch(cameraSensitivityProvider);
     final draft = ref.watch(onboardingDraftProvider);
     final colors = SkotiqColors.of(context);
 
@@ -393,30 +395,59 @@ class _OnboardingCameraDefaultsStepState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _NumberField(
-                  controller: _gainController,
-                  label: 'Gain',
-                  help:
-                      'Gain sets sensor amplification; for most CMOS the unity/recommended value is a good start.',
-                  hint: 'e.g. 100',
-                  allowNegative: false,
-                  errorText: _gainError,
-                  onChanged: _commitIntegers,
+                child: SensitivityField(
+                  value: int.tryParse(_gainController.text.trim()),
+                  sensitivity: sensitivity,
+                  onChanged: (iso) {
+                    _gainController.text = '$iso';
+                    _commitIntegers();
+                  },
+                  isoField: (context, iso) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FieldHelpLabel(
+                        label: iso.label,
+                        help:
+                            'The ISO the camera shoots at. Skotiq offers the speeds this camera lists.',
+                      ),
+                      const SizedBox(height: SkotiqTokens.spaceXs),
+                      IsoSpeedPicker(
+                        sensitivity: iso,
+                        value: int.tryParse(_gainController.text.trim()),
+                        onChanged: (speed) {
+                          _gainController.text = '$speed';
+                          _commitIntegers();
+                        },
+                      ),
+                    ],
+                  ),
+                  gainField: (_) => _NumberField(
+                    controller: _gainController,
+                    label: 'Gain',
+                    help:
+                        'Gain sets sensor amplification; for most CMOS the unity/recommended value is a good start.',
+                    hint: 'e.g. 100',
+                    allowNegative: false,
+                    errorText: _gainError,
+                    onChanged: _commitIntegers,
+                  ),
                 ),
               ),
-              const SizedBox(width: SkotiqTokens.spaceMd),
-              Expanded(
-                child: _NumberField(
-                  controller: _offsetController,
-                  label: 'Offset',
-                  help:
-                      'Offset lifts the black point so darks are not clipped.',
-                  hint: 'e.g. 50',
-                  allowNegative: false,
-                  errorText: _offsetError,
-                  onChanged: _commitIntegers,
+              if (sensitivity.hasOffset) ...[
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                Expanded(
+                  child: _NumberField(
+                    controller: _offsetController,
+                    label: 'Offset',
+                    help:
+                        'Offset lifts the black point so darks are not clipped.',
+                    hint: 'e.g. 50',
+                    allowNegative: false,
+                    errorText: _offsetError,
+                    onChanged: _commitIntegers,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: SkotiqTokens.spaceMd),

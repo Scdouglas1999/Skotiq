@@ -401,6 +401,11 @@ class LightFrameContext {
   /// would either hand the lights the masters of a gain-0 library or reject
   /// every candidate the camera actually produced.
   final int? gain;
+
+  /// The lights were taken with a DSLR before Skotiq recorded ISO speeds:
+  /// [gain] is null because their ISO is unknown, not because nothing was
+  /// recorded, and the match says so.
+  final bool gainIsUnknownIso;
   final int? offset;
   final double exposureSeconds;
   final double? temperature;
@@ -419,6 +424,7 @@ class LightFrameContext {
   const LightFrameContext({
     this.cameraId,
     required this.gain,
+    this.gainIsUnknownIso = false,
     required this.offset,
     required this.exposureSeconds,
     this.temperature,

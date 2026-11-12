@@ -13,6 +13,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
+import '../../../../widgets/sensitivity_field.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import '../panel_ops.dart';
@@ -172,6 +173,12 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
       trailing = l10n.text('nightPanelCaptureManual');
     }
 
+    final sensitivity = ref.watch(cameraSensitivityProvider);
+    final gainLabel = switch (sensitivity) {
+      GainSensitivity() => l10n.text('nightPanelGain'),
+      IsoSensitivity() => sensitivity.label,
+    };
+
     return NightPanelSection(
       title: l10n.text('nightPanelCapture'),
       trailing: trailing,
@@ -198,31 +205,48 @@ class _NightCaptureSectionState extends ConsumerState<NightCaptureSection> {
             const SizedBox(width: kNightPanelRowGap),
             Expanded(
               child: editable
-                  ? _field(
-                      l10n.text('nightPanelGain'),
-                      _gain,
-                      _gainFocus,
-                      _gainError,
+                  ? SensitivityField(
+                      value: manual.gain,
+                      sensitivity: sensitivity,
+                      onChanged: (gain) => _update(manual.copyWith(gain: gain)),
+                      isoField: (context, iso) => _LabeledControl(
+                        label: gainLabel,
+                        child: IsoSpeedPicker(
+                          sensitivity: iso,
+                          value: manual.gain,
+                          dense: true,
+                          onChanged: (gain) =>
+                              _update(manual.copyWith(gain: gain)),
+                        ),
+                      ),
+                      gainField: (_) => _field(
+                        gainLabel,
+                        _gain,
+                        _gainFocus,
+                        _gainError,
+                      ),
                     )
                   : _ReadOnlyField(
-                      label: l10n.text('nightPanelGain'),
+                      label: gainLabel,
                       value: values?.gain?.toString(),
                     ),
             ),
-            const SizedBox(width: kNightPanelRowGap),
-            Expanded(
-              child: editable
-                  ? _field(
-                      l10n.text('nightPanelOffset'),
-                      _offset,
-                      _offsetFocus,
-                      _offsetError,
-                    )
-                  : _ReadOnlyField(
-                      label: l10n.text('nightPanelOffset'),
-                      value: values?.offset?.toString(),
-                    ),
-            ),
+            if (sensitivity.hasOffset) ...<Widget>[
+              const SizedBox(width: kNightPanelRowGap),
+              Expanded(
+                child: editable
+                    ? _field(
+                        l10n.text('nightPanelOffset'),
+                        _offset,
+                        _offsetFocus,
+                        _offsetError,
+                      )
+                    : _ReadOnlyField(
+                        label: l10n.text('nightPanelOffset'),
+                        value: values?.offset?.toString(),
+                      ),
+              ),
+            ],
           ],
         ),
         NightPanelLabel(l10n.text('nightPanelFrame')),
@@ -324,6 +348,37 @@ double? nightParsePositive(String text) {
 }
 
 /// A field's look without its editing: the run's value, read-only.
+/// A caption above a control, in the read-only field's layout.
+class _LabeledControl extends StatelessWidget {
+  const _LabeledControl({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.skotiqColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        ExcludeSemantics(
+          child: Text(
+            label,
+            style: SkotiqTypography.caption.copyWith(
+              color: colors.textSecondary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(height: SkotiqTokens.spaceXs),
+        child,
+      ],
+    );
+  }
+}
+
 class _ReadOnlyField extends StatelessWidget {
   const _ReadOnlyField({required this.label, required this.value});
 

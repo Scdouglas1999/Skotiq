@@ -69,6 +69,26 @@ final cameraCapabilitiesProvider =
       return capabilities;
     });
 
+/// The exposure sensitivity of the connected imaging camera: the ISO speeds
+/// of a DSLR or mirrorless body, or a gain range. With no camera connected,
+/// or before its capabilities arrive, it reads as gain.
+///
+/// Every surface that offers or describes an exposure's gain reads this, so
+/// connecting a DSLR turns each of them to ISO at once.
+final cameraSensitivityProvider = Provider<ExposureSensitivity>((ref) {
+  final deviceId = ref.watch(
+    cameraStateProvider.select(
+      (state) => state.connectionState == DeviceConnectionState.connected
+          ? state.deviceId
+          : null,
+    ),
+  );
+  if (deviceId == null || deviceId.isEmpty) return const GainSensitivity();
+  return ExposureSensitivity.of(
+    ref.watch(cameraCapabilitiesProvider(deviceId)).valueOrNull,
+  );
+});
+
 /// Provider to fetch mount capabilities for a device
 /// Returns null if the device is not connected or doesn't support capabilities
 final mountCapabilitiesProvider =

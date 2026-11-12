@@ -26,6 +26,7 @@ import 'package:skotiq_core/backend.dart';
 /// rejected paths are held to the same bar.
 const _capture = bridge.FrameCaptureMetadata(
   gain: 139,
+  gainIsIso: true,
   offset: 21,
   sensorTempC: -9.5,
   coolerPowerPercent: 63.5,

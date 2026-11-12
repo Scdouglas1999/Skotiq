@@ -109,6 +109,19 @@ class CalibrationLibraryPanelState
       ref.read(calibrationLibraryRevisionProvider.notifier).state++;
 
   @override
+  /// A master made with the connected camera reads its gain the way that
+  /// camera takes it; any other master as a gain. Masters record the camera
+  /// by name (`INSTRUME`), so that is what is compared.
+  ExposureSensitivity _sensitivityOf(CalibrationMasterRecord record) {
+    final camera = ref.watch(cameraStateProvider);
+    final name = camera.deviceName?.trim().toLowerCase();
+    final made = record.cameraId?.trim().toLowerCase();
+    if (name == null || name.isEmpty || made != name) {
+      return const GainSensitivity();
+    }
+    return ref.watch(cameraSensitivityProvider);
+  }
+
   Widget build(BuildContext context) {
     final isRemote = ref.watch(backendProvider).remoteHost != null;
     final shown = _typeFilter == null
@@ -243,6 +256,7 @@ class CalibrationLibraryPanelState
         out.add(
           CalibrationMasterRow(
             record: record,
+            sensitivity: _sensitivityOf(record),
             last: i == ofType.length - 1,
             downloading: _downloadingId == record.id,
             onEditTags: () => _editTags(record),
@@ -671,9 +685,13 @@ class CalibrationMasterRow extends StatelessWidget {
     this.onDownload,
     this.downloading = false,
     this.last = false,
+    this.sensitivity = const GainSensitivity(),
   });
 
   final CalibrationMasterRecord record;
+
+  /// How the master's gain reads ("gain 100", "ISO 800").
+  final ExposureSensitivity sensitivity;
   final VoidCallback onEditTags;
   final VoidCallback onDelete;
   final VoidCallback? onPublish;
@@ -723,7 +741,7 @@ class CalibrationMasterRow extends StatelessWidget {
               const SizedBox(width: SkotiqTokens.spaceMd),
               Expanded(
                 child: Text(
-                  _settings(record),
+                  _settings(record, sensitivity),
                   style: SkotiqTypography.monoSm.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -838,15 +856,18 @@ class CalibrationMasterRow extends StatelessWidget {
     );
   }
 
-  static String _settings(CalibrationMasterRecord r) {
+  static String _settings(
+    CalibrationMasterRecord r,
+    ExposureSensitivity sensitivity,
+  ) {
     String secs(double v) => v == v.roundToDouble()
         ? '${v.round()} s'
         : '${v < 0.01 ? v.toStringAsFixed(3) : v.toStringAsFixed(2)} s';
     return [
       if (r.exposureSeconds != null && r.type == CalibrationMasterType.dark)
         secs(r.exposureSeconds!),
-      if (r.gain != null) 'gain ${r.gain}',
-      if (r.offset != null) 'offset ${r.offset}',
+      if (r.gain != null) sensitivity.describe(r.gain!),
+      if (r.offset != null && sensitivity.hasOffset) 'offset ${r.offset}',
       'bin ${r.binX}x${r.binY}',
       if (r.temperature != null) formatCelsius(r.temperature!),
       if (r.cameraId?.isNotEmpty ?? false) r.cameraId!,

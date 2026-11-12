@@ -45,6 +45,7 @@ class _FakeDiffService implements SequenceDiffService {
   SequenceDiffResult diff({
     required Sequence previous,
     required Sequence current,
+    ExposureSensitivity sensitivity = const GainSensitivity(),
   }) =>
       _result;
 }

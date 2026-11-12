@@ -550,6 +550,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
         daysSinceLastPolarAlignment: daysSinceLastPolar,
         missingDarkLibraryNotes: darkLibraryMissing.notes,
         missingDarkRequirements: darkLibraryMissing.requirements,
+        sensitivity: ref.read(cameraSensitivityProvider),
         horizonProfile:
             siteHorizon.isFlat ? null : siteHorizon.toSchedulerProfile(),
       );
