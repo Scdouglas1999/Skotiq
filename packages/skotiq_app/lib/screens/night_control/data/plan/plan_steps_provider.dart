@@ -18,7 +18,7 @@ final nightActiveStepProvider = Provider<NightPlanEntry?>((ref) {
   if (!ref.watch(nightRunPhaseProvider).isRunLive) return null;
   final tree = ref.watch(nightPlanTreeProvider);
   if (tree == null) return null;
-  final progress = ref.watch(sequenceProgressProvider);
+  final progress = ref.watch(sequenceStepProgressProvider);
   final currentId = progress.currentNodeId;
   if (currentId != null) {
     final index = tree.stepIndexOf(currentId);
@@ -87,7 +87,7 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
   // Statuses describe the run that set them. Before a run starts they are
   // whatever the previous run left, so a plan waiting to start reads pending.
   final hasRun = phase.isRunLive || phase == NightRunPhase.finished;
-  final progress = ref.watch(sequenceProgressProvider);
+  final progress = ref.watch(sequenceStepProgressProvider);
   final tally = ref.watch(nodeExposureTallyProvider);
   final active = ref.watch(nightActiveStepProvider);
   final timing = ref.watch(nightPlanTimingProvider);

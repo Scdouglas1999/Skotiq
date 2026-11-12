@@ -167,7 +167,7 @@ UpcomingItemVm? _nextDither(Ref ref, NightPlanTree? tree) {
       final frames = nightNodeFrames(
         active.id,
         tally: ref.watch(nodeExposureTallyProvider),
-        progress: ref.watch(sequenceProgressProvider),
+        progress: ref.watch(sequenceStepProgressProvider),
       );
       if (frames == null) return null;
       final next = (frames.captured ~/ every + 1) * every;
@@ -185,7 +185,8 @@ UpcomingItemVm? _nextDither(Ref ref, NightPlanTree? tree) {
   // fires when a burst is longer than it: rotating filters one frame at a
   // time, a plan's "dither every 2" never dithers.
   if (active is SmartExposureNode) {
-    final filter = ref.watch(sequenceProgressProvider).currentFilter;
+    final filter =
+        ref.watch(sequenceProgressProvider.select((p) => p.currentFilter));
     final plan = active.plans.where((p) => p.filterName == filter).firstOrNull;
     final every = plan?.ditherEvery;
     if (plan != null && every != null && every > 0) {
