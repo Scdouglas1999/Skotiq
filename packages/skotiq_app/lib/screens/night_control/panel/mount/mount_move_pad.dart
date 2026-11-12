@@ -16,7 +16,7 @@ import '../../../../localization/skotiq_localizations.dart';
 import '../../../../services/mount_command_service.dart';
 import '../../../../utils/snackbar_helper.dart';
 import 'mount_jog.dart';
-import 'night_panel_parts.dart';
+import '../panel_widgets.dart';
 
 /// Identity for the pad's Stop all motion button.
 const ValueKey<String> mountJogStopKey = ValueKey<String>('mountJog.stop');
@@ -142,7 +142,7 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
         );
 
     final pad = SizedBox(
-      width: _cell * 3 + kNightPanelCellGap * 2,
+      width: _cell * 3 + SkotiqTokens.spaceXs * 2,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -150,7 +150,7 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [arrow('north', 'N', 'nightScopeNorth')],
           ),
-          const SizedBox(height: kNightPanelCellGap),
+          const SizedBox(height: SkotiqTokens.spaceXs),
           // East on the left, as the sky looks facing the meridian.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -160,7 +160,7 @@ class _NightMountMovePadState extends ConsumerState<NightMountMovePad> {
               arrow('west', 'W', 'nightScopeWest'),
             ],
           ),
-          const SizedBox(height: kNightPanelCellGap),
+          const SizedBox(height: SkotiqTokens.spaceXs),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [arrow('south', 'S', 'nightScopeSouth')],

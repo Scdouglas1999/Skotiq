@@ -944,8 +944,6 @@ typedef struct wire_cst_live_stacking_broadcast_snapshot {
   struct wire_cst_list_prim_u_8_strict *mode;
   struct wire_cst_list_prim_u_8_strict *stack_method;
   bool broadcast_enabled;
-  uint16_t broadcast_port;
-  struct wire_cst_list_prim_u_8_strict *broadcast_path;
   struct wire_cst_list_prim_u_8_strict *auth_token;
   struct wire_cst_list_prim_u_8_strict *watermark_template;
   uint32_t thumbnail_width;

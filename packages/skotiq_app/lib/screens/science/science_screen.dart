@@ -25,10 +25,15 @@ class ScienceWorkspaceView extends ConsumerStatefulWidget {
   /// way the per-tab actions sit inline at the right end of the sub-tab row.
   final bool showHeader;
 
+  /// The operator picked a view by hand, so the host can put it in the
+  /// location.
+  final ValueChanged<ScienceTab>? onViewPicked;
+
   const ScienceWorkspaceView({
     super.key,
     this.initialView,
     this.showHeader = true,
+    this.onViewPicked,
   });
 
   @override
@@ -141,7 +146,10 @@ class _ScienceWorkspaceViewState extends ConsumerState<ScienceWorkspaceView> {
     final tabBar = AdaptiveTabBar(
       tabs: _tabs(context),
       selectedIndex: _currentSubTab,
-      onSelected: (index) => setState(() => _currentSubTab = index),
+      onSelected: (index) {
+        setState(() => _currentSubTab = index);
+        widget.onViewPicked?.call(ScienceTab.values[index]);
+      },
     );
 
     final isPhone = Responsive.isPhone(context);

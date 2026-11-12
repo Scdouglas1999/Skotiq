@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../night_control_contracts.dart';
+import '../plan/night_plan_inputs.dart';
 import 'conditions_provider.dart';
 import 'equipment_summary_provider.dart';
 import 'session_format.dart';
@@ -107,6 +108,17 @@ ChecklistItemVm _notConnected(
       connectsProfile: true,
     );
 
+/// Whether the loaded plan takes a parked mount out of park: it has an
+/// Unpark step, or a Slew, which unparks before it moves. Null without a
+/// plan that can run.
+final nightPlanUnparksMountProvider = Provider<bool?>((ref) {
+  final tree = ref.watch(nightPlanTreeProvider);
+  if (tree == null || !tree.launchable) return null;
+  return tree.steps.any(
+    (step) => step.node is UnparkNode || step.node is SlewNode,
+  );
+});
+
 final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   final camera = ref.watch(cameraStateProvider);
   final wheel = ref.watch(filterWheelStateProvider);
@@ -121,6 +133,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   final freeBytes = ref.watch(nightCaptureFreeBytesProvider);
   final conditions = ref.watch(nightConditionsSourceProvider);
   final safety = ref.watch(nightSafetyReadingProvider);
+  final planUnparks = ref.watch(nightPlanUnparksMountProvider);
 
   final rows = <ChecklistItemVm>[];
 
@@ -214,18 +227,25 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   }
 
   // Mount: readiness treats it as desirable, not required, so a missing
-  // mount needs a look rather than blocking.
+  // mount needs a look rather than blocking. Parked is where a mount rests
+  // between nights: it needs a look only under a plan that would leave it
+  // there.
   if (nightConnected(mount.connectionState)) {
+    final staysParked = mount.isParked && planUnparks == false;
     rows.add(
       _row(
         ChecklistItemId.mount,
-        mount.isParked ? ChecklistItemState.attention : ChecklistItemState.ok,
+        staysParked ? ChecklistItemState.attention : ChecklistItemState.ok,
         'nightSessionCheckMount',
         detail: NightText(
           mount.isParked
-              ? (mount.isTracking
-                  ? 'nightSessionCheckMountParkedTracking'
-                  : 'nightSessionCheckMountParked')
+              ? switch (planUnparks) {
+                  true => 'nightSessionCheckMountParkedUnparks',
+                  false => 'nightSessionCheckMountParkedStays',
+                  null => mount.isTracking
+                      ? 'nightSessionCheckMountParkedTracking'
+                      : 'nightSessionCheckMountParked',
+                }
               : (mount.isTracking
                   ? 'nightSessionCheckMountTracking'
                   : 'nightSessionCheckMountIdle'),

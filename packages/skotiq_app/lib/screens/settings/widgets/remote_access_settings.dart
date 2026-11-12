@@ -201,6 +201,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     // HOST's setting — without this the pane shows "Starting remote access"
     // forever. Being connected at all proves the host's server is up.
     final isRemote = ref.watch(isRemoteModeProvider);
+    final hostLink = ref.watch(backendProvider).remoteHost?.link;
     final l10n = context.l10n;
 
     return settingsAsync.when(
@@ -429,6 +430,8 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                     child: Text(
                       describeRemoteAccessPairing(
                         requiresAuthentication: webState.requiresAuthentication,
+                        linkedHost: hostLink?.serverHost,
+                        hostRequiresPairing: hostLink?.hostRequiresPairing,
                       ),
                       style: SkotiqTypography.caption.copyWith(
                         color: SkotiqColors.of(context).textSecondary,

@@ -11250,8 +11250,6 @@ impl SseDecode for crate::api::sequencer::mosaic::LiveStackingBroadcastSnapshot 
         let mut var_mode = <String>::sse_decode(deserializer);
         let mut var_stackMethod = <String>::sse_decode(deserializer);
         let mut var_broadcastEnabled = <bool>::sse_decode(deserializer);
-        let mut var_broadcastPort = <u16>::sse_decode(deserializer);
-        let mut var_broadcastPath = <String>::sse_decode(deserializer);
         let mut var_authToken = <String>::sse_decode(deserializer);
         let mut var_watermarkTemplate = <String>::sse_decode(deserializer);
         let mut var_thumbnailWidth = <u32>::sse_decode(deserializer);
@@ -11263,8 +11261,6 @@ impl SseDecode for crate::api::sequencer::mosaic::LiveStackingBroadcastSnapshot 
             mode: var_mode,
             stack_method: var_stackMethod,
             broadcast_enabled: var_broadcastEnabled,
-            broadcast_port: var_broadcastPort,
-            broadcast_path: var_broadcastPath,
             auth_token: var_authToken,
             watermark_template: var_watermarkTemplate,
             thumbnail_width: var_thumbnailWidth,
@@ -16042,8 +16038,6 @@ impl flutter_rust_bridge::IntoDart
             self.mode.into_into_dart().into_dart(),
             self.stack_method.into_into_dart().into_dart(),
             self.broadcast_enabled.into_into_dart().into_dart(),
-            self.broadcast_port.into_into_dart().into_dart(),
-            self.broadcast_path.into_into_dart().into_dart(),
             self.auth_token.into_into_dart().into_dart(),
             self.watermark_template.into_into_dart().into_dart(),
             self.thumbnail_width.into_into_dart().into_dart(),
@@ -20327,8 +20321,6 @@ impl SseEncode for crate::api::sequencer::mosaic::LiveStackingBroadcastSnapshot 
         <String>::sse_encode(self.mode, serializer);
         <String>::sse_encode(self.stack_method, serializer);
         <bool>::sse_encode(self.broadcast_enabled, serializer);
-        <u16>::sse_encode(self.broadcast_port, serializer);
-        <String>::sse_encode(self.broadcast_path, serializer);
         <String>::sse_encode(self.auth_token, serializer);
         <String>::sse_encode(self.watermark_template, serializer);
         <u32>::sse_encode(self.thumbnail_width, serializer);
@@ -24545,8 +24537,6 @@ mod io {
                 mode: self.mode.cst_decode(),
                 stack_method: self.stack_method.cst_decode(),
                 broadcast_enabled: self.broadcast_enabled.cst_decode(),
-                broadcast_port: self.broadcast_port.cst_decode(),
-                broadcast_path: self.broadcast_path.cst_decode(),
                 auth_token: self.auth_token.cst_decode(),
                 watermark_template: self.watermark_template.cst_decode(),
                 thumbnail_width: self.thumbnail_width.cst_decode(),
@@ -27057,8 +27047,6 @@ mod io {
                 mode: core::ptr::null_mut(),
                 stack_method: core::ptr::null_mut(),
                 broadcast_enabled: Default::default(),
-                broadcast_port: Default::default(),
-                broadcast_path: core::ptr::null_mut(),
                 auth_token: core::ptr::null_mut(),
                 watermark_template: core::ptr::null_mut(),
                 thumbnail_width: Default::default(),
@@ -33780,8 +33768,6 @@ mod io {
         mode: *mut wire_cst_list_prim_u_8_strict,
         stack_method: *mut wire_cst_list_prim_u_8_strict,
         broadcast_enabled: bool,
-        broadcast_port: u16,
-        broadcast_path: *mut wire_cst_list_prim_u_8_strict,
         auth_token: *mut wire_cst_list_prim_u_8_strict,
         watermark_template: *mut wire_cst_list_prim_u_8_strict,
         thumbnail_width: u32,

@@ -1108,8 +1108,6 @@ void main() {
         stackMethod: n.stackMethod,
         maxFramesToStack: n.maxFramesToStack,
         broadcastEnabled: n.broadcastEnabled,
-        broadcastPort: n.broadcastPort,
-        broadcastPath: n.broadcastPath,
         thumbnailWidth: n.thumbnailWidth,
         thumbnailHeight: n.thumbnailHeight,
         // omit authToken + watermarkText
@@ -1130,8 +1128,6 @@ void main() {
       );
       expect(n.copyWith(maxFramesToStack: 500).maxFramesToStack, equals(500));
       expect(n.copyWith(broadcastEnabled: false).broadcastEnabled, isFalse);
-      expect(n.copyWith(broadcastPort: 9000).broadcastPort, equals(9000));
-      expect(n.copyWith(broadcastPath: '/live').broadcastPath, equals('/live'));
       expect(n.copyWith(thumbnailWidth: 800).thumbnailWidth, equals(800));
       expect(n.copyWith(thumbnailHeight: 600).thumbnailHeight, equals(600));
       expect(n.copyWith(), equals(n));

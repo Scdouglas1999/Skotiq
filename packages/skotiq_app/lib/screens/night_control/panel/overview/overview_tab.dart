@@ -28,6 +28,7 @@ import '../../data/session/session_stats_provider.dart';
 import '../../night_control_contracts.dart';
 import '../panel_ops.dart';
 import '../panel_widgets.dart';
+import 'after_run_section.dart';
 import 'next_step_section.dart';
 import 'overview_sections.dart';
 import 'run_sections.dart';
@@ -53,7 +54,8 @@ class NightOverviewTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final beforeRun = nightPanelBeforeRun(ref.watch(nightRunPhaseProvider));
+    final phase = ref.watch(nightRunPhaseProvider);
+    final beforeRun = nightPanelBeforeRun(phase);
     return NightPanelBody(
       fill: NightLogSection(entries: ref.watch(nightLogProvider)),
       children: <Widget>[
@@ -66,6 +68,7 @@ class NightOverviewTab extends ConsumerWidget {
         ] else ...<Widget>[
           NightLastFrameSection(frame: ref.watch(nightLastFrameProvider)),
           NightSessionSection(session: ref.watch(nightSessionStatsProvider)),
+          if (phase == NightRunPhase.finished) const NightAfterRunSection(),
           ..._runSections(ref),
         ],
         if (ref.watch(liveBroadcastProvider) case final broadcast?)

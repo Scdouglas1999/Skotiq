@@ -460,12 +460,6 @@
         "old": "Average"
       },
       {
-        "describe": "Broadcast port: 8081 → 9090",
-        "field": "Broadcast port",
-        "new": "9090",
-        "old": "8081"
-      },
-      {
         "describe": "Broadcast enabled: true → false",
         "field": "Broadcast enabled",
         "new": "false",

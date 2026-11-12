@@ -103,7 +103,6 @@ Map<String, Object?> _sequencerDefaults(SequencerDefaults d) => {
   'exposureBinning': d.exposureBinning.name,
   'exposureDitherEvery': d.exposureDitherEvery,
   'frameDownloadOverheadSecs': d.frameDownloadOverheadSecs,
-  'livestackingDefaultPort': d.livestackingDefaultPort,
   'livestackingPublicByDefault': d.livestackingPublicByDefault,
   'livestackingDefaultStackMethod': d.livestackingDefaultStackMethod.name,
   'livestackingDefaultWatermark': d.livestackingDefaultWatermark,
@@ -128,7 +127,6 @@ const _sequencerKeys = [
   'sequencer_exposure_offset',
   'sequencer_exposure_binning',
   'sequencer_exposure_dither_every',
-  'livestacking_default_port',
   'livestacking_public_by_default',
   'livestacking_default_stack_method',
   'livestacking_default_watermark',
@@ -255,7 +253,6 @@ final _probes = <_Probe>[
         'sequencer_exposure_offset': '21',
         'sequencer_exposure_binning': 'two',
         'sequencer_exposure_dither_every': '5',
-        'livestacking_default_port': '9090',
         'livestacking_public_by_default': 'true',
         'livestacking_default_stack_method': 'median_rej',
         'livestacking_default_watermark': r'$TARGET by me',
@@ -279,7 +276,6 @@ final _probes = <_Probe>[
         'sequencer_exposure_offset': '',
         'sequencer_exposure_binning': 'three',
         'sequencer_exposure_dither_every': 'z',
-        'livestacking_default_port': 'port',
         'livestacking_public_by_default': 'yes',
         'livestacking_default_stack_method': 'medianRej',
         'livestacking_default_watermark': '',
@@ -348,7 +344,6 @@ final _probes = <_Probe>[
         final n = c.read(sequencerDefaultsProvider.notifier);
         await n.ensureLoaded();
         await n.updateLiveStackingDefaults(
-          defaultPort: 8090,
           publicByDefault: true,
           defaultStackMethod: LiveStackingMethod.medianRej,
           defaultWatermark: 'Skotiq',

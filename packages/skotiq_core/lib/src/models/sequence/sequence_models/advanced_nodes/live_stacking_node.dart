@@ -118,12 +118,6 @@ class LiveStackingNode extends SequenceNode {
   /// builds in memory but `/api/broadcast/live-stack` returns 404.
   final bool broadcastEnabled;
 
-  /// Carried in saved plans and on the wire only. Nothing binds this port
-  /// or serves this path: the broadcast is served at `/broadcast` on the
-  /// Skotiq web server, so the editor does not offer them.
-  final int broadcastPort;
-  final String broadcastPath;
-
   /// Optional shared secret. When set (non-empty), every broadcast
   /// endpoint requires `?token=…` matching this value. `null` (or
   /// empty) = public access — appropriate for outreach but the
@@ -155,8 +149,6 @@ class LiveStackingNode extends SequenceNode {
     this.stackMethod = LiveStackingMethod.average,
     this.maxFramesToStack = 0,
     this.broadcastEnabled = true,
-    this.broadcastPort = 8081,
-    this.broadcastPath = '/broadcast',
     this.authToken,
     this.watermarkText,
     this.thumbnailWidth = 1280,
@@ -187,8 +179,6 @@ class LiveStackingNode extends SequenceNode {
     LiveStackingMethod? stackMethod,
     int? maxFramesToStack,
     bool? broadcastEnabled,
-    int? broadcastPort,
-    String? broadcastPath,
     // Plain `?? this.X` for authToken and watermarkText. To clear back to
     // null (e.g. flipping a stream from private to public, or removing the
     // watermark) pass `clearAuthToken: true` / `clearWatermarkText: true`,
@@ -212,8 +202,6 @@ class LiveStackingNode extends SequenceNode {
       stackMethod: stackMethod ?? this.stackMethod,
       maxFramesToStack: maxFramesToStack ?? this.maxFramesToStack,
       broadcastEnabled: broadcastEnabled ?? this.broadcastEnabled,
-      broadcastPort: broadcastPort ?? this.broadcastPort,
-      broadcastPath: broadcastPath ?? this.broadcastPath,
       authToken: clearAuthToken ? null : (authToken ?? this.authToken),
       watermarkText: clearWatermarkText
           ? null
@@ -230,8 +218,6 @@ class LiveStackingNode extends SequenceNode {
     stackMethod,
     maxFramesToStack,
     broadcastEnabled,
-    broadcastPort,
-    broadcastPath,
     authToken,
     watermarkText,
     thumbnailWidth,

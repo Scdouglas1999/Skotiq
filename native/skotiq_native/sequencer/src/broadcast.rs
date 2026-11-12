@@ -125,14 +125,14 @@ mod tests {
         let session = BroadcastSession::from_config(
             "node-1",
             &LiveStackingConfig {
-                broadcast_port: 8081,
+                max_frames_to_stack: 40,
                 ..LiveStackingConfig::default()
             },
         );
         assert!(activate(session.clone()).is_none());
         let now = current().expect("active session exists");
         assert_eq!(now.node_id, "node-1");
-        assert_eq!(now.config.broadcast_port, 8081);
+        assert_eq!(now.config.max_frames_to_stack, 40);
 
         let after = deactivate().expect("deactivate returns the previous");
         assert_eq!(after.node_id, "node-1");

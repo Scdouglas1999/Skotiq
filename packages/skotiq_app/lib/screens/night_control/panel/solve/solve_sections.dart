@@ -12,7 +12,8 @@ import '../../actions/night_rig_ops.dart' show nightCenteringConfigProvider;
 import '../../actions/solve_and_sync.dart' show solveFrameSettings;
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/plan/plan_steps_provider.dart' show nightActiveStepProvider;
-import '../mount/night_panel_parts.dart';
+import '../../night_control_contracts.dart';
+import '../panel_widgets.dart';
 import 'night_solve_tab.dart';
 import 'recent_solves_provider.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -124,7 +125,6 @@ class NightSolveRotationSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final result = ref.watch(plateSolveStateProvider).lastResult;
     final targetRotation = ref.watch(nightSolveTargetRotationProvider);
     final rotator = ref.watch(rotatorStateProvider);
@@ -136,7 +136,7 @@ class NightSolveRotationSection extends ConsumerWidget {
             : null;
 
     final String advice;
-    Color? tone;
+    MetricTone? tone;
     if (measured == null) {
       advice = l10n.text('nightScopeRotationNoSolve');
     } else if (targetRotation == null) {
@@ -154,7 +154,7 @@ class NightSolveRotationSection extends ConsumerWidget {
       };
       if (diff.abs() <= kNightRotationToleranceDeg) {
         advice = l10n.text('nightScopeRotationOk', params: params);
-        tone = colors.success;
+        tone = MetricTone.good;
       } else {
         // Which way to turn depends on the optical train, so the advice
         // gives the size of the turn and leaves the direction to a re-solve.
@@ -164,7 +164,7 @@ class NightSolveRotationSection extends ConsumerWidget {
               : 'nightScopeRotationTurnByHand',
           params: params,
         );
-        tone = colors.warning;
+        tone = MetricTone.warning;
       }
     }
 
@@ -173,7 +173,7 @@ class NightSolveRotationSection extends ConsumerWidget {
       trailing: hasRotator
           ? (rotator.deviceName ?? l10n.text('nightScopeRotator'))
           : l10n.text('nightScopeNoRotator'),
-      children: [NightPanelNote(advice, color: tone)],
+      children: [NightPanelNote(advice, tone: tone, maxLines: null)],
     );
   }
 }

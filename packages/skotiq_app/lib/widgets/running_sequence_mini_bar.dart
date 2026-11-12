@@ -165,7 +165,7 @@ class RunningSequenceMiniBar extends ConsumerWidget {
                 enabled: executionState.canStop,
                 holdColor: colors.error,
                 confirmText: 'Hold to stop',
-                semanticsLabel: 'Press and hold to stop the sequence',
+                semanticsLabel: 'Stop the sequence',
                 onConfirmed: stopSequence,
                 child: IgnorePointer(
                   child: _MiniControlButton(

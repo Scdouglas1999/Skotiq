@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
@@ -514,6 +515,98 @@ void main() {
     });
   });
 
+  // A parked mount read "needs a look" before every run, although the run
+  // unparks it.
+  group('a parked mount before a run', () {
+    Override parked() => mountStateProvider.overrideWith(
+          (ref) => FixedMount(
+            ref,
+            const MountState(
+              connectionState: DeviceConnectionState.connected,
+              deviceName: 'EQ6-R',
+              isParked: true,
+            ),
+          ),
+        );
+
+    Override plan(SequenceNode step) => nightPlanTreeProvider.overrideWithValue(
+          buildNightPlanTree(
+            Sequence.create(
+              name: 'Run',
+              rootNodeId: 'root',
+              nodes: {
+                'root': InstructionSetNode(
+                  id: 'root',
+                  name: 'Run',
+                  childIds: const ['step', 'light'],
+                ),
+                'step': step,
+                'light': ExposureNode(
+                  id: 'light',
+                  parentId: 'root',
+                  orderIndex: 1,
+                ),
+              },
+            ),
+          ),
+        );
+
+    Future<ChecklistItemVm> mountRow(List<Override> more) async {
+      final h = await sessionHarness(
+        overrides: [..._readyRig(), parked(), ...more],
+      );
+      return _item(await _checklist(h), ChecklistItemId.mount);
+    }
+
+    test('no plan loaded: parked is where it rests', () async {
+      final row = await mountRow([
+        nightPlanTreeProvider.overrideWithValue(null),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParked');
+    });
+
+    test('a plan with an Unpark step: fine, the run unparks it', () async {
+      final row = await mountRow([
+        plan(UnparkNode(id: 'step', parentId: 'root', orderIndex: 0)),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedUnparks');
+    });
+
+    test('a plan that slews: fine, a slew unparks first', () async {
+      final row = await mountRow([
+        plan(SlewNode(id: 'step', parentId: 'root', orderIndex: 0)),
+      ]);
+      expect(row.state, ChecklistItemState.ok);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedUnparks');
+    });
+
+    test('a plan that never moves the mount: it would stay parked', () async {
+      final row = await mountRow([
+        plan(
+          DelayNode(id: 'step', parentId: 'root', orderIndex: 0),
+        ),
+      ]);
+      expect(row.state, ChecklistItemState.attention);
+      expect(row.detail!.key, 'nightSessionCheckMountParkedStays');
+    });
+
+    test('a disabled Unpark step does not count', () async {
+      final row = await mountRow([
+        plan(
+          UnparkNode(
+            id: 'step',
+            parentId: 'root',
+            orderIndex: 0,
+            isEnabled: false,
+          ),
+        ),
+      ]);
+      expect(row.state, ChecklistItemState.attention);
+    });
+  });
+
   // The rig, Nov 8 2026: the mount's reads all failed and the row kept
   // saying "tracking · pier E · alt 2.5°" as if current.
   group('stale and failed devices', () {
@@ -693,6 +786,51 @@ void main() {
       final line = h.read(nightLogProvider).single.message.literal!;
       expect(line, contains('Simulated Rotator'));
       expect(line, isNot(contains('sim_rotator_1')));
+    });
+
+    // The log read "Property changed · Filter Wheel · FilterNames" after
+    // every connect.
+    test('a device property change is not a line of the log', () async {
+      final h = await sessionHarness();
+      final keep = h.container.listen(nightLogProvider, (_, __) {});
+      addTearDown(keep.close);
+      sk_events.SkotiqEvent equipment(int id, sk_events.EquipmentEvent event) =>
+          sk_events.SkotiqEvent(
+            eventId: BigInt.from(id),
+            timestamp: kNight.millisecondsSinceEpoch + id,
+            severity: sk_events.EventSeverity.info,
+            category: sk_events.EventCategory.equipment,
+            payload: sk_events.EventPayload.equipment(event),
+          );
+      final history = h.container.read(eventHistoryProvider.notifier);
+      history.addEvent(
+        equipment(
+          1,
+          const sk_events.EquipmentEvent.connected(
+            deviceType: 'Filter Wheel',
+            deviceId: 'sim_filterwheel_1',
+            deviceName: 'Simulated Filter Wheel',
+          ),
+        ),
+      );
+      history.addEvent(
+        equipment(
+          2,
+          const sk_events.EquipmentEvent.propertyChanged(
+            deviceType: 'Filter Wheel',
+            deviceId: 'sim_filterwheel_1',
+            property: 'FilterNames',
+            value: 'L,R,G,B',
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(h.read(nightLogFeedEventsProvider), hasLength(1));
+      final lines = [
+        for (final entry in h.read(nightLogProvider)) entry.message.literal!,
+      ];
+      expect(lines, hasLength(1));
+      expect(lines.single, startsWith('Connected'));
     });
 
     test('past the cap the oldest lines go, the newest stay', () async {

@@ -61,12 +61,6 @@ impl InstructionNode for LiveStackingInstruction {
             return NodeStatus::Failure;
         };
 
-        // Why not validate broadcast_port here: validation rules
-        // (`LiveStackingPortClashRule`) run at sequence-edit time. The
-        // runtime should fail-loud on a *runtime* port clash (e.g. the
-        // headless server changed port after load), but the bridge's
-        // broadcast activation handles that — we just hand off the
-        // config.
         let session = BroadcastSession::from_config(node_id, config);
 
         // Activate the session. The function returns the previous
@@ -77,21 +71,16 @@ impl InstructionNode for LiveStackingInstruction {
         let previous = broadcast::activate(session.clone());
         if let Some(prev) = previous {
             tracing::warn!(
-                "LiveStacking '{}' replaced active broadcast session from node '{}' \
-                 (port {} → {})",
+                "LiveStacking '{}' replaced active broadcast session from node '{}'",
                 node_id,
                 prev.node_id,
-                prev.config.broadcast_port,
-                config.broadcast_port,
             );
         } else {
             tracing::info!(
-                "LiveStacking '{}' armed: mode={}, stack={}, port={}, path='{}'",
+                "LiveStacking '{}' armed: mode={}, stack={}",
                 node_id,
                 config.mode.as_str(),
                 config.stack_method.as_str(),
-                config.broadcast_port,
-                config.broadcast_path,
             );
         }
 
@@ -100,11 +89,13 @@ impl InstructionNode for LiveStackingInstruction {
         // a separate event. Using `lifecycle` with `Success` here is
         // intentional — the instruction itself has completed; the
         // background broadcast carries on independently.
-        let message = format!(
-            "Broadcast armed on port {} ({})",
-            config.broadcast_port,
-            config.mode.as_str(),
-        );
+        let message = match config.mode {
+            crate::LiveStackingMode::BroadcastOnly => "Live stack broadcast armed",
+            crate::LiveStackingMode::RecordAndBroadcast => {
+                "Live stack broadcast armed · stack snapshots saved with the session"
+            }
+        }
+        .to_string();
         context.send_progress(ProgressUpdate::lifecycle(
             node_id.to_string(),
             NodeStatus::Success,
@@ -138,8 +129,6 @@ mod tests {
             mode: LiveStackingMode::BroadcastOnly,
             stack_method: StackMethod::Sigma,
             broadcast_enabled: true,
-            broadcast_port: 8081,
-            broadcast_path: "/broadcast".to_string(),
             ..LiveStackingConfig::default()
         };
         let node_type = NodeType::LiveStacking(cfg.clone());
@@ -151,7 +140,6 @@ mod tests {
 
         let active = crate::broadcast::current().expect("expected active session");
         assert_eq!(active.node_id, "ls-1");
-        assert_eq!(active.config.broadcast_port, 8081);
         assert_eq!(active.config.stack_method, StackMethod::Sigma);
 
         crate::broadcast::deactivate();
@@ -165,7 +153,7 @@ mod tests {
         let mut ctx = ExecutionContext::new_for_test("ls-1".to_string());
 
         let cfg1 = LiveStackingConfig {
-            broadcast_port: 8081,
+            max_frames_to_stack: 10,
             ..LiveStackingConfig::default()
         };
         let _ = LiveStackingInstruction
@@ -173,7 +161,7 @@ mod tests {
             .await;
 
         let cfg2 = LiveStackingConfig {
-            broadcast_port: 9090,
+            max_frames_to_stack: 20,
             ..LiveStackingConfig::default()
         };
         let _ = LiveStackingInstruction
@@ -182,7 +170,7 @@ mod tests {
 
         let active = crate::broadcast::current().expect("expected active session");
         assert_eq!(active.node_id, "ls-2");
-        assert_eq!(active.config.broadcast_port, 9090);
+        assert_eq!(active.config.max_frames_to_stack, 20);
         crate::broadcast::deactivate();
     }
 

@@ -8,9 +8,9 @@ import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.da
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/screens/night_control/panel/panel_widgets.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/harness.dart';
 
@@ -255,8 +255,5 @@ String? tooltipOf(WidgetTester tester, Key key) {
 
 /// Whether the button with [key] would act on a tap.
 bool isEnabled(WidgetTester tester, Key key) {
-  final button = tester.widget(
-    find.descendant(of: find.byKey(key), matching: find.byType(SkotiqButton)),
-  ) as SkotiqButton;
-  return button.onPressed != null;
+  return tester.widget<NightPanelButton>(find.byKey(key)).onPressed != null;
 }

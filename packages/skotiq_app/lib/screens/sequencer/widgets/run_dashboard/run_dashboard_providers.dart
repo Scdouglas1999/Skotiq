@@ -911,8 +911,12 @@ bool isUserFacingRunEvent(sk_events.SkotiqEvent event) {
   final payload = event.payload;
   if (payload is sk_events.EventPayload_Equipment) {
     final equipment = payload.field0;
+    // A property change is how a device's state reaches the screens that
+    // show it (filter names, a camera setting, autofocus progress); the
+    // feed read "Property changed · Filter Wheel · FilterNames".
     return equipment is! sk_events.EquipmentEvent_HeartbeatStarted &&
-        equipment is! sk_events.EquipmentEvent_HeartbeatStopped;
+        equipment is! sk_events.EquipmentEvent_HeartbeatStopped &&
+        equipment is! sk_events.EquipmentEvent_PropertyChanged;
   }
   if (payload is sk_events.EventPayload_System) {
     final system = payload.field0;

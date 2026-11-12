@@ -112,13 +112,6 @@ class BroadcastSessionState {
   /// Whether a broadcast is currently armed.
   final bool active;
 
-  /// The configured port the broadcast endpoints answer on. Mirrors
-  /// the LiveStackingNode at activation time. `0` when inactive.
-  final int port;
-
-  /// HTTP path prefix the broadcast page is served at.
-  final String path;
-
   final LiveStackingMode mode;
 
   /// Stack method selected at activation time. The mapping to the
@@ -169,8 +162,6 @@ class BroadcastSessionState {
 
   const BroadcastSessionState({
     this.active = false,
-    this.port = 0,
-    this.path = '/broadcast',
     this.mode = LiveStackingMode.broadcastOnly,
     this.stackMethod = LiveStackingMethod.average,
     this.authToken,
@@ -204,8 +195,6 @@ class BroadcastSessionState {
 
   BroadcastSessionState copyWith({
     bool? active,
-    int? port,
-    String? path,
     LiveStackingMode? mode,
     LiveStackingMethod? stackMethod,
     String? authToken,
@@ -221,8 +210,6 @@ class BroadcastSessionState {
   }) {
     return BroadcastSessionState(
       active: active ?? this.active,
-      port: port ?? this.port,
-      path: path ?? this.path,
       mode: mode ?? this.mode,
       stackMethod: stackMethod ?? this.stackMethod,
       authToken: authToken ?? this.authToken,
@@ -241,8 +228,6 @@ class BroadcastSessionState {
   /// JSON view returned by `/api/broadcast/info`.
   Map<String, dynamic> toInfoJson() => {
     'active': active,
-    'port': port,
-    'path': path,
     'mode': mode.storageKey,
     'stackMethod': stackMethod.storageKey,
     'isPublic': isPublic,
@@ -364,8 +349,6 @@ class LiveStackingBroadcastService {
     }
     _state = BroadcastSessionState(
       active: true,
-      port: node.broadcastPort,
-      path: node.broadcastPath,
       mode: node.mode,
       stackMethod: node.stackMethod,
       authToken: node.authToken,

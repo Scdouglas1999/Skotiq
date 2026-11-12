@@ -199,6 +199,34 @@ void main() {
       expect(body, isNot(contains('frictionless')));
     });
 
+    // A linked client read its own idle server and called a host that
+    // demanded a token open to anything that could reach it.
+    test('linked to a host, the text is what that host said', () {
+      final closed = describeRemoteAccessPairing(
+        requiresAuthentication: false,
+        linkedHost: 'rig-pc',
+        hostRequiresPairing: true,
+      );
+      expect(closed, contains('rig-pc'));
+      expect(closed, contains('has to pair'));
+      expect(closed, isNot(contains('not required')));
+      expect(closed, isNot(contains('anything that can reach')));
+
+      final open = describeRemoteAccessPairing(
+        requiresAuthentication: true,
+        linkedHost: 'rig-pc',
+        hostRequiresPairing: false,
+      );
+      expect(open, contains('anything that can reach it'));
+
+      final silent = describeRemoteAccessPairing(
+        requiresAuthentication: false,
+        linkedHost: 'rig-pc',
+      );
+      expect(silent, contains('did not say'));
+      expect(silent, isNot(contains('anything that can reach')));
+    });
+
     test('an authenticated server says the local browser pairs too', () {
       final body = describeRemoteAccessPairing(requiresAuthentication: true);
       expect(body, contains('not exempt'));

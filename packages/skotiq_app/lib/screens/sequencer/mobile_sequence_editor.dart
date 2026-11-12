@@ -845,7 +845,7 @@ class _RecoveryActionsState extends State<_RecoveryActions> {
           enabled: !_abortBusy,
           holdColor: widget.errorColor,
           confirmText: 'Hold to abort',
-          semanticsLabel: 'Press and hold to abort recovery',
+          semanticsLabel: 'Abort recovery',
           onConfirmed: _abort,
           child: IgnorePointer(
             child: SkotiqButton(

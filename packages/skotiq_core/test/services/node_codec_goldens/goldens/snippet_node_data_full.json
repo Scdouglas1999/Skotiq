@@ -468,8 +468,6 @@
   {
     "authToken": "secret-token",
     "broadcastEnabled": false,
-    "broadcastPath": "/live",
-    "broadcastPort": 9090,
     "comment": "live note",
     "isEnabled": true,
     "maxFramesToStack": 50,

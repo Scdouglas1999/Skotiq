@@ -5,8 +5,8 @@
 // A search box that matches only the hand-maintained `SettingsSectionDef.
 // keywords` cannot find most rows by their own visible title. Measured on the
 // live app, 243 of 496 rendered setting rows (49%) were unreachable that way:
-// "Safety fail mode", "Park on unsafe weather", "Default watermark template"
-// and "Default broadcast port" all returned "No settings match your search",
+// "Safety fail mode", "Park on unsafe weather" and "Default watermark
+// template" all returned "No settings match your search",
 // and it misdirected as well as missed — "thumbnail" returned only Captured
 // Images even though the Sequencer page has a "Default thumbnail size" row.
 //
@@ -425,6 +425,13 @@ List<String> _titles(
 /// Composition is followed from the CLASS body, so a sibling class that happens
 /// to live in the same file contributes nothing unless this page actually
 /// builds it.
+///
+/// A section whose page lives outside `screens/settings/` is followed through
+/// its own feature folder as well ([featureRoot]). Equipment profiles is the
+/// profile manager under `screens/equipment/`, and its settings are the rows
+/// of the profile editor it opens; followed only into `screens/settings/`, the
+/// section indexed nothing, so "Focal length" and "Camera defaults" found no
+/// page.
 List<String> _collect(
   _Library? library,
   _Libraries libraries,
@@ -432,11 +439,13 @@ List<String> _collect(
   int depth = 0,
   Set<String>? visited,
   Map<String, String>? rowOf,
+  String? featureRoot,
 }) {
   visited ??= <String>{};
   if (library == null || !visited.add(library.path) || depth > 3) {
     return const [];
   }
+  if (depth == 0) featureRoot = _featureRoot(library.path);
   final found = _titles(library.source, english, rowOf: rowOf);
   // Follow constructor calls that resolve to another page under settings/,
   // excluding the shared row/section components — those are generic chrome and
@@ -446,7 +455,9 @@ List<String> _collect(
   ).allMatches(library.source)) {
     final target = libraries.forClass(m.group(1)!);
     if (target == null) continue;
-    if (!target.path.contains('/screens/settings/')) continue;
+    final inFeature =
+        featureRoot != null && target.path.startsWith(featureRoot);
+    if (!inFeature && !target.path.contains('/screens/settings/')) continue;
     if (target.path.contains('/widgets/settings_widgets/')) continue;
     found.addAll(
       _collect(
@@ -456,10 +467,19 @@ List<String> _collect(
         depth: depth + 1,
         visited: visited,
         rowOf: rowOf,
+        featureRoot: featureRoot,
       ),
     );
   }
   return found;
+}
+
+/// `…/screens/<feature>/` of a page that is not under `screens/settings/`;
+/// null for one that is.
+String? _featureRoot(String path) {
+  final m = RegExp(r'^(.*/screens/[^/]+/)').firstMatch(path);
+  final root = m?.group(1);
+  return root == null || root.endsWith('/screens/settings/') ? null : root;
 }
 
 /// Whether the `title:` match at [offset] is really the tail of `subtitle:`.

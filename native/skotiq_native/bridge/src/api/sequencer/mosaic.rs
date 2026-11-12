@@ -37,8 +37,6 @@ pub struct LiveStackingBroadcastSnapshot {
     /// `average`, `median_rej`, or `sigma`.
     pub stack_method: String,
     pub broadcast_enabled: bool,
-    pub broadcast_port: u16,
-    pub broadcast_path: String,
     /// Empty string when public (no token required). Non-empty when
     /// `?token=…` is required on every broadcast endpoint.
     pub auth_token: String,
@@ -60,8 +58,6 @@ impl From<&skotiq_sequencer::broadcast::BroadcastSession> for LiveStackingBroadc
             mode: s.config.mode.as_str().to_string(),
             stack_method: s.config.stack_method.as_str().to_string(),
             broadcast_enabled: s.config.broadcast_enabled,
-            broadcast_port: s.config.broadcast_port,
-            broadcast_path: s.config.broadcast_path.clone(),
             auth_token: s.config.auth_token.clone().unwrap_or_default(),
             watermark_template: s.config.watermark_text.clone().unwrap_or_default(),
             thumbnail_width: s.config.thumbnail_width,
@@ -92,9 +88,8 @@ pub fn api_broadcast_get_active() -> Option<LiveStackingBroadcastSnapshot> {
 pub fn api_broadcast_deactivate() {
     if let Some(prev) = skotiq_sequencer::broadcast::deactivate() {
         tracing::info!(
-            "LiveStacking broadcast force-deactivated (was node '{}', port {})",
-            prev.node_id,
-            prev.config.broadcast_port
+            "LiveStacking broadcast force-deactivated (was node '{}')",
+            prev.node_id
         );
     }
 }

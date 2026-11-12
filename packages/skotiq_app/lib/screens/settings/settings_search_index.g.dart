@@ -256,12 +256,16 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Without a dark slot in the filter wheel',
   ],
   'equipment-profiles': [
+    'Aperture (mm)',
     'Camera defaults',
-    'Device assignments',
-    'Equipment profiles',
-    'Filter configuration',
-    'Filter focus offsets',
-    'Optical configuration',
+    'Devices',
+    'Focal length (mm)',
+    'Optical train',
+    'Profile identity',
+    'Profiles',
+    'Reducer or barlow factor',
+    'Set as the active profile on startup',
+    'stored in the profile',
   ],
   'files-storage': [
     'Application data',
@@ -530,9 +534,10 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Use TLS',
     'User key',
     'Username override',
+    'Uses the imaging host\'s MQTT broker and its password.',
     'Weather unsafe',
     'Webhook URL',
-    'When off, no per-category routing fires (legacy push still works)',
+    'When off, nothing is sent to any transport',
     'Which of these decides where an alert goes',
     'Which sound to play when critical events fire',
     'Write-only secret stored on the imaging host.',
@@ -701,7 +706,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Autofocus cadence (frames)',
     'Average is fastest; Median + Rejection and Sigma',
     'Camera retries',
-    'Default broadcast port',
     'Default per-target imaging budget the wizard uses.',
     'Default stack method',
     'Default thumbnail size',
@@ -743,7 +747,6 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'Plate solve and re-center target after flip',
     'Play sound when flip starts/completes/fails',
     'Polar alignment stale after',
-    'Port used by newly-created LiveStacking nodes.',
     'Prompt for notes after run',
     'Public by default',
     'Push notification',
@@ -1025,7 +1028,9 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Webhook URL',
     'This broker is separate from notification MQTT on':
         'Runs on the imaging host',
-    'When off, no per-category routing fires (legacy push still works)':
+    'Uses the imaging host\'s MQTT broker and its password.':
+        'Publish to Home Assistant',
+    'When off, nothing is sent to any transport':
         'Notification routing enabled',
     'Which sound to play when critical events fire': 'Alert sound',
     'Write-only secret stored on the imaging host.': 'Broker password',
@@ -1125,7 +1130,6 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Park on unsafe weather',
     'Plate solve and re-center target after flip': 'Recenter after flip',
     'Play sound when flip starts/completes/fails': 'Sound alert',
-    'Port used by newly-created LiveStacking nodes.': 'Default broadcast port',
     'Rendered on the broadcast JPEG. Variable interpolation':
         'Default watermark template',
     'Restart autoguider if it was running': 'Resume guiding after flip',
