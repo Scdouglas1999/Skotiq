@@ -717,3 +717,48 @@ void main() {
     });
   });
 }
+    // The log read "Property changed · Filter Wheel · FilterNames" after
+    // every connect.
+    test('a device property change is not a line of the log', () async {
+      final h = await sessionHarness();
+      final keep = h.container.listen(nightLogProvider, (_, __) {});
+      addTearDown(keep.close);
+      sk_events.SkotiqEvent equipment(int id, sk_events.EquipmentEvent event) =>
+          sk_events.SkotiqEvent(
+            eventId: BigInt.from(id),
+            timestamp: kNight.millisecondsSinceEpoch + id,
+            severity: sk_events.EventSeverity.info,
+            category: sk_events.EventCategory.equipment,
+            payload: sk_events.EventPayload.equipment(event),
+          );
+      final history = h.container.read(eventHistoryProvider.notifier);
+      history.addEvent(
+        equipment(
+          1,
+          const sk_events.EquipmentEvent.connected(
+            deviceType: 'Filter Wheel',
+            deviceId: 'sim_filterwheel_1',
+            deviceName: 'Simulated Filter Wheel',
+          ),
+        ),
+      );
+      history.addEvent(
+        equipment(
+          2,
+          const sk_events.EquipmentEvent.propertyChanged(
+            deviceType: 'Filter Wheel',
+            deviceId: 'sim_filterwheel_1',
+            property: 'FilterNames',
+            value: 'L,R,G,B',
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(h.read(nightLogFeedEventsProvider), hasLength(1));
+      final lines = [
+        for (final entry in h.read(nightLogProvider)) entry.message.literal!,
+      ];
+      expect(lines, hasLength(1));
+      expect(lines.single, startsWith('Connected'));
+    });
+

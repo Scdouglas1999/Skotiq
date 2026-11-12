@@ -33,7 +33,11 @@ import 'package:skotiq_core/skotiq_core.dart'
 import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
 
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
-    show RunDashboardEvent, RunDashboardEventSeverity, runDashboardFeedRows;
+    show
+        RunDashboardEvent,
+        RunDashboardEventSeverity,
+        isUserFacingRunEvent,
+        runDashboardFeedRows;
 import '../../night_control_contracts.dart';
 import 'session_events_provider.dart';
 import 'session_format.dart';
@@ -85,8 +89,10 @@ class NightLogFeedRecorder extends Notifier<List<sk_events.SkotiqEvent>> {
     Iterable<sk_events.SkotiqEvent> events,
   ) =>
       events.where(
-        (event) => !_feedTitlesLeftOut
-            .contains(sk_events.skotiqEventDisplayTitle(event)),
+        (event) =>
+            isUserFacingRunEvent(event) &&
+            !_feedTitlesLeftOut
+                .contains(sk_events.skotiqEventDisplayTitle(event)),
       );
 
   /// The history only ever gains events at its front; the ones not in
