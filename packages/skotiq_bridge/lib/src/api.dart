@@ -10,15 +10,10 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DiscoveryCacheEntry`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_device_manager`, `get_state`
 
-/// Invalidate the per-(type, driver) discovery cache, forcing fresh discovery
-/// on the next call. Also invalidates the native SDK discovery cache so vendor
-/// SDKs are re-queried. Called when the user explicitly requests a rescan and
-/// when the hot-plug watcher observes an arrival/removal.
-///
-/// Note: there is intentionally no separate capability-cache invalidation
-/// here. The `device_capabilities` module re-queries each device per call
-/// rather than caching, so dropping a cache that does not exist would be a
-/// silent no-op — and silent no-ops mask real bugs. If a
-/// capability cache is added later, invalidate it explicitly here.
+/// Forget every discovery result: the per-(type, driver) cache, the Alpaca
+/// sweep and the native SDK enumeration, so the next discovery asks every
+/// backend again. Called when the user explicitly requests a rescan, when the
+/// hot-plug watcher observes an arrival/removal, and when a device turns out
+/// not to be where the last enumeration put it.
 Future<void> apiInvalidateDiscoveryCache() =>
     RustLib.instance.api.crateApiApiInvalidateDiscoveryCache();
