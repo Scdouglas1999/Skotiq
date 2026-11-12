@@ -321,11 +321,12 @@ Future<void> _printConnectBanner(
         stdout.writeln('    Authorization: Bearer ${_redactToken(token)}');
       }
     } else {
-      stdout.writeln('\n  Headless API is available on:');
+      stdout.writeln('\n  Headless API is available on this computer only:');
       stdout.writeln('    $scheme://127.0.0.1:${server.actualPort}');
       stdout.writeln(
-        '  Add --require-auth or --auth-token to expose authenticated LAN '
-        'access.',
+        '  Phones and other computers cannot reach it. Start with '
+        '--require-auth\n'
+        '  (each device pairs) or --auth-token to serve the local network.',
       );
     }
     if (tls != null) {
@@ -337,7 +338,10 @@ Future<void> _printConnectBanner(
       // This daemon has no screen: say where the code a computer asks for
       // goes, before anyone asks.
       stdout.writeln(
-        '\n  To link a computer, press Link on it. A code it asks for',
+        localIp == null
+            ? '\n  To link Skotiq on this computer, press Link in it. A code '
+                  'it asks for'
+            : '\n  To link a computer, press Link on it. A code it asks for',
       );
       stdout.writeln('  is written to $pairingCodePath');
       stdout.writeln(
