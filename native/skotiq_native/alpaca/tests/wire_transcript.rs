@@ -591,6 +591,12 @@ fn ok_get_value(device_type: &str, endpoint: &str) -> Value {
         (_, "imagearray") => json!([[10, 20], [30, 40]]),
         (_, "imagearrayvariant") => json!([[10, 20], [30, 40]]),
         (_, "canwrite") => json!(true),
+        (_, "switchstep") => json!(0.5),
+        (_, "statechangecomplete") => json!(true),
+        (_, "covermoving") => json!(false),
+        (_, "calibratorchanging") => json!(false),
+        (_, "starfwhm") => json!(2.5),
+        (_, "sensordescription") => json!("Unihedron SQM-LE"),
         (_, other) if other.starts_with("can") => json!(true),
         (_, other) => panic!("no scripted value for {device_type}/{other}"),
     }
@@ -765,8 +771,6 @@ async fn safety_monitor_wire_transcript() {
         "command_blind" => |d| d.command_blind(":Q#", false),
         "command_bool" => |d| d.command_bool(":X#", true),
         "is_safe" [rep] => |d| d.is_safe(),
-        "get_status" [par] => |d| d.get_status(),
-        "get_info" [par] => |d| d.get_info(),
     ];
     let actual = transcript("safetymonitor", AlpacaSafetyMonitor::from_server, members).await;
     check_golden("safetymonitor", &actual);
@@ -797,6 +801,12 @@ async fn switch_wire_transcript() {
         "min_switch_value" => |d| d.min_switch_value(3),
         "max_switch_value" => |d| d.max_switch_value(3),
         "can_write" => |d| d.can_write(3),
+        "switch_step" => |d| d.switch_step(3),
+        "can_async" => |d| d.can_async(3),
+        "set_async" => |d| d.set_async(3, true),
+        "set_async_value" => |d| d.set_async_value(3, 0.5),
+        "state_change_complete" => |d| d.state_change_complete(3),
+        "cancel_async" => |d| d.cancel_async(3),
     ];
     let actual = transcript("switch", AlpacaSwitch::from_server, members).await;
     check_golden("switch", &actual);
@@ -826,9 +836,12 @@ async fn observing_conditions_wire_transcript() {
         "wind_direction" => |d| d.wind_direction(),
         "wind_gust" => |d| d.wind_gust(),
         "wind_speed" => |d| d.wind_speed(),
+        "star_fwhm" => |d| d.star_fwhm(),
         "average_period" => |d| d.average_period(),
         "set_average_period" [rep] => |d| d.set_average_period(0.5),
         "time_since_last_update" [rep] => |d| d.time_since_last_update("Temperature"),
+        "sensor_description" => |d| d.sensor_description("SkyQuality"),
+        "readings (WeatherDriver)" [par] => |d| skotiq_device::WeatherDriver::readings(&*d),
         "refresh" [rep] => |d| d.refresh(),
     ];
     let actual = transcript(
@@ -861,7 +874,9 @@ async fn cover_calibrator_wire_transcript() {
         "halt_cover" => |d| d.halt_cover(),
         "calibrator_on" [rep] => |d| d.calibrator_on(128),
         "calibrator_off" => |d| d.calibrator_off(),
-        "get_status" [par] => |d| d.get_status(),
+        "cover_moving" => |d| d.cover_moving(),
+        "calibrator_changing" => |d| d.calibrator_changing(),
+        "status (CoverCalibratorDriver)" [par] => |d| skotiq_device::CoverCalibratorDriver::status(&*d),
     ];
     let actual = transcript(
         "covercalibrator",
@@ -1004,8 +1019,9 @@ async fn dome_wire_transcript() {
         "set_park" => |d| d.set_park(),
         "slew_to_altitude" => |d| d.slew_to_altitude(45.5),
         "slew_to_azimuth" => |d| d.slew_to_azimuth(270.0),
+        "slew_to_azimuth (DomeDriver, 370)" => |d| skotiq_device::DomeDriver::slew_to_azimuth(&*d, 370.0),
         "sync_to_azimuth" => |d| d.sync_to_azimuth(123.456),
-        "get_status" [par] => |d| d.get_status(),
+        "status (DomeDriver)" [par] => |d| skotiq_device::DomeDriver::status(&*d),
     ];
     let actual = transcript("dome", AlpacaDome::from_server, members).await;
     check_golden("dome", &actual);

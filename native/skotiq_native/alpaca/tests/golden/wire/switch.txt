@@ -824,3 +824,177 @@
 > GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=1&Id=3]
 > GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=2&Id=3]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.switch_step [ok]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(0.5)
+
+## switch.switch_step [ascom 0x400]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.switch_step [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## switch.switch_step [http 400]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.switch_step [http 500]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.switch_step [malformed json]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/switchstep query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.can_async [ok]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(true)
+
+## switch.can_async [ascom 0x400]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.can_async [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## switch.can_async [http 400]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.can_async [http 500]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.can_async [malformed json]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/canasync query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.set_async [ok]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Ok(())
+
+## switch.set_async [ascom 0x400]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_async [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_async [http 400]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_async [http 500]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&State=true]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&State=true]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_async [malformed json]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&State=true]
+> PUT /api/v1/switch/#/setasync query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&State=true]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.set_async_value [ok]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+= Ok(())
+
+## switch.set_async_value [ascom 0x400]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.set_async_value [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.set_async_value [http 400]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.set_async_value [http 500]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&Value=0.5]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&Value=0.5]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.set_async_value [malformed json]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&Value=0.5]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=1&Id=3&Value=0.5]
+> PUT /api/v1/switch/#/setasyncvalue query[] form[ClientID=<id>&ClientTransactionID=2&Id=3&Value=0.5]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.state_change_complete [ok]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(true)
+
+## switch.state_change_complete [ascom 0x400]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.state_change_complete [ascom 0x4FF without Value]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## switch.state_change_complete [http 400]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.state_change_complete [http 500]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.state_change_complete [malformed json]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=0&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=1&Id=3]
+> GET /api/v1/switch/#/statechangecomplete query[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## switch.cancel_async [ok]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Ok(())
+
+## switch.cancel_async [ascom 0x400]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1024: Property or method is not implemented)
+
+## switch.cancel_async [ascom 0x4FF without Value]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(Device error 1279: Unspecified driver fault)
+
+## switch.cancel_async [http 400]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+= Err(HTTP error 400: Method not implemented)
+
+## switch.cancel_async [http 500]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=1&Id=3]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## switch.cancel_async [malformed json]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=0&Id=3]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=1&Id=3]
+> PUT /api/v1/switch/#/cancelasync query[] form[ClientID=<id>&ClientTransactionID=2&Id=3]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

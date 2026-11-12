@@ -268,6 +268,8 @@ fn member_lines() -> Vec<String> {
         row!("halt_cover()", d.halt_cover());
         row!("calibrator_on(1)", d.calibrator_on(1));
         row!("calibrator_off()", d.calibrator_off());
+        row!("cover_moving()", d.cover_moving());
+        row!("calibrator_changing()", d.calibrator_changing());
         row!("heartbeat()", d.heartbeat());
     }
     rows! { lines, "AscomDome", Dome;
@@ -290,6 +292,16 @@ fn member_lines() -> Vec<String> {
         row!("abort_slew()", d.abort_slew());
         row!("find_home()", d.find_home());
         row!("set_slaved(true)", d.set_slaved(true));
+        row!("altitude()", d.altitude());
+        row!("at_home()", d.at_home());
+        row!("slaved()", d.slaved());
+        row!("can_find_home()", d.can_find_home());
+        row!("can_park()", d.can_park());
+        row!("can_set_altitude()", d.can_set_altitude());
+        row!("can_set_azimuth()", d.can_set_azimuth());
+        row!("can_set_shutter()", d.can_set_shutter());
+        row!("can_slave()", d.can_slave());
+        row!("can_sync_azimuth()", d.can_sync_azimuth());
         row!("heartbeat()", d.heartbeat());
     }
     rows! { lines, "AscomFilterWheel", FilterWheel;
@@ -478,6 +490,11 @@ fn member_lines() -> Vec<String> {
         row!("max_switch_value(1)", d.max_switch_value(1));
         row!("switch_step(1)", d.switch_step(1));
         row!("can_write(1)", d.can_write(1));
+        row!("can_async(1)", d.can_async(1));
+        row!("set_async(1, true)", d.set_async(1, true));
+        row!("set_async_value(1, 2.5)", d.set_async_value(1, 2.5));
+        row!("state_change_complete(1)", d.state_change_complete(1));
+        row!("cancel_async(1)", d.cancel_async(1));
         row!("heartbeat()", d.heartbeat());
     }
     lines

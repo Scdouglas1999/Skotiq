@@ -697,6 +697,36 @@
 > GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
+## observingconditions.star_fwhm [ok]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=0]
+= Ok(2.5)
+
+## observingconditions.star_fwhm [ascom 0x400]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.star_fwhm [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.star_fwhm [http 400]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.star_fwhm [http 500]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.star_fwhm [malformed json]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
 ## observingconditions.average_period [ok]
 > GET /api/v1/observingconditions/#/averageperiod query[ClientID=<id>&ClientTransactionID=0]
 = Ok(0.25)
@@ -892,6 +922,90 @@
 > GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=1&SensorName=Temperature]
 > GET /api/v1/observingconditions/#/timesincelastupdate query[ClientID=<id>&ClientTransactionID=2&SensorName=Temperature]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+
+## observingconditions.sensor_description [ok]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=0&SensorName=SkyQuality]
+= Ok("Unihedron SQM-LE")
+
+## observingconditions.sensor_description [ascom 0x400]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=0&SensorName=SkyQuality]
+= Err(Device error 1024: Property or method is not implemented)
+
+## observingconditions.sensor_description [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=0&SensorName=SkyQuality]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=1&SensorName=SkyQuality]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=2&SensorName=SkyQuality]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.sensor_description [http 400]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=0&SensorName=SkyQuality]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.sensor_description [http 500]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=0&SensorName=SkyQuality]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=1&SensorName=SkyQuality]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=2&SensorName=SkyQuality]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.sensor_description [malformed json]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=0&SensorName=SkyQuality]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=1&SensorName=SkyQuality]
+> GET /api/v1/observingconditions/#/sensordescription query[ClientID=<id>&ClientTransactionID=2&SensorName=SkyQuality]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## observingconditions.readings (WeatherDriver) [ok]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(WeatherReadings { cloud_cover: Some(10.5), dew_point: Some(3.25), humidity: Some(55.5), pressure: Some(1013.25), rain_rate: Some(0.0), sky_quality: Some(21.5), sky_temperature: Some(-25.5), temperature: Some(12.5), wind_direction: Some(270.0), wind_speed: Some(3.5) })
+
+## observingconditions.readings (WeatherDriver) [ascom 0x400]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/dewpoint query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/humidity query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/pressure query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/rainrate query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/skybrightness query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/skyquality query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/skytemperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/starfwhm query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/temperature query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/winddirection query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/windgust query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/windspeed query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(WeatherReadings { cloud_cover: None, dew_point: None, humidity: None, pressure: None, rain_rate: None, sky_quality: None, sky_temperature: None, temperature: None, wind_direction: None, wind_speed: None })
+
+## observingconditions.readings (WeatherDriver) [ascom 0x4FF without Value]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+
+## observingconditions.readings (WeatherDriver) [http 400]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(HTTP error 400: Method not implemented)
+
+## observingconditions.readings (WeatherDriver) [http 500]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## observingconditions.readings (WeatherDriver) [malformed json]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/observingconditions/#/cloudcover query[ClientID=<id>&ClientTransactionID=<txn>]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## observingconditions.refresh [ok]
 > PUT /api/v1/observingconditions/#/refresh query[] form[ClientID=<id>&ClientTransactionID=0]

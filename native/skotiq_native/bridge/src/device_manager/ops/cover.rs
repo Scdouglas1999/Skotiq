@@ -1,8 +1,8 @@
 //! Cover calibrator operations.
 //!
-//! A status read substitutes what it cannot read (an unknown state, brightness
-//! 0, maximum 255) and logs a warning naming the device; see each driver's
-//! `CoverCalibratorDriver::status`.
+//! What a status read reports for a part the device lacks is decided by each
+//! driver's `CoverCalibratorDriver::status` (for ASCOM over COM and Alpaca,
+//! `skotiq_device::ascom::cover_calibrator::state`).
 
 use crate::device::*;
 use crate::device_manager::handle::device_error;

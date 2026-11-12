@@ -71,6 +71,8 @@ AscomCoverCalibrator::close_cover() | method CloseCover() -> void | Failed to ca
 AscomCoverCalibrator::halt_cover() | method HaltCover() -> void | Failed to call method HaltCover: {cause} | -
 AscomCoverCalibrator::calibrator_on(1) | method CalibratorOn(I4 1) -> void | Failed to call CalibratorOn: {cause} | -
 AscomCoverCalibrator::calibrator_off() | method CalibratorOff() -> void | Failed to call method CalibratorOff: {cause} | -
+AscomCoverCalibrator::cover_moving() | get CoverMoving() -> BOOL | Failed to get property CoverMoving: {cause} | Property CoverMoving is not a bool
+AscomCoverCalibrator::calibrator_changing() | get CalibratorChanging() -> BOOL | Failed to get property CalibratorChanging: {cause} | Property CalibratorChanging is not a bool
 AscomCoverCalibrator::heartbeat() | connection.heartbeat
 AscomDome::connect() | connection.connect
 AscomDome::disconnect() | connection.disconnect
@@ -91,6 +93,16 @@ AscomDome::slew_to_azimuth(1.5) | method SlewToAzimuth(R8 1.5) -> void | Failed 
 AscomDome::abort_slew() | method AbortSlew() -> void | Failed to call method AbortSlew: {cause} | -
 AscomDome::find_home() | method FindHome() -> void | Failed to call method FindHome: {cause} | -
 AscomDome::set_slaved(true) | put Slaved(BOOL true) -> void | Failed to set ASCOM dome Slaved: Failed to set property Slaved: {cause} | -
+AscomDome::altitude() | get Altitude() -> R8 | Failed to get property Altitude: {cause} | Property Altitude is not a double
+AscomDome::at_home() | get AtHome() -> BOOL | Failed to get property AtHome: {cause} | Property AtHome is not a bool
+AscomDome::slaved() | get Slaved() -> BOOL | Failed to get property Slaved: {cause} | Property Slaved is not a bool
+AscomDome::can_find_home() | get CanFindHome() -> BOOL | Failed to get property CanFindHome: {cause} | Property CanFindHome is not a bool
+AscomDome::can_park() | get CanPark() -> BOOL | Failed to get property CanPark: {cause} | Property CanPark is not a bool
+AscomDome::can_set_altitude() | get CanSetAltitude() -> BOOL | Failed to get property CanSetAltitude: {cause} | Property CanSetAltitude is not a bool
+AscomDome::can_set_azimuth() | get CanSetAzimuth() -> BOOL | Failed to get property CanSetAzimuth: {cause} | Property CanSetAzimuth is not a bool
+AscomDome::can_set_shutter() | get CanSetShutter() -> BOOL | Failed to get property CanSetShutter: {cause} | Property CanSetShutter is not a bool
+AscomDome::can_slave() | get CanSlave() -> BOOL | Failed to get property CanSlave: {cause} | Property CanSlave is not a bool
+AscomDome::can_sync_azimuth() | get CanSyncAzimuth() -> BOOL | Failed to get property CanSyncAzimuth: {cause} | Property CanSyncAzimuth is not a bool
 AscomDome::heartbeat() | connection.heartbeat
 AscomFilterWheel::connect() | connection.connect
 AscomFilterWheel::disconnect() | connection.disconnect
@@ -265,4 +277,9 @@ AscomSwitch::min_switch_value(1) | method MinSwitchValue(I4 1) -> R8 | Failed to
 AscomSwitch::max_switch_value(1) | method MaxSwitchValue(I4 1) -> R8 | Failed to call MaxSwitchValue: {cause} | MaxSwitchValue did not return a number
 AscomSwitch::switch_step(1) | method SwitchStep(I4 1) -> R8 | Failed to call SwitchStep: {cause} | SwitchStep did not return a number
 AscomSwitch::can_write(1) | method CanWrite(I4 1) -> BOOL | Failed to call CanWrite: {cause} | CanWrite did not return a bool
+AscomSwitch::can_async(1) | method CanAsync(I4 1) -> BOOL | Failed to call method CanAsync: {cause} | Method CanAsync did not return a boolean
+AscomSwitch::set_async(1, true) | method SetAsync(I4 1, BOOL true) -> void | Failed to call method SetAsync: {cause} | -
+AscomSwitch::set_async_value(1, 2.5) | method SetAsyncValue(I4 1, R8 2.5) -> void | Failed to call method SetAsyncValue: {cause} | -
+AscomSwitch::state_change_complete(1) | method StateChangeComplete(I4 1) -> BOOL | Failed to call method StateChangeComplete: {cause} | Method StateChangeComplete did not return a boolean
+AscomSwitch::cancel_async(1) | method CancelAsync(I4 1) -> void | Failed to call method CancelAsync: {cause} | -
 AscomSwitch::heartbeat() | connection.heartbeat

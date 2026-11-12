@@ -20,7 +20,7 @@ macro_rules! ascom_common_members {
     };
 }
 
-/// `ISafetyMonitor`
+/// `ISafetyMonitorV3`
 #[macro_export]
 macro_rules! ascom_safety_monitor_members {
     ($callback:ident) => {
@@ -30,7 +30,9 @@ macro_rules! ascom_safety_monitor_members {
     };
 }
 
-/// `ISwitchV2`
+/// `ISwitchV3`. The `*Async` members and `StateChangeComplete` arrived in V3;
+/// every member but `MaxSwitch`, `GetSwitch`, `SetSwitch`, `GetSwitchName` and
+/// `SetSwitchName` arrived in V2.
 #[macro_export]
 macro_rules! ascom_switch_members {
     ($callback:ident) => {
@@ -47,11 +49,16 @@ macro_rules! ascom_switch_members {
             call max_switch_value(id: i32 = "Id") -> f64 = "MaxSwitchValue";
             call switch_step(id: i32 = "Id") -> f64 = "SwitchStep";
             call can_write(id: i32 = "Id") -> bool = "CanWrite";
+            call can_async(id: i32 = "Id") -> bool = "CanAsync";
+            call set_async(id: i32 = "Id", state: bool = "State") = "SetAsync";
+            call set_async_value(id: i32 = "Id", value: f64 = "Value") = "SetAsyncValue";
+            call state_change_complete(id: i32 = "Id") -> bool = "StateChangeComplete";
+            call cancel_async(id: i32 = "Id") = "CancelAsync";
         }
     };
 }
 
-/// `IObservingConditions`
+/// `IObservingConditionsV2`
 #[macro_export]
 macro_rules! ascom_observing_conditions_members {
     ($callback:ident) => {
@@ -78,7 +85,7 @@ macro_rules! ascom_observing_conditions_members {
     };
 }
 
-/// `ICoverCalibratorV1`
+/// `ICoverCalibratorV2`. `CoverMoving` and `CalibratorChanging` arrived in V2.
 #[macro_export]
 macro_rules! ascom_cover_calibrator_members {
     ($callback:ident) => {
@@ -93,6 +100,8 @@ macro_rules! ascom_cover_calibrator_members {
             call halt_cover() = "HaltCover";
             call calibrator_on(brightness: i32 = "Brightness") = "CalibratorOn";
             call calibrator_off() = "CalibratorOff";
+            get cover_moving() -> bool = "CoverMoving";
+            get calibrator_changing() -> bool = "CalibratorChanging";
         }
     };
 }
@@ -153,7 +162,7 @@ macro_rules! ascom_focuser_members {
     };
 }
 
-/// `IDomeV2`
+/// `IDomeV3`
 #[macro_export]
 macro_rules! ascom_dome_members {
     ($callback:ident) => {
