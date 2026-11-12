@@ -47,6 +47,9 @@ pub(crate) enum ParamKind {
     Boolean,
     /// A structured value the draft measures and the editor shows read-only.
     Object,
+    /// Weights of a step's narrowband masters in red, green and blue:
+    /// `{"red": {"hAlpha": 1.0}, ...}`, each weight inside `min..=max`.
+    ChannelMix,
 }
 
 impl ParamKind {
@@ -60,6 +63,7 @@ impl ParamKind {
             Self::NumberList => "numberList",
             Self::Boolean => "boolean",
             Self::Object => "object",
+            Self::ChannelMix => "channelMix",
         }
     }
 }
@@ -682,7 +686,7 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
         id: "channel_combine",
         version: 1,
         stage: "linear",
-        summary: "Combines a target's per-filter masters, registered onto the base master, into one color image: RGB, LRGB (luminance over RGB color), HaRGB, SHO, HOO or one-shot color.",
+        summary: "Combines a target's per-filter masters, registered onto the base master, into one color image: RGB, LRGB (luminance over RGB color), HaRGB, SHO, HOO, a custom mix of the narrowband masters, or one-shot color.",
         params: &[
             ParamDoc {
                 name: "palette",
@@ -693,11 +697,26 @@ pub(crate) const OP_DOCS: &[OpDoc] = &[
                 max: None,
                 length: None,
                 length_range: None,
-                allowed: &["lrgb", "rgb", "haRgb", "haLrgb", "sho", "hoo", "osc"],
+                allowed: &["lrgb", "rgb", "haRgb", "haLrgb", "sho", "hoo", "osc", "custom"],
                 default_json: None,
                 example_json: r#""rgb""#,
                 independent: false,
                 summary: "Which filters go to which color channel.",
+            },
+            ParamDoc {
+                name: "mix",
+                display_name: "Channel mix",
+                kind: ParamKind::ChannelMix,
+                required: false,
+                min: Some(0.0),
+                max: Some(2.0),
+                length: None,
+                length_range: None,
+                allowed: &[],
+                default_json: None,
+                example_json: r#"{"red": {"sii": 1.0}, "green": {"hAlpha": 1.0}, "blue": {"oiii": 1.0}}"#,
+                independent: false,
+                summary: "How much of each narrowband master goes into red, green and blue. The masters are matched on their stars first; a weight then scales that master's signal above the sky.",
             },
             ParamDoc {
                 name: "inputs",
@@ -965,6 +984,24 @@ pub(crate) fn example_params(doc: &OpDoc) -> Result<Value, String> {
         );
     }
     Ok(Value::Object(map))
+}
+
+/// The narrowband palettes as the weights each one is, so an editor can show
+/// what SHO or HOO does and offer either as the start of a custom mix.
+pub(crate) fn channel_mixes_json() -> Value {
+    use skotiq_imaging::color_composite::Palette;
+    [Palette::Sho, Palette::Hoo]
+        .iter()
+        .filter_map(|palette| {
+            palette.mix().map(|mix| {
+                json!({
+                    "palette": palette.as_wire(),
+                    "name": palette.display_name(),
+                    "mix": mix.to_json(),
+                })
+            })
+        })
+        .collect()
 }
 
 /// The catalogue as wire JSON.

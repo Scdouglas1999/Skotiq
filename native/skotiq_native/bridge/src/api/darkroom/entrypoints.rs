@@ -320,6 +320,7 @@ pub fn api_darkroom_registry(args_json: String) -> Result<String, String> {
     let mut reply = json!({
         "schemaVersion": RECIPE_SCHEMA_VERSION,
         "ops": ops_json()?,
+        "channelMixes": super::schema::channel_mixes_json(),
         "registered": registry
             .keys()
             .iter()
