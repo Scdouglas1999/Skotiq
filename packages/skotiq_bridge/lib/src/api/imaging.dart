@@ -310,8 +310,9 @@ Future<void> apiSaveRgbaJpegFile({
 );
 
 /// Save the device's last captured frame, without moving its pixels across
-/// the FFI boundary: as FITS at `file_path`, as the camera's own file beside
-/// it, or both, as the camera-file setting says.
+/// the FFI boundary: as FITS at `file_path`, and, when `keep_camera_file` (a
+/// frame the operator keeps, not a live-view or loop scratch frame), the
+/// camera's own file beside it as the camera-file setting says.
 ///
 /// The header is the one a sequence's frame gets, less the cards that tie a
 /// frame to a run: the rig is read by `skotiq_sequencer::sample_frame_context`
@@ -324,10 +325,12 @@ Future<String> apiSaveFitsFromLastCapture({
   required String deviceId,
   required String filePath,
   required FitsWriteHeader headerData,
+  required bool keepCameraFile,
 }) => RustLib.instance.api.crateApiImagingApiSaveFitsFromLastCapture(
   deviceId: deviceId,
   filePath: filePath,
   headerData: headerData,
+  keepCameraFile: keepCameraFile,
 );
 
 /// Auto-stretch image for display

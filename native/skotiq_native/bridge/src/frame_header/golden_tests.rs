@@ -247,6 +247,7 @@ async fn a_manual_frame_with_no_rig_connected_writes_these_cards() {
             filter_wheel_id: Some("golden_absent_wheel".to_string()),
             rotator_id: Some("golden_absent_rotator".to_string()),
         },
+        false,
     )
     .await;
     crate::last_frame::clear(device_id).await;
@@ -564,21 +565,25 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
         filter_wheel_id: None,
         rotator_id: None,
     };
-    let save = |path: String| async move {
-        crate::api::api_save_fits_from_last_capture(device_id.to_string(), path, header()).await
+    let save = |path: String, keeper: bool| async move {
+        crate::api::api_save_fits_from_last_capture(device_id.to_string(), path, header(), keeper)
+            .await
     };
     let scratch = Scratch::new("camera_file");
     let fits_only = scratch.file("fits_only.fits");
     let both = scratch.file("both.fits");
     let camera_only = scratch.file("camera_only.fits");
+    let live_view = scratch.file("live_view.fits");
 
     store().await;
     crate::api::api_sequencer_set_camera_file_saving("converted".to_string()).await.unwrap();
-    let recorded_fits_only = save(fits_only.clone()).await;
+    let recorded_fits_only = save(fits_only.clone(), true).await;
     crate::api::api_sequencer_set_camera_file_saving("both".to_string()).await.unwrap();
-    let recorded_both = save(both.clone()).await;
+    let recorded_both = save(both.clone(), true).await;
+    // A live-view or loop frame is no keeper: FITS only, whatever the setting.
+    let recorded_live_view = save(live_view.clone(), false).await;
     crate::api::api_sequencer_set_camera_file_saving("camera".to_string()).await.unwrap();
-    let recorded_camera_only = save(camera_only.clone()).await;
+    let recorded_camera_only = save(camera_only.clone(), true).await;
     crate::api::api_sequencer_set_camera_file_saving("converted".to_string()).await.unwrap();
     crate::last_frame::clear(device_id).await;
 
@@ -598,6 +603,9 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
     };
     assert_eq!(cards(&both), cards(&fits_only));
     assert!(cards(&both).iter().any(|card| card.starts_with("BAYERPAT= 'RGGB")));
+
+    assert_eq!(recorded_live_view.unwrap(), live_view);
+    assert!(!std::path::Path::new(&live_view.replace(".fits", ".CR3")).exists());
 
     let camera_path = camera_only.replace(".fits", ".CR3");
     assert_eq!(recorded_camera_only.unwrap(), camera_path);

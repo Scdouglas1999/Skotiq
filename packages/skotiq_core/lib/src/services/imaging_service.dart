@@ -146,6 +146,7 @@ class ImagingService {
       producingNodeId: producingNodeId,
       producingRunId: producingRunId,
       persistFrame: true,
+      keepsCameraFile: true,
     );
   }
 
@@ -172,6 +173,7 @@ class ImagingService {
       settings: settings,
       targetName: targetName,
       persistFrame: false,
+      keepsCameraFile: false,
       purpose: purpose,
       purposeStep: purposeStep,
       purposeSteps: purposeSteps,
@@ -246,6 +248,9 @@ class ImagingService {
           // progress ring.
           frameNumber: saveFrames ? null : frameNum,
           persistFrame: saveFrames,
+          // Loop frames are framing and focusing aids, kept or not: never
+          // the camera's raw file.
+          keepsCameraFile: false,
         );
 
         if (image != null) {

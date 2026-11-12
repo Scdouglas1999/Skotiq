@@ -21,6 +21,11 @@ pub struct FrameStarShape {
 /// free `_001`-style name. A frame without a camera file (every astronomy
 /// camera) always gets the FITS file.
 ///
+/// Only a frame kept as a frame (`keeper`: a sequence's light, dark, flat or
+/// bias, a secondary camera's sequence frame, a capture the operator saves)
+/// follows `saving`; a scratch frame (live view, loop, framing, plate solve,
+/// autofocus) is saved as FITS only. The caller knows which it is.
+///
 /// Every saved frame comes through here. Returns the file the app records the
 /// frame by: the FITS file when one is written, else the camera's file.
 pub async fn save_frame<T: FrameStoreOps + ?Sized>(
@@ -29,7 +34,13 @@ pub async fn save_frame<T: FrameStoreOps + ?Sized>(
     fits_path: &str,
     frame_ctx: &crate::scheduling::FrameContext,
     saving: crate::CameraFileSaving,
+    keeper: bool,
 ) -> DeviceResult<String> {
+    let saving = if keeper {
+        saving
+    } else {
+        crate::CameraFileSaving::Converted
+    };
     let camera_file = image_data
         .camera_file
         .as_ref()
@@ -208,6 +219,15 @@ mod save_frame_tests {
     }
 
     async fn save(dir: &std::path::Path, image: &ImageData, saving: CameraFileSaving) -> DeviceResult<String> {
+        save_as(dir, image, saving, true).await
+    }
+
+    async fn save_as(
+        dir: &std::path::Path,
+        image: &ImageData,
+        saving: CameraFileSaving,
+        keeper: bool,
+    ) -> DeviceResult<String> {
         let fits = dir.join("M31_Light_0001.fits");
         save_frame(
             &super::super::NullDeviceOps,
@@ -215,8 +235,20 @@ mod save_frame_tests {
             fits.to_str().unwrap(),
             &crate::scheduling::FrameContext::default(),
             saving,
+            keeper,
         )
         .await
+    }
+
+    #[tokio::test]
+    async fn a_scratch_frame_never_writes_the_camera_file() {
+        let dir = scratch("scratch");
+        for saving in [CameraFileSaving::CameraFile, CameraFileSaving::Both] {
+            let recorded = save_as(&dir, &frame(Some(camera_file())), saving, false).await.unwrap();
+            assert!(recorded.ends_with("M31_Light_0001.fits"), "{recorded}");
+        }
+        assert!(!dir.join("M31_Light_0001.CR3").exists());
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[tokio::test]

@@ -789,6 +789,8 @@ async fn capture_secondary_frame(
         &path_str,
         &ctx,
         meta.camera_file_saving,
+        // The secondary camera's frames are the run's frames.
+        true,
     )
     .await
     .map_err(|e| format!("saving the frame failed: {e}"))?;

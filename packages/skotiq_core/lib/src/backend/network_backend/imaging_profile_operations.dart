@@ -1166,6 +1166,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     // Use the optimized endpoint that saves from server-side stored image
     // No raw pixel data needs to be transferred
@@ -1189,6 +1190,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         'deviceId': deviceId,
         'filePath': filePath,
         'headerData': headerData.toJson(),
+        'keepCameraFile': keepCameraFile,
       };
 
       request.write(jsonEncode(body));

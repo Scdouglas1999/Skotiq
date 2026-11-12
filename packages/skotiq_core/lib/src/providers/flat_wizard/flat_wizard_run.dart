@@ -533,6 +533,7 @@ extension FlatWizardRun on FlatWizardNotifier {
             filePath = await backend.saveFitsFromLastCapture(
               deviceId: cameraId,
               filePath: requestedPath,
+              keepCameraFile: true,
               headerData: await manualFrameHeader(
                 ref,
                 frameType: FrameType.flat.imageType,

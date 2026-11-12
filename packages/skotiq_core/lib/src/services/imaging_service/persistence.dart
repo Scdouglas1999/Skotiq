@@ -11,6 +11,7 @@ extension _ImagingServicePersistence on ImagingService {
     required ExposureSettings exposureSettings,
     String? targetName,
     required DateTime timestamp,
+    required bool keepCameraFile,
   }) async {
     if (!_hasBackendAuthority(backend)) return null;
 
@@ -34,6 +35,7 @@ extension _ImagingServicePersistence on ImagingService {
       deviceId: deviceId,
       filePath: filePath,
       headerData: header,
+      keepCameraFile: keepCameraFile,
     );
   }
 

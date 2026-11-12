@@ -14133,12 +14133,14 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
     ffi.Pointer<wire_cst_fits_write_header> header_data,
+    bool keep_camera_file,
   ) {
     return _wire__crate__api__imaging__api_save_fits_from_last_capture(
       port_,
       device_id,
       file_path,
       header_data,
+      keep_camera_file,
     );
   }
 
@@ -14150,6 +14152,7 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_fits_write_header>,
+            ffi.Bool,
           )
         >
       >(
@@ -14163,6 +14166,7 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_fits_write_header>,
+              bool,
             )
           >();
 

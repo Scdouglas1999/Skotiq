@@ -178,6 +178,7 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     saveCount++;
     onSave?.call();
@@ -272,6 +273,7 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     savedPaths.add(filePath);
     return filePath;

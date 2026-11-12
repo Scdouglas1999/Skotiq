@@ -139,6 +139,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     savedHeaders.add(headerData);
     saveCount++;

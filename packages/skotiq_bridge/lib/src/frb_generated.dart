@@ -993,6 +993,7 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    required bool keepCameraFile,
   });
 
   Future<String> crateApiPostSessionEntrypointsApiSaveFitsMaster({
@@ -8139,6 +8140,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    required bool keepCameraFile,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -8146,12 +8148,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           var arg0 = cst_encode_String(deviceId);
           var arg1 = cst_encode_String(filePath);
           var arg2 = cst_encode_box_autoadd_fits_write_header(headerData);
+          var arg3 = cst_encode_bool(keepCameraFile);
           return wire
               .wire__crate__api__imaging__api_save_fits_from_last_capture(
                 port_,
                 arg0,
                 arg1,
                 arg2,
+                arg3,
               );
         },
         codec: DcoCodec(
@@ -8159,7 +8163,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiImagingApiSaveFitsFromLastCaptureConstMeta,
-        argValues: [deviceId, filePath, headerData],
+        argValues: [deviceId, filePath, headerData, keepCameraFile],
         apiImpl: this,
       ),
     );
@@ -8168,7 +8172,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiImagingApiSaveFitsFromLastCaptureConstMeta =>
       const TaskConstMeta(
         debugName: "api_save_fits_from_last_capture",
-        argNames: ["deviceId", "filePath", "headerData"],
+        argNames: ["deviceId", "filePath", "headerData", "keepCameraFile"],
       );
 
   @override

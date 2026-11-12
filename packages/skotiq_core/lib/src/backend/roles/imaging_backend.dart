@@ -30,8 +30,10 @@ import '../../models/plate_solver.dart'
 ///   * Profile / settings — see [ProfileSettingsBackend].
 abstract class ImagingBackend {
   /// Save the camera's last frame on the host, where its pixels already are:
-  /// as FITS at [filePath], as the camera's own file beside it, or both, as
-  /// the host's camera-file setting says. The host reads the rig for the
+  /// as FITS at [filePath], and, for a frame the operator keeps
+  /// ([keepCameraFile]; never a live-view, loop or other scratch frame), the
+  /// camera's own file beside it as the host's camera-file setting says. The
+  /// host reads the rig for the
   /// header when it writes the file; [headerData] carries what a device
   /// cannot say. Returns the path the frame is recorded by: [filePath] when a
   /// FITS file is written, else the camera's file.
@@ -39,6 +41,7 @@ abstract class ImagingBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   });
 
   /// Solve an image file. [ra] is a solver hint in degrees; [dec] and

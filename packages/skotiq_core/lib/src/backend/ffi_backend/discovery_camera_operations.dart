@@ -328,11 +328,13 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     return bridge.apiSaveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: filePath,
       headerData: _toBridgeFitsHeader(headerData),
+      keepCameraFile: keepCameraFile,
     );
   }
 

@@ -15,6 +15,9 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     String? producingNodeId,
     String? producingRunId,
     required bool persistFrame,
+    // Whether this is a frame the operator keeps as a frame (a Snapshot), so
+    // the camera's raw file follows the camera-file setting.
+    required bool keepsCameraFile,
     FramePurpose purpose = FramePurpose.capture,
     int? purposeStep,
     int? purposeSteps,
@@ -491,6 +494,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             exposureSettings: settings,
             targetName: targetName,
             timestamp: observationStartedAt,
+            keepCameraFile: keepsCameraFile && !isTempFile,
           );
           if (recordedPath == null || !_hasBackendAuthority(backend)) {
             return null;

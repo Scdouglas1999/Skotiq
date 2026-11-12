@@ -400,6 +400,29 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       expect(backend.filePath, filePath);
       expect(backend.parentExistedAtSave, isTrue);
+      // A client that does not say the frame is kept gets no camera file.
+      expect(backend.keepCameraFile, isFalse);
+
+      final kept = await translateHandlerErrors(
+        localHandlers.handleSaveFitsFromLastCapture(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/imaging/save-fits-from-capture'),
+            body: jsonEncode({
+              'deviceId': 'camera-1',
+              'filePath': '${root.path}/2026-07-13/L/light-1.fits',
+              'headerData': {
+                'frameType': 'LIGHT',
+                'exposureTime': 30.0,
+                'captureTimestamp': '2026-07-13T01:00:00Z',
+              },
+              'keepCameraFile': true,
+            }),
+          ),
+        ),
+      );
+      expect(kept.statusCode, HttpStatus.ok);
+      expect(backend.keepCameraFile, isTrue);
     });
 
     test(
@@ -760,6 +783,7 @@ class _RawImageBackend extends DisconnectedBackend {
 class _SaveFitsBackend extends DisconnectedBackend {
   String? filePath;
   bool parentExistedAtSave = false;
+  bool? keepCameraFile;
   int calls = 0;
 
   @override
@@ -786,9 +810,11 @@ class _SaveFitsBackend extends DisconnectedBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     calls++;
     this.filePath = filePath;
+    this.keepCameraFile = keepCameraFile;
     parentExistedAtSave = File(filePath).parent.existsSync();
     return filePath;
   }

@@ -3199,7 +3199,8 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_focuser_backlash_ca
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_from_last_capture(int64_t port_,
                                                                                      struct wire_cst_list_prim_u_8_strict *device_id,
                                                                                      struct wire_cst_list_prim_u_8_strict *file_path,
-                                                                                     struct wire_cst_fits_write_header *header_data);
+                                                                                     struct wire_cst_fits_write_header *header_data,
+                                                                                     bool keep_camera_file);
 
 void frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_save_fits_master(int64_t port_,
                                                                                             struct wire_cst_list_prim_u_8_strict *args_json);

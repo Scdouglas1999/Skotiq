@@ -505,6 +505,7 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
             filter_wheel_id: Some(wheel_id.to_string()),
             rotator_id: Some(rotator_id.to_string()),
         },
+        false,
     )
     .await;
 

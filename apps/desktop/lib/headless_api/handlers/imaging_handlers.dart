@@ -450,6 +450,9 @@ class ImagingHandlers implements RouteSource {
       deviceId: deviceId,
       filePath: canonicalFilePath,
       headerData: headerData,
+      // A remote live-view or loop frame is no keeper; only a client that
+      // says so gets the camera's file kept.
+      keepCameraFile: optionalBool(payload, 'keepCameraFile') ?? false,
     );
     if (showApiCapturesInPreview) {
       unawaited(_showSavedCaptureInPreview(deviceId, savedPath, headerData));

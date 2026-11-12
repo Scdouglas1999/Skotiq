@@ -210,6 +210,8 @@ struct ScriptedDomeRotatorOps {
     scripted_gain: Option<i32>,
     scripted_offset: Option<i32>,
     scripted_sensor_temp_c: Option<f64>,
+    /// The camera's own file every frame arrives with, as a DSLR delivers it.
+    pub(super) scripted_camera_file: Option<skotiq_device::CameraFile>,
     /// Unbinned pixel pitch the camera reports, in microns. `None` stands
     /// in for a driver that will not answer.
     scripted_pixel_size_um: Option<(f64, f64)>,
@@ -307,6 +309,7 @@ impl ScriptedDomeRotatorOps {
             scripted_gain: None,
             scripted_offset: None,
             scripted_sensor_temp_c: None,
+            scripted_camera_file: None,
             scripted_pixel_size_um: None,
             scripted_observer_location: None,
             camera_failures: Mutex::new(std::collections::VecDeque::new()),
@@ -803,6 +806,9 @@ impl CameraOps for ScriptedDomeRotatorOps {
         }
         if self.scripted_sensor_temp_c.is_some() {
             image.temperature = self.scripted_sensor_temp_c;
+        }
+        if self.scripted_camera_file.is_some() {
+            image.camera_file = self.scripted_camera_file.clone();
         }
         Ok(image)
     }

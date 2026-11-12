@@ -622,6 +622,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -682,6 +683,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         );
         verifyNever(
@@ -689,6 +691,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         );
       },
@@ -735,6 +738,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -792,6 +796,7 @@ void main() {
                   deviceId: 'remote-camera',
                   filePath: any(named: 'filePath'),
                   headerData: captureAny(named: 'headerData'),
+                  keepCameraFile: any(named: 'keepCameraFile'),
                 ),
               ).captured.single
               as FitsWriteHeader;
@@ -841,6 +846,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -940,6 +946,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -983,6 +990,7 @@ void main() {
           deviceId: 'native:zwo:1',
           filePath: hostPath,
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).called(1);
     });
@@ -1075,6 +1083,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async {
         sentPaths.add(invocation.namedArguments[#filePath] as String);
@@ -1241,6 +1250,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -1297,6 +1307,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -1374,6 +1385,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -1431,6 +1443,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenThrow(Exception('disk full'));
 
@@ -1496,6 +1509,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenThrow(Exception('read-only output folder'));
         final errors = <String>[];
@@ -1555,6 +1569,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -1749,6 +1764,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -1845,6 +1861,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -1904,6 +1921,7 @@ void main() {
             deviceId: any(named: 'deviceId'),
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
+            keepCameraFile: any(named: 'keepCameraFile'),
           ),
         ).thenAnswer((invocation) async {
           headers.add(
@@ -1969,6 +1987,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async {
         headers.add(invocation.namedArguments[#headerData] as FitsWriteHeader);
@@ -2039,6 +2058,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
     }
@@ -2271,6 +2291,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -2521,6 +2542,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -2593,6 +2615,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
@@ -2654,6 +2677,7 @@ void main() {
           deviceId: any(named: 'deviceId'),
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
+          keepCameraFile: any(named: 'keepCameraFile'),
         ),
       ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 

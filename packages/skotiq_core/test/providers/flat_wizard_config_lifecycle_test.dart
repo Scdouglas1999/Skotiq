@@ -176,6 +176,7 @@ class _CapAutoBackend extends Mock implements SkotiqBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     headers.add(headerData);
     return filePath;
@@ -262,6 +263,7 @@ class _GatedBackend extends Mock implements SkotiqBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     saveCount++;
     return filePath;

@@ -384,6 +384,8 @@ void main() {
       expect(container.read(flatWizardProvider).errorMessage, isNull);
       expect(backend.savedPaths, hasLength(1));
       expect(backend.savedPaths.single, startsWith(flats));
+      // A flat is saved as a frame: it follows the camera-file setting.
+      expect(backend.keptCameraFiles, [true]);
     });
 
     test('a chosen folder wins over the capture folder', () async {
@@ -554,6 +556,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
   int saveCount = 0;
   int _saveAttempts = 0;
   final List<String> savedPaths = [];
+  final List<bool> keptCameraFiles = [];
   int _seq = 0;
 
   @override
@@ -620,6 +623,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     _saveAttempts++;
     if (failSaveAt?.call(_saveAttempts) ?? false) {
@@ -627,6 +631,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
     }
     saveCount++;
     savedPaths.add(filePath);
+    keptCameraFiles.add(keepCameraFile);
     return filePath;
   }
 }
@@ -730,6 +735,7 @@ class _AutoNetworkBackend extends Mock implements NetworkBackend {
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
+    bool keepCameraFile = false,
   }) async {
     savedPaths.add(filePath);
     return filePath;

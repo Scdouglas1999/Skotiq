@@ -5226,6 +5226,7 @@ fn wire__crate__api__imaging__api_save_fits_from_last_capture_impl(
     device_id: impl CstDecode<String>,
     file_path: impl CstDecode<String>,
     header_data: impl CstDecode<crate::api::imaging::FitsWriteHeader>,
+    keep_camera_file: impl CstDecode<bool>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -5237,6 +5238,7 @@ fn wire__crate__api__imaging__api_save_fits_from_last_capture_impl(
             let api_device_id = device_id.cst_decode();
             let api_file_path = file_path.cst_decode();
             let api_header_data = header_data.cst_decode();
+            let api_keep_camera_file = keep_camera_file.cst_decode();
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
@@ -5244,6 +5246,7 @@ fn wire__crate__api__imaging__api_save_fits_from_last_capture_impl(
                             api_device_id,
                             api_file_path,
                             api_header_data,
+                            api_keep_camera_file,
                         )
                         .await?;
                         Ok(output_ok)
@@ -30165,12 +30168,14 @@ mod io {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         file_path: *mut wire_cst_list_prim_u_8_strict,
         header_data: *mut wire_cst_fits_write_header,
+        keep_camera_file: bool,
     ) {
         wire__crate__api__imaging__api_save_fits_from_last_capture_impl(
             port_,
             device_id,
             file_path,
             header_data,
+            keep_camera_file,
         )
     }
 

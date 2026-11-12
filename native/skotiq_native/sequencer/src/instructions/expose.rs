@@ -937,6 +937,8 @@ pub async fn execute_exposure_with_renderer(
                 full_path.to_str().unwrap_or(&filename),
                 &frame_ctx,
                 ctx.run.camera_file_saving,
+                // A Take Exposures frame is a kept frame.
+                true,
             )
             .await;
             let full_path = match saved {
