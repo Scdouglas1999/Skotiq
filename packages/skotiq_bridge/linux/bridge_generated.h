@@ -1563,6 +1563,11 @@ typedef struct wire_cst_list_device_info {
   int32_t len;
 } wire_cst_list_device_info;
 
+typedef struct wire_cst_list_device_type {
+  int32_t *ptr;
+  int32_t len;
+} wire_cst_list_device_type;
+
 typedef struct wire_cst_list_equipment_profile {
   struct wire_cst_equipment_profile *ptr;
   int32_t len;
@@ -3043,6 +3048,8 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_moun
 void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_unpark(int64_t port_,
                                                                                          struct wire_cst_list_prim_u_8_strict *device_id);
 
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types(void);
+
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_perform_meridian_flip(int64_t port_,
                                                                                             struct wire_cst_list_prim_u_8_strict *mount_id,
                                                                                             struct wire_cst_list_prim_u_8_strict *camera_id,
@@ -3831,6 +3838,8 @@ struct wire_cst_list_detected_star_info *frbgen_skotiq_bridge_cst_new_list_detec
 
 struct wire_cst_list_device_info *frbgen_skotiq_bridge_cst_new_list_device_info(int32_t len);
 
+struct wire_cst_list_device_type *frbgen_skotiq_bridge_cst_new_list_device_type(int32_t len);
+
 struct wire_cst_list_equipment_profile *frbgen_skotiq_bridge_cst_new_list_equipment_profile(int32_t len);
 
 struct wire_cst_list_focus_data_point *frbgen_skotiq_bridge_cst_new_list_focus_data_point(int32_t len);
@@ -3942,6 +3951,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_bool);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_detected_star_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_device_info);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_device_type);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_equipment_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_focus_data_point);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_mount_guard_status);
@@ -4110,6 +4120,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_extract_background);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_reduce_stars_preview);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_get_device_health);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_start_device_heartbeat);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_stop_device_heartbeat);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__hotplug__api_rescan_devices);

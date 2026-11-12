@@ -7,6 +7,7 @@
 
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
+use crate::device_manager::rig::focuser::AlpacaFocuserHandle;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::error::DeviceOpError;
 use std::sync::Arc;
@@ -57,14 +58,16 @@ impl DeviceManager {
             DeviceType::Focuser => {
                 let focuser = AlpacaFocuser::from_server(&base_url, device_number);
                 focuser.connect().await?;
-                let mut alpaca_focusers = self.alpaca_focusers.write().await;
-                alpaca_focusers.insert(info.id.clone(), Arc::new(focuser));
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Focuser(Arc::new(AlpacaFocuserHandle::new(&info.id, focuser))),
+                );
             }
             DeviceType::FilterWheel => {
                 let fw = AlpacaFilterWheel::from_server(&base_url, device_number);
                 fw.connect().await?;
-                let mut alpaca_filter_wheels = self.alpaca_filter_wheels.write().await;
-                alpaca_filter_wheels.insert(info.id.clone(), Arc::new(fw));
+                self.handles
+                    .insert(&info.id, DeviceHandle::FilterWheel(Arc::new(fw)));
             }
             DeviceType::Rotator => {
                 let rotator = AlpacaRotator::from_server(&base_url, device_number);
@@ -160,52 +163,6 @@ impl DeviceManager {
                     }
                 } else {
                     Err(format!("Alpaca mount {} not found", device_id))
-                }
-            }
-            DeviceType::Focuser => {
-                let focusers = self.alpaca_focusers.read().await;
-                if let Some(focuser) = focusers.get(device_id) {
-                    match focuser.heartbeat().await {
-                        Ok(rtt_ms) => {
-                            tracing::trace!(
-                                "Alpaca focuser {} heartbeat: {}ms RTT",
-                                device_id,
-                                rtt_ms
-                            );
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!("Alpaca focuser {} heartbeat failed: {}", device_id, e);
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("Alpaca focuser {} not found", device_id))
-                }
-            }
-            DeviceType::FilterWheel => {
-                let filter_wheels = self.alpaca_filter_wheels.read().await;
-                if let Some(fw) = filter_wheels.get(device_id) {
-                    match fw.heartbeat().await {
-                        Ok(rtt_ms) => {
-                            tracing::trace!(
-                                "Alpaca filter wheel {} heartbeat: {}ms RTT",
-                                device_id,
-                                rtt_ms
-                            );
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                "Alpaca filter wheel {} heartbeat failed: {}",
-                                device_id,
-                                e
-                            );
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("Alpaca filter wheel {} not found", device_id))
                 }
             }
             _ => Err(format!(

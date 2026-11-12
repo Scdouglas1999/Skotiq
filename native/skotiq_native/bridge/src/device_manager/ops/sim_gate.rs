@@ -35,7 +35,7 @@ use crate::device::{CameraStatus, FilterWheelStatus, FocuserStatus, MountStatus,
 /// device types. Keeping the wording centralized means tests can match on
 /// a single substring (`"is not connected"`) without coupling to the exact
 /// phrasing of each device type.
-pub(crate) fn not_connected(kind: &'static str) -> String {
+pub(crate) fn not_connected(kind: &str) -> String {
     format!(
         "Simulator {} is not connected. Call connect_device first.",
         kind
