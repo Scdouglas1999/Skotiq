@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
+mod alpaca_mount;
 mod capabilities;
 mod guards;
 mod heartbeat_config;
@@ -27,6 +28,7 @@ mod omnisim;
 mod native_camera_probe;
 mod native_mount_probe;
 mod omnisim_camera;
+mod omnisim_mount;
 mod protocol_errors;
 mod reconnect_state;
 mod simulator;

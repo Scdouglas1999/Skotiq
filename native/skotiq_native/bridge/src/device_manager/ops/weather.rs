@@ -84,6 +84,7 @@ mod tests {
                 heartbeat_active: false,
                 desired_cooler: None,
                 desired_tracking: None,
+                declared_mount_frame: None,
             },
         );
 

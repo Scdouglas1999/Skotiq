@@ -39,17 +39,6 @@ pub struct AscomMountCapabilities {
     pub is_equatorial: bool,
 }
 
-/// Worker reply for a `FindHome` the driver says it cannot perform
-/// (`CanFindHome` false). [`AscomMountWrapper::find_home`] turns it into
-/// [`DriverError::NotSupported`] so the refusal reaches the caller as
-/// "unsupported" rather than as a driver fault.
-const FIND_HOME_UNSUPPORTED: &str = "Mount does not support FindHome";
-
-/// Worker reply for a `SetPark` the driver says it cannot perform
-/// (`CanSetPark` false); [`AscomMountWrapper::set_park`] turns it into
-/// [`DriverError::NotSupported`].
-const SET_PARK_UNSUPPORTED: &str = "Mount does not support SetPark";
-
 /// Command sent to the ASCOM worker thread
 enum AscomMountCommand {
     Connect(oneshot::Sender<Result<(), DriverError>>),
@@ -93,6 +82,8 @@ enum AscomMountCommand {
         oneshot::Sender<Result<(), DriverError>>,
     ),
     GetUtcDate(oneshot::Sender<Result<f64, DriverError>>),
+    GetEquatorialSystem(oneshot::Sender<Result<i32, DriverError>>),
+    IsPulseGuiding(oneshot::Sender<Result<bool, DriverError>>),
     SetUtcDate(f64, oneshot::Sender<Result<(), DriverError>>),
     // Version query commands
 }
@@ -237,9 +228,7 @@ impl AscomMountWrapper {
                                     );
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(DriverError::SdkError(
-                                        "Mount does not support Sync".to_string(),
-                                    )));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(DriverError::SdkError(format!(
@@ -260,9 +249,7 @@ impl AscomMountWrapper {
                                     let _ = reply.send(m.park().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(DriverError::SdkError(
-                                        "Mount does not support Park".to_string(),
-                                    )));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(DriverError::SdkError(format!(
@@ -354,7 +341,9 @@ impl AscomMountWrapper {
                                 can_move_axis_secondary: ascom_caps
                                     .can_move_axis_secondary
                                     .unwrap_or(false),
-                                is_equatorial: m.alignment_mode().map(|m| m > 0).unwrap_or(false),
+                                is_equatorial: m.alignment_mode().is_ok_and(|mode| {
+                                    skotiq_device::ascom::AlignmentMode::from(mode).is_equatorial()
+                                }),
                             };
                             let _ = reply.send(Ok(caps));
                         } else {
@@ -544,6 +533,22 @@ impl AscomMountWrapper {
                                 .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
+                    AscomMountCommand::IsPulseGuiding(reply) => {
+                        if let Some(m) = &mut mount {
+                            let _ = reply.send(m.is_pulse_guiding().map_err(super::ascom_error));
+                        } else {
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
+                        }
+                    }
+                    AscomMountCommand::GetEquatorialSystem(reply) => {
+                        if let Some(m) = &mut mount {
+                            let _ = reply.send(m.equatorial_system().map_err(super::ascom_error));
+                        } else {
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
+                        }
+                    }
                     AscomMountCommand::SetUtcDate(value, reply) => {
                         if let Some(m) = &mut mount {
                             let _ = reply.send(m.set_utc_date(value).map_err(super::ascom_error));
@@ -559,9 +564,7 @@ impl AscomMountWrapper {
                                     let _ = reply.send(m.find_home().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(DriverError::SdkError(
-                                        FIND_HOME_UNSUPPORTED.to_string(),
-                                    )));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(DriverError::SdkError(format!(
@@ -590,9 +593,7 @@ impl AscomMountWrapper {
                                     let _ = reply.send(m.set_park().map_err(super::ascom_error));
                                 }
                                 Ok(false) => {
-                                    let _ = reply.send(Err(DriverError::SdkError(
-                                        SET_PARK_UNSUPPORTED.to_string(),
-                                    )));
+                                    let _ = reply.send(Err(DriverError::NotSupported));
                                 }
                                 Err(e) => {
                                     let _ = reply.send(Err(DriverError::SdkError(format!(
@@ -685,6 +686,22 @@ impl AscomMountWrapper {
         super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_utc_date").await
     }
 
+    /// `IsPulseGuiding`: whether a guide pulse is still running.
+    pub async fn is_pulse_guiding(&self) -> Result<bool, DriverError> {
+        let (tx, rx) = oneshot::channel();
+        self.enqueue(AscomMountCommand::IsPulseGuiding(tx)).await?;
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "is_pulse_guiding").await
+    }
+
+    /// `EquatorialSystem`: the frame the driver takes and reports RA/Dec in.
+    pub async fn equatorial_system(&self) -> Result<i32, DriverError> {
+        let (tx, rx) = oneshot::channel();
+        self.enqueue(AscomMountCommand::GetEquatorialSystem(tx))
+            .await?;
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "equatorial_system")
+            .await
+    }
+
     pub async fn set_utc_date(&self, utc_date: f64) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetUtcDate(utc_date, tx))
@@ -701,12 +718,7 @@ impl AscomMountWrapper {
     pub async fn find_home(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::FindHome(tx)).await?;
-        match super::recv_with_timeout("Mount", rx, Timeouts::find_home(), "find_home").await {
-            Err(DriverError::SdkError(message)) if message == FIND_HOME_UNSUPPORTED => {
-                Err(DriverError::NotSupported)
-            }
-            other => other,
-        }
+        super::recv_with_timeout("Mount", rx, Timeouts::find_home(), "find_home").await
     }
 
     /// Store the current position as the park position through the COM
@@ -715,12 +727,7 @@ impl AscomMountWrapper {
     pub async fn set_park(&self) -> Result<(), DriverError> {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::SetPark(tx)).await?;
-        match super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_park").await {
-            Err(DriverError::SdkError(message)) if message == SET_PARK_UNSUPPORTED => {
-                Err(DriverError::NotSupported)
-            }
-            other => other,
-        }
+        super::recv_with_timeout("Mount", rx, Timeouts::property_write(), "set_park").await
     }
 
     /// `AtHome`: whether the mount is stopped at its home position. ASCOM sets
@@ -766,21 +773,11 @@ impl DeviceDriver for AscomMountWrapper {
         result
     }
 
+    /// Releases the driver without commanding the mount, as the Alpaca path
+    /// does: a slew still running belongs to whoever started it (the user in
+    /// the driver's own app or the hand controller, often), and the driver
+    /// keeps the hardware for its other clients.
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        // Best-effort: halt any in-progress slew before disconnecting. A PARKED
-        // mount cannot be slewing, and some drivers (e.g. PegasusAstro NYX)
-        // raise "Mount is parked" from AbortSlew — that is an expected benign
-        // state, not a failure, so don't alarm the user with a WARN over it.
-        if let Err(err) = self.stop().await {
-            if err.to_string().to_lowercase().contains("parked") {
-                tracing::debug!(
-                    "Skipping slew-abort before disconnect (mount parked): {}",
-                    err
-                );
-            } else {
-                tracing::warn!("Failed to stop mount before disconnect: {}", err);
-            }
-        }
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::Disconnect(tx)).await?;
         let disconnect_result =
@@ -1193,9 +1190,7 @@ mod tests {
     async fn find_home_on_a_driver_without_home_is_not_supported() {
         let wrapper = build_test_wrapper(|cmd| {
             if let AscomMountCommand::FindHome(reply) = cmd {
-                let _ = reply.send(Err(DriverError::SdkError(
-                    FIND_HOME_UNSUPPORTED.to_string(),
-                )));
+                let _ = reply.send(Err(DriverError::NotSupported));
             }
             false
         });
@@ -1210,7 +1205,7 @@ mod tests {
     async fn set_park_on_a_driver_without_set_park_is_not_supported() {
         let wrapper = build_test_wrapper(|cmd| {
             if let AscomMountCommand::SetPark(reply) = cmd {
-                let _ = reply.send(Err(DriverError::SdkError(SET_PARK_UNSUPPORTED.to_string())));
+                let _ = reply.send(Err(DriverError::NotSupported));
             }
             false
         });
@@ -1233,47 +1228,27 @@ mod tests {
         assert!(wrapper.at_home().await.expect("at_home"));
     }
 
+    /// Disconnecting is not a motion command: a slew someone else started
+    /// keeps going, as it does when an Alpaca mount is released.
     #[tokio::test]
-    async fn test_disconnect_stops_before_disconnect() {
-        let order = Arc::new(Mutex::new(Vec::new()));
-        let order_flag = Arc::clone(&order);
-        let mut wrapper = build_test_wrapper(move |cmd| {
-            match cmd {
-                AscomMountCommand::Disconnect(reply) => {
-                    order_flag.lock().expect("lock order").push("disconnect");
-                    let _ = reply.send(Ok(()));
-                }
-                AscomMountCommand::Stop(reply) => {
-                    order_flag.lock().expect("lock order").push("stop");
-                    let _ = reply.send(Ok(()));
-                }
-                _ => {}
+    async fn disconnect_sends_no_motion_command() {
+        let sent = Arc::new(Mutex::new(Vec::new()));
+        let sent_log = Arc::clone(&sent);
+        let mut wrapper = build_test_wrapper(move |cmd| match cmd {
+            AscomMountCommand::Disconnect(reply) => {
+                sent_log.lock().expect("lock sent").push("disconnect");
+                let _ = reply.send(Ok(()));
+                true
             }
-            let done = order_flag.lock().expect("lock order").len() >= 2;
-            done
+            AscomMountCommand::Stop(reply) | AscomMountCommand::AbortSlew(reply) => {
+                sent_log.lock().expect("lock sent").push("abort");
+                let _ = reply.send(Ok(()));
+                false
+            }
+            _ => false,
         });
         wrapper.disconnect().await.expect("disconnect");
-        let order = order.lock().expect("lock order");
-        assert_eq!(order.as_slice(), ["stop", "disconnect"]);
-    }
-
-    #[tokio::test]
-    async fn test_disconnect_returns_ok_when_stop_fails_but_disconnect_succeeds() {
-        let mut wrapper = build_test_wrapper(|cmd| {
-            match cmd {
-                AscomMountCommand::Stop(reply) => {
-                    let _ = reply.send(Err(DriverError::SdkError("stop failed".to_string())));
-                }
-                AscomMountCommand::Disconnect(reply) => {
-                    let _ = reply.send(Ok(()));
-                    return true;
-                }
-                _ => {}
-            }
-            false
-        });
-
-        wrapper.disconnect().await.expect("disconnect");
+        assert_eq!(sent.lock().expect("lock sent").as_slice(), ["disconnect"]);
         assert!(!wrapper.is_connected());
     }
 }

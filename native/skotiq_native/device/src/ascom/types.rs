@@ -67,6 +67,14 @@ pub enum AlignmentMode {
     GermanPolar = 2,
 }
 
+impl AlignmentMode {
+    /// Whether the mount's axes are RA and Dec (a fork or a German mount)
+    /// rather than azimuth and altitude.
+    pub fn is_equatorial(self) -> bool {
+        self != AlignmentMode::AltAz
+    }
+}
+
 impl From<i32> for AlignmentMode {
     fn from(value: i32) -> Self {
         match value {

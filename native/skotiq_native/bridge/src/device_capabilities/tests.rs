@@ -29,6 +29,7 @@ async fn register_native_test_device(id: &str, device_type: crate::device::Devic
             heartbeat_active: false,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
     invalidate_capability_cache_for_device(id).await;
