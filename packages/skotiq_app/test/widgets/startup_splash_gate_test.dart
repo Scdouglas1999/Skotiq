@@ -93,6 +93,29 @@ void main() {
     expect(find.text('Starting the mount…'), findsOneWidget);
   });
 
+  testWidgets('the status line reads as text where no Material is above',
+      (tester) async {
+    // The desktop shell puts the gate above its Scaffold, where the inherited
+    // text style is the debug one with a yellow double underline.
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      _harness(container, ready: false, statusText: 'Connecting…'),
+    );
+    await tester.pump(_pastDraw);
+    await tester.pump();
+
+    final text = tester.widget<RichText>(
+      find.descendant(
+        of: find.byType(SkotiqSplashGate),
+        matching: find.byWidgetPredicate(
+          (w) => w is RichText && w.text.toPlainText() == 'Connecting…',
+        ),
+      ),
+    );
+    expect(text.text.style?.decoration, anyOf(isNull, TextDecoration.none));
+  });
+
   testWidgets('the status line does not appear while the draw is playing',
       (tester) async {
     final container = ProviderContainer();

@@ -16,10 +16,15 @@ use skotiq_device::camera::{
 };
 use skotiq_device::DriverError;
 
-/// The cooler command a driver last sent.
+/// The cooler state a driver last commanded or read back.
 ///
 /// Several SDKs cannot read back "is the cooler commanded on?" (or fail to
 /// now and then), so status falls back to this.
+///
+/// The set-point before any command is each vendor's own, passed to
+/// [`CoolerState::off`]: -10 C for ZWO, SVBony, Atik, FLI and Touptek (the
+/// value those drivers held before they shared this type), 0 C for Player One
+/// and Moravian.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct CoolerState {
     pub(crate) enabled: bool,
@@ -50,7 +55,9 @@ pub(crate) struct CameraCore {
     pub(crate) bin_x: i32,
     pub(crate) bin_y: i32,
     pub(crate) subframe: Option<SubFrame>,
-    pub(crate) cooler: CoolerState,
+    /// Behind a lock because some drivers refresh it from a status read,
+    /// which only has `&self`.
+    cooler: std::sync::Mutex<CoolerState>,
     pub(crate) exposure_started_at: Option<std::time::Instant>,
     /// Seconds requested for the exposure in progress or last taken.
     pub(crate) exposure_duration: f64,
@@ -71,7 +78,7 @@ impl CameraCore {
             bin_x: 1,
             bin_y: 1,
             subframe: None,
-            cooler: CoolerState::off(cooler_default_target_c),
+            cooler: std::sync::Mutex::new(CoolerState::off(cooler_default_target_c)),
             exposure_started_at: None,
             exposure_duration: 0.0,
         }
@@ -85,6 +92,14 @@ impl CameraCore {
         } else {
             Err(DriverError::NotConnected)
         }
+    }
+
+    pub(crate) fn cooler(&self) -> CoolerState {
+        *self.cooler.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    pub(crate) fn update_cooler(&self, update: impl FnOnce(&mut CoolerState)) {
+        update(&mut self.cooler.lock().unwrap_or_else(|e| e.into_inner()));
     }
 
     /// A frame described by the cached state: exposure time, gain, offset,
@@ -217,8 +232,6 @@ pub(crate) fn image_dimension(vendor: &str, axis: &str, value: usize) -> Result<
     })
 }
 
-/// The Bayer index the ASI-style SDKs (ZWO, Player One, SVBony) report:
-/// 0 RGGB, 1 BGGR, 2 GRBG, 3 GBRG. Anything else reads as RGGB.
 /// The device layer's name for a decoded raw frame's color filter.
 pub(crate) fn mosaic_bayer_pattern(cfa: &skotiq_imaging::ColorFilterArray) -> BayerPattern {
     use skotiq_imaging::BayerPattern as Cell;
@@ -234,6 +247,8 @@ pub(crate) fn mosaic_bayer_pattern(cfa: &skotiq_imaging::ColorFilterArray) -> Ba
     }
 }
 
+/// The Bayer index the ASI-style SDKs (ZWO, Player One, SVBony) report:
+/// 0 RGGB, 1 BGGR, 2 GRBG, 3 GBRG. Anything else reads as RGGB.
 pub(crate) fn bayer_from_asi_index(index: i32) -> BayerPattern {
     match index {
         0 => BayerPattern::Rggb,

@@ -367,7 +367,6 @@ impl IndiClient {
                                             current_device.clone(),
                                             IndiDevice {
                                                 name: current_device.clone(),
-                                                driver: String::new(),
                                             },
                                         );
                                         let _ = event_tx

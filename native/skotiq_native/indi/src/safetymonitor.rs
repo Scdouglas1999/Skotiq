@@ -29,6 +29,7 @@
 
 use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
+use crate::protocol::names::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -45,25 +46,6 @@ impl IndiSafetyMonitor {
         }
     }
 
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
     /// Check if conditions are safe for observing
     ///
     /// This checks multiple possible safety indicators:
@@ -76,7 +58,7 @@ impl IndiSafetyMonitor {
         // First, try the standard WEATHER_STATUS property
         // This is the most common way INDI weather devices report safety
         if let Some(state) = client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_SAFE")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_SAFE)
             .await
         {
             // INDI light states: Idle (0), Ok (1), Busy (2), Alert (3)
@@ -86,7 +68,7 @@ impl IndiSafetyMonitor {
 
         // Try a generic SAFETY_STATUS property
         if let Some(is_safe) = client
-            .get_switch(&self.device_name, "SAFETY_STATUS", "SAFE")
+            .get_switch(&self.device_name, SAFETY_STATUS, SAFE)
             .await
         {
             return Ok(is_safe);
@@ -94,7 +76,7 @@ impl IndiSafetyMonitor {
 
         // Try AUX_SAFETY property (common for custom safety devices)
         if let Some(is_safe) = client
-            .get_switch(&self.device_name, "AUX_SAFETY", "ENABLED")
+            .get_switch(&self.device_name, AUX_SAFETY, ENABLED)
             .await
         {
             return Ok(is_safe);
@@ -103,21 +85,21 @@ impl IndiSafetyMonitor {
         // Check individual weather alerts if available
         // If any critical parameter is in alert state, consider unsafe
         let has_rain_alert = client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_RAIN")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_RAIN)
             .await
             .map(|s| s == 3) // Alert state
             // Why: see the module's fail-CLOSED `unwrap_or(false)` policy — parameter not streamed → no alert; outer `is_safe()` fails CLOSED.
             .unwrap_or(false);
 
         let has_wind_alert = client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_WIND")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_WIND)
             .await
             .map(|s| s == 3)
             // Why: see the module's fail-CLOSED `unwrap_or(false)` policy — parameter not streamed → no alert; outer `is_safe()` fails CLOSED.
             .unwrap_or(false);
 
         let has_cloud_alert = client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_CLOUDS")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_CLOUDS)
             .await
             .map(|s| s == 3)
             // Why: see the module's fail-CLOSED `unwrap_or(false)` policy — parameter not streamed → no alert; outer `is_safe()` fails CLOSED.
@@ -138,24 +120,16 @@ impl IndiSafetyMonitor {
     pub async fn is_monitoring_available(&self) -> bool {
         let client = self.client.read().await;
 
-        client
-            .has_property(&self.device_name, "WEATHER_STATUS")
-            .await
-            || client
-                .has_property(&self.device_name, "SAFETY_STATUS")
-                .await
-            || client.has_property(&self.device_name, "AUX_SAFETY").await
+        client.has_property(&self.device_name, WEATHER_STATUS).await
+            || client.has_property(&self.device_name, SAFETY_STATUS).await
+            || client.has_property(&self.device_name, AUX_SAFETY).await
     }
 
     /// Get temperature in Celsius (if available)
     pub async fn get_temperature(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_TEMPERATURE",
-            )
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_TEMPERATURE)
             .await
     }
 
@@ -163,7 +137,7 @@ impl IndiSafetyMonitor {
     pub async fn get_humidity(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_HUMIDITY")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_HUMIDITY)
             .await
     }
 
@@ -171,11 +145,7 @@ impl IndiSafetyMonitor {
     pub async fn get_wind_speed(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_WIND_SPEED",
-            )
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_WIND_SPEED)
             .await
     }
 
@@ -183,11 +153,7 @@ impl IndiSafetyMonitor {
     pub async fn get_cloud_cover(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_CLOUD_COVER",
-            )
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_CLOUD_COVER)
             .await
     }
 
@@ -195,7 +161,7 @@ impl IndiSafetyMonitor {
     pub async fn get_rain_rate(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_RAIN_RATE")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_RAIN_RATE)
             .await
     }
 
@@ -203,7 +169,7 @@ impl IndiSafetyMonitor {
     pub async fn get_dew_point(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_DEWPOINT")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_DEWPOINT)
             .await
     }
 
@@ -211,11 +177,7 @@ impl IndiSafetyMonitor {
     pub async fn get_sky_quality(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(
-                &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_SKY_QUALITY",
-            )
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_SKY_QUALITY)
             .await
     }
 
@@ -225,8 +187,8 @@ impl IndiSafetyMonitor {
         client
             .get_number(
                 &self.device_name,
-                "WEATHER_PARAMETERS",
-                "WEATHER_SKY_TEMPERATURE",
+                WEATHER_PARAMETERS,
+                WEATHER_SKY_TEMPERATURE,
             )
             .await
     }
@@ -235,14 +197,14 @@ impl IndiSafetyMonitor {
     pub async fn get_pressure(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, "WEATHER_PARAMETERS", "WEATHER_PRESSURE")
+            .get_number(&self.device_name, WEATHER_PARAMETERS, WEATHER_PRESSURE)
             .await
     }
 
     pub async fn has_rain_alert(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_RAIN")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_RAIN)
             .await
             .map(|s| s == 3) // Alert state
             // Why: see the module's fail-CLOSED `unwrap_or(false)` policy — parameter not streamed → no alert; outer `is_safe()` fails CLOSED.
@@ -252,7 +214,7 @@ impl IndiSafetyMonitor {
     pub async fn has_wind_alert(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_WIND")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_WIND)
             .await
             .map(|s| s == 3)
             // Why: see the module's fail-CLOSED `unwrap_or(false)` policy — parameter not streamed → no alert; outer `is_safe()` fails CLOSED.
@@ -262,7 +224,7 @@ impl IndiSafetyMonitor {
     pub async fn has_cloud_alert(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_CLOUDS")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_CLOUDS)
             .await
             .map(|s| s == 3)
             // Why: see the module's fail-CLOSED `unwrap_or(false)` policy — parameter not streamed → no alert; outer `is_safe()` fails CLOSED.
@@ -272,7 +234,7 @@ impl IndiSafetyMonitor {
     pub async fn has_humidity_alert(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_light_state(&self.device_name, "WEATHER_STATUS", "WEATHER_HUMIDITY")
+            .get_light_state(&self.device_name, WEATHER_STATUS, WEATHER_HUMIDITY)
             .await
             .map(|s| s == 3)
             // Why: see the module's fail-CLOSED `unwrap_or(false)` policy — parameter not streamed → no alert; outer `is_safe()` fails CLOSED.

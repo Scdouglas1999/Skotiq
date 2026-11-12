@@ -211,10 +211,7 @@ void main() {
   test('late old-host star image is discarded after backend swap', () async {
     final imageGate = Completer<Phd2StarImage>();
     when(
-      () => oldBackend.guiderGetStarImage(
-        deviceId: any(named: 'deviceId'),
-        size: any(named: 'size'),
-      ),
+      () => oldBackend.guiderGetStarImage(size: any(named: 'size')),
     ).thenAnswer((_) => imageGate.future);
 
     final container = buildContainer();
@@ -257,10 +254,7 @@ void main() {
 
   test('a star image is polled when PHD2 is already looping', () async {
     when(
-      () => oldBackend.guiderGetStarImage(
-        deviceId: any(named: 'deviceId'),
-        size: any(named: 'size'),
-      ),
+      () => oldBackend.guiderGetStarImage(size: any(named: 'size')),
     ).thenAnswer(
       (_) async => Phd2StarImage(
         frame: 3,

@@ -2,6 +2,15 @@ use super::*;
 use crate::IndiPropertyState;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[test]
+fn a_readback_counts_only_when_it_is_newer_than_the_command() {
+    assert!(!is_newer_update(Some(100), Some(100)));
+    assert!(is_newer_update(Some(100), Some(101)));
+    assert!(is_newer_update(None, Some(1)));
+    assert!(!is_newer_update(None, None));
+    assert!(!is_newer_update(Some(100), None));
+}
+
 #[tokio::test]
 async fn test_timeout_config_default() {
     let config = IndiTimeoutConfig::default();

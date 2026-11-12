@@ -220,13 +220,12 @@ class ReplayDebugSettingsController {
 
   /// Enable/disable decision logging.
   ///
-  /// Remote: a single host endpoint persists the host setting AND mirrors the
-  /// flag into the host executor (with host-side rollback). The remote
-  /// client's local database is never touched.
+  /// Remote: a single host endpoint persists the host setting, and the host
+  /// sends it to its executor. The remote client's local database is never
+  /// touched.
   ///
-  /// Local: transactional from the user's perspective — persist the setting,
-  /// then push the flag to the executor; if the executor push fails, roll the
-  /// persisted value back so the DB and runtime never silently disagree.
+  /// Local: persist the setting; the run configuration follows it
+  /// (`RunConfigSync` listens to [replayDebugEnabledProvider]).
   Future<void> setEnabled(bool value) => _serialize(() async {
     final host = _ref.backendScope();
     final backend = host.value;
@@ -243,17 +242,6 @@ class ReplayDebugSettingsController {
       return;
     }
 
-    // Refuse if the current value is unavailable (still loading, or corrupt):
-    // we need it as the rollback target and as an authority that the read
-    // side is coherent.
-    final currentAsync = _ref.read(replayDebugEnabledProvider);
-    if (!currentAsync.hasValue) {
-      throw StateError(
-        'Cannot change replay logging: current value is unavailable '
-        '(${currentAsync.hasError ? currentAsync.error : 'still loading'}).',
-      );
-    }
-    final previous = currentAsync.requireValue;
     final dao = _ref.read(settingsDaoProvider);
     const setting = StoreSettings.replayDebugEnabled;
     final previousRows = await dao.readRows([setting]);
@@ -261,45 +249,15 @@ class ReplayDebugSettingsController {
       throw StateError('Replay settings authority changed before the update.');
     }
 
-    // 1) Persist the new value.
     await dao.write(setting, value);
 
-    // Authority may have swapped while awaiting the write. If the DAO or the
-    // backend changed, do not push runtime to a now-different executor.
+    // Authority may have swapped while awaiting the write: the value belongs
+    // to a database that is no longer this host's.
     if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       try {
         await dao.restore(setting, previousRows);
       } catch (e) {
         _logFailedReplayRollback('the decision-logging flag', e);
-      }
-      _ref.invalidate(replayDebugEnabledProvider);
-      throw StateError('Replay settings authority changed during the update.');
-    }
-
-    // 2) Mirror into the executor; roll the persist back on failure.
-    try {
-      await backend.sequencerSetDecisionLoggingEnabled(value);
-    } catch (error, stack) {
-      try {
-        await dao.restore(setting, previousRows);
-      } catch (e) {
-        _logFailedReplayRollback(
-          'the decision-logging flag after the executor rejected it',
-          e,
-        );
-      }
-      _ref.invalidate(replayDebugEnabledProvider);
-      Error.throwWithStackTrace(error, stack);
-    }
-    if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
-      try {
-        await backend.sequencerSetDecisionLoggingEnabled(previous);
-        await dao.restore(setting, previousRows);
-      } catch (e) {
-        _logFailedReplayRollback(
-          'the decision-logging flag and its executor mirror',
-          e,
-        );
       }
       _ref.invalidate(replayDebugEnabledProvider);
       throw StateError('Replay settings authority changed during the update.');

@@ -4,6 +4,7 @@ import '../../equipment_provider.dart';
 import '../../profiles_provider.dart';
 import '../filter_name_matching.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// Every filter name an enabled step of [sequence] asks for, paired with its
 /// step.

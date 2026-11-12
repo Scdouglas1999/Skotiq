@@ -94,13 +94,20 @@ impl DeviceDriver for ZwoCamera {
         }
         tracing::debug!("Camera initialized successfully");
 
-        // Set default ROI format (full frame, bin 1, Raw16)
+        // Full frame, bin 1, in the deepest raw format the camera lists.
         if let Some(info) = &self.camera_info {
-            tracing::debug!(
-                "Setting ROI format: {}x{}, bin 1, Raw16",
-                info.max_width,
-                info.max_height
-            );
+            self.image_type = ZwoCamera::readout_format(info).ok_or_else(|| {
+                DriverError::InvalidDevice(format!(
+                    "The {} offers neither 16-bit nor 8-bit raw frames",
+                    self.camera_name()
+                ))
+            })?;
+            if matches!(self.image_type, ASIImgType::Raw8) {
+                tracing::warn!(
+                    "{} lists no 16-bit readout; frames are read out in 8 bits",
+                    self.camera_name()
+                );
+            }
             // SAFETY: camera_id is open and initialized; width/height come from the SDK-reported ASICameraInfo and bin=1 is always valid.
             let result = unsafe {
                 (sdk.set_roi_format)(
@@ -108,15 +115,21 @@ impl DeviceDriver for ZwoCamera {
                     info.max_width as c_int,
                     info.max_height as c_int,
                     1, // bin
-                    ASIImgType::Raw16 as c_int,
+                    self.image_type as c_int,
                 )
             };
             if result != 0 {
                 tracing::error!("ASISetROIFormat failed: ASI error code {}", result);
                 return Err(check_asi_error(result).unwrap_err());
             }
-            tracing::debug!("ROI format set successfully");
         }
+
+        self.exposure_range_us = self
+            .control_caps(&sdk, ASIControlType::ASI_EXPOSURE)
+            .ok()
+            .map(|(min, max, _)| (min, max))
+            .filter(|&(min, max)| min > 0 && max >= min);
+        self.log_connect_settings(&sdk);
 
         // Get current gain and offset (use synchronous versions since we already hold the mutex)
         tracing::debug!("Reading current gain and offset");
@@ -189,6 +202,7 @@ impl DeviceDriver for ZwoCamera {
 impl CameraDriver for ZwoCamera {
     fn capabilities(&self) -> CameraCapabilities {
         if let Some(info) = &self.camera_info {
+            let max_bin = self.supported_bins().into_iter().max().unwrap_or(1);
             CameraCapabilities {
                 can_cool: info.is_cooler_cam != 0,
                 can_set_gain: true,
@@ -197,8 +211,8 @@ impl CameraDriver for ZwoCamera {
                 can_subframe: true,
                 has_shutter: info.mechanical_shutter != 0,
                 has_guider_port: info.st4_port != 0,
-                max_bin_x: 4,
-                max_bin_y: 4,
+                max_bin_x: max_bin,
+                max_bin_y: max_bin,
                 supports_readout_modes: false,
             }
         } else {
@@ -293,30 +307,30 @@ impl CameraDriver for ZwoCamera {
             return Err(DriverError::NotConnected);
         }
 
-        if params.bin_x < 1
-            || params.bin_y < 1
-            || params.bin_x > 4
-            || params.bin_y > 4
-            || params.bin_x != params.bin_y
-        {
-            return Err(DriverError::InvalidParameter(format!(
-                "ZWO binning must be symmetric and between 1x1 and 4x4, got {}x{}",
-                params.bin_x, params.bin_y
-            )));
-        }
+        // ExposureParams is the per-frame source of truth for binning and the
+        // frame region: a full-frame request also clears a previous subframe.
+        let bin = self.validate_bin(params.bin_x, params.bin_y)?;
+        let roi = self.frame_roi(bin, params.subframe.as_ref())?;
 
-        // ExposureParams is the per-frame source of truth: the requested binning
-        // must reach the SDK, or the download returns a full-resolution 1x1 frame.
-        if self.current_bin != params.bin_x {
-            self.set_binning(params.bin_x, params.bin_y).await?;
+        // ASISetControlValue clamps an exposure past the camera's maximum and
+        // reports success, so the frame would be shorter than its EXPTIME says.
+        let requested_us = params.duration_secs * 1_000_000.0;
+        if let Some((_, max_us)) = self.exposure_range_us {
+            if requested_us > max_us as f64 {
+                return Err(DriverError::InvalidParameter(format!(
+                    "The {} exposes at most {} s; {} s was requested",
+                    self.camera_name(),
+                    max_us as f64 / 1_000_000.0,
+                    params.duration_secs
+                )));
+            }
         }
-        // Also resets a previous subframe when this frame requests full sensor.
-        self.set_subframe(params.subframe.clone()).await?;
 
         let sdk = AsiSdk::lock().await?;
+        self.apply_roi(&sdk, bin, roi, params.subframe.is_some())?;
 
-        // Set exposure time (in microseconds) - use sync version since we hold mutex
-        let exposure_us = (params.duration_secs * 1_000_000.0) as c_long;
+        // Microseconds; within the camera's maximum, so within c_long on Windows.
+        let exposure_us = requested_us as c_long;
         self.set_control(&sdk, ASIControlType::ASI_EXPOSURE, exposure_us, false)?;
 
         // Set gain, then cache what the SENSOR ended up at, not what was asked
@@ -428,7 +442,6 @@ impl CameraDriver for ZwoCamera {
         };
         check_asi_error(result)?;
 
-        // Calculate buffer size (Raw16 = 2 bytes per pixel) with overflow protection
         let bytes_per_pixel = if img_type == ASIImgType::Raw16 as c_int {
             2
         } else {
@@ -493,6 +506,8 @@ impl CameraDriver for ZwoCamera {
             img_type
         );
 
+        let bayer_pattern = self.delivered_bayer_pattern(&sdk);
+
         // Get temperature and vendor features using sync methods since we already hold the lock
         // (calling async methods here would deadlock because they try to acquire the same mutex)
         let temperature = self
@@ -521,23 +536,8 @@ impl CameraDriver for ZwoCamera {
             width: width_u32,
             height: height_u32,
             data,
-            bits_per_pixel: self
-                .camera_info
-                .as_ref()
-                .and_then(|info| u32::try_from(info.bit_depth).ok())
-                .filter(|bits| (1..=32).contains(bits))
-                .unwrap_or(if bytes_per_pixel == 2 { 16 } else { 8 }),
-            bayer_pattern: self
-                .camera_info
-                .as_ref()
-                .filter(|i| i.is_color_cam != 0)
-                .map(|i| match i.bayer_pattern {
-                    0 => BayerPattern::Rggb,
-                    1 => BayerPattern::Bggr,
-                    2 => BayerPattern::Grbg,
-                    3 => BayerPattern::Gbrg,
-                    _ => BayerPattern::Rggb,
-                }),
+            bits_per_pixel: self.delivered_bit_depth(),
+            bayer_pattern,
             metadata: ImageMetadata {
                 exposure_time: self.exposure_time,
                 gain: self.current_gain,
@@ -677,46 +677,10 @@ impl CameraDriver for ZwoCamera {
         if !self.connected {
             return Err(DriverError::NotConnected);
         }
-
-        let sdk = AsiSdk::installed()?;
-
-        // ZWO only supports symmetric binning
-        let bin = bin_x.max(bin_y);
-
-        // Calculate new dimensions. max_width/max_height are c_long (i64 on
-        // Linux); sensor dimensions fit in i32, so do the arithmetic in i32 to
-        // match our own width/height fields and the SDK's int ROI parameters.
-        //
-        // ZWO's SDK requires the ROI width to be a multiple of 8 and the height a
-        // multiple of 2 (ASICamera2.h); an unaligned value makes ASISetROIFormat
-        // return ASI_ERROR_INVALID_SIZE. For most flagship sensors the binned
-        // dimension is NOT already aligned (e.g. ASI2600 6248/2=3124, 3124%8=4;
-        // ASI294 →1411, odd), so without this every bin>=2 frame aborts. Round
-        // DOWN to the nearest valid multiple exactly like the reference driver
-        // (asi_base.cpp: `subW -= subW % 8; subH -= subH % 2`).
-        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
-        let new_width = (info.max_width as i32 / bin) & !7; // multiple of 8
-        let new_height = (info.max_height as i32 / bin) & !1; // multiple of 2
-
-        let sdk = sdk.lock().await;
-
-        // SAFETY: new_width/new_height derive from SDK-reported max_width/max_height divided by `bin` (clamped 1..=4); camera_id is valid (connected=true checked).
-        let result = unsafe {
-            (sdk.set_roi_format)(
-                self.camera_id,
-                new_width as c_int,
-                new_height as c_int,
-                bin as c_int,
-                self.image_type as c_int,
-            )
-        };
-        check_asi_error(result)?;
-
-        self.current_bin = bin;
-        self.current_width = new_width;
-        self.current_height = new_height;
-
-        Ok(())
+        let bin = self.validate_bin(bin_x, bin_y)?;
+        let roi = self.frame_roi(bin, None)?;
+        let sdk = AsiSdk::lock().await?;
+        self.apply_roi(&sdk, bin, roi, false)
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
@@ -727,57 +691,10 @@ impl CameraDriver for ZwoCamera {
         if !self.connected {
             return Err(DriverError::NotConnected);
         }
-
-        let sdk = AsiSdk::installed()?;
-        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
-
-        let (width, height, x, y) = if let Some(ref sf) = subframe {
-            (
-                sf.width as c_int,
-                sf.height as c_int,
-                sf.start_x as c_int,
-                sf.start_y as c_int,
-            )
-        } else {
-            (
-                info.max_width as c_int / self.current_bin as c_int,
-                info.max_height as c_int / self.current_bin as c_int,
-                0,
-                0,
-            )
-        };
-
-        // ZWO requires ROI width%8==0 and height%2==0 (ASICamera2.h); round down
-        // to the nearest valid multiple like the reference driver so a caller-
-        // supplied or bin-derived ROI that isn't already aligned doesn't fail
-        // with ASI_ERROR_INVALID_SIZE.
-        let width = width & !7;
-        let height = height & !1;
-
-        let sdk = sdk.lock().await;
-
-        // SAFETY: width/height derive from SubFrame supplied by caller (validated by upper layer) or SDK-reported max dimensions; camera_id is valid (connected=true checked).
-        let result = unsafe {
-            (sdk.set_roi_format)(
-                self.camera_id,
-                width,
-                height,
-                self.current_bin as c_int,
-                self.image_type as c_int,
-            )
-        };
-        check_asi_error(result)?;
-
-        // SAFETY: x/y are subframe coordinates from caller validated by upper layer; camera_id is valid.
-        let result = unsafe { (sdk.set_start_pos)(self.camera_id, x, y) };
-        check_asi_error(result)?;
-
-        self.current_width = width;
-        self.current_height = height;
-        // Track subframe for metadata
-        self.current_subframe = subframe;
-
-        Ok(())
+        let bin = self.current_bin;
+        let roi = self.frame_roi(bin, subframe.as_ref())?;
+        let sdk = AsiSdk::lock().await?;
+        self.apply_roi(&sdk, bin, roi, subframe.is_some())
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
@@ -794,12 +711,12 @@ impl CameraDriver for ZwoCamera {
                 height: u32::try_from(info.max_height).unwrap_or(0),
                 pixel_size_x: info.pixel_size,
                 pixel_size_y: info.pixel_size,
-                // Container full scale, NOT the ADC range: the SDK is driven in
-                // Raw16 (see `image_type`) and left-justifies sub-16-bit
-                // samples. See [`raw16_container_max_adu`] and the
+                // Container full scale, NOT the ADC range: RAW16 left-justifies
+                // sub-16-bit samples and RAW8 frames are scaled by 256 on
+                // download. See [`raw16_container_max_adu`] and the
                 // `SensorInfo::max_adu` contract.
-                max_adu: raw16_container_max_adu(u32::try_from(info.bit_depth).unwrap_or(0)),
-                bit_depth: u32::try_from(info.bit_depth).unwrap_or(0),
+                max_adu: raw16_container_max_adu(self.delivered_bit_depth()),
+                bit_depth: self.delivered_bit_depth(),
                 color: info.is_color_cam != 0,
                 bayer_pattern: if info.is_color_cam != 0 {
                     Some(match info.bayer_pattern {
@@ -865,38 +782,16 @@ impl CameraDriver for ZwoCamera {
             .await
     }
 
-    /// ZWO publishes the exposure range via `ASIGetControlCaps(ASI_EXPOSURE)`
-    /// in MICROSECONDS. Converted to seconds to match the capability contract.
-    /// A camera that does not publish the control answers `Ok(None)` rather
+    /// `ASI_EXPOSURE`'s published range as read at connect, in seconds. A
+    /// camera that does not publish the control answers `Ok(None)` rather
     /// than a fabricated range.
     async fn get_exposure_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
         if !self.connected {
             return Err(DriverError::NotConnected);
         }
-        match self
-            .get_control_caps_raw_async(ASIControlType::ASI_EXPOSURE)
-            .await
-        {
-            Ok((min_us, max_us, _default_us)) => {
-                // Guard against a driver reporting a nonsensical window; an
-                // inverted or non-positive range is worse than "unknown".
-                if min_us <= 0 || max_us < min_us {
-                    tracing::warn!(
-                        "ZWO reported an unusable ASI_EXPOSURE range ({} .. {} us); \
-                         publishing None rather than a bogus limit",
-                        min_us,
-                        max_us
-                    );
-                    return Ok(None);
-                }
-                Ok(Some((
-                    min_us as f64 / 1_000_000.0,
-                    max_us as f64 / 1_000_000.0,
-                )))
-            }
-            Err(DriverError::NotSupported) => Ok(None),
-            Err(e) => Err(e),
-        }
+        Ok(self
+            .exposure_range_us
+            .map(|(min_us, max_us)| (min_us as f64 / 1_000_000.0, max_us as f64 / 1_000_000.0)))
     }
 
     /// Surface the SDK-advertised recommended settings.

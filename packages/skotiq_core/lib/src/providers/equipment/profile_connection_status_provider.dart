@@ -4,6 +4,7 @@ import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../utils/device_id.dart';
 import '../profiles_provider.dart';
+import '../../models/equipment_profile_model.dart';
 import 'device_slots.dart';
 
 /// The computed status of a single device slot for one profile.
@@ -181,13 +182,16 @@ final profileConnectionStatusProvider =
       ref,
       profile,
     ) {
+      // Only the connection half: telemetry polls must not recompute this.
       ProfileDeviceConnection connectionOf(DeviceSlot slot) {
-        final state = ref.watch(slot.state);
+        final live = ref.watch(
+          slot.state.select((s) => (state: s.connectionState, id: s.deviceId)),
+        );
         return ProfileDeviceConnection(
           type: slot.type,
           profileId: profile.deviceIdFor(slot.type),
-          connectedId: state.deviceId,
-          connectedState: state.connectionState,
+          connectedId: live.id,
+          connectedState: live.state,
         );
       }
 

@@ -1419,49 +1419,6 @@ pub struct WcsInfo {
     pub cd2_2: f64,
 }
 
-impl WcsInfo {
-    /// Build WCS info from a plate solve: `ra`/`dec`/`rotation` in degrees,
-    /// `pixel_scale` in arcseconds per pixel, image size in pixels.
-    pub fn from_plate_solve(
-        ra: f64,
-        dec: f64,
-        rotation: f64,
-        pixel_scale: f64,
-        image_width: u32,
-        image_height: u32,
-    ) -> Self {
-        // Reference pixel is the image centre in 1-based FITS coordinates:
-        // the centre of an N-pixel axis is (N+1)/2, not N/2 (which is the
-        // boundary between the two central pixels). Matches SipWcs::from_plate_solve.
-        let crpix1 = (image_width as f64 + 1.0) / 2.0;
-        let crpix2 = (image_height as f64 + 1.0) / 2.0;
-
-        // Convert pixel scale from arcsec/pixel to deg/pixel
-        let scale_deg = pixel_scale / 3600.0;
-
-        let rot_rad = rotation.to_radians();
-        let cos_rot = rot_rad.cos();
-        let sin_rot = rot_rad.sin();
-
-        // Build CD matrix incorporating rotation
-        let cd1_1 = -scale_deg * cos_rot; // Negative for RA increasing to the left
-        let cd1_2 = scale_deg * sin_rot;
-        let cd2_1 = scale_deg * sin_rot;
-        let cd2_2 = scale_deg * cos_rot;
-
-        Self {
-            crval1: ra,
-            crval2: dec,
-            crpix1,
-            crpix2,
-            cd1_1,
-            cd1_2,
-            cd2_1,
-            cd2_2,
-        }
-    }
-}
-
 /// Add the standard WCS (World Coordinate System) keywords to `header`, which
 /// is what lets other astronomical software map pixel coordinates to RA/Dec.
 pub fn add_wcs_headers(header: &mut FitsHeader, wcs: &WcsInfo) {
@@ -4039,7 +3996,7 @@ mod write_wcs_tests {
         header.set_string("OBJECT", "M34");
         write_fits(&path, &image, &header).unwrap();
 
-        let wcs = WcsInfo::from_plate_solve(40.1, 42.3, 12.0, 1.46, 400, 300);
+        let wcs = crate::SipWcs::from_pointing(40.1, 42.3, 12.0, 1.46, 400, 300);
         crate::write_wcs_into_frame(&path, &wcs).unwrap();
 
         let (read_back, parsed) = read_fits(&path).unwrap();

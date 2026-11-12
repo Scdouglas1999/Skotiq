@@ -4,13 +4,12 @@ import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../models/sequence/sequence_models.dart';
-import '../providers/sequence/sequence_editor_exceptions.dart';
+import '../models/sequence/sequence_editor_exceptions.dart';
 import '../utils/export_target.dart';
-import '../providers/sequence/sequence_validation.dart';
+import '../models/sequence/validation/structural_rules.dart';
+import '../models/sequence/validation/validation_issue.dart';
 import '../providers/sequence_provider.dart' show currentSequenceProvider;
 import '../providers/settings_provider.dart';
-// Prefixed: settings_provider.dart also exports a legacy `HorizonProfile`;
-// the in-sequence TargetSchedulerNode uses the scheduler samples-based one.
 import '../database/quality_stop_migration.dart';
 
 part 'sequence_file_service/sequence_document_codec.dart';

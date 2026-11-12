@@ -81,6 +81,12 @@ sealed class SkotiqError with _$SkotiqError implements FrbException {
     required String deviceId,
     required String currentOperation,
   }) = SkotiqError_DeviceBusy;
+
+  /// The device cannot do this in the state it is in (a dither while
+  /// guiding is paused, say). The message is the whole sentence a person
+  /// reads, including what to do instead.
+  const factory SkotiqError.invalidState(String field0) =
+      SkotiqError_InvalidState;
   const factory SkotiqError.imageError(String field0) = SkotiqError_ImageError;
   const factory SkotiqError.cameraError(String field0) =
       SkotiqError_CameraError;

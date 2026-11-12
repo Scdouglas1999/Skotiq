@@ -115,7 +115,10 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
   bool _mountCommandInFlight = false;
   bool _domeCommandInFlight = false;
   bool _coverCalibratorCommandInFlight = false;
-  int _commandRevision = 0;
+
+  /// The card's commands. One runs at a time; a host change drops whatever is
+  /// still answering from the old host and frees the card for the new one.
+  late final _commands = ref.backendScopes(alive: () => mounted);
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   late AnimationController _expandController;
   late Animation<double> _expandAnimation;
@@ -133,19 +136,8 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
       backendProvider,
       (previous, next) {
         if (previous == null || identical(previous, next)) return;
-        _commandRevision++;
-        if (mounted &&
-            (_deviceCommandInFlight ||
-                _mountCommandInFlight ||
-                _domeCommandInFlight ||
-                _coverCalibratorCommandInFlight)) {
-          setState(() {
-            _deviceCommandInFlight = false;
-            _mountCommandInFlight = false;
-            _domeCommandInFlight = false;
-            _coverCalibratorCommandInFlight = false;
-          });
-        }
+        _commands.cancelAll();
+        if (mounted && _anyCommandInFlight) setState(_markIdle);
       },
     );
     _expandController = AnimationController(
@@ -207,71 +199,37 @@ class _ConnectedDeviceCardState extends ConsumerState<ConnectedDeviceCard>
       _domeCommandInFlight ||
       _coverCalibratorCommandInFlight;
 
-  int? _beginDeviceCommand() {
+  AsyncScope<SkotiqBackend>? _beginCommand(void Function() markBusy) {
     if (_anyCommandInFlight) return null;
-    final revision = ++_commandRevision;
-    setState(() => _deviceCommandInFlight = true);
-    return revision;
+    final command = _commands.beginLatest();
+    setState(markBusy);
+    return command;
   }
 
-  int? _beginMountCommand() {
-    if (_anyCommandInFlight) return null;
-    final revision = ++_commandRevision;
-    setState(() => _mountCommandInFlight = true);
-    return revision;
+  AsyncScope<SkotiqBackend>? _beginDeviceCommand() =>
+      _beginCommand(() => _deviceCommandInFlight = true);
+
+  AsyncScope<SkotiqBackend>? _beginMountCommand() =>
+      _beginCommand(() => _mountCommandInFlight = true);
+
+  AsyncScope<SkotiqBackend>? _beginDomeCommand() =>
+      _beginCommand(() => _domeCommandInFlight = true);
+
+  AsyncScope<SkotiqBackend>? _beginCoverCalibratorCommand() =>
+      _beginCommand(() => _coverCalibratorCommandInFlight = true);
+
+  /// Frees the card when [command] is still the card's; a command the host
+  /// change dropped leaves the flags to the new host's commands.
+  void _finishCommand(AsyncScope<SkotiqBackend> command) {
+    if (command.isStale) return;
+    setState(_markIdle);
   }
 
-  int? _beginDomeCommand() {
-    if (_anyCommandInFlight) return null;
-    final revision = ++_commandRevision;
-    setState(() => _domeCommandInFlight = true);
-    return revision;
-  }
-
-  int? _beginCoverCalibratorCommand() {
-    if (_anyCommandInFlight) return null;
-    final revision = ++_commandRevision;
-    setState(() => _coverCalibratorCommandInFlight = true);
-    return revision;
-  }
-
-  void _finishDeviceCommand(int revision, SkotiqBackend backend) {
-    if (!mounted ||
-        revision != _commandRevision ||
-        !identical(ref.read(backendProvider), backend)) {
-      return;
-    }
-    setState(() => _deviceCommandInFlight = false);
-  }
-
-  void _finishMountCommand(int revision, SkotiqBackend backend) {
-    if (!mounted ||
-        revision != _commandRevision ||
-        !identical(ref.read(backendProvider), backend)) {
-      return;
-    }
-    setState(() => _mountCommandInFlight = false);
-  }
-
-  void _finishDomeCommand(int revision, SkotiqBackend backend) {
-    if (!mounted ||
-        revision != _commandRevision ||
-        !identical(ref.read(backendProvider), backend)) {
-      return;
-    }
-    setState(() => _domeCommandInFlight = false);
-  }
-
-  void _finishCoverCalibratorCommand(
-    int revision,
-    SkotiqBackend backend,
-  ) {
-    if (!mounted ||
-        revision != _commandRevision ||
-        !identical(ref.read(backendProvider), backend)) {
-      return;
-    }
-    setState(() => _coverCalibratorCommandInFlight = false);
+  void _markIdle() {
+    _deviceCommandInFlight = false;
+    _mountCommandInFlight = false;
+    _domeCommandInFlight = false;
+    _coverCalibratorCommandInFlight = false;
   }
 
   /// Writes this device into the active profile so it comes back on the next

@@ -544,9 +544,7 @@ class Phd2Controller {
   Future<void> _refreshPixelScale() async {
     final guiderId = ref.read(guiderStateProvider).deviceId;
     try {
-      final status = await backend.guiderGetStatus(
-        deviceId: guiderId ?? kPhd2CanonicalId,
-      );
+      final status = await backend.guiderGetStatus();
       if (_disposed ||
           !status.connected ||
           ref.read(guiderStateProvider).deviceId != guiderId) {
@@ -644,7 +642,7 @@ class Phd2Controller {
 
     final status = await readPhd2StatusOrDisconnected(backend);
     if (status.connected && status.state.toLowerCase() != 'stopped') {
-      await backend.phd2StopGuiding();
+      await backend.guiderStopGuiding();
     }
 
     try {
@@ -698,11 +696,8 @@ class Phd2Controller {
         settleTime: settleTime,
         settleTimeout: settleTimeout,
       );
-      final guiderId =
-          ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
       _warnIfMountNotTracking();
       await backend.guiderStartGuiding(
-        deviceId: guiderId,
         settlePixels: settlePixels,
         settleTime: settleTime,
         settleTimeout: _effectiveSettleTimeout(settleTime, settleTimeout),
@@ -729,33 +724,20 @@ class Phd2Controller {
     // Stop rides its own gate slot so it can always pre-empt a settling Start
     // (the safe abort direction); only a second concurrent Stop is rejected.
     return _commandGate.runStop('stop', () async {
-      final guiderId =
-          ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
-      await backend.guiderStopGuiding(deviceId: guiderId);
+      await backend.guiderStopGuiding();
     });
   }
 
   Future<void> pauseGuiding() {
     return _commandGate.runPositive('pause', () async {
-      _requirePhd2('Pause');
-      await backend.phd2SetPaused(true);
+      await backend.guiderSetPaused(true);
     });
   }
 
   Future<void> resumeGuiding() {
     return _commandGate.runPositive('resume', () async {
-      _requirePhd2('Resume');
-      await backend.phd2SetPaused(false);
+      await backend.guiderSetPaused(false);
     });
-  }
-
-  void _requirePhd2(String command) {
-    final guiderId = ref.read(guiderStateProvider).deviceId;
-    if (guiderId != null && !isPhd2DeviceId(guiderId)) {
-      throw UnsupportedError(
-        '$command is only available when PHD2 is the active guider.',
-      );
-    }
   }
 
   Future<void> dither({
@@ -784,9 +766,7 @@ class Phd2Controller {
           '(PHD2 must be in the Guiding state to accept a dither).',
         );
       }
-      final guiderId = guiderState.deviceId ?? kPhd2CanonicalId;
       await backend.guiderDither(
-        deviceId: guiderId,
         amount: amount,
         raOnly: raOnly,
         settlePixels: settlePixels,
@@ -799,9 +779,7 @@ class Phd2Controller {
   /// Start looping exposures without guiding
   Future<void> loop() {
     return _commandGate.runPositive('loop', () async {
-      final guiderId =
-          ref.read(guiderStateProvider).deviceId ?? kPhd2CanonicalId;
-      await backend.guiderLoop(deviceId: guiderId);
+      await backend.guiderLoop();
     });
   }
 

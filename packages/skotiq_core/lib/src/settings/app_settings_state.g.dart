@@ -110,71 +110,72 @@ abstract final class AppSettingDefs {
   static final BoolSetting recoveryStopTrackingDuringRecovery = kAppSettingsTable[94] as BoolSetting;
   static final BoolSetting recoveryAbortOnMeridian = kAppSettingsTable[95] as BoolSetting;
   static final BoolSetting recoveryAudibleAlertWhenEntered = kAppSettingsTable[96] as BoolSetting;
-  static final TextSetting afMethod = kAppSettingsTable[97] as TextSetting;
-  static final TextSetting afCurveFitting = kAppSettingsTable[98] as TextSetting;
-  static final IntSetting afStepSize = kAppSettingsTable[99] as IntSetting;
-  static final DoubleSetting afExposureTime = kAppSettingsTable[100] as DoubleSetting;
-  static final IntSetting afInitialOffsetSteps = kAppSettingsTable[101] as IntSetting;
-  static final IntSetting afNumberOfAttempts = kAppSettingsTable[102] as IntSetting;
-  static final IntSetting afUseBrightestNStars = kAppSettingsTable[103] as IntSetting;
-  static final DoubleSetting afOuterCropRatio = kAppSettingsTable[104] as DoubleSetting;
-  static final DoubleSetting afInnerCropRatio = kAppSettingsTable[105] as DoubleSetting;
-  static final IntSetting afBinning = kAppSettingsTable[106] as IntSetting;
-  static final DoubleSetting afRSquaredThreshold = kAppSettingsTable[107] as DoubleSetting;
-  static final DoubleSetting afFailureHfrToleranceRatio = kAppSettingsTable[108] as DoubleSetting;
-  static final BoolSetting afDisableGuidingDuringAf = kAppSettingsTable[109] as BoolSetting;
-  static final IntSetting afFocuserSettleTimeMs = kAppSettingsTable[110] as IntSetting;
-  static final IntSetting afExposuresPerPoint = kAppSettingsTable[111] as IntSetting;
-  static final TextSetting afBacklashCompMethod = kAppSettingsTable[112] as TextSetting;
-  static final IntSetting afBacklashIn = kAppSettingsTable[113] as IntSetting;
-  static final TextSetting focuserBacklashOfferMode = kAppSettingsTable[114] as TextSetting;
-  static final TextSetting focuserBacklashCalibrationJson = kAppSettingsTable[115] as TextSetting;
-  static final TextSetting mountSiteSyncMode = kAppSettingsTable[116] as TextSetting;
-  static final IntSetting afBacklashOut = kAppSettingsTable[117] as IntSetting;
-  static final TextSetting afAutofocusFilterName = kAppSettingsTable[118] as TextSetting;
-  static final TextSetting afFilterSettingsJson = kAppSettingsTable[119] as TextSetting;
-  static final TextSetting observerName = kAppSettingsTable[120] as TextSetting;
-  static final BoolSetting enableImageGrading = kAppSettingsTable[121] as BoolSetting;
-  static final OptionalDoubleSetting imageGradingHfrThresholdPx = kAppSettingsTable[122] as OptionalDoubleSetting;
-  static final OptionalDoubleSetting imageGradingHfrBaselinePercent = kAppSettingsTable[123] as OptionalDoubleSetting;
-  static final OptionalDoubleSetting imageGradingEccentricityThreshold = kAppSettingsTable[124] as OptionalDoubleSetting;
-  static final OptionalIntSetting imageGradingStarCountMin = kAppSettingsTable[125] as OptionalIntSetting;
-  static final IntSetting imageGradingMaxConsecutiveRejects = kAppSettingsTable[126] as IntSetting;
-  static final OptionalTextSetting imageGradingRejectFolderPath = kAppSettingsTable[127] as OptionalTextSetting;
-  static final BoolSetting adaptiveExposureEnabled = kAppSettingsTable[128] as BoolSetting;
-  static final DoubleSetting adaptiveExposureTargetSnr = kAppSettingsTable[129] as DoubleSetting;
-  static final DoubleSetting adaptiveExposureReferenceMag = kAppSettingsTable[130] as DoubleSetting;
-  static final DoubleSetting adaptiveExposureMinSecs = kAppSettingsTable[131] as DoubleSetting;
-  static final DoubleSetting adaptiveExposureMaxSecs = kAppSettingsTable[132] as DoubleSetting;
-  static final BoolMapSetting adaptiveExposurePerFilterEnabled = kAppSettingsTable[133] as BoolMapSetting;
-  static final DoubleMapSetting adaptiveExposurePerFilterMinSecs = kAppSettingsTable[134] as DoubleMapSetting;
-  static final DoubleMapSetting adaptiveExposurePerFilterMaxSecs = kAppSettingsTable[135] as DoubleMapSetting;
-  static final EnumSetting<PreflightStrictness> preflightStrictness = kAppSettingsTable[136] as EnumSetting<PreflightStrictness>;
-  static final IntSetting polarAlignmentMaxAgeDays = kAppSettingsTable[137] as IntSetting;
-  static final IntSetting darkLibraryMinCoverage = kAppSettingsTable[138] as IntSetting;
-  static final DoubleSetting opticalTrainDriftThreshold = kAppSettingsTable[139] as DoubleSetting;
-  static final OptionalDoubleSetting smartNightMaxSessionHours = kAppSettingsTable[140] as OptionalDoubleSetting;
-  static final IntSetting smartNightDefaultAfCadenceFrames = kAppSettingsTable[141] as IntSetting;
-  static final IntSetting smartNightDefaultIntegrationBudgetMinsPerTarget = kAppSettingsTable[142] as IntSetting;
-  static final BoolSetting smartNightIncludeFlatsAtEnd = kAppSettingsTable[143] as BoolSetting;
-  static final BoolSetting smartNightUseSchedulerForMultiTarget = kAppSettingsTable[144] as BoolSetting;
-  static final IntSetting smartNightSchedulerTargetThreshold = kAppSettingsTable[145] as IntSetting;
-  static final TextSetting smartNightDefaultStrategy = kAppSettingsTable[146] as TextSetting;
-  static final IntSetting smartNightPolarAlignmentStaleAfterDays = kAppSettingsTable[147] as IntSetting;
-  static final DoubleSetting smartNightSubExposureFloorSecs = kAppSettingsTable[148] as DoubleSetting;
-  static final DoubleSetting smartNightSubExposureCeilingSecs = kAppSettingsTable[149] as DoubleSetting;
-  static final DoubleSetting smartNightTargetSnr = kAppSettingsTable[150] as DoubleSetting;
-  static final BoolSetting smartNightAutoSelect = kAppSettingsTable[151] as BoolSetting;
-  static final IntSetting smartNightAutoSelectCount = kAppSettingsTable[152] as IntSetting;
-  static final TextSetting smartNightPromptDismissedDayKey = kAppSettingsTable[153] as TextSetting;
-  static final BoolSetting promptForNotesAfterRun = kAppSettingsTable[154] as BoolSetting;
-  static final BoolSetting sessionHandoffAutoPrompt = kAppSettingsTable[155] as BoolSetting;
-  static final BoolSetting campaignRollupSurfaceTargetsTab = kAppSettingsTable[156] as BoolSetting;
-  static final TextSetting campaignRollupGroupingMode = kAppSettingsTable[157] as TextSetting;
-  static final BoolSetting adaptiveSwapEnabledByDefault = kAppSettingsTable[158] as BoolSetting;
-  static final DoubleSetting adaptiveSwapDefaultThreshold = kAppSettingsTable[159] as DoubleSetting;
-  static final DoubleSetting adaptiveSwapDefaultHysteresisSecs = kAppSettingsTable[160] as DoubleSetting;
-  static final DoubleMapSetting conditionsScoreWeights = kAppSettingsTable[161] as DoubleMapSetting;
+  static final BoolSetting recoveryParkAndCloseWhenGivesUp = kAppSettingsTable[97] as BoolSetting;
+  static final TextSetting afMethod = kAppSettingsTable[98] as TextSetting;
+  static final TextSetting afCurveFitting = kAppSettingsTable[99] as TextSetting;
+  static final IntSetting afStepSize = kAppSettingsTable[100] as IntSetting;
+  static final DoubleSetting afExposureTime = kAppSettingsTable[101] as DoubleSetting;
+  static final IntSetting afInitialOffsetSteps = kAppSettingsTable[102] as IntSetting;
+  static final IntSetting afNumberOfAttempts = kAppSettingsTable[103] as IntSetting;
+  static final IntSetting afUseBrightestNStars = kAppSettingsTable[104] as IntSetting;
+  static final DoubleSetting afOuterCropRatio = kAppSettingsTable[105] as DoubleSetting;
+  static final DoubleSetting afInnerCropRatio = kAppSettingsTable[106] as DoubleSetting;
+  static final IntSetting afBinning = kAppSettingsTable[107] as IntSetting;
+  static final DoubleSetting afRSquaredThreshold = kAppSettingsTable[108] as DoubleSetting;
+  static final DoubleSetting afFailureHfrToleranceRatio = kAppSettingsTable[109] as DoubleSetting;
+  static final BoolSetting afDisableGuidingDuringAf = kAppSettingsTable[110] as BoolSetting;
+  static final IntSetting afFocuserSettleTimeMs = kAppSettingsTable[111] as IntSetting;
+  static final IntSetting afExposuresPerPoint = kAppSettingsTable[112] as IntSetting;
+  static final TextSetting afBacklashCompMethod = kAppSettingsTable[113] as TextSetting;
+  static final IntSetting afBacklashIn = kAppSettingsTable[114] as IntSetting;
+  static final TextSetting focuserBacklashOfferMode = kAppSettingsTable[115] as TextSetting;
+  static final TextSetting focuserBacklashCalibrationJson = kAppSettingsTable[116] as TextSetting;
+  static final TextSetting mountSiteSyncMode = kAppSettingsTable[117] as TextSetting;
+  static final IntSetting afBacklashOut = kAppSettingsTable[118] as IntSetting;
+  static final TextSetting afAutofocusFilterName = kAppSettingsTable[119] as TextSetting;
+  static final TextSetting afFilterSettingsJson = kAppSettingsTable[120] as TextSetting;
+  static final TextSetting observerName = kAppSettingsTable[121] as TextSetting;
+  static final BoolSetting enableImageGrading = kAppSettingsTable[122] as BoolSetting;
+  static final OptionalDoubleSetting imageGradingHfrThresholdPx = kAppSettingsTable[123] as OptionalDoubleSetting;
+  static final OptionalDoubleSetting imageGradingHfrBaselinePercent = kAppSettingsTable[124] as OptionalDoubleSetting;
+  static final OptionalDoubleSetting imageGradingEccentricityThreshold = kAppSettingsTable[125] as OptionalDoubleSetting;
+  static final OptionalIntSetting imageGradingStarCountMin = kAppSettingsTable[126] as OptionalIntSetting;
+  static final IntSetting imageGradingMaxConsecutiveRejects = kAppSettingsTable[127] as IntSetting;
+  static final OptionalTextSetting imageGradingRejectFolderPath = kAppSettingsTable[128] as OptionalTextSetting;
+  static final BoolSetting adaptiveExposureEnabled = kAppSettingsTable[129] as BoolSetting;
+  static final DoubleSetting adaptiveExposureTargetSnr = kAppSettingsTable[130] as DoubleSetting;
+  static final DoubleSetting adaptiveExposureReferenceMag = kAppSettingsTable[131] as DoubleSetting;
+  static final DoubleSetting adaptiveExposureMinSecs = kAppSettingsTable[132] as DoubleSetting;
+  static final DoubleSetting adaptiveExposureMaxSecs = kAppSettingsTable[133] as DoubleSetting;
+  static final BoolMapSetting adaptiveExposurePerFilterEnabled = kAppSettingsTable[134] as BoolMapSetting;
+  static final DoubleMapSetting adaptiveExposurePerFilterMinSecs = kAppSettingsTable[135] as DoubleMapSetting;
+  static final DoubleMapSetting adaptiveExposurePerFilterMaxSecs = kAppSettingsTable[136] as DoubleMapSetting;
+  static final EnumSetting<PreflightStrictness> preflightStrictness = kAppSettingsTable[137] as EnumSetting<PreflightStrictness>;
+  static final IntSetting polarAlignmentMaxAgeDays = kAppSettingsTable[138] as IntSetting;
+  static final IntSetting darkLibraryMinCoverage = kAppSettingsTable[139] as IntSetting;
+  static final DoubleSetting opticalTrainDriftThreshold = kAppSettingsTable[140] as DoubleSetting;
+  static final OptionalDoubleSetting smartNightMaxSessionHours = kAppSettingsTable[141] as OptionalDoubleSetting;
+  static final IntSetting smartNightDefaultAfCadenceFrames = kAppSettingsTable[142] as IntSetting;
+  static final IntSetting smartNightDefaultIntegrationBudgetMinsPerTarget = kAppSettingsTable[143] as IntSetting;
+  static final BoolSetting smartNightIncludeFlatsAtEnd = kAppSettingsTable[144] as BoolSetting;
+  static final BoolSetting smartNightUseSchedulerForMultiTarget = kAppSettingsTable[145] as BoolSetting;
+  static final IntSetting smartNightSchedulerTargetThreshold = kAppSettingsTable[146] as IntSetting;
+  static final TextSetting smartNightDefaultStrategy = kAppSettingsTable[147] as TextSetting;
+  static final IntSetting smartNightPolarAlignmentStaleAfterDays = kAppSettingsTable[148] as IntSetting;
+  static final DoubleSetting smartNightSubExposureFloorSecs = kAppSettingsTable[149] as DoubleSetting;
+  static final DoubleSetting smartNightSubExposureCeilingSecs = kAppSettingsTable[150] as DoubleSetting;
+  static final DoubleSetting smartNightTargetSnr = kAppSettingsTable[151] as DoubleSetting;
+  static final BoolSetting smartNightAutoSelect = kAppSettingsTable[152] as BoolSetting;
+  static final IntSetting smartNightAutoSelectCount = kAppSettingsTable[153] as IntSetting;
+  static final TextSetting smartNightPromptDismissedDayKey = kAppSettingsTable[154] as TextSetting;
+  static final BoolSetting promptForNotesAfterRun = kAppSettingsTable[155] as BoolSetting;
+  static final BoolSetting sessionHandoffAutoPrompt = kAppSettingsTable[156] as BoolSetting;
+  static final BoolSetting campaignRollupSurfaceTargetsTab = kAppSettingsTable[157] as BoolSetting;
+  static final TextSetting campaignRollupGroupingMode = kAppSettingsTable[158] as TextSetting;
+  static final BoolSetting adaptiveSwapEnabledByDefault = kAppSettingsTable[159] as BoolSetting;
+  static final DoubleSetting adaptiveSwapDefaultThreshold = kAppSettingsTable[160] as DoubleSetting;
+  static final DoubleSetting adaptiveSwapDefaultHysteresisSecs = kAppSettingsTable[161] as DoubleSetting;
+  static final DoubleMapSetting conditionsScoreWeights = kAppSettingsTable[162] as DoubleMapSetting;
 }
 
 /// The application settings as one immutable value.
@@ -201,8 +202,7 @@ class AppSettingsState {
   final bool useSystemTime;
   final String imageFormat;
   /// What a frame from a camera that delivers its own raw file is saved as
-  /// (see [CameraFileSaving]). The host keeps the native save in step with it
-  /// (`cameraFileSavingSyncProvider`), for sequences and manual captures.
+  /// (see [CameraFileSaving]), by sequences and manual captures alike.
   final String cameraFileSaving;
   final String xisfCompression;
   final bool xisfChecksums;
@@ -350,6 +350,11 @@ class AppSettingsState {
   /// the existing critical-alert path so the user setting is unified
   /// with [audibleAlertsOnCritical].
   final bool recoveryAudibleAlertWhenEntered;
+  /// When a recovery that cannot fix the problem gives up, park the mount and
+  /// close the cover and dome before the run fails. Off by default: the run
+  /// fails and the rig is left for the operator. No page offers it; it is an
+  /// explicit choice made in the host's store.
+  final bool recoveryParkAndCloseWhenGivesUp;
   final String afMethod;
   final String afCurveFitting;
   final int afStepSize;
@@ -626,6 +631,7 @@ class AppSettingsState {
     this.recoveryStopTrackingDuringRecovery = false,
     this.recoveryAbortOnMeridian = true,
     this.recoveryAudibleAlertWhenEntered = true,
+    this.recoveryParkAndCloseWhenGivesUp = false,
     this.afMethod = 'Star HFR',
     this.afCurveFitting = 'Hyperbolic',
     this.afStepSize = 50,
@@ -793,6 +799,7 @@ class AppSettingsState {
     bool? recoveryStopTrackingDuringRecovery,
     bool? recoveryAbortOnMeridian,
     bool? recoveryAudibleAlertWhenEntered,
+    bool? recoveryParkAndCloseWhenGivesUp,
     String? afMethod,
     String? afCurveFitting,
     int? afStepSize,
@@ -957,6 +964,7 @@ class AppSettingsState {
       recoveryStopTrackingDuringRecovery: recoveryStopTrackingDuringRecovery ?? this.recoveryStopTrackingDuringRecovery,
       recoveryAbortOnMeridian: recoveryAbortOnMeridian ?? this.recoveryAbortOnMeridian,
       recoveryAudibleAlertWhenEntered: recoveryAudibleAlertWhenEntered ?? this.recoveryAudibleAlertWhenEntered,
+      recoveryParkAndCloseWhenGivesUp: recoveryParkAndCloseWhenGivesUp ?? this.recoveryParkAndCloseWhenGivesUp,
       afMethod: afMethod ?? this.afMethod,
       afCurveFitting: afCurveFitting ?? this.afCurveFitting,
       afStepSize: afStepSize ?? this.afStepSize,
@@ -1126,6 +1134,7 @@ class AppSettingsState {
     'recoveryStopTrackingDuringRecovery' => recoveryStopTrackingDuringRecovery,
     'recoveryAbortOnMeridian' => recoveryAbortOnMeridian,
     'recoveryAudibleAlertWhenEntered' => recoveryAudibleAlertWhenEntered,
+    'recoveryParkAndCloseWhenGivesUp' => recoveryParkAndCloseWhenGivesUp,
     'afMethod' => afMethod,
     'afCurveFitting' => afCurveFitting,
     'afStepSize' => afStepSize,
@@ -1294,6 +1303,7 @@ class AppSettingsState {
         'recoveryStopTrackingDuringRecovery' => copyWith(recoveryStopTrackingDuringRecovery: value as bool),
         'recoveryAbortOnMeridian' => copyWith(recoveryAbortOnMeridian: value as bool),
         'recoveryAudibleAlertWhenEntered' => copyWith(recoveryAudibleAlertWhenEntered: value as bool),
+        'recoveryParkAndCloseWhenGivesUp' => copyWith(recoveryParkAndCloseWhenGivesUp: value as bool),
         'afMethod' => copyWith(afMethod: value as String),
         'afCurveFitting' => copyWith(afCurveFitting: value as String),
         'afStepSize' => copyWith(afStepSize: value as int),
@@ -1465,71 +1475,72 @@ class AppSettingsState {
       recoveryStopTrackingDuringRecovery: valueOf(t[94]) as bool,
       recoveryAbortOnMeridian: valueOf(t[95]) as bool,
       recoveryAudibleAlertWhenEntered: valueOf(t[96]) as bool,
-      afMethod: valueOf(t[97]) as String,
-      afCurveFitting: valueOf(t[98]) as String,
-      afStepSize: valueOf(t[99]) as int,
-      afExposureTime: valueOf(t[100]) as double,
-      afInitialOffsetSteps: valueOf(t[101]) as int,
-      afNumberOfAttempts: valueOf(t[102]) as int,
-      afUseBrightestNStars: valueOf(t[103]) as int,
-      afOuterCropRatio: valueOf(t[104]) as double,
-      afInnerCropRatio: valueOf(t[105]) as double,
-      afBinning: valueOf(t[106]) as int,
-      afRSquaredThreshold: valueOf(t[107]) as double,
-      afFailureHfrToleranceRatio: valueOf(t[108]) as double,
-      afDisableGuidingDuringAf: valueOf(t[109]) as bool,
-      afFocuserSettleTimeMs: valueOf(t[110]) as int,
-      afExposuresPerPoint: valueOf(t[111]) as int,
-      afBacklashCompMethod: valueOf(t[112]) as String,
-      afBacklashIn: valueOf(t[113]) as int,
-      focuserBacklashOfferMode: valueOf(t[114]) as String,
-      focuserBacklashCalibrationJson: valueOf(t[115]) as String,
-      mountSiteSyncMode: valueOf(t[116]) as String,
-      afBacklashOut: valueOf(t[117]) as int,
-      afAutofocusFilterName: valueOf(t[118]) as String,
-      afFilterSettingsJson: valueOf(t[119]) as String,
-      observerName: valueOf(t[120]) as String,
-      enableImageGrading: valueOf(t[121]) as bool,
-      imageGradingHfrThresholdPx: valueOf(t[122]) as double?,
-      imageGradingHfrBaselinePercent: valueOf(t[123]) as double?,
-      imageGradingEccentricityThreshold: valueOf(t[124]) as double?,
-      imageGradingStarCountMin: valueOf(t[125]) as int?,
-      imageGradingMaxConsecutiveRejects: valueOf(t[126]) as int,
-      imageGradingRejectFolderPath: valueOf(t[127]) as String?,
-      adaptiveExposureEnabled: valueOf(t[128]) as bool,
-      adaptiveExposureTargetSnr: valueOf(t[129]) as double,
-      adaptiveExposureReferenceMag: valueOf(t[130]) as double,
-      adaptiveExposureMinSecs: valueOf(t[131]) as double,
-      adaptiveExposureMaxSecs: valueOf(t[132]) as double,
-      adaptiveExposurePerFilterEnabled: valueOf(t[133]) as Map<String, bool>,
-      adaptiveExposurePerFilterMinSecs: valueOf(t[134]) as Map<String, double>,
-      adaptiveExposurePerFilterMaxSecs: valueOf(t[135]) as Map<String, double>,
-      preflightStrictness: valueOf(t[136]) as PreflightStrictness,
-      polarAlignmentMaxAgeDays: valueOf(t[137]) as int,
-      darkLibraryMinCoverage: valueOf(t[138]) as int,
-      opticalTrainDriftThreshold: valueOf(t[139]) as double,
-      smartNightMaxSessionHours: valueOf(t[140]) as double?,
-      smartNightDefaultAfCadenceFrames: valueOf(t[141]) as int,
-      smartNightDefaultIntegrationBudgetMinsPerTarget: valueOf(t[142]) as int,
-      smartNightIncludeFlatsAtEnd: valueOf(t[143]) as bool,
-      smartNightUseSchedulerForMultiTarget: valueOf(t[144]) as bool,
-      smartNightSchedulerTargetThreshold: valueOf(t[145]) as int,
-      smartNightDefaultStrategy: valueOf(t[146]) as String,
-      smartNightPolarAlignmentStaleAfterDays: valueOf(t[147]) as int,
-      smartNightSubExposureFloorSecs: valueOf(t[148]) as double,
-      smartNightSubExposureCeilingSecs: valueOf(t[149]) as double,
-      smartNightTargetSnr: valueOf(t[150]) as double,
-      smartNightAutoSelect: valueOf(t[151]) as bool,
-      smartNightAutoSelectCount: valueOf(t[152]) as int,
-      smartNightPromptDismissedDayKey: valueOf(t[153]) as String,
-      promptForNotesAfterRun: valueOf(t[154]) as bool,
-      sessionHandoffAutoPrompt: valueOf(t[155]) as bool,
-      campaignRollupSurfaceTargetsTab: valueOf(t[156]) as bool,
-      campaignRollupGroupingMode: valueOf(t[157]) as String,
-      adaptiveSwapEnabledByDefault: valueOf(t[158]) as bool,
-      adaptiveSwapDefaultThreshold: valueOf(t[159]) as double,
-      adaptiveSwapDefaultHysteresisSecs: valueOf(t[160]) as double,
-      conditionsScoreWeights: valueOf(t[161]) as Map<String, double>,
+      recoveryParkAndCloseWhenGivesUp: valueOf(t[97]) as bool,
+      afMethod: valueOf(t[98]) as String,
+      afCurveFitting: valueOf(t[99]) as String,
+      afStepSize: valueOf(t[100]) as int,
+      afExposureTime: valueOf(t[101]) as double,
+      afInitialOffsetSteps: valueOf(t[102]) as int,
+      afNumberOfAttempts: valueOf(t[103]) as int,
+      afUseBrightestNStars: valueOf(t[104]) as int,
+      afOuterCropRatio: valueOf(t[105]) as double,
+      afInnerCropRatio: valueOf(t[106]) as double,
+      afBinning: valueOf(t[107]) as int,
+      afRSquaredThreshold: valueOf(t[108]) as double,
+      afFailureHfrToleranceRatio: valueOf(t[109]) as double,
+      afDisableGuidingDuringAf: valueOf(t[110]) as bool,
+      afFocuserSettleTimeMs: valueOf(t[111]) as int,
+      afExposuresPerPoint: valueOf(t[112]) as int,
+      afBacklashCompMethod: valueOf(t[113]) as String,
+      afBacklashIn: valueOf(t[114]) as int,
+      focuserBacklashOfferMode: valueOf(t[115]) as String,
+      focuserBacklashCalibrationJson: valueOf(t[116]) as String,
+      mountSiteSyncMode: valueOf(t[117]) as String,
+      afBacklashOut: valueOf(t[118]) as int,
+      afAutofocusFilterName: valueOf(t[119]) as String,
+      afFilterSettingsJson: valueOf(t[120]) as String,
+      observerName: valueOf(t[121]) as String,
+      enableImageGrading: valueOf(t[122]) as bool,
+      imageGradingHfrThresholdPx: valueOf(t[123]) as double?,
+      imageGradingHfrBaselinePercent: valueOf(t[124]) as double?,
+      imageGradingEccentricityThreshold: valueOf(t[125]) as double?,
+      imageGradingStarCountMin: valueOf(t[126]) as int?,
+      imageGradingMaxConsecutiveRejects: valueOf(t[127]) as int,
+      imageGradingRejectFolderPath: valueOf(t[128]) as String?,
+      adaptiveExposureEnabled: valueOf(t[129]) as bool,
+      adaptiveExposureTargetSnr: valueOf(t[130]) as double,
+      adaptiveExposureReferenceMag: valueOf(t[131]) as double,
+      adaptiveExposureMinSecs: valueOf(t[132]) as double,
+      adaptiveExposureMaxSecs: valueOf(t[133]) as double,
+      adaptiveExposurePerFilterEnabled: valueOf(t[134]) as Map<String, bool>,
+      adaptiveExposurePerFilterMinSecs: valueOf(t[135]) as Map<String, double>,
+      adaptiveExposurePerFilterMaxSecs: valueOf(t[136]) as Map<String, double>,
+      preflightStrictness: valueOf(t[137]) as PreflightStrictness,
+      polarAlignmentMaxAgeDays: valueOf(t[138]) as int,
+      darkLibraryMinCoverage: valueOf(t[139]) as int,
+      opticalTrainDriftThreshold: valueOf(t[140]) as double,
+      smartNightMaxSessionHours: valueOf(t[141]) as double?,
+      smartNightDefaultAfCadenceFrames: valueOf(t[142]) as int,
+      smartNightDefaultIntegrationBudgetMinsPerTarget: valueOf(t[143]) as int,
+      smartNightIncludeFlatsAtEnd: valueOf(t[144]) as bool,
+      smartNightUseSchedulerForMultiTarget: valueOf(t[145]) as bool,
+      smartNightSchedulerTargetThreshold: valueOf(t[146]) as int,
+      smartNightDefaultStrategy: valueOf(t[147]) as String,
+      smartNightPolarAlignmentStaleAfterDays: valueOf(t[148]) as int,
+      smartNightSubExposureFloorSecs: valueOf(t[149]) as double,
+      smartNightSubExposureCeilingSecs: valueOf(t[150]) as double,
+      smartNightTargetSnr: valueOf(t[151]) as double,
+      smartNightAutoSelect: valueOf(t[152]) as bool,
+      smartNightAutoSelectCount: valueOf(t[153]) as int,
+      smartNightPromptDismissedDayKey: valueOf(t[154]) as String,
+      promptForNotesAfterRun: valueOf(t[155]) as bool,
+      sessionHandoffAutoPrompt: valueOf(t[156]) as bool,
+      campaignRollupSurfaceTargetsTab: valueOf(t[157]) as bool,
+      campaignRollupGroupingMode: valueOf(t[158]) as String,
+      adaptiveSwapEnabledByDefault: valueOf(t[159]) as bool,
+      adaptiveSwapDefaultThreshold: valueOf(t[160]) as double,
+      adaptiveSwapDefaultHysteresisSecs: valueOf(t[161]) as double,
+      conditionsScoreWeights: valueOf(t[162]) as Map<String, double>,
     );
   }
 }

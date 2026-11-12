@@ -38,6 +38,7 @@ class _SettingsNotifier extends AppSettingsNotifier {
 }
 
 const _connectedStatus = Phd2Status(
+  deviceId: kPhd2CanonicalId,
   state: 'Guiding',
   connected: true,
   rmsRa: 0,
@@ -226,7 +227,6 @@ void main() {
     when(() => backend.eventStream).thenAnswer((_) => events.stream);
     when(
       () => backend.guiderStartGuiding(
-        deviceId: any(named: 'deviceId'),
         settlePixels: any(named: 'settlePixels'),
         settleTime: any(named: 'settleTime'),
         settleTimeout: any(named: 'settleTimeout'),
@@ -261,7 +261,6 @@ void main() {
         final startGate = Completer<void>();
         when(
           () => backend.guiderStartGuiding(
-            deviceId: any(named: 'deviceId'),
             settlePixels: any(named: 'settlePixels'),
             settleTime: any(named: 'settleTime'),
             settleTimeout: any(named: 'settleTimeout'),
@@ -282,7 +281,6 @@ void main() {
 
         verify(
           () => backend.guiderStartGuiding(
-            deviceId: any(named: 'deviceId'),
             settlePixels: any(named: 'settlePixels'),
             settleTime: any(named: 'settleTime'),
             settleTimeout: any(named: 'settleTimeout'),
@@ -300,7 +298,7 @@ void main() {
         when(() => backend.eventStream).thenAnswer((_) => events.stream);
         final stopGate = Completer<void>();
         when(
-          () => backend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
+          () => backend.guiderStopGuiding(),
         ).thenAnswer((_) => stopGate.future);
 
         final container = _container(backend);
@@ -315,9 +313,7 @@ void main() {
         stopGate.complete();
         await first;
 
-        verify(
-          () => backend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-        ).called(1);
+        verify(() => backend.guiderStopGuiding()).called(1);
       },
     );
 
@@ -329,15 +325,12 @@ void main() {
       final startGate = Completer<void>();
       when(
         () => backend.guiderStartGuiding(
-          deviceId: any(named: 'deviceId'),
           settlePixels: any(named: 'settlePixels'),
           settleTime: any(named: 'settleTime'),
           settleTimeout: any(named: 'settleTimeout'),
         ),
       ).thenAnswer((_) => startGate.future);
-      when(
-        () => backend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-      ).thenAnswer((_) async {});
+      when(() => backend.guiderStopGuiding()).thenAnswer((_) async {});
 
       final container = _container(backend);
       addTearDown(container.dispose);
@@ -348,17 +341,13 @@ void main() {
       final stop = controller.stopGuiding();
       await Future<void>.delayed(Duration.zero);
       // The first Stop is issued immediately to interrupt settling.
-      verify(
-        () => backend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-      ).called(1);
+      verify(() => backend.guiderStopGuiding()).called(1);
 
       // Once Start drains, a second Stop becomes the terminal command.
       startGate.complete();
       await start;
       await stop;
-      verify(
-        () => backend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-      ).called(1);
+      verify(() => backend.guiderStopGuiding()).called(1);
     });
 
     test('Stop works from the paused state', () async {
@@ -366,9 +355,7 @@ void main() {
       addTearDown(events.close);
       final backend = _MockBackend();
       when(() => backend.eventStream).thenAnswer((_) => events.stream);
-      when(
-        () => backend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-      ).thenAnswer((_) async {});
+      when(() => backend.guiderStopGuiding()).thenAnswer((_) async {});
 
       final container = _container(backend);
       addTearDown(container.dispose);
@@ -377,9 +364,7 @@ void main() {
       final controller = container.read(phd2ControllerProvider);
 
       await controller.stopGuiding();
-      verify(
-        () => backend.guiderStopGuiding(deviceId: any(named: 'deviceId')),
-      ).called(1);
+      verify(() => backend.guiderStopGuiding()).called(1);
     });
 
     test(
@@ -391,7 +376,6 @@ void main() {
         when(() => backend.eventStream).thenAnswer((_) => events.stream);
         when(
           () => backend.guiderStartGuiding(
-            deviceId: any(named: 'deviceId'),
             settlePixels: any(named: 'settlePixels'),
             settleTime: any(named: 'settleTime'),
             settleTimeout: any(named: 'settleTimeout'),
@@ -424,7 +408,6 @@ void main() {
       double? sentTime;
       when(
         () => backend.guiderStartGuiding(
-          deviceId: any(named: 'deviceId'),
           settlePixels: any(named: 'settlePixels'),
           settleTime: any(named: 'settleTime'),
           settleTimeout: any(named: 'settleTimeout'),
@@ -449,11 +432,12 @@ void main() {
   });
 
   group('guider capabilities', () {
-    test('PHD2-only pause and resume reject the built-in guider', () async {
+    test('pause and resume reach the built-in guider too', () async {
       final events = StreamController<SkotiqEvent>.broadcast();
       addTearDown(events.close);
       final backend = _MockBackend();
       when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      when(() => backend.guiderSetPaused(any())).thenAnswer((_) async {});
 
       final container = _container(backend);
       addTearDown(container.dispose);
@@ -462,15 +446,13 @@ void main() {
         ..setConnected();
       final controller = container.read(phd2ControllerProvider);
 
-      await expectLater(
-        controller.pauseGuiding(),
-        throwsA(isA<UnsupportedError>()),
-      );
-      await expectLater(
-        controller.resumeGuiding(),
-        throwsA(isA<UnsupportedError>()),
-      );
-      verifyNever(() => backend.phd2SetPaused(any()));
+      await controller.pauseGuiding();
+      await controller.resumeGuiding();
+
+      verifyInOrder([
+        () => backend.guiderSetPaused(true),
+        () => backend.guiderSetPaused(false),
+      ]);
     });
   });
 
@@ -540,7 +522,7 @@ void main() {
         final backend = _MockBackend();
         when(() => backend.eventStream).thenAnswer((_) => events.stream);
         when(() => backend.phd2Disconnect()).thenAnswer((_) async {});
-        when(() => backend.phd2StopGuiding()).thenAnswer((_) async {});
+        when(() => backend.guiderStopGuiding()).thenAnswer((_) async {});
         when(
           () => backend.phd2Connect(
             host: any(named: 'host'),
@@ -548,7 +530,7 @@ void main() {
           ),
         ).thenAnswer((_) async {});
         when(
-          () => backend.phd2GetStatus(),
+          () => backend.guiderGetStatus(),
         ).thenAnswer((_) async => _connectedStatus);
 
         final container = _container(backend);
@@ -593,7 +575,7 @@ void main() {
           ),
         ).thenAnswer((_) async {});
         when(
-          () => backend.phd2GetStatus(),
+          () => backend.guiderGetStatus(),
         ).thenAnswer((_) async => _connectedStatus);
 
         final container = _container(backend);
@@ -681,7 +663,7 @@ void main() {
         ),
       ).thenAnswer((_) => connectGate.future);
       when(
-        () => backend.phd2GetStatus(),
+        () => backend.guiderGetStatus(),
       ).thenAnswer((_) async => _connectedStatus);
 
       final container = _container(backend);
@@ -718,7 +700,7 @@ void main() {
         ),
       ).thenAnswer((_) async {});
       when(
-        () => backend.phd2GetStatus(),
+        () => backend.guiderGetStatus(),
       ).thenAnswer((_) async => _connectedStatus);
 
       final container = _container(backend);

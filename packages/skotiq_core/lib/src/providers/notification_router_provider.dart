@@ -9,7 +9,7 @@
 // Key-value DAO entries:
 //   * `notification_routing_matrix`       -> NotificationRoutingMatrix.toJson()
 //   * `notification_transport_email`      -> EmailTransportConfig.toJson() (no password)
-//   * `notification_transport_webhook`    -> WebhookTransportConfig.toJson()
+//   * `notification_transport_webhookGeneric` -> WebhookTransportConfig.toJson()
 //                                            (no URL/auth headers)
 //   * `notification_transport_pushover`   -> PushoverTransportConfig.toJson() (no tokens)
 //   * `notification_transport_telegram`   -> TelegramTransportConfig.toJson() (no bot token)
@@ -111,7 +111,7 @@ mixin _SerializedAsyncWrites<T> on AsyncNotifier<T> {
 Future<void> _persistConfigWithSecrets({
   required SettingsDao dao,
   required SecretsStore secrets,
-  required String settingKey,
+  required Setting<String?> row,
   required String encodedConfig,
   required Map<String, String> secretValues,
 }) async {
@@ -126,7 +126,7 @@ Future<void> _persistConfigWithSecrets({
       await secrets.write(entry.key, entry.value);
       writtenFields.add(entry.key);
     }
-    await dao.setSetting(settingKey, encodedConfig);
+    await dao.write(row, encodedConfig);
   } catch (error, stackTrace) {
     for (final field in writtenFields.reversed) {
       try {
@@ -286,8 +286,8 @@ class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
 
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      NotificationTransportKind.email.settingKey,
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.email),
     );
     // A missing blob is a legitimate first-run default; a present-but-corrupt
     // blob must surface as an error rather than silently reverting to defaults
@@ -335,7 +335,9 @@ class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: NotificationTransportKind.email.settingKey,
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.email,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.emailPassword: config.password},
       );
@@ -356,8 +358,8 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
     await ref.read(notificationSecretsMigrationProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      NotificationTransportKind.webhookGeneric.settingKey,
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.webhookGeneric),
     );
     // Missing blob → first-run default; corrupt blob → surface the error.
     final WebhookTransportConfig base;
@@ -440,7 +442,9 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: NotificationTransportKind.webhookGeneric.settingKey,
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.webhookGeneric,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {
           SecretField.genericWebhookUrl: config.url,
@@ -466,8 +470,8 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
     await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      NotificationTransportKind.pushover.settingKey,
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.pushover),
     );
     final PushoverTransportConfig base = raw == null
         ? const PushoverTransportConfig()
@@ -511,7 +515,9 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: NotificationTransportKind.pushover.settingKey,
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.pushover,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {
           SecretField.pushoverApiToken: config.apiToken,
@@ -551,8 +557,8 @@ class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
     await ref.read(notificationSecretsMigrationProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      NotificationTransportKind.telegram.settingKey,
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.telegram),
     );
     final TelegramTransportConfig base = raw == null
         ? const TelegramTransportConfig()
@@ -595,7 +601,9 @@ class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: NotificationTransportKind.telegram.settingKey,
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.telegram,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.telegramBotToken: config.botToken},
       );
@@ -616,8 +624,8 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
     await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      NotificationTransportKind.discord.settingKey,
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.discord),
     );
     final DiscordTransportConfig base = raw == null
         ? const DiscordTransportConfig()
@@ -663,7 +671,9 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: NotificationTransportKind.discord.settingKey,
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.discord,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.discordWebhookUrl: config.webhookUrl},
       );
@@ -694,7 +704,9 @@ class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
     await ref.read(notificationSecretsMigrationProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(NotificationTransportKind.mqtt.settingKey);
+    final raw = await dao.read(
+      StoreSettings.notificationTransport(NotificationTransportKind.mqtt),
+    );
     final MqttTransportConfig base = raw == null
         ? const MqttTransportConfig()
         : _decodeMqtt(raw);
@@ -736,7 +748,9 @@ class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: NotificationTransportKind.mqtt.settingKey,
+        row: StoreSettings.notificationTransport(
+          NotificationTransportKind.mqtt,
+        ),
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.mqttPassword: config.password ?? ''},
       );

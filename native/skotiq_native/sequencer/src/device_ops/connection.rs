@@ -13,7 +13,6 @@ pub trait ConnectionOps: Send + Sync {
     async fn device_is_connected(&self, device_id: &str) -> DeviceResult<bool> {
         let _ = device_id;
         Err(DeviceError::unsupported(
-            "device_is_connected",
             "device_is_connected not supported by this driver",
         ))
     }
@@ -30,7 +29,6 @@ pub trait ConnectionOps: Send + Sync {
     async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {
         let _ = device_id;
         Err(DeviceError::unsupported(
-            "connect_device",
             "connect_device not supported by this driver",
         ))
     }

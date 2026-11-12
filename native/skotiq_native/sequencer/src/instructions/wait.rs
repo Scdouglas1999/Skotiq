@@ -153,7 +153,7 @@ pub(crate) async fn wait_for_filterwheel_idle(
     target_position: i32,
     ctx: &InstructionContext,
     timeout: Duration,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     let start = std::time::Instant::now();
 
     // Some filter wheels (notably ZWO EFW) still report the old position for
@@ -164,7 +164,7 @@ pub(crate) async fn wait_for_filterwheel_idle(
 
     loop {
         if ctx.cancellation_token.load(Ordering::Relaxed) {
-            return Err("Operation cancelled".to_string());
+            return Err(DeviceError::Cancelled("Operation cancelled".to_string()));
         }
 
         match ctx.run.device_ops.filterwheel_get_position(fw_id).await {
@@ -185,11 +185,11 @@ pub(crate) async fn wait_for_filterwheel_idle(
         }
 
         if start.elapsed() > timeout {
-            return Err(format!(
+            return Err(DeviceError::Timeout(format!(
                 "Filter wheel move timed out after {} seconds (target: {})",
                 timeout.as_secs(),
                 target_position
-            ));
+            )));
         }
 
         sleep(Duration::from_millis(200)).await;

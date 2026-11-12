@@ -27,6 +27,7 @@ import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/preflight_providers.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/preflight_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/equipment_health_service.dart';
 import 'package:skotiq_core/src/services/time_sync_service.dart';

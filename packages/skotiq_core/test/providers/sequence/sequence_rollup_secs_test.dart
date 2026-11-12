@@ -8,7 +8,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/sequence/node_duration_provider.dart';
 
 void main() {
   test('the saved estimate is the Builder rollup of the whole plan', () {

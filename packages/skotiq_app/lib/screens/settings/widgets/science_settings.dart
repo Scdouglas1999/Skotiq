@@ -20,7 +20,9 @@ String? _validatePositiveScienceId(String value) {
 String? _validateAtlasLimitGb(String value) {
   if (value.isEmpty) return null;
   final parsed = int.tryParse(value);
-  if (parsed == null || parsed < 0) return 'Enter a whole number of GB';
+  if (parsed == null || parsed < 0) {
+    return 'Enter a whole number of ${ByteFormat.gigaUnit}';
+  }
   return null;
 }
 
@@ -181,7 +183,8 @@ class ScienceSettingsPage extends ConsumerWidget {
                   icon: LucideIcons.layers,
                   title: 'Your Sky atlas',
                   subtitle: 'Off unless you turn it on. Stacks each accepted, '
-                      'solved light into your sky atlas: about 1.5 GB per '
+                      'solved light into your sky atlas: about 1.5 '
+                      '${ByteFormat.gigaUnit} per '
                       'target per night. First Light and shared imaging '
                       'need it.',
                   trailing: SettingsSwitch(
@@ -197,7 +200,7 @@ class ScienceSettingsPage extends ConsumerWidget {
                 ),
                 _ScienceTextRow(
                   icon: LucideIcons.hardDrive,
-                  title: 'Your Sky size limit (GB)',
+                  title: 'Your Sky size limit (${ByteFormat.gigaUnit})',
                   subtitle: 'New frames stop being added to the atlas when it '
                       'reaches this size. Nothing is deleted. 0 means no limit.',
                   hint: '$defaultSkyAtlasLimitGb',
@@ -972,7 +975,8 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
       _result = outcome.compacted == 0
           ? 'All tiles are already compressed.'
           : 'Compressed ${outcome.compacted} tiles from '
-              '${_gb(outcome.bytesBefore)} GB to ${_gb(outcome.bytesAfter)} GB.';
+              '${ByteFormat.size(outcome.bytesBefore)} to '
+              '${ByteFormat.size(outcome.bytesAfter)}.';
     } catch (error) {
       if (!mounted) return;
       _result = 'Could not compress tiles: ${userFacingError(error)}';
@@ -983,8 +987,6 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
       }
     }
   }
-
-  static String _gb(int bytes) => (bytes / 1e9).toStringAsFixed(1);
 
   @override
   Widget build(BuildContext context) {
@@ -1001,9 +1003,11 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
     } else {
       final limit = widget.limitGb;
       subtitle = limit > 0
-          ? '${_gb(bytes)} GB of $limit GB used. Compressing rewrites tiles '
+          ? '${ByteFormat.size(bytes)} of $limit ${ByteFormat.gigaUnit} used. '
+              'Compressing rewrites tiles '
               'saved by older versions at a fraction of the size.'
-          : '${_gb(bytes)} GB used. Compressing rewrites tiles saved by older '
+          : '${ByteFormat.size(bytes)} used. Compressing rewrites tiles saved '
+              'by older '
               'versions at a fraction of the size.';
     }
     return SettingRow(

@@ -1,0 +1,177 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :e1\r
+< =030700\r
+> :a1\r
+< =00B289\r
+> :b1\r
+< =A7FD00\r
+> :a2\r
+< =00B289\r
+> :b2\r
+< =A7FD00\r
+> :f1\r
+< =101\r
+> :f2\r
+< =101\r
+> :f1\r
+< =101\r
+  -> Ok(())
+call get_coordinates
+> :j1\r
+< =000080\r
+> :j2\r
+< =000080\r
+  -> Ok((10.498199109249981, 0.0))
+call set_tracking(true)
+> :f1\r
+< =101\r
+> :G111\r
+< =\r
+> :I16C0200\r
+< =\r
+> :J1\r
+< =\r
+  -> Ok(())
+call pulse_guide(East, 20)
+> :f1\r
+< =311\r
+> :I1D80400\r
+< =\r
+> :I16C0200\r
+< =\r
+  -> Ok(())
+call pulse_guide(West, 20)
+> :f1\r
+< =311\r
+> :I19D0100\r
+< =\r
+> :I16C0200\r
+< =\r
+  -> Ok(())
+call pulse_guide(North, 20)
+> :j2\r
+< =000080\r
+> :f2\r
+< =101\r
+> :G211\r
+< =\r
+> :I2D80400\r
+< =\r
+> :J2\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call pulse_guide(South, 20)
+> :j2\r
+< =000080\r
+> :f2\r
+< =301\r
+> :G210\r
+< =\r
+> :I2D80400\r
+< =\r
+> :J2\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())
+call set_tracking_rate(Lunar)
+> :f1\r
+< =311\r
+> :I1820200\r
+< =\r
+  -> Ok(())
+call set_tracking(false)
+> :K1\r
+< =\r
+  -> Ok(())
+call pulse_guide(East, 20) [not tracking]
+> :f1\r
+< =301\r
+> :G110\r
+< =\r
+> :I1D80400\r
+< =\r
+> :J1\r
+< =\r
+> :K1\r
+< =\r
+  -> Ok(())
+call pulse_guide(West, 20) [not tracking]
+> :f1\r
+< =101\r
+> :G111\r
+< =\r
+> :I1D80400\r
+< =\r
+> :J1\r
+< =\r
+> :K1\r
+< =\r
+  -> Ok(())
+call slew_to_coordinates(18.0, -60.0)
+> :K1\r
+< =\r
+> :f1\r
+< =301\r
+> :K2\r
+< =\r
+> :f2\r
+< =101\r
+> :j1\r
+< =000080\r
+> :j2\r
+< =000080\r
+> :G101\r
+< =\r
+> :I1060000\r
+< =\r
+> :H1BBCE19\r
+< =\r
+> :M1800C00\r
+< =\r
+> :J1\r
+< =\r
+> :G200\r
+< =\r
+> :I2060000\r
+< =\r
+> :H200E62D\r
+< =\r
+> :M2800C00\r
+< =\r
+> :J2\r
+< =\r
+  -> Ok(())
+call pulse_guide(North, 20) [during the goto]
+  -> Err(InvalidParameter("The Sky-Watcher mount cannot take a guide pulse during a goto or park"))
+call abort_slew
+> :K1\r
+< =\r
+> :f1\r
+< =601\r
+> :K2\r
+< =\r
+> :f2\r
+< =401\r
+  -> Ok(())
+call is_slewing
+> :f1\r
+< =601\r
+> :f2\r
+< =401\r
+  -> Ok(false)
+call get_side_of_pier
+> :j1\r
+< =000080\r
+> :j2\r
+< =000080\r
+  -> Ok(East)
+call disconnect
+> :K1\r
+< =\r
+> :K2\r
+< =\r
+  -> Ok(())

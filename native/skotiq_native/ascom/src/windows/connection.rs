@@ -304,6 +304,15 @@ struct InvokeError {
     hresult: windows::core::Error,
     /// The driver's own account, when it wrote one into `EXCEPINFO`.
     driver: Option<String>,
+    /// The error code the driver wrote into `EXCEPINFO`, when it wrote one.
+    scode: Option<i32>,
+}
+
+impl InvokeError {
+    /// The driver's error code, or the HRESULT when it raised none.
+    fn code(&self) -> i32 {
+        self.scode.unwrap_or(self.hresult.code().0)
+    }
 }
 
 impl std::fmt::Display for InvokeError {
@@ -436,6 +445,7 @@ impl AscomDeviceConnection {
                 Err(hresult) => {
                     return Err(InvokeError {
                         driver: excep_info.describe(),
+                        scode: excep_info.scode(),
                         hresult,
                     })
                 }
@@ -513,7 +523,7 @@ impl ComDispatch for AscomDeviceConnection {
                 wants_result.then(|| result.as_mut() as *mut VARIANT),
             )
         }
-        .map_err(|e| call.invoke_error(e.to_string()))?;
+        .map_err(|e| call.invoke_error(e.to_string(), Some(e.code())))?;
 
         if !wants_result {
             return Ok(ComValue::Empty);

@@ -124,7 +124,7 @@ class RunWatchHandlers implements RouteSource {
   /// not blank out the rest of the dashboard.
   Future<Response> handleSnapshot(Request request) async {
     // A-12: legitimately multi-role — snapshot aggregates sequencer status,
-    // PHD2 guiding status, device list, and recovery context for the
+    // guider status, device list, and recovery context for the
     // run-watch dashboard. Stays on backendProvider rather than threading
     // four role refs through one method.
     final backend = container.read(backendProvider);
@@ -179,11 +179,12 @@ class RunWatchHandlers implements RouteSource {
       activeTargetBlock = _unavailableTargetJson(e);
     }
 
-    // Guide stats: pulled from the backend's phd2 status (the GuideStats
-    // notifier is GUI-only and not always running in headless mode).
+    // Guide stats: pulled from the host's guider, PHD2 or the built-in
+    // guider (the GuideStats notifier is GUI-only and not always running in
+    // headless mode).
     Map<String, Object?> guidingBlock;
     try {
-      final status = await backend.phd2GetStatus();
+      final status = await backend.guiderGetStatus();
       guidingBlock = {
         'state': status.state,
         'connected': status.connected,
@@ -195,7 +196,7 @@ class RunWatchHandlers implements RouteSource {
         'avgDistance': status.avgDistance,
       };
     } catch (e) {
-      _logWarning('snapshot: phd2 status fetch failed: $e');
+      _logWarning('snapshot: guider status fetch failed: $e');
       guidingBlock = {
         'state': 'disconnected',
         'connected': false,

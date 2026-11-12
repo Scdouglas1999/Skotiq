@@ -60,7 +60,8 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
     paused.store(false, Ordering::SeqCst);
     let result = tokio::time::timeout(Duration::from_secs(10), burst)
         .await
-        .expect("resume must let the burst finish");
+        .expect("resume must let the burst finish")
+        .result;
 
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success);
@@ -377,6 +378,44 @@ mod light_frame_grading {
         assert!(reason.contains("eccentricity"), "{reason}");
     }
 
+    /// The burst counts its own rejected frames, which the node credits the
+    /// target's budget by.
+    #[tokio::test]
+    async fn a_burst_reports_the_frames_of_it_the_grader_rejected() {
+        let scratch = scratch_dir("burst-rejects");
+        let ops =
+            Arc::new(ScriptedDomeRotatorOps::new().with_scripted_frame_metrics(5.0, 60, 0.1));
+        let (event_tx, _events) = tokio::sync::broadcast::channel(64);
+        let mut ctx = saving_expose_ctx(ops, scratch.0.clone(), event_tx).await;
+        let mut ts = crate::triggers::TriggerState::new();
+        ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
+        ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+        ctx.run
+            .grading
+            .frames_rejected
+            .store(7, Ordering::Relaxed);
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 3,
+            frame_type: "Light".to_string(),
+            quality_check: Some(check(|c| c.hfr_threshold = Some(3.0))),
+            ..ExposureConfig::default()
+        };
+
+        let burst = execute_exposure_with_renderer(
+            &config,
+            &ctx,
+            None,
+            &BurstControl::default(),
+            |_, _, _| {},
+        )
+        .await;
+
+        assert_eq!(burst.result.status, NodeStatus::Success, "{:?}", burst.result.message);
+        assert_eq!(burst.frames_rejected, 3);
+        assert_eq!(ctx.run.grading.frames_rejected.load(Ordering::Relaxed), 10);
+    }
+
     #[tokio::test]
     async fn a_dark_with_the_same_numbers_is_never_graded() {
         grade_one(
@@ -574,6 +613,167 @@ async fn a_burst_while_imaging_unguided_skips_its_dithers() {
     );
 }
 
+/// A frame that ends with guiding stopped for a mount move (restarted before
+/// the next frame) leaves a guider that cannot dither. The Dither node skips
+/// it; a burst's dither-every asked the stopped guider, which failed and told
+/// the operator about a guiding problem that was the run's own move.
+#[tokio::test]
+async fn a_burst_skips_its_dither_while_the_run_holds_the_guider_stopped() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_dither_failing("Not guiding"));
+    let mut ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+    let (decision_tx, mut decision_rx) = tokio::sync::broadcast::channel(64);
+    ctx.run.decision_tx = Some(decision_tx);
+    let state = ctx.run.trigger_state.clone().expect("trigger state");
+    let config = ExposureConfig {
+        duration_secs: 0.01,
+        count: 2,
+        frame_type: "Light".to_string(),
+        dither_every: Some(1),
+        ..ExposureConfig::default()
+    };
+
+    let result = execute_exposure(&config, &ctx, |frame, _, _| {
+        if frame == 1 {
+            state
+                .try_write()
+                .expect("nothing holds the trigger state between frames")
+                .guiding
+                .set_resume_pending(true);
+        }
+    })
+    .await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(ops.camera_exposure_calls.load(Ordering::SeqCst), 2);
+    assert!(
+        ops.dithers_after_frame.lock().unwrap().is_empty(),
+        "{:?}",
+        ops.dithers_after_frame.lock().unwrap()
+    );
+    assert!(decision_rx.try_recv().is_err(), "no guiding problem to report");
+}
+
+/// While a burst's dither settles the guider reports why it is not guiding,
+/// as it does for a Dither node, so the settle never reads as lost guiding.
+#[tokio::test]
+async fn a_burst_dither_tells_the_guider_it_is_settling_after_a_dither() {
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let ctx = expose_ctx(ops.clone(), None, live_sun_alt() + 5.0).await;
+    let config = ExposureConfig {
+        duration_secs: 0.01,
+        count: 2,
+        frame_type: "Light".to_string(),
+        dither_every: Some(1),
+        ..ExposureConfig::default()
+    };
+
+    let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+
+    assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+    assert_eq!(*ops.dithers_after_frame.lock().unwrap(), vec![1]);
+    assert_eq!(
+        *ops.guider_stop_reasons.lock().unwrap(),
+        vec![Some(crate::GuidingStopReason::DitherSettle), None]
+    );
+}
+
+/// What counts as a dither is an open owner question, so each caller keeps
+/// its own rule (see `DitherCounts`): a settle that runs out while the guider
+/// holds the star counts for a Dither node and not for a burst.
+mod settle_ran_out_with_the_star_held {
+    use super::*;
+
+    fn held_star_ops() -> Arc<ScriptedDomeRotatorOps> {
+        Arc::new(
+            ScriptedDomeRotatorOps::new()
+                .with_guiding(true)
+                .with_guider_rms(0.62)
+                .with_dither_failing(
+                    "Dither did not settle: PHD2 settle failed (status 1): timed-out waiting \
+                     for guider to settle",
+                ),
+        )
+    }
+
+    struct Seen {
+        dithers_counted: usize,
+        decisions: usize,
+    }
+
+    async fn ctx_with_feeds(
+        ops: Arc<ScriptedDomeRotatorOps>,
+    ) -> (
+        InstructionContext,
+        tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+        tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
+    ) {
+        let mut ctx = expose_ctx(ops, None, live_sun_alt() + 5.0).await;
+        let (event_tx, events) = tokio::sync::broadcast::channel(64);
+        let (decision_tx, decisions) = tokio::sync::broadcast::channel(64);
+        ctx.run.event_tx = Some(event_tx);
+        ctx.run.decision_tx = Some(decision_tx);
+        (ctx, events, decisions)
+    }
+
+    fn seen(
+        events: &mut tokio::sync::broadcast::Receiver<crate::executor::ExecutorEvent>,
+        decisions: &mut tokio::sync::broadcast::Receiver<crate::decision::DecisionEvent>,
+    ) -> Seen {
+        let mut dithers_counted = 0;
+        while let Ok(event) = events.try_recv() {
+            if matches!(event, crate::executor::ExecutorEvent::DitherPerformed { .. }) {
+                dithers_counted += 1;
+            }
+        }
+        let mut count = 0;
+        while decisions.try_recv().is_ok() {
+            count += 1;
+        }
+        Seen {
+            dithers_counted,
+            decisions: count,
+        }
+    }
+
+    #[tokio::test]
+    async fn a_dither_node_counts_it() {
+        let (ctx, mut events, mut decisions) = ctx_with_feeds(held_star_ops()).await;
+        let config = crate::DitherConfig {
+            settle_pixels: 0.5,
+            ..crate::DitherConfig::default()
+        };
+
+        let result = execute_dither(&config, &ctx, None).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        let seen = seen(&mut events, &mut decisions);
+        assert_eq!(seen.dithers_counted, 1);
+        assert_eq!(seen.decisions, 0);
+    }
+
+    #[tokio::test]
+    async fn a_burst_does_not_count_it_and_tells_the_operator() {
+        let ops = held_star_ops();
+        let (ctx, mut events, mut decisions) = ctx_with_feeds(ops.clone()).await;
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 2,
+            frame_type: "Light".to_string(),
+            dither_every: Some(1),
+            dither_settle_pixels: 0.5,
+            ..ExposureConfig::default()
+        };
+
+        let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
+
+        assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
+        assert_eq!(*ops.dithers_after_frame.lock().unwrap(), vec![1]);
+        let seen = seen(&mut events, &mut decisions);
+        assert_eq!(seen.dithers_counted, 0);
+        assert_eq!(seen.decisions, 1, "one quality-problem notice");
+    }
+}
+
 #[tokio::test(start_paused = true)]
 async fn tracking_hold_blocks_pending_guide_restart_before_exposure() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new());
@@ -640,7 +840,9 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     let (events, mut rx) = tokio::sync::broadcast::channel(64);
     let mut ctx = ctx;
     ctx.run.event_tx = Some(events);
-    let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
+    let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {})
+        .await
+        .result;
     let rejected_files = std::fs::read_dir(dir.join("Reject"))
         .map(|entries| entries.count())
         .unwrap_or(0);
@@ -709,8 +911,9 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
                 }
             })
         };
-        let result =
-            execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
+        let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {})
+            .await
+            .result;
         stopper.await.expect("stopper");
         let rejected_files = std::fs::read_dir(dir.join("Reject"))
             .map(|entries| entries.count())
@@ -782,7 +985,8 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     state.write().await.telemetry.mount_is_tracking = Some(true);
     let result = tokio::time::timeout(Duration::from_secs(600), burst)
         .await
-        .expect("the frame runs once the mount tracks");
+        .expect("the frame runs once the mount tracks")
+        .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
@@ -823,7 +1027,8 @@ async fn an_unguided_run_retries_guiding_before_a_light_frame() {
         execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
     )
     .await
-    .expect("the frame runs");
+    .expect("the frame runs")
+    .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
@@ -873,7 +1078,8 @@ async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking(
     // Past the wait the frame is taken without restarting guiding.
     let result = tokio::time::timeout(Duration::from_secs(600), burst)
         .await
-        .expect("the frame runs after the wait");
+        .expect("the frame runs after the wait")
+        .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);

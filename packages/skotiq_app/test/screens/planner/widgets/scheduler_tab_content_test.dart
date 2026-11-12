@@ -496,6 +496,78 @@ void main() {
   });
 
   testWidgets(
+      'a config save the old host answers after a host switch changes nothing '
+      'on the new host', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final oldBackend = _MockNetworkBackend();
+    final newBackend = _MockNetworkBackend();
+    final oldSave = Completer<Map<String, dynamic>>();
+    when(oldBackend.getSchedulerState).thenAnswer(
+      (_) async => _remoteSchedulerState(),
+    );
+    when(newBackend.getSchedulerState).thenAnswer(
+      (_) async => _remoteSchedulerState(),
+    );
+    when(() => oldBackend.updateSchedulerConfig(any())).thenAnswer(
+      (_) => oldSave.future,
+    );
+    late _SwappableBackendNotifier notifier;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          ..._commonOverrides(),
+          backendProvider.overrideWith((ref) {
+            notifier = _SwappableBackendNotifier(ref, oldBackend);
+            return notifier;
+          }),
+          schedulerEngineProvider.overrideWith(
+            (ref) => throw StateError('remote client created an engine'),
+          ),
+          allIntegrationGoalsProvider.overrideWith(
+            (ref) async => <IntegrationGoal>[],
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: const Scaffold(body: SchedulerTabContent()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Scoring weights'));
+    await tester.pumpAndSettle();
+
+    final defaultAltitude = SchedulerConfig.defaults.weights.altitude;
+    double altitudeSlider() => tester.widget<Slider>(find.byType(Slider).first).value;
+    expect(altitudeSlider(), defaultAltitude);
+
+    tester.widget<Slider>(find.byType(Slider).first).onChanged!(2.5);
+    await tester.pump();
+    expect(altitudeSlider(), 2.5, reason: 'the edit shows while it saves');
+    verify(() => oldBackend.updateSchedulerConfig(any())).called(1);
+
+    notifier.switchTo(newBackend);
+    await tester.pumpAndSettle();
+    expect(altitudeSlider(), defaultAltitude,
+        reason: 'the new host shows its own config');
+
+    oldSave.completeError(StateError('old host went away'));
+    await tester.pumpAndSettle();
+    expect(altitudeSlider(), defaultAltitude);
+    expect(find.textContaining('Could not save scheduler settings'),
+        findsNothing);
+    verifyNever(() => newBackend.updateSchedulerConfig(any()));
+  });
+
+  testWidgets(
       'per-row delete icon opens confirmation dialog and on confirm wipes '
       'goals and constraints for that target even when embedded as a Plan '
       'Tonight tab', (tester) async {

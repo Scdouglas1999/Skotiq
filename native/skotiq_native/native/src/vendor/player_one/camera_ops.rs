@@ -1,33 +1,35 @@
 //! `DeviceDriver` / `CameraDriver` implementations for `PlayerOneCamera`.
 
 use super::*;
-use crate::camera_core::{unpack_samples, SampleLayout};
+use crate::camera_core::{roi_dimension, unpack_samples, Frame, SampleLayout};
 
 #[async_trait]
 impl DeviceDriver for PlayerOneCamera {
     fn id(&self) -> &str {
-        &self.device_id
+        &self.core.device_id
     }
 
     fn name(&self) -> &str {
-        &self.device_id
+        &self.core.name
     }
 
     fn vendor(&self) -> Vendor {
         Vendor::PlayerOne
     }
 
+    fn serial_number(&self) -> Option<String> {
+        self.serial()
+    }
+
     fn is_connected(&self) -> bool {
-        self.connected
+        self.core.connected
     }
 
     async fn connect(&mut self) -> Result<(), DriverError> {
         let sdk = PoaSdk::lock().await?;
+        self.find_in_scan(&sdk)?;
 
-        // Load camera info first
-        self.load_camera_info(&sdk)?;
-
-        // SAFETY: `self.camera_id` was populated at construction and verified by load_camera_info (which succeeded above); POAOpenCamera takes the camera ID by value with no pointer arguments.
+        // SAFETY: the scan above listed `self.camera_id`; POAOpenCamera takes it by value.
         let result = unsafe { (sdk.open_camera)(self.camera_id) };
         check_poa_error(result, "OpenCamera")?;
 
@@ -43,34 +45,35 @@ impl DeviceDriver for PlayerOneCamera {
         let result = unsafe { (sdk.init_camera)(self.camera_id) };
         check_poa_error(result, "InitCamera")?;
 
-        // Set default format (Raw16)
+        self.load_camera_info(&sdk)?;
+
         // SAFETY: camera was opened and initialized successfully above; POASetImageFormat takes the camera ID and a POAImgFormat discriminant (Raw16=1) by value.
         let result =
             unsafe { (sdk.set_image_format)(self.camera_id, POAImgFormat::Raw16 as c_int) };
         check_poa_error(result, "SetImageFormat")?;
 
-        // Set default binning and ROI. These are checked, not fire-and-forget: the
-        // driver reports `current_bin = 1` / `current_width|height = max` from here
-        // on (get_binning, and the BIN/XBINNING metadata on every frame), so a camera
-        // that refused the default geometry would make every one of those answers a
-        // lie. Failing the connect leaves the cleanup guard to close the handle.
-        if let Some(info) = &self.camera_info {
-            // SAFETY: camera is open+initialized; POASetImageBin takes the camera ID and bin factor (1) by value.
-            let result = unsafe { (sdk.set_image_bin)(self.camera_id, 1) };
-            check_poa_error(result, "SetImageBin(1)")?;
-            // SAFETY: camera is open+initialized; POASetImageStartPos takes the camera ID and (0, 0) origin by value.
-            let result = unsafe { (sdk.set_image_start_pos)(self.camera_id, 0, 0) };
-            check_poa_error(result, "SetImageStartPos(0, 0)")?;
-            // SAFETY: camera is open+initialized; max_width/max_height come from the SDK-populated POACameraProperties so they are guaranteed valid for this device.
-            let result =
-                unsafe { (sdk.set_image_size)(self.camera_id, info.max_width, info.max_height) };
-            check_poa_error(result, "SetImageSize(full frame)")?;
-        }
+        // Bin 1, whole sensor, checked: the driver reports the geometry it reads
+        // back (get_binning, and BIN/XBINNING on every frame), so a camera that
+        // refused it fails the connect and the cleanup guard closes the handle.
+        self.geometry_applied = false;
+        self.apply_geometry(&sdk, 1, None)?;
+
+        self.core.capabilities.supports_readout_modes = match self.sensor_modes(&sdk) {
+            Ok(modes) => !modes.is_empty(),
+            Err(e) => {
+                tracing::warn!(
+                    "Player One {}: sensor modes could not be read ({}); offering none",
+                    self.core.device_id,
+                    e
+                );
+                false
+            }
+        };
 
         // Seed the gain/offset the driver reports when a later read-back fails, so the
         // fallback is the camera's own power-on value rather than a literal 0.
         //
-        // `current_gain`/`current_offset` start at 0 (camera.rs:46), and both
+        // `core.gain`/`core.offset` start at 0, and both
         // `get_status` and `download_image` fall back to them — the second of those
         // writes the FITS GAIN/OFFSET cards. So a failed seed is precisely the case
         // that reintroduces the literal 0 these fallbacks exist to avoid, and it must
@@ -79,37 +82,41 @@ impl DeviceDriver for PlayerOneCamera {
         // alive — a camera whose gain register is momentarily unreadable still images,
         // and `CameraStatus`/`ImageMetadata` have no "unknown" for these two i32 fields.
         match self.get_control_int(&sdk, POAConfig::POA_GAIN) {
-            Ok(gain) => self.current_gain = gain as i32,
+            Ok(gain) => self.core.gain = gain as i32,
             Err(e) => tracing::warn!(
                 "Player One {}: POA_GAIN could not be read at connect ({}); gain is reported as {} until a set_gain or a later read-back succeeds",
-                self.device_id,
+                self.core.device_id,
                 e,
-                self.current_gain
+                self.core.gain
             ),
         }
         match self.get_control_int(&sdk, POAConfig::POA_OFFSET) {
-            Ok(offset) => self.current_offset = offset as i32,
+            Ok(offset) => self.core.offset = offset as i32,
             Err(e) => tracing::warn!(
                 "Player One {}: POA_OFFSET could not be read at connect ({}); offset is reported as {} until a set_offset or a later read-back succeeds",
-                self.device_id,
+                self.core.device_id,
                 e,
-                self.current_offset
+                self.core.offset
             ),
         }
 
         cleanup_guard.defuse();
-        self.connected = true;
-        tracing::info!("Connected to {}", self.camera_name());
+        self.core.connected = true;
+        tracing::info!(
+            "Connected to {} (serial {:?})",
+            self.camera_name(),
+            self.serial()
+        );
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        if self.connected {
+        if self.core.connected {
             let sdk = PoaSdk::lock().await?;
-            // SAFETY: we only enter this branch when `self.connected == true`, so the camera was previously opened via POAOpenCamera; POACloseCamera pairs with it.
+            // SAFETY: we only enter this branch when connected, so the camera was previously opened via POAOpenCamera; POACloseCamera pairs with it.
             let result = unsafe { (sdk.close_camera)(self.camera_id) };
             check_poa_error(result, "CloseCamera")?;
-            self.connected = false;
+            self.core.connected = false;
             tracing::info!("Disconnected from {}", self.camera_name());
         }
         Ok(())
@@ -119,33 +126,16 @@ impl DeviceDriver for PlayerOneCamera {
 #[async_trait]
 impl CameraDriver for PlayerOneCamera {
     fn capabilities(&self) -> CameraCapabilities {
-        if let Some(info) = &self.camera_info {
-            CameraCapabilities {
-                can_cool: info.is_has_cooler != 0,
-                can_set_gain: true,
-                can_set_offset: true,
-                can_set_binning: true,
-                can_subframe: true,
-                has_shutter: false,
-                has_guider_port: info.is_has_st4_port != 0,
-                max_bin_x: 4,
-                max_bin_y: 4,
-                supports_readout_modes: false, // Player One doesn't have readout modes
-            }
-        } else {
-            CameraCapabilities::default()
-        }
+        self.core.capabilities.clone()
     }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = PoaSdk::lock().await?;
 
         let mut camera_state: c_int = 0;
-        // SAFETY: self.connected was checked above so the camera ID is open; `&mut camera_state` is a valid stack out-pointer to a POD c_int.
+        // SAFETY: the connection was checked above so the camera ID is open; `&mut camera_state` is a valid stack out-pointer to a POD c_int.
         let result = unsafe { (sdk.get_camera_state)(self.camera_id, &mut camera_state) };
         check_poa_error(result, "GetCameraState")?;
 
@@ -172,11 +162,7 @@ impl CameraDriver for PlayerOneCamera {
             .get_control_float(&sdk, POAConfig::POA_TEMPERATURE)
             .ok();
 
-        let has_cooler = self
-            .camera_info
-            .as_ref()
-            .map(|i| i.is_has_cooler != 0)
-            .unwrap_or(false);
+        let has_cooler = self.core.capabilities.can_cool;
 
         let cooler_power = if has_cooler {
             self.get_control_int(&sdk, POAConfig::POA_COOLER_POWER)
@@ -195,11 +181,7 @@ impl CameraDriver for PlayerOneCamera {
         // tracked state written by `set_cooler`. Cameras without a cooler at
         // all report `cooler_on = false` and `target_temp = None`.
         let (cooler_on, target_temp) = if has_cooler {
-            let cached = self
-                .cooler_state
-                .lock()
-                .map(|g| *g)
-                .unwrap_or_else(|e| *e.into_inner());
+            let cached = self.core.cooler();
 
             let live_enabled = self.get_control_bool(&sdk, POAConfig::POA_COOLER).ok();
             let live_target_c = self
@@ -210,14 +192,14 @@ impl CameraDriver for PlayerOneCamera {
             // Refresh cached state with whatever the SDK gave us so subsequent
             // `&self` reads converge on the device's truth.
             if live_enabled.is_some() || live_target_c.is_some() {
-                if let Ok(mut guard) = self.cooler_state.lock() {
+                self.core.update_cooler(|cooler| {
                     if let Some(e) = live_enabled {
-                        guard.enabled = e;
+                        cooler.enabled = e;
                     }
                     if let Some(t) = live_target_c {
-                        guard.target_c = t;
+                        cooler.target_c = t;
                     }
-                }
+                });
             }
 
             let enabled = live_enabled.unwrap_or(cached.enabled);
@@ -239,58 +221,77 @@ impl CameraDriver for PlayerOneCamera {
             gain: self
                 .get_control_int(&sdk, POAConfig::POA_GAIN)
                 .map(|v| v as i32)
-                .unwrap_or(self.current_gain),
+                .unwrap_or(self.core.gain),
             offset: self
                 .get_control_int(&sdk, POAConfig::POA_OFFSET)
                 .map(|v| v as i32)
-                .unwrap_or(self.current_offset),
-            bin_x: self.current_bin,
-            bin_y: self.current_bin,
+                .unwrap_or(self.core.offset),
+            bin_x: self.core.bin_x,
+            bin_y: self.core.bin_y,
             exposure_remaining: None, // Not directly available from POA SDK
         })
     }
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
+        let bin = self.supported_bin(params.bin_x, params.bin_y)?;
 
         let sdk = PoaSdk::lock().await?;
 
-        // Set exposure time (in microseconds)
-        let exposure_us = (params.duration_secs * 1_000_000.0) as c_long;
-        self.set_control_int(&sdk, POAConfig::POA_EXPOSURE, exposure_us, false)?;
+        // A frame still exposing was abandoned by the caller; the SDK refuses
+        // geometry changes and a new start until it is stopped.
+        let mut camera_state: c_int = 0;
+        // SAFETY: the connection was checked above; `&mut camera_state` is a valid out-pointer.
+        let result = unsafe { (sdk.get_camera_state)(self.camera_id, &mut camera_state) };
+        check_poa_error(result, "GetCameraState")?;
+        if camera_state == POA_STATE_EXPOSING {
+            tracing::warn!(
+                "Player One {}: stopping the exposure still running before the next one",
+                self.core.device_id
+            );
+            // SAFETY: the camera is open; POAStopExposure takes the id by value.
+            let result = unsafe { (sdk.stop_exposure)(self.camera_id) };
+            check_poa_error(result, "StopExposure")?;
+        }
 
+        self.apply_geometry(&sdk, bin, params.subframe.as_ref())?;
+        let seconds = self.set_exposure_time(&sdk, params.duration_secs)?;
+
+        // Cache what the camera holds after the set, not what was asked for:
+        // these become the frame's GAIN/OFFSET when the download read-back fails.
         if let Some(gain) = params.gain {
             self.set_control_int(&sdk, POAConfig::POA_GAIN, gain as c_long, false)?;
-            self.current_gain = gain;
+            self.core.gain = self
+                .get_control_int(&sdk, POAConfig::POA_GAIN)
+                .map(|v| v as i32)
+                .unwrap_or(gain);
         }
-
         if let Some(offset) = params.offset {
             self.set_control_int(&sdk, POAConfig::POA_OFFSET, offset as c_long, false)?;
-            self.current_offset = offset;
+            self.core.offset = self
+                .get_control_int(&sdk, POAConfig::POA_OFFSET)
+                .map(|v| v as i32)
+                .unwrap_or(offset);
         }
 
-        // Start exposure (false = not snap mode, single frame)
-        // SAFETY: self.connected was checked at entry; POAStartExposure takes the camera ID and the snap-mode POABool by value.
-        let result = unsafe { (sdk.start_exposure)(self.camera_id, POA_FALSE) };
+        // POA_TRUE is a single frame (snap mode). POA_FALSE is video mode: the
+        // camera keeps exposing after the frame and refuses the next start.
+        // SAFETY: the connection was checked at entry; POAStartExposure takes the camera ID and the POABool by value.
+        let result = unsafe { (sdk.start_exposure)(self.camera_id, POA_TRUE) };
         check_poa_error(result, "StartExposure")?;
 
-        // Track exposure time for metadata
-        self.exposure_time = params.duration_secs;
+        self.core.exposure_duration = seconds;
 
-        tracing::info!("Started {}s exposure", params.duration_secs);
+        tracing::info!("Started {}s exposure", seconds);
         Ok(())
     }
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = PoaSdk::lock().await?;
 
-        // SAFETY: self.connected was checked at entry; POAStopExposure takes the camera ID by value.
+        // SAFETY: the connection was checked at entry; POAStopExposure takes the camera ID by value.
         let result = unsafe { (sdk.stop_exposure)(self.camera_id) };
         check_poa_error(result, "StopExposure")?;
 
@@ -299,14 +300,12 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = PoaSdk::lock().await?;
 
         let mut is_ready: POABool = POA_FALSE;
-        // SAFETY: self.connected was checked at entry; `&mut is_ready` is a valid stack out-pointer to a POD c_int.
+        // SAFETY: the connection was checked at entry; `&mut is_ready` is a valid stack out-pointer to a POD c_int.
         let result = unsafe { (sdk.image_ready)(self.camera_id, &mut is_ready) };
         check_poa_error(result, "POAImageReady")?;
 
@@ -314,15 +313,13 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = PoaSdk::lock().await?;
 
         let mut width: c_int = 0;
         let mut height: c_int = 0;
-        // SAFETY: self.connected was checked at entry; both `&mut width` and `&mut height` are valid stack out-pointers to POD c_int values.
+        // SAFETY: the connection was checked at entry; both `&mut width` and `&mut height` are valid stack out-pointers to POD c_int values.
         let result = unsafe { (sdk.get_image_size)(self.camera_id, &mut width, &mut height) };
         check_poa_error(result, "GetImageSize")?;
 
@@ -334,10 +331,13 @@ impl CameraDriver for PlayerOneCamera {
         };
         let buffer_size = calculate_buffer_size_i32(width, height, bytes_per_pixel)?;
 
+        // A pooled buffer is at least `buffer_size` long, often a whole size bucket
+        // longer; the frame is exactly `buffer_size` bytes.
         let mut pooled_buffer = global_u8_pool().get_buffer(buffer_size);
+        pooled_buffer.resize(buffer_size);
 
         // Get image data with 30 second timeout
-        // SAFETY: self.connected was checked at entry; `pooled_buffer` was sized via calculate_buffer_size_i32(width, height, bytes_per_pixel) which uses the SDK-reported dimensions from POAGetImageSize and matches the configured POAImgFormat — we pass the same length as buffer_len so the SDK cannot overrun; pool returns a non-null buffer.
+        // SAFETY: the connection was checked at entry; `pooled_buffer` was sized via calculate_buffer_size_i32(width, height, bytes_per_pixel) which uses the SDK-reported dimensions from POAGetImageSize and matches the configured POAImgFormat — we pass the same length as buffer_len so the SDK cannot overrun; pool returns a non-null buffer.
         let result = unsafe {
             (sdk.get_image_data)(
                 self.camera_id,
@@ -372,32 +372,32 @@ impl CameraDriver for PlayerOneCamera {
         // send calibration to the wrong dark library.
         let gain = match self.get_control_int(&sdk, POAConfig::POA_GAIN) {
             Ok(value) => {
-                self.current_gain = value as i32;
-                self.current_gain
+                self.core.gain = value as i32;
+                self.core.gain
             }
             Err(e) => {
                 tracing::warn!(
                     "Player One {}: POA_GAIN read-back failed while building frame metadata ({}); recording the last applied gain {}",
-                    self.device_id,
+                    self.core.device_id,
                     e,
-                    self.current_gain
+                    self.core.gain
                 );
-                self.current_gain
+                self.core.gain
             }
         };
         let offset = match self.get_control_int(&sdk, POAConfig::POA_OFFSET) {
             Ok(value) => {
-                self.current_offset = value as i32;
-                self.current_offset
+                self.core.offset = value as i32;
+                self.core.offset
             }
             Err(e) => {
                 tracing::warn!(
                     "Player One {}: POA_OFFSET read-back failed while building frame metadata ({}); recording the last applied offset {}",
-                    self.device_id,
+                    self.core.device_id,
                     e,
-                    self.current_offset
+                    self.core.offset
                 );
-                self.current_offset
+                self.core.offset
             }
         };
         let temperature = self
@@ -420,52 +420,37 @@ impl CameraDriver for PlayerOneCamera {
         }
         vendor_features.fan_power = fan_power;
 
-        // Why: width/height came from POAGetImageSize (c_int) and are non-negative for
-        // a connected camera with valid ROI; surface SDK corruption via try_into.
-        let width_u32 = u32::try_from(width).map_err(|_| {
-            DriverError::SdkError(format!("Player One returned negative ROI width: {}", width))
-        })?;
-        let height_u32 = u32::try_from(height).map_err(|_| {
-            DriverError::SdkError(format!(
-                "Player One returned negative ROI height: {}",
-                height
-            ))
-        })?;
-        Ok(ImageData {
-            width: width_u32,
-            height: height_u32,
-            data,
-            bits_per_pixel: self
-                .camera_info
-                .as_ref()
-                .and_then(|info| u32::try_from(info.bit_depth).ok())
-                .filter(|bits| (1..=32).contains(bits))
-                .unwrap_or(if bytes_per_pixel == 2 { 16 } else { 8 }),
-            bayer_pattern: self
-                .camera_info
-                .as_ref()
-                .filter(|i| i.is_color_camera != 0)
-                .map(|i| match i.bayer_pattern {
-                    0 => BayerPattern::Rggb,
-                    1 => BayerPattern::Bggr,
-                    2 => BayerPattern::Grbg,
-                    3 => BayerPattern::Gbrg,
-                    _ => BayerPattern::Rggb,
-                }),
-            metadata: ImageMetadata {
-                exposure_time: self.exposure_time,
-                gain,
-                offset,
-                bin_x: self.current_bin,
-                bin_y: self.current_bin,
-                temperature,
-                timestamp: chrono::Utc::now(),
-                subframe: self.current_subframe.clone(),
-                readout_mode: None, // Player One doesn't support readout modes
-                vendor_data: vendor_features,
-                camera_file: None,
-            },
-        })
+        // With POA_MONO_BIN on, a color camera bins neighbouring pixels and the
+        // binned frame has no Bayer pattern (PlayerOneCamera.h).
+        let bayer_pattern = self.core.sensor_info.bayer_pattern.filter(|_| {
+            self.core.bin_x == 1
+                || !self
+                    .get_control_bool(&sdk, POAConfig::POA_MONO_BIN)
+                    .unwrap_or(false)
+        });
+
+        let bits_per_pixel = self
+            .camera_info
+            .as_ref()
+            .and_then(|info| u32::try_from(info.bit_depth).ok())
+            .filter(|bits| (1..=32).contains(bits))
+            .unwrap_or(if bytes_per_pixel == 2 { 16 } else { 8 });
+        let readout_mode = self.current_sensor_mode(&sdk);
+        Ok(Frame {
+            gain,
+            offset,
+            temperature,
+            readout_mode,
+            vendor_data: vendor_features,
+            ..self.core.frame(
+                roi_dimension("Player One", "width", width)?,
+                roi_dimension("Player One", "height", height)?,
+                data,
+                bits_per_pixel,
+                bayer_pattern,
+            )
+        }
+        .into_image())
     }
 
     async fn set_cooler(
@@ -473,16 +458,9 @@ impl CameraDriver for PlayerOneCamera {
         enabled: bool,
         target_temp: Option<f64>,
     ) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        if !self
-            .camera_info
-            .as_ref()
-            .map(|i| i.is_has_cooler != 0)
-            .unwrap_or(false)
-        {
+        if !self.core.capabilities.can_cool {
             return Err(DriverError::NotSupported);
         }
 
@@ -491,7 +469,9 @@ impl CameraDriver for PlayerOneCamera {
         // Set target temperature (POA_TARGET_TEMP is in C, int value) only
         // when the caller named one — a "cooler off" carries no setpoint.
         if let Some(target) = target_temp {
-            self.set_control_int(&sdk, POAConfig::POA_TARGET_TEMP, target as c_long, false)?;
+            // POA_TARGET_TEMP is whole degrees.
+            let whole = target.round();
+            self.set_control_int(&sdk, POAConfig::POA_TARGET_TEMP, whole as c_long, false)?;
         }
 
         // Enable/disable cooler (POA_COOLER is a bool)
@@ -500,24 +480,22 @@ impl CameraDriver for PlayerOneCamera {
         // Record the accepted state so `get_status` can report cooler_on
         // accurately on cameras whose firmware doesn't expose POA_COOLER for
         // read-back. Only update after both SDK calls above succeeded.
-        let mut guard = self
-            .cooler_state
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
-        guard.enabled = enabled;
-        if let Some(target) = target_temp {
-            guard.target_c = target;
-        }
+        self.core.update_cooler(|cooler| {
+            cooler.enabled = enabled;
+            if let Some(target) = target_temp {
+                cooler.target_c = target.round();
+            }
+        });
 
         Ok(())
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
-        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&self.device_id) {
+        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&self.core.device_id) {
             tracing::debug!(
                 "Applying temperature RequiresDelayMs quirk: sleeping {}ms before reading {}",
                 delay_ms,
-                self.device_id
+                self.core.device_id
             );
             tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
         }
@@ -528,12 +506,7 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_cooler_power(&self) -> Result<f64, DriverError> {
-        if !self
-            .camera_info
-            .as_ref()
-            .map(|i| i.is_has_cooler != 0)
-            .unwrap_or(false)
-        {
+        if !self.core.capabilities.can_cool {
             return Err(DriverError::NotSupported);
         }
         // Uses the async version, which takes the SDK lock
@@ -547,7 +520,7 @@ impl CameraDriver for PlayerOneCamera {
         // Uses the async version, which takes the SDK lock
         self.set_control_int_async(POAConfig::POA_GAIN, gain as c_long, false)
             .await?;
-        self.current_gain = gain;
+        self.core.gain = gain;
         Ok(())
     }
 
@@ -563,7 +536,7 @@ impl CameraDriver for PlayerOneCamera {
         // Uses the async version, which takes the SDK lock
         self.set_control_int_async(POAConfig::POA_OFFSET, offset as c_long, false)
             .await?;
-        self.current_offset = offset;
+        self.core.offset = offset;
         Ok(())
     }
 
@@ -576,127 +549,53 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
-
-        let sdk = PoaSdk::installed()?;
-
-        // Player One only supports symmetric binning
-        let bin = bin_x.max(bin_y);
-
-        let sdk = sdk.lock().await;
-
-        // SAFETY: self.connected was checked at entry; POASetImageBin takes the camera ID and bin factor by value.
-        let result = unsafe { (sdk.set_image_bin)(self.camera_id, bin as c_int) };
-        check_poa_error(result, "SetImageBin")?;
-
-        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
-        let new_width = info.max_width / bin;
-        let new_height = info.max_height / bin;
-
-        // SAFETY: self.connected was checked at entry; new_width/new_height are derived from the SDK-populated max dimensions divided by the bin factor — within sensor bounds.
-        let result = unsafe { (sdk.set_image_size)(self.camera_id, new_width, new_height) };
-        check_poa_error(result, "SetImageSize")?;
-
-        self.current_bin = bin;
-        self.current_width = new_width;
-        self.current_height = new_height;
-
-        Ok(())
+        self.core.require_connected()?;
+        let bin = self.supported_bin(bin_x, bin_y)?;
+        let sdk = PoaSdk::lock().await?;
+        self.apply_geometry(&sdk, bin, None)
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
-        Ok((self.current_bin, self.current_bin))
+        Ok((self.core.bin_x, self.core.bin_y))
     }
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
-
-        let sdk = PoaSdk::installed()?;
-        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
-
-        let (x, y, width, height) = if let Some(ref sf) = subframe {
-            (
-                sf.start_x as c_int,
-                sf.start_y as c_int,
-                sf.width as c_int,
-                sf.height as c_int,
-            )
-        } else {
-            (
-                0,
-                0,
-                info.max_width / self.current_bin,
-                info.max_height / self.current_bin,
-            )
-        };
-
-        let sdk = sdk.lock().await;
-
-        // SAFETY: self.connected was checked at entry; x/y are caller-provided subframe origin or (0,0) — POA SDK validates against current image format/binning.
-        let result = unsafe { (sdk.set_image_start_pos)(self.camera_id, x, y) };
-        check_poa_error(result, "SetImageStartPos")?;
-
-        // SAFETY: self.connected was checked at entry; width/height are either caller-provided subframe size or info.max_width/height divided by current_bin, all within sensor bounds.
-        let result = unsafe { (sdk.set_image_size)(self.camera_id, width, height) };
-        check_poa_error(result, "SetImageSize")?;
-
-        self.current_width = width;
-        self.current_height = height;
-        // Track subframe for metadata
-        self.current_subframe = subframe;
-
-        Ok(())
+        self.core.require_connected()?;
+        let sdk = PoaSdk::lock().await?;
+        self.apply_geometry(&sdk, self.core.bin_x, subframe.as_ref())
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
-        if let Some(info) = &self.camera_info {
-            // Why: max_width/max_height/bit_depth are c_int sensor properties populated
-            // by POAGetCameraProperties. They are always non-negative for a connected
-            // camera, but we saturate to 0 on negative as defense-in-depth (this
-            // synchronous accessor can't surface an error).
-            SensorInfo {
-                width: u32::try_from(info.max_width).unwrap_or(0),
-                height: u32::try_from(info.max_height).unwrap_or(0),
-                pixel_size_x: info.pixel_size,
-                pixel_size_y: info.pixel_size,
-                // `max_adu` is the pixel-container full scale, NOT the ADC
-                // range: connect() hard-fails unless POASetImageFormat(Raw16)
-                // succeeds, so every frame this driver delivers is a 16-bit
-                // container whose samples span [0, 65535]. See
-                // [`raw16_container_max_adu`] and the `SensorInfo::max_adu`
-                // contract.
-                max_adu: raw16_container_max_adu(u32::try_from(info.bit_depth).unwrap_or(0)),
-                bit_depth: u32::try_from(info.bit_depth).unwrap_or(0),
-                color: info.is_color_camera != 0,
-                bayer_pattern: if info.is_color_camera != 0 {
-                    Some(match info.bayer_pattern {
-                        0 => BayerPattern::Rggb,
-                        1 => BayerPattern::Bggr,
-                        2 => BayerPattern::Grbg,
-                        3 => BayerPattern::Gbrg,
-                        _ => BayerPattern::Rggb,
-                    })
-                } else {
-                    None
-                },
-                saturation_adu: None,
-            }
-        } else {
-            SensorInfo::default()
-        }
+        self.core.sensor_info.clone()
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
-        // Player One doesn't have readout modes
-        Ok(Vec::new())
+        self.core.require_connected()?;
+        let sdk = PoaSdk::lock().await?;
+        self.sensor_modes(&sdk)
     }
 
-    async fn set_readout_mode(&mut self, _mode: &ReadoutMode) -> Result<(), DriverError> {
-        Err(DriverError::NotSupported)
+    async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
+        self.core.require_connected()?;
+        let sdk = PoaSdk::lock().await?;
+        let Some(set_mode) = sdk
+            .set_sensor_mode
+            .filter(|_| self.core.capabilities.supports_readout_modes)
+        else {
+            return Err(DriverError::NotSupported);
+        };
+        // SAFETY: the camera is open; POASetSensorMode takes the id and index by value
+        // and answers POA_ERROR_INVALID_ARGU for an index out of range.
+        check_poa_error(
+            unsafe { set_mode(self.camera_id, mode.index) },
+            "SetSensorMode",
+        )?;
+        tracing::info!(
+            "Player One {}: sensor mode {}",
+            self.core.device_id,
+            mode.index
+        );
+        Ok(())
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
@@ -727,18 +626,33 @@ impl CameraDriver for PlayerOneCamera {
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         self.config_int_bounds(POAConfig::POA_GAIN).await
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         self.config_int_bounds(POAConfig::POA_OFFSET).await
+    }
+
+    async fn get_exposure_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
+        self.core.require_connected()?;
+
+        self.exposure_bounds().await
+    }
+
+    async fn get_cooler_temp_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
+        self.core.require_connected()?;
+        if !self.core.capabilities.can_cool {
+            return Ok(None);
+        }
+
+        match self.config_int_bounds(POAConfig::POA_TARGET_TEMP).await {
+            Ok((min, max)) => Ok(Some((f64::from(min), f64::from(max)))),
+            Err(DriverError::NotSupported) => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 }

@@ -342,12 +342,8 @@ pub enum ExecutorEvent {
         message: String,
     },
     /// A meridian flip finished — successfully, degraded (it needed retries),
-    /// aborted, or failed outright.
-    ///
-    /// `MeridianFlipEvent` is log-only unless a caller wires
-    /// `with_event_channel`, and the trigger path does not, so this variant is
-    /// what carries the flip verdict — a failed post-flip recenter included —
-    /// into the run vitals.
+    /// aborted, or failed outright. This is what carries the flip verdict, a
+    /// failed post-flip recenter included, into the run vitals.
     MeridianFlipOutcome {
         /// `"success"`, `"failed"`, or `"aborted"`.
         outcome: String,

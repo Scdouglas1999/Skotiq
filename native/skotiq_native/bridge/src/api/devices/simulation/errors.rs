@@ -32,7 +32,7 @@ impl std::fmt::Display for SimDeviceError {
 
 /// Preserve the category across the ops boundary.
 ///
-/// Flattening everything to `DeviceOpError::driver` would mark a rejected
+/// Flattening everything to `DeviceOpError::from` would mark a rejected
 /// brightness or a bad switch index as a hardware failure, which
 /// `DeviceOpError::is_retryable` then tells the app to retry — forever, since
 /// the caller's argument is not going to get better on its own. The device id
@@ -44,16 +44,20 @@ impl From<SimDeviceError> for crate::dispatch::DeviceOpError {
         match err {
             SimDeviceError::NotConnected(m) => DeviceOpError::not_connected(None, m),
             SimDeviceError::InvalidParameter(m) => DeviceOpError::invalid_parameter(m),
-            SimDeviceError::Driver(m) => DeviceOpError::driver(m),
+            SimDeviceError::Driver(m) => DeviceOpError::from(m),
         }
     }
 }
 
 /// Consult the fault registry, mapping a fired fault onto [`SimDeviceError`].
 pub(crate) async fn sim_fault(key: &str) -> Result<(), SimDeviceError> {
+    use crate::dispatch::DeviceOpError;
     crate::device_manager::ops::sim_faults::check(key)
         .await
-        .map_err(SimDeviceError::Driver)
+        .map_err(|error| match error {
+            DeviceOpError::NotConnected { detail, .. } => SimDeviceError::NotConnected(detail),
+            other => SimDeviceError::Driver(other.to_string()),
+        })
 }
 
 /// A mechanism travelling from one value to another over a known time.

@@ -241,13 +241,13 @@ class Soak:
         self.api("POST", "/api/sequencer/save-path", {"path": self.out_dir})
         # A compressed recovery ladder, so a fault scenario reaches the
         # give-up branch inside the soak (the default is 10 min x 90 min).
-        # Parking stays off: none of these nights opts in to it.
-        self.api("POST", "/api/sequencer/recovery/update-config", {
-            "retryIntervalSecs": self.sc.get("recovery_retry_secs", 60.0),
-            "maxDurationSecs": self.sc.get("recovery_max_secs", 300.0),
-            "stopTrackingDuringRecovery": True, "abortOnMeridian": True,
-            "audibleAlertWhenEntered": False,
-            "parkAndCloseWhenRecoveryGivesUp": False})
+        # The host's run configuration takes it from these settings; parking
+        # when recovery gives up has no setting and stays off.
+        self.api("POST", "/api/settings", {"settings": {
+            "recoveryDefaultRetryIntervalMins": self.sc.get("recovery_retry_secs", 60.0) / 60.0,
+            "recoveryDefaultMaxDurationMins": self.sc.get("recovery_max_secs", 300.0) / 60.0,
+            "recoveryStopTrackingDuringRecovery": True, "recoveryAbortOnMeridian": True,
+            "recoveryAudibleAlertWhenEntered": False}})
         self.note("configured", profile=pid)
 
     def run(self):
@@ -397,7 +397,7 @@ class Soak:
         """Everything the invariants read, captured before shutdown."""
         out = {}
         for name, path in (("status", "/api/sequencer/status"), ("mount", "/api/mount/status"),
-                           ("phd2", "/api/phd2/status"), ("recovery", "/api/sequencer/recovery/history")):
+                           ("phd2", "/api/guider/status"), ("recovery", "/api/sequencer/recovery/history")):
             try:
                 out[name] = self.api("GET", path, timeout=15, ok_statuses=(200, 404, 409, 500))
             except Exception as exc:  # noqa: BLE001

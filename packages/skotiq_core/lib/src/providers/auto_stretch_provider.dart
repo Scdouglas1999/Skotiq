@@ -179,11 +179,13 @@ Uint8List linearDisplayRgba(LinearDisplayParams params) {
 ///
 /// Separate from the equipment provider so raw image data has one source.
 final connectedCameraIdProvider = Provider<String?>((ref) {
-  final cameraState = ref.watch(cameraStateProvider);
-  if (cameraState.connectionState == DeviceConnectionState.connected) {
-    return cameraState.deviceId;
-  }
-  return null;
+  return ref.watch(
+    cameraStateProvider.select(
+      (c) => c.connectionState == DeviceConnectionState.connected
+          ? c.deviceId
+          : null,
+    ),
+  );
 });
 
 /// Applies stretch to raw image data based on settings.

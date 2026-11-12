@@ -719,12 +719,23 @@ pub(crate) async fn camera_start_exposure_opt(
 /// [`SkotiqError::OperationFailed`] (HTTP 500). The split matters because a
 /// client retrying on 5xx would otherwise retry a request that can only fail again.
 fn classify_exposure_failure(device_id: &str, error: skotiq_sequencer::DeviceError) -> SkotiqError {
+    use skotiq_sequencer::DeviceError;
     match error {
-        skotiq_sequencer::DeviceError::InvalidFrame(reason) => SkotiqError::ExposureFailed {
+        DeviceError::InvalidFrame(reason) => SkotiqError::ExposureFailed {
             camera_id: device_id.to_string(),
             reason,
         },
-        other => SkotiqError::OperationFailed(other.to_string()),
+        DeviceError::NotConnected { .. } => SkotiqError::NotConnected(device_id.to_string()),
+        DeviceError::Unsupported(operation) => SkotiqError::NotSupported {
+            device_id: device_id.to_string(),
+            operation,
+        },
+        DeviceError::Rejected(reason) => SkotiqError::InvalidParameter(reason),
+        DeviceError::Timeout(reason) => SkotiqError::Timeout(reason),
+        DeviceError::Cancelled(_) => SkotiqError::ExposureCancelled,
+        other @ (DeviceError::NotConfigured { .. } | DeviceError::Failed(_)) => {
+            SkotiqError::OperationFailed(other.to_string())
+        }
     }
 }
 
@@ -1679,18 +1690,6 @@ pub async fn api_read_frame_cutouts(
     .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {e}")))?
 }
 
-/// Set the file format captured frames are saved in: `format` is `FITS` or
-/// `XISF`; `xisf_compression` names an XISF codec as its `compression`
-/// attribute does (`zstd+sh`, `lz4`, ...) or `none`.
-pub fn api_set_capture_file_format(
-    format: String,
-    xisf_compression: String,
-    xisf_checksums: bool,
-) -> Result<(), SkotiqError> {
-    crate::capture_file_format::set(&format, &xisf_compression, xisf_checksums)
-        .map_err(SkotiqError::InvalidParameter)
-}
-
 /// Save the device's last captured frame, without moving its pixels across
 /// the FFI boundary: as the archive file (FITS or XISF, the capture format)
 /// at `file_path`, and, when `keep_camera_file` (a frame the operator keeps,
@@ -1783,7 +1782,9 @@ pub async fn api_save_fits_from_last_capture(
         &image,
         &file_path,
         &frame_ctx,
-        crate::api::sequencer::camera_file_saving().await,
+        skotiq_sequencer::executor_handle()
+            .run_config()
+            .camera_file_saving,
         keep_camera_file,
     )
     .await
@@ -2760,8 +2761,11 @@ pub async fn api_sequencer_apply_defect_map(
             let mut flags = defect_apply_flags().lock().await;
             flags.insert(camera_id.clone(), false);
         }
-        let mut executor = crate::api::sequencer::get_sequence_executor().write().await;
-        executor.update_defect_map(None).await;
+        crate::api::sequencer::get_sequence_executor()
+            .read()
+            .await
+            .update_defect_map(None)
+            .await;
         tracing::info!(
             "Defect map application disabled for camera {} (no map pushed to sequencer)",
             camera_id
@@ -2805,8 +2809,11 @@ pub async fn api_sequencer_apply_defect_map(
         save_original,
     };
 
-    let mut executor = crate::api::sequencer::get_sequence_executor().write().await;
-    executor.update_defect_map(Some(state)).await;
+    crate::api::sequencer::get_sequence_executor()
+        .read()
+        .await
+        .update_defect_map(Some(state))
+        .await;
     tracing::info!(
         "Defect map application enabled for camera {} ({}x{}, bucket={} dC) method={}, kernel={}, save_original={}",
         camera_id,

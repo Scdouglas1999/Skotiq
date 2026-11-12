@@ -18,7 +18,7 @@ pub(crate) fn poa_camera_candidate_paths() -> Vec<std::path::PathBuf> {
         ]
     } else {
         crate::vendor::sdk_loader::vendor_library_candidates(
-            &["libPlayerOneCamera.so", "libPlayerOneCamera.so.1"],
+            &["libPlayerOneCamera.so", "libPlayerOneCamera.so.3"],
             &[
                 "/usr/lib/libPlayerOneCamera.so",
                 "/usr/local/lib/libPlayerOneCamera.so",
@@ -74,8 +74,10 @@ crate::load_vendor_sdk! {
         get_config: b"POAGetConfig\0" => unsafe extern "C" fn(c_int, c_int, *mut POAConfigValue, *mut POABool) -> c_int,
         set_config: b"POASetConfig\0" => unsafe extern "C" fn(c_int, c_int, POAConfigValue, POABool) -> c_int,
         set_image_bin: b"POASetImageBin\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
+        get_image_bin: b"POAGetImageBin\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
         set_image_size: b"POASetImageSize\0" => unsafe extern "C" fn(c_int, c_int, c_int) -> c_int,
         set_image_start_pos: b"POASetImageStartPos\0" => unsafe extern "C" fn(c_int, c_int, c_int) -> c_int,
+        get_image_start_pos: b"POAGetImageStartPos\0" => unsafe extern "C" fn(c_int, *mut c_int, *mut c_int) -> c_int,
         set_image_format: b"POASetImageFormat\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
         start_exposure: b"POAStartExposure\0" => unsafe extern "C" fn(c_int, POABool) -> c_int,
         stop_exposure: b"POAStopExposure\0" => unsafe extern "C" fn(c_int) -> c_int,
@@ -90,6 +92,11 @@ crate::load_vendor_sdk! {
         // Per-control min/max/default. Optional so an SDK build that predates it
         // still loads and drives cameras; callers report unknown bounds instead.
         get_config_attributes_by_config_id: b"POAGetConfigAttributesByConfigID\0" => unsafe extern "C" fn(c_int, c_int, *mut POAConfigAttributes) -> c_int,
+        // Sensor modes (such as a low-noise mode). Optional for SDK builds before them.
+        get_sensor_mode_count: b"POAGetSensorModeCount\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
+        get_sensor_mode_info: b"POAGetSensorModeInfo\0" => unsafe extern "C" fn(c_int, c_int, *mut POASensorModeInfo) -> c_int,
+        get_sensor_mode: b"POAGetSensorMode\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
+        set_sensor_mode: b"POASetSensorMode\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
     }
 }
 
@@ -108,9 +115,9 @@ crate::load_vendor_sdk! {
         close_pw: b"POAClosePW\0" => unsafe extern "C" fn(c_int) -> c_int,
         get_current_position: b"POAGetCurrentPosition\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
         goto_position: b"POAGotoPosition\0" => unsafe extern "C" fn(c_int, c_int) -> c_int,
-        get_pw_state: b"POAGetPWState\0" => unsafe extern "C" fn(c_int, *mut PWState) -> c_int,
+        get_pw_state: b"POAGetPWState\0" => unsafe extern "C" fn(c_int, *mut c_int) -> c_int,
         get_filter_alias: b"POAGetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *mut c_char, c_int) -> c_int,
-        set_filter_alias: b"POASetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *const c_char) -> c_int,
+        set_filter_alias: b"POASetPWFilterAlias\0" => unsafe extern "C" fn(c_int, c_int, *const c_char, c_int) -> c_int,
         get_sdk_version: b"POAGetPWSDKVer\0" => unsafe extern "C" fn() -> *const c_char,
     }
 }
@@ -253,11 +260,12 @@ pub(crate) fn check_poa_pw_error(code: c_int, operation: &str) -> Result<(), Dri
             operation
         ))),
         8 => Err(DriverError::SdkError(format!(
-            "{}: Player One PW operation failed",
+            "{}: Player One filter wheel operation failed (sent commands too often, or unplugged)",
             operation
         ))),
         9 => Err(DriverError::SdkError(format!(
-            "{}: Player One PW firmware error",
+            "{}: Player One filter wheel firmware error (a filter may not line up with its slot); \
+             power-cycle the wheel",
             operation
         ))),
         other => Err(DriverError::SdkError(format!(

@@ -318,7 +318,7 @@ class DeliveryStatusLine {
     final at = _newestDeliveredAt(delivered);
     final when = at == null
         ? 'at an unrecorded time'
-        : DateFormat('HH:mm').format(at.toLocal());
+        : ClockFormat.hm(at.toLocal());
     final recovered = delivered.any((entry) => entry.lastError != null);
     return DeliveryStatusLine(
       DeliveryStatusKind.delivered,

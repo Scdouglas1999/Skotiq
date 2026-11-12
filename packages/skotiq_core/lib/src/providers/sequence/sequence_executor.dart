@@ -33,13 +33,15 @@ import '../sequence_provider.dart'
         sequenceExecutionStateProvider,
         sequenceProgressProvider;
 import '../sequence_stats_provider.dart';
+import '../../models/sequence/terminal_run_result.dart';
 import '../session_provider.dart';
 import '../settings_provider.dart';
 // Session-lifecycle hooks: optical-train baseline capture,
 // post-session diagnostics summary, NotificationRouter active-sequence
 // tracking, USB disconnect aggregation.
-import 'run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import 'sequence_validation.dart' as validation;
+import '../../models/sequence/validation/validation_issue.dart' as validation;
 import 'sequence_executor/eta_smoothing.dart';
 import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';
@@ -196,12 +198,11 @@ class SequenceExecutor {
   /// Per-frame cadence smoother backing the run's ETA.
   final EtaSmoother _eta = EtaSmoother();
 
-  /// Pushes the operator's settings into the native runtime config, before
-  /// launch and while the run is live.
+  /// The launch wiring, the run's settings (through [RunConfigSync]) and the
+  /// run's sky feed.
   late final RuntimeConfigSync _runtimeConfig = RuntimeConfigSync(
     ref: _ref,
     backend: _backend,
-    serializer: _serializer,
     logger: () => _logger,
     warn: _surfaceRunWarning,
     isDisposed: () => _disposed,

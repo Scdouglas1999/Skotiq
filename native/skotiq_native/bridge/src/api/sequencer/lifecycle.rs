@@ -21,8 +21,8 @@ pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
 ///
 /// The executor's `latitude`/`longitude` is what every frame's `OBJCTALT` /
 /// `AIRMASS` cards and the `captured_images.mount_altitude` column are derived
-/// from. Without this seed a run that starts before Dart's
-/// `sequencerUpdateLocation` push lands writes frames whose FITS header carries
+/// from. Without this seed a run that starts before the app's run-config push
+/// lands writes frames whose FITS header carries
 /// AIRMASS — the writer falls back to app settings, see
 /// `sequencer_ops::context_altitude_pointing` — while the database row for the
 /// same frame has a NULL altitude, because the row is stamped from the
@@ -33,15 +33,22 @@ pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
 /// Fills in rather than overwrites: a location explicitly pushed for this run
 /// stays authoritative.
 pub(crate) async fn seed_executor_site_from_settings(
-    executor: &mut skotiq_sequencer::SequenceExecutor,
+    executor: &skotiq_sequencer::SequenceExecutor,
 ) {
     if let (Some(_), Some(_)) = executor.observer_location() {
         return;
     }
     if let Ok(Some(site)) = get_state().get_observer_location() {
-        executor
-            .update_location(Some(site.latitude), Some(site.longitude))
+        let seeded = executor
+            .handle()
+            .update_run_config(|config| {
+                config.latitude = Some(site.latitude);
+                config.longitude = Some(site.longitude);
+            })
             .await;
+        if let Err(e) = seeded {
+            tracing::warn!("The observing site from app settings was not applied: {e}");
+        }
     }
 }
 
@@ -50,7 +57,7 @@ pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
     tracing::info!("Starting sequence execution");
 
     let mut executor = get_sequence_executor().write().await;
-    seed_executor_site_from_settings(&mut executor).await;
+    seed_executor_site_from_settings(&executor).await;
     executor
         .start()
         .await
@@ -238,9 +245,7 @@ pub async fn api_sequencer_plugin_node_finished(
 
 /// Get the current sequencer state
 pub async fn api_sequencer_get_state() -> SequencerState {
-    let executor = get_sequence_executor().read().await;
-    let progress = executor.get_progress();
-    SequencerState::from(progress)
+    SequencerState::from(skotiq_sequencer::executor_handle().progress())
 }
 
 // Sequencer checkpoint / crash recovery
@@ -353,8 +358,7 @@ pub async fn api_perform_meridian_flip(
     settle_time_secs: f64,
 ) -> Result<(), SkotiqError> {
     {
-        let executor = get_sequence_executor().read().await;
-        let state = executor.get_state().await;
+        let state = skotiq_sequencer::executor_handle().state();
         match state {
             ExecutorState::Idle
             | ExecutorState::Completed
@@ -460,25 +464,17 @@ mod executor_site_tests {
     /// A run must not be able to start without the site the app already knows.
     ///
     /// The executor's latitude/longitude is the ONLY input to the altitude
-    /// stamped on every frame's `captured_images` row, and until this seeding
-    /// existed the only writer was Dart's `sequencerUpdateLocation`. A run
-    /// started before that push produced files with AIRMASS (the FITS writer
-    /// has its own fallback to app settings) and rows without it — and the
-    /// AAVSO exporter reads the row, so it submitted `na` for frames whose own
-    /// header knew the answer.
+    /// stamped on every frame's `captured_images` row. A run started before the
+    /// app's run-config push produced files with AIRMASS (the FITS writer has
+    /// its own fallback to app settings) and rows without it, and the AAVSO
+    /// exporter reads the row, so it submitted `na` for frames whose own
+    /// header knew the answer. A fresh executor stands in for the process's:
+    /// once that one holds a site no push takes it away.
     #[tokio::test]
     async fn starting_a_run_seeds_the_site_from_app_settings() {
         let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
             .lock()
             .await;
-        {
-            // The gap under test: nothing has pushed a location for this run.
-            get_sequence_executor()
-                .write()
-                .await
-                .update_location(None, None)
-                .await;
-        }
         get_state()
             .set_observer_location(Some(ObserverLocation {
                 latitude: 41.5,
@@ -487,12 +483,10 @@ mod executor_site_tests {
             }))
             .expect("test site should be settable");
 
-        // No sequence is loaded, so the start itself fails. That is fine and is
-        // the point: the site has to be in place BEFORE the run can begin, so
-        // the seeding must not be conditional on the start succeeding.
-        let _ = api_sequencer_start().await;
+        let executor = skotiq_sequencer::SequenceExecutor::new();
+        assert_eq!(executor.observer_location(), (None, None));
+        super::seed_executor_site_from_settings(&executor).await;
 
-        let executor = get_sequence_executor().read().await;
         assert_eq!(
             executor.observer_location(),
             (Some(41.5), Some(-71.25)),

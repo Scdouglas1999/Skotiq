@@ -6,6 +6,7 @@ import '../../models/equipment/equipment_models.dart';
 import 'device_connection_notifier.dart';
 import '../../services/device_service.dart';
 import '../profiles_provider.dart';
+import '../../models/equipment_profile_model.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.

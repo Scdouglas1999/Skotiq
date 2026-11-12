@@ -133,7 +133,7 @@ extension _CenteringLoop on CenteringService {
   }
 
   /// Stop the guider if it may move the mount: guiding or calibrating as the
-  /// app last saw it, or in any PHD2 state other than idle, looping or
+  /// app last saw it, or in any guider state other than idle, looping or
   /// paused (PHD2 in LostLock guides again the moment it finds the star). A
   /// guider that cannot be stopped is logged and centering goes ahead.
   Future<void> _stopGuidingForCentering(DeviceService deviceService) async {
@@ -142,14 +142,16 @@ extension _CenteringLoop on CenteringService {
     var active = guider.isGuiding || guider.isCalibrating;
     if (!active) {
       try {
-        final status = await _ref.read(guidingBackendProvider).phd2GetStatus();
+        final status = await _ref
+            .read(guidingBackendProvider)
+            .guiderGetStatus();
         active = !_idleGuiderStates.contains(status.state);
       } catch (e) {
-        // Not PHD2, or PHD2 not answering: the app's own view stands.
+        // The guider not answering: the app's own view stands.
         _ref
             .read(loggingServiceProvider)
             .debug(
-              'PHD2 state unavailable before centering ($e); the guider is '
+              'Guider state unavailable before centering ($e); the guider is '
               'treated as idle as the app last saw it.',
               source: 'CenteringService',
             );

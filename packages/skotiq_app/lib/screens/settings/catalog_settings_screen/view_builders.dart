@@ -221,7 +221,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
           ),
           const SizedBox(height: 4),
           Text(
-            'About $kInstalledCatalogApproxSizeMB MB on disk.',
+            'About $kInstalledCatalogApproxSizeMB ${ByteFormat.megaUnit} on disk.',
             style: SkotiqTypography.captionSm.copyWith(
               color: colors.textSecondary.withValues(alpha: 0.7),
             ),
@@ -456,7 +456,9 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
               alignment: Alignment.centerLeft,
               child: SkotiqButton(
                 label:
-                    'Download ${_selectedAnnotationPackage.displayName} (~${_selectedAnnotationPackage.approximateSizeMB} MB)',
+                    'Download ${_selectedAnnotationPackage.displayName} '
+                    '(~${_selectedAnnotationPackage.approximateSizeMB} '
+                    '${ByteFormat.megaUnit})',
                 icon: SkotiqIcons.download,
                 variant: ButtonVariant.secondary,
                 onPressed: _isDownloading ? null : _downloadAnnotationCatalog,

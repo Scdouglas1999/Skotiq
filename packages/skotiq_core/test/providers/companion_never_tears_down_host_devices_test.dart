@@ -51,7 +51,7 @@ void main() {
     when(() => backend.connectDevice(any(), any())).thenAnswer((_) async {});
     when(() => backend.disconnectDevice(any(), any())).thenAnswer((_) async {});
     when(
-      () => backend.phd2GetStatus(),
+      () => backend.guiderGetStatus(),
     ).thenAnswer((_) async => kPhd2DisconnectedStatus);
   });
 

@@ -1,78 +1,60 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
-import '../../../models/imaging/imaging_models.dart';
 import '../../../models/sequence/sequence_models.dart';
-import '../../../models/settings/app_settings.dart'
-    show ObserverLocation, SafetyFailMode;
-import '../../../models/weather/weather_settings.dart' show WeatherSettings;
-import '../../../services/frame_identity.dart';
+import '../../../models/settings/app_settings.dart' show ObserverLocation;
 import '../../../services/logging_service.dart';
 import '../../../services/session_handoff_service.dart'
     show SessionCarryOver, SessionHandoffDecision;
 import '../../defect_map_provider.dart' show seedDefectMapRuntimeForSequence;
 import '../../equipment_provider.dart';
 import '../../flat_wizard_provider.dart' show skyBrightnessTrackerProvider;
-import '../../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
-import '../../meridian_flip_provider.dart';
-import '../../profiles_provider.dart';
-import '../../replay_debug_provider.dart';
 import '../../session_handoff_provider.dart'
     show
         sessionCarryOverProvider,
         sessionHandoffDecisionProvider,
         sessionHandoffIgnoreUnavailableOnceProvider;
-import '../../../settings/app_settings_table.dart';
 import '../../settings_provider.dart';
-import '../../weather_providers.dart' show weatherSettingsProvider;
-import '../sequencer_defaults.dart';
-import 'sequence_serializer.dart';
+import '../run_config_sync.dart';
 
-/// Keeps the native executor's runtime configuration in step with the
-/// operator's settings: the launch-authoritative push, the full seed every
-/// native launch shares, the session-handoff carry-over, and the mid-run
-/// watchers that forward a settings change to the running sequence.
+/// What a native launch sends besides the run configuration: the launch
+/// wiring (site, simulation mode, save path, device ids, defect map), the
+/// session-handoff carry-over, and the sky-brightness feed while a run lasts.
+/// The operator's settings themselves reach the executor through
+/// [RunConfigSync], which [seedFromSettings] asks for the run's values.
 ///
-/// A failed push before launch is thrown, so the run refuses to start on the
-/// Rust defaults; a failed mid-run push cannot abort an imaging run, so it is
-/// put on the run's warnings instead ([_pushMidRun]).
-typedef _SendSettings = Future<void> Function(AppSettingsState settings);
-
+/// A failed push before launch is thrown, so the run refuses to start; a
+/// failed push during the run cannot abort an imaging run, so it is put on
+/// the run's warnings instead ([_pushMidRun]).
 class RuntimeConfigSync {
   RuntimeConfigSync({
     required Ref ref,
     required SkotiqBackend backend,
-    required SequenceSerializer serializer,
     required LoggingService Function() logger,
     required void Function(String message, {bool persist}) warn,
     required bool Function() isDisposed,
   }) : _ref = ref,
        _backend = backend,
-       _serializer = serializer,
        _logger = logger,
        _warn = warn,
        _isDisposed = isDisposed;
 
   final Ref _ref;
   final SkotiqBackend _backend;
-  final SequenceSerializer _serializer;
   final LoggingService Function() _logger;
   final void Function(String message, {bool persist}) _warn;
   final bool Function() _isDisposed;
 
-  final List<ProviderSubscription<Object?>> _settingsSubscriptions = [];
   Timer? _skyBrightnessPollTimer;
 
   /// The last sky brightness pushed, so a steady sky is not re-sent.
   double? _lastPushedSkyMag;
 
-  /// Push the launch-authoritative configuration: location, simulation mode,
-  /// safety fail mode, save path, device ids and the defect-map runtime.
+  /// Push the launch-authoritative wiring: the site, simulation mode, save
+  /// path, device ids and the defect-map runtime.
   ///
   /// One ordered push for a start and a checkpoint resume. On a resume
   /// ([isResume]) the checkpoint knows better than an empty setting: an empty
@@ -111,8 +93,6 @@ class RuntimeConfigSync {
     // Never read from a setting: the bundled native library is a release
     // build and refuses simulation mode.
     await backend.sequencerSetSimulationMode(false);
-
-    await _pushEffectiveSafetyFailMode(settings.safetyFailMode);
 
     final savePath = settings.imageOutputPath;
     if (savePath.isNotEmpty) {
@@ -181,222 +161,16 @@ class RuntimeConfigSync {
     await seedDefectMapRuntimeForSequence(_ref);
   }
 
-  /// The safety fail mode the native executor must run with. With weather
-  /// safety disabled it is forced to `failOpen`: the native poll fail-closes
-  /// on a rig with no safety monitor, and a raw `failClosed` would arm the
-  /// `WeatherUnsafe` trigger and park the mount within moments of launch.
-  /// Every push of the fail mode (start, resume, mid-run) goes through here.
-  SafetyFailMode _effectiveSafetyFailMode(SafetyFailMode configured) {
-    final weatherSafetyEnabled = _ref
-        .read(weatherSettingsProvider)
-        .weatherSafetyEnabled;
-    return weatherSafetyEnabled ? configured : SafetyFailMode.failOpen;
-  }
-
-  Future<void> _pushEffectiveSafetyFailMode(SafetyFailMode configured) async {
-    final effective = _effectiveSafetyFailMode(configured);
-    final wire = _serializer.safetyFailModeToBackendString(effective);
-    await _backend.sequencerSetSafetyFailMode(wire);
-    _logger().debug(
-      'Safety fail mode set to: $wire (configured=${configured.name})',
-      source: 'SequenceExecutor',
-    );
-  }
-
-  /// Weather parking is "Park on unsafe weather" AND Weather Safety's
-  /// "Auto-park mount": two pages showing one setting, and turning either off
-  /// must stop the executor parking.
-  Future<void> _pushParkPolicy(AppSettingsState settings) async {
-    final autoParkEnabled = _ref.read(weatherSettingsProvider).autoParkEnabled;
-    final parkOnUnsafeWeather = settings.parkOnUnsafeWeather && autoParkEnabled;
-    await _backend.sequencerSetParkPolicy(
-      parkOnUnsafeWeather: parkOnUnsafeWeather,
-      parkBeforeDawn: settings.parkBeforeDawn,
-    );
-    _logger().debug(
-      'Park settings: on unsafe weather=$parkOnUnsafeWeather, '
-      'before dawn=${settings.parkBeforeDawn}',
-      source: 'SequenceExecutor',
-    );
-  }
-
-  Future<void> _pushDeviceRetries(AppSettingsState settings) async {
-    await _backend.sequencerSetDeviceRetries(
-      cameraRetries: settings.cameraRetries,
-      filterWheelRetries: settings.filterWheelRetries,
-    );
-    _logger().debug(
-      'Device retries: camera=${settings.cameraRetries}, '
-      'filter wheel=${settings.filterWheelRetries}',
-      source: 'SequenceExecutor',
-    );
-  }
-
-  /// "Stop the run for quality problems": off (the default) notifies and keeps
-  /// imaging; on, each quality failure stops the run.
-  Future<void> _pushQualityPolicy(AppSettingsState settings) async {
-    await _backend.sequencerSetStopOnQualityProblems(
-      settings.stopRunOnQualityProblems,
-    );
-    _logger().debug(
-      'Stop the run for quality problems: '
-      '${settings.stopRunOnQualityProblems}',
-      source: 'SequenceExecutor',
-    );
-  }
-
-  /// Push every user-controlled RuntimeConfig field into the loaded executor.
+  /// Send the operator's settings as the run's configuration, and keep the
+  /// sections a run keeps until the run ends ([stopWatchers]).
   ///
   /// Shared by every native launch (editor start, checkpoint resume, headless
-  /// `load -> start`), so no path runs on the Rust defaults. Each push is
-  /// independent; the first failure is rethrown after the batch so the caller
+  /// `load -> start`), so no path runs on the Rust defaults. Throws when the
+  /// settings cannot be read or the executor refuses them, so the caller
   /// refuses to start.
-  Future<void> seedFromSettings() async {
-    final backend = _backend;
-    Object? firstError;
-    StackTrace? firstStack;
-    void fail(String what, Object e, StackTrace st) {
-      firstError ??= e;
-      firstStack ??= st;
-      _logger().error('Failed to seed $what: $e', source: 'SequenceExecutor');
-    }
-
-    // Every value below is read synchronously from a provider that holds
-    // library defaults until its load completes; wait for the loads so a
-    // start racing a cold load cannot seed defaults. A failed load propagates:
-    // with the operator's settings unknown there is nothing honest to seed.
-    await _ref.read(appSettingsProvider.future);
-    await _ref.read(savedFocuserBacklashProvider.future);
-    await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
-    await _ref.read(sequencerDefaultsProvider.notifier).ensureLoaded();
-
-    // Autofocus cadence and tuning. Zero means off and is passed through as
-    // zero (the engine never fires on 0); negative also means off. The tuning
-    // is the floor for trigger-fired refocus; an Autofocus node still wins.
-    try {
-      final defaults = _ref.read(sequencerDefaultsProvider);
-      final frames = defaults.autofocusIntervalFrames < 1
-          ? 0
-          : defaults.autofocusIntervalFrames;
-      await backend.sequencerUpdateAutofocusInterval(frames);
-      _logger().debug(
-        frames == 0
-            ? 'Seeded autofocus interval: disabled'
-            : 'Seeded autofocus interval: every $frames frames',
-        source: 'SequenceExecutor',
-      );
-
-      final afSettings = _ref.read(autofocusSettingsProvider);
-      await backend.sequencerUpdateAutofocusConfig(
-        jsonEncode(
-          _serializer.autofocusRuntimeConfig(afSettings, maxDurationSecs: 600),
-        ),
-      );
-      _logger().debug(
-        'Seeded trigger-autofocus config: '
-        'attempts=${afSettings.numberOfAttempts}, '
-        'failure tolerance=${afSettings.failureHfrToleranceRatio}x',
-        source: 'SequenceExecutor',
-      );
-    } catch (e, st) {
-      fail('autofocus interval', e, st);
-    }
-
-    final settings = await _ref.read(appSettingsProvider.future);
-    Future<void> seed(ExecutorConfig part) async {
-      final push = _settingsPushes[part]!;
-      try {
-        await push.send(settings);
-        _logger().debug('Seeded ${push.what}', source: 'SequenceExecutor');
-      } catch (e, st) {
-        fail(push.what, e, st);
-      }
-    }
-
-    await seed(ExecutorConfig.parkPolicy);
-    await seed(ExecutorConfig.deviceRetries);
-    await seed(ExecutorConfig.qualityPolicy);
-
-    try {
-      final defaults = _ref.read(sequencerDefaultsProvider);
-      await backend.sequencerUpdateDitherConfig(
-        pixels: defaults.ditherPixels,
-        settlePixels: defaults.ditherSettlePixels,
-        settleTime: defaults.ditherSettleTime,
-        settleTimeout: defaults.ditherSettleTimeout,
-        raOnly: defaults.ditherRaOnly,
-      );
-      _logger().debug(
-        'Seeded dither config: pixels=${defaults.ditherPixels} '
-        'settle=${defaults.ditherSettleTime}s',
-        source: 'SequenceExecutor',
-      );
-    } catch (e, st) {
-      fail('dither config', e, st);
-    }
-
-    // The native meridian-flip trigger starts from the Rust defaults; without
-    // this push every trigger-driven flip ignores the Meridian Flip settings.
-    try {
-      await backend.sequencerUpdateMeridianFlipConfig(
-        jsonEncode(_serializer.buildGlobalMeridianFlipConfigJson()),
-      );
-      _logger().debug(
-        'Seeded meridian-flip trigger config from user settings',
-        source: 'SequenceExecutor',
-      );
-    } catch (e, st) {
-      fail('meridian-flip config', e, st);
-    }
-
-    // The sequencer's own lat/lon, used by meridian-flip and altitude math.
-    // Only a configured site is pushed: (0, 0) arrives natively as a real
-    // place, and the altitude trigger would vote targets away from a site the
-    // telescope is not at. Withheld, the native side keeps altitude triggers
-    // inactive and says so.
-    if (!settings.hasObserverLocation) {
-      _logger().warning(
-        'No observing location is set, so the sequencer was not given one. '
-        'Altitude-based triggers and meridian-flip timing stay inactive '
-        'until a site is configured in Settings → Location.',
-        source: 'SequenceExecutor',
-      );
-    }
-    await seed(ExecutorConfig.location);
-    await seed(ExecutorConfig.filterOffsets);
-    await seed(ExecutorConfig.qualityCheck);
-    await seed(ExecutorConfig.rejectFolder);
-    await seed(ExecutorConfig.observerProfile);
-    await seed(ExecutorConfig.adaptiveExposure);
-
-    try {
-      final enabled = await _ref.read(replayDebugEnabledProvider.future);
-      await backend.sequencerSetDecisionLoggingEnabled(enabled);
-      _logger().debug(
-        'Seeded replay decision logging: enabled=$enabled',
-        source: 'SequenceExecutor',
-      );
-    } catch (e, st) {
-      fail('replay decision logging', e, st);
-    }
-
-    final error = firstError;
-    if (error != null) {
-      Error.throwWithStackTrace(error, firstStack ?? StackTrace.current);
-    }
-  }
-
-  Future<void> _pushAdaptiveExposure(AppSettingsState settings) =>
-      _backend.sequencerUpdateDefaultAdaptiveExposure(
-        enabled: settings.adaptiveExposureEnabled,
-        targetSnr: settings.adaptiveExposureTargetSnr,
-        referenceSkyBrightnessMag: settings.adaptiveExposureReferenceMag,
-        minExposureSecs: settings.adaptiveExposureMinSecs,
-        maxExposureSecs: settings.adaptiveExposureMaxSecs,
-        perFilterEnabled: settings.adaptiveExposurePerFilterEnabled,
-        perFilterMinSecs: settings.adaptiveExposurePerFilterMinSecs,
-        perFilterMaxSecs: settings.adaptiveExposurePerFilterMaxSecs,
-      );
+  Future<void> seedFromSettings() => _ref
+      .read(runConfigSyncProvider)
+      .beginRun(onSendFailure: (message) => _warn(message));
 
   /// Stage the session-handoff carry-over for each target that has one.
   ///
@@ -484,228 +258,9 @@ class RuntimeConfigSync {
     }
   }
 
-  /// Watch the settings a running sequence must follow and forward each change
-  /// to the executor, and start the sky-brightness poll.
-  ///
-  /// Every `listen` is typed explicitly: an untyped listener's callback
-  /// parameters are `dynamic`, and the extension getter `valueOrNull` then
-  /// throws inside the listener on every change.
+  /// Start the sky-brightness feed for the run.
   void startWatchers() {
-    stopWatchers();
     _startSkyBrightnessPoll();
-    final backend = _backend;
-
-    _settingsSubscriptions.add(
-      _ref.listen<SequencerDefaults>(sequencerDefaultsProvider, (
-        previous,
-        next,
-      ) {
-        if (previous == null) return;
-        if (previous.ditherPixels != next.ditherPixels ||
-            previous.ditherSettlePixels != next.ditherSettlePixels ||
-            previous.ditherSettleTime != next.ditherSettleTime ||
-            previous.ditherSettleTimeout != next.ditherSettleTimeout ||
-            previous.ditherRaOnly != next.ditherRaOnly) {
-          _logger().debug(
-            'Dither settings changed during execution, propagating to backend',
-            source: 'SequenceExecutor',
-          );
-          _pushMidRun(
-            'the dither settings',
-            () => backend.sequencerUpdateDitherConfig(
-              pixels: next.ditherPixels,
-              settlePixels: next.ditherSettlePixels,
-              settleTime: next.ditherSettleTime,
-              settleTimeout: next.ditherSettleTimeout,
-              raOnly: next.ditherRaOnly,
-            ),
-          );
-        }
-      }),
-    );
-
-    // Weather Safety's "Auto-park mount" is half of the weather park setting.
-    _settingsSubscriptions.add(
-      _ref.listen<WeatherSettings>(weatherSettingsProvider, (previous, next) {
-        if (previous == null ||
-            previous.autoParkEnabled == next.autoParkEnabled) {
-          return;
-        }
-        final settings = _ref.read(appSettingsProvider).valueOrNull;
-        if (settings == null) return;
-        _pushMidRun('the park settings', () => _pushParkPolicy(settings));
-      }),
-    );
-
-    _settingsSubscriptions.add(
-      _ref.listen<AsyncValue<AppSettingsState>>(appSettingsProvider, (
-        previous,
-        next,
-      ) {
-        final prev = previous?.valueOrNull;
-        final nextSettings = next.valueOrNull;
-        if (prev == null || nextSettings == null) return;
-        _forwardAppSettingsChange(prev, nextSettings);
-      }),
-    );
-
-    _settingsSubscriptions.add(
-      _ref.listen<EquipmentProfileModel?>(activeEquipmentProfileProvider, (
-        previous,
-        next,
-      ) {
-        if (previous == null || next == null) return;
-        if (!mapEquals(previous.filterFocusOffsets, next.filterFocusOffsets)) {
-          final settings = _ref.read(appSettingsProvider).valueOrNull;
-          if (settings != null) {
-            _logger().debug(
-              'Filter focus offsets changed during execution, propagating to '
-              'backend',
-              source: 'SequenceExecutor',
-            );
-            _pushMidRun(
-              'the filter focus offsets',
-              () => _pushFilterOffsets(settings),
-            );
-          }
-        }
-        if (previous.cameraName != next.cameraName ||
-            previous.telescopeName != next.telescopeName ||
-            previous.telescopeFocalLength != next.telescopeFocalLength ||
-            previous.telescopeAperture != next.telescopeAperture ||
-            previous.focalLength != next.focalLength) {
-          _logger().debug(
-            'Equipment profile identity changed during execution, '
-            'propagating to backend',
-            source: 'SequenceExecutor',
-          );
-          _pushMidRun('the observer profile', _pushObserverProfile);
-        }
-      }),
-    );
-  }
-
-  void _forwardAppSettingsChange(AppSettingsState prev, AppSettingsState next) {
-    final changed = <ExecutorConfig>{
-      for (final setting in kAppSettingsTable)
-        if (setting.feeds != null &&
-            !setting.valuesEqual(prev.valueOf(setting), next.valueOf(setting)))
-          setting.feeds!,
-    };
-    for (final part in ExecutorConfig.values) {
-      if (!changed.contains(part)) continue;
-      final push = _settingsPushes[part]!;
-      _logger().debug(
-        '${push.what} changed during execution, propagating to backend',
-        source: 'SequenceExecutor',
-      );
-      _pushMidRun(push.what, () => push.send(next));
-    }
-  }
-
-  /// How each part of the executor's configuration that settings feed is
-  /// sent. The settings table names the part a setting feeds; that part is
-  /// sent when a run starts and again when one of its settings changes.
-  late final Map<ExecutorConfig, ({String what, _SendSettings send})>
-  _settingsPushes = {
-    ExecutorConfig.location: (
-      what: 'the observing location',
-      send: (settings) async {
-        if (!settings.hasObserverLocation) return;
-        await _backend.sequencerUpdateLocation(
-          latitude: settings.latitude,
-          longitude: settings.longitude,
-        );
-      },
-    ),
-    ExecutorConfig.parkPolicy: (
-      what: 'the park settings',
-      send: _pushParkPolicy,
-    ),
-    ExecutorConfig.deviceRetries: (
-      what: 'the device retries',
-      send: _pushDeviceRetries,
-    ),
-    ExecutorConfig.qualityPolicy: (
-      what: 'the quality policy',
-      send: _pushQualityPolicy,
-    ),
-    ExecutorConfig.safetyFailMode: (
-      what: 'the safety fail mode',
-      send: (settings) => _pushEffectiveSafetyFailMode(settings.safetyFailMode),
-    ),
-    ExecutorConfig.qualityCheck: (
-      what: 'the image-grading thresholds',
-      send: (settings) => _backend.sequencerUpdateDefaultQualityCheck(
-        hfrThreshold: settings.imageGradingHfrThresholdPx,
-        hfrBaselinePercent: settings.imageGradingHfrBaselinePercent,
-        eccentricityThreshold: settings.imageGradingEccentricityThreshold,
-        starCountMin: settings.imageGradingStarCountMin,
-        maxConsecutiveRejects: settings.imageGradingMaxConsecutiveRejects,
-        enabled: settings.enableImageGrading,
-      ),
-    ),
-    ExecutorConfig.rejectFolder: (
-      what: 'the reject folder',
-      send: (settings) => _backend.sequencerUpdateRejectFolderPath(
-        settings.imageGradingRejectFolderPath,
-      ),
-    ),
-    ExecutorConfig.observerProfile: (
-      what: 'the observer profile',
-      send: (_) => _pushObserverProfile(),
-    ),
-    ExecutorConfig.adaptiveExposure: (
-      what: 'the adaptive-exposure settings',
-      send: (settings) => settings.adaptiveExposureEnabled
-          ? _pushAdaptiveExposure(settings)
-          : _backend.sequencerClearDefaultAdaptiveExposure(),
-    ),
-    ExecutorConfig.filterOffsets: (
-      what: 'the filter focus offsets',
-      send: _pushFilterOffsets,
-    ),
-  };
-
-  /// The focus offset per filter: the active profile's, overridden by any set
-  /// in the per-filter autofocus settings. None when offsets are turned off.
-  Future<void> _pushFilterOffsets(AppSettingsState settings) async {
-    final offsets = <String, int>{};
-    if (settings.useFilterFocusOffsets) {
-      final profile = _ref.read(activeEquipmentProfileProvider);
-      offsets.addAll(profile?.filterFocusOffsets ?? const <String, int>{});
-      final autofocusFilters = AutofocusSettings.parseFilterSettingsJson(
-        settings.afFilterSettingsJson,
-      );
-      for (final entry in autofocusFilters.entries) {
-        if (entry.value.focusOffset != 0) {
-          offsets[entry.key] = entry.value.focusOffset;
-        }
-      }
-    }
-    await _backend.sequencerUpdateFilterOffsets(offsets);
-  }
-
-  /// Push the FITS observer profile (see [FrameIdentity]). Missing values
-  /// are omitted, never sent as sentinels. Throws on a failed push.
-  Future<void> _pushObserverProfile() async {
-    final identity = FrameIdentity.read(_ref);
-    final (cameraMake, cameraModel) = identity.cameraMakeAndModel;
-    await _backend.sequencerUpdateObserverProfile(
-      observerName: identity.observerName,
-      siteElevationM: identity.siteElevationM,
-      cameraMake: cameraMake,
-      cameraModel: cameraModel,
-      telescopeName: identity.telescopeName,
-      telescopeFocalLengthMm: identity.focalLengthMm,
-      telescopeApertureMm: identity.apertureMm,
-    );
-    _logger().debug(
-      'Pushed observer_profile: observer=${identity.observerName}, '
-      'telescope=${identity.telescopeName}, camera=${identity.cameraName}, '
-      'focal=${identity.focalLengthMm}mm, aperture=${identity.apertureMm}mm',
-      source: 'SequenceExecutor',
-    );
   }
 
   /// Send a mid-run change to the executor from a synchronous listener or
@@ -733,18 +288,19 @@ class RuntimeConfigSync {
     }());
   }
 
-  /// Close the settings watchers and stop the sky-brightness poll.
+  /// The run is over: stop the sky-brightness feed, and let the sections a
+  /// run keeps follow the settings again.
   void stopWatchers() {
-    for (final sub in _settingsSubscriptions) {
-      sub.close();
+    // A run that never sent its settings has none to end.
+    if (_ref.exists(runConfigSyncProvider)) {
+      _ref.read(runConfigSyncProvider).endRun();
     }
-    _settingsSubscriptions.clear();
     _skyBrightnessPollTimer?.cancel();
     _skyBrightnessPollTimer = null;
     _lastPushedSkyMag = null;
   }
 
-  /// Stop the sky-brightness poll; the watchers die with the container.
+  /// Stop the sky-brightness poll.
   void dispose() {
     _skyBrightnessPollTimer?.cancel();
     _skyBrightnessPollTimer = null;

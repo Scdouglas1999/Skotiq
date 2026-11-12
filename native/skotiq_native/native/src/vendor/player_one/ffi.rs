@@ -42,49 +42,24 @@ pub(crate) struct PWProperties {
     pub(crate) reserved: [c_char; 32],
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PWState {
-    Closed = 0,
-    Opened = 1,
-    Moving = 2,
-}
+/// `PW_STATE_MOVING` of `PWState` from PlayerOnePW.h, which the SDK writes as a C int.
+pub(crate) const PW_STATE_MOVING: c_int = 2;
 
-/// POA Exposure Status
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum POAExposureStatus {
-    Idle = 0,
-    Working = 1,
-    Success = 2,
-    Failed = 3,
-}
+/// `PW_ERROR_IS_MOVING` from PlayerOnePW.h: the answer to a position read
+/// while the wheel turns.
+pub(crate) const PW_ERROR_IS_MOVING: c_int = 6;
 
 /// POA Bool type
 pub(crate) type POABool = c_int;
 pub(crate) const POA_FALSE: POABool = 0;
 pub(crate) const POA_TRUE: POABool = 1;
 
-/// POA Error codes
-#[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[allow(dead_code)]
-pub(crate) enum POAErrors {
-    Success = 0,
-    InvalidIndex = 1,
-    InvalidId = 2,
-    InvalidConfig = 3,
-    InvalidArg = 4,
-    NotOpened = 5,
-    DeviceNotFound = 6,
-    OutOfLimit = 7,
-    ExposureFailed = 8,
-    Timeout = 9,
-    SizeTooSmall = 10,
-    NotSupported = 11,
-    ConfigError = 12,
-    Unknown = 13,
-}
+/// `POA_ERROR_INVALID_CONFIG` from PlayerOneCamera.h: the camera or this SDK
+/// build has no such control.
+pub(crate) const POA_ERROR_INVALID_CONFIG: c_int = 3;
+
+/// `STATE_EXPOSING` of `POACameraState` from PlayerOneCamera.h.
+pub(crate) const POA_STATE_EXPOSING: c_int = 2;
 
 /// POA Config IDs (controls) - matches POAConfig enum from PlayerOneCamera.h
 #[repr(C)]
@@ -122,6 +97,15 @@ pub(crate) enum POAConfig {
     POA_USB_BANDWIDTH_LIMIT = 28,  // USB bandwidth limit, VAL_INT
     POA_PIXEL_BIN_SUM = 29,        // pixel bin sum mode, VAL_BOOL
     POA_MONO_BIN = 30,             // mono bin mode, VAL_BOOL
+    POA_EXP = 31,                  // exposure time (s), VAL_FLOAT; absent from older SDKs
+}
+
+/// `POASensorModeInfo` from PlayerOneCamera.h.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub(crate) struct POASensorModeInfo {
+    pub(crate) name: [c_char; 64],
+    pub(crate) desc: [c_char; 128],
 }
 
 /// POA Image Format

@@ -317,19 +317,6 @@ Future<Float64List> apiReadFrameCutouts({
   half: half,
 );
 
-/// Set the file format captured frames are saved in: `format` is `FITS` or
-/// `XISF`; `xisf_compression` names an XISF codec as its `compression`
-/// attribute does (`zstd+sh`, `lz4`, ...) or `none`.
-Future<void> apiSetCaptureFileFormat({
-  required String format,
-  required String xisfCompression,
-  required bool xisfChecksums,
-}) => RustLib.instance.api.crateApiImagingApiSetCaptureFileFormat(
-  format: format,
-  xisfCompression: xisfCompression,
-  xisfChecksums: xisfChecksums,
-);
-
 /// Save the device's last captured frame, without moving its pixels across
 /// the FFI boundary: as the archive file (FITS or XISF, the capture format)
 /// at `file_path`, and, when `keep_camera_file` (a frame the operator keeps,

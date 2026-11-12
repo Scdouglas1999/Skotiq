@@ -1,0 +1,225 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+< 0040
+> :GLS#
+< -2714308146802777210531#
+> :FW1#
+< 210607210329#
+> :FW2#
+< 210105210106#
+  -> Ok(())
+  id=native:ioptron:<PORT_ID> name=iOptron CEM40 (<PORT>) vendor=IOptron connected=true
+  can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=true can_find_home=true can_set_park=true
+call get_coordinates
+> :GEP#
+< +0720000002970000011#
+  -> Ok((5.5, 20.0))
+call slew_to_coordinates(5.5, 20.0)
+> :SRA029700000#
+< 1
+> :Sd+07200000#
+< 1
+> :MS1#
+< 1
+  -> Ok(())
+call is_slewing
+> :GLS#
+< -2714308146802777220531#
+  -> Ok(true)
+call is_slewing
+> :GLS#
+< -2714308146802777220531#
+  -> Ok(true)
+call is_slewing
+> :GLS#
+< -2714308146802777210531#
+  -> Ok(false)
+call slew_to_coordinates(1.25, -85.5) [mount refuses]
+> :SRA006750000#
+< 1
+> :Sd-30780000#
+< 1
+> :MS1#
+< 0
+  -> Err(SdkError("The iOptron mount refused the slew: the target is below its altitude limit or past its mechanical limits"))
+call is_slewing
+> :GLS#
+< -2714308146802777210531#
+  -> Ok(false)
+call sync_to_coordinates(5.5123, -20.2512)
+> :SRA029766420#
+< 1
+> :Sd-07290432#
+< 1
+> :CM#
+< 1
+  -> Ok(())
+call set_tracking(false)
+> :ST0#
+< 1
+  -> Ok(())
+call get_tracking
+> :GLS#
+< -2714308146802777200531#
+  -> Ok(false)
+call set_tracking(true)
+> :ST1#
+< 1
+  -> Ok(())
+call get_tracking
+> :GLS#
+< -2714308146802777210531#
+  -> Ok(true)
+call set_tracking_rate(Sidereal)
+> :RT0#
+< 1
+  -> Ok(())
+call get_tracking_rate
+> :GLS#
+< -2714308146802777210531#
+  -> Ok(Sidereal)
+call set_tracking_rate(Lunar)
+> :RT1#
+< 1
+  -> Ok(())
+call get_tracking_rate
+> :GLS#
+< -2714308146802777211531#
+  -> Ok(Lunar)
+call set_tracking_rate(Solar)
+> :RT2#
+< 1
+  -> Ok(())
+call get_tracking_rate
+> :GLS#
+< -2714308146802777212531#
+  -> Ok(Solar)
+call set_tracking_rate(King)
+> :RT3#
+< 1
+  -> Ok(())
+call get_tracking_rate
+> :GLS#
+< -2714308146802777213531#
+  -> Ok(King)
+call set_tracking_rate(Custom)
+  -> Err(NotSupported)
+call get_tracking_rate
+> :GLS#
+< -2714308146802777213531#
+  -> Ok(King)
+call set_tracking_rate(Sidereal)
+> :RT0#
+< 1
+  -> Ok(())
+call pulse_guide(North, 40)
+> :ZE00040#
+  -> Ok(())
+call pulse_guide(South, 40)
+> :ZC00040#
+  -> Ok(())
+call pulse_guide(East, 40)
+> :ZS00040#
+  -> Ok(())
+call pulse_guide(West, 40)
+> :ZQ00040#
+  -> Ok(())
+call pulse_guide(North, 5)
+> :ZE00005#
+  -> Ok(())
+call abort_slew
+> :Q#
+< 1
+  -> Ok(())
+call get_side_of_pier
+> :GEP#
+< +0720000002970000011#
+  -> Ok(West)
+call get_alt_az
+> :GAC#
+< +16380000064890000#
+  -> Ok((45.5, 180.25))
+call get_sidereal_time
+  -> Err(NotSupported)
+call get_site
+> :GLS#
+< -2714308146802777210531#
+  -> Ok(MountSiteInfo { latitude_deg: 40.0077138888889, longitude_deg: -75.39744722222223, elevation_m: None })
+call set_site(40.007714, -75.397448)
+> :SLO-27143081#
+< 1
+> :SLA+14402777#
+< 1
+  -> Ok(())
+call get_clock
+> :GUT#
+< -30010842193000000#
+  -> Ok(MountClock { utc_unix_seconds: 1788921000, utc_offset_hours: -4.0 })
+call set_clock(1788921000, -4.0)
+> :SG-240#
+< 1
+> :SDS0#
+< 1
+> :SUT0842193000000#
+< 1
+  -> Ok(())
+call find_home
+> :MH#
+< 1
+  -> Ok(())
+call is_slewing
+> :GLS#
+< -2714308146802777220531#
+  -> Ok(true)
+call is_slewing
+> :GLS#
+< -2714308146802777270531#
+  -> Ok(false)
+call at_home
+> :GLS#
+< -2714308146802777270531#
+  -> Ok(true)
+call set_park
+> :GAC#
+< +16380000064890000#
+> :SPA064890000#
+< 1
+> :SPH16380000#
+< 1
+  -> Ok(())
+call park
+> :MP1#
+< 1
+  -> Ok(())
+call is_parked
+> :GLS#
+< -2714308146802777260531#
+  -> Ok(true)
+call is_slewing
+> :GLS#
+< -2714308146802777260531#
+  -> Ok(false)
+call get_coordinates
+> :GEP#
+< +0720000002970000011#
+  -> Ok((5.5, 20.0))
+call unpark
+> :MP0#
+< 1
+  -> Ok(())
+call is_parked
+> :GLS#
+< -2714308146802777270531#
+  -> Ok(false)
+call get_tracking
+> :GLS#
+< -2714308146802777270531#
+  -> Ok(false)
+call disconnect
+> :Q#
+< 1
+  -> Ok(())
+  connected=false
+call get_coordinates [disconnected]
+  -> Err(NotConnected)

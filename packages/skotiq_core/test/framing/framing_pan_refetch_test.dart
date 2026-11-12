@@ -12,6 +12,7 @@ import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/framing_image_cache_provider.dart';
 import 'package:skotiq_core/src/providers/framing_provider.dart';
+import 'package:skotiq_core/src/models/framing_models.dart';
 import 'package:skotiq_core/src/services/framing_image_cache_service.dart';
 
 Uint8List _encodeJpeg(int width, int height) {

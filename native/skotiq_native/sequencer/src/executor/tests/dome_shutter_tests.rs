@@ -79,7 +79,11 @@ async fn start(sequence: SequenceDefinition) -> DomeRun {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops.clone());
     executor.dome_id = Some("dome-1".to_string());
-    executor.set_safety_check_interval_secs(5).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.safety_check_interval_secs = 5)
+        .await
+        .unwrap();
     {
         let mut manager = executor.trigger_manager.write().await;
         let ids: Vec<String> = manager.triggers().iter().map(|t| t.id.clone()).collect();

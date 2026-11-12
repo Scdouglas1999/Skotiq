@@ -56,6 +56,9 @@ pub async fn discover_filter_wheels() -> Result<Vec<PlayerOneFilterWheelInfo>, D
     Ok(wheels)
 }
 
+/// How long a wheel may take to home after it is opened (INDI's POA_EFW_TIMEOUT).
+const HOMING_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
+
 /// Player One Phoenix filter-wheel driver.
 pub struct PlayerOneFilterWheel {
     pub(crate) handle: i32,
@@ -144,7 +147,30 @@ impl DeviceDriver for PlayerOneFilterWheel {
         self.name = pw_cstr(&props.name);
         self.filter_count = props.position_count;
         cleanup_guard.defuse();
+        drop(sdk);
         self.connected = true;
+
+        // A wheel turns to find its home right after it is opened and refuses
+        // moves until that ends (INDI and NINA wait for it the same way). The
+        // SDK lock is shared with the cameras, so it is taken per poll.
+        let deadline = std::time::Instant::now() + HOMING_TIMEOUT;
+        loop {
+            match self.is_moving().await {
+                Ok(false) => break,
+                Ok(true) if std::time::Instant::now() < deadline => {}
+                outcome => {
+                    // NINA connects anyway; position reads say -1 until the turn ends.
+                    tracing::warn!(
+                        "Player One filter wheel {} had not finished homing {} s after it was opened ({:?})",
+                        self.handle,
+                        HOMING_TIMEOUT.as_secs(),
+                        outcome
+                    );
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
         Ok(())
     }
 
@@ -191,11 +217,13 @@ impl FilterWheelDriver for PlayerOneFilterWheel {
         let sdk = PoaPwSdk::lock().await?;
         let mut position = 0;
         // SAFETY: handle is open and position is a valid out-pointer.
-        check_poa_pw_error(
-            // SAFETY: handle open, out-pointer valid.
-            unsafe { (sdk.get_current_position)(self.handle, &mut position) },
-            "get current filter position",
-        )?;
+        let result = unsafe { (sdk.get_current_position)(self.handle, &mut position) };
+        // The wheel answers a position read while it turns with an error; the
+        // driver contract (and the ZWO EFW) says -1.
+        if result == PW_ERROR_IS_MOVING {
+            return Ok(-1);
+        }
+        check_poa_pw_error(result, "get current filter position")?;
         Ok(position)
     }
 
@@ -205,14 +233,14 @@ impl FilterWheelDriver for PlayerOneFilterWheel {
         }
 
         let sdk = PoaPwSdk::lock().await?;
-        let mut state = PWState::Closed;
+        let mut state: c_int = 0;
         // SAFETY: handle is open and state is a valid out-pointer.
         check_poa_pw_error(
             // SAFETY: handle open, out-pointer valid.
             unsafe { (sdk.get_pw_state)(self.handle, &mut state) },
             "get filter wheel state",
         )?;
-        Ok(state == PWState::Moving)
+        Ok(state == PW_STATE_MOVING)
     }
 
     fn get_filter_count(&self) -> i32 {
@@ -263,14 +291,17 @@ impl FilterWheelDriver for PlayerOneFilterWheel {
             ));
         }
 
+        // Shorter than 24 bytes, checked above.
+        let length = name.len() as c_int;
         let c_name = std::ffi::CString::new(name).map_err(|_| {
             DriverError::InvalidParameter("Player One PW filter alias contains NUL".to_string())
         })?;
         let sdk = PoaPwSdk::lock().await?;
         // SAFETY: handle is open; position bounds checked; CString is
-        // NUL-terminated and lives for the call.
+        // NUL-terminated, `length` bytes long, and lives for the call. A length
+        // of 0 clears the alias (PlayerOnePW.h).
         check_poa_pw_error(
-            unsafe { (sdk.set_filter_alias)(self.handle, position, c_name.as_ptr()) },
+            unsafe { (sdk.set_filter_alias)(self.handle, position, c_name.as_ptr(), length) },
             "set filter alias",
         )
     }

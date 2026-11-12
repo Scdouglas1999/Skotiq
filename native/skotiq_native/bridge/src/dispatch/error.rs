@@ -103,6 +103,13 @@ pub enum DeviceOpError {
         detail: String,
     },
 
+    /// The device did not finish in the time allowed. Retrying can work.
+    #[error("{detail}")]
+    Timeout {
+        device_id: Option<String>,
+        detail: String,
+    },
+
     /// One-off message that does not fit a category. Used for sub-helper
     /// errors that arrive as a bare `String` (Alpaca trait results, INDI
     /// client errors, sim-gate gates) where re-classifying would risk
@@ -162,16 +169,75 @@ impl DeviceOpError {
         }
     }
 
-    /// Classify a bare driver/SDK error string (the common
-    /// `.map_err(|e| e.to_string())` site) as a [`DeviceOpError::Hardware`]
-    /// without a device id. The id is usually already inside the driver's own
-    /// message, so `None` keeps the wording exact while still marking the
-    /// failure category as hardware, and therefore retryable, for programmatic
-    /// recovery.
-    pub(crate) fn driver(detail: impl std::fmt::Display) -> Self {
-        DeviceOpError::Hardware {
-            device_id: None,
-            detail: detail.to_string(),
+    /// A driver's failure, worded as `detail`: what kind of failure it is
+    /// comes from `cause`, the driver's typed error.
+    pub(crate) fn from_driver(
+        device_id: Option<String>,
+        detail: String,
+        cause: skotiq_device::DriverError,
+    ) -> Self {
+        use skotiq_device::DriverError as N;
+        match cause {
+            N::Backend(inner) => match inner.downcast::<DeviceOpError>() {
+                Ok(op) => op.reworded(device_id, detail),
+                Err(_) => DeviceOpError::Hardware { device_id, detail },
+            },
+            N::NotConnected | N::Disconnected => DeviceOpError::NotConnected { device_id, detail },
+            N::NotSupported => DeviceOpError::Unsupported { detail },
+            N::InvalidParameter(_) => DeviceOpError::InvalidParameter { detail },
+            N::InvalidDevice(_) => DeviceOpError::InvalidDeviceId { detail },
+            N::DeviceNotFound(id) => DeviceOpError::DeviceNotFound(id),
+            N::Timeout(_) => DeviceOpError::Timeout { device_id, detail },
+            // An SDK that failed or is missing, an I/O fault, an unknown
+            // error: a hardware or host fault.
+            N::SdkError(_) | N::SdkNotLoaded | N::SdkNotInstalled(_) | N::Io(_) | N::Unknown(_) => {
+                DeviceOpError::Hardware { device_id, detail }
+            }
+        }
+    }
+
+    /// A protocol client's failure in the protocol's own words, of the kind
+    /// the protocol crate's conversion to [`skotiq_device::DriverError`] names.
+    pub(crate) fn protocol<E>(error: E) -> Self
+    where
+        E: std::fmt::Display + Into<skotiq_device::DriverError>,
+    {
+        let detail = error.to_string();
+        Self::from_driver(None, detail, error.into())
+    }
+
+    /// `cause`, of whatever kind it is, worded as `detail`.
+    pub(crate) fn caused_by(
+        device_id: Option<String>,
+        detail: String,
+        cause: impl Into<DeviceOpError>,
+    ) -> Self {
+        cause.into().reworded(device_id, detail)
+    }
+
+    /// The same kind of failure, worded as `detail`.
+    fn reworded(self, device_id: Option<String>, detail: String) -> Self {
+        match self {
+            DeviceOpError::DeviceNotFound(id) => DeviceOpError::DeviceNotFound(id),
+            DeviceOpError::NotConnected { device_id: own, .. } => DeviceOpError::NotConnected {
+                device_id: device_id.or(own),
+                detail,
+            },
+            DeviceOpError::InvalidDeviceId { .. } => DeviceOpError::InvalidDeviceId { detail },
+            DeviceOpError::InvalidParameter { .. } => DeviceOpError::InvalidParameter { detail },
+            DeviceOpError::Unsupported { .. } => DeviceOpError::Unsupported { detail },
+            DeviceOpError::InvalidState { device_id, .. } => {
+                DeviceOpError::InvalidState { device_id, detail }
+            }
+            DeviceOpError::Timeout { device_id: own, .. } => DeviceOpError::Timeout {
+                device_id: device_id.or(own),
+                detail,
+            },
+            DeviceOpError::Hardware { device_id: own, .. } => DeviceOpError::Hardware {
+                device_id: device_id.or(own),
+                detail,
+            },
+            DeviceOpError::Message(_) => DeviceOpError::Hardware { device_id, detail },
         }
     }
 
@@ -182,7 +248,8 @@ impl DeviceOpError {
         match self {
             DeviceOpError::DeviceNotFound(id) => Some(id),
             DeviceOpError::NotConnected { device_id, .. }
-            | DeviceOpError::Hardware { device_id, .. } => device_id.as_deref(),
+            | DeviceOpError::Hardware { device_id, .. }
+            | DeviceOpError::Timeout { device_id, .. } => device_id.as_deref(),
             DeviceOpError::InvalidState { device_id, .. } => Some(device_id),
             DeviceOpError::InvalidDeviceId { .. }
             | DeviceOpError::InvalidParameter { .. }
@@ -206,7 +273,9 @@ impl DeviceOpError {
     pub(crate) fn is_retryable(&self) -> bool {
         matches!(
             self,
-            DeviceOpError::NotConnected { .. } | DeviceOpError::Hardware { .. }
+            DeviceOpError::NotConnected { .. }
+                | DeviceOpError::Hardware { .. }
+                | DeviceOpError::Timeout { .. }
         )
     }
 }
@@ -226,83 +295,34 @@ impl From<&str> for DeviceOpError {
     }
 }
 
-/// Classify a vendor-SDK error instead of flattening it to `Hardware`.
-///
-/// [`DeviceOpError::driver`] takes `impl Display`, so every native driver
-/// failure — including the ones the SDK layer had *already* classified —
-/// collapsed into `Hardware { .. }`, which
-/// `From<DeviceOpError> for SkotiqError` then renders as
-/// `OperationFailed`, which the HTTP layer answers as a generic 500.
-/// Observed on the live rig against a real ZWO ASI1600MM-Cool whose own
-/// capabilities report `readoutModes: []`:
-///   POST /api/camera/readoutMode {"modeIndex":0}
-///     -> 500 {"error":"internal_error","message":"Operation not supported"}
-/// The driver said "not supported", the HTTP layer already knows how to
-/// answer that (501), and only this conversion lost the category — while
-/// also inviting retry-on-5xx clients to retry a call that can never work.
-///
-/// Use `.map_err(DeviceOpError::from)` at native-driver call sites in place
-/// of `.map_err(DeviceOpError::driver)`. Everything that is genuinely a
-/// hardware/SDK fault still becomes `Hardware`, so 500 remains the answer
-/// for real faults.
+/// A driver's failure keeps its kind. Folding every driver error into
+/// `Hardware` made the HTTP layer answer 500 for a request the driver had
+/// already called unsupported (a real ZWO ASI1600MM-Cool asked for a readout
+/// mode it does not have), inviting retry-on-5xx clients to repeat a call that
+/// can never work.
 impl From<skotiq_device::DriverError> for DeviceOpError {
     fn from(e: skotiq_device::DriverError) -> Self {
-        use skotiq_device::DriverError as N;
         let detail = e.to_string();
-        match e {
-            N::Backend(inner) => backend_error(inner),
-            N::NotSupported => DeviceOpError::Unsupported { detail },
-            N::InvalidParameter(_) => DeviceOpError::InvalidParameter { detail },
-            N::InvalidDevice(_) => DeviceOpError::InvalidDeviceId { detail },
-            N::DeviceNotFound(id) => DeviceOpError::DeviceNotFound(id),
-            N::NotConnected | N::Disconnected => DeviceOpError::NotConnected {
-                device_id: None,
-                detail,
-            },
-            // SdkError / SdkNotLoaded / the timeout family / anything else is
-            // a genuine hardware or host fault.
-            _ => DeviceOpError::Hardware {
-                device_id: None,
-                detail,
-            },
-        }
+        Self::from_driver(None, detail, e)
     }
 }
 
-/// A backend failure carried through `DriverError::Backend`: an ops-layer
-/// error is handed back as it was raised, an INDI write to a read-only
-/// property is an unsupported operation, anything else a hardware fault.
-fn backend_error(inner: Box<dyn std::error::Error + Send + Sync>) -> DeviceOpError {
-    let inner = match inner.downcast::<DeviceOpError>() {
-        Ok(op) => return *op,
-        Err(other) => other,
-    };
-    let detail = inner.to_string();
-    match inner.downcast_ref::<skotiq_indi::IndiError>() {
-        Some(skotiq_indi::IndiError::PermissionDenied(_)) => DeviceOpError::Unsupported { detail },
-        _ => DeviceOpError::Hardware {
-            device_id: None,
-            detail,
-        },
-    }
-}
-
-/// INDI protocol errors propagated via bare `?` from `IndiClient` calls.
-///
-/// The legacy code path returned `Result<_, String>` and relied on
-/// `From<IndiError> for String` (the INDI crate's own conversion) when a
-/// `?`-propagated `IndiError` crossed into a `String`-typed function. To keep
-/// those `?` sites compiling — and the surfaced message byte-identical — we
-/// reproduce that exact string (`e.to_string()`) but classify it as a
-/// [`DeviceOpError::Hardware`] (INDI failures are protocol/comm failures, i.e.
-/// retryable). The device id is not in scope at the trait-error boundary, so
-/// it is left `None`; the INDI message already names the property that failed.
 impl From<skotiq_indi::IndiError> for DeviceOpError {
     fn from(e: skotiq_indi::IndiError) -> Self {
-        DeviceOpError::Hardware {
-            device_id: None,
-            detail: e.to_string(),
-        }
+        Self::protocol(e)
+    }
+}
+
+impl From<skotiq_alpaca::AlpacaError> for DeviceOpError {
+    fn from(e: skotiq_alpaca::AlpacaError) -> Self {
+        Self::protocol(e)
+    }
+}
+
+#[cfg(windows)]
+impl From<skotiq_ascom::AscomError> for DeviceOpError {
+    fn from(e: skotiq_ascom::AscomError) -> Self {
+        Self::protocol(e)
     }
 }
 
@@ -353,7 +373,51 @@ impl From<DeviceOpError> for SkotiqError {
                 device_id: String::new(),
                 reason: detail,
             },
+            DeviceOpError::Timeout { detail, .. } => SkotiqError::Timeout(detail),
             other => SkotiqError::OperationFailed(other.to_string()),
+        }
+    }
+}
+
+/// An ops-layer failure carried through a driver trait; [`DeviceOpError::from_driver`]
+/// takes it back out unchanged.
+impl From<DeviceOpError> for skotiq_device::DriverError {
+    fn from(e: DeviceOpError) -> Self {
+        skotiq_device::DriverError::Backend(Box::new(e))
+    }
+}
+
+/// The FFI error back to the ops layer's kinds, for the operations that
+/// answer through the FFI functions.
+impl From<SkotiqError> for DeviceOpError {
+    fn from(e: SkotiqError) -> Self {
+        let detail = e.to_string();
+        match e {
+            SkotiqError::DeviceNotFound(id) => DeviceOpError::DeviceNotFound(id),
+            SkotiqError::NotConnected(_) | SkotiqError::DeviceDisconnected { .. } => {
+                DeviceOpError::NotConnected {
+                    device_id: None,
+                    detail,
+                }
+            }
+            SkotiqError::NotSupported { .. } => DeviceOpError::Unsupported { detail },
+            SkotiqError::InvalidParameter(_)
+            | SkotiqError::InvalidInput(_)
+            | SkotiqError::ParameterOutOfRange { .. } => DeviceOpError::InvalidParameter { detail },
+            SkotiqError::InvalidDeviceId { .. } => DeviceOpError::InvalidDeviceId { detail },
+            SkotiqError::DeviceBusy { device_id, .. } => {
+                DeviceOpError::InvalidState { device_id, detail }
+            }
+            SkotiqError::Timeout(_)
+            | SkotiqError::DeviceTimeout { .. }
+            | SkotiqError::ConnectionTimeout { .. } => DeviceOpError::Timeout {
+                device_id: None,
+                detail,
+            },
+            _ => DeviceOpError::Hardware {
+                device_id: None,
+                detail,
+            },
         }
     }
 }

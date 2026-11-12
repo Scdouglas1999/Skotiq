@@ -173,11 +173,10 @@ void main() {
       } catch (_) {}
       await backend.sequencerReset();
       await backend.sequencerSetSimulationMode(false);
-      // No weather station on this rig → fail-closed would (correctly) abort on
-      // unavailable safety data. A couch user without a weather sensor sets
-      // fail_open; do the same so the capture path can be exercised. (The
-      // fail-closed abort itself is verified separately — it is correct, not a bug.)
-      await backend.sequencerSetSafetyFailMode('fail_open');
+      // No weather station on this rig: the host's own settings must have
+      // weather safety off or fail_open, or fail-closed (correctly) aborts on
+      // unavailable safety data. A linked client does not set the host's run
+      // configuration; the host builds it from those settings.
       // Camera-only (no filter wheel): isolates the server-side capture path.
       await backend.sequencerSetDevices(cameraId: cam);
       await backend.sequencerSetSavePath('/tmp/skwf/captures');

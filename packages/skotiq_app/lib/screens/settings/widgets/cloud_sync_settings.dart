@@ -13,7 +13,6 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -484,7 +483,7 @@ class _CloudSyncCardState extends ConsumerState<CloudSyncCard> {
                     if (_lastPushAt != null)
                       Text(
                         'Last push: '
-                        '${DateFormat('MMM d, yyyy HH:mm').format(_lastPushAt!.toLocal())}',
+                        '${ClockFormat.monthDayYearHm(_lastPushAt!.toLocal())}',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textSecondary,
                         ),

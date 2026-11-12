@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 
 /// The dark library, flat records and defect-map settings of a linked imaging host.
 ///

@@ -5,6 +5,7 @@ import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/sequence/node_palette.dart';
 import 'package:skotiq_core/src/providers/session_optimizer_provider.dart';
 import 'package:skotiq_core/src/services/session_optimizer_service.dart';

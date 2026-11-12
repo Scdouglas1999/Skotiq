@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 
 
 /// Sessions, captured-image rows and targets in a linked imaging host's

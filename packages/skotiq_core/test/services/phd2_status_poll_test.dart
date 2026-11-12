@@ -8,11 +8,27 @@ void main() {
   group('readPhd2StatusOrDisconnected', () {
     test('returns disconnected status when host throws', () async {
       final backend = _MockBackend();
-      when(() => backend.phd2GetStatus()).thenThrow(StateError('NotConnected'));
+      when(
+        () => backend.guiderGetStatus(),
+      ).thenThrow(StateError('NotConnected'));
 
       final status = await readPhd2StatusOrDisconnected(backend);
       expect(status.connected, isFalse);
       expect(status.state, 'Disconnected');
+    });
+
+    test('the built-in guider guiding is not PHD2', () async {
+      final backend = _MockBackend();
+      when(() => backend.guiderGetStatus()).thenAnswer(
+        (_) async => const Phd2Status(
+          deviceId: builtinGuiderDeviceId,
+          state: 'Guiding',
+          connected: true,
+        ),
+      );
+
+      final status = await readPhd2StatusOrDisconnected(backend);
+      expect(status.connected, isFalse);
     });
   });
 
@@ -30,7 +46,7 @@ void main() {
     test('throws when PHD2 never reports connected', () async {
       final backend = _MockBackend();
       when(
-        () => backend.phd2GetStatus(),
+        () => backend.guiderGetStatus(),
       ).thenAnswer((_) async => kPhd2DisconnectedStatus);
 
       await expectLater(
@@ -41,6 +57,44 @@ void main() {
         ),
         throwsA(isA<StateError>()),
       );
+    });
+
+    test('a connected built-in guider does not count as PHD2', () async {
+      final backend = _MockBackend();
+      when(() => backend.guiderGetStatus()).thenAnswer(
+        (_) async => const Phd2Status(
+          deviceId: builtinGuiderDeviceId,
+          state: 'Guiding',
+          connected: true,
+        ),
+      );
+
+      await expectLater(
+        pollPhd2Connected(
+          backend,
+          timeout: const Duration(milliseconds: 100),
+          interval: const Duration(milliseconds: 25),
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('returns once PHD2 answers connected', () async {
+      final backend = _MockBackend();
+      when(() => backend.guiderGetStatus()).thenAnswer(
+        (_) async => const Phd2Status(
+          deviceId: kPhd2CanonicalId,
+          state: 'Stopped',
+          connected: true,
+        ),
+      );
+
+      final status = await pollPhd2Connected(
+        backend,
+        timeout: const Duration(milliseconds: 100),
+        interval: const Duration(milliseconds: 25),
+      );
+      expect(status.connected, isTrue);
     });
   });
 }

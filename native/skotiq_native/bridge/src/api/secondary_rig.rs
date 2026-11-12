@@ -231,7 +231,9 @@ pub async fn api_secondary_rig_start(config: SecondaryRigConfigApi) -> Result<()
         site_longitude_deg: config.site_longitude_deg,
         site_elevation_m: config.site_elevation_m,
         save_base: Some(std::path::PathBuf::from(save_base_path)),
-        camera_file_saving: crate::api::sequencer::camera_file_saving().await,
+        camera_file_saving: skotiq_sequencer::executor_handle()
+            .run_config()
+            .camera_file_saving,
     };
 
     // Reuse the unified device-ops path: the secondary camera is driven through

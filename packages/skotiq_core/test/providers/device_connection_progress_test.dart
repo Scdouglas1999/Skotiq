@@ -2,6 +2,7 @@
 // built-in guider's guide camera is part of the guider.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/providers/device_connection_progress_provider.dart';
+import 'package:skotiq_core/src/models/backend/device_types.dart';
 import 'package:skotiq_core/src/services/device_exceptions.dart';
 
 DeviceConnectProgress _event(

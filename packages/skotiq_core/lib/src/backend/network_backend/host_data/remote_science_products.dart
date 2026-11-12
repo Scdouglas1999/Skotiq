@@ -11,6 +11,7 @@ import '../../../database/database.dart'
         ScienceFrameQualityMetricsRow,
         ScienceTileMetricRow,
         TransparencySampleRow;
+import '../../../models/science/frame_science_rows.dart';
 import '../../../models/science/science_models.dart' show ScienceSessionConfig;
 import '../../network_backend.dart';
 import '../../roles/host_data/science_products.dart';
@@ -111,9 +112,18 @@ final class RemoteScienceProducts implements ScienceProducts {
       _session(sessionId, (bundle) => bundle.frameQuality);
 
   @override
-  Stream<List<ScienceTileMetricRow>> watchTileMetricsForSession(
-    int sessionId,
-  ) => _session(sessionId, (bundle) => bundle.tileMetrics);
+  Stream<List<ScienceTileMetricRow>> watchFrameTileMetrics(
+    int sessionId, {
+    int? capturedImageId,
+  }) => _session(
+    sessionId,
+    (bundle) => selectFrameScienceRows(
+      bundle.tileMetrics,
+      capturedImageId: capturedImageId,
+      imageIdOf: (row) => row.capturedImageId,
+      timestampOf: (row) => row.timestamp,
+    ),
+  );
 
   @override
   Stream<List<AstrometryResidualVectorRow>> watchResidualsForSession(

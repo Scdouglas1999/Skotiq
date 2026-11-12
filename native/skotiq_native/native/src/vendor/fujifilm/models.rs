@@ -1,138 +1,4 @@
-//! Shutter-speed mapping, live-view quality and the camera model database.
-
-use super::*;
-
-/// Shutter speed code to seconds mapping
-pub(crate) struct ShutterSpeedEntry {
-    pub(crate) code: c_long,
-    pub(crate) seconds: f64,
-}
-
-/// Common shutter speeds from XAPI.h
-/// The SDK uses integer codes proportional to time
-pub(crate) static SHUTTER_SPEEDS: &[ShutterSpeedEntry] = &[
-    ShutterSpeedEntry {
-        code: 122,
-        seconds: 1.0 / 8000.0,
-    },
-    ShutterSpeedEntry {
-        code: 244,
-        seconds: 1.0 / 4000.0,
-    },
-    ShutterSpeedEntry {
-        code: 488,
-        seconds: 1.0 / 2000.0,
-    },
-    ShutterSpeedEntry {
-        code: 976,
-        seconds: 1.0 / 1000.0,
-    },
-    ShutterSpeedEntry {
-        code: 1953,
-        seconds: 1.0 / 500.0,
-    },
-    ShutterSpeedEntry {
-        code: 3906,
-        seconds: 1.0 / 250.0,
-    },
-    ShutterSpeedEntry {
-        code: 7812,
-        seconds: 1.0 / 125.0,
-    },
-    ShutterSpeedEntry {
-        code: 15625,
-        seconds: 1.0 / 60.0,
-    },
-    ShutterSpeedEntry {
-        code: 31250,
-        seconds: 1.0 / 30.0,
-    },
-    ShutterSpeedEntry {
-        code: 62500,
-        seconds: 1.0 / 15.0,
-    },
-    ShutterSpeedEntry {
-        code: 125000,
-        seconds: 1.0 / 8.0,
-    },
-    ShutterSpeedEntry {
-        code: 250000,
-        seconds: 1.0 / 4.0,
-    },
-    ShutterSpeedEntry {
-        code: 500000,
-        seconds: 1.0 / 2.0,
-    },
-    ShutterSpeedEntry {
-        code: 1000000,
-        seconds: 1.0,
-    },
-    ShutterSpeedEntry {
-        code: 2000000,
-        seconds: 2.0,
-    },
-    ShutterSpeedEntry {
-        code: 4000000,
-        seconds: 4.0,
-    },
-    ShutterSpeedEntry {
-        code: 8000000,
-        seconds: 8.0,
-    },
-    ShutterSpeedEntry {
-        code: 16000000,
-        seconds: 15.0,
-    },
-    ShutterSpeedEntry {
-        code: 32000000,
-        seconds: 30.0,
-    },
-    ShutterSpeedEntry {
-        code: 64000000,
-        seconds: 60.0,
-    },
-];
-
-/// Find the closest shutter speed code for a given duration
-pub(crate) fn find_shutter_code(seconds: f64) -> c_long {
-    if seconds > 60.0 {
-        return XSDK_SHUTTER_BULB;
-    }
-
-    let mut best_code = XSDK_SHUTTER_BULB;
-    let mut best_diff = f64::MAX;
-
-    for entry in SHUTTER_SPEEDS {
-        let diff = (entry.seconds - seconds).abs();
-        if diff < best_diff {
-            best_diff = diff;
-            best_code = entry.code;
-        }
-    }
-
-    best_code
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub enum LiveViewQuality {
-    /// Fine quality (highest, more bandwidth)
-    Fine,
-    /// Normal quality (balanced)
-    #[default]
-    Normal,
-    /// Basic quality (lowest, less bandwidth)
-    Basic,
-}
-
-impl LiveViewQuality {
-    pub(crate) fn to_sdk_code(self) -> c_long {
-        match self {
-            LiveViewQuality::Fine => SDK_LIVEVIEW_QUALITY_FINE,
-            LiveViewQuality::Normal => SDK_LIVEVIEW_QUALITY_NORMAL,
-            LiveViewQuality::Basic => SDK_LIVEVIEW_QUALITY_BASIC,
-        }
-    }
-}
+//! The camera model database.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FujifilmModel {
@@ -149,6 +15,7 @@ pub enum FujifilmModel {
     XH2S,
 
     // X-T Series (X-Trans)
+    XT2,
     XT3,
     XT4,
     XT5,
@@ -191,6 +58,11 @@ impl FujifilmModel {
             Self::XT4
         } else if name_upper.contains("X-T3") || name_upper.contains("XT3") {
             Self::XT3
+        } else if (name_upper.contains("X-T2") || name_upper.contains("XT2"))
+            && !name_upper.contains("X-T20")
+            && !name_upper.contains("XT20")
+        {
+            Self::XT2
         } else if name_upper.contains("X-M5") || name_upper.contains("XM5") {
             Self::XM5
         } else if name_upper.contains("X-S20") || name_upper.contains("XS20") {
@@ -219,6 +91,7 @@ impl FujifilmModel {
                 | Self::XT5
                 | Self::XT4
                 | Self::XT3
+                | Self::XT2
                 | Self::XM5
                 | Self::XS20
                 | Self::XS10
@@ -263,9 +136,9 @@ impl FujifilmModel {
         match self {
             Self::Gfx100 | Self::Gfx100II | Self::Gfx100SII => (11648, 8736, 3.76, 14),
             Self::Gfx50R | Self::Gfx50S | Self::Gfx50SII => (8256, 6192, 5.3, 14),
-            Self::XH2 | Self::XT5 => (9728, 7296, 3.0, 14), // 40MP X-Trans
-            Self::XH2S => (6240, 4160, 3.76, 14),           // 26MP X-Trans stacked
-            _ => (6240, 4160, 3.76, 14),                    // 26MP X-Trans default
+            Self::XH2 | Self::XT5 | Self::X100VI => (7728, 5152, 3.04, 14), // 40MP X-Trans
+            Self::XT2 => (6000, 4000, 3.93, 14),                            // 24MP X-Trans
+            _ => (6240, 4160, 3.76, 14),                                    // 26MP X-Trans
         }
     }
 }

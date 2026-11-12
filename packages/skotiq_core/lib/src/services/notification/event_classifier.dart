@@ -37,7 +37,7 @@ import '../../backend/bridge_events.dart' show SequencerErrorKind;
 import '../../models/backend/event_types.dart';
 import '../../errors/error_text.dart';
 import '../../models/notification/notification_categories.dart';
-import '../../providers/sequence/run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import '../../utils/device_id.dart';
 import 'notification_template.dart';
 

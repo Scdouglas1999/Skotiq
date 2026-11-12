@@ -96,3 +96,24 @@ async fn the_first_connected_device_of_a_kind_does_not_depend_on_the_hasher() {
         assert_eq!(listed, ["sim_camera_1", "sim_camera_2", "sim_camera_3"]);
     }
 }
+
+/// The unattended safety checks take the first connected monitor; one that is
+/// only registered (or was disconnected) must not answer for it.
+#[tokio::test]
+async fn the_first_connected_device_skips_registered_but_disconnected_ones() {
+    let manager = build_device_manager();
+    manager
+        .register_device(info("a-unsafe-old", DeviceType::SafetyMonitor), false)
+        .await;
+    manager
+        .register_connected_device(info("b-safe-live", DeviceType::SafetyMonitor))
+        .await;
+
+    assert_eq!(
+        manager
+            .first_connected_device_id(DeviceType::SafetyMonitor)
+            .await
+            .as_deref(),
+        Some("b-safe-live")
+    );
+}
