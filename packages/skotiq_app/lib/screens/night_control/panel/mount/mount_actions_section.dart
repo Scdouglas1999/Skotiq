@@ -43,7 +43,7 @@ class _NightMountActionsSectionState
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
     final caps = facts.capabilities;
     final busy = _busy != null ? l10n.text('nightScopeWhyCommandBusy') : null;
