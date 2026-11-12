@@ -157,6 +157,28 @@ class SchedulerScoreEntry {
           reason == other.reason;
 }
 
+/// What a [`SequencerEvent::Error`] means for the run it came from. The
+/// sequencer decides this where the problem happens, because only it knows
+/// whether the run goes on.
+enum SequencerErrorKind {
+  /// A note about a run that is going normally.
+  advisory,
+
+  /// One step had a problem and the run carried on.
+  stepProblem,
+
+  /// The run is paused for the operator, and this is why.
+  runHeld,
+
+  /// A step failed. The run ends with `Failed` unless recovery saves it,
+  /// and `Failed` is what says the run failed.
+  stepFailed,
+
+  /// An operation started by hand (an autofocus, a polar alignment)
+  /// reported it. No run is involved.
+  standalone,
+}
+
 @freezed
 sealed class SequencerEvent with _$SequencerEvent {
   const SequencerEvent._();
@@ -219,8 +241,14 @@ sealed class SequencerEvent with _$SequencerEvent {
     required int total,
     required double durationSecs,
   }) = SequencerEvent_ExposureCompleted;
-  const factory SequencerEvent.error({required String message}) =
-      SequencerEvent_Error;
+
+  /// Something went wrong, or is worth knowing, short of the run's end.
+  /// `kind` says what it means for the run; nothing downstream should work
+  /// that out from the severity or the text.
+  const factory SequencerEvent.error({
+    required String message,
+    required SequencerErrorKind kind,
+  }) = SequencerEvent_Error;
 
   /// A meridian flip finished. Mirrors
   /// `ExecutorEvent::MeridianFlipOutcome`.

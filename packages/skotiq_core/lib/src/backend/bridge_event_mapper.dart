@@ -2,6 +2,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../models/backend/event_types.dart' as core;
 import 'frame_capture_metadata.dart' show FrameCapture;
+import 'sequencer_error_kind.dart';
 
 /// Reconstructs a typed [bridge.SkotiqEvent] from the collapsed
 /// [core.SkotiqEvent] envelope that [FfiBackend] emits onto
@@ -224,7 +225,7 @@ bridge.EventPayload _payloadFromCoreEvent(core.SkotiqEvent event) {
   switch (event.category) {
     case core.EventCategory.sequencer:
       return bridge.EventPayload.sequencer(
-        _sequencerEventFromCore(event.eventType, event.data),
+        _sequencerEventFromCore(event.eventType, event.data, event.severity),
       );
     case core.EventCategory.guiding:
       return bridge.EventPayload.guiding(
@@ -281,6 +282,7 @@ bridge.EventPayload _payloadFromCoreEvent(core.SkotiqEvent event) {
 bridge.SequencerEvent _sequencerEventFromCore(
   String eventType,
   Map<String, dynamic> data,
+  core.EventSeverity severity,
 ) {
   switch (eventType) {
     case 'Started':
@@ -461,6 +463,10 @@ bridge.SequencerEvent _sequencerEventFromCore(
     case 'Error':
       return bridge.SequencerEvent.error(
         message: data['message'] as String? ?? 'Sequencer error',
+        kind: sequencerErrorKindFromWire(
+          data[kSequencerErrorKindKey],
+          severity: severity,
+        ),
       );
     case 'MeridianFlipOutcome':
       return bridge.SequencerEvent.meridianFlipOutcome(
@@ -594,6 +600,7 @@ bridge.SequencerEvent _sequencerEventFromCore(
     default:
       return bridge.SequencerEvent.error(
         message: data['message'] as String? ?? eventType,
+        kind: sequencerErrorKindFromWire(null, severity: severity),
       );
   }
 }

@@ -97,7 +97,7 @@ impl DevicePoller {
             &mut self.verdict_stale_warned,
         ) {
             tracing::warn!("{}", msg);
-            let _ = self.events.send(ExecutorEvent::Error { message: msg });
+            let _ = self.events.send(ExecutorEvent::RunHeld { message: msg });
         }
         if stale_verdict_dropped {
             let message =
@@ -186,12 +186,30 @@ impl DevicePoller {
                          weather_safe unchanged and emitting alert",
                         error
                     );
-                    let _ = self.events.send(ExecutorEvent::Error {
-                        message: format!(
-                            "Safety poll failed: {}. WarnOnly mode keeps the \
-                             previous safety state — operator attention required.",
-                            error
-                        ),
+                    // With the weather last known safe the run carries on,
+                    // which is news. With it last known unsafe the run is
+                    // already held for the weather, and stays held.
+                    let was_safe = {
+                        let manager = self.trigger_manager.read().await;
+                        let state = manager.state();
+                        let safe = state.read().await.telemetry.weather_safe;
+                        safe
+                    };
+                    let _ = self.events.send(if was_safe {
+                        ExecutorEvent::StepProblem {
+                            message: format!(
+                                "The safety monitor could not be read: {error}. The run goes \
+                                 on, taking the weather as safe as it last was; check the \
+                                 monitor."
+                            ),
+                        }
+                    } else {
+                        ExecutorEvent::Warning {
+                            message: format!(
+                                "The safety monitor could not be read: {error}. The weather \
+                                 is still taken as unsafe, as it last was; check the monitor."
+                            ),
+                        }
                     });
                 }
                 None

@@ -92,16 +92,15 @@ void main() {
       addTearDown(container.dispose);
       container.listen(lastEndedRunProvider, (_, __) {});
       final editor = container.read(currentSequenceProvider.notifier);
-      final execution =
-          container.read(sequenceExecutionStateProvider.notifier);
+      final execution = container.read(runRecordProvider.notifier);
 
       editor.takeOwnership(plan, ActivePlanOwner.smartNight);
-      execution.state = SequenceExecutionState.running;
+      execution.setLifecycle(SequenceExecutionState.running);
       expect(container.read(nightRunPhaseProvider), NightRunPhase.running);
 
       // The executor hands the editor back as the run ends.
       if (releaseFirst) editor.releaseOwnership();
-      execution.state = SequenceExecutionState.idle;
+      execution.setLifecycle(SequenceExecutionState.idle);
       if (!releaseFirst) editor.releaseOwnership();
 
       final header = container.read(nightHeaderProvider);

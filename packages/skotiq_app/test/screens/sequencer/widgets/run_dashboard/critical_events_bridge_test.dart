@@ -206,6 +206,81 @@ void main() {
       return received;
     }
 
+    // The host says what a sequencer error means for the run. A problem the
+    // run carried on through is the router's warning and never an alarm; a
+    // failed step is an alarm here and is paged by the router as the run's
+    // failure when the run ends; why a run is paused has no router notice
+    // that carries its text, so this bridge pages it.
+    test('sequencer errors alarm and page by what they mean for the run',
+        () async {
+      bridge_event.SkotiqEvent sequencerError(
+        int id,
+        bridge_event.SequencerErrorKind kind,
+        String message,
+      ) {
+        final continues = kind == bridge_event.SequencerErrorKind.stepProblem ||
+            kind == bridge_event.SequencerErrorKind.advisory;
+        return bridge_event.SkotiqEvent(
+          eventId: BigInt.from(id),
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: continues
+              ? bridge_event.EventSeverity.warning
+              : bridge_event.EventSeverity.error,
+          category: bridge_event.EventCategory.sequencer,
+          payload: bridge_event.EventPayload.sequencer(
+            bridge_event.SequencerEvent.error(message: message, kind: kind),
+          ),
+        );
+      }
+
+      final container = makeContainer(
+        audibleAlertsOnCritical: false,
+        pushCriticalAlerts: true,
+      );
+      await container.read(appSettingsProvider.future);
+      final pushService = container.read(pushNotificationServiceProvider);
+      await container.read(pushNotificationConfigProvider.future);
+      await Future<void>.delayed(Duration.zero);
+      final received = <PushNotification>[];
+      final pushSub = pushService.notifications.listen(received.add);
+      addTearDown(pushSub.cancel);
+      _startCriticalAlerts(container, AppRole.hostDaemon);
+
+      final history = container.read(eventHistoryProvider.notifier);
+      history.addEvent(
+        sequencerError(
+          31,
+          bridge_event.SequencerErrorKind.stepProblem,
+          'Dome shutter status unavailable; cannot confirm Open',
+        ),
+      );
+      history.addEvent(
+        sequencerError(
+          32,
+          bridge_event.SequencerErrorKind.stepFailed,
+          'Exposure: FITS save failed',
+        ),
+      );
+      history.addEvent(
+        sequencerError(
+          33,
+          bridge_event.SequencerErrorKind.runHeld,
+          'DriftLimit recenter failed: no stars',
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        container
+            .read(runDashboardCriticalEventsProvider)
+            .map((row) => row.message)
+            .toSet(),
+        {'Exposure: FITS save failed', 'DriftLimit recenter failed: no stars'},
+      );
+      expect(received, hasLength(1));
+      expect(received.single.body, contains('DriftLimit recenter failed'));
+    });
+
     test('with no screen open, a host pages the phone once and sounds once',
         () async {
       final container = makeContainer(

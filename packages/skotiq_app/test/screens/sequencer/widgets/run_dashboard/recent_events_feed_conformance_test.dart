@@ -21,7 +21,10 @@ be.SkotiqEvent _error(int id, String message, DateTime at) => be.SkotiqEvent(
       severity: be.EventSeverity.error,
       category: be.EventCategory.sequencer,
       payload: be.EventPayload.sequencer(
-        be.SequencerEvent.error(message: message),
+        be.SequencerEvent.error(
+          message: message,
+          kind: be.SequencerErrorKind.stepFailed,
+        ),
       ),
     );
 

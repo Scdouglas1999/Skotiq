@@ -856,6 +856,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SecondaryRigStatusApi dco_decode_secondary_rig_status_api(dynamic raw);
 
   @protected
+  SequencerErrorKind dco_decode_sequencer_error_kind(dynamic raw);
+
+  @protected
   SequencerEvent dco_decode_sequencer_event(dynamic raw);
 
   @protected
@@ -1945,6 +1948,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SecondaryRigStatusApi sse_decode_secondary_rig_status_api(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SequencerErrorKind sse_decode_sequencer_error_kind(
     SseDeserializer deserializer,
   );
 
@@ -6087,8 +6095,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     }
     if (apiObj is SequencerEvent_Error) {
       var pre_message = cst_encode_String(apiObj.message);
+      var pre_kind = cst_encode_sequencer_error_kind(apiObj.kind);
       wireObj.tag = 13;
       wireObj.kind.Error.message = pre_message;
+      wireObj.kind.Error.kind = pre_kind;
       return;
     }
     if (apiObj is SequencerEvent_MeridianFlipOutcome) {
@@ -7182,6 +7192,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int cst_encode_pier_side(PierSide raw);
+
+  @protected
+  int cst_encode_sequencer_error_kind(SequencerErrorKind raw);
 
   @protected
   int cst_encode_shutter_state(ShutterState raw);
@@ -8479,6 +8492,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_secondary_rig_status_api(
     SecondaryRigStatusApi self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sequencer_error_kind(
+    SequencerErrorKind self,
     SseSerializer serializer,
   );
 
@@ -21009,6 +21028,9 @@ final class wire_cst_SequencerEvent_ExposureCompleted extends ffi.Struct {
 
 final class wire_cst_SequencerEvent_Error extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+
+  @ffi.Int32()
+  external int kind;
 }
 
 final class wire_cst_SequencerEvent_MeridianFlipOutcome extends ffi.Struct {

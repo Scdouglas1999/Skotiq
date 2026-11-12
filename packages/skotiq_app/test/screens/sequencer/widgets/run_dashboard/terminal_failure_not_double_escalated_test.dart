@@ -40,7 +40,11 @@ bridge_event.SkotiqEvent _sequencerEvent(
 }
 
 bridge_event.SkotiqEvent _midRunError(int id, {String message = _reason}) =>
-    _sequencerEvent(id, bridge_event.SequencerEvent.error(message: message));
+    _sequencerEvent(id, bridge_event.SequencerEvent.error(
+        message: message,
+        kind: bridge_event.SequencerErrorKind.stepFailed,
+      ),
+    );
 
 bridge_event.SkotiqEvent _terminalFailure(int id, {String error = _reason}) =>
     _sequencerEvent(id, bridge_event.SequencerEvent.failed(error: error));

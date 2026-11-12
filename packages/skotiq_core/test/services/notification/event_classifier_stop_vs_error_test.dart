@@ -32,12 +32,26 @@ void main() {
     );
   });
 
-  test('a real Error still classifies as failed and critical', () {
+  test('a failed run classifies as failed and critical, by its end', () {
     final classified = NotificationEventClassifier.classify(
-      _sequencer('Error'),
+      _sequencerWithData('SequenceFailed', const {'error': 'Slew refused'}),
     );
     expect(classified?.category, NotificationCategory.sequenceFailed);
     expect(NotificationCategory.sequenceFailed.isCritical, isTrue);
+  });
+
+  // A failing step's Error is not the run's failure: the run may be saved by
+  // recovery, and when it is not, `SequenceFailed` says so with this reason.
+  test('a failing step raises no failure notice of its own', () {
+    expect(
+      NotificationEventClassifier.classify(
+        _sequencerWithData('Error', const {
+          'message': 'Exposure: FITS save failed',
+          'kind': 'step_failed',
+        }),
+      ),
+      isNull,
+    );
   });
 
   // The Stop the operator presses does NOT reach this classifier as `Stopped`.
@@ -54,13 +68,21 @@ void main() {
     },
   );
 
-  test('a fault whose text contains "cancelled" is still a failure', () {
-    final classified = NotificationEventClassifier.classify(
-      _sequencerWithData('Error', const {
-        'message': 'Temperature compensation cancelled',
+  test('a fault whose text contains "cancelled" is not read as a stop', () {
+    expect(
+      NotificationEventClassifier.classify(
+        _sequencerWithData('Error', const {
+          'message': 'Temperature compensation cancelled',
+        }),
+      ),
+      isNull,
+    );
+    final ended = NotificationEventClassifier.classify(
+      _sequencerWithData('SequenceFailed', const {
+        'error': 'Temperature compensation cancelled',
       }),
     );
-    expect(classified?.category, NotificationCategory.sequenceFailed);
+    expect(ended?.category, NotificationCategory.sequenceFailed);
   });
 }
 

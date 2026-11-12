@@ -152,12 +152,15 @@ void applySequencerEventToSequenceProviders(
   if (!mirrored && !run.eventFoldClaimed) foldRunEvent(run, event);
 
   // A sequence exposes in Rust and surfaces only through events. Leaving the
-  // exposing path by any terminal or error must clear the flag: an aborted
-  // exposure never sends ExposureCompleted.
+  // exposing path by any terminal or run-ending error must clear the flag: an
+  // aborted exposure never sends ExposureCompleted. A problem the run carries
+  // on through leaves the exposure running.
   switch (event) {
     case ExposureStarted():
       read(cameraStateProvider.notifier).setExposing(true);
-    case ExposureCompleted() || RunTerminalEvent() || SequencerError():
+    case ExposureCompleted() || RunTerminalEvent():
+      read(cameraStateProvider.notifier).setExposing(false);
+    case SequencerError(isAdvisory: false):
       read(cameraStateProvider.notifier).setExposing(false);
     default:
       break;
@@ -281,7 +284,9 @@ void foldRunEvent(
         run.updateProgress(message: stopped);
         break;
       }
-      run.updateProgress(message: 'Error: $message');
+      run.updateProgress(
+        message: event.isAdvisory ? message : 'Error: $message',
+      );
 
     default:
       break;

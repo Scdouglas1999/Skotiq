@@ -72,9 +72,12 @@ SkotiqEvent _evt(
 final _criticalCases =
     <String, ({SkotiqEvent event, NotificationCategory category})>{
       'sequenceFailed': (
-        event: _evt(EventCategory.sequencer, 'Error', EventSeverity.error, {
-          'message': 'boom',
-        }),
+        event: _evt(
+          EventCategory.sequencer,
+          'SequenceFailed',
+          EventSeverity.error,
+          {'error': 'boom'},
+        ),
         category: NotificationCategory.sequenceFailed,
       ),
       'weatherUnsafe': (

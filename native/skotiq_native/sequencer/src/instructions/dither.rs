@@ -301,7 +301,7 @@ where
             barrier.forced_proceed_count(),
         );
         if let Some(event_tx) = &ctx.run.event_tx {
-            let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
+            let _ = event_tx.send(crate::executor::ExecutorEvent::StepProblem {
                 message: format!(
                     "Dual-rig: secondary camera did not clear within {:.0}s; \
                      dithered anyway",

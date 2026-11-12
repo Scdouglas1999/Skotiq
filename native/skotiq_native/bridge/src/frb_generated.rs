@@ -8579,6 +8579,19 @@ impl CstDecode<crate::device::PierSide> for i32 {
         }
     }
 }
+impl CstDecode<crate::event::sequencer::SequencerErrorKind> for i32 {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> crate::event::sequencer::SequencerErrorKind {
+        match self {
+            0 => crate::event::sequencer::SequencerErrorKind::Advisory,
+            1 => crate::event::sequencer::SequencerErrorKind::StepProblem,
+            2 => crate::event::sequencer::SequencerErrorKind::RunHeld,
+            3 => crate::event::sequencer::SequencerErrorKind::StepFailed,
+            4 => crate::event::sequencer::SequencerErrorKind::Standalone,
+            _ => unreachable!("Invalid variant for SequencerErrorKind: {}", self),
+        }
+    }
+}
 impl CstDecode<crate::device::ShutterState> for i32 {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> crate::device::ShutterState {
@@ -12562,6 +12575,21 @@ impl SseDecode for crate::api::secondary_rig::SecondaryRigStatusApi {
     }
 }
 
+impl SseDecode for crate::event::sequencer::SequencerErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::event::sequencer::SequencerErrorKind::Advisory,
+            1 => crate::event::sequencer::SequencerErrorKind::StepProblem,
+            2 => crate::event::sequencer::SequencerErrorKind::RunHeld,
+            3 => crate::event::sequencer::SequencerErrorKind::StepFailed,
+            4 => crate::event::sequencer::SequencerErrorKind::Standalone,
+            _ => unreachable!("Invalid variant for SequencerErrorKind: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::event::sequencer::SequencerEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12656,8 +12684,11 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
             }
             13 => {
                 let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_kind =
+                    <crate::event::sequencer::SequencerErrorKind>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerEvent::Error {
                     message: var_message,
+                    kind: var_kind,
                 };
             }
             14 => {
@@ -17019,6 +17050,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::secondary_rig::SecondaryRigSt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerErrorKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Advisory => 0.into_dart(),
+            Self::StepProblem => 1.into_dart(),
+            Self::RunHeld => 2.into_dart(),
+            Self::StepFailed => 3.into_dart(),
+            Self::Standalone => 4.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::event::sequencer::SequencerErrorKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerErrorKind>
+    for crate::event::sequencer::SequencerErrorKind
+{
+    fn into_into_dart(self) -> crate::event::sequencer::SequencerErrorKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -17090,9 +17145,12 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
                 duration_secs.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::sequencer::SequencerEvent::Error { message } => {
-                [13.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
+            crate::event::sequencer::SequencerEvent::Error { message, kind } => [
+                13.into_dart(),
+                message.into_into_dart().into_dart(),
+                kind.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::event::sequencer::SequencerEvent::MeridianFlipOutcome {
                 outcome,
                 target_name,
@@ -21237,6 +21295,25 @@ impl SseEncode for crate::api::secondary_rig::SecondaryRigStatusApi {
     }
 }
 
+impl SseEncode for crate::event::sequencer::SequencerErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::event::sequencer::SequencerErrorKind::Advisory => 0,
+                crate::event::sequencer::SequencerErrorKind::StepProblem => 1,
+                crate::event::sequencer::SequencerErrorKind::RunHeld => 2,
+                crate::event::sequencer::SequencerErrorKind::StepFailed => 3,
+                crate::event::sequencer::SequencerErrorKind::Standalone => 4,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::event::sequencer::SequencerEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -21313,9 +21390,10 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
                 <u32>::sse_encode(total, serializer);
                 <f64>::sse_encode(duration_secs, serializer);
             }
-            crate::event::sequencer::SequencerEvent::Error { message } => {
+            crate::event::sequencer::SequencerEvent::Error { message, kind } => {
                 <i32>::sse_encode(13, serializer);
                 <String>::sse_encode(message, serializer);
+                <crate::event::sequencer::SequencerErrorKind>::sse_encode(kind, serializer);
             }
             crate::event::sequencer::SequencerEvent::MeridianFlipOutcome {
                 outcome,
@@ -25246,6 +25324,7 @@ mod io {
                     let ans = unsafe { self.kind.Error };
                     crate::event::sequencer::SequencerEvent::Error {
                         message: ans.message.cst_decode(),
+                        kind: ans.kind.cst_decode(),
                     }
                 }
                 14 => {
@@ -34375,6 +34454,7 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_SequencerEvent_Error {
         message: *mut wire_cst_list_prim_u_8_strict,
+        kind: i32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
