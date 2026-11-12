@@ -237,8 +237,14 @@ async fn a_camera_unplugged_while_connected_reads_as_disconnected() {
     let mut absent = ZwoCamera::new(COOLED_MONO);
     let reconnect = absent.connect().await;
     std::env::remove_var("FAKE_ASI_GONE");
-    assert!(matches!(status, Err(DriverError::Disconnected)), "{status:?}");
-    assert!(matches!(started, Err(DriverError::Disconnected)), "{started:?}");
+    assert!(
+        matches!(status, Err(DriverError::Disconnected)),
+        "{status:?}"
+    );
+    assert!(
+        matches!(started, Err(DriverError::Disconnected)),
+        "{started:?}"
+    );
     // Not there when a connect looks for it: a wrong id, not a lost camera.
     assert!(
         matches!(reconnect, Err(DriverError::InvalidDevice(_))),
@@ -256,7 +262,10 @@ async fn a_focuser_unplugged_while_connected_reads_as_disconnected() {
     let position = focuser.get_position().await;
     let moved = focuser.move_to(2_000).await;
     std::env::remove_var("FAKE_EAF_GONE");
-    assert!(matches!(position, Err(DriverError::Disconnected)), "{position:?}");
+    assert!(
+        matches!(position, Err(DriverError::Disconnected)),
+        "{position:?}"
+    );
     assert!(matches!(moved, Err(DriverError::Disconnected)), "{moved:?}");
     focuser.disconnect().await.unwrap();
 }
@@ -270,7 +279,10 @@ async fn a_wheel_unplugged_while_connected_reads_as_disconnected() {
     let position = wheel.get_position().await;
     let moved = wheel.move_to_position(2).await;
     std::env::remove_var("FAKE_EFW_GONE");
-    assert!(matches!(position, Err(DriverError::Disconnected)), "{position:?}");
+    assert!(
+        matches!(position, Err(DriverError::Disconnected)),
+        "{position:?}"
+    );
     assert!(matches!(moved, Err(DriverError::Disconnected)), "{moved:?}");
     wheel.disconnect().await.unwrap();
 }

@@ -429,10 +429,16 @@ fn an_unknown_id_on_an_open_device_reads_as_disconnected() {
         [check_asi_error, check_eaf_error, check_efw_error];
     for code in [1, 2] {
         for check in open_checks {
-            assert!(matches!(check(code), Err(DriverError::Disconnected)), "code {code}");
+            assert!(
+                matches!(check(code), Err(DriverError::Disconnected)),
+                "code {code}"
+            );
         }
         for check in opening_checks {
-            assert!(matches!(check(code), Err(DriverError::InvalidDevice(_))), "code {code}");
+            assert!(
+                matches!(check(code), Err(DriverError::InvalidDevice(_))),
+                "code {code}"
+            );
         }
     }
     for (open, opening) in open_checks.into_iter().zip(opening_checks) {
