@@ -577,7 +577,7 @@ class SequenceExecutor {
           .read(sequenceRepositoryProvider)
           .saveSequence(sequence);
       notifier.applyPersistedSave(
-        expectedSequenceId: sequence.id,
+        savedFrom: sequence,
         databaseId: databaseId,
         name: sequence.name,
         description: sequence.description,

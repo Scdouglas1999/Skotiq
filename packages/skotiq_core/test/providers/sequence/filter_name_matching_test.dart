@@ -37,6 +37,31 @@ void main() {
     expect(matchingFilterName('UV', wheel), isNull);
   });
 
+  test('a renamed filter drops the wheel slot of its old name', () {
+    // Built on a wheel with Lum in slot 0; this wheel has L in slot 3.
+    final change = FilterChangeNode(filterName: 'Lum', filterPosition: 0);
+    final lights = ExposureNode(filter: 'Lum', filterIndex: 0);
+    final red = ExposureNode(filter: 'R', filterIndex: 0);
+    final smart = SmartExposureNode(
+      plans: const [
+        FilterPlan(filterName: 'Lum', filterIndex: 0, count: 1, durationSecs: 1),
+        FilterPlan(filterName: 'R', filterIndex: 0, count: 1, durationSecs: 1),
+      ],
+    );
+    final plan = _plan([change, lights, red, smart]);
+
+    final matched = renameFilters(plan, const {'Lum': 'L'});
+
+    final changed = matched.nodes[change.id]! as FilterChangeNode;
+    expect((changed.filterName, changed.filterPosition), ('L', null));
+    final renamedLights = matched.nodes[lights.id]! as ExposureNode;
+    expect((renamedLights.filter, renamedLights.filterIndex), ('L', null));
+    expect((matched.nodes[red.id]! as ExposureNode).filterIndex, 0);
+    final plans = (matched.nodes[smart.id]! as SmartExposureNode).plans;
+    expect((plans[0].filterName, plans[0].filterIndex), ('L', null));
+    expect((plans[1].filterName, plans[1].filterIndex), ('R', 0));
+  });
+
   test('every step that names a filter is renamed to the wheel name', () {
     final change = FilterChangeNode(name: 'Lum first', filterName: 'Lum');
     final center = CenterNode(filter: 'Lum');

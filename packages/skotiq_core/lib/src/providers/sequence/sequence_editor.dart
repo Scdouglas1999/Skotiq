@@ -214,17 +214,24 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
   /// description, and whether the row is a template. Leaving the editor on
   /// its pre-save identity makes the next save overwrite the wrong row and
   /// leaves the unsaved-change guard armed even though persistence succeeded.
-  /// [expectedSequenceId] prevents a delayed save from rewriting a different
-  /// document that was opened while the request was in flight.
+  ///
+  /// [savedFrom] is the open document as it was when the save began. A
+  /// different document opened meanwhile is left alone. The same document
+  /// edited meanwhile adopts the row but stays unsaved and keeps its newer
+  /// name and description: those edits are not in the row.
   void applyPersistedSave({
-    required String expectedSequenceId,
+    required Sequence savedFrom,
     required int databaseId,
     required String name,
     required String description,
     required bool isTemplate,
   }) {
     final current = state;
-    if (current == null || current.id != expectedSequenceId) return;
+    if (current == null || current.id != savedFrom.id) return;
+    if (!identical(current, savedFrom)) {
+      state = current.copyWith(databaseId: databaseId, isTemplate: isTemplate);
+      return;
+    }
     state = current.copyWith(
       databaseId: databaseId,
       name: name,

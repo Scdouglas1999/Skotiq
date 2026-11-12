@@ -1378,9 +1378,11 @@ abstract final class NodeKinds {
     icon: 'camera',
     category: NodeCategory.instruction,
     filters: (node) => [node.filter],
-    renameFilter: (node, rename) => node.filter == null
-        ? node
-        : node.copyWith(filter: rename(node.filter!)),
+    renameFilter: (node, rename) {
+      final filter = node.filter;
+      if (filter == null || rename(filter) == filter) return node;
+      return node.copyWith(clearFilter: true).copyWith(filter: rename(filter));
+    },
     requiredDevices: const {DeviceType.camera},
     stage: NodeStage.capture,
     create: ExposureNode.new,
@@ -1451,7 +1453,12 @@ abstract final class NodeKinds {
     renameFilter: (node, rename) => node.copyWith(
       plans: [
         for (final plan in node.plans)
-          plan.copyWith(filterName: rename(plan.filterName)),
+          rename(plan.filterName) == plan.filterName
+              ? plan
+              : plan.copyWith(
+                  filterName: rename(plan.filterName),
+                  filterIndex: null,
+                ),
       ],
     ),
     requiredDevices: const {DeviceType.camera, DeviceType.filterWheel},
@@ -1608,9 +1615,20 @@ abstract final class NodeKinds {
     icon: 'circle',
     category: NodeCategory.instruction,
     filters: (node) => [node.filterName],
-    renameFilter: (node, rename) =>
-        node.copyWith(filterName: rename(node.filterName)),
-    autoName: (node) => 'Filter: ${node.filterName}',
+    renameFilter: (node, rename) => rename(node.filterName) == node.filterName
+        ? node
+        : FilterChangeNode(
+            id: node.id,
+            name: node.name,
+            isEnabled: node.isEnabled,
+            childIds: node.childIds,
+            parentId: node.parentId,
+            orderIndex: node.orderIndex,
+            comment: node.comment,
+            filterName: rename(node.filterName),
+          ),
+    autoName: (node) =>
+        node.filterName.trim().isEmpty ? '' : 'Filter: ${node.filterName}',
     requiredDevices: const {DeviceType.filterWheel},
     create: () => FilterChangeNode(filterName: ''),
     fields: [_filterName, _filterPosition],
