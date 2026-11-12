@@ -9,7 +9,6 @@ import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../providers/sequence_provider.dart';
 import '../providers/ui_notification_provider.dart';
-import 'device_service.dart';
 import 'logging_service.dart';
 import 'notification_service.dart';
 import '../backend/remote_host.dart';
@@ -36,6 +35,7 @@ class DeviceReconnectCoordinator {
     required Future<void> Function() pauseSequence,
     required void Function(String deviceId, {int attempt, int maxAttempts})
     surfaceReconnecting,
+    required Future<void> Function(DeviceType type, String deviceId) connect,
     List<Duration>? retryDelays,
     Future<void> Function(DeviceType type, String deviceId)? reconnectAttempt,
     Future<String> Function(DeviceType type, String deviceId)? reconnectTarget,
@@ -45,6 +45,7 @@ class DeviceReconnectCoordinator {
        _resumeSequence = resumeSequence,
        _pauseSequence = pauseSequence,
        _surfaceReconnecting = surfaceReconnecting,
+       _connect = connect,
        _retryDelays = retryDelays ?? reconnectDelays,
        _reconnectAttemptOverride = reconnectAttempt,
        _reconnectTarget = reconnectTarget;
@@ -58,6 +59,10 @@ class DeviceReconnectCoordinator {
   bool get _hostOwnsRecovery => _backend.remoteHost != null;
   final Future<void> Function() _resumeSequence;
   final Future<void> Function() _pauseSequence;
+
+  /// The device service's connect: the one writer of a slot during a
+  /// connect. It throws when the connect fails.
+  final Future<void> Function(DeviceType type, String deviceId) _connect;
   final List<Duration> _retryDelays;
   final Future<void> Function(DeviceType type, String deviceId)?
   _reconnectAttemptOverride;
@@ -484,7 +489,7 @@ class DeviceReconnectCoordinator {
       readDeviceSlot(_ref, type).autoReconnectEnabled;
 
   Future<void> _performReconnection(DeviceType type, String deviceId) async {
-    await _ref.read(deviceServiceProvider).connect(type, deviceId);
+    await _connect(type, deviceId);
     final slot = readDeviceSlot(_ref, type);
     validateReconnectOutcome(
       type: type,

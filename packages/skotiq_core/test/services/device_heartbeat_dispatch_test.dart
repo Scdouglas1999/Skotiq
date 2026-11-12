@@ -364,6 +364,7 @@ void main() {
           resumeSequence: () async {},
           pauseSequence: () async {},
           surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+          connect: (type, deviceId) async {},
         ),
       ),
     );
@@ -418,6 +419,7 @@ void main() {
         resumeSequence: () async {},
         pauseSequence: () async {},
         surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+        connect: (type, deviceId) async {},
         retryDelays: const [
           Duration(milliseconds: 2),
           Duration(milliseconds: 2),
@@ -480,6 +482,7 @@ void main() {
         resumeSequence: () async {},
         pauseSequence: () async {},
         surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+        connect: (type, deviceId) async {},
         retryDelays: const [Duration(milliseconds: 2)],
         reconnectTarget: (type, deviceId) async {
           if (!arrived) {

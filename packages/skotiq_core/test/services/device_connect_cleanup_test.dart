@@ -76,7 +76,8 @@ void main() {
     },
   );
 
-  Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 50));
+  Future<void> settle() =>
+      Future<void>.delayed(const Duration(milliseconds: 50));
 
   List<UiNotification> notices() => container.read(uiNotificationProvider);
 
@@ -100,7 +101,9 @@ void main() {
     });
 
     await expectLater(
-      container.read(deviceServiceProvider).connect(DeviceType.focuser, deviceId),
+      container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.focuser, deviceId),
       throwsA(isA<StateError>()),
     );
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -129,6 +132,7 @@ void main() {
       resumeSequence: () async {},
       pauseSequence: () async {},
       surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
+      connect: (type, deviceId) async {},
       retryDelays: const [Duration(milliseconds: 1)],
       reconnectAttempt: (type, id) async {
         attempts++;
@@ -159,7 +163,9 @@ void main() {
     ).thenAnswer((_) async {});
 
     await expectLater(
-      container.read(deviceServiceProvider).connect(DeviceType.focuser, deviceId),
+      container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.focuser, deviceId),
       throwsA(isA<StateError>()),
     );
     // The driver's opening event and the release's are delivered only now,
@@ -226,7 +232,9 @@ void main() {
     });
 
     await expectLater(
-      container.read(deviceServiceProvider).connect(DeviceType.focuser, deviceId),
+      container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.focuser, deviceId),
       throwsA(isA<StateError>()),
     );
     // And again behind it, as the stream is free to do.
@@ -262,7 +270,9 @@ void main() {
       () => backend.connectDevice(DeviceType.focuser, deviceId),
     ).thenThrow(StateError('no power'));
     await expectLater(
-      container.read(deviceServiceProvider).connect(DeviceType.focuser, deviceId),
+      container
+          .read(deviceServiceProvider)
+          .connect(DeviceType.focuser, deviceId),
       throwsA(isA<StateError>()),
     );
 
