@@ -13,9 +13,9 @@
 
 #![cfg(unix)]
 
+use skotiq_device::SubFrame;
 use skotiq_device::{BayerPattern, CameraDriver, DeviceDriver, DriverError};
 use skotiq_device::{ExposureParams, FilterWheelDriver, FocuserDriver, FrameType, ImageData};
-use skotiq_device::SubFrame;
 use skotiq_native::vendor::zwo::{self, ZwoCamera, ZwoFilterWheel, ZwoFocuser};
 
 const COOLED_MONO: i32 = 0;
@@ -88,7 +88,9 @@ async fn binning_is_limited_to_the_bins_the_camera_lists() {
     assert_eq!(color.capabilities().max_bin_x, 2);
     let refused = color.start_exposure(exposure(1.0, 4, None)).await;
     match refused {
-        Err(DriverError::InvalidParameter(message)) => assert!(message.contains("1, 2"), "{message}"),
+        Err(DriverError::InvalidParameter(message)) => {
+            assert!(message.contains("1, 2"), "{message}")
+        }
         other => panic!("bin 4 on a camera that bins 1 and 2: {other:?}"),
     }
     color.disconnect().await.unwrap();
@@ -135,13 +137,19 @@ async fn a_subframe_is_read_where_the_frame_says_it_was() {
     assert_eq!(sensor_origin(&frame), (3, 5));
     let applied = frame.metadata.subframe.clone().expect("subframe recorded");
     assert_eq!(
-        (applied.start_x, applied.start_y, applied.width, applied.height),
+        (
+            applied.start_x,
+            applied.start_y,
+            applied.width,
+            applied.height
+        ),
         (3, 5, 16, 8)
     );
 
     // Past the right edge of the 64-pixel sensor.
     assert!(matches!(
-        mono.start_exposure(exposure(1.0, 1, Some(roi(56, 0, 16, 8)))).await,
+        mono.start_exposure(exposure(1.0, 1, Some(roi(56, 0, 16, 8))))
+            .await,
         Err(DriverError::InvalidParameter(_))
     ));
 
