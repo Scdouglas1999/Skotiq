@@ -10,8 +10,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/screens/analytics/analytics_route.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -173,6 +176,58 @@ void main() {
       AnalyticsTab.diagnostics.index,
       reason: '?tab=diagnostics must select the right-most Diagnostics tab.',
     );
+  });
+
+  // "View all alerts" did nothing the second time: the operator had moved to
+  // another tab by hand, the location still named the link's tab, and going
+  // to the location the router is already at changes nothing.
+  testWidgets('a link to a tab works again after the tab was changed by hand',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1400, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final router = GoRouter(
+      initialLocation: AppRoutes.analytics(tab: AnalyticsTab.diagnostics),
+      routes: [
+        GoRoute(
+          path: AppRoute.analytics.path,
+          builder: (context, state) => Scaffold(
+            body: AnalyticsScreen(
+              initialTab:
+                  AnalyticsTab.fromQuery(state.uri.queryParameters['tab']),
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: _commonOverrides(),
+        child: MaterialApp.router(
+          theme: SkotiqTheme.dark,
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.diagnostics.index);
+
+    await tester.tap(find.text('History').first);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.history.index);
+    expect(
+      router.routerDelegate.currentConfiguration.uri.toString(),
+      AppRoutes.analytics(tab: AnalyticsTab.history),
+    );
+
+    router.go(AppRoutes.analytics(tab: AnalyticsTab.diagnostics));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_selectedAdaptiveTabIndex(tester), AnalyticsTab.diagnostics.index);
   });
 
   testWidgets('defaults to Session when no query param is supplied',

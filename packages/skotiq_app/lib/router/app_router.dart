@@ -33,6 +33,7 @@ import '../screens/onboarding/onboarding_screen.dart';
 import '../widgets/first_light/first_light_launcher.dart';
 import 'app_routes.dart';
 import 'page_transitions.dart';
+import 'route_not_found_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -46,6 +47,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
+    // Inside the shell, so the rail and the window controls stay.
+    errorBuilder: (context, state) => AppShell(
+      child: RouteNotFoundScreen(location: state.uri.toString()),
+    ),
   );
 });
 

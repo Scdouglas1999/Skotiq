@@ -311,6 +311,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessServerStatus': 'Server status',
     'remoteAccessRunning': 'Running',
     'remoteAccessStopped': 'Stopped',
+    'routeNotFoundBack': 'Go to Tonight',
+    'routeNotFoundBody':
+        'Skotiq has no page at {location}. The link may be from another version.',
+    'routeNotFoundTitle': 'Page not found',
     'remoteAccessAuth': 'Authentication',
     'remoteAccessAuthRequired': 'Paired devices required remotely',
     'remoteAccessAuthNotRequired': 'Not required',
@@ -731,13 +735,13 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckMount': 'Mount',
     'nightSessionCheckMountIdle': 'unparked · not tracking',
     'nightSessionCheckMountParked': 'parked',
+    'nightSessionCheckMountParkedStays': 'parked · this plan does not unpark it',
     'nightSessionCheckMountParkedTracking': 'parked · tracking',
+    'nightSessionCheckMountParkedUnparks': 'parked · the run unparks it',
     'nightSessionCheckMountTracking': 'unparked · tracking',
     'nightSessionCheckSite': 'Site',
     'nightSessionCheckSiteMissing': 'no observing site set',
-    'nightSessionCheckMountParkedStays': 'parked · this plan does not unpark it',
     'nightSessionCheckSolver': 'Solver',
-    'nightSessionCheckMountParkedUnparks': 'parked · the run unparks it',
     'nightSessionCheckSolverMissing':
         'not set up · solving and centering will fail',
     'nightSessionCheckSolverReady': 'ready',
@@ -887,10 +891,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelErrFilter': 'Filter change failed: {detail}',
     'nightPanelErrFocuser': 'Focuser move failed: {detail}',
     'nightPanelErrGuiderLoop': 'PHD2 did not start looping: {detail}',
-    'nightPanelErrNextStepDismiss': 'The step could not be put aside: {detail}',
-    'nightPanelExposureField': 'Exposure s',
-    'nightPanelFilter': 'Filter',
-    'nightPanelFilterSlot': '{name} · slot {slot} of {count}',
     'nightAfterRunNoSession': 'The run recorded no session',
     'nightAfterRunPark': 'Park mount…',
     'nightAfterRunParkHint':
@@ -900,6 +900,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightAfterRunWarm': 'Warm camera…',
     'nightAfterRunWarmHint':
         'The cooler is on. Opens the Camera tab, where Warm up is.',
+    'nightPanelErrNextStepDismiss': 'The step could not be put aside: {detail}',
+    'nightPanelExposureField': 'Exposure s',
+    'nightPanelFilter': 'Filter',
+    'nightPanelFilterSlot': '{name} · slot {slot} of {count}',
     'nightPanelFilterSlotOnly': 'slot {slot} of {count}',
     'nightPanelFilterSlotSemantics': 'Filter {name}, slot {slot}',
     'nightPanelFocusOffset': 'Focus offset {offset} from {filter}',
@@ -1937,6 +1941,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'remoteAccessServerStatus': 'Estado del servidor',
     'remoteAccessRunning': 'En ejecucion',
     'remoteAccessStopped': 'Detenido',
+    'routeNotFoundBack': 'Ir a Esta noche',
+    'routeNotFoundBody':
+        'Skotiq no tiene ninguna página en {location}. Puede que el enlace sea de otra versión.',
+    'routeNotFoundTitle': 'Página no encontrada',
     'remoteAccessAuth': 'Autenticacion',
     'remoteAccessAuthRequired':
         'Se requieren dispositivos emparejados remotamente',
@@ -2354,7 +2362,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckMount': 'Montura',
     'nightSessionCheckMountIdle': 'desaparcada · sin seguimiento',
     'nightSessionCheckMountParked': 'aparcada',
+    'nightSessionCheckMountParkedStays':
+        'aparcada · este plan no la desaparca',
     'nightSessionCheckMountParkedTracking': 'aparcada · siguiendo',
+    'nightSessionCheckMountParkedUnparks': 'aparcada · la sesión la desaparca',
     'nightSessionCheckMountTracking': 'desaparcada · siguiendo',
     'nightSessionCheckSite': 'Lugar',
     'nightSessionCheckSiteMissing': 'no hay lugar de observación fijado',
@@ -2371,10 +2382,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckWeatherOff':
         'la seguridad meteorológica está desactivada',
     'nightSessionCheckWeatherSafe': 'dispositivo activo · seguro',
-    'nightSessionCheckMountParkedStays':
-        'aparcada · este plan no la desaparca',
     'nightSessionCheckWeatherUnsafe': 'dispositivo activo · inseguro',
-    'nightSessionCheckMountParkedUnparks': 'aparcada · la sesión la desaparca',
     'nightSessionClouds': 'Nubes',
     'nightSessionCloudsForecast': 'Nubes (previsión)',
     'nightSessionCoolerPower': 'potencia',
@@ -2514,14 +2522,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelErrFilter': 'Falló el cambio de filtro: {detail}',
     'nightPanelErrFocuser': 'Falló el movimiento del enfocador: {detail}',
     'nightPanelErrGuiderLoop': 'PHD2 no empezó el bucle: {detail}',
-    'nightPanelErrNextStepDismiss': 'No se pudo apartar el paso: {detail}',
-    'nightPanelExposureField': 'Exposición s',
-    'nightPanelFilter': 'Filtro',
-    'nightPanelFilterSlot': '{name} · posición {slot} de {count}',
-    'nightPanelFilterSlotOnly': 'posición {slot} de {count}',
-    'nightPanelFilterSlotSemantics': 'Filtro {name}, posición {slot}',
-    'nightPanelFocusOffset': 'Desfase de enfoque {offset} respecto a {filter}',
-    'nightPanelFocusReference':
     'nightAfterRunNoSession': 'La sesión no quedó registrada',
     'nightAfterRunPark': 'Aparcar montura…',
     'nightAfterRunParkHint':
@@ -2531,6 +2531,14 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightAfterRunWarm': 'Calentar cámara…',
     'nightAfterRunWarmHint':
         'El enfriador está encendido. Abre la pestaña Cámara, donde está Calentar.',
+    'nightPanelErrNextStepDismiss': 'No se pudo apartar el paso: {detail}',
+    'nightPanelExposureField': 'Exposición s',
+    'nightPanelFilter': 'Filtro',
+    'nightPanelFilterSlot': '{name} · posición {slot} de {count}',
+    'nightPanelFilterSlotOnly': 'posición {slot} de {count}',
+    'nightPanelFilterSlotSemantics': 'Filtro {name}, posición {slot}',
+    'nightPanelFocusOffset': 'Desfase de enfoque {offset} respecto a {filter}',
+    'nightPanelFocusReference':
         '{filter} es la referencia de los desfases de enfoque',
     'nightPanelFocuser': 'Enfocador',
     'nightPanelFocuserNotConnected': 'no conectado',
