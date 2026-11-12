@@ -238,7 +238,8 @@ pub(crate) type OgmacamStartPullModeWithCallback = unsafe extern "system" fn(
 pub(crate) type OgmacamTrigger = unsafe extern "system" fn(h: HOgmacam, n_number: c_ushort) -> i32;
 
 // SDK metadata
-pub(crate) type OgmacamVersion = unsafe extern "system" fn() -> *const c_char;
+/// UTF-16 on Windows (`const wchar_t*`), a narrow string elsewhere.
+pub(crate) type OgmacamVersion = unsafe extern "system" fn() -> *const OgmacamChar;
 
 /// Heap-stable state shared with the SDK's pull-mode event callback.
 ///

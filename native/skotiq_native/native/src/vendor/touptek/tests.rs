@@ -358,3 +358,15 @@ fn model_flags_say_what_else_a_camera_can_do() {
     assert!(!caps.can_cool && caps.can_set_offset && caps.has_guider_port);
 }
 
+#[test]
+fn the_sdk_version_is_read_in_the_sdks_character_type() {
+    let text: Vec<OgmacamChar> = "60.33015.20261024 \0"
+        .bytes()
+        .map(|byte| byte as OgmacamChar)
+        .collect();
+    assert_eq!(
+        touptek_static_str(text.as_ptr()).as_deref(),
+        Some("60.33015.20261024")
+    );
+    assert_eq!(touptek_static_str(std::ptr::null()), None);
+}
