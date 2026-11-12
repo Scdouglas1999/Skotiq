@@ -66,6 +66,11 @@ void main() {
       when(
         () => host.polarAlignmentEvents,
       ).thenAnswer((_) => const Stream.empty());
+      // The executor starts the loaded run through the whole host; the call
+      // goes to [sequencer], where the tests stub and verify it.
+      when(
+        () => host.sequencerStart(),
+      ).thenAnswer((_) => sequencer.sequencerStart());
 
       when(
         () => sequencer.sequencerSetSimulationMode(any()),
