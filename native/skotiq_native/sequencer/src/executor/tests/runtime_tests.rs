@@ -2503,8 +2503,73 @@ async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
 /// `Failure`, which short-circuits its container: the rest of the target, and
 /// with it the night, ended at the first missed curve fit.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
+    let FailedAutofocusRun {
+        state,
+        completed,
+        warnings,
+        errors,
+        decisions,
+        calls,
+    } = run_a_failing_autofocus_node(true).await;
+    let decisions: Vec<&str> = decisions.iter().map(|d| d.summary.as_str()).collect();
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park")
+            || c.starts_with("cover_close")
+            || c.starts_with("dome_close")),
+        "a failed autofocus node moved or closed hardware: {calls:?}"
+    );
+    assert!(
+        completed
+            .iter()
+            .any(|(id, status)| id == "after" && *status == NodeStatus::Success),
+        "the node after the failed autofocus never ran: {completed:?} errors={errors:?}"
+    );
+    assert_eq!(
+        state,
+        ExecutorState::Completed,
+        "errors={errors:?} warnings={warnings:?}"
+    );
+    assert!(
+        decisions.contains(&super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
+        "the operator must be notified: {decisions:?}"
+    );
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
+        "{warnings:?}"
+    );
+}
+
+/// The operator turned decision logging off: the run keeps no replay rows of
+/// its own, but the row a notification is raised from still goes out, or the
+/// failed autofocus would reach the operator as nothing at all (its warning is
+/// never toasted on its own).
+#[tokio::test]
+async fn a_failed_autofocus_is_told_with_decision_logging_off() {
+    let run = run_a_failing_autofocus_node(false).await;
+    assert_eq!(run.state, ExecutorState::Completed, "{:?}", run.errors);
+    let noticed: Vec<_> = run
+        .decisions
+        .iter()
+        .filter(|d| d.notice == Some(crate::decision::RunNotice::AutofocusContinued))
+        .collect();
+    assert_eq!(noticed.len(), 1, "{:?}", run.decisions);
+}
+
+/// What a run whose Autofocus node fails, followed by a Delay, sent out.
+struct FailedAutofocusRun {
+    state: ExecutorState,
+    completed: Vec<(crate::NodeId, NodeStatus)>,
+    warnings: Vec<String>,
+    errors: Vec<String>,
+    decisions: Vec<crate::decision::DecisionEvent>,
+    calls: Vec<String>,
+}
+
+#[allow(clippy::await_holding_lock)]
+async fn run_a_failing_autofocus_node(decision_logging: bool) -> FailedAutofocusRun {
     let _serial = crate::AF_GATE_TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
@@ -2568,6 +2633,9 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
             manager.remove_trigger(id);
         }
     }
+    executor
+        .set_decision_logging_enabled(decision_logging)
+        .await;
     let mut events = executor.subscribe();
     let mut decision_rx = executor.subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
@@ -2605,41 +2673,20 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
     }
     let mut decisions = Vec::new();
     while let Ok(decision) = decision_rx.try_recv() {
-        decisions.push(decision.summary);
+        decisions.push(decision);
     }
     let state = executor.get_state().await;
     let calls = ops.calls();
     wait_for_the_autofocus_gate_to_clear().await;
 
-    assert!(
-        !calls.iter().any(|c| c.starts_with("mount_park")
-            || c.starts_with("cover_close")
-            || c.starts_with("dome_close")),
-        "a failed autofocus node moved or closed hardware: {calls:?}"
-    );
-    assert!(
-        completed
-            .iter()
-            .any(|(id, status)| id == "after" && *status == NodeStatus::Success),
-        "the node after the failed autofocus never ran: {completed:?} errors={errors:?}"
-    );
-    assert_eq!(
+    FailedAutofocusRun {
         state,
-        ExecutorState::Completed,
-        "errors={errors:?} warnings={warnings:?}"
-    );
-    assert!(
-        decisions
-            .iter()
-            .any(|s| s == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
-        "the operator must be notified: {decisions:?}"
-    );
-    assert!(
-        warnings
-            .iter()
-            .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
-        "{warnings:?}"
-    );
+        completed,
+        warnings,
+        errors,
+        decisions,
+        calls,
+    }
 }
 
 /// A child that fails every time it runs, standing in for whatever the
