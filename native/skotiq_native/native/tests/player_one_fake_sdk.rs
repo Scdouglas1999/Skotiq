@@ -202,3 +202,24 @@ async fn the_wheel_reports_moving_instead_of_failing_and_keeps_its_names() {
     assert_eq!(wheel.get_filter_names().await.unwrap()[3], "Ha");
     wheel.disconnect().await.unwrap();
 }
+
+#[tokio::test]
+#[ignore = "needs the Player One fake SDK on LD_LIBRARY_PATH (see the file header)"]
+async fn sensor_modes_are_offered_and_the_frame_names_the_one_it_used() {
+    let mut camera = connected(COOLED_MONO).await;
+    assert!(camera.capabilities().supports_readout_modes);
+    let modes = camera.get_readout_modes().await.unwrap();
+    let names: Vec<&str> = modes.iter().map(|m| m.name.as_str()).collect();
+    assert_eq!(names, ["Normal", "LowNoise"]);
+    camera.set_readout_mode(&modes[1]).await.unwrap();
+    let frame = take(&mut camera, exposure(0.5, 1, None)).await;
+    assert_eq!(frame.metadata.readout_mode.as_deref(), Some("LowNoise"));
+    camera.disconnect().await.unwrap();
+
+    let mut guide = connected(UNCOOLED_COLOR).await;
+    assert!(!guide.capabilities().supports_readout_modes);
+    assert!(guide.get_readout_modes().await.unwrap().is_empty());
+    let frame = take(&mut guide, exposure(0.5, 1, None)).await;
+    assert_eq!(frame.metadata.readout_mode, None);
+    guide.disconnect().await.unwrap();
+}

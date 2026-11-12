@@ -177,3 +177,61 @@ pub(crate) fn poa_value_type_discriminants_match_the_header() {
     assert_eq!(POAValueType::Float as i32, 1);
     assert_eq!(POAValueType::Bool as i32, 2);
 }
+
+fn subframe(start_x: u32, start_y: u32, width: u32, height: u32) -> SubFrame {
+    SubFrame {
+        start_x,
+        start_y,
+        width,
+        height,
+    }
+}
+
+/// POASetImageSize takes widths in multiples of 4 and heights in multiples of
+/// 2; the ROI the driver asks for is already one the SDK keeps as it is.
+#[test]
+pub(crate) fn a_roi_is_cut_to_the_sizes_the_sdk_takes() {
+    let roi = roi_for(Some(&subframe(3, 3, 101, 51)), 3096, 2080, false).unwrap();
+    assert_eq!(
+        roi,
+        Roi {
+            x: 3,
+            y: 3,
+            width: 100,
+            height: 50
+        }
+    );
+    // The binned full frame of a 6248 x 4176 sensor at bin 3.
+    let full = roi_for(None, 6248 / 3, 4176 / 3, false).unwrap();
+    assert_eq!(
+        (full.x, full.y, full.width, full.height),
+        (0, 0, 2080, 1392)
+    );
+}
+
+/// A color ROI starting on an odd pixel would shift the frame's Bayer cell
+/// away from the BAYERPAT the camera's pattern writes.
+#[test]
+pub(crate) fn a_color_roi_starts_on_an_even_pixel() {
+    let roi = roi_for(Some(&subframe(5, 7, 64, 32)), 1920, 1080, true).unwrap();
+    assert_eq!((roi.x, roi.y), (4, 6));
+    let mono = roi_for(Some(&subframe(5, 7, 64, 32)), 1920, 1080, false).unwrap();
+    assert_eq!((mono.x, mono.y), (5, 7));
+}
+
+#[test]
+pub(crate) fn a_roi_outside_the_binned_sensor_is_refused() {
+    for request in [
+        subframe(1900, 0, 64, 32),
+        subframe(0, 0, 2, 32),
+        subframe(u32::MAX, 0, 64, 32),
+    ] {
+        assert!(
+            matches!(
+                roi_for(Some(&request), 1920, 1080, false),
+                Err(DriverError::InvalidParameter(_))
+            ),
+            "{request:?}"
+        );
+    }
+}

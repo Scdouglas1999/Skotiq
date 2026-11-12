@@ -160,14 +160,14 @@
   set_subframe(None) = Err(NotConnected)
   set_subframe(8,8,64,64) = Err(NotConnected)
   set_subframe(0x0) = Err(NotConnected)
-  get_readout_modes = Ok([])
-  set_readout_mode = Err(NotSupported)
+  get_readout_modes = Err(NotConnected)
+  set_readout_mode = Err(NotConnected)
   get_vendor_features = Ok(VendorFeatures { sensor_chamber_pressure: None, sensor_chamber_humidity: None, usb_bandwidth: None, hardware_binning: false, anti_dew_heater: None, fan_power: None, custom_data: {} } custom_data={})
   get_gain_range = Err(NotConnected)
   get_offset_range = Err(NotConnected)
   get_recommended_settings = Ok(CameraRecommendedSettings { unity_gain: None, hcg_gain: None, default_offset: None, recommended_cooling_setpoint_c: None, notes: "" })
-  get_cooler_temp_range = Ok(None)
-  get_exposure_range = Ok(None)
+  get_cooler_temp_range = Err(NotConnected)
+  get_exposure_range = Err(NotConnected)
   capture_preview = Err(NotSupported)
 [player one filter wheel]
   vendor = PlayerOne
