@@ -5,6 +5,12 @@
 //! through here, so a pixel type is decoded in one place and a caller that
 //! only supports some types says so with [`PixelType`] rather than by which
 //! decoder it happened to copy.
+//!
+//! The numbers the `ImageData` methods return are on the app's working scale,
+//! 16-bit ADU, whatever the image's [`SampleRange`](crate::SampleRange): a
+//! PixInsight float frame in `[0, 1]` and the 16-bit frame it was made from
+//! read the same. [`sample_from_le`] and [`sample_to_le`] are the stored
+//! values, for the codecs.
 
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
@@ -50,9 +56,25 @@ impl ImageData {
         self.data.len() >= self.pixel_count() * self.bytes_per_pixel()
     }
 
-    /// Every sample as `f64`, in buffer (channel-interleaved) order. A buffer
-    /// shorter than the dimensions call for yields the samples it does hold.
+    /// `(low, gain)` taking a stored sample to 16-bit ADU as
+    /// `(sample - low) * gain`; `None` when stored samples are ADU already.
+    #[inline]
+    pub(crate) fn adu_mapping(&self) -> Option<(f64, f64)> {
+        (!self.range.is_adu()).then(|| (self.range.low, self.range.adu_per_unit()))
+    }
+
+    /// Every sample as `f64` in 16-bit ADU, in buffer (channel-interleaved)
+    /// order. A buffer shorter than the dimensions call for yields the samples
+    /// it does hold.
     pub fn samples_f64(&self) -> Vec<f64> {
+        let mut samples = self.stored_f64();
+        if let Some((low, gain)) = self.adu_mapping() {
+            samples.par_iter_mut().for_each(|v| *v = (*v - low) * gain);
+        }
+        samples
+    }
+
+    fn stored_f64(&self) -> Vec<f64> {
         match self.pixel_type {
             PixelType::U8 => self.data.par_iter().map(|&v| f64::from(v)).collect(),
             PixelType::U16 => self
@@ -78,8 +100,28 @@ impl ImageData {
         }
     }
 
-    /// Every sample as `f32`, in buffer order. `U32` and `F64` lose precision.
+    /// Every sample as `f32` in 16-bit ADU, in buffer order. `U32` and `F64`
+    /// lose precision.
     pub fn samples_f32(&self) -> Vec<f32> {
+        let Some((low, gain)) = self.adu_mapping() else {
+            return self.stored_f32();
+        };
+        if matches!(self.pixel_type, PixelType::U32 | PixelType::F64) {
+            let size = self.bytes_per_pixel();
+            let pixel_type = self.pixel_type;
+            return self
+                .data
+                .par_chunks_exact(size)
+                .map(|c| ((sample_from_le(c, pixel_type) - low) * gain) as f32)
+                .collect();
+        }
+        let mut samples = self.stored_f32();
+        let (low, gain) = (low as f32, gain as f32);
+        samples.par_iter_mut().for_each(|v| *v = (*v - low) * gain);
+        samples
+    }
+
+    fn stored_f32(&self) -> Vec<f32> {
         match self.pixel_type {
             PixelType::U8 => self.data.par_iter().map(|&v| f32::from(v)).collect(),
             PixelType::U16 => self
@@ -103,8 +145,9 @@ impl ImageData {
         }
     }
 
-    /// Decode `count` samples starting at sample `start` into `out`, replacing
-    /// its contents. `out` is scratch a caller reuses from band to band.
+    /// Decode `count` samples starting at sample `start` into `out` as 16-bit
+    /// ADU, replacing its contents. `out` is scratch a caller reuses from band
+    /// to band.
     ///
     /// Panics when the range reaches past the buffer.
     pub fn samples_f64_into(&self, start: usize, count: usize, out: &mut Vec<f64>) {
@@ -133,10 +176,62 @@ impl ImageData {
                     .map(|c| sample_from_le(c, pixel_type)),
             ),
         }
+        if let Some((low, gain)) = self.adu_mapping() {
+            out.iter_mut().for_each(|v| *v = (*v - low) * gain);
+        }
     }
 
-    /// Channel `channel` as an `f64` plane of `width × height`, row-major.
-    /// `None` when the channel does not exist or the buffer is short.
+    /// Every sample as a whole 16-bit ADU level: rounded and held within the
+    /// 16-bit range, with a sample that is not finite at level 0. What a
+    /// measurement that counts levels (statistics of a 16-bit frame, the
+    /// frame-quality percentiles) reads from an image of any type.
+    pub fn adu_levels(&self) -> Vec<u16> {
+        if self.pixel_type == PixelType::U16 {
+            return self
+                .data
+                .par_chunks_exact(2)
+                .map(|c| u16::from_le_bytes([c[0], c[1]]))
+                .collect();
+        }
+        let size = self.bytes_per_pixel();
+        let pixel_type = self.pixel_type;
+        let (low, gain) = self.adu_mapping().unwrap_or((0.0, 1.0));
+        self.data
+            .par_chunks_exact(size)
+            // `as` saturates and maps NaN to 0.
+            .map(|c| ((sample_from_le(c, pixel_type) - low) * gain).round() as u16)
+            .collect()
+    }
+
+    /// The image re-encoded as `pixel_type` samples spanning `range`, or
+    /// borrowed unchanged when it already is. Integer targets round and
+    /// clamp to their type; NaN becomes 0.
+    pub fn converted_to(
+        &self,
+        pixel_type: PixelType,
+        range: crate::SampleRange,
+    ) -> std::borrow::Cow<'_, ImageData> {
+        if (self.pixel_type == pixel_type && self.range == range) || self.is_empty() {
+            return std::borrow::Cow::Borrowed(self);
+        }
+        let integer = !matches!(pixel_type, PixelType::F32 | PixelType::F64);
+        let size = pixel_type.byte_size();
+        let mut out = ImageData::new(self.width, self.height, self.channels, pixel_type);
+        out.range = range;
+        let values = self.samples_f64();
+        out.data
+            .par_chunks_exact_mut(size)
+            .zip(values.par_iter())
+            .for_each(|(bytes, &adu)| {
+                let v = if adu.is_nan() { 0.0 } else { range.from_adu(adu) };
+                sample_to_le(bytes, pixel_type, if integer { v.round() } else { v });
+            });
+        std::borrow::Cow::Owned(out)
+    }
+
+    /// Channel `channel` as an `f64` plane of `width × height` in 16-bit ADU,
+    /// row-major. `None` when the channel does not exist or the buffer is
+    /// short.
     pub fn plane_f64(&self, channel: usize) -> Option<Vec<f64>> {
         let channels = self.channels.max(1) as usize;
         if channel >= channels || !self.holds_all_samples() {
@@ -146,10 +241,11 @@ impl ImageData {
         let stride = channels * size;
         let pixel_type = self.pixel_type;
         let locations = (self.width as usize) * (self.height as usize);
+        let (low, gain) = self.adu_mapping().unwrap_or((0.0, 1.0));
         Some(
             self.data[..locations * stride]
                 .par_chunks_exact(stride)
-                .map(|pixel| sample_from_le(&pixel[channel * size..], pixel_type))
+                .map(|pixel| (sample_from_le(&pixel[channel * size..], pixel_type) - low) * gain)
                 .collect(),
         )
     }
@@ -167,7 +263,8 @@ mod tests {
     use super::*;
 
     fn image(pixel_type: PixelType, channels: u32, values: &[f64]) -> ImageData {
-        let mut image = ImageData::new(values.len() as u32 / channels, 1, channels, pixel_type);
+        let mut image = ImageData::new(values.len() as u32 / channels, 1, channels, pixel_type)
+            .with_range(crate::SampleRange::ADU);
         let size = pixel_type.byte_size();
         for (i, &v) in values.iter().enumerate() {
             sample_to_le(&mut image.data[i * size..], pixel_type, v);
@@ -193,6 +290,31 @@ mod tests {
             image.samples_f64_into(2, 3, &mut band);
             assert_eq!(band, &values[2..5], "{pixel_type:?} band");
         }
+    }
+
+    #[test]
+    fn samples_come_out_in_adu_whatever_the_range() {
+        use crate::SampleRange;
+        let adu = [0.0, 6553.5, 32767.5, 65535.0];
+        let unit = image(PixelType::F32, 1, &[0.0, 0.1, 0.5, 1.0]).with_range(SampleRange::UNIT);
+        for (got, want) in unit.samples_f64().iter().zip(adu) {
+            assert!((got - want).abs() < 0.01, "{got} vs {want}");
+        }
+        for (got, want) in unit.samples_f32().iter().zip(adu) {
+            assert!((f64::from(*got) - want).abs() < 0.01, "{got} vs {want}");
+        }
+        let mut band = Vec::new();
+        unit.samples_f64_into(2, 2, &mut band);
+        assert!((band[0] - 32767.5).abs() < 0.01 && (band[1] - 65535.0).abs() < 0.01);
+        assert!((unit.plane_f64(0).unwrap()[1] - 6553.5).abs() < 0.01);
+
+        // An 8-bit image spans its type: 255 is full scale.
+        let bytes = ImageData::new(2, 1, 1, PixelType::U8);
+        assert_eq!(bytes.range.high, 255.0);
+        let mut bytes = bytes;
+        bytes.data = vec![0, 255];
+        assert_eq!(bytes.samples_f64(), [0.0, 65535.0]);
+        assert_eq!(bytes.samples_f32(), [0.0, 65535.0]);
     }
 
     #[test]

@@ -234,6 +234,12 @@ pub fn min_registration_stars(kind: TransformKind) -> usize {
     3usize.max(min_correspondences(kind))
 }
 
+/// The sample types whose stars the geometry fit reads: 16-bit frames and
+/// float frames, whose sample range says where their ADU are.
+fn is_linear_type(pixel_type: PixelType) -> bool {
+    matches!(pixel_type, PixelType::U16 | PixelType::F32)
+}
+
 /// How many stars [`register_frame`] would actually detect on `image` with
 /// `config` — 0 when the image cannot be a registration operand at all (wrong
 /// pixel type or channel layout, exactly as [`register_frame`] validates).
@@ -245,7 +251,7 @@ pub fn min_registration_stars(kind: TransformKind) -> usize {
 /// looks for — and picking that frame as the reference fails EVERY other frame
 /// against it, silently discarding a whole night.
 pub fn registrable_star_count(image: &ImageData, config: &RegistrationConfig) -> usize {
-    if image.pixel_type != PixelType::U16 || !matches!(image.channels, 1 | 3) {
+    if !is_linear_type(image.pixel_type) || !matches!(image.channels, 1 | 3) {
         return 0;
     }
     detect_stars(image, &config.star_detection).len()
@@ -304,7 +310,7 @@ impl ReferenceStars {
         reference: &ImageData,
         config: &RegistrationConfig,
     ) -> Result<Self, RegistrationError> {
-        if reference.pixel_type != PixelType::U16 {
+        if !is_linear_type(reference.pixel_type) {
             return Err(RegistrationError::UnsupportedReferencePixelType(
                 reference.pixel_type,
             ));
@@ -344,7 +350,7 @@ pub fn solve_registration_against(
     frame: &ImageData,
     config: &RegistrationConfig,
 ) -> Result<(TransformModel, RegistrationStats), RegistrationError> {
-    if frame.pixel_type != PixelType::U16 {
+    if !is_linear_type(frame.pixel_type) {
         return Err(RegistrationError::UnsupportedFramePixelType(
             frame.pixel_type,
         ));

@@ -255,10 +255,11 @@ impl DecodedPanel {
         }
         let proj = projection(&panel.wcs)?;
         let expected = width * height * channels;
-        let data: Vec<f64> = if let Some(f) = panel.image.as_f32() {
-            f.into_iter().map(|v| v as f64).collect()
-        } else if let Some(u) = panel.image.as_u16() {
-            u.into_iter().map(|v| v as f64).collect()
+        let data: Vec<f64> = if matches!(
+            panel.image.pixel_type,
+            crate::PixelType::F32 | crate::PixelType::U16
+        ) {
+            panel.image.samples_f64()
         } else {
             // Unknown layout: refuse rather than guess a gray buffer. Treat as
             // dimensionless-equivalent bad input.

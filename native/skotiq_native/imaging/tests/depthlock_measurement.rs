@@ -364,6 +364,7 @@ fn malformed_calibration_dimensions_do_not_panic() {
         channels: 1,
         pixel_type: PixelType::U16,
         data: Vec::new(),
+        range: skotiq_imaging::SampleRange::of(PixelType::U16),
     };
     assert!(calibrate_signed(&image, &image, &image).is_err());
 }
@@ -503,6 +504,7 @@ fn signed_calibration_preserves_negative_samples() {
             .take(256)
             .flat_map(|v| v.to_le_bytes())
             .collect(),
+            range: skotiq_imaging::SampleRange::of(PixelType::U16),
     };
     let light = image(&[10, 30, 40, 50], 25);
     let dark = image(&[], 20);

@@ -121,7 +121,11 @@ pub(crate) fn write_images(
         header.block = Some(block);
         payloads.push(payload);
         if options.thumbnail && header.thumbnail.is_none() {
-            let thumb_pixels = super::thumbnail::make(pixels);
+            let cell = header
+                .color_filter_array
+                .as_ref()
+                .map_or(1, |cfa| cfa.width.max(cfa.height));
+            let thumb_pixels = crate::thumbnail(pixels, cell, THUMBNAIL_MAX_SIDE);
             let mut thumb = XisfImageHeader::new(Vec::new(), 0, SampleFormat::UInt8);
             describe_pixels(&mut thumb, &thumb_pixels);
             let mut bytes = planar_bytes(&thumb_pixels);
@@ -258,6 +262,9 @@ fn place_blocks(headers: &mut [XisfImageHeader], blocks: &[(u64, u64)]) {
     }
 }
 
+/// The longest side of the thumbnail written with an image.
+const THUMBNAIL_MAX_SIDE: u32 = 512;
+
 fn describe_pixels(header: &mut XisfImageHeader, pixels: &ImageData) {
     header.dimensions = vec![pixels.width as u64, pixels.height as u64];
     header.channels = pixels.channels as u64;
@@ -268,15 +275,17 @@ fn describe_pixels(header: &mut XisfImageHeader, pixels: &ImageData) {
     } else {
         ColorSpace::Gray
     };
-    header.bounds = header
-        .sample_format
-        .is_float()
-        .then(|| float_bounds(pixels));
+    let held = if header.sample_format.is_float() {
+        let (low, high) = finite_extremes(pixels);
+        pixels.range.widened_to(low, high)
+    } else {
+        pixels.range
+    };
+    super::fits_map::declare_range(header, pixels.range, held);
 }
 
-/// `0:1` for normalized data, otherwise a range that holds every sample, so
-/// PixInsight neither clips nor rescales what the app stores.
-fn float_bounds(pixels: &ImageData) -> (f64, f64) {
+/// The smallest and largest finite sample; infinite ends when there is none.
+fn finite_extremes(pixels: &ImageData) -> (f64, f64) {
     let (lo, hi) = pixels
         .data
         .par_chunks(pixels.pixel_type.byte_size() * 4096)
@@ -293,10 +302,7 @@ fn float_bounds(pixels: &ImageData) -> (f64, f64) {
             || (f64::INFINITY, f64::NEG_INFINITY),
             |a, b| (a.0.min(b.0), a.1.max(b.1)),
         );
-    if !lo.is_finite() {
-        return (0.0, 1.0);
-    }
-    (lo.min(0.0), hi.max(1.0))
+    (lo, hi)
 }
 
 /// The attached block for an image's pixels, and what to write into it.

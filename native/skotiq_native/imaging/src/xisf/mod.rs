@@ -17,7 +17,6 @@ mod fits_map;
 mod header;
 mod pixels;
 mod property;
-mod thumbnail;
 mod write;
 
 #[cfg(test)]

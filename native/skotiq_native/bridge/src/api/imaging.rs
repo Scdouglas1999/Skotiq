@@ -891,60 +891,6 @@ pub struct QualityMapsResultApi {
     pub tiles: Vec<QualityTileMetricApi>,
 }
 
-/// Decode an [`ImageData`] byte buffer into linear `f64` samples.
-///
-/// `ImageData.data` is an in-memory host-endian (little-endian) buffer, NOT the
-/// big-endian wire format of a FITS file: every producer in the imaging crate
-/// writes it with `to_le_bytes` (`fits.rs` after BZERO/BSCALE scaling, the
-/// camera drivers, `processing.rs`) and every other consumer reads it back with
-/// `from_le_bytes` (`ImageData::as_u16`/`as_f32`, `calibration.rs`,
-/// `background_extraction.rs::read_pixel`). Decoding big-endian here byte-swaps
-/// every sample, which does not merely scale the data — it destroys the star
-/// field (a 440 ADU background reads as 47105 and a 40614 ADU star as 42654,
-/// i.e. stars come back DARKER than the sky), so downstream star detection finds
-/// nothing at all.
-pub(crate) fn image_data_to_linear_f64(image_data: &ImageData) -> Vec<f64> {
-    match image_data.pixel_type {
-        skotiq_imaging::PixelType::U8 => image_data
-            .data
-            .iter()
-            .map(|&value| value as f64)
-            .collect::<Vec<f64>>(),
-        skotiq_imaging::PixelType::U16 => image_data
-            .data
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]) as f64)
-            .collect::<Vec<f64>>(),
-        skotiq_imaging::PixelType::U32 => image_data
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|chunk| u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]) as f64)
-            .collect::<Vec<f64>>(),
-        skotiq_imaging::PixelType::F32 => image_data
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]) as f64)
-            .collect::<Vec<f64>>(),
-        skotiq_imaging::PixelType::F64 => image_data
-            .data
-            .as_chunks::<8>()
-            .0
-            .iter()
-            .map(|chunk| {
-                f64::from_le_bytes([
-                    chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7],
-                ])
-            })
-            .collect::<Vec<f64>>(),
-    }
-}
-
 #[cfg(test)]
 mod linear_decode_tests;
 
@@ -980,7 +926,7 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
     };
     let bayer_pattern = header.get_string("BAYERPAT").map(|s| s.to_string());
 
-    let stats = skotiq_imaging::calculate_stats_u16(&image_data);
+    let stats = skotiq_imaging::calculate_stats(&image_data);
 
     let display = crate::frame_display::for_file(&image_data, &header);
 
@@ -1053,7 +999,7 @@ pub async fn api_read_fits_linear_data(
         skotiq_imaging::PixelType::F64 => -64,
     };
     let bayer_pattern = header.get_string("BAYERPAT").map(|s| s.to_string());
-    let linear_data = image_data_to_linear_f64(&image_data);
+    let linear_data = image_data.samples_f64();
 
     Ok(FitsLinearReadResult {
         width: image_data.width,
@@ -1136,7 +1082,7 @@ pub async fn api_compute_fits_quality_maps(
 
     let (image_data, _header) = skotiq_imaging::read_frame(path)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
-    let linear_data = image_data_to_linear_f64(&image_data);
+    let linear_data = image_data.samples_f64();
 
     let mut result = compute_quality_maps_from_linear_data(
         image_data.width as usize,
@@ -1949,30 +1895,13 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
     }
     let (image_data, header) = skotiq_imaging::read_frame(path)
         .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
-    // A color mosaic is reduced one filter cell at a time; sampling it pixel
-    // by pixel would show whichever color the grid lands on.
-    let image_data = match (
-        skotiq_imaging::read_color_filter_array(&header),
-        image_data.channels,
-        image_data.as_u16(),
-    ) {
-        (Some(filter), 1, Some(mosaic)) => {
-            let (w, h, binned) = filter.bin_cells(&mosaic, image_data.width, image_data.height);
-            ImageData::from_u16(w, h, 1, &binned)
-        }
-        _ => image_data,
-    };
-
-    let width = image_data.width;
-    let height = image_data.height;
-    let channels = image_data.channels as usize;
-    if width == 0 || height == 0 {
+    if image_data.width == 0 || image_data.height == 0 {
         return Err(SkotiqError::ImageError(format!(
             "Cannot generate thumbnail for empty FITS image {}x{}",
-            width, height
+            image_data.width, image_data.height
         )));
     }
-    if channels == 0 {
+    if image_data.channels == 0 {
         return Err(SkotiqError::ImageError(
             "Cannot generate thumbnail for FITS image with zero channels".to_string(),
         ));
@@ -1982,179 +1911,21 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
             "Thumbnail max_size must be greater than zero".to_string(),
         ));
     }
-
-    let pixel_count = (width as usize)
-        .checked_mul(height as usize)
-        .ok_or_else(|| {
-            SkotiqError::ImageError(format!(
-                "FITS image dimensions overflow: {}x{}",
-                width, height
-            ))
-        })?;
-    let sample_count = pixel_count.checked_mul(channels).ok_or_else(|| {
-        SkotiqError::ImageError(format!(
-            "FITS sample count overflows for {}x{} image with {} channels",
-            width, height, channels
-        ))
-    })?;
-    let expected_bytes = sample_count
-        .checked_mul(image_data.pixel_type.byte_size())
-        .ok_or_else(|| {
-            SkotiqError::ImageError(format!(
-                "FITS buffer size overflows for {} samples",
-                sample_count
-            ))
-        })?;
-    if image_data.data.len() != expected_bytes {
+    if !image_data.holds_all_samples() {
         return Err(SkotiqError::ImageError(format!(
-            "Invalid FITS buffer length: expected {} bytes, got {}",
-            expected_bytes,
-            image_data.data.len()
+            "Invalid FITS buffer length: {} bytes for a {}x{} image with {} channels",
+            image_data.data.len(),
+            image_data.width,
+            image_data.height,
+            image_data.channels
         )));
     }
-
-    // One sample, converted on demand.
-    //
-    // This used to convert the WHOLE frame to `Vec<u16>` first — a second
-    // 32.8 MB allocation for an ASI1600 frame, and 16.4 million conversions —
-    // and then read one sample in every `scale` from it. A 512 px thumbnail of
-    // a 4656 px frame keeps one pixel in 81, so all but 1.2% of that work was
-    // thrown away. Converting per sampled sample instead costs the same per
-    // pixel that survives and nothing for the pixels that do not.
-    let bytes_per_sample = image_data.pixel_type.byte_size();
-    let raw = image_data.data.as_slice();
-    let sample_at = |index: usize| -> Result<u16, SkotiqError> {
-        let offset = index * bytes_per_sample;
-        let chunk = raw.get(offset..offset + bytes_per_sample).ok_or_else(|| {
-            SkotiqError::ImageError(format!(
-                "FITS sample {} falls outside its validated buffer",
-                index
-            ))
-        })?;
-        Ok(match image_data.pixel_type {
-            skotiq_imaging::PixelType::U8 => u16::from(chunk[0]) << 8,
-            skotiq_imaging::PixelType::U16 => u16::from_le_bytes([chunk[0], chunk[1]]),
-            // High 16 bits, matching the whole-frame conversion this replaced.
-            skotiq_imaging::PixelType::U32 => {
-                (u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]) >> 16) as u16
-            }
-            skotiq_imaging::PixelType::F32 => {
-                let value = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-                (value.clamp(0.0, 1.0) * 65535.0) as u16
-            }
-            skotiq_imaging::PixelType::F64 => {
-                let value = f64::from_le_bytes([
-                    chunk[0], chunk[1], chunk[2], chunk[3], chunk[4], chunk[5], chunk[6], chunk[7],
-                ]);
-                (value.clamp(0.0, 1.0) * 65535.0) as u16
-            }
-        })
-    };
-
-    let max_dimension = width.max(height);
-    let scale = (max_dimension / max_size + u32::from(max_dimension % max_size != 0)).max(1);
-
-    // Downscale image
-    let new_width = (width / scale).max(1);
-    let new_height = (height / scale).max(1);
-    let thumbnail_pixels = (new_width as usize)
-        .checked_mul(new_height as usize)
-        .ok_or_else(|| {
-            SkotiqError::ImageError(format!(
-                "Thumbnail dimensions overflow: {}x{}",
-                new_width, new_height
-            ))
-        })?;
-    let expected_rgba_bytes = thumbnail_pixels.checked_mul(4).ok_or_else(|| {
-        SkotiqError::ImageError(format!(
-            "Thumbnail RGBA buffer size overflows for {} pixels",
-            thumbnail_pixels
-        ))
-    })?;
-    let mut downscaled = Vec::new();
-    downscaled
-        .try_reserve_exact(thumbnail_pixels)
-        .map_err(|e| {
-            SkotiqError::ImageError(format!(
-                "Failed to allocate {}-pixel thumbnail: {}",
-                thumbnail_pixels, e
-            ))
-        })?;
-
-    for y in 0..new_height {
-        for x in 0..new_width {
-            let src_x = x * scale;
-            let src_y = y * scale;
-            let pixel_idx = (src_y as usize)
-                .checked_mul(width as usize)
-                .and_then(|row| row.checked_add(src_x as usize))
-                .ok_or_else(|| SkotiqError::ImageError("FITS pixel index overflow".to_string()))?;
-            let sample_idx = pixel_idx
-                .checked_mul(channels)
-                .ok_or_else(|| SkotiqError::ImageError("FITS sample index overflow".to_string()))?;
-            let sample_end = sample_idx
-                .checked_add(channels)
-                .ok_or_else(|| SkotiqError::ImageError("FITS sample index overflow".to_string()))?;
-            if sample_end > sample_count {
-                return Err(SkotiqError::ImageError(format!(
-                    "FITS pixel {} falls outside its validated sample buffer",
-                    pixel_idx
-                )));
-            }
-            if channels >= 3 {
-                let r = u32::from(sample_at(sample_idx)?);
-                let g = u32::from(sample_at(sample_idx + 1)?);
-                let b = u32::from(sample_at(sample_idx + 2)?);
-                downscaled.push(((77 * r + 150 * g + 29 * b + 128) >> 8) as u16);
-            } else {
-                downscaled.push(sample_at(sample_idx)?);
-            }
-        }
-    }
-
-    // Auto-stretch for display
-    let stretched_rgba = auto_stretch_image(new_width, new_height, downscaled);
-    if stretched_rgba.len() != expected_rgba_bytes {
-        return Err(SkotiqError::ImageError(format!(
-            "Invalid stretched thumbnail length: expected {} bytes, got {}",
-            expected_rgba_bytes,
-            stretched_rgba.len()
-        )));
-    }
-    let stretched: Vec<u8> = stretched_rgba
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|rgba| rgba[0])
-        .collect();
-    if stretched.len() != thumbnail_pixels {
-        return Err(SkotiqError::ImageError(format!(
-            "Invalid grayscale thumbnail length: expected {} bytes, got {}",
-            thumbnail_pixels,
-            stretched.len()
-        )));
-    }
-
-    // Encode as JPEG
-    use image::{GrayImage, ImageEncoder};
-    use std::io::Cursor;
-
-    let gray_img = GrayImage::from_raw(new_width, new_height, stretched)
-        .ok_or_else(|| SkotiqError::ImageError("Failed to create grayscale image".to_string()))?;
-
-    let mut jpeg_data = Vec::new();
-    let mut cursor = Cursor::new(&mut jpeg_data);
-    let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut cursor, 85);
-    encoder
-        .write_image(
-            gray_img.as_raw(),
-            new_width,
-            new_height,
-            image::ColorType::L8,
-        )
-        .map_err(|e| SkotiqError::ImageError(format!("JPEG encoding failed: {}", e)))?;
-
-    Ok(jpeg_data)
+    // A color mosaic is reduced by whole filter cells; sampling it pixel by
+    // pixel would show whichever color the grid lands on.
+    let cell = skotiq_imaging::read_color_filter_array(&header)
+        .map_or(1, |filter| filter.cell_size() as u32);
+    let preview = skotiq_imaging::thumbnail(&image_data, cell, max_size);
+    encode_preview_jpeg(&preview, max_size)
 }
 
 /// Calibrate an image file using dark, flat, and/or bias calibration frames.

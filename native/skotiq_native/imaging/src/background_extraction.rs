@@ -324,6 +324,7 @@ pub fn subtract_background(image: &mut ImageData, model: &BackgroundModel) {
     let height = image.height as usize;
     let channels = image.channels as usize;
     let pt = image.pixel_type;
+    let range = image.range;
     let bpp = pt.byte_size();
     let stride = channels * bpp;
 
@@ -371,8 +372,9 @@ pub fn subtract_background(image: &mut ImageData, model: &BackgroundModel) {
                     }
                     let (nx, ny) = normalise_xy(x as f64, y as f64, w, h);
                     let model_val = eval_poly(coeffs, &terms, nx, ny);
-                    let orig = sample_from_le(&row[off..off + bpp], pt);
-                    let new_val = orig - model_val + add_back;
+                    // The model is in ADU; the image keeps its own range.
+                    let orig = range.to_adu(sample_from_le(&row[off..off + bpp], pt));
+                    let new_val = range.from_adu(orig - model_val + add_back);
                     sample_to_le(&mut row[off..off + bpp], pt, new_val);
                 }
             }

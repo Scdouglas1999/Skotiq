@@ -1614,14 +1614,7 @@ mod master_parity_tests {
         let frame_stacks: Vec<Vec<f64>> = frames
             .iter()
             .map(|f| match f.pixel_type {
-                PixelType::U16 => f.samples_f64(),
-                PixelType::F32 => f
-                    .data
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f64)
-                    .collect(),
+                PixelType::U16 | PixelType::F32 => f.samples_f64(),
                 _ => unreachable!(),
             })
             .collect();

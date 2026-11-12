@@ -4,7 +4,8 @@
 //! its noise floors are 1 ADU and `saturation_limit` is a 0–65535 level. An
 //! image that is not already a single 16-bit channel is turned into such a
 //! plane here, by a stated rule, so the features that detect stars differ only
-//! in the rule they name.
+//! in the rule they name. Which numbers are ADU is never guessed from the
+//! data: an image's [`SampleRange`](crate::SampleRange) says.
 
 use crate::{ImageData, PixelType};
 use rayon::prelude::*;
@@ -13,10 +14,6 @@ use rayon::prelude::*;
 /// detector's default `saturation_limit`, so rescaling never manufactures a
 /// saturated star.
 pub const RESCALED_FULL_SCALE: f64 = 60_000.0;
-
-/// A plane whose finite peak is below this is normalized float data (`[0, 1]`
-/// or so), not ADU: no real 16-bit frame has every star under 256 ADU.
-pub const ADU_SCALE_MIN_PEAK: f64 = 256.0;
 
 /// How several channels become one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,10 +77,10 @@ impl DetectionPlane {
         &self.samples
     }
 
-    /// The plane of `image` at its own scale: the samples of a one-channel
-    /// image, the Rec. 601 luma of a three-channel one. Luma of an integer
-    /// image is rounded to whole ADU and kept within the 16-bit range; a float
-    /// image is taken as it is, so it must already be in ADU.
+    /// The plane of `image` in 16-bit ADU, taken from its sample range: the
+    /// samples of a one-channel image, the Rec. 601 luma of a three-channel
+    /// one. Luma of an integer image is rounded to whole ADU and kept within
+    /// the 16-bit range.
     ///
     /// `None` for any other channel count or a buffer shorter than the
     /// dimensions call for.
@@ -99,13 +96,14 @@ impl DetectionPlane {
                 let integer = !matches!(image.pixel_type, PixelType::F32 | PixelType::F64);
                 let size = image.bytes_per_pixel();
                 let pixel_type = image.pixel_type;
+                let (low, gain) = image.adu_mapping().unwrap_or((0.0, 1.0));
                 image.data[..width * height * 3 * size]
                     .par_chunks_exact(3 * size)
                     .map(|pixel| {
                         let r = crate::samples::sample_from_le(pixel, pixel_type);
                         let g = crate::samples::sample_from_le(&pixel[size..], pixel_type);
                         let b = crate::samples::sample_from_le(&pixel[2 * size..], pixel_type);
-                        let luma = 0.299 * r + 0.587 * g + 0.114 * b;
+                        let luma = (0.299 * r + 0.587 * g + 0.114 * b - low) * gain;
                         if integer {
                             luma.round().clamp(0.0, 65535.0) as f32
                         } else {
@@ -242,6 +240,24 @@ mod tests {
         let float = ImageData::from_f32(1, 1, 3, &[1000.0, 2001.0, 3000.0]);
         let plane = DetectionPlane::from_image(&float).unwrap();
         assert!((plane.samples()[0] - 1815.587).abs() < 1e-3);
+    }
+
+    #[test]
+    fn a_normalized_float_frame_reads_as_its_16_bit_twin() {
+        use crate::SampleRange;
+        let twin = ImageData::from_u16(2, 1, 1, &[1000, 65535]);
+        let unit = ImageData::from_f32(2, 1, 1, &[1000.0 / 65535.0, 1.0])
+            .with_range(SampleRange::UNIT);
+        let (a, b) = (
+            DetectionPlane::from_image(&twin).unwrap(),
+            DetectionPlane::from_image(&unit).unwrap(),
+        );
+        for (a, b) in a.samples().iter().zip(b.samples()) {
+            assert!((a - b).abs() < 0.01, "{a} vs {b}");
+        }
+        let rgb = ImageData::from_f32(1, 1, 3, &[0.1, 0.2, 0.3]).with_range(SampleRange::UNIT);
+        let luma = DetectionPlane::from_image(&rgb).unwrap().samples()[0];
+        assert!((f64::from(luma) - (0.0299 + 0.1174 + 0.0342) * 65535.0).abs() < 0.01);
     }
 
     #[test]

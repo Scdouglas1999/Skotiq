@@ -203,7 +203,8 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
         }
         let path = out.join(format!("{}_master_linear.fits", input.filter));
         let preview = out.join(format!("{}_master_linear.png", input.filter));
-        let image = ImageData::from_f32(cw as u32, ch as u32, channels, &samples);
+        let image = ImageData::from_f32(cw as u32, ch as u32, channels, &samples)
+            .with_range(skotiq_imaging::SampleRange::UNIT);
         write_fits(&path, &image, &header).map_err(|e| e.to_string())?;
         write_preview_png(&image, &preview)?;
         results.push(serde_json::json!({"filter":input.filter,"path":path,"previewPath":preview,"channels":channels}));
@@ -260,7 +261,8 @@ fn write_rgb(
     height: u32,
     header: &FitsHeader,
 ) -> Result<(String, String, String), String> {
-    let image = ImageData::from_f32(width, height, 3, rgb);
+    let image =
+        ImageData::from_f32(width, height, 3, rgb).with_range(skotiq_imaging::SampleRange::UNIT);
     let fits = path_stem.with_extension("fits");
     let xisf = path_stem.with_extension("xisf");
     write_fits(&fits, &image, header)

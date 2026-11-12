@@ -552,9 +552,11 @@ fn wide_and_complex_formats_are_converted_or_refused_plainly() {
     );
     let pixels = read_frame(&path).unwrap().0;
     assert_eq!(pixels.pixel_type, PixelType::F64);
+    // Normalized over the 64-bit range, and declared so.
+    assert_eq!(pixels.range, crate::SampleRange::UNIT);
     let read: Vec<f64> = pixels.samples_f64();
     assert_eq!(read[0], 0.0);
-    assert!((read[1] - 0.5).abs() < 1e-9 && read[2] == 1.0);
+    assert!((read[1] - 32767.5).abs() < 1e-4 && read[2] == 65535.0);
 
     let path = monolithic(
         "complex.xisf",
@@ -582,7 +584,8 @@ fn cielab_pixels_are_converted_to_rgb() {
         &[&data],
     );
     let pixels = read_frame(&path).unwrap().0;
-    let out = pixels.samples_f64();
+    assert_eq!(pixels.range, crate::SampleRange::UNIT);
+    let out: Vec<f64> = pixels.samples_f64().iter().map(|v| v / 65535.0).collect();
     for (p, expected) in rgb.iter().enumerate() {
         for c in 0..3 {
             assert!((out[p * 3 + c] - expected[c]).abs() < 1e-3, "{out:?}");

@@ -579,9 +579,10 @@ impl OpImage {
 
     /// Read an [`ImageData`] as a render input.
     ///
-    /// `F32` samples carry over verbatim. `U16` samples carry over as their ADU
-    /// value with no rescaling, so a 16-bit master and a float master of the same
-    /// exposure hold the same numbers. Any other pixel type is
+    /// Samples carry over in 16-bit ADU: a `U16` sample as its value, an `F32`
+    /// sample through the image's sample range, so a 16-bit master, an ADU
+    /// float master and a `[0, 1]` float master of the same exposure hold the
+    /// same numbers. Any other pixel type is
     /// [`OpError::UnsupportedPixelType`] — silently reinterpreting the bytes is
     /// how a `U16` reader once ate an `F32` master.
     pub fn from_image_data(image: &ImageData, header: FitsHeader) -> Result<Self, OpError> {
@@ -589,20 +590,7 @@ impl OpImage {
             return Err(OpError::EmptyImage);
         }
         let data: Vec<f32> = match image.pixel_type {
-            PixelType::F32 => image
-                .data
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(read_le_f32)
-                .collect(),
-            PixelType::U16 => image
-                .data
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|c| u16::from_le_bytes([c[0], c[1]]) as f32)
-                .collect(),
+            PixelType::F32 | PixelType::U16 => image.samples_f32(),
             other => return Err(OpError::UnsupportedPixelType { found: other }),
         };
         Self::new(image.width, image.height, image.channels, data, header)
@@ -710,10 +698,6 @@ impl OpImage {
     pub fn wcs(&self) -> Option<SipWcs> {
         wcs_from_header(&self.header)
     }
-}
-
-fn read_le_f32(chunk: &[u8; 4]) -> f32 {
-    f32::from_le_bytes(*chunk)
 }
 
 /// The usable astrometry in a FITS header: [`SipWcs::from_header`], or `None`

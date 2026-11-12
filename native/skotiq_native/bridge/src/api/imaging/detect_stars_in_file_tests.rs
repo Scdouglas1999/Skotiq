@@ -42,6 +42,7 @@ fn field(sigma_major: f64, sigma_minor: f64) -> ImageData {
         channels: 1,
         pixel_type: PixelType::U16,
         data,
+        range: skotiq_imaging::SampleRange::of(PixelType::U16),
     }
 }
 
@@ -101,4 +102,76 @@ async fn the_default_config_still_returns_round_stars_only() {
     let path = write(&dir, &field(4.0, 2.0));
     let result = api_detect_stars_in_file(path, None).await.unwrap();
     assert!(result.stars.iter().all(|s| s.eccentricity <= 0.7));
+}
+
+fn sample_range_fixture(name: &str) -> String {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../test-fixtures/sample-range-2026-11-12")
+        .join(name)
+        .to_string_lossy()
+        .into_owned()
+}
+
+/// A float file PixInsight saved (samples in [0, 1]) goes through the viewer's
+/// calls as the 16-bit frame it was made from does: the same stars, the same
+/// statistics in ADU, the same thumbnail.
+#[tokio::test]
+async fn a_pixinsight_float_file_measures_as_its_16_bit_twin() {
+    let sixteen = sample_range_fixture("scene_u16.fits");
+    let expected = api_detect_stars_in_file(sixteen.clone(), None).await.unwrap();
+    assert!(expected.star_count >= 30, "{}", expected.star_count);
+    let expected_file = api_read_fits_file(sixteen.clone()).await.unwrap();
+    let expected_thumbnail = generate_fits_thumbnail_jpeg(&sixteen, 200).unwrap();
+
+    for name in ["pi_scene_f32.xisf", "pi_scene_f64.xisf", "pi_scene_f32.fits"] {
+        let path = sample_range_fixture(name);
+        let stars = api_detect_stars_in_file(path.clone(), None).await.unwrap();
+        assert_eq!(stars.star_count, expected.star_count, "{name}: star count");
+        assert!(
+            (stars.median_hfr - expected.median_hfr).abs() < 0.005 * expected.median_hfr,
+            "{name}: HFR {} vs {}",
+            stars.median_hfr,
+            expected.median_hfr
+        );
+        assert!(
+            (stars.background - expected.background).abs() < 0.5
+                && (stars.noise - expected.noise).abs() < 0.01 * expected.noise,
+            "{name}: background {} noise {}",
+            stars.background,
+            stars.noise
+        );
+
+        let file = api_read_fits_file(path.clone()).await.unwrap();
+        for (what, a, b) in [
+            ("min", file.stats.min, expected_file.stats.min),
+            ("max", file.stats.max, expected_file.stats.max),
+            ("mean", file.stats.mean, expected_file.stats.mean),
+            ("median", file.stats.median, expected_file.stats.median),
+            ("std dev", file.stats.std_dev, expected_file.stats.std_dev),
+        ] {
+            assert!((a - b).abs() < 0.02, "{name}: {what} {a} vs {b}");
+        }
+        assert_eq!(file.display_data, expected_file.display_data, "{name}: displayed frame");
+        assert_eq!(file.histogram, expected_file.histogram, "{name}: histogram");
+
+        // The XISF files carry PixInsight's own thumbnail; the FITS one is
+        // made here, by the rule the 16-bit frame's is.
+        if name.ends_with(".fits") {
+            let gray = |jpeg: &[u8]| image::load_from_memory(jpeg).unwrap().to_luma8();
+            let (got, want) = (
+                gray(&generate_fits_thumbnail_jpeg(&path, 200).unwrap()),
+                gray(&expected_thumbnail),
+            );
+            assert_eq!(got.dimensions(), want.dimensions(), "{name}: thumbnail size");
+            // The previews themselves agree to a level (the imaging crate's
+            // test); JPEG blocks turn that into a little more here and there.
+            let total: u64 = got
+                .iter()
+                .zip(want.iter())
+                .map(|(a, b)| u64::from(a.abs_diff(*b)))
+                .sum();
+            let mean = total as f64 / got.len() as f64;
+            assert!(mean < 0.5, "{name}: thumbnails differ by {mean:.2} levels on average");
+        }
+    }
 }

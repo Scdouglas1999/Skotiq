@@ -332,6 +332,8 @@ pub fn read_fits_header(path: &Path) -> Result<FitsHeader, FitsError> {
     let mut header = read_header(&mut reader)?;
     header.remove("BZERO");
     header.remove("BSCALE");
+    header.remove(crate::fits_reader::RANGE_LOW_CARD);
+    header.remove(crate::fits_reader::RANGE_HIGH_CARD);
     Ok(header)
 }
 
@@ -856,6 +858,20 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
         // to negative i32 on disk and are clamped to zero when read back.
         write_value_card(&mut writer, "BZERO", "2147483648", None)?;
         write_value_card(&mut writer, "BSCALE", "1", None)?;
+    } else if matches!(image.pixel_type, PixelType::F32 | PixelType::F64) {
+        // A float file's numbers say nothing about their scale; state it.
+        write_value_card(
+            &mut writer,
+            crate::fits_reader::RANGE_LOW_CARD,
+            &format_fits_float(image.range.low),
+            Some("sample value of black"),
+        )?;
+        write_value_card(
+            &mut writer,
+            crate::fits_reader::RANGE_HIGH_CARD,
+            &format_fits_float(image.range.high),
+            Some("sample value of full scale"),
+        )?;
     }
     if image.channels > 1 {
         write_value_card(
@@ -880,6 +896,8 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
             "BSCALE",
             "END",
             crate::fits_layout::LAYOUT_KEYWORD,
+            crate::fits_reader::RANGE_LOW_CARD,
+            crate::fits_reader::RANGE_HIGH_CARD,
         ]
         .contains(&key.as_str())
         {
@@ -3488,6 +3506,7 @@ mod tests {
             channels: 1,
             pixel_type: PixelType::U32,
             data,
+            range: crate::SampleRange::of(PixelType::U32),
         };
         let path =
             std::env::temp_dir().join(format!("skotiq_u32_roundtrip_{}.fits", std::process::id()));

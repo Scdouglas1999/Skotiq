@@ -272,6 +272,8 @@ fn delivery_puts_every_master_on_the_luminance_grid_and_writes_planar_rgb() {
     assert!(rgb_path.ends_with("NGC_891_RGB_linear.fits"), "{rgb_path}");
     let (rgb, _) = read_frame(Path::new(rgb_path)).unwrap();
     assert_eq!(rgb.channels, 3);
+    // The file holds ADU / 65535 and says so; read back, the samples are ADU.
+    assert_eq!(rgb.range, skotiq_imaging::SampleRange::UNIT);
     let header = read_frame_header(Path::new(rgb_path)).unwrap();
     assert_eq!(header.get_string("SKLAYOUT"), Some("PLANAR"));
     // The brightest star of the scene, at its L-grid position, is brightest in
@@ -287,21 +289,13 @@ fn delivery_puts_every_master_on_the_luminance_grid_and_writes_planar_rgb() {
     let sky = |c: usize| at(5.0, 5.0, c);
     for c in 0..3 {
         assert!(
-            at(sx, sy, c) > sky(c) + 0.01,
+            at(sx, sy, c) > sky(c) + 0.01 * 65535.0,
             "channel {c} has no star at the L position"
         );
     }
     // Linear scale preserved: the sky levels keep the masters' R:G:B ratio.
-    assert!(
-        (sky(0) * 65535.0 - 300.0).abs() < 30.0,
-        "R sky {}",
-        sky(0) * 65535.0
-    );
-    assert!(
-        (sky(2) * 65535.0 - 250.0).abs() < 30.0,
-        "B sky {}",
-        sky(2) * 65535.0
-    );
+    assert!((sky(0) - 300.0).abs() < 30.0, "R sky {}", sky(0));
+    assert!((sky(2) - 250.0).abs() < 30.0, "B sky {}", sky(2));
 }
 
 #[test]
@@ -431,9 +425,10 @@ fn guided_build_handles_bias_float_flat_bad_first_frame_and_common_export() {
     for master in exported["masters"].as_array().unwrap() {
         let (image, _) = read_frame(Path::new(master["path"].as_str().unwrap())).unwrap();
         assert_eq!(image.width as u64, width);
+        assert_eq!(image.range, skotiq_imaging::SampleRange::UNIT);
         assert!(image_to_f64(&image)
             .iter()
-            .all(|v| v.is_finite() && (0.0..=1.0).contains(v)));
+            .all(|v| v.is_finite() && (0.0..=65535.0).contains(v)));
     }
     std::fs::remove_dir_all(dir).unwrap();
 }
