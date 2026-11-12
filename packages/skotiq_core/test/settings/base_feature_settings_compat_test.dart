@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart' hide Sequence;
 import 'package:skotiq_core/src/models/alerts/transient_alert.dart';
+import 'package:skotiq_core/src/models/calibration/dark_library_match_tolerances.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/models/defect_map.dart';
 import 'package:skotiq_core/src/models/meridian_flip_settings.dart';
@@ -34,6 +35,9 @@ import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/providers/replay_debug_provider.dart';
 import 'package:skotiq_core/src/providers/science_provider.dart';
+import 'package:skotiq_core/src/services/calibration_service.dart'
+    show CalibrationSettings;
+import 'package:skotiq_core/src/settings/store_settings.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart'
     show autoConnectSettingsProvider;
 import 'package:skotiq_core/src/providers/transient_alert_provider.dart';
@@ -435,7 +439,9 @@ final _probes = <_Probe>[
         await _settle();
         await c
             .read(polarAlignmentConfigProvider.notifier)
-            .updateConfig(const PolarAlignmentConfig().copyWith(exposureTime: 4));
+            .updateConfig(
+              const PolarAlignmentConfig().copyWith(exposureTime: 4),
+            );
       },
     },
   ),
@@ -487,10 +493,7 @@ final _probes = <_Probe>[
         'replay_debug.enabled': 'yes',
         'replay_debug.retention_days': 'month',
       },
-      'empty': {
-        'replay_debug.enabled': '',
-        'replay_debug.retention_days': '',
-      },
+      'empty': {'replay_debug.enabled': '', 'replay_debug.retention_days': ''},
       'out of range': {'replay_debug.retention_days': '0'},
       'too long': {'replay_debug.retention_days': '4000'},
     },
@@ -929,6 +932,66 @@ void main() {
     );
   }
 
+  group('with nothing stored a feature holds its model\'s own defaults', () {
+    test('dark library tolerances', () {
+      const model = DarkLibraryMatchTolerances.defaults;
+      expect(StoreSettings.darkExposureTolerance.fallback, model.exposureSecs);
+      expect(
+        StoreSettings.darkTemperatureTolerance.fallback,
+        model.temperatureC,
+      );
+    });
+
+    test('Science overlay grid', () {
+      const model = ScienceVisualizationPrefs();
+      expect(
+        StoreSettings.scienceOverlayOpacity.fallback,
+        model.overlayOpacity,
+      );
+      expect(StoreSettings.scienceLiveGridRows.fallback, model.liveGridRows);
+      expect(StoreSettings.scienceLiveGridCols.fallback, model.liveGridCols);
+      expect(
+        StoreSettings.scienceAnalysisGridRows.fallback,
+        model.analysisGridRows,
+      );
+      expect(
+        StoreSettings.scienceAnalysisGridCols.fallback,
+        model.analysisGridCols,
+      );
+    });
+
+    test('transient alerts', () {
+      final model = TransientAlertSettings.defaultSettings;
+      expect(
+        StoreSettings.transientAlertMagnitudeThreshold.fallback,
+        model.magnitudeThreshold,
+      );
+      expect(
+        StoreSettings.transientAlertNotifyOnNew.fallback,
+        model.notifyOnNew,
+      );
+      expect(
+        StoreSettings.transientAlertAutoQueueBright.fallback,
+        model.autoQueueBright,
+      );
+      expect(
+        StoreSettings.transientAlertAutoQueueMagnitude.fallback,
+        model.autoQueueMagnitude,
+      );
+    });
+  });
+
+  test('a new database starts with the rows it did', () async {
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    final rows = await db.settingsDao.getAllSettings();
+    if (update) {
+      recorded['install rows'] = rows;
+    } else {
+      expect(rows, fixture['install rows']);
+    }
+  });
+
   if (update) {
     tearDownAll(() {
       File(
@@ -938,9 +1001,32 @@ void main() {
   }
 }
 
-/// What these settings now read from text no build writes, where that
-/// differs from the base build.
-const Map<String, Object?> _changedOnPurpose = {};
+/// What these settings now read where that differs from the base build.
+///
+/// One correction to rows a build does write: with no `auto_connect_equipment`
+/// row the equipment does not connect at start, as before the settings
+/// catalog (the base build read the catalog default, on).
+///
+/// The rest is text no build writes, which a declared setting reads by its
+/// kind's rule instead of each feature's own idiom:
+///   * a bool is on for `true` in any case (the base read `TRUE` as off where
+///     it tested `== 'true'`);
+///   * a strictly read switch or number with an empty row reads as its
+///     default (the base decision log and dark tolerances refused it), and an
+///     unreadable dark tolerance is a FormatException like every other
+///     strictly read setting (the base threw ArgumentError);
+///   * an empty row of a JSON document or an optional text means nothing is
+///     saved (the base kept empty grading rules as an empty string, and
+///     failed on an empty notification routing document).
+const Map<String, Object?> _changedOnPurpose = {
+};
+
+/// A change to the value the base build read from the rows labeled [label].
+class _SameAs {
+  const _SameAs(this.label);
+
+  final String label;
+}
 
 /// [base] with the entries of [changes] laid over it, map by map. A change
 /// that is not a map replaces the base value whole.
@@ -949,8 +1035,10 @@ Object? _withChanges(Object? base, Object? changes) {
   return {
     ...base,
     for (final entry in changes.entries)
-      entry.key: entry.value == null
-          ? null
-          : _withChanges(base[entry.key], entry.value),
+      entry.key: switch (entry.value) {
+        null => null,
+        _SameAs(:final label) => base[label],
+        final value => _withChanges(base[entry.key], value),
+      },
   };
 }
