@@ -4,7 +4,7 @@
 
 use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
-use crate::protocol::standard_properties::*;
+use crate::protocol::names::*;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -22,35 +22,11 @@ impl IndiFilterWheel {
         }
     }
 
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    /// The shared server connection this device is reached through.
-    pub fn client(&self) -> &Arc<RwLock<IndiClient>> {
-        &self.client
-    }
-
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
     /// Detect whether this driver numbers filter slots from 0 or 1 using `FILTER_SLOT` min.
     async fn slot_index_base(&self) -> i32 {
         let client = self.client.read().await;
         if let Some(limits) = client
-            .get_number_limits(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
+            .get_number_limits(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
             .await
         {
             if limits.min.is_some_and(|m| m < 1.0) {
@@ -68,12 +44,6 @@ impl IndiFilterWheel {
     async fn zero_based_from_wire_slot(&self, wire: i32) -> i32 {
         let base = self.slot_index_base().await;
         wire - base
-    }
-
-    /// Set filter position using Skotiq's **0-based** index (ASCOM/Alpaca convention).
-    pub async fn set_position(&self, zero_based: i32) -> IndiResult<()> {
-        let wire = self.wire_slot_from_zero_based(zero_based).await;
-        self.set_slot(wire).await
     }
 
     /// Move to a **0-based** slot and return once the wheel reports it is
@@ -96,7 +66,16 @@ impl IndiFilterWheel {
                 Duration::from_millis(config.property_poll_interval_ms.clamp(50, 500)),
             )
         };
-        self.set_slot(target).await?;
+        self.client
+            .write()
+            .await
+            .set_number(
+                &self.device_name,
+                FILTER_SLOT,
+                FILTER_SLOT_VALUE,
+                f64::from(target),
+            )
+            .await?;
         let start = std::time::Instant::now();
         loop {
             let (state, slot) = {
@@ -106,7 +85,7 @@ impl IndiFilterWheel {
                         .get_property_state(&self.device_name, FILTER_SLOT)
                         .await,
                     client
-                        .get_number(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
+                        .get_number(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
                         .await,
                 )
             };
@@ -131,72 +110,18 @@ impl IndiFilterWheel {
         }
     }
 
-    /// Set filter slot using the driver's native slot numbering (usually 1-based per INDI).
-    pub async fn set_slot(&self, slot: i32) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client
-            .set_number(
-                &self.device_name,
-                FILTER_SLOT,
-                "FILTER_SLOT_VALUE",
-                // Why: i32 slot -> f64 (INDI wire); lossless.
-                f64::from(slot),
-            )
-            .await
-    }
-
-    /// Set filter slot with timeout (driver-native slot index).
-    pub async fn set_slot_with_timeout(
-        &self,
-        slot: i32,
-        timeout: Option<Duration>,
-    ) -> IndiResult<()> {
-        let timeout_duration = match timeout {
-            Some(timeout) => timeout,
-            None => {
-                let client = self.client.read().await;
-                Duration::from_secs(client.timeout_config().filter_change_timeout_secs)
-            }
-        };
-
-        {
-            let mut client = self.client.write().await;
-            client
-                .set_number(
-                    &self.device_name,
-                    FILTER_SLOT,
-                    "FILTER_SLOT_VALUE",
-                    // Why: i32 slot -> f64 (INDI wire); lossless.
-                    f64::from(slot),
-                )
-                .await?;
-        }
-
-        let client = self.client.read().await;
-        client
-            .wait_for_property_not_busy(&self.device_name, FILTER_SLOT, timeout_duration)
-            .await
-            .map_err(|e| IndiError::Failed {
-                what: format!("Filter wheel change to slot {}", slot),
-                cause: Box::new(e),
-            })
-    }
-
-    /// Get current filter position as a **0-based** index (Skotiq convention).
+    /// The current slot as a **0-based** index (Skotiq convention).
     pub async fn get_position(&self) -> IndiResult<i32> {
-        let wire = self.get_slot().await?;
-        Ok(self.zero_based_from_wire_slot(wire).await)
-    }
-
-    /// Get current filter slot in driver-native numbering (typically 1-based).
-    pub async fn get_slot(&self) -> IndiResult<i32> {
-        let client = self.client.read().await;
-        client
-            .get_number(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
+        let wire = self
+            .client
+            .read()
+            .await
+            .get_number(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
             .await
             // Why: INDI wire f64 -> i32 slot (bounded 1..wheel_size); saturates per Rust 1.45.
             .map(|s| s as i32)
-            .ok_or_else(|| IndiError::Unavailable("Filter slot not available".to_string()))
+            .ok_or_else(|| IndiError::Unavailable("Filter slot not available".to_string()))?;
+        Ok(self.zero_based_from_wire_slot(wire).await)
     }
 
     pub async fn get_names(&self) -> IndiResult<Vec<String>> {
@@ -227,7 +152,7 @@ impl IndiFilterWheel {
         // wheel on a fresh install (no saved profile to fall back on) shows an
         // EMPTY filter list even though the wheel's slot count is known.
         if let Some(limits) = client
-            .get_number_limits(&self.device_name, FILTER_SLOT, "FILTER_SLOT_VALUE")
+            .get_number_limits(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
             .await
         {
             if let (Some(min), Some(max)) = (limits.min, limits.max) {
@@ -252,6 +177,8 @@ impl IndiFilterWheel {
     }
 }
 
+indi_device!(IndiFilterWheel);
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -262,26 +189,6 @@ mod tests {
         let client = Arc::new(RwLock::new(IndiClient::new("localhost", Some(7624))));
         let fw = IndiFilterWheel::new(client, "TestFilterWheel");
         assert_eq!(fw.device_name(), "TestFilterWheel");
-    }
-
-    #[tokio::test]
-    async fn test_set_slot_with_timeout_error_message() {
-        let client = Arc::new(RwLock::new(IndiClient::new("localhost", Some(7624))));
-        let fw = IndiFilterWheel::new(client, "TestFilterWheel");
-
-        // This will fail since we're not connected
-        let result = fw
-            .set_slot_with_timeout(3, Some(Duration::from_millis(100)))
-            .await;
-
-        assert!(result.is_err());
-        if let Err(e) = result {
-            // Error should mention either the slot or that we're not connected
-            assert!(
-                e.to_string().contains("slot 3")
-                    || e.to_string().to_lowercase().contains("not connected")
-            );
-        }
     }
 
     #[test]

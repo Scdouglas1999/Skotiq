@@ -17,6 +17,18 @@ impl IndiClient {
             .collect()
     }
 
+    /// What `device` has published so far that tells its kind.
+    pub async fn describe_device(&self, device: &str) -> IndiDeviceDescription {
+        IndiDeviceDescription {
+            name: device.to_string(),
+            interface: self
+                .get_property_value(device, DRIVER_INFO, DRIVER_INTERFACE)
+                .await
+                .and_then(|value| value.trim().parse().ok()),
+            properties: self.get_properties(device).await,
+        }
+    }
+
     pub async fn get_property(&self, device: &str, property: &str) -> Option<IndiProperty> {
         let props = self.properties.read().await;
         map_get_2(&props, device, property).cloned()
@@ -311,21 +323,60 @@ impl IndiClient {
         self.send_command(&cmd).await
     }
 
-    /// Connect to a device (turn on CONNECTION switch)
+    /// Sends CONNECT without waiting for the driver; see
+    /// [`Self::connect_and_confirm`].
     pub async fn connect_device(&mut self, device: &str) -> IndiResult<()> {
-        self.set_switch(device, "CONNECTION", "CONNECT", true).await
+        self.set_switch(device, CONNECTION, CONNECT, true).await
     }
 
-    pub async fn disconnect_device(&mut self, device: &str) -> IndiResult<()> {
-        self.set_switch(device, "CONNECTION", "DISCONNECT", true)
+    async fn disconnect_device(&mut self, device: &str) -> IndiResult<()> {
+        self.set_switch(device, CONNECTION, DISCONNECT, true).await
+    }
+
+    /// Connects `device` and returns once the driver confirms it.
+    ///
+    /// A switch write only means the XML reached the socket, so this waits for
+    /// a CONNECTION update with CONNECT=On that is newer than the command.
+    /// CONNECT=On already in the cache is not enough: during a hand-over from
+    /// another client (an Alpaca bridge on the same server, say) it can belong
+    /// to that client, whose pending disconnect may arrive a moment later and
+    /// undo this connection. CONNECT is sent again every 250 ms while waiting,
+    /// because some Alpaca bridges acknowledge their own disconnect before the
+    /// shared driver's Off arrives, and a later CONNECT then wins that race.
+    pub async fn connect_and_confirm(&mut self, device: &str) -> IndiResult<()> {
+        let before = self.get_property_last_update_ms(device, CONNECTION).await;
+        self.connect_device(device).await?;
+        let deadline = tokio::time::Instant::now() + DEVICE_CONFIRM_TIMEOUT;
+        let mut last_write = tokio::time::Instant::now();
+        loop {
+            let after = self.get_property_last_update_ms(device, CONNECTION).await;
+            if is_newer_update(before, after) && self.is_device_connected(device).await {
+                return Ok(());
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(IndiError::Incomplete(format!(
+                    "Timed out waiting for INDI device {} to confirm a fresh connection readback",
+                    device
+                )));
+            }
+            if last_write.elapsed() >= Duration::from_millis(250) {
+                self.connect_device(device).await?;
+                last_write = tokio::time::Instant::now();
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+
+    /// Disconnects `device` and returns once the driver reads it back as
+    /// disconnected. A client that claims the same hardware before that
+    /// readback can have its connect undone by the pending disconnect.
+    pub async fn disconnect_and_confirm(&mut self, device: &str) -> IndiResult<()> {
+        self.disconnect_device(device).await?;
+        self.wait_until_device_disconnected(device, DEVICE_CONFIRM_TIMEOUT)
             .await
     }
 
-    /// Waits until the driver reads `device` back as disconnected.
-    /// `disconnect_device` returning only means the command was written; a
-    /// backend that claims the same hardware before the readback can have its
-    /// connect undone by the pending disconnect.
-    pub async fn wait_until_device_disconnected(
+    async fn wait_until_device_disconnected(
         &self,
         device: &str,
         timeout: Duration,
@@ -344,7 +395,7 @@ impl IndiClient {
     }
 
     pub async fn is_device_connected(&self, device: &str) -> bool {
-        self.get_switch(device, "CONNECTION", "CONNECT")
+        self.get_switch(device, CONNECTION, CONNECT)
             .await
             // Why: `CONNECTION` is the universal INDI device-connection
             // property. None means the device has not yet streamed it (the reader has not
@@ -352,42 +403,6 @@ impl IndiClient {
             // "not yet streamed" as "not connected" is correct — the caller must
             // re-poll after the initial property-discovery handshake completes.
             .unwrap_or(false)
-    }
-
-    pub async fn get_filter_names(&self, device: &str) -> Result<Vec<String>, String> {
-        let props = self.get_properties(device).await;
-
-        if let Some(prop) = props.iter().find(|p| p.name == "FILTER_NAME") {
-            let mut names = Vec::new();
-            for elem in &prop.elements {
-                if let Some(val) = self.get_property_value(device, "FILTER_NAME", elem).await {
-                    names.push(val);
-                } else {
-                    names.push(elem.clone());
-                }
-            }
-            if !names.is_empty() {
-                return Ok(names);
-            }
-        }
-
-        // Fallback: the driver published no FILTER_NAME property (optional in
-        // INDI) or an empty one. Synthesize generic names from the FILTER_SLOT
-        // count so a fresh install (no saved profile) still shows the wheel's
-        // slots instead of an empty list (see IndiFilterWheel::get_names).
-        if let Some(limits) = self
-            .get_number_limits(device, "FILTER_SLOT", "FILTER_SLOT_VALUE")
-            .await
-        {
-            if let (Some(min), Some(max)) = (limits.min, limits.max) {
-                let count = (max - min + 1.0).max(0.0) as usize;
-                if (1..=64).contains(&count) {
-                    return Ok((1..=count).map(|i| format!("Filter {i}")).collect());
-                }
-            }
-        }
-
-        Ok(Vec::new())
     }
 
     /// Wait for a property to reach a specific state with timeout

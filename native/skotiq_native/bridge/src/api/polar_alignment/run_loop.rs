@@ -298,6 +298,7 @@ pub(crate) async fn run_polar_alignment(
         let crate::last_frame::StoredFrame {
             display: image,
             raw,
+            ..
         } = crate::last_frame::frame(&camera_id)
             .await
             .ok_or_else(|| format!("The camera delivered no frame for point {point}"))?;

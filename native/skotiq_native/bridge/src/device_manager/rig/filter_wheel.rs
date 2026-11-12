@@ -9,6 +9,7 @@ use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_alpaca::AlpacaFilterWheel;
 use skotiq_device::{DriverError, FilterWheelDriver};
+use skotiq_indi::names as indi;
 use skotiq_indi::IndiFilterWheel;
 use std::time::Duration;
 
@@ -37,10 +38,7 @@ pub(crate) trait FilterWheel: RigDriver {
 
     /// The slots, their names and offsets, whether they can be renamed, and
     /// where the wheel is now.
-    async fn capabilities(
-        &self,
-        device_id: &str,
-    ) -> Result<FilterWheelCapabilities, SkotiqError>;
+    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError>;
 }
 
 /// A vendor SDK filter wheel.
@@ -177,10 +175,7 @@ impl FilterWheel for VendorFilterWheel {
         Ok(())
     }
 
-    async fn capabilities(
-        &self,
-        _device_id: &str,
-    ) -> Result<FilterWheelCapabilities, SkotiqError> {
+    async fn capabilities(&self, _device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
         // Vendor SDKs that keep no filter labels (the ZWO EFW) refuse the read
         // on first connect; the app then labels the slots by number.
         let filter_names = self
@@ -304,10 +299,7 @@ impl FilterWheel for AscomWheel {
         Err(DeviceOpError::unsupported(msg))
     }
 
-    async fn capabilities(
-        &self,
-        device_id: &str,
-    ) -> Result<FilterWheelCapabilities, SkotiqError> {
+    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
         // A failed Names read is not a wheel without filters: a 0-slot wheel
         // makes the scheduler reject every filtered target. ASCOM Names is
         // one of the reads that intermittently throws 0x80020009 headless.
@@ -386,10 +378,7 @@ impl FilterWheel for AlpacaFilterWheel {
         Err(DeviceOpError::unsupported(msg))
     }
 
-    async fn capabilities(
-        &self,
-        device_id: &str,
-    ) -> Result<FilterWheelCapabilities, SkotiqError> {
+    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
         // A failed Names read is not a wheel without filters: a 0-slot wheel
         // makes the scheduler reject every filtered target. An empty list
         // that the wheel did answer is passed on as it is.
@@ -447,7 +436,7 @@ impl RigDriver for IndiWheel {
     }
 
     async fn heartbeat(&self) -> Result<bool, String> {
-        Ok(self.wheel.is_connected().await)
+        self.wheel.check().await.map_err(|e| e.to_string())
     }
 }
 
@@ -504,23 +493,20 @@ impl FilterWheel for IndiWheel {
 
     /// The slot count is the FILTER_SLOT range when the driver publishes
     /// one, otherwise the number of names.
-    async fn capabilities(
-        &self,
-        _device_id: &str,
-    ) -> Result<FilterWheelCapabilities, SkotiqError> {
+    async fn capabilities(&self, _device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
         use skotiq_indi::IndiPermission;
         let device_name = self.wheel.device_name();
         let filter_names = self.wheel.get_names().await.unwrap_or_default();
         let (slot_limits, name_property_writable) = {
             let client = self.wheel.client().read().await;
             let limits = client
-                .get_number_limits(device_name, "FILTER_SLOT", "FILTER_SLOT_VALUE")
+                .get_number_limits(device_name, indi::FILTER_SLOT, indi::FILTER_SLOT_VALUE)
                 .await;
             let writable = client
                 .get_properties(device_name)
                 .await
                 .iter()
-                .find(|p| p.name == "FILTER_NAME")
+                .find(|p| p.name == indi::FILTER_NAME)
                 .is_some_and(|p| {
                     matches!(
                         p.perm,
@@ -626,10 +612,7 @@ impl FilterWheel for SimFilterWheel {
     /// The slots and names the simulated wheel turns between; where it is
     /// now is left to the live readings, as the capability cache refreshes
     /// them.
-    async fn capabilities(
-        &self,
-        _device_id: &str,
-    ) -> Result<FilterWheelCapabilities, SkotiqError> {
+    async fn capabilities(&self, _device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
         let sim = get_sim_filterwheel().read().await.status.clone();
         Ok(FilterWheelCapabilities {
             position_count: sim.filter_count,

@@ -18,6 +18,7 @@ mod heartbeat_config;
 mod heartbeat_events;
 mod identity;
 mod indi_ids;
+mod indi_release;
 mod listing_order;
 mod mount_home;
 mod mount_ops;

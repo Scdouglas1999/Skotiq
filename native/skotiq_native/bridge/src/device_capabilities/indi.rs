@@ -1,4 +1,5 @@
 use super::*;
+use skotiq_indi::names as indi;
 
 pub(crate) fn indi_sensor_type_is_color(sensor_type: &str) -> bool {
     let normalized = sensor_type.to_ascii_lowercase();
@@ -26,7 +27,8 @@ pub(crate) fn indi_readout_mode_label(mode: &skotiq_indi::IndiReadoutMode) -> St
 pub(crate) async fn get_indi_capabilities(
     device_id: &str,
 ) -> Result<DeviceCapabilities, SkotiqError> {
-    use skotiq_indi::{IndiCamera, IndiClient};
+    use skotiq_device::DeviceKind;
+    use skotiq_indi::IndiCamera;
 
     let parsed = parse_device_id_cached(device_id)?;
     let (host, port, device_name) = match &parsed.connection_info {
@@ -43,63 +45,41 @@ pub(crate) async fn get_indi_capabilities(
         }
     };
 
-    let server_key = format!("{}:{}", host, port);
-    let client = {
-        let mgr = crate::api::get_device_manager();
-        if let Some(client) = mgr.indi_clients.read().await.get(&server_key).cloned() {
-            client
-        } else {
-            let mut clients = mgr.indi_clients.write().await;
-            if let Some(client) = clients.get(&server_key).cloned() {
-                client
-            } else {
-                let mut new_client = IndiClient::new(&host, Some(port));
-                new_client
-                    .connect()
-                    .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
-                let client = Arc::new(RwLock::new(new_client));
-                clients.insert(server_key.clone(), Arc::clone(&client));
-                client
-            }
-        }
-    };
+    let client = crate::api::get_device_manager()
+        .indi_server(&host, port)
+        .await
+        .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
 
     // INDI servers publish capability-bearing property definitions
     // asynchronously after connect; reuse an existing populated client when
     // present, otherwise wait briefly for the newly pooled client to hydrate.
     let start = std::time::Instant::now();
-    let properties = loop {
-        let properties = {
-            let locked_client = client.read().await;
-            locked_client.get_properties(&device_name).await
-        };
-        if !properties.is_empty() || start.elapsed() >= std::time::Duration::from_secs(1) {
-            break properties;
+    let description = loop {
+        let description = client.read().await.describe_device(&device_name).await;
+        if !description.properties.is_empty()
+            || start.elapsed() >= std::time::Duration::from_secs(1)
+        {
+            break description;
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     };
-
-    // Determine device type based on standard INDI property names
-    let has_ccd_props = properties
-        .iter()
-        .any(|p| p.name.starts_with("CCD_") || p.name == "CCD_EXPOSURE");
-    let has_telescope_props = properties
-        .iter()
-        .any(|p| p.name.starts_with("EQUATORIAL_") || p.name == "TELESCOPE_MOTION_NS");
+    let kind = description.kind();
+    let properties = description.properties;
 
     // Build capabilities based on discovered properties
-    if has_ccd_props {
-        let can_abort = properties.iter().any(|p| p.name == "CCD_ABORT_EXPOSURE");
+    if kind == Some(DeviceKind::Camera) {
+        let can_abort = properties
+            .iter()
+            .any(|p| p.name == indi::CCD_ABORT_EXPOSURE);
         let has_cooler = properties
             .iter()
-            .any(|p| p.name == "CCD_COOLER" || p.name == "CCD_TEMPERATURE");
-        let has_binning = properties.iter().any(|p| p.name == "CCD_BINNING");
-        let has_subframe = properties.iter().any(|p| p.name == "CCD_FRAME");
+            .any(|p| p.name == indi::CCD_COOLER || p.name == indi::CCD_TEMPERATURE);
+        let has_binning = properties.iter().any(|p| p.name == indi::CCD_BINNING);
+        let has_subframe = properties.iter().any(|p| p.name == indi::CCD_FRAME);
         let has_gain = properties
             .iter()
-            .any(|p| p.name == "CCD_GAIN" || p.name == "CCD_CONTROLS");
-        let has_offset = properties.iter().any(|p| p.name == "CCD_OFFSET");
+            .any(|p| p.name == indi::CCD_GAIN || p.name == indi::CCD_CONTROLS);
+        let has_offset = properties.iter().any(|p| p.name == indi::CCD_OFFSET);
 
         let camera = IndiCamera::new(Arc::clone(&client), &device_name);
         let gain_range = camera.get_gain_range().await;
@@ -128,7 +108,11 @@ pub(crate) async fn get_indi_capabilities(
         let (cooler_min_temp_c, cooler_max_temp_c) = {
             let locked_client = client.read().await;
             let limits = locked_client
-                .get_number_limits(&device_name, "CCD_TEMPERATURE", "CCD_TEMPERATURE_VALUE")
+                .get_number_limits(
+                    &device_name,
+                    indi::CCD_TEMPERATURE,
+                    indi::CCD_TEMPERATURE_VALUE,
+                )
                 .await;
             (
                 limits.as_ref().and_then(|l| l.min),
@@ -171,21 +155,28 @@ pub(crate) async fn get_indi_capabilities(
             cooler_max_temp_c,
             ..Default::default()
         }))
-    } else if has_telescope_props {
+    } else if kind == Some(DeviceKind::Mount) {
         let has_equatorial = properties.iter().any(|p| p.name.starts_with("EQUATORIAL_"));
-        let supports_alt_az = properties.iter().any(|p| p.name == "HORIZONTAL_COORD");
-        let can_park = properties.iter().any(|p| p.name == "TELESCOPE_PARK");
-        let can_sync = properties.iter().any(|p| p.name == "ON_COORD_SET");
+        let supports_alt_az = properties.iter().any(|p| p.name == indi::HORIZONTAL_COORD);
+        let can_park = properties.iter().any(|p| p.name == indi::TELESCOPE_PARK);
+        let can_sync = properties.iter().any(|p| p.name == indi::ON_COORD_SET);
         let can_guide = properties
             .iter()
             .any(|p| p.name.starts_with("TELESCOPE_TIMED_GUIDE_"));
-        let can_track = properties.iter().any(|p| p.name == "TELESCOPE_TRACK_STATE");
-        let can_get_side_of_pier = properties.iter().any(|p| p.name == "TELESCOPE_PIER_SIDE");
+        let can_track = properties
+            .iter()
+            .any(|p| p.name == indi::TELESCOPE_TRACK_STATE);
+        let can_get_side_of_pier = properties
+            .iter()
+            .any(|p| p.name == indi::TELESCOPE_PIER_SIDE);
         let can_set_tracking_rate = properties
             .iter()
-            .any(|p| p.name == "TELESCOPE_TRACK_RATE" || p.name == "TELESCOPE_TRACK_MODE");
+            .any(|p| p.name == indi::TELESCOPE_TRACK_RATE || p.name == indi::TELESCOPE_TRACK_MODE);
         let mut supported_tracking_rates = Vec::new();
-        if properties.iter().any(|p| p.name == "TELESCOPE_TRACK_MODE") {
+        if properties
+            .iter()
+            .any(|p| p.name == indi::TELESCOPE_TRACK_MODE)
+        {
             supported_tracking_rates.extend([
                 TrackingRate::Sidereal,
                 TrackingRate::Lunar,
@@ -193,25 +184,31 @@ pub(crate) async fn get_indi_capabilities(
                 TrackingRate::King,
             ]);
         }
-        let can_move_ns = properties.iter().any(|p| p.name == "TELESCOPE_MOTION_NS");
-        let can_move_we = properties.iter().any(|p| p.name == "TELESCOPE_MOTION_WE");
-        let max_slew_rate =
-            if let Some(slew_rate) = properties.iter().find(|p| p.name == "TELESCOPE_SLEW_RATE") {
-                let locked_client = client.read().await;
-                let mut max_rate: Option<f64> = None;
-                for element in &slew_rate.elements {
-                    if let Some(max) = locked_client
-                        .get_number_limits(&device_name, "TELESCOPE_SLEW_RATE", element)
-                        .await
-                        .and_then(|limits| limits.max)
-                    {
-                        max_rate = Some(max_rate.map_or(max, |current| current.max(max)));
-                    }
+        let can_move_ns = properties
+            .iter()
+            .any(|p| p.name == indi::TELESCOPE_MOTION_NS);
+        let can_move_we = properties
+            .iter()
+            .any(|p| p.name == indi::TELESCOPE_MOTION_WE);
+        let max_slew_rate = if let Some(slew_rate) = properties
+            .iter()
+            .find(|p| p.name == indi::TELESCOPE_SLEW_RATE)
+        {
+            let locked_client = client.read().await;
+            let mut max_rate: Option<f64> = None;
+            for element in &slew_rate.elements {
+                if let Some(max) = locked_client
+                    .get_number_limits(&device_name, indi::TELESCOPE_SLEW_RATE, element)
+                    .await
+                    .and_then(|limits| limits.max)
+                {
+                    max_rate = Some(max_rate.map_or(max, |current| current.max(max)));
                 }
-                max_rate
-            } else {
-                None
-            };
+            }
+            max_rate
+        } else {
+            None
+        };
 
         // Why: INDI publishes the achievable pulse-guide duration range as the
         // min/max number limits of the TELESCOPE_TIMED_GUIDE_NS (TIMED_GUIDE_N/S)
@@ -221,8 +218,10 @@ pub(crate) async fn get_indi_capabilities(
         // any axis accepts. Absent properties/limits → None ("range unknown"),
         // never a fabricated clamp. Mirrors the max_slew_rate element-scan above.
         let (min_pulse_guide_ms, max_pulse_guide_ms) = {
-            const TIMED_GUIDE_PROPS: [&str; 2] =
-                ["TELESCOPE_TIMED_GUIDE_NS", "TELESCOPE_TIMED_GUIDE_WE"];
+            const TIMED_GUIDE_PROPS: [&str; 2] = [
+                indi::TELESCOPE_TIMED_GUIDE_NS,
+                indi::TELESCOPE_TIMED_GUIDE_WE,
+            ];
             let mut min_pulse: Option<f64> = None;
             let mut max_pulse: Option<f64> = None;
             let locked_client = client.read().await;
@@ -256,7 +255,8 @@ pub(crate) async fn get_indi_capabilities(
             can_unpark: can_park,
             // `IndiMount::set_park_to_current` drives PARK_CURRENT.
             can_set_park: properties.iter().any(|p| {
-                p.name == "TELESCOPE_PARK_OPTION" && p.elements.iter().any(|e| e == "PARK_CURRENT")
+                p.name == indi::TELESCOPE_PARK_OPTION
+                    && p.elements.iter().any(|e| e == indi::PARK_CURRENT)
             }),
             can_pulse_guide: can_guide,
             can_get_side_of_pier,
@@ -265,10 +265,10 @@ pub(crate) async fn get_indi_capabilities(
             supported_tracking_rates,
             is_equatorial: has_equatorial,
             supports_alt_az,
-            can_find_home: properties.iter().any(|p| p.name == "TELESCOPE_HOME"),
+            can_find_home: properties.iter().any(|p| p.name == indi::TELESCOPE_HOME),
             can_abort_slew: properties
                 .iter()
-                .any(|p| p.name == "TELESCOPE_ABORT_MOTION"),
+                .any(|p| p.name == indi::TELESCOPE_ABORT_MOTION),
             max_slew_rate,
             can_move_axis: can_move_ns || can_move_we,
             axis_count: u32::from(can_move_ns) + u32::from(can_move_we),

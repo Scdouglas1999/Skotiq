@@ -1,5 +1,6 @@
 use super::*;
 use crate::event::EquipmentEvent;
+use skotiq_indi::names as indi;
 
 impl DeviceManager {
     /// Park the mount, publishing `MountParkStarted` before the command and
@@ -441,7 +442,7 @@ impl DeviceManager {
                         // that element is the capability.
                         let locked = client.read().await;
                         return Ok(locked
-                            .get_switch(&device_name, "TELESCOPE_HOME", "GO")
+                            .get_switch(&device_name, indi::TELESCOPE_HOME, indi::GO)
                             .await
                             .is_some());
                     }
@@ -731,11 +732,11 @@ impl DeviceManager {
                     if let Some(client) = clients.get(&server_key) {
                         let locked = client.read().await;
                         let supports_park = locked
-                            .get_switch(&device_name, "TELESCOPE_PARK", "PARK")
+                            .get_switch(&device_name, indi::TELESCOPE_PARK, indi::PARK)
                             .await
                             .is_some()
                             || locked
-                                .get_switch(&device_name, "TELESCOPE_PARK", "UNPARK")
+                                .get_switch(&device_name, indi::TELESCOPE_PARK, indi::UNPARK)
                                 .await
                                 .is_some();
                         return Ok(supports_park);
