@@ -137,31 +137,6 @@ impl DeviceDriver for PlayerOneFilterWheel {
             "get filter wheel properties",
         )?;
 
-        // A wheel turns to find its home right after it is opened and refuses
-        // moves until that ends (INDI and NINA wait for it the same way).
-        let deadline = std::time::Instant::now() + HOMING_TIMEOUT;
-        loop {
-            let mut state: c_int = 0;
-            // SAFETY: handle has just been opened; state is a valid out-pointer.
-            check_poa_pw_error(
-                unsafe { (sdk.get_pw_state)(self.handle, &mut state) },
-                "get filter wheel state",
-            )?;
-            if state == PW_STATE_OPENED {
-                break;
-            }
-            if std::time::Instant::now() >= deadline {
-                // NINA connects anyway; position reads say -1 until the turn ends.
-                tracing::warn!(
-                    "Player One filter wheel {} was still turning {} s after it was opened",
-                    self.handle,
-                    HOMING_TIMEOUT.as_secs()
-                );
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
-
         if props.position_count <= 0 {
             return Err(DriverError::SdkError(format!(
                 "Player One PW handle {} reported invalid position count {}",
@@ -172,7 +147,30 @@ impl DeviceDriver for PlayerOneFilterWheel {
         self.name = pw_cstr(&props.name);
         self.filter_count = props.position_count;
         cleanup_guard.defuse();
+        drop(sdk);
         self.connected = true;
+
+        // A wheel turns to find its home right after it is opened and refuses
+        // moves until that ends (INDI and NINA wait for it the same way). The
+        // SDK lock is shared with the cameras, so it is taken per poll.
+        let deadline = std::time::Instant::now() + HOMING_TIMEOUT;
+        loop {
+            match self.is_moving().await {
+                Ok(false) => break,
+                Ok(true) if std::time::Instant::now() < deadline => {}
+                outcome => {
+                    // NINA connects anyway; position reads say -1 until the turn ends.
+                    tracing::warn!(
+                        "Player One filter wheel {} had not finished homing {} s after it was opened ({:?})",
+                        self.handle,
+                        HOMING_TIMEOUT.as_secs(),
+                        outcome
+                    );
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
         Ok(())
     }
 

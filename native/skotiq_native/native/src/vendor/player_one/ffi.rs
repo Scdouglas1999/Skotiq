@@ -42,8 +42,7 @@ pub(crate) struct PWProperties {
     pub(crate) reserved: [c_char; 32],
 }
 
-/// `PWState` from PlayerOnePW.h, held as the C int the SDK writes.
-pub(crate) const PW_STATE_OPENED: c_int = 1;
+/// `PW_STATE_MOVING` of `PWState` from PlayerOnePW.h, which the SDK writes as a C int.
 pub(crate) const PW_STATE_MOVING: c_int = 2;
 
 /// `PW_ERROR_IS_MOVING` from PlayerOnePW.h: the answer to a position read
