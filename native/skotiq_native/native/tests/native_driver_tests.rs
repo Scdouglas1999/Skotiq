@@ -1956,6 +1956,14 @@ mod fake_sdk_contract {
             .expect("Fujifilm exposure status"));
         gfx.disconnect().await.expect("Fujifilm disconnect");
 
+        // The device information may leave the serial out; the opened body is
+        // then recognized by its product name.
+        env::set_var("SK_FUJIFILM_INFO_NO_SERIAL", "1");
+        let connected = gfx.connect().await;
+        env::remove_var("SK_FUJIFILM_INFO_NO_SERIAL");
+        connected.expect("connect when the device information has no serial");
+        gfx.disconnect().await.expect("Fujifilm disconnect");
+
         restore_env_var("SK_FUJIFILM_RELEASE_ERROR", old_release_error);
     }
 
@@ -2105,6 +2113,16 @@ mod fake_sdk_contract {
             fujifilm_fake(&fake, FAKE_OPEN),
             0,
             "a refused lens leaves the body closed"
+        );
+
+        // A focus switch on S or C keeps the body in autofocus.
+        env::set_var("SK_FUJIFILM_FOCUS_SWITCH_AF", "1");
+        let mut lens = fujifilm::FujifilmLens::new("FUJI-GFX-0001", "GFX100 II lens");
+        let refused = lens.connect().await.expect_err("no focus range in AF-S");
+        env::remove_var("SK_FUJIFILM_FOCUS_SWITCH_AF");
+        assert!(
+            refused.to_string().contains("focus mode switch to M"),
+            "{refused}"
         );
     }
 
@@ -2720,7 +2738,7 @@ unsafe fn fill<const N:usize>(buf:&mut [c_char;N],text:&[u8]){for b in buf.iter_
 #[no_mangle] pub unsafe extern "C" fn XSDK_OpenEx(_device:*const c_char,handle:*mut XsdkHandle,mode:*mut c_long,_opt:*mut c_void)->c_long{if handle.is_null(){return -1;} if OPEN.load(Ordering::SeqCst)>0{return fail(0x1001);} OPEN.store(1,Ordering::SeqCst); *handle=1usize as XsdkHandle; if !mode.is_null(){*mode=0;} 0}
 #[no_mangle] pub extern "C" fn XSDK_Close(_h:XsdkHandle)->c_long{OPEN.store(0,Ordering::SeqCst); LIVE.store(0,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_GetErrorNumber(_h:XsdkHandle,api:*mut c_long,err:*mut c_long)->c_long{if !api.is_null(){*api=0;} let last=LAST_ERROR.swap(0,Ordering::SeqCst); if !err.is_null(){*err=if std::env::var("SK_FUJIFILM_RELEASE_ERROR").is_ok(){0x00001006}else{last};} 0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_GetDeviceInfo(_h:XsdkHandle,info:*mut XsdkDeviceInformation)->c_long{if info.is_null(){return -1;} let mut v:XsdkDeviceInformation=std::mem::zeroed(); fill(&mut v.str_vendor,b"FUJIFILM"); fill(&mut v.str_manufacturer,b"FUJIFILM"); fill(&mut v.str_product,b"GFX100 II"); fill(&mut v.str_firmware,b"9.99"); fill(&mut v.str_device_type,b"Digital Camera"); fill(&mut v.str_serial_no,b"FUJI-GFX-0001"); fill(&mut v.str_framework,b"USB"); v.b_device_id=1; fill(&mut v.str_device_name,b"Skotiq Fuji"); *info=v; 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_GetDeviceInfo(_h:XsdkHandle,info:*mut XsdkDeviceInformation)->c_long{if info.is_null(){return -1;} let mut v:XsdkDeviceInformation=std::mem::zeroed(); fill(&mut v.str_vendor,b"FUJIFILM"); fill(&mut v.str_manufacturer,b"FUJIFILM"); fill(&mut v.str_product,b"GFX100 II"); fill(&mut v.str_firmware,b"9.99"); fill(&mut v.str_device_type,b"Digital Camera"); if std::env::var("SK_FUJIFILM_INFO_NO_SERIAL").is_err(){fill(&mut v.str_serial_no,b"FUJI-GFX-0001");} fill(&mut v.str_framework,b"USB"); v.b_device_id=1; fill(&mut v.str_device_name,b"Skotiq Fuji"); *info=v; 0}
 #[no_mangle] pub extern "C" fn XSDK_SetPriorityMode(_h:XsdkHandle,_mode:c_long)->c_long{0}
 /// The shutter is refused while live view runs.
 #[no_mangle] pub unsafe extern "C" fn XSDK_Release(_h:XsdkHandle,_mode:c_long,shot:*mut c_long,af:*mut c_long)->c_long{if std::env::var("SK_FUJIFILM_RELEASE_ERROR").is_ok(){return -1;} if LIVE.load(Ordering::SeqCst)==1{return fail(0x1006);} RELEASES.fetch_add(1,Ordering::SeqCst); if !shot.is_null(){*shot=0;} if !af.is_null(){*af=0;} 0}
@@ -2739,11 +2757,12 @@ unsafe fn fill<const N:usize>(buf:&mut [c_char;N],text:&[u8]){for b in buf.iter_
 // arguments travel in registers either way, so a callee with four fixed
 // arguments reads the value the driver passes, and ignores it for the codes
 // that pass none.
-#[no_mangle] pub extern "C" fn XSDK_SetProp(_h:XsdkHandle,api:c_long,param:c_long,value:c_long)->c_long{match (api,param){(0x3301,0)=>{if LIVE.load(Ordering::SeqCst)==0{LIVE.store(1,Ordering::SeqCst); LIVE_STARTS.fetch_add(1,Ordering::SeqCst);}} (0x3302,0)=>LIVE.store(0,Ordering::SeqCst),(0x3323,1)=>LIVE_QUALITY.store(value,Ordering::SeqCst),(0x3325,1)=>LIVE_SIZE.store(value,Ordering::SeqCst),(0x2201,1)=>FOCUS_MODE.store(value,Ordering::SeqCst),(0x2207,1)=>FOCUS_TARGET.store(value,Ordering::SeqCst),(0x2145,1)=>{},_=>return fail(0x1002)} 0}
+#[no_mangle] pub extern "C" fn XSDK_SetProp(_h:XsdkHandle,api:c_long,param:c_long,value:c_long)->c_long{match (api,param){(0x3301,0)=>{if LIVE.load(Ordering::SeqCst)==0{LIVE.store(1,Ordering::SeqCst); LIVE_STARTS.fetch_add(1,Ordering::SeqCst);}} (0x3302,0)=>LIVE.store(0,Ordering::SeqCst),(0x3323,1)=>LIVE_QUALITY.store(value,Ordering::SeqCst),(0x3325,1)=>LIVE_SIZE.store(value,Ordering::SeqCst),(0x2201,1)=>{if std::env::var("SK_FUJIFILM_FOCUS_SWITCH_AF").is_ok(){return fail(0x2003);} FOCUS_MODE.store(value,Ordering::SeqCst)},(0x2207,1)=>FOCUS_TARGET.store(value,Ordering::SeqCst),(0x2145,1)=>{},_=>return fail(0x1002)} 0}
 /// A lens read moves the fake lens 150 pulses toward its target; it comes to rest 30 pulses short, as some lenses do.
 #[no_mangle] pub unsafe extern "C" fn XSDK_GetProp(_h:XsdkHandle,api:c_long,param:c_long,out:*mut c_long)->c_long{if param!=1||out.is_null(){return fail(0x1002);} *out=match api{0x2208=>{let target=FOCUS_TARGET.load(Ordering::SeqCst); let rest=if target==FOCUS_PULSE.load(Ordering::SeqCst){target}else{target-30}; let now=FOCUS_PULSE.load(Ordering::SeqCst); let next=if (rest-now).abs()<=150{rest}else{now+150*(rest-now).signum()}; FOCUS_PULSE.store(next,Ordering::SeqCst); next} 0x2202=>FOCUS_MODE.load(Ordering::SeqCst),0x2146=>2,0x2161=>1,_=>return fail(0x1013)}; 0}
 /// CapFocusPos with the structure's size in and the structure out (SDK Programming Reference 4.2.1.37).
-#[no_mangle] pub unsafe extern "C" fn XSDK_CapProp(_h:XsdkHandle,api:c_long,param:c_long,size:*mut c_long,cap:*mut FocusPosCap)->c_long{if api!=0x2259||param!=2||size.is_null()||cap.is_null(){return fail(0x1002);} if std::env::var("SK_FUJIFILM_NO_LENS").is_ok(){return fail(0x1005);} if *size!=std::mem::size_of::<FocusPosCap>() as c_long||(*cap).version!=0x00010000{return fail(0x1002);} *cap=FocusPosCap{size:*size,version:0x00010000,infinity:100,closest:900,over_infinity:40,over_closest:20,depth:5,step:3}; 0}
+/// Outside manual focus it reports no range, as a GFX100S II does (owner's NINA plugin 3.1.0.0).
+#[no_mangle] pub unsafe extern "C" fn XSDK_CapProp(_h:XsdkHandle,api:c_long,param:c_long,size:*mut c_long,cap:*mut FocusPosCap)->c_long{if api!=0x2259||param!=2||size.is_null()||cap.is_null(){return fail(0x1002);} if std::env::var("SK_FUJIFILM_NO_LENS").is_ok(){return fail(0x1005);} if *size!=std::mem::size_of::<FocusPosCap>() as c_long||(*cap).version!=0x00010000{return fail(0x1002);} if FOCUS_MODE.load(Ordering::SeqCst)!=1{*cap=FocusPosCap{size:*size,version:0x00010000,infinity:0,closest:0,over_infinity:0,over_closest:0,depth:0,step:0}; return 0;} *cap=FocusPosCap{size:*size,version:0x00010000,infinity:100,closest:900,over_infinity:40,over_closest:20,depth:5,step:3}; 0}
 "#;
 }
 
