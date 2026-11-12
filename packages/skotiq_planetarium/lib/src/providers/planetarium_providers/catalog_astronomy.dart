@@ -116,14 +116,21 @@ final constellationDataProvider = Provider<List<ConstellationData>>((ref) {
 
 /// Provider that only updates when the date changes (not every second)
 /// This prevents unnecessary recalculations of date-dependent values like twilight.
+///
+/// Selected, not watched whole: a provider that depends on the 1 Hz
+/// observation clock is recomputed on every tick, and each recompute costs the
+/// app a frame even when the result is the same.
 final _currentDateProvider = Provider<DateTime>((ref) {
-  final time = ref.watch(observationTimeProvider);
-  // Return only the date portion, so it only changes at midnight. Preserves
-  // UTC-ness for the same reason as [_currentMinuteProvider].
-  final t = time.time;
-  return t.isUtc
-      ? DateTime.utc(t.year, t.month, t.day)
-      : DateTime(t.year, t.month, t.day);
+  // Only the date portion, so it only changes at midnight. Preserves UTC-ness
+  // for the same reason as [_currentMinuteProvider].
+  return ref.watch(
+    observationTimeProvider.select((time) {
+      final t = time.time;
+      return t.isUtc
+          ? DateTime.utc(t.year, t.month, t.day)
+          : DateTime(t.year, t.month, t.day);
+    }),
+  );
 });
 
 /// The date of the observing NIGHT in progress — what
@@ -135,8 +142,10 @@ final _currentDateProvider = Provider<DateTime>((ref) {
 /// every time one sidereal day (~4 min) out. Cheap to watch — the value only
 /// changes at local noon.
 final _currentNightDateProvider = Provider<DateTime>((ref) {
-  return AstronomyCalculations.nightDateOf(
-    ref.watch(observationTimeProvider).time,
+  return ref.watch(
+    observationTimeProvider.select(
+      (time) => AstronomyCalculations.nightDateOf(time.time),
+    ),
   );
 });
 
@@ -144,8 +153,11 @@ final _currentNightDateProvider = Provider<DateTime>((ref) {
 /// This prevents unnecessary recalculations of astronomical positions
 /// which don't need per-second precision for sky rendering.
 final _currentMinuteProvider = Provider<DateTime>((ref) {
-  final time = ref.watch(observationTimeProvider);
-  // Return only up to minute precision, ignoring seconds.
+  return ref.watch(observationTimeProvider.select(_minuteOf));
+});
+
+DateTime _minuteOf(ObservationTimeState time) {
+  // Only up to minute precision, ignoring seconds.
   //
   // Truncating through the local `DateTime(...)` constructor DROPS the UTC flag,
   // so a UTC observation time came back out as a local wall-clock time and every
@@ -156,7 +168,7 @@ final _currentMinuteProvider = Provider<DateTime>((ref) {
   return t.isUtc
       ? DateTime.utc(t.year, t.month, t.day, t.hour, t.minute)
       : DateTime(t.year, t.month, t.day, t.hour, t.minute);
-});
+}
 
 /// Public provider for observation time at minute precision.
 /// Use this for sky rendering to avoid rebuilds every second.
@@ -253,20 +265,44 @@ final moonInfoProvider = Provider<MoonTimes>((ref) {
 
 /// Local Sidereal Time **now**, at the observing site.
 ///
-/// Per-second precision, from the wall clock — not from
-/// [observationTimeProvider]. The shell status bar and the dashboard header
-/// render this beside a real clock, and sidereal time is what an imager reads
-/// to decide what is transiting, so a scrubbed one has to stay inside the
-/// screen simulating it — see [observationSiderealTimeProvider].
+/// From the wall clock, not from [observationTimeProvider]. The shell status
+/// bar renders this beside a real clock, and sidereal time is what an imager
+/// reads to decide what is transiting, so a scrubbed one has to stay inside
+/// the screen simulating it — see [observationSiderealTimeProvider].
+///
+/// Recomputed as each sidereal minute begins, which is as often as an `HH:MM`
+/// readout changes. Every recompute costs a frame even when no readout
+/// changes, and on the Linux embedder a frame is a full-window repaint: once
+/// a second, this alone was most of an idle window's frames.
 ///
 /// Null with no site on record: sidereal time is a function of longitude.
 final localSiderealTimeProvider = Provider<double?>((ref) {
   final site = ref.watch(observerLocationProvider).site;
   if (site == null) return null;
-  final now = ref.watch(wallClockProvider);
-
-  return AstronomyCalculations.localSiderealTime(now, site.longitude);
+  final lst = AstronomyCalculations.localSiderealTime(
+    DateTime.now(),
+    site.longitude,
+  );
+  final nextMinute = Timer(untilNextSiderealMinute(lst), ref.invalidateSelf);
+  ref.onDispose(nextMinute.cancel);
+  return lst;
 });
+
+/// Solar seconds per sidereal second.
+const double _solarPerSiderealSecond = 1 / 1.00273790935;
+
+/// How long from a moment whose local sidereal time is [lstHours] until the
+/// next whole sidereal minute, plus a few milliseconds so a recompute then
+/// reads the new minute rather than the end of the old one.
+@visibleForTesting
+Duration untilNextSiderealMinute(double lstHours) {
+  final minutes = lstHours * 60;
+  final siderealSecondsLeft = (minutes.floor() + 1 - minutes) * 60;
+  final micros =
+      siderealSecondsLeft * _solarPerSiderealSecond * Duration.microsecondsPerSecond;
+  return Duration(microseconds: micros.ceil()) +
+      const Duration(milliseconds: 5);
+}
 
 /// Local Sidereal Time at the planetarium's *observation* time, which the time
 /// transport can hold, accelerate or jump.

@@ -1,5 +1,5 @@
-use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::dispatch::DeviceOpError;
+use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomDome;
 use std::fmt::Debug;
@@ -174,8 +174,7 @@ impl AscomDomeWrapper {
             .send(AscomDomeCommand::Disconnect(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        let result =
-            super::recv_with_timeout("Dome", rx, Timeouts::connection(), "disconnect").await;
+        let result = super::recv_with_timeout("Dome", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }

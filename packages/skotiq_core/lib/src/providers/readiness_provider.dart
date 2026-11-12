@@ -35,10 +35,10 @@ final readinessReportProvider = Provider<ReadinessReport>((ref) {
   // Connection is satisfied ONLY on an explicit `connected` state. Every other
   // state (disconnected / connecting / error) is fail-closed to false.
   final cameraConnected =
-      ref.watch(cameraStateProvider).connectionState ==
+      ref.watch(cameraStateProvider.select((c) => c.connectionState)) ==
       DeviceConnectionState.connected;
   final mountConnected =
-      ref.watch(mountStateProvider).connectionState ==
+      ref.watch(mountStateProvider.select((m) => m.connectionState)) ==
       DeviceConnectionState.connected;
 
   // Location & output path (persisted settings)

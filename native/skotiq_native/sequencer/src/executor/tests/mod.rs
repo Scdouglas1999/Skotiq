@@ -11,44 +11,6 @@ mod recovery_tests;
 mod resume_tests;
 mod runtime_tests;
 
-/// A failed dither that does not reset the interval leaves the trigger
-/// permanently due for a condition that cannot change mid-run: an unguided
-/// 12-frame dark run logs 12 identical "Trigger-initiated dither failed: No
-/// active guider configured" WARNs, one per exposure.
-#[test]
-fn dither_without_a_guider_is_a_skip_not_a_failure() {
-    assert_eq!(
-        classify_dither_result(
-            NodeStatus::Failure,
-            Some("Dither failed: No active guider configured"),
-        ),
-        DitherTriggerOutcome::SkippedNoGuider,
-    );
-}
-
-#[test]
-fn a_real_dither_failure_still_fails() {
-    for message in [
-        "Dither failed: guide star lost",
-        "Dither failed: settle timed out after 120s",
-        "PHD2 connection refused",
-    ] {
-        assert_eq!(
-            classify_dither_result(NodeStatus::Failure, Some(message)),
-            DitherTriggerOutcome::Failed,
-            "{message} should keep warning and stay due for retry",
-        );
-    }
-}
-
-#[test]
-fn a_failure_with_no_message_still_fails() {
-    assert_eq!(
-        classify_dither_result(NodeStatus::Failure, None),
-        DitherTriggerOutcome::Failed,
-    );
-}
-
 /// The record a trigger-fired autofocus writes through
 /// `record_autofocus_failed_continuing`.
 fn trigger_continuation(
@@ -153,14 +115,6 @@ fn an_autofocus_that_never_moved_the_focuser_does_not_warn_about_restore() {
     assert_eq!(
         continuation.decision.details["pre_autofocus_position_restored"],
         serde_json::Value::Null
-    );
-}
-
-#[test]
-fn a_successful_dither_is_performed() {
-    assert_eq!(
-        classify_dither_result(NodeStatus::Success, None),
-        DitherTriggerOutcome::Performed,
     );
 }
 

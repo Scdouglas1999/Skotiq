@@ -183,9 +183,6 @@ const HOME_POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// Pointing change, in degrees, that counts as the mount moving.
 const HOME_MOTION_THRESHOLD_DEG: f64 = 0.1;
 
-/// Sidereal hours that pass per solar second.
-const SIDEREAL_HOURS_PER_SECOND: f64 = 1.002_737_909_35 / 3600.0;
-
 /// Timing for [`execute_home_mount_with`], separate so tests can shrink it.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct HomeTiming {
@@ -204,16 +201,6 @@ impl Default for HomeTiming {
     }
 }
 
-/// Wrap an hour difference into (-12, 12].
-fn wrap_hours(delta: f64) -> f64 {
-    let wrapped = delta.rem_euclid(24.0);
-    if wrapped > 12.0 {
-        wrapped - 24.0
-    } else {
-        wrapped
-    }
-}
-
 /// Whether the pointing changed in a way only a moving mount can produce.
 ///
 /// A stopped mount either tracks (RA fixed, hour angle advancing) or does not
@@ -225,9 +212,9 @@ pub(crate) fn pointing_moved(start: (f64, f64), now: (f64, f64), elapsed_secs: f
     if delta_dec_deg > HOME_MOTION_THRESHOLD_DEG {
         return true;
     }
-    let delta_ra_hours = wrap_hours(now.0 - start.0);
-    let elapsed_sidereal_hours = elapsed_secs * SIDEREAL_HOURS_PER_SECOND;
-    let delta_ha_hours = wrap_hours(elapsed_sidereal_hours - delta_ra_hours);
+    let delta_ra_hours = crate::meridian::wrap_hours(now.0 - start.0);
+    let elapsed_sidereal_hours = elapsed_secs / 3600.0 * crate::meridian::SIDEREAL_PER_SOLAR;
+    let delta_ha_hours = crate::meridian::wrap_hours(elapsed_sidereal_hours - delta_ra_hours);
     delta_ra_hours.abs() * 15.0 > HOME_MOTION_THRESHOLD_DEG
         && delta_ha_hours.abs() * 15.0 > HOME_MOTION_THRESHOLD_DEG
 }

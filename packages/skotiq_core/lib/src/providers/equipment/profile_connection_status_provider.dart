@@ -182,13 +182,16 @@ final profileConnectionStatusProvider =
       ref,
       profile,
     ) {
+      // Only the connection half: telemetry polls must not recompute this.
       ProfileDeviceConnection connectionOf(DeviceSlot slot) {
-        final state = ref.watch(slot.state);
+        final live = ref.watch(
+          slot.state.select((s) => (state: s.connectionState, id: s.deviceId)),
+        );
         return ProfileDeviceConnection(
           type: slot.type,
           profileId: profile.deviceIdFor(slot.type),
-          connectedId: state.deviceId,
-          connectedState: state.connectionState,
+          connectedId: live.id,
+          connectedState: live.state,
         );
       }
 

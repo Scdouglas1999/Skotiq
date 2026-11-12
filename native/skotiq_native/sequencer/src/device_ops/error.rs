@@ -158,22 +158,11 @@ impl From<DeviceError> for String {
     }
 }
 
-/// Whether a failure message that has already been flattened to text says the
-/// rig has no guider.
-///
-/// Only for a message that left the device layer as an instruction result or
-/// an event. Code that still holds the [`DeviceError`] matches on
-/// [`DeviceError::NotConfigured`] instead.
-pub fn message_says_no_guider_configured(message: &str) -> bool {
-    message.contains(NO_GUIDER_CONFIGURED)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// These texts reach the operator, the event stream and the Dart side,
-    /// and the flattened-message predicate depends on the first.
+    /// These texts reach the operator, the event stream and the Dart side.
     #[test]
     fn not_configured_keeps_the_text_operators_and_events_see() {
         assert_eq!(
@@ -203,15 +192,5 @@ mod tests {
         ] {
             assert!(!DeviceError::from(text).is_not_configured(DeviceKind::Guider));
         }
-    }
-
-    #[test]
-    fn a_flattened_message_is_recognized_by_its_text() {
-        let flattened = format!("Dither failed after frame 3/8: {}", DeviceError::NO_GUIDER);
-        assert!(message_says_no_guider_configured(&flattened));
-        assert!(!message_says_no_guider_configured("Guide star lost"));
-        assert!(!message_says_no_guider_configured(
-            "PHD2 connection refused"
-        ));
     }
 }

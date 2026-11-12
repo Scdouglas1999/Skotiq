@@ -123,10 +123,9 @@ class CapturePanel extends ConsumerWidget {
         ? exposureSettings.binning
         : binningOptions.first;
 
-    final diskFree = ref.watch(captureDirDiskSpaceProvider).valueOrNull;
     // "252 GiB": the shared size format Tonight uses, split for the readout.
-    final freeText =
-        diskFree == null ? null : ByteFormat.size(diskFree.freeBytes);
+    // Selected as text: the free bytes change on every 10 s sample.
+    final freeText = ref.watch(captureDirDiskSpaceProvider.select(freeSpaceText));
     final freeGap = freeText?.lastIndexOf(' ') ?? -1;
     final freeSize = freeText == null || freeGap < 0
         ? null

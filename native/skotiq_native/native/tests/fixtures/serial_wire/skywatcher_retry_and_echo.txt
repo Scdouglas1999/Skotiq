@@ -1,0 +1,41 @@
+call connect [echoing controller]
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :e1\r
+< :e1\r=030700\r
+> :a1\r
+< :a1\r=00B289\r
+> :b1\r
+< :b1\r=A7FD00\r
+> :a2\r
+< :a2\r=00B289\r
+> :b2\r
+< :b2\r=A7FD00\r
+> :f1\r
+< :f1\r=100\r
+> :f2\r
+< :f2\r=100\r
+> :j1\r
+< :j1\r=000080\r
+> :j2\r
+< :j2\r=000080\r
+> :F1\r
+< :F1\r=\r
+> :F2\r
+< :F2\r=\r
+> :E2806CA2\r
+< :E2806CA2\r=\r
+> :f1\r
+< :f1\r=101\r
+  -> Ok(())
+call get_coordinates [first reply lost]
+> :j1\r
+> :j1\r
+< =000080\r
+> :j2\r
+< =806CA2\r
+  -> Ok((7.3910359092406, 90.0))
+call get_tracking [every reply lost]
+> :f1\r
+> :f1\r
+> :f1\r
+  -> Err(Timeout("Sky-Watcher mount did not answer :f1 (3 tries)"))

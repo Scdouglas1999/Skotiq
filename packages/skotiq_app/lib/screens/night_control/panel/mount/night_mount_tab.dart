@@ -25,6 +25,7 @@ import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
 import '../stale_readings_note.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
+import '../../../../utils/watch_while_shown.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// What every Mount-tab control gates on, read once per build.
@@ -94,8 +95,10 @@ class NightMountFacts {
   }
 }
 
-NightMountFacts watchNightMountFacts(WidgetRef ref) {
-  final mount = ref.watch(mountStateProvider);
+/// The mount's facts, followed only while the tab is shown: its state changes
+/// with every position poll.
+NightMountFacts watchNightMountFacts(WidgetRef ref, BuildContext context) {
+  final mount = ref.watchWhileShown(context, mountStateProvider);
   final deviceId = mount.deviceId;
   // No mount, no capabilities to ask about.
   final caps =
@@ -146,7 +149,7 @@ class _NightMountTabState extends ConsumerState<NightMountTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
 
     // Jogging stays open while the guard refuses automatic moves: moving the
@@ -195,12 +198,12 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final mount = facts.mount;
     final connected = facts.connected;
     final site = ref.watch(appObserverLocationProvider);
-    final now = ref.watch(nightNowProvider);
-    final countdown = ref.watch(meridianCountdownProvider);
+    final now = ref.watchWhileShown(context, nightNowProvider);
+    final countdown = ref.watchWhileShown(context, meridianCountdownProvider);
     final slew = ref.watch(mountSlewProgressProvider);
     final slewing = mount.isSlewing || slew != null;
 
