@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/models/sequence/template_snippet.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
+import 'package:skotiq_core/src/models/sequence/sequence_editor_exceptions.dart';
 
 /// Coverage for the editor's fail-loud behaviours, so a silent fallback cannot
 /// creep back in.

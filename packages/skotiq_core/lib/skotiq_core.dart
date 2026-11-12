@@ -214,6 +214,7 @@ export 'src/providers/imaging_viewer_state_provider.dart';
 export 'src/providers/sequence_provider.dart';
 export 'src/models/sequence/validation/structural_rules.dart';
 export 'src/models/sequence/validation/validation_issue.dart';
+export 'src/models/sequence/sequence_editor_exceptions.dart';
 export 'src/providers/sequence/remote_sequence_editor_sync.dart';
 export 'src/providers/sequence_stats_provider.dart';
 // The one predicate every surface asks before calling a run's end an error.

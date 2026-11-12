@@ -1,7 +1,7 @@
-import '../../models/sequence/sequence_models.dart';
-import '../../models/sequence/validation/validation_issue.dart';
+import 'sequence_models.dart';
+import 'validation/validation_issue.dart';
 
-/// Base type for editor-side errors raised by [CurrentSequenceNotifier].
+/// Base type for editor-side errors raised by `CurrentSequenceNotifier`.
 ///
 /// Defined as a sealed class so callers can `switch` exhaustively over the
 /// known editor failure modes when surfacing them in the UI. New exception
