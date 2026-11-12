@@ -134,7 +134,10 @@ void main() {
       expect(await fullCheckRequestedAtNextStart(tempDir), isFalse);
 
       final notice = repaired.notice;
-      expect(notice.message, 'Skotiq repaired a database index; nothing was lost.');
+      expect(
+        notice.message,
+        'Skotiq repaired a database index; nothing was lost.',
+      );
       expect(notice.severity, EventSeverity.info);
     });
 
@@ -183,8 +186,7 @@ void main() {
                   )
                   .first['rootpage']
               as int;
-      final pageSize =
-          raw.select('PRAGMA page_size').first.values.first as int;
+      final pageSize = raw.select('PRAGMA page_size').first.values.first as int;
       raw.close();
       // Overwrite the table's root page past its header: the child page
       // numbers and cells it holds become garbage.
@@ -254,6 +256,95 @@ void main() {
       'title': 'Database index repaired',
       'message': 'Skotiq repaired a database index; nothing was lost.',
       'level': 'info',
+    });
+  });
+
+  group('index entries miscounted, as the start-up quick_check sees them', () {
+    /// Two indexes over tables of 200 and 50 rows, each pointed at the
+    /// other's b-tree: quick_check reports `wrong # of entries` for both and
+    /// nothing else.
+    Future<void> swapIndexes() async {
+      await createDatabase();
+      final raw = sqlite3.open(dbFile.path);
+      raw.execute('CREATE TABLE notes_probe (id INTEGER PRIMARY KEY, a INT)');
+      raw.execute(
+        'WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c '
+        'WHERE x < 50) INSERT INTO notes_probe (a) SELECT x FROM c',
+      );
+      raw.execute('CREATE INDEX idx_notes_probe_a ON notes_probe(a)');
+      int root(String name) =>
+          raw.select('SELECT rootpage FROM sqlite_schema WHERE name = ?', [
+                name,
+              ]).first['rootpage']
+              as int;
+      final a = root('idx_probe_a');
+      final b = root('idx_notes_probe_a');
+      raw.close();
+      editSchema(
+        "UPDATE sqlite_schema SET rootpage = $b WHERE name = 'idx_probe_a'; "
+        "UPDATE sqlite_schema SET rootpage = $a WHERE name = "
+        "'idx_notes_probe_a'",
+      );
+    }
+
+    test('is rebuilt at start instead of setting the database aside, and told '
+        'once the app is up', () async {
+      await swapIndexes();
+      final raw = sqlite3.open(dbFile.path, mode: OpenMode.readOnly);
+      final quick = integrityCheckRows(raw, full: false).toSet();
+      raw.close();
+      expect(quick, {
+        'wrong # of entries in index idx_probe_a',
+        'wrong # of entries in index idx_notes_probe_a',
+      });
+
+      final report = await runIntegrityCheckAndRecover(dbFile);
+
+      expect(report.recovered, isFalse);
+      expect(report.wasHealthy, isTrue);
+      expect(report.repairedIndexes, {'idx_probe_a', 'idx_notes_probe_a'});
+      expect(await dbFile.exists(), isTrue);
+      expect(fullCheckRows(), ['ok']);
+      expect(rowCount(), 200);
+      expect(await readRecoveryMarker(tempDir), isNull);
+
+      final outcome = await runCheck();
+      expect(outcome, isA<DatabaseIndexRepaired>());
+      expect(
+        (outcome as DatabaseIndexRepaired).findings.messages,
+        contains('wrong # of entries in index idx_probe_a'),
+      );
+      expect(
+        outcome.notice.message,
+        'Skotiq repaired a database index; nothing was lost.',
+      );
+      expect(await runCheck(), isA<DatabaseHealthy>());
+    });
+
+    test('next to a damaged page still sets the database aside', () async {
+      await swapIndexes();
+      final raw = sqlite3.open(dbFile.path, mode: OpenMode.readOnly);
+      final root =
+          raw
+                  .select(
+                    "SELECT rootpage FROM sqlite_schema WHERE name = "
+                    "'frames_probe'",
+                  )
+                  .first['rootpage']
+              as int;
+      raw.close();
+      final bytes = await dbFile.readAsBytes();
+      final start = (root - 1) * 4096;
+      for (var i = start + 12; i < start + 4096; i++) {
+        bytes[i] = (i * 31) & 0xff;
+      }
+      await dbFile.writeAsBytes(Uint8List.fromList(bytes), flush: true);
+
+      final report = await runIntegrityCheckAndRecover(dbFile);
+
+      expect(report.recovered, isTrue);
+      expect(report.repairedIndexes, isEmpty);
+      expect(await dbFile.exists(), isFalse);
     });
   });
 }

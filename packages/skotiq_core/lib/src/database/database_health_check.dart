@@ -31,7 +31,8 @@ class DatabaseNotChecked extends DatabaseHealthOutcome {
 }
 
 /// Only indexes were out of step with their tables, `REINDEX` rebuilt them
-/// from the tables, and the check now says `ok`.
+/// from the tables (here, or in the start-up check before the database
+/// opened), and the check now says `ok`.
 class DatabaseIndexRepaired extends DatabaseHealthOutcome {
   const DatabaseIndexRepaired(this.findings);
 
@@ -130,7 +131,13 @@ class DatabaseHealthCheck {
     } on SqliteException catch (e) {
       return DatabaseNotChecked(e.message);
     }
-    if (findings.healthy) return const DatabaseHealthy();
+    // An index the start-up check rebuilt is told here, once the app is up.
+    final repairedAtStart = await consumeStartupIndexRepair(file.parent);
+    if (findings.healthy) {
+      return repairedAtStart == null
+          ? const DatabaseHealthy()
+          : DatabaseIndexRepaired(classifyIntegrityCheck(repairedAtStart));
+    }
 
     String? reindexFailure;
     if (findings.indexOnly) {
@@ -158,9 +165,12 @@ class DatabaseHealthCheck {
   Future<String?> _reindex(Set<String> indexes) async {
     try {
       final known = {
-        for (final row in await _db
-            .customSelect("SELECT name FROM sqlite_schema WHERE type = 'index'")
-            .get())
+        for (final row
+            in await _db
+                .customSelect(
+                  "SELECT name FROM sqlite_schema WHERE type = 'index'",
+                )
+                .get())
           row.read<String>('name'),
       };
       if (indexes.isEmpty || !known.containsAll(indexes)) {
@@ -184,28 +194,27 @@ class DatabaseHealthCheck {
 /// SQLite's online backup in another isolate. A copy SQLite reports as
 /// corrupt while being checked is answered with that error as the one
 /// finding.
-Future<List<String>> fullIntegrityCheckOfCopy(String path) => Isolate.run(
-  () async {
-    final live = sqlite3.open(path, mode: OpenMode.readOnly);
-    final copy = sqlite3.openInMemory();
-    try {
+Future<List<String>> fullIntegrityCheckOfCopy(String path) =>
+    Isolate.run(() async {
+      final live = sqlite3.open(path, mode: OpenMode.readOnly);
+      final copy = sqlite3.openInMemory();
       try {
-        applySqliteBusyTimeout(live);
-        // One step: the copy holds the lock about as long as reading the file
-        // takes. Smaller steps let a write in between restart the copy from
-        // the first page.
-        await live.backup(copy, nPage: -1).drain<void>();
+        try {
+          applySqliteBusyTimeout(live);
+          // One step: the copy holds the lock about as long as reading the file
+          // takes. Smaller steps let a write in between restart the copy from
+          // the first page.
+          await live.backup(copy, nPage: -1).drain<void>();
+        } finally {
+          live.close();
+        }
+        try {
+          return integrityCheckRows(copy, full: true);
+        } on SqliteException catch (e) {
+          if (e.resultCode != 11 && e.resultCode != 26) rethrow;
+          return [e.message];
+        }
       } finally {
-        live.close();
+        copy.close();
       }
-      try {
-        return integrityCheckRows(copy, full: true);
-      } on SqliteException catch (e) {
-        if (e.resultCode != 11 && e.resultCode != 26) rethrow;
-        return [e.message];
-      }
-    } finally {
-      copy.close();
-    }
-  },
-);
+    });

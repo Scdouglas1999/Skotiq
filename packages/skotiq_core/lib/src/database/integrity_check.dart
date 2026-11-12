@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
 
+import 'integrity_findings.dart';
 import 'sqlite_busy.dart';
 
 /// Outcome of [runIntegrityCheckAndRecover].
@@ -24,9 +25,14 @@ class IntegrityRecoveryReport {
   /// the path the DB will end up at.
   final bool freshInstall;
 
-  /// True iff the file existed AND the start-up check returned `ok`.
-  /// Mutually exclusive with [recovered] and [freshInstall].
+  /// True iff the file existed AND the start-up check returned `ok`, at once
+  /// or after [repairedIndexes] were rebuilt. Mutually exclusive with
+  /// [recovered] and [freshInstall].
   final bool wasHealthy;
+
+  /// The indexes the start-up check found out of step with their tables and
+  /// rebuilt with `REINDEX`; empty when none were.
+  final Set<String> repairedIndexes;
 
   /// Absolute path of the corrupt-file backup that was retained for forensic
   /// retrieval. Null unless [recovered] is true.
@@ -44,6 +50,7 @@ class IntegrityRecoveryReport {
     required this.recovered,
     required this.freshInstall,
     required this.wasHealthy,
+    this.repairedIndexes = const {},
     this.backupPath,
     this.markerPath,
     this.failureReason,
@@ -61,6 +68,14 @@ class IntegrityRecoveryReport {
     freshInstall: false,
     wasHealthy: true,
   );
+
+  factory IntegrityRecoveryReport.indexesRepaired(Set<String> indexes) =>
+      IntegrityRecoveryReport._(
+        recovered: false,
+        freshInstall: false,
+        wasHealthy: true,
+        repairedIndexes: indexes,
+      );
 
   factory IntegrityRecoveryReport.recovered({
     required String backupPath,
@@ -190,9 +205,9 @@ Future<IntegrityRecoveryReport> _checkAndRecover(
   File dbFile, {
   required bool full,
 }) async {
-  final String failureReason;
+  final List<String> problems;
   try {
-    failureReason = await _checkIntegrity(
+    problems = await _checkIntegrity(
       dbFile.path,
       mode: OpenMode.readOnly,
       full: full,
@@ -213,7 +228,7 @@ Future<IntegrityRecoveryReport> _checkAndRecover(
       // _ROLLBACK / _CANTINIT for a database that is completely healthy.
       // Re-open read/write (never create) and let SQLite do its normal
       // crash recovery.
-      final String retry;
+      final List<String> retry;
       try {
         retry = await _checkIntegrity(
           dbFile.path,
@@ -228,7 +243,7 @@ Future<IntegrityRecoveryReport> _checkAndRecover(
         return _quarantine(dbFile, 'open-time error: ${retryError.message}');
       }
       if (retry.isEmpty) return IntegrityRecoveryReport.healthy();
-      return _quarantine(dbFile, retry);
+      return _repairIndexesOrQuarantine(dbFile, retry, full: full);
     }
     if (!_isCorruption(e)) {
       // NOT corruption — the database is fine and something else is wrong.
@@ -242,10 +257,115 @@ Future<IntegrityRecoveryReport> _checkAndRecover(
     return _quarantine(dbFile, 'open-time error: ${e.message}');
   }
 
-  if (failureReason.isEmpty) {
+  if (problems.isEmpty) {
     return IntegrityRecoveryReport.healthy();
   }
-  return _quarantine(dbFile, failureReason);
+  return _repairIndexesOrQuarantine(dbFile, problems, full: full);
+}
+
+/// An index out of step with its table is rebuilt from the table, with
+/// nothing lost: `REINDEX`, then the same check again. Anything else the
+/// check reported, a `REINDEX` that fails (a UNIQUE index over duplicate
+/// rows) or a check that still fails goes to the quarantine as before.
+Future<IntegrityRecoveryReport> _repairIndexesOrQuarantine(
+  File dbFile,
+  List<String> problems, {
+  required bool full,
+}) async {
+  final findings = classifyIntegrityCheck(problems);
+  if (findings.indexOnly) {
+    final path = dbFile.path;
+    final indexes = findings.indexes;
+    try {
+      final after = await Isolate.run(
+        () => _reindexAndCheckHere(path, indexes, full: full),
+      );
+      if (after.isEmpty) {
+        await _writeIndexRepairRecord(dbFile, findings.messages);
+        return IntegrityRecoveryReport.indexesRepaired(indexes);
+      }
+    } on SqliteException catch (e) {
+      // Only the check's own verdict decides; a REINDEX that cannot run
+      // leaves the quarantine to say what it found.
+      if (!_isCorruption(e) && e.resultCode != _sqliteConstraint) rethrow;
+    }
+  }
+  return _quarantine(dbFile, problems.join('; '));
+}
+
+/// `SQLITE_CONSTRAINT`: a UNIQUE index rebuilt over duplicate rows.
+const int _sqliteConstraint = 19;
+
+/// Rebuilds [indexes] (every index when one of them is not in the schema)
+/// and runs the check again. Returns what it still finds, or an empty list.
+List<String> _reindexAndCheckHere(
+  String path,
+  Set<String> indexes, {
+  required bool full,
+}) {
+  final db = sqlite3.open(path, mode: OpenMode.readWrite);
+  try {
+    applySqliteBusyTimeout(db);
+    final known = {
+      for (final row in db.select(
+        "SELECT name FROM sqlite_schema WHERE type = 'index'",
+      ))
+        row['name'] as String,
+    };
+    if (indexes.isEmpty || !known.containsAll(indexes)) {
+      db.execute('REINDEX');
+    } else {
+      for (final index in indexes) {
+        db.execute('REINDEX "${index.replaceAll('"', '""')}"');
+      }
+    }
+    final rows = integrityCheckRows(db, full: full);
+    return rows.length == 1 && rows.single == 'ok' ? const [] : rows;
+  } finally {
+    db.close();
+  }
+}
+
+/// Filename prefix for the record of an index repair the start-up check
+/// made, read once the app is up so the user is told
+/// ([consumeStartupIndexRepair]).
+const String _indexRepairPrefix = '.index-repaired-on-';
+
+Future<void> _writeIndexRepairRecord(File dbFile, List<String> messages) =>
+    File(
+      p.join(
+        dbFile.parent.path,
+        '$_indexRepairPrefix${DateTime.now().toUtc().millisecondsSinceEpoch}.txt',
+      ),
+    ).writeAsString(
+      messages.map((m) => 'found=${m.replaceAll('\n', ' ')}\n').join(),
+      flush: true,
+    );
+
+/// What the start-up check found in the indexes it repaired, newest record
+/// last, and deletes the records; null when it repaired none.
+Future<List<String>?> consumeStartupIndexRepair(Directory dbDirectory) async {
+  if (!await dbDirectory.exists()) return null;
+  final records = await dbDirectory
+      .list()
+      .where(
+        (e) =>
+            e is File &&
+            p.basename(e.path).startsWith(_indexRepairPrefix) &&
+            e.path.endsWith('.txt'),
+      )
+      .cast<File>()
+      .toList();
+  if (records.isEmpty) return null;
+  records.sort((a, b) => a.path.compareTo(b.path));
+  final messages = <String>[];
+  for (final record in records) {
+    for (final line in (await record.readAsString()).split(RegExp(r'\r?\n'))) {
+      if (line.startsWith('found=')) messages.add(line.substring(6));
+    }
+    await record.delete();
+  }
+  return messages;
 }
 
 /// Outcome of [discardInterruptedFirstCreate].
@@ -349,20 +469,20 @@ Future<bool> fullCheckRequestedAtNextStart(Directory dbDirectory) =>
     File(p.join(dbDirectory.path, _fullCheckRequestName)).exists();
 
 /// Runs `PRAGMA quick_check`, or `PRAGMA integrity_check` when [full],
-/// against [path]. Returns an empty string when the database is healthy, or
-/// the joined failure rows when it is not. Propagates [SqliteException] to
-/// the caller for classification.
+/// against [path]. Returns an empty list when the database is healthy, or the
+/// failure rows when it is not. Propagates [SqliteException] to the caller
+/// for classification.
 ///
 /// On its own isolate: the check reads every page, which on a rig's database
 /// (180 MB after a season) is seconds from a cold disk, and the caller's
 /// isolate is the one that paints.
-Future<String> _checkIntegrity(
+Future<List<String>> _checkIntegrity(
   String path, {
   required OpenMode mode,
   required bool full,
 }) => Isolate.run(() => _checkIntegrityHere(path, mode: mode, full: full));
 
-String _checkIntegrityHere(
+List<String> _checkIntegrityHere(
   String path, {
   required OpenMode mode,
   required bool full,
@@ -377,8 +497,7 @@ String _checkIntegrityHere(
     // startup failure.
     applySqliteBusyTimeout(db);
     final rows = integrityCheckRows(db, full: full);
-    if (rows.length == 1 && rows.single == 'ok') return '';
-    return rows.join('; ');
+    return rows.length == 1 && rows.single == 'ok' ? const [] : rows;
   } finally {
     db.close();
   }
@@ -672,7 +791,7 @@ Future<QuarantinedDatabaseCheck> inspectQuarantinedDatabase(
       exists: true,
       integrityOk: failure.isEmpty,
       sizeBytes: sizeBytes,
-      detail: failure.isEmpty ? null : failure,
+      detail: failure.isEmpty ? null : failure.join('; '),
     );
   } on SqliteException catch (e) {
     return QuarantinedDatabaseCheck(
