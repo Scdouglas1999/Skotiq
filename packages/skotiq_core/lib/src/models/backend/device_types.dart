@@ -23,6 +23,10 @@ enum DeviceType {
   String get noun => displayName.toLowerCase();
 }
 
+/// The Connect All sweep's name for the built-in guider's camera, which is a
+/// profile field and not a device slot.
+const String guideCameraLabel = 'guide camera';
+
 enum DriverType { ascom, alpaca, indi, native, simulator }
 
 enum ConnectionState { disconnected, connecting, connected, error }

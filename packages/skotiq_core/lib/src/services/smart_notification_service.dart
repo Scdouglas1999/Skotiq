@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/current_screen_provider.dart';
+import '../models/app_screen.dart';
 import '../providers/ui_notification_provider.dart';
 
 /// Service for sending screen-aware notifications.

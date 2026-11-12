@@ -19,7 +19,7 @@ import '../providers/settings_provider.dart';
 import '../providers/ui_notification_provider.dart';
 import '../providers/operation_progress_provider.dart';
 import '../providers/filter_offset_provider.dart';
-import '../providers/current_screen_provider.dart';
+import '../models/app_screen.dart';
 import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';

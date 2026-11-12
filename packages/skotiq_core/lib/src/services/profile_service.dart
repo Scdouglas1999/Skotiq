@@ -11,8 +11,6 @@ import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_validation.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
-import '../providers/device_connection_progress_provider.dart'
-    show guideCameraLabel;
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';

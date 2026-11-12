@@ -326,6 +326,7 @@ export 'src/providers/flat_wizard_provider.dart';
 export 'src/providers/flat_wizard_output.dart';
 export 'src/providers/ui_notification_provider.dart';
 export 'src/providers/operation_progress_provider.dart';
+export 'src/models/app_screen.dart';
 export 'src/providers/current_screen_provider.dart';
 export 'src/providers/polar_alignment_provider.dart';
 export 'src/providers/template_snippet_provider.dart';
@@ -335,6 +336,7 @@ export 'src/providers/transient_alert_provider.dart';
 export 'src/providers/critical_alert_provider.dart';
 export 'src/providers/mount_guard_provider.dart';
 export 'src/providers/catalog_download_source_provider.dart';
+export 'src/models/backend/device_types.dart' show guideCameraLabel;
 export 'src/providers/device_connection_progress_provider.dart';
 // Recovery Mode — providers for the recovery state machine
 // (currentRecoveryProvider, recoveryHistoryProvider, recoveryControlProvider,
