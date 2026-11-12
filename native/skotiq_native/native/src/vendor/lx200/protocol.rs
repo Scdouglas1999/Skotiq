@@ -108,15 +108,30 @@ pub(crate) mod commands {
     pub const MEADE_GET_STATUS: &str = ":GW#";
 
     pub const PARK: &str = ":hP#";
-    pub const UNPARK_MEADE: &str = ":PO#";
+    /// Unpark on Meade-compatible firmware that has one (10Micron, Astro-Physics).
+    pub const UNPARK: &str = ":PO#";
+    /// Losmandy Gemini leaves its park by waking up.
+    pub const GEMINI_WAKE_UP: &str = ":hW#";
+
+    /// Toggles between low (`HH:MM.T`, `sDD*MM`) and high precision
+    /// (`HH:MM:SS`, `sDD*MM:SS`) coordinates. No reply.
+    pub const TOGGLE_PRECISION: &str = ":U#";
 
     // OnStep-specific commands (used by Pegasus NYX, DIY OnStep mounts)
     pub const ONSTEP_GET_STATUS: &str = ":GU#";
     pub const ONSTEP_TRACK_ENABLE: &str = ":Te#";
     pub const ONSTEP_TRACK_DISABLE: &str = ":Td#";
     pub const ONSTEP_UNPARK: &str = ":hR#";
-    pub const ONSTEP_FIND_HOME: &str = ":hF#";
+    /// Slews to the home position. Not `:hF#`, which tells the mount it is
+    /// at home where it stands and moves nothing.
+    pub const ONSTEP_GO_HOME: &str = ":hC#";
     pub const ONSTEP_SET_PARK: &str = ":hQ#";
+
+    // 10Micron. Tracking on and off answer nothing; pier side answers
+    // `East#` or `West#`.
+    pub const TENMICRON_TRACK_ON: &str = ":AP#";
+    pub const TENMICRON_TRACK_OFF: &str = ":AL#";
+    pub const TENMICRON_PIER_SIDE: &str = ":pS#";
 
     // Site and clock. Latitude/longitude are DMS; longitude is WEST-positive
     // on the wire. `:GC#`/`:SC#` carry a two-digit year.
@@ -274,85 +289,164 @@ impl Lx200MountType {
     pub fn is_onstep(&self) -> bool {
         matches!(self, Lx200MountType::OnStep)
     }
-}
 
-pub(crate) fn parse_ra(response: &str) -> Result<f64, DriverError> {
-    let s = response.trim_end_matches('#');
-
-    if let Some((h, rest)) = s.split_once(':') {
-        let hours: f64 = h
-            .parse()
-            .map_err(|_| DriverError::SdkError("Invalid RA hours".into()))?;
-
-        if let Some((m, sec)) = rest.split_once(':') {
-            let minutes: f64 = m
-                .parse()
-                .map_err(|_| DriverError::SdkError("Invalid RA minutes".into()))?;
-            let seconds: f64 = sec
-                .parse()
-                .map_err(|_| DriverError::SdkError("Invalid RA seconds".into()))?;
-            return Ok(from_parts(hours, minutes, seconds));
-        } else if let Some((m, t)) = rest.split_once('.') {
-            let minutes: f64 = m
-                .parse()
-                .map_err(|_| DriverError::SdkError("Invalid RA minutes".into()))?;
-            let tenths: f64 = t
-                .parse()
-                .map_err(|_| DriverError::SdkError("Invalid RA tenths".into()))?;
-            return Ok(from_parts(hours, minutes + tenths / 10.0, 0.0));
+    /// The command that ends a park, sent without waiting for a reply.
+    pub(crate) fn unpark_command(&self) -> &'static str {
+        match self {
+            Lx200MountType::OnStep => commands::ONSTEP_UNPARK,
+            Lx200MountType::Losmandy => commands::GEMINI_WAKE_UP,
+            Lx200MountType::Meade | Lx200MountType::TenMicron | Lx200MountType::Generic => {
+                commands::UNPARK
+            }
         }
     }
 
-    Err(DriverError::SdkError(format!("Invalid RA format: {}", s)))
-}
-
-pub(crate) fn parse_dec(response: &str) -> Result<f64, DriverError> {
-    let s = response.trim_end_matches('#');
-
-    let (sign, rest) = split_sign(s);
-
-    let parts: Vec<&str> = rest.split(['*', '°', ':']).collect();
-
-    if parts.len() >= 2 {
-        let degrees: f64 = parts[0]
-            .parse()
-            .map_err(|_| DriverError::SdkError("Invalid Dec degrees".into()))?;
-        let arcmin: f64 = parts[1]
-            .parse()
-            .map_err(|_| DriverError::SdkError("Invalid Dec arcmin".into()))?;
-
-        let arcsec: f64 = if parts.len() >= 3 {
-            parts[2]
-                .parse()
-                .map_err(|_| DriverError::SdkError("Invalid Dec arcsec".into()))?
-        } else {
-            0.0
-        };
-
-        return Ok(sign * from_parts(degrees, arcmin, arcsec));
+    /// How this firmware turns sidereal tracking on or off, or `None` when it
+    /// has no command for it. Classic Meade, Gemini (in LX200 mode) and
+    /// generic firmware cannot stop tracking from the LX200 command set.
+    pub(crate) fn tracking_command(&self, enabled: bool) -> Option<TrackingCommand> {
+        match (self, enabled) {
+            (Lx200MountType::OnStep, true) => Some(TrackingCommand {
+                command: commands::ONSTEP_TRACK_ENABLE,
+                answers: true,
+            }),
+            (Lx200MountType::OnStep, false) => Some(TrackingCommand {
+                command: commands::ONSTEP_TRACK_DISABLE,
+                answers: true,
+            }),
+            (Lx200MountType::TenMicron, true) => Some(TrackingCommand {
+                command: commands::TENMICRON_TRACK_ON,
+                answers: false,
+            }),
+            (Lx200MountType::TenMicron, false) => Some(TrackingCommand {
+                command: commands::TENMICRON_TRACK_OFF,
+                answers: false,
+            }),
+            (_, true) => Some(TrackingCommand {
+                command: commands::SET_TRACK_SIDEREAL,
+                answers: false,
+            }),
+            (_, false) => None,
+        }
     }
 
-    Err(DriverError::SdkError(format!("Invalid Dec format: {}", s)))
+    /// What a `:MS#` refusal code means on this firmware. Codes 1 and 2 are
+    /// Meade's, and OnStep gives 2 the opposite meaning. 3-9 are OnStep's
+    /// (MountGoto.cpp); Meade firmware never sends them, so reading them the
+    /// OnStep way names the real reason on OnStep-derived mounts that are not
+    /// recognized as OnStep.
+    pub(crate) fn slew_refusal_reason(&self, code: char) -> String {
+        match code {
+            '1' => "target is below the horizon",
+            '2' if self.is_onstep() => "target is above the overhead limit",
+            '2' => "target is below the altitude limit",
+            '3' => "mount is in standby (turn tracking on first)",
+            '4' => "mount is parked",
+            '5' => "a goto is already in progress",
+            '6' => "target is outside the mount's limits",
+            '7' => "mount reported a hardware fault",
+            '8' => "mount is already in motion",
+            '9' => "mount refused the goto (unspecified error)",
+            other => return format!("mount refused the goto with status {}", other),
+        }
+        .to_string()
+    }
 }
 
-pub(crate) fn format_ra(ra_hours: f64) -> String {
-    let total_seconds = to_units(ra_hours, 3600).rem_euclid(24 * 3600);
-    let (hours, minutes, seconds) = split_units(total_seconds, 3600);
-
-    format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+/// A tracking on/off command and whether the firmware answers it with `1`/`0`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TrackingCommand {
+    pub command: &'static str,
+    pub answers: bool,
 }
 
-pub(crate) fn format_dec(dec_degrees: f64) -> String {
-    let total_arcsec = to_units(dec_degrees.abs(), 3600);
-    let (degrees, arcmin, arcsec) = split_units(total_arcsec, 3600);
+/// Which coordinate format the mount is set to. Meade firmware takes goto
+/// targets only in the format it currently reports positions in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CoordinatePrecision {
+    /// `HH:MM.T` and `sDD*MM`.
+    Low,
+    /// `HH:MM:SS` and `sDD*MM:SS` (or finer, on 10Micron).
+    High,
+}
 
-    format!(
-        "{}{}*{:02}:{:02}",
-        sign_char(dec_degrees),
-        degrees,
-        arcmin,
-        arcsec
-    )
+impl CoordinatePrecision {
+    /// Read from a `:GR#` reply: low precision puts a tenths-of-a-minute
+    /// point where high precision has its second colon.
+    pub(crate) fn of_ra_reply(reply: &str) -> Self {
+        if reply.trim().as_bytes().get(5) == Some(&b'.') {
+            CoordinatePrecision::Low
+        } else {
+            CoordinatePrecision::High
+        }
+    }
+}
+
+/// Signed hours or degrees from a sexagesimal reply.
+///
+/// Firmware disagrees about separators: OnStep answers `sDD*MM:SS`, Meade
+/// high precision `sDD*MM'SS`, Autostar puts its own degree glyph (byte 0xDF,
+/// not valid UTF-8, so it reaches this function as U+FFFD) where others put
+/// `*`, 10Micron ultra precision `sDD:MM:SS.S`, and low precision RA is
+/// `HH:MM.T`. Any character that cannot be part of a number separates fields.
+pub(crate) fn parse_sexagesimal(response: &str) -> Result<f64, DriverError> {
+    let cleaned = response.trim().trim_end_matches('#').trim();
+    let unreadable = || DriverError::SdkError(format!("Unreadable mount reply {:?}", response));
+
+    let (sign, rest) = split_sign(cleaned);
+    let fields: Vec<&str> = rest
+        .split(|c: char| !(c.is_ascii_digit() || c == '.'))
+        .filter(|field| !field.is_empty())
+        .collect();
+    if fields.is_empty() || fields.len() > 3 {
+        return Err(unreadable());
+    }
+    let number = |field: &str| field.parse::<f64>().map_err(|_| unreadable());
+
+    let whole = number(fields[0])?;
+    let minutes = fields.get(1).map(|f| number(f)).transpose()?.unwrap_or(0.0);
+    let seconds = fields.get(2).map(|f| number(f)).transpose()?.unwrap_or(0.0);
+    if !(0.0..60.0).contains(&minutes) || !(0.0..60.0).contains(&seconds) {
+        return Err(DriverError::SdkError(format!(
+            "Minutes or seconds out of range in mount reply {:?}",
+            response
+        )));
+    }
+
+    Ok(sign * from_parts(whole, minutes, seconds))
+}
+
+pub(crate) fn format_ra(ra_hours: f64, precision: CoordinatePrecision) -> String {
+    match precision {
+        CoordinatePrecision::High => {
+            let total = to_units(ra_hours, 3600).rem_euclid(24 * 3600);
+            let (hours, minutes, seconds) = split_units(total, 3600);
+            format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+        }
+        CoordinatePrecision::Low => {
+            let total = to_units(ra_hours, 600).rem_euclid(24 * 600);
+            let (hours, minutes, tenths) = split_units(total, 600);
+            format!("{:02}:{:02}.{}", hours, minutes, tenths)
+        }
+    }
+}
+
+/// `sDD*MM:SS` or `sDD*MM`. The degrees are always two digits: firmware
+/// reads the field by position and refuses `+5*00:00`.
+pub(crate) fn format_dec(dec_degrees: f64, precision: CoordinatePrecision) -> String {
+    let sign = sign_char(dec_degrees);
+    match precision {
+        CoordinatePrecision::High => {
+            let total = to_units(dec_degrees.abs(), 3600);
+            let (degrees, arcmin, arcsec) = split_units(total, 3600);
+            format!("{}{:02}*{:02}:{:02}", sign, degrees, arcmin, arcsec)
+        }
+        CoordinatePrecision::Low => {
+            let total = to_units(dec_degrees.abs(), 60);
+            let (degrees, arcmin, _) = split_units(total, 60);
+            format!("{}{:02}*{:02}", sign, degrees, arcmin)
+        }
+    }
 }
 
 // Park-state persistence
@@ -542,23 +636,12 @@ pub(crate) fn parse_slew_ack(code: u8, tail: &[u8]) -> SlewAck {
     }
 }
 
-/// Codes 1 and 2 are the classic Meade LX200 refusals; 3-9 are OnStep's
-/// extensions (MountGoto.cpp). A Meade-only firmware never sends 3-9, so
-/// reading them with OnStep's meanings costs nothing and names the real
-/// reason on the mounts that do.
-pub(crate) fn slew_refusal_message(code: char, message: &str) -> String {
-    let reason = match code {
-        '1' => "target is below the horizon".to_string(),
-        '2' => "target is below the altitude limit".to_string(),
-        '3' => "mount is in standby".to_string(),
-        '4' => "mount is parked".to_string(),
-        '5' => "a goto is already in progress".to_string(),
-        '6' => "target is outside the mount's limits".to_string(),
-        '7' => "mount reported a hardware fault".to_string(),
-        '8' => "mount is already in motion".to_string(),
-        '9' => "mount refused the goto (unspecified error)".to_string(),
-        other => format!("mount refused the goto with status {}", other),
-    };
+pub(crate) fn slew_refusal_message(
+    mount_type: &Lx200MountType,
+    code: char,
+    message: &str,
+) -> String {
+    let reason = mount_type.slew_refusal_reason(code);
 
     if message.is_empty() {
         format!("Slew refused: {}", reason)
@@ -602,88 +685,39 @@ mod slew_ack_tests {
 
     #[test]
     fn onstep_codes_read_as_their_documented_reasons() {
-        assert!(slew_refusal_message('4', "").contains("parked"));
-        assert!(slew_refusal_message('7', "").contains("hardware fault"));
-        assert!(slew_refusal_message('1', "Below horizon").contains("Below horizon"));
-        assert!(slew_refusal_message('x', "").contains("status x"));
+        let onstep = Lx200MountType::OnStep;
+        assert!(slew_refusal_message(&onstep, '4', "").contains("parked"));
+        assert!(slew_refusal_message(&onstep, '7', "").contains("hardware fault"));
+        assert!(slew_refusal_message(&onstep, '1', "Below horizon").contains("Below horizon"));
+        assert!(slew_refusal_message(&onstep, 'x', "").contains("status x"));
     }
-}
 
-/// Site coordinates and clock as the mount holds them.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MountSite {
-    /// Degrees north of the equator, negative south. Ordinary signed latitude.
-    pub latitude_deg: f64,
-    /// Degrees EAST of Greenwich, negative west — the convention the rest of
-    /// this app uses. The LX200 wire format is the opposite; see
-    /// [`format_lx200_longitude`].
-    pub longitude_deg: f64,
+    /// Code 2 is a low target on Meade firmware and a high one on OnStep.
+    #[test]
+    fn code_two_reads_by_dialect() {
+        assert!(slew_refusal_message(&Lx200MountType::OnStep, '2', "").contains("overhead"));
+        assert!(slew_refusal_message(&Lx200MountType::Meade, '2', "").contains("below"));
+    }
 }
 
 /// LX200 reports longitude WEST-positive. Every other part of this app (and
 /// ASCOM, and Alpaca) uses east-positive. Getting this backwards puts the site
 /// on the wrong side of the planet and silently ruins pointing, so the
 /// conversion lives in one named place with tests either side of it.
+///
+/// Classic Meade handsets count longitude 0-360 westward, so a site at 10 E
+/// can come back as 350; the value is folded into -180..180 first.
 pub(crate) fn lx200_longitude_to_east_positive(lx200_value: f64) -> f64 {
-    -lx200_value
+    let west = lx200_value.rem_euclid(360.0);
+    if west > 180.0 {
+        360.0 - west
+    } else {
+        -west
+    }
 }
 
 pub(crate) fn east_positive_to_lx200_longitude(east_positive: f64) -> f64 {
     -east_positive
-}
-
-/// Parse `sDD*MM#`, `sDD*MM:SS#` or `sDDD*MM:SS#` into signed degrees.
-pub(crate) fn parse_dms(response: &str) -> Result<f64, DriverError> {
-    let cleaned = response.trim().trim_end_matches('#').trim();
-    if cleaned.is_empty() {
-        return Err(DriverError::SdkError("Empty DMS response".into()));
-    }
-
-    let (sign, rest) = split_sign(cleaned);
-
-    // Degrees are separated from minutes by `*` (or `\xdf`, the degree sign
-    // some firmware emits in high-precision mode).
-    let rest: String = rest
-        .chars()
-        .map(|c| {
-            if matches!(c, '\u{00df}' | '\u{00b0}') {
-                '*'
-            } else {
-                c
-            }
-        })
-        .collect();
-    let mut parts = rest.split(['*', ':']);
-
-    let degrees: f64 = parts
-        .next()
-        .ok_or_else(|| DriverError::SdkError("DMS missing degrees".into()))?
-        .trim()
-        .parse()
-        .map_err(|_| DriverError::SdkError(format!("Bad DMS degrees in {:?}", response)))?;
-    let minutes: f64 = match parts.next() {
-        Some(m) if !m.trim().is_empty() => m
-            .trim()
-            .parse()
-            .map_err(|_| DriverError::SdkError(format!("Bad DMS minutes in {:?}", response)))?,
-        _ => 0.0,
-    };
-    let seconds: f64 = match parts.next() {
-        Some(s) if !s.trim().is_empty() => s
-            .trim()
-            .parse()
-            .map_err(|_| DriverError::SdkError(format!("Bad DMS seconds in {:?}", response)))?,
-        _ => 0.0,
-    };
-
-    if !(0.0..60.0).contains(&minutes) || !(0.0..60.0).contains(&seconds) {
-        return Err(DriverError::SdkError(format!(
-            "DMS minutes/seconds out of range in {:?}",
-            response
-        )));
-    }
-
-    Ok(sign * from_parts(degrees, minutes, seconds))
 }
 
 /// Format signed degrees as `sDD*MM:SS` (high precision) or `sDD*MM`.
@@ -718,6 +752,16 @@ pub(crate) fn format_dms(value: f64, degree_width: usize, with_seconds: bool) ->
             width = degree_width
         )
     }
+}
+
+/// Longitude for `:Sg` on Meade-protocol firmware: `DDD*MM`, unsigned,
+/// counted 0-360 westward. The Meade command set defines no sign for this
+/// field, and handsets that read it by position refuse `+075*24`.
+pub(crate) fn format_meade_longitude(east_positive: f64) -> String {
+    let west_arcmin = to_units(east_positive_to_lx200_longitude(east_positive), 60)
+        .rem_euclid(360 * 60);
+    let (degrees, minutes, _) = split_units(west_arcmin, 60);
+    format!("{:03}*{:02}", degrees, minutes)
 }
 
 /// LX200 `:GG#` answers the offset that must be ADDED to local time to reach
@@ -768,20 +812,24 @@ pub(crate) fn parse_utc_offset(response: &str) -> Result<f64, DriverError> {
 }
 
 /// Inverse of [`parse_utc_offset`]: ordinary offset in, LX200 wire value out.
-pub(crate) fn format_utc_offset(hours_east_of_utc: f64) -> String {
+/// Whole hours are `sHH` everywhere. A zone off the hour is `sHH.H` in the
+/// Meade command set and `sHH:MM` on OnStep, which has no decimal form.
+pub(crate) fn format_utc_offset(hours_east_of_utc: f64, mount_type: &Lx200MountType) -> String {
     let wire = -hours_east_of_utc;
-    if (wire - wire.round()).abs() < 0.01 {
-        format!(
-            "{}{:02}",
-            if wire < 0.0 { '-' } else { '+' },
-            wire.abs() as i64
-        )
+    let sign = if wire < 0.0 { '-' } else { '+' };
+    let wire_minutes = (wire.abs() * 60.0).round() as i64;
+    if wire_minutes % 60 == 0 {
+        format!("{}{:02}", sign, wire_minutes / 60)
+    } else if mount_type.is_onstep() {
+        format!("{}{:02}:{:02}", sign, wire_minutes / 60, wire_minutes % 60)
     } else {
-        format!("{}{:04.1}", if wire < 0.0 { '-' } else { '+' }, wire.abs())
+        format!("{}{:04.1}", sign, wire.abs())
     }
 }
 
 /// Turn the mount's `MM/DD/YY` + `HH:MM:SS` local clock into a UTC instant.
+/// 10Micron writes the date `MM:DD:YY` in its extended emulation and
+/// `YYYY-MM-DD` in ultra precision; both are read too.
 ///
 /// The two-digit year is read as 20YY. LX200 firmware predates the question and
 /// no mount in service is reporting the 1900s; guessing a century by threshold
@@ -795,25 +843,33 @@ pub(crate) fn parse_mount_local_datetime(
     let date_clean = date_text.trim().trim_end_matches('#').trim();
     let time_clean = time_text.trim().trim_end_matches('#').trim();
 
-    let date_parts: Vec<&str> = date_clean.split('/').collect();
+    let date_parts: Vec<&str> = date_clean
+        .split(|c: char| !c.is_ascii_digit())
+        .filter(|part| !part.is_empty())
+        .collect();
     if date_parts.len() != 3 {
         return Err(DriverError::SdkError(format!(
             "Bad mount date {:?} (want MM/DD/YY)",
             date_text
         )));
     }
-    let month: u32 = date_parts[0]
-        .trim()
-        .parse()
-        .map_err(|_| DriverError::SdkError(format!("Bad month in {:?}", date_text)))?;
-    let day: u32 = date_parts[1]
-        .trim()
-        .parse()
-        .map_err(|_| DriverError::SdkError(format!("Bad day in {:?}", date_text)))?;
-    let year_2digit: i32 = date_parts[2]
-        .trim()
-        .parse()
-        .map_err(|_| DriverError::SdkError(format!("Bad year in {:?}", date_text)))?;
+    let field = |text: &str, what: &str| {
+        text.parse::<u32>()
+            .map_err(|_| DriverError::SdkError(format!("Bad {} in {:?}", what, date_text)))
+    };
+    let (year, month, day) = if date_parts[0].len() == 4 {
+        (
+            field(date_parts[0], "year")? as i32,
+            field(date_parts[1], "month")?,
+            field(date_parts[2], "day")?,
+        )
+    } else {
+        (
+            2000 + field(date_parts[2], "year")? as i32,
+            field(date_parts[0], "month")?,
+            field(date_parts[1], "day")?,
+        )
+    };
 
     let time_parts: Vec<&str> = time_clean.split(':').collect();
     if time_parts.len() < 2 {
@@ -838,7 +894,7 @@ pub(crate) fn parse_mount_local_datetime(
         None => 0,
     };
 
-    let local = chrono::NaiveDate::from_ymd_opt(2000 + year_2digit, month, day)
+    let local = chrono::NaiveDate::from_ymd_opt(year, month, day)
         .and_then(|d| d.and_hms_opt(hour, minute, second))
         .ok_or_else(|| {
             DriverError::SdkError(format!(
@@ -911,6 +967,15 @@ mod clock_tests {
     }
 
     #[test]
+    fn tenmicron_date_shapes_are_read() {
+        for date in ["09:08:26#", "2026-09-08#"] {
+            let (_, local) = parse_mount_local_datetime(date, "22:30:00#", 0.0)
+                .unwrap_or_else(|e| panic!("{date}: {e}"));
+            assert_eq!(local.format("%Y-%m-%d").to_string(), "2026-09-08", "{date}");
+        }
+    }
+
+    #[test]
     fn two_digit_year_reads_as_this_century() {
         let (_, local) = parse_mount_local_datetime("01/01/26#", "00:00:00#", 0.0).unwrap();
         assert_eq!(local.format("%Y").to_string(), "2026");
@@ -932,26 +997,26 @@ mod site_tests {
 
     #[test]
     fn parses_the_shapes_lx200_firmware_actually_sends() {
-        assert!((parse_dms("+40*00#").unwrap() - 40.0).abs() < 1e-9);
-        assert!((parse_dms("-33*52:11#").unwrap() + 33.869722).abs() < 1e-5);
-        assert!((parse_dms("075*23#").unwrap() - 75.383333).abs() < 1e-5);
+        assert!((parse_sexagesimal("+40*00#").unwrap() - 40.0).abs() < 1e-9);
+        assert!((parse_sexagesimal("-33*52:11#").unwrap() + 33.869722).abs() < 1e-5);
+        assert!((parse_sexagesimal("075*23#").unwrap() - 75.383333).abs() < 1e-5);
         // High-precision firmware substitutes the degree glyph for '*'.
-        assert!((parse_dms("+40\u{00df}00:28#").unwrap() - 40.007778).abs() < 1e-5);
+        assert!((parse_sexagesimal("+40\u{00df}00:28#").unwrap() - 40.007778).abs() < 1e-5);
     }
 
     #[test]
     fn rejects_nonsense_rather_than_guessing_a_site() {
-        assert!(parse_dms("").is_err());
-        assert!(parse_dms("#").is_err());
-        assert!(parse_dms("+40*99#").is_err(), "99 arcminutes is not a site");
-        assert!(parse_dms("garbage#").is_err());
+        assert!(parse_sexagesimal("").is_err());
+        assert!(parse_sexagesimal("#").is_err());
+        assert!(parse_sexagesimal("+40*99#").is_err(), "99 arcminutes is not a site");
+        assert!(parse_sexagesimal("garbage#").is_err());
     }
 
     #[test]
     fn formats_round_trip_through_the_parser() {
         for value in [40.007714_f64, -33.869722, 0.0, -0.5, 89.9999] {
             let text = format_dms(value, 2, true);
-            let parsed = parse_dms(&text).unwrap();
+            let parsed = parse_sexagesimal(&text).unwrap();
             assert!(
                 (parsed - value).abs() < 1.0 / 3600.0,
                 "{} formatted as {} parsed back as {}",
@@ -976,12 +1041,103 @@ mod site_tests {
     fn goto_targets_never_emit_sixty_seconds() {
         // 0.1 s short of 01:00:00; splitting first and rounding the seconds
         // printed 00:59:60, which firmware that validates the field refuses.
-        assert_eq!(format_ra(1.0 - 0.1 / 3600.0), "01:00:00");
-        assert_eq!(format_ra(24.0 - 0.1 / 3600.0), "00:00:00");
-        assert_eq!(format_dec(10.0 - 0.1 / 3600.0), "+10*00:00");
-        assert_eq!(format_dec(-(10.0 - 0.1 / 3600.0)), "-10*00:00");
-        assert_eq!(format_ra(5.5), "05:30:00");
-        assert_eq!(format_dec(-33.869722), "-33*52:11");
+        let high = CoordinatePrecision::High;
+        assert_eq!(format_ra(1.0 - 0.1 / 3600.0, high), "01:00:00");
+        assert_eq!(format_ra(24.0 - 0.1 / 3600.0, high), "00:00:00");
+        assert_eq!(format_dec(10.0 - 0.1 / 3600.0, high), "+10*00:00");
+        assert_eq!(format_dec(-(10.0 - 0.1 / 3600.0), high), "-10*00:00");
+        assert_eq!(format_ra(5.5, high), "05:30:00");
+        assert_eq!(format_dec(-33.869722, high), "-33*52:11");
+    }
+
+    /// Firmware reads `sDD` by position. `+5*00:00` was refused by OnStep
+    /// and Meade alike, so every goto and sync within 10 degrees of the
+    /// celestial equator failed.
+    #[test]
+    fn declination_degrees_are_always_two_digits() {
+        let high = CoordinatePrecision::High;
+        assert_eq!(format_dec(5.0, high), "+05*00:00");
+        assert_eq!(format_dec(-0.5, high), "-00*30:00");
+        assert_eq!(format_dec(0.0, high), "+00*00:00");
+        assert_eq!(format_dec(-9.999999, high), "-10*00:00");
+        assert_eq!(format_dec(89.5, high), "+89*30:00");
+    }
+
+    #[test]
+    fn low_precision_targets_are_tenths_of_a_minute_and_whole_arcminutes() {
+        let low = CoordinatePrecision::Low;
+        assert_eq!(format_ra(5.5, low), "05:30.0");
+        assert_eq!(format_ra(5.5123, low), "05:30.7");
+        assert_eq!(format_ra(24.0 - 1.0 / 3600.0, low), "00:00.0");
+        assert_eq!(format_dec(-20.2512, low), "-20*15");
+        assert_eq!(format_dec(5.0, low), "+05*00");
+        assert_eq!(format_dec(40.99999, low), "+41*00");
+    }
+
+    #[test]
+    fn precision_is_read_from_the_shape_of_the_ra_reply() {
+        assert_eq!(
+            CoordinatePrecision::of_ra_reply("05:30.0"),
+            CoordinatePrecision::Low
+        );
+        assert_eq!(
+            CoordinatePrecision::of_ra_reply("05:30:00"),
+            CoordinatePrecision::High
+        );
+        // 10Micron ultra precision.
+        assert_eq!(
+            CoordinatePrecision::of_ra_reply("05:30:00.00"),
+            CoordinatePrecision::High
+        );
+    }
+
+    /// Meade high precision separates arc seconds with an apostrophe and
+    /// Autostar writes byte 0xDF for the degree sign, which the reader turns
+    /// into U+FFFD. Both failed to parse, so a Meade mount in high precision
+    /// could not report where it pointed.
+    #[test]
+    fn coordinates_parse_with_every_separator_firmware_sends() {
+        let close = |text: &str, want: f64| {
+            let got = parse_sexagesimal(text).unwrap_or_else(|e| panic!("{text:?}: {e}"));
+            assert!((got - want).abs() < 1e-6, "{text:?} read as {got}, want {want}");
+        };
+        close("+20*30'36#", 20.51);
+        close("-05*30'00#", -5.5);
+        close(&String::from_utf8_lossy(b"+20\xdf30:36#"), 20.51);
+        close(&String::from_utf8_lossy(b"+40\xdf00#"), 40.0);
+        close("180*15'00#", 180.25);
+        close("05:30:00#", 5.5);
+        close("05:30.5#", 5.0 + 30.5 / 60.0);
+        close("+20:30:36.0#", 20.51);
+        close("05:30:00.00#", 5.5);
+    }
+
+    /// Half-hour zones: the Meade command set has `sHH.H`, OnStep `sHH:MM`.
+    #[test]
+    fn a_zone_off_the_hour_is_written_the_way_each_firmware_reads_it() {
+        assert_eq!(format_utc_offset(5.5, &Lx200MountType::Meade), "-05.5");
+        assert_eq!(format_utc_offset(5.5, &Lx200MountType::OnStep), "-05:30");
+        assert_eq!(format_utc_offset(-9.5, &Lx200MountType::OnStep), "+09:30");
+        assert_eq!(format_utc_offset(5.75, &Lx200MountType::OnStep), "-05:45");
+        assert_eq!(format_utc_offset(-4.0, &Lx200MountType::OnStep), "+04");
+    }
+
+    /// `:Sg` in the Meade command set is an unsigned `DDD*MM` counted
+    /// westward; a sign in front was refused.
+    #[test]
+    fn meade_longitude_is_unsigned_and_westward() {
+        assert_eq!(format_meade_longitude(-75.397448), "075*24");
+        assert_eq!(format_meade_longitude(10.0), "350*00");
+        assert_eq!(format_meade_longitude(0.0), "000*00");
+        assert_eq!(format_meade_longitude(-179.9999), "180*00");
+    }
+
+    #[test]
+    fn a_westward_0_to_360_longitude_reads_back_east_positive() {
+        assert!((lx200_longitude_to_east_positive(350.0) - 10.0).abs() < 1e-9);
+        assert!((lx200_longitude_to_east_positive(75.5) + 75.5).abs() < 1e-9);
+        assert!((lx200_longitude_to_east_positive(-10.0) - 10.0).abs() < 1e-9);
+        assert!((lx200_longitude_to_east_positive(180.0) + 180.0).abs() < 1e-9);
     }
 
     #[test]
@@ -1008,10 +1164,11 @@ mod site_tests {
     #[test]
     fn utc_offset_sign_matches_the_lx200_convention() {
         // US Eastern Standard Time is UTC-5; the mount is told "+05".
-        assert_eq!(format_utc_offset(-5.0), "+05");
+        let meade = Lx200MountType::Meade;
+        assert_eq!(format_utc_offset(-5.0, &meade), "+05");
         assert!((parse_utc_offset("+05#").unwrap() + 5.0).abs() < 1e-9);
         // And the other hemisphere: UTC+10 is sent as "-10".
-        assert_eq!(format_utc_offset(10.0), "-10");
+        assert_eq!(format_utc_offset(10.0, &meade), "-10");
         assert!((parse_utc_offset("-10#").unwrap() - 10.0).abs() < 1e-9);
         assert!(parse_utc_offset("+99#").is_err());
     }

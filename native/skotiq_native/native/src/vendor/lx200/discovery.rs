@@ -49,10 +49,11 @@ fn identify_mount(port: &mut ProbedPort<'_>) -> Option<Lx200MountInfo> {
     };
 
     if is_onstep {
-        let name = match port.ask(&PRODUCT_NAME_PROBE) {
-            Some(response) => response.trim_end_matches('#').to_string(),
-            None => "OnStep Mount".to_string(),
-        };
+        let name = port
+            .ask(&PRODUCT_NAME_PROBE)
+            .map(|response| reply_text(&response))
+            .filter(|name| !name.is_empty())
+            .unwrap_or_else(|| "OnStep Mount".to_string());
 
         let display_name =
             if name.to_lowercase().contains("pegasus") || name.to_lowercase().contains("nyx") {
@@ -80,16 +81,17 @@ fn identify_mount(port: &mut ProbedPort<'_>) -> Option<Lx200MountInfo> {
     }
 
     if let Some(response) = port.ask(&PRODUCT_NAME_PROBE) {
-        let name = response.trim_end_matches('#').to_string();
+        let name = reply_text(&response);
+        let lower = name.to_lowercase();
 
-        let mount_type = if name.to_lowercase().contains("meade")
-            || name.to_lowercase().contains("lx")
+        // Meade's own handsets answer `Autostar` (ETX, LX90 and LXD mounts)
+        // or an `LX` model name.
+        let mount_type = if lower.contains("meade") || lower.contains("lx") || lower.contains("autostar")
         {
             Some(Lx200MountType::Meade)
-        } else if name.to_lowercase().contains("gemini") || name.to_lowercase().contains("losmandy")
-        {
+        } else if lower.contains("gemini") || lower.contains("losmandy") {
             Some(Lx200MountType::Losmandy)
-        } else if name.to_lowercase().contains("10micron") {
+        } else if lower.contains("10micron") {
             Some(Lx200MountType::TenMicron)
         } else if !name.is_empty() && name != "\0" && name.chars().any(|c| c.is_alphanumeric()) {
             Some(Lx200MountType::Generic)
@@ -132,6 +134,16 @@ fn identify_mount(port: &mut ProbedPort<'_>) -> Option<Lx200MountInfo> {
         firmware_version: None,
         baud_rate: port.baud_rate,
     })
+}
+
+/// A probe reply without its `#` and the line end some firmware sends after
+/// it (the NYX-101 follows every reply with CRLF).
+fn reply_text(response: &str) -> String {
+    response
+        .trim_matches(|c: char| c.is_whitespace() || c == '\0')
+        .trim_end_matches('#')
+        .trim()
+        .to_string()
 }
 
 fn read_firmware_version(port: &mut ProbedPort<'_>) -> Option<String> {

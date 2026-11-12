@@ -14,6 +14,9 @@ pub struct Lx200Mount {
     pub(crate) is_slewing: Mutex<bool>,
     pub(crate) tracking_rate: Mutex<TrackingRate>,
     pub(crate) product_name: Mutex<String>,
+    /// The coordinate format the mount was found in at connect, which is the
+    /// one it takes goto and sync targets in.
+    pub(crate) precision: Mutex<CoordinatePrecision>,
     /// In-memory mirror of the persisted park flag. `None` = no canonical
     /// record exists for this device yet; we return `NotSupported` on
     /// is_parked queries until park/unpark has been called at least once
@@ -86,6 +89,7 @@ impl Lx200Mount {
             is_slewing: Mutex::new(false),
             tracking_rate: Mutex::new(TrackingRate::Sidereal),
             product_name: Mutex::new(String::new()),
+            precision: Mutex::new(CoordinatePrecision::High),
             park_state: Mutex::new(park_state_initial),
             pulse_guide_cancel: Arc::new(Notify::new()),
         }
@@ -106,13 +110,77 @@ impl Lx200Mount {
         parse_onstep_status_fields(status)
     }
 
+    /// Every command starts from an empty input buffer. Firmware answers
+    /// some commands this driver does not read (OnStep's `1` after a park, a
+    /// reply that arrived after its command timed out), and left in the
+    /// buffer that byte becomes the first byte of the next reply: `:GU#` then
+    /// read a parked mount as unparked, and `:GR#` an RA of 105 hours.
     pub(crate) fn send_command(&self, command: &str) -> Result<String, DriverError> {
-        self.link.command(command.as_bytes(), &REPLY)
+        self.link.exchange(|io| {
+            io.discard_input()?;
+            io.send(command.as_bytes())?;
+            io.read_reply(&REPLY)
+        })
     }
 
     pub(crate) fn send_command_bool(&self, command: &str) -> Result<bool, DriverError> {
-        let answer = self.link.command_byte(command.as_bytes(), &BOOL_REPLY)?;
+        let answer = self.link.exchange(|io| {
+            io.discard_input()?;
+            io.send(command.as_bytes())?;
+            io.read_reply_byte(&BOOL_REPLY)
+        })?;
         Ok(answer == b'1')
+    }
+
+    pub(crate) fn precision(&self) -> CoordinatePrecision {
+        *self.precision.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Writes a goto or sync target in the format the mount takes.
+    pub(crate) fn set_target(&self, ra_hours: f64, dec_degrees: f64) -> Result<(), DriverError> {
+        let precision = self.precision();
+        let ra_cmd = format!(
+            "{}{}#",
+            commands::SET_TARGET_RA,
+            format_ra(ra_hours, precision)
+        );
+        if !self.send_command_bool(&ra_cmd)? {
+            return Err(DriverError::SdkError(format!(
+                "Mount refused the target RA {}",
+                format_ra(ra_hours, precision)
+            )));
+        }
+        let dec_cmd = format!(
+            "{}{}#",
+            commands::SET_TARGET_DEC,
+            format_dec(dec_degrees, precision)
+        );
+        if !self.send_command_bool(&dec_cmd)? {
+            return Err(DriverError::SdkError(format!(
+                "Mount refused the target Dec {}",
+                format_dec(dec_degrees, precision)
+            )));
+        }
+        Ok(())
+    }
+
+    /// Finds the coordinate format from a `:GR#` reply and asks a mount in
+    /// low precision for high precision, as INDI does on connect. A mount
+    /// that stays in low precision is given its targets in low precision.
+    fn settle_precision(&self, ra_reply: &str) -> Result<(), DriverError> {
+        let mut precision = CoordinatePrecision::of_ra_reply(ra_reply);
+        if precision == CoordinatePrecision::Low {
+            self.send_command_no_response(commands::TOGGLE_PRECISION)?;
+            precision = CoordinatePrecision::of_ra_reply(&self.send_command(commands::GET_RA)?);
+        }
+        if precision == CoordinatePrecision::Low {
+            tracing::info!(
+                "LX200 {}: the mount stays in low precision; targets go out as HH:MM.T and sDD*MM",
+                self.device_id
+            );
+        }
+        *self.precision.lock().unwrap_or_else(|e| e.into_inner()) = precision;
+        Ok(())
     }
 
     /// Issue `:MS#` and read the goto acknowledgement.
@@ -124,6 +192,7 @@ impl Lx200Mount {
     /// polar-alignment run reported as "failed to rotate to point 2".
     pub(crate) fn send_slew_command(&self) -> Result<SlewAck, DriverError> {
         self.link.exchange(|io| {
+            io.discard_input()?;
             io.send(commands::SLEW_TO_TARGET.as_bytes())?;
             let code = io.read_reply_byte(&SLEW_ACK_REPLY)?;
 
@@ -157,7 +226,10 @@ impl Lx200Mount {
     }
 
     pub(crate) fn send_command_no_response(&self, command: &str) -> Result<(), DriverError> {
-        self.link.command_no_reply(command.as_bytes())
+        self.link.exchange(|io| {
+            io.discard_input()?;
+            io.send(command.as_bytes())
+        })
     }
 }
 
@@ -210,27 +282,28 @@ impl DeviceDriver for Lx200Mount {
 
         self.link.attach(serial)?;
 
-        match self.send_command(commands::GET_PRODUCT_NAME) {
-            Ok(name) => {
-                *self
-                    .product_name
-                    .lock()
-                    .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = name.clone();
-                self.name = format!("{} ({})", name, self.port_name);
+        if let Ok(name) = self.send_command(commands::GET_PRODUCT_NAME) {
+            *self
+                .product_name
+                .lock()
+                .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = name.clone();
+            self.name = format!("{} ({})", name, self.port_name);
+        }
+
+        // A mount that answers no product name must at least answer `:GR#`,
+        // or it is not talking to us. Either way the port is released on
+        // failure: `connected` is still false, so `disconnect()` would skip
+        // it and the COM port would stay held until the process restarts.
+        let ra_reply = match self.send_command(commands::GET_RA) {
+            Ok(reply) => reply,
+            Err(e) => {
+                let _ = self.link.detach();
+                return Err(e);
             }
-            Err(_) => {
-                // Fall back to a :GR# probe. If that ALSO times out the mount
-                // isn't really talking to us, so bail — but first release the
-                // serial port we opened above. Otherwise the live handle lingers
-                // in `self.serial_port` with `connected` still false, so a later
-                // `disconnect()` no-ops (it early-returns on `!is_connected()`),
-                // leaking the COM port and locking out every subsequent connect
-                // attempt (native OR ASCOM) until the process restarts.
-                if let Err(e) = self.send_command(commands::GET_RA) {
-                    let _ = self.link.detach();
-                    return Err(e);
-                }
-            }
+        };
+        if let Err(e) = self.settle_precision(&ra_reply) {
+            let _ = self.link.detach();
+            return Err(e);
         }
 
         *self

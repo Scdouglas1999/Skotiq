@@ -2,6 +2,8 @@ call connect
 @ port baud=9600 data=8 parity=none stop=1 flow=none
 > :GVP#
 < LX200 Classic#
+> :GR#
+< 05:30:00#
   -> Ok(())
   id=native:meade:<PORT_ID> name=LX200 Classic (<PORT>) vendor=Meade connected=true
   can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=true can_find_home=false can_set_park=false
@@ -9,7 +11,7 @@ call get_coordinates
 > :GR#
 < 05:30:00#
 > :GD#
-< +20*00:00#
+< +20*00'00#
   -> Ok((5.5, 20.0))
 call slew_to_coordinates(5.5, 20.0)
 > :Sr05:30:00#
@@ -50,10 +52,9 @@ call sync_to_coordinates(5.5123, -20.2512)
 <  M31 EX GAL MAG 3.5 SZ178.0'#
   -> Ok(())
 call set_tracking(false)
-> :Q#
-  -> Ok(())
+  -> Err(NotSupported)
 call get_tracking
-  -> Ok(false)
+  -> Ok(true)
 call set_tracking(true)
 > :TQ#
   -> Ok(())
@@ -117,9 +118,9 @@ call get_side_of_pier
   -> Ok(Unknown)
 call get_alt_az
 > :GA#
-< +45*30:00#
+< +45*30'00#
 > :GZ#
-< 180*15:00#
+< 180*15'00#
   -> Ok((45.5, 180.25))
 call get_sidereal_time
 > :GS#
@@ -129,12 +130,12 @@ call get_site
 > :Gt#
 < +40*00#
 > :Gg#
-< +075*23#
+< 075*23#
   -> Ok(MountSiteInfo { latitude_deg: 40.0, longitude_deg: -75.38333333333334, elevation_m: None })
 call set_site(40.007714, -75.397448)
 > :St+40*00#
 < 1
-> :Sg+075*24#
+> :Sg075*24#
 < 1
   -> Ok(())
 call get_clock
@@ -176,7 +177,7 @@ call get_coordinates
 > :GR#
 < 05:30:00#
 > :GD#
-< +20*00:00#
+< +20*00'00#
   -> Ok((5.5, 20.0))
 call unpark
 > :PO#

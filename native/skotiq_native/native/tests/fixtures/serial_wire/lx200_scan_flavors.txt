@@ -81,7 +81,7 @@
 (scan over)
 == found ==
 port=<onstep> name="OnStep: On-Step (<onstep>)" type=OnStep firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
-port=<nyx> name="Pegasus NYX-101#\r\n (<nyx>)" type=OnStep firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
+port=<nyx> name="Pegasus NYX-101 (<nyx>)" type=OnStep firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
 port=<meade> name="LX200 Classic (<meade>)" type=Meade firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
 port=<losmandy> name="Losmandy Gemini (<losmandy>)" type=Losmandy firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200
 port=<tenmicron> name="10micron GM1000HPS (<tenmicron>)" type=TenMicron firmware=Some("LX200 firmware v4.2g (Oct 10 2010 12:34:56)") baud=115200

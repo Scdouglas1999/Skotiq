@@ -175,14 +175,6 @@ impl SerialLink {
         })
     }
 
-    /// Sends `command` and returns the single byte the mount answers with.
-    pub(crate) fn command_byte(&self, command: &[u8], rule: &ReplyRule) -> Result<u8, DriverError> {
-        self.exchange(|io| {
-            io.send(command)?;
-            io.read_reply_byte(rule)
-        })
-    }
-
     /// Sends a command the mount does not answer.
     pub(crate) fn command_no_reply(&self, command: &[u8]) -> Result<(), DriverError> {
         self.exchange(|io| io.send(command))
