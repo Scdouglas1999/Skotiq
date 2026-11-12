@@ -933,6 +933,19 @@ void main() {
   }
 
   group('with nothing stored a feature holds its model\'s own defaults', () {
+    test('defect map', () {
+      expect(
+        _defectMap(DefectMapSettings.fromRows(const {})),
+        _defectMap(const DefectMapSettings()),
+      );
+    });
+
+    test('calibration', () {
+      final stored = CalibrationSettings.fromRows(const {});
+      const model = CalibrationSettings();
+      expect(stored.toRemoteJson(), model.toRemoteJson());
+    });
+
     test('dark library tolerances', () {
       const model = DarkLibraryMatchTolerances.defaults;
       expect(StoreSettings.darkExposureTolerance.fallback, model.exposureSecs);
@@ -1019,6 +1032,22 @@ void main() {
 ///     saved (the base kept empty grading rules as an empty string, and
 ///     failed on an empty notification routing document).
 const Map<String, Object?> _changedOnPurpose = {
+  'dark library tolerances': {
+    'reads': {
+      'unreadable': {'error': 'FormatException'},
+      'empty': _SameAs('missing'),
+    },
+  },
+  'dark library settings': {
+    'reads': {
+      'unreadable': {'autoCalibrate': true},
+    },
+  },
+  'defect map': {
+    'reads': {
+      'unreadable': {'saveOriginal': true},
+    },
+  },
 };
 
 /// A change to the value the base build read from the rows labeled [label].

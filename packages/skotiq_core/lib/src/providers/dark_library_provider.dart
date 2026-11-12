@@ -13,6 +13,7 @@ import 'package:skotiq_remote_protocol/wire_models.dart';
 import '../services/calibration_master_builder.dart';
 import '../services/calibration_service.dart';
 import '../services/dark_library_service.dart';
+import '../settings/store_settings.dart';
 import '../utils/resilient_poll_stream.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
@@ -137,16 +138,6 @@ DarkLibraryStats _statsFromEntries(List<DarkLibraryEntry> entries) {
   );
 }
 
-/// Settings key for the dark-library exposure-match tolerance (seconds).
-///
-/// Default written into `app_settings` is `0.5`. See [DarkLibraryMatchTolerances]
-/// for the rationale.
-const String darkLibraryExposureToleranceKey =
-    'dark_library.exposure_tolerance';
-
-/// Settings key for the dark-library temperature-match tolerance (°C).
-const String darkLibraryTempToleranceKey = 'dark_library.temp_tolerance';
-
 /// Unified tolerances for dark-frame matching.
 ///
 /// This is the SINGLE source of truth that both the coverage UI
@@ -155,47 +146,21 @@ const String darkLibraryTempToleranceKey = 'dark_library.temp_tolerance';
 /// consult so the green "all darks present" badge can never contradict
 /// `findMatchingDark` returning null.
 ///
-/// Values are read from `app_settings`:
-///   * `dark_library.exposure_tolerance` (default 0.5s)
-///   * `dark_library.temp_tolerance`     (default 1.0°C; a stored 2.0 from an
-///     earlier migration is honored)
-///
-/// Invalid stored values (negative, NaN, inf, unparseable) throw via
-/// [DarkLibraryMatchTolerances.validated] rather than being clamped: a clamped
-/// tolerance silently changes which darks match.
+/// A stored tolerance that is not a number, or is negative, throws rather
+/// than being clamped or read as the default: a tolerance other than the one
+/// the operator stored silently changes which darks match.
 final darkLibraryMatchTolerancesProvider = Provider<DarkLibraryMatchTolerances>(
   (ref) {
     final settings = ref.watch(allSettingsProvider);
     return settings.when(
-      data: (s) {
-        final exposureRaw = s[darkLibraryExposureToleranceKey];
-        final tempRaw = s[darkLibraryTempToleranceKey];
-        // Defaults: 0.5s exposure, 1.0°C temperature. If the legacy
-        // dark_library.temp_tolerance default of 2.0 is present it is
-        // honored as-is (it is a user-tunable value, not a migration).
-        final exposureSecs = exposureRaw == null
-            ? DarkLibraryMatchTolerances.defaults.exposureSecs
-            : (double.tryParse(exposureRaw) ??
-                  (throw ArgumentError.value(
-                    exposureRaw,
-                    darkLibraryExposureToleranceKey,
-                    'Setting "$darkLibraryExposureToleranceKey" is not a valid '
-                    'number of seconds',
-                  )));
-        final temperatureC = tempRaw == null
-            ? DarkLibraryMatchTolerances.defaults.temperatureC
-            : (double.tryParse(tempRaw) ??
-                  (throw ArgumentError.value(
-                    tempRaw,
-                    darkLibraryTempToleranceKey,
-                    'Setting "$darkLibraryTempToleranceKey" is not a valid '
-                    'number of degrees',
-                  )));
-        return DarkLibraryMatchTolerances.validated(
-          exposureSecs: exposureSecs,
-          temperatureC: temperatureC,
-        );
-      },
+      data: (rows) => DarkLibraryMatchTolerances.validated(
+        exposureSecs: StoreSettings.darkExposureTolerance.decodeStrict(
+          rows[StoreSettings.darkExposureTolerance.key],
+        ),
+        temperatureC: StoreSettings.darkTemperatureTolerance.decodeStrict(
+          rows[StoreSettings.darkTemperatureTolerance.key],
+        ),
+      ),
       loading: () => DarkLibraryMatchTolerances.defaults,
       error: (_, __) => DarkLibraryMatchTolerances.defaults,
     );
@@ -228,6 +193,20 @@ class DarkLibrarySettingsSnapshot {
       temperatureTolerance: temperature,
     );
   }
+
+  /// What the stored [rows] hold.
+  factory DarkLibrarySettingsSnapshot.fromRows(Map<String, String> rows) =>
+      DarkLibrarySettingsSnapshot(
+        autoCalibrate: StoreSettings.calibrationAutoCalibrate.valueIn(rows),
+        temperatureTolerance: StoreSettings.darkTemperatureTolerance.valueIn(
+          rows,
+        ),
+      );
+
+  Map<String, dynamic> toJson() => {
+    'autoCalibrate': autoCalibrate,
+    'temperatureTolerance': temperatureTolerance,
+  };
 }
 
 final darkLibrarySettingsProvider =
@@ -239,14 +218,8 @@ final darkLibrarySettingsProvider =
           await remote.getDarkLibrarySettings(),
         );
       }
-      final stored = await ref.watch(allSettingsProvider.future);
-      final temperature = double.tryParse(
-        stored[darkLibraryTempToleranceKey] ?? '',
-      );
-      return DarkLibrarySettingsSnapshot(
-        autoCalibrate: stored['calibration.auto_calibrate'] == 'true',
-        temperatureTolerance:
-            temperature ?? DarkLibraryMatchTolerances.defaults.temperatureC,
+      return DarkLibrarySettingsSnapshot.fromRows(
+        await ref.watch(allSettingsProvider.future),
       );
     });
 
@@ -294,9 +267,9 @@ class DarkLibrarySettingsActions {
     if (_remote != null) {
       await _remote.updateDarkLibrarySettings(temperatureTolerance: value);
     } else {
-      await _localSettings!.setSetting(
-        darkLibraryTempToleranceKey,
-        value.toString(),
+      await _localSettings!.write(
+        StoreSettings.darkTemperatureTolerance,
+        value,
       );
     }
     _ref.invalidate(darkLibrarySettingsProvider);

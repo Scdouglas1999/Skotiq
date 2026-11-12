@@ -9,6 +9,8 @@ import '../models/defect_map.dart';
 import '../models/equipment/equipment_models.dart';
 import '../services/calibration/defect_map_service.dart';
 import '../services/logging_service.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'capability_provider.dart';
@@ -313,7 +315,8 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       }
       state = state.copyWith(
         statusMessage: null,
-        errorMessage: 'Failed to update defect-map toggle: ${userFacingError(e)}',
+        errorMessage:
+            'Failed to update defect-map toggle: ${userFacingError(e)}',
       );
     }
   }
@@ -357,7 +360,8 @@ class DefectMapNotifier extends StateNotifier<DefectMapUiState> {
       }
       state = state.copyWith(
         statusMessage: null,
-        errorMessage: 'Failed to push defect-map settings to sequencer: ${userFacingError(e)}',
+        errorMessage:
+            'Failed to push defect-map settings to sequencer: ${userFacingError(e)}',
       );
     }
   }
@@ -526,6 +530,27 @@ class DefectMapSettings {
     );
   }
 
+  /// What the stored [rows] hold.
+  factory DefectMapSettings.fromRows(Map<String, String> rows) =>
+      DefectMapSettings(
+        autoApply: StoreSettings.defectMapAutoApply.valueIn(rows),
+        method: DefectMapMethod.fromWire(
+          StoreSettings.defectMapMethod.valueIn(rows),
+        ),
+        kernel: DefectMapKernelSize.fromDiameter(
+          StoreSettings.defectMapKernelDiameter.valueIn(rows),
+        ),
+        saveOriginal: StoreSettings.defectMapSaveOriginal.valueIn(rows),
+      );
+
+  /// The snapshot `GET /api/calibration/defect-maps/settings` returns.
+  Map<String, dynamic> toRemoteJson() => {
+    'autoApply': autoApply,
+    'method': method.wireValue,
+    'kernelDiameter': kernel.diameter,
+    'saveOriginal': saveOriginal,
+  };
+
   factory DefectMapSettings.fromRemoteJson(Map<String, dynamic> json) {
     final autoApply = json['autoApply'];
     final methodRaw = json['method'];
@@ -581,17 +606,6 @@ class DefectMapSettings {
     isLoading,
     loadError,
   );
-}
-
-/// Settings keys used by the defect-map subsystem. Centralised here so
-/// the test suite + the bridge can match against the same strings.
-class DefectMapSettingsKeys {
-  static const String autoApply = 'defectMap.autoApply';
-  static const String method = 'defectMap.method';
-  static const String kernel = 'defectMap.kernelDiameter';
-  static const String saveOriginal = 'defectMap.saveOriginal';
-
-  DefectMapSettingsKeys._();
 }
 
 /// StateNotifier managing [DefectMapSettings]. Loads from the
@@ -656,16 +670,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
   }
 
   void _applyLoaded(Map<String, String> kv) {
-    state = DefectMapSettings(
-      autoApply: kv[DefectMapSettingsKeys.autoApply] == 'true',
-      method: DefectMapMethod.fromWire(kv[DefectMapSettingsKeys.method]),
-      kernel: DefectMapKernelSize.fromDiameter(
-        int.tryParse(kv[DefectMapSettingsKeys.kernel] ?? '') ?? 3,
-      ),
-      saveOriginal: kv[DefectMapSettingsKeys.saveOriginal] == 'true',
-      isLoading: false,
-      loadError: null,
-    );
+    state = DefectMapSettings.fromRows(kv);
     if (!_loadedCompleter.isCompleted) {
       _loadedCompleter.complete();
     }
@@ -705,7 +710,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
       }, (current) => current.copyWith(autoApply: value));
       return;
     }
-    await _saveLocal(DefectMapSettingsKeys.autoApply, value.toString());
+    await _saveLocal(StoreSettings.defectMapAutoApply, value);
     state = state.copyWith(autoApply: value, loadError: null);
   }
 
@@ -716,7 +721,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
       }, (current) => current.copyWith(method: value));
       return;
     }
-    await _saveLocal(DefectMapSettingsKeys.method, value.wireValue);
+    await _saveLocal(StoreSettings.defectMapMethod, value.wireValue);
     state = state.copyWith(method: value, loadError: null);
   }
 
@@ -727,7 +732,7 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
       }, (current) => current.copyWith(kernel: value));
       return;
     }
-    await _saveLocal(DefectMapSettingsKeys.kernel, value.diameter.toString());
+    await _saveLocal(StoreSettings.defectMapKernelDiameter, value.diameter);
     state = state.copyWith(kernel: value, loadError: null);
   }
 
@@ -738,13 +743,12 @@ class DefectMapSettingsNotifier extends StateNotifier<DefectMapSettings> {
       }, (current) => current.copyWith(saveOriginal: value));
       return;
     }
-    await _saveLocal(DefectMapSettingsKeys.saveOriginal, value.toString());
+    await _saveLocal(StoreSettings.defectMapSaveOriginal, value);
     state = state.copyWith(saveOriginal: value, loadError: null);
   }
 
-  Future<void> _saveLocal(String key, String value) {
-    return _ref.read(settingsDaoProvider).setSetting(key, value);
-  }
+  Future<void> _saveLocal<T>(Setting<T> setting, T value) =>
+      _ref.read(settingsDaoProvider).write(setting, value);
 
   Future<void> _saveRemote(
     Map<String, dynamic> patch,

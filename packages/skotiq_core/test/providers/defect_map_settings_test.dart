@@ -86,13 +86,13 @@ void main() {
 
       // Read raw KV entries to confirm persistence happened.
       final dao = container.read(settingsDaoProvider);
-      expect(await dao.getSetting(DefectMapSettingsKeys.autoApply), 'true');
+      expect(await dao.getSetting('defectMap.autoApply'), 'true');
       expect(
-        await dao.getSetting(DefectMapSettingsKeys.method),
+        await dao.getSetting('defectMap.method'),
         DefectMapMethod.gaussian.wireValue,
       );
-      expect(await dao.getSetting(DefectMapSettingsKeys.kernel), '7');
-      expect(await dao.getSetting(DefectMapSettingsKeys.saveOriginal), 'true');
+      expect(await dao.getSetting('defectMap.kernelDiameter'), '7');
+      expect(await dao.getSetting('defectMap.saveOriginal'), 'true');
     });
 
     test('round-trips through a fresh provider', () async {
