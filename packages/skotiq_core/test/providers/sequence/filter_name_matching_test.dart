@@ -19,14 +19,16 @@ Sequence _plan(List<SequenceNode> steps) {
 }
 
 void main() {
-  test('long and short filter names fold together as the wheel matches them',
-      () {
-    expect(canonicalFilterName('Luminance'), 'L');
-    expect(canonicalFilterName('lum'), 'L');
-    expect(canonicalFilterName('H-alpha'), 'HA');
-    expect(canonicalFilterName('Red'), 'R');
-    expect(canonicalFilterName('OIII'), 'OIII');
-  });
+  test(
+    'long and short filter names fold together as the wheel matches them',
+    () {
+      expect(canonicalFilterName('Luminance'), 'L');
+      expect(canonicalFilterName('lum'), 'L');
+      expect(canonicalFilterName('H-alpha'), 'HA');
+      expect(canonicalFilterName('Red'), 'R');
+      expect(canonicalFilterName('OIII'), 'OIII');
+    },
+  );
 
   test('a filter matches the wheel name it means, exact names first', () {
     const wheel = ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII'];
@@ -44,7 +46,12 @@ void main() {
     final red = ExposureNode(filter: 'R', filterIndex: 0);
     final smart = SmartExposureNode(
       plans: const [
-        FilterPlan(filterName: 'Lum', filterIndex: 0, count: 1, durationSecs: 1),
+        FilterPlan(
+          filterName: 'Lum',
+          filterIndex: 0,
+          count: 1,
+          durationSecs: 1,
+        ),
         FilterPlan(filterName: 'R', filterIndex: 0, count: 1, durationSecs: 1),
       ],
     );

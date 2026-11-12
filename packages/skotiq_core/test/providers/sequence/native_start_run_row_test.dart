@@ -89,18 +89,14 @@ void main() {
 
   Future<void> pumpEvents() => Future<void>.delayed(Duration.zero);
 
-  /// What the headless start handler does for a natively-loaded sequence:
-  /// open the run records, then subscribe to the native event stream.
+  /// What the headless start handler does for a natively-loaded sequence.
   Future<int> startNativeRun(
     ProviderContainer container,
     SequenceExecutor executor, {
     String name = 'D1 sim night',
   }) async {
-    final runId = await executor.openRunRecordsForNativeStart(
-      sequenceName: name,
-    );
-    await executor.attachHostListenersForNativeRun();
-    return runId;
+    await executor.startLoadedRun(label: LoadedRunLabel(name: name));
+    return container.read(currentRunIdProvider)!;
   }
 
   test('a native start opens a run row that the run history can see', () async {
@@ -172,12 +168,18 @@ void main() {
   test('a refused start leaves no run claiming to be running', () async {
     final container = buildContainer();
     final executor = container.read(sequenceExecutorProvider);
-    final runId = await startNativeRun(container, executor);
+    when(
+      () => backend.sequencerStart(),
+    ).thenThrow(StateError('Cannot start: no camera is assigned to the run'));
 
-    await executor.discardRunRecordsForRefusedNativeStart(runId);
+    await expectLater(
+      executor.startLoadedRun(label: const LoadedRunLabel(name: 'refused')),
+      throwsA(isA<NativeStartRefused>()),
+    );
 
-    final run = await container.read(sequenceRunsDaoProvider).getRunById(runId);
-    expect(run!.status, 'failed');
+    final run =
+        (await container.read(sequenceRunsDaoProvider).getAllRuns()).single;
+    expect(run.status, 'failed');
     expect(run.endedAt, isNotNull);
     expect(container.read(currentRunIdProvider), isNull);
   });
@@ -187,11 +189,13 @@ void main() {
     final executor = container.read(sequenceExecutorProvider);
     final runId = await startNativeRun(container, executor);
 
-    final again = await executor.openRunRecordsForNativeStart(
-      sequenceName: 'a second load while the first is live',
+    await executor.startLoadedRun(
+      label: const LoadedRunLabel(
+        name: 'a second load while the first is live',
+      ),
     );
 
-    expect(again, runId);
+    expect(container.read(currentRunIdProvider), runId);
     expect(
       (await container.read(sequenceRunsDaoProvider).getAllRuns()).length,
       1,

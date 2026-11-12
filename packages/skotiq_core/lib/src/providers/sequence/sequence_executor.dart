@@ -636,22 +636,125 @@ class SequenceExecutor {
     return runId;
   }
 
-  /// Open the same durable run records for a native launch that does NOT come
-  /// through [start] / [resumeFromCheckpoint]: the headless
-  /// `POST /api/sequencer/load` -> `POST /api/sequencer/start` path.
+  /// Start the tree already loaded into the native executor: the headless
+  /// `POST /api/sequencer/load` -> `POST /api/sequencer/start` path, which has
+  /// no plan in the editor for [start] to run.
   ///
-  /// Without the row the run has no history entry and finalization has
-  /// nowhere to write its status and stats.
+  /// One launch, in the order [start] takes the same steps: the operator's
+  /// settings into the runtime config, [admit], the session row, the run row,
+  /// the event subscription, the native start.
+  ///
+  /// A failed settings push throws [RunConfigSeedFailed] and opens nothing: a
+  /// night run on library defaults (grading, the reject folder, the autofocus
+  /// cadence and the dither settings all ignored) produces frames nothing
+  /// downstream can tell from graded ones. [admit] may throw to refuse the run
+  /// before any record exists.
+  ///
+  /// The two rows and the subscription are bookkeeping. A failure there is
+  /// logged and the run still starts: frames on disk can be imported and a run
+  /// row reconstructed, a refused night cannot be recovered. Without the
+  /// session row frames register with no session; without the run row the run
+  /// has no history entry; without the subscription frames reach the disk and
+  /// not the image library.
+  ///
+  /// A start the native executor refuses throws [NativeStartRefused] after the
+  /// rows opened for it are closed, so a run that never began is not left in
+  /// the history as a night that happened or a run still running.
+  ///
+  /// [label] is null when nothing describes the loaded tree; the run then has
+  /// neither row.
+  Future<void> startLoadedRun({
+    LoadedRunLabel? label,
+    Future<void> Function()? admit,
+  }) async {
+    _ensureBackendAuthority();
+    try {
+      await _runtimeConfig.seedFromSettings();
+    } catch (e, st) {
+      Error.throwWithStackTrace(RunConfigSeedFailed(e), st);
+    }
+    await admit?.call();
+
+    // The session row first: it must exist before the first frame event
+    // arrives, or that frame is stamped with no session.
+    final openedSession =
+        label != null && await _openSessionForLoadedRun(label);
+    final runId = label == null ? null : await _openRunRowForLoadedRun(label);
+    try {
+      await _attachToNativeRun();
+    } catch (e) {
+      _logger.warning(
+        'Could not subscribe to the run\'s frame events ($e); frames will be '
+        'written to disk but not registered in the image library',
+        source: 'SequenceExecutor',
+      );
+    }
+    try {
+      await _backend.sequencerStart();
+    } catch (e, st) {
+      await _closeRecordsOfRefusedStart(
+        openedSession: openedSession,
+        runId: runId,
+      );
+      Error.throwWithStackTrace(NativeStartRefused(e), st);
+    }
+  }
+
+  /// Open the session row for a loaded run. Returns whether one was opened.
+  Future<bool> _openSessionForLoadedRun(LoadedRunLabel label) async {
+    try {
+      final sessions = _ref.read(sessionStateProvider.notifier);
+      if (_ref.read(sessionStateProvider).isActive) {
+        // A session the previous run left open would file this run's frames
+        // under that run's night. It is closed only once the native executor
+        // is idle, which is also the only case where this start can succeed:
+        // a busy executor refuses it, and ending a live run's session on the
+        // way to that refusal would corrupt the run still in progress.
+        final state = (await _backend.sequencerGetStatus()).state;
+        if (_nativeRunInProgressStates.contains(state)) {
+          _logger.warning(
+            'A session is open and the native executor reports "$state"; '
+            'leaving the session alone and letting the start be refused',
+            source: 'SequenceExecutor',
+          );
+          return false;
+        }
+        _logger.info(
+          'Closing the session left open by the previous run (native '
+          'executor is "$state")',
+          source: 'SequenceExecutor',
+        );
+        await sessions.endSession(status: 'completed');
+      }
+      await sessions.startSession(
+        targetName: label.name,
+        // Only a single-target sequence has coordinates, as in
+        // [_startSessionRow].
+        targetRa: label.targetRaHours,
+        targetDec: label.targetDecDegrees,
+        profileId: _ref.read(activeEquipmentProfileProvider)?.id,
+      );
+      sessions.setTotalExposures(label.totalExposures);
+      return true;
+    } catch (e) {
+      _logger.warning(
+        'Could not open the session row ($e); frames will be captured but '
+        'not registered',
+        source: 'SequenceExecutor',
+      );
+      return false;
+    }
+  }
+
+  /// Open the run row for a loaded run. Returns its id, or null when the row
+  /// could not be written.
   ///
   /// No snapshot: the column holds the editor's sequence map, and the native
   /// wire JSON is a different document the run diff cannot compare.
   ///
   /// A run id already set means a run is under way; it is kept rather than
-  /// orphaned in `running`. Returns the run id in force.
-  Future<int> openRunRecordsForNativeStart({
-    required String sequenceName,
-    int? sequenceDatabaseId,
-  }) async {
+  /// orphaned in `running`.
+  Future<int?> _openRunRowForLoadedRun(LoadedRunLabel label) async {
     final existing = _ref.read(currentRunIdProvider);
     if (existing != null) {
       _logger.warning(
@@ -661,52 +764,69 @@ class SequenceExecutor {
       );
       return existing;
     }
-    // Clear the previous run's progress, as [_acquireAndStartRun] does: the
-    // integration total and the per-node badges accumulate otherwise.
-    _ref.read(runRecordProvider.notifier).resetProgress();
-    _ref.read(runRecordProvider.notifier).resetTally();
-    _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
-    return _openRunRecords(
-      sequenceName: sequenceName,
-      sequenceDatabaseId: sequenceDatabaseId,
-    );
-  }
-
-  /// Close out the records [openRunRecordsForNativeStart] opened for a start
-  /// the native executor then refused, so a run that never began does not sit
-  /// in the run history as `running` until the next launch reconciles it.
-  ///
-  /// `failed` rather than a delete: the attempt happened and the operator asked
-  /// for it. Errors are logged, not raised — the caller is already returning
-  /// the refusal that actually explains why the run did not start.
-  Future<void> discardRunRecordsForRefusedNativeStart(int runId) async {
     try {
-      final stats = _ref.read(liveSequenceStatsProvider) ?? SequenceRunStats();
-      stats.endTime = DateTime.now();
-      await _ref
-          .read(sequenceRunsDaoProvider)
-          .finishRun(runId, 'failed', stats.toJson());
+      // Clear the previous run's progress, as [_acquireAndStartRun] does: the
+      // integration total and the per-node badges accumulate otherwise.
+      final run = _ref.read(runRecordProvider.notifier);
+      run.resetProgress();
+      run.resetTally();
+      run.setFramesDoneBeforeRun(const {});
+      return await _openRunRecords(sequenceName: label.name);
     } catch (e) {
       _logger.warning(
-        'The start was refused and run row $runId could not be closed: $e',
+        'Could not open the run row ($e); the run will not appear in the run '
+        'history',
+        source: 'SequenceExecutor',
+      );
+      return null;
+    }
+  }
+
+  /// Close the rows opened for a start the native executor then refused. The
+  /// run row ends `failed` rather than deleted: the attempt happened and the
+  /// operator asked for it. Errors are logged, not raised: the caller is
+  /// already raising the refusal that explains why the run did not start.
+  Future<void> _closeRecordsOfRefusedStart({
+    required bool openedSession,
+    required int? runId,
+  }) async {
+    if (runId != null) {
+      try {
+        final stats =
+            _ref.read(liveSequenceStatsProvider) ?? SequenceRunStats();
+        stats.endTime = DateTime.now();
+        await _ref
+            .read(sequenceRunsDaoProvider)
+            .finishRun(runId, 'failed', stats.toJson());
+      } catch (e) {
+        _logger.warning(
+          'The start was refused and run row $runId could not be closed: $e',
+          source: 'SequenceExecutor',
+        );
+      }
+      final run = _ref.read(runRecordProvider.notifier);
+      run.setRunId(null);
+      run.setStats(null);
+    }
+    if (!openedSession) return;
+    try {
+      await _ref
+          .read(sessionStateProvider.notifier)
+          .endSession(status: 'failed');
+    } catch (e) {
+      _logger.warning(
+        'The start was refused and the session row opened for it could not '
+        'be closed ($e)',
         source: 'SequenceExecutor',
       );
     }
-    _ref.read(runRecordProvider.notifier).setRunId(null);
-    _ref.read(runRecordProvider.notifier).setStats(null);
   }
 
-  /// Push every user-controlled RuntimeConfig field into the already-loaded
-  /// native executor, for a launch that does NOT come through [start] /
-  /// [resumeFromCheckpoint]: the headless `POST /api/sequencer/load` ->
-  /// `POST /api/sequencer/start` path.
-  ///
-  /// The one seed site every launch path shares ([_startNativeExecution]
-  /// calls it too), so no path can run on the Rust defaults.
-  ///
-  /// Throws on a failed push, as [start] does: a start that refuses and says
-  /// why beats a night with the operator's grading silently inert.
-  Future<void> seedRuntimeConfigForNativeStart() async {
+  /// Push every user-controlled RuntimeConfig field into the loaded native
+  /// executor. The one seed every launch shares, so no path can run on the
+  /// Rust defaults. Throws on a failed push: a start that refuses and says why
+  /// beats a night with the operator's grading silently inert.
+  Future<void> _seedRuntimeConfig() async {
     _ensureBackendAuthority();
     await _runtimeConfig.seedFromSettings();
   }
@@ -824,16 +944,15 @@ class SequenceExecutor {
 
     // The runtime config is seeded before start, so the trigger monitor's
     // first poll already runs on the operator's values; the settings watchers
-    // only fire on a later change. Through the public entry point the headless
-    // `load -> start` path shares.
-    await seedRuntimeConfigForNativeStart();
+    // only fire on a later change.
+    await _seedRuntimeConfig();
 
     // After the runtime seed, so the carry-over overrides any default it
     // re-stamps, and before start, so the executor consumes it.
     await _runtimeConfig.seedIntegrationCarryOver(sequence);
 
     _ensureStillLaunching();
-    await attachHostListenersForNativeRun();
+    await _attachToNativeRun();
     _runtimeConfig.startWatchers();
 
     _lifecycle.markNativeLaunchAttempted();
@@ -2055,7 +2174,7 @@ class SequenceExecutor {
     // The same ordered launch push the start path makes, with the two
     // resume-specific differences expressed inside it (see [RuntimeConfigSync.pushLaunchConfig]).
     await _runtimeConfig.pushLaunchConfig(settings, isResume: true);
-    await seedRuntimeConfigForNativeStart();
+    await _seedRuntimeConfig();
 
     final recoveredSnapshotJson = restored.snapshotJson;
 
@@ -2126,7 +2245,7 @@ class SequenceExecutor {
       _startPerRunTimers();
 
       _ensureStillLaunching();
-      await attachHostListenersForNativeRun();
+      await _attachToNativeRun();
 
       _runtimeConfig.startWatchers();
 
@@ -2152,11 +2271,8 @@ class SequenceExecutor {
 
   /// Subscribe the event handler to the backend event stream.
   ///
-  /// The ONE subscribe site. A Dart-orchestrated [start] and a checkpoint
-  /// [resumeFromCheckpoint] both route through here as part of their launch,
-  /// and the headless appliance calls it directly: its canonical flow is
-  /// `POST /api/sequencer/load` -> `POST /api/sequencer/start`, which never
-  /// calls [start].
+  /// The ONE subscribe site: [start], a continued checkpoint and
+  /// [startLoadedRun] all route through here as part of their launch.
   ///
   /// Without the subscription a night's frames land on disk and the database
   /// never hears about them.
@@ -2173,7 +2289,7 @@ class SequenceExecutor {
   /// and the second night would never finalize. A retained (stopFailed /
   /// cleanupFailed) finalization is kept: a retry or a late terminal resumes
   /// exactly that transaction.
-  Future<void> attachHostListenersForNativeRun() async {
+  Future<void> _attachToNativeRun() async {
     _ensureBackendAuthority();
     final backend = _backend;
     final settled = _lifecycle.phase;
@@ -2235,6 +2351,53 @@ class SequenceExecutor {
     _releaseEventFold();
     _runtimeConfig.dispose();
   }
+}
+
+/// Native executor states that mean a run is still under way, as
+/// `api/sequencer.rs` serializes them.
+const _nativeRunInProgressStates = <String>{
+  'running',
+  'paused',
+  'stopping',
+  'recovering',
+};
+
+/// What a run of a tree loaded straight into the native executor is filed
+/// under: the editor holds no plan to take a name, coordinates or a frame
+/// count from.
+class LoadedRunLabel {
+  const LoadedRunLabel({
+    required this.name,
+    this.targetRaHours,
+    this.targetDecDegrees,
+    this.totalExposures = 0,
+  });
+
+  final String name;
+
+  /// The target's coordinates when the tree has exactly one target.
+  final double? targetRaHours;
+  final double? targetDecDegrees;
+  final int totalExposures;
+}
+
+/// The operator's settings could not be pushed to the native executor, so the
+/// loaded run was not started.
+class RunConfigSeedFailed implements Exception {
+  const RunConfigSeedFailed(this.cause);
+  final Object cause;
+
+  @override
+  String toString() => 'RunConfigSeedFailed: $cause';
+}
+
+/// The native executor refused to start the loaded tree.
+class NativeStartRefused implements Exception {
+  const NativeStartRefused(this.cause);
+  final Object cause;
+
+  @override
+  String toString() => 'NativeStartRefused: $cause';
 }
 
 /// A checkpoint restored by [SequenceExecutor.restoreFromCheckpoint] and not
