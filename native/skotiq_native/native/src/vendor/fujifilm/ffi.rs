@@ -179,6 +179,19 @@ pub(crate) const API_CODE_CAP_RAW_OUTPUT_DEPTH: c_long = 0x2193;
 pub(crate) const SDK_RAWOUTPUTDEPTH_14BIT: c_long = 0x0001;
 pub(crate) const SDK_RAWOUTPUTDEPTH_16BIT: c_long = 0x0002;
 
+// Long exposure noise reduction (XAPIOpt.h): with it on, the body shoots a dark
+// of the same length after each frame and subtracts it before the frame is ready.
+pub(crate) const API_CODE_SET_LONG_EXPOSURE_NR: c_long = 0x2145;
+pub(crate) const API_CODE_GET_LONG_EXPOSURE_NR: c_long = 0x2146;
+pub(crate) const SDK_ON: c_long = 0x0001;
+pub(crate) const SDK_OFF: c_long = 0x0002;
+
+// The lAPIParam argument of XSDK_GetProp/XSDK_SetProp is the number of values
+// that follow it (SDK Programming Reference 4.1.14). Every model header gives
+// these counts for the codes above (API_PARAM_<name>).
+pub(crate) const API_PARAM_NONE: c_long = 0;
+pub(crate) const API_PARAM_ONE_VALUE: c_long = 1;
+
 // Focus mode constants
 #[allow(dead_code)]
 pub(crate) const SDK_FOCUS_MODE_MF: c_long = 0x0001;
@@ -196,32 +209,3 @@ pub(crate) const XSDK_DR_400: c_long = 400;
 
 // Shutter speed codes (XAPI.h lines 405-533)
 pub(crate) const XSDK_SHUTTER_BULB: c_long = -1;
-
-// Error codes (XAPI.h lines 2233-2261)
-pub(crate) const XSDK_ERRCODE_NOERR: c_long = 0x00000000;
-pub(crate) const XSDK_ERRCODE_SEQUENCE: c_long = 0x00001001;
-pub(crate) const XSDK_ERRCODE_PARAM: c_long = 0x00001002;
-pub(crate) const XSDK_ERRCODE_INVALID_CAMERA: c_long = 0x00001003;
-pub(crate) const XSDK_ERRCODE_LOADLIB: c_long = 0x00001004;
-pub(crate) const XSDK_ERRCODE_UNSUPPORTED: c_long = 0x00001005;
-pub(crate) const XSDK_ERRCODE_BUSY: c_long = 0x00001006;
-pub(crate) const XSDK_ERRCODE_AF_TIMEOUT: c_long = 0x00001007;
-pub(crate) const XSDK_ERRCODE_SHOOT_ERROR: c_long = 0x00001008;
-pub(crate) const XSDK_ERRCODE_FRAME_FULL: c_long = 0x00001009;
-pub(crate) const XSDK_ERRCODE_STANDBY: c_long = 0x00001010;
-pub(crate) const XSDK_ERRCODE_NODRIVER: c_long = 0x00001011;
-pub(crate) const XSDK_ERRCODE_NO_MODEL_MODULE: c_long = 0x00001012;
-pub(crate) const XSDK_ERRCODE_API_NOTFOUND: c_long = 0x00001013;
-pub(crate) const XSDK_ERRCODE_API_MISMATCH: c_long = 0x00001014;
-pub(crate) const XSDK_ERRCODE_INVALID_USBMODE: c_long = 0x00001015;
-pub(crate) const XSDK_ERRCODE_FORCEMODE_BUSY: c_long = 0x00001016;
-pub(crate) const XSDK_ERRCODE_RUNNING_OTHER_FUNCTION: c_long = 0x00001017;
-pub(crate) const XSDK_ERRCODE_COMMUNICATION: c_long = 0x00002001;
-pub(crate) const XSDK_ERRCODE_TIMEOUT: c_long = 0x00002002;
-pub(crate) const XSDK_ERRCODE_COMBINATION: c_long = 0x00002003;
-pub(crate) const XSDK_ERRCODE_WRITEERROR: c_long = 0x00002004;
-pub(crate) const XSDK_ERRCODE_CARDFULL: c_long = 0x00002005;
-pub(crate) const XSDK_ERRCODE_HARDWARE: c_long = 0x00003001;
-pub(crate) const XSDK_ERRCODE_INTERNAL: c_long = 0x00009001;
-pub(crate) const XSDK_ERRCODE_MEMFULL: c_long = 0x00009002;
-pub(crate) const XSDK_ERRCODE_UNKNOWN: c_long = 0x00009100;
