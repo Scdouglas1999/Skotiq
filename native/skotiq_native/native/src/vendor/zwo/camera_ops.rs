@@ -280,12 +280,9 @@ impl CameraDriver for ZwoCamera {
                 .get_control(&sdk, ASIControlType::ASI_TARGET_TEMP)
                 .ok()
                 .map(|v| v as f64);
-            (
-                sdk_enabled.unwrap_or(local.enabled),
-                Some(sdk_target.unwrap_or(local.target_c)),
-            )
+            (sdk_enabled.or(local.enabled), sdk_target.or(local.target_c))
         } else {
-            (false, None)
+            (Some(false), None)
         };
 
         Ok(CameraStatus {
@@ -602,9 +599,9 @@ impl CameraDriver for ZwoCamera {
         // section could not have left the cooler in an unknown state.
         {
             let mut state = self.cooler_state.lock().unwrap_or_else(|e| e.into_inner());
-            state.enabled = enabled;
+            state.enabled = Some(enabled);
             if let Some(target) = target_temp {
-                state.target_c = target;
+                state.target_c = Some(target);
             }
         }
 

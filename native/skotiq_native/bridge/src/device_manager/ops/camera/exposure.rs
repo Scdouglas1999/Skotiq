@@ -306,10 +306,11 @@ impl DeviceManager {
                     .await;
                     let sim = crate::api::devices::simulation::get_sim_camera_for(device_id);
                     let mut guard = sim.write().await;
-                    if let Some(g) = gain {
+                    // A camera without the control ignores the request.
+                    if let Some(g) = gain.filter(|_| guard.status.can_set_gain) {
                         guard.status.gain = g;
                     }
-                    if let Some(o) = offset {
+                    if let Some(o) = offset.filter(|_| guard.status.can_set_offset) {
                         guard.status.offset = o;
                     }
                     guard.status.bin_x = bin_x;

@@ -71,16 +71,13 @@ pub(crate) fn raw16_container_max_adu_agrees_with_pipeline_saturation_threshold(
     assert!(old_adc_range_formula(12) < PIPELINE_SATURATION_THRESHOLD);
 }
 
-/// Default state must be cooler-off.
-///
-/// Establishes the baseline that the previous hardcoded `cooler_on: false`
-/// satisfied — we still report off when nothing has been written.
+/// Before the camera answers or is set, nothing is known of its cooler: a
+/// failed read-back then reports unknown, not off at an invented set-point.
 #[test]
-pub(crate) fn cooler_state_defaults_to_off() {
+pub(crate) fn cooler_state_starts_unknown() {
     let cam = PlayerOneCamera::new(0);
     let snap = cam.core.cooler();
-    assert!(!snap.enabled);
-    assert_eq!(snap.target_c, 0.0);
+    assert_eq!((snap.enabled, snap.target_c), (None, None));
 }
 
 /// After a successful `set_cooler(true, target)` write, an immediate
@@ -95,23 +92,23 @@ pub(crate) fn cooler_state_defaults_to_off() {
 pub(crate) fn set_cooler_then_status_reports_enabled() {
     let cam = PlayerOneCamera::new(0);
 
-    // Pre-condition: default is off.
-    assert!(!cam.core.cooler().enabled);
+    assert_eq!(cam.core.cooler().enabled, None);
 
     // Simulate the post-SDK-success update that `set_cooler` performs.
     cam.core.update_cooler(|cooler| {
-        cooler.enabled = true;
-        cooler.target_c = -10.0;
+        cooler.enabled = Some(true);
+        cooler.target_c = Some(-10.0);
     });
 
     // Read back via the same path `get_status` uses when the SDK
     // read-back is unavailable.
     let snap = cam.core.cooler();
-    assert!(
+    assert_eq!(
         snap.enabled,
+        Some(true),
         "cooler_on must reflect the last set_cooler call"
     );
-    assert_eq!(snap.target_c, -10.0);
+    assert_eq!(snap.target_c, Some(-10.0));
 }
 
 /// Writing `set_cooler(false, ...)` must clear the enabled flag — the
@@ -121,19 +118,19 @@ pub(crate) fn set_cooler_then_disable_reports_off() {
     let cam = PlayerOneCamera::new(0);
 
     cam.core.update_cooler(|cooler| {
-        cooler.enabled = true;
-        cooler.target_c = -15.0;
+        cooler.enabled = Some(true);
+        cooler.target_c = Some(-15.0);
     });
-    assert!(cam.core.cooler().enabled);
+    assert_eq!(cam.core.cooler().enabled, Some(true));
 
     cam.core.update_cooler(|cooler| {
-        cooler.enabled = false;
-        cooler.target_c = 20.0;
+        cooler.enabled = Some(false);
+        cooler.target_c = Some(20.0);
     });
 
     let snap = cam.core.cooler();
-    assert!(!snap.enabled);
-    assert_eq!(snap.target_c, 20.0);
+    assert_eq!(snap.enabled, Some(false));
+    assert_eq!(snap.target_c, Some(20.0));
 }
 
 /// `POAConfigAttributes` is hand-transcribed from PlayerOneCamera.h, and the

@@ -321,12 +321,12 @@ mod sdk_contract {
         fake.set(COLOR_CMOS, 1, 51.0);
         let status = cam.get_status().await.unwrap();
         assert_eq!(status.cooler_power, Some(20.0));
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.target_temp, Some(-10.0));
 
         cam.set_cooler(false, None).await.expect("cooler off");
         assert_eq!(fake.get(COLOR_CMOS, key::MANUAL_PWM), 0.0);
-        assert!(!cam.get_status().await.unwrap().cooler_on);
+        assert_eq!(cam.get_status().await.unwrap().cooler_on, Some(false));
         cam.disconnect().await.unwrap();
     }
 

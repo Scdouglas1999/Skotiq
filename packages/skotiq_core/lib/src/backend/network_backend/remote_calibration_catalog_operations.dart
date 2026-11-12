@@ -356,8 +356,8 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
 
   Future<int> deleteDarkLibraryGroup({
     required double exposureTime,
-    required int gain,
-    required int offset,
+    required int? gain,
+    required int? offset,
     required int binX,
     required int binY,
     required String frameType,
@@ -365,8 +365,8 @@ mixin _NetworkBackendRemoteCalibrationCatalogOperations
   }) async {
     final response = await _post('calibration/darks/delete-group', {
       'exposureTime': exposureTime,
-      'gain': gain,
-      'offset': offset,
+      if (gain != null) 'gain': gain,
+      if (offset != null) 'offset': offset,
       'binX': binX,
       'binY': binY,
       'frameType': frameType,

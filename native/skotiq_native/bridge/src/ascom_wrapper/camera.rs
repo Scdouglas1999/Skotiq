@@ -415,7 +415,9 @@ impl AscomCameraWrapper {
                             let full_status = cam.get_full_status();
 
                             // The ASCOM numbering, as the Alpaca path reads it.
-                            let state = full_status.state.map_or(CameraState::Idle, CameraState::from);
+                            let state = full_status
+                                .state
+                                .map_or(CameraState::Idle, CameraState::from);
 
                             if let Some(temp) = full_status.thermal.temperature {
                                 tracing::debug!("ASCOM camera temperature: {}C", temp);
@@ -451,7 +453,7 @@ impl AscomCameraWrapper {
                                 sensor_temp: full_status.thermal.temperature,
                                 cooler_power: full_status.thermal.cooler_power,
                                 target_temp,
-                                cooler_on: full_status.thermal.cooler_on.unwrap_or(false),
+                                cooler_on: full_status.thermal.cooler_on,
                                 gain: full_status
                                     .exposure_settings
                                     .gain
@@ -766,7 +768,9 @@ impl AscomCameraWrapper {
                                     .and_then(|_| cam.set_num_x(frame.num_x))
                                     .and_then(|_| cam.set_num_y(frame.num_y))
                                     .map_err(|e| {
-                                        DriverError::SdkError(format!("Failed to set the frame: {e}"))
+                                        DriverError::SdkError(format!(
+                                            "Failed to set the frame: {e}"
+                                        ))
                                     })
                             })();
                             let _ = reply.send(result);
@@ -790,7 +794,9 @@ impl AscomCameraWrapper {
                                 let result = cam
                                     .set_bin_x(bin_x)
                                     .and_then(|_| cam.set_bin_y(bin_y))
-                                    .map_err(|e| DriverError::SdkError(format!("Failed to set binning: {e}")));
+                                    .map_err(|e| {
+                                        DriverError::SdkError(format!("Failed to set binning: {e}"))
+                                    });
                                 let _ = reply.send(result);
                             }
                         } else {
@@ -1021,7 +1027,10 @@ impl AscomCameraWrapper {
         }
     }
 
-    fn control_range(&self, pick: fn(&CameraControls) -> &CameraControl) -> Result<(i32, i32), DriverError> {
+    fn control_range(
+        &self,
+        pick: fn(&CameraControls) -> &CameraControl,
+    ) -> Result<(i32, i32), DriverError> {
         self.cached_controls
             .read()
             .ok()
@@ -1683,7 +1692,7 @@ mod tests {
                     sensor_temp: None,
                     cooler_power: None,
                     target_temp: None,
-                    cooler_on: false,
+                    cooler_on: Some(false),
                     gain: 0,
                     offset: 0,
                     bin_x: 1,

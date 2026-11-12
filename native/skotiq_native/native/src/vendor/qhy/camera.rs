@@ -84,8 +84,10 @@ pub struct QhyCamera {
     /// The color filter at the imaging area's first pixel.
     pub(crate) bayer_pattern: Option<BayerPattern>,
 
-    // The SDK has no read-back of "cooler on"; CONTROL_COOLER is the set-point.
-    pub(crate) cooler_on: bool,
+    // The QHY SDK has no register to read the cooler switch or set-point back
+    // (CONTROL_COOLER is the set-point to write, not an on/off flag), so both
+    // are this connection's last command, unknown before one.
+    pub(crate) cooler_on: Option<bool>,
     pub(crate) cooler_target_c: Option<f64>,
     pub(crate) keepalive: CoolerKeepalive,
 }
@@ -137,7 +139,7 @@ impl QhyCamera {
             has_st4_port: false,
             is_color: false,
             bayer_pattern: None,
-            cooler_on: false,
+            cooler_on: None,
             cooler_target_c: None,
             keepalive: CoolerKeepalive::default(),
         }
@@ -273,8 +275,8 @@ impl QhyCamera {
             .filter(|max| *max > 0.0)
             .unwrap_or(255.0);
         self.has_thermometer = self.available(sdk, QhyControl::CONTROL_CURTEMP);
-        self.has_shutter = self.available(sdk, QhyControl::CAM_MECHANICALSHUTTER)
-            && sdk.control_shutter.is_some();
+        self.has_shutter =
+            self.available(sdk, QhyControl::CAM_MECHANICALSHUTTER) && sdk.control_shutter.is_some();
         self.has_st4_port = self.available(sdk, QhyControl::CONTROL_ST4PORT);
         self.supported_bins = [
             (1, QhyControl::CAM_BIN1X1MODE),
@@ -399,7 +401,10 @@ impl QhyCamera {
         if bin != self.current_bin {
             let bin_u = bin as c_uint;
             // SAFETY: as in `available`; `bin` was checked to be a supported factor.
-            bin_mode_result(unsafe { (sdk.set_qhyccd_binmode)(handle, bin_u, bin_u) }, bin)?;
+            bin_mode_result(
+                unsafe { (sdk.set_qhyccd_binmode)(handle, bin_u, bin_u) },
+                bin,
+            )?;
             self.current_bin = bin;
         }
         // SAFETY: as in `available`; the window lies inside the binned sensor.
@@ -540,11 +545,7 @@ impl CoolerKeepalive {
                 // SAFETY: the session still holds this handle and the SDK
                 // lock is held for the call.
                 let result = unsafe {
-                    (sdk.set_qhyccd_param)(
-                        handle.0,
-                        QhyControl::CONTROL_COOLER as c_int,
-                        target_c,
-                    )
+                    (sdk.set_qhyccd_param)(handle.0, QhyControl::CONTROL_COOLER as c_int, target_c)
                 };
                 if result != QHYCCD_SUCCESS {
                     tracing::debug!(
@@ -640,10 +641,9 @@ pub(crate) fn readout_window(
     bin: i32,
     subframe: Option<&SubFrame>,
 ) -> Result<Area, DriverError> {
-    let bin = u32::try_from(bin)
-        .ok()
-        .filter(|b| *b >= 1)
-        .ok_or_else(|| DriverError::InvalidParameter(format!("QHY binning {bin} is not a factor")))?;
+    let bin = u32::try_from(bin).ok().filter(|b| *b >= 1).ok_or_else(|| {
+        DriverError::InvalidParameter(format!("QHY binning {bin} is not a factor"))
+    })?;
     let full = Area {
         x: area.x / bin,
         y: area.y / bin,
@@ -655,8 +655,14 @@ pub(crate) fn readout_window(
     };
     let fits = sub.width > 0
         && sub.height > 0
-        && sub.start_x.checked_add(sub.width).is_some_and(|r| r <= full.width)
-        && sub.start_y.checked_add(sub.height).is_some_and(|b| b <= full.height);
+        && sub
+            .start_x
+            .checked_add(sub.width)
+            .is_some_and(|r| r <= full.width)
+        && sub
+            .start_y
+            .checked_add(sub.height)
+            .is_some_and(|b| b <= full.height);
     if !fits {
         return Err(DriverError::InvalidParameter(format!(
             "The subframe {}x{} at ({}, {}) does not fit the {}x{} sensor at {}x{} binning",

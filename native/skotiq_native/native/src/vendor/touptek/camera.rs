@@ -70,7 +70,6 @@ impl TouptekCamera {
         let mut core = CameraCore::new(
             format!("touptek_{}", device_index),
             format!("{} Camera {}", brand, device_index),
-            -10.0,
         );
         core.gain = 100;
         Self {
@@ -149,11 +148,15 @@ impl TouptekCamera {
     }
 
     /// Cooler on/off as the camera reports it, kept in the core; the last known
-    /// state when the read fails.
-    pub(crate) fn refresh_cooler_locked(&self, lock: &SdkLockHeld, handle: HOgmacam) -> bool {
+    /// state when the read fails, unknown with none.
+    pub(crate) fn refresh_cooler_locked(
+        &self,
+        lock: &SdkLockHeld,
+        handle: HOgmacam,
+    ) -> Option<bool> {
         if let Some(value) = self.read_option_locked(lock, handle, OGMACAM_OPTION_TEC) {
             self.core
-                .update_cooler(|cooler| cooler.enabled = value != 0);
+                .update_cooler(|cooler| cooler.enabled = Some(value != 0));
         }
         self.core.cooler().enabled
     }

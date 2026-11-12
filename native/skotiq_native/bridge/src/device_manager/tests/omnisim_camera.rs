@@ -48,7 +48,6 @@ async fn connected_camera(manager: &DeviceManager, base_url: &str) -> String {
             last_error: None,
             reconnect_attempts: 0,
             auto_reconnect: false,
-            declared_mount_frame: None,
             last_successful_comm: None,
             heartbeat_deferred_at: None,
             heartbeat_active: false,
@@ -154,7 +153,7 @@ async fn gain_and_cooler_are_written_and_read_in_the_cameras_terms() {
     assert_eq!(status.gain, 800);
     assert_eq!(status.offset, 30);
     assert_eq!(status.target_temp, Some(-12.0));
-    assert!(status.cooler_on);
+    assert_eq!(status.cooler_on, Some(true));
     assert!(status.can_set_gain && status.can_set_offset);
 
     manager

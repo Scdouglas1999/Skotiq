@@ -1084,18 +1084,18 @@ fn the_cooler_state_comes_from_the_camera_and_disconnect_warms_it_up() {
     let sdk = install(vec![cooled]);
     let mut camera = opened(&sdk, Some("S1"));
     assert!(camera.core.capabilities.can_cool);
-    assert!(camera.core.cooler().enabled);
-    assert_eq!(camera.core.cooler().target_c, -15.0);
+    assert_eq!(camera.core.cooler().enabled, Some(true));
+    assert_eq!(camera.core.cooler().target_c, Some(-15.0));
 
     let status = camera.status(&sdk).expect("status");
-    assert!(status.cooler_on);
+    assert_eq!(status.cooler_on, Some(true));
     assert_eq!(status.target_temp, Some(-15.0));
     assert_eq!(status.sensor_temp, Some(21.5));
     let power = status.cooler_power.expect("power");
     assert!((power - 128.0 / 255.0 * 100.0).abs() < 1e-9);
 
     world(|w| w.devices[0].cooling_flags |= 32);
-    assert!(!camera.status(&sdk).expect("status").cooler_on);
+    assert_eq!(camera.status(&sdk).expect("status").cooler_on, Some(false));
     world(|w| w.devices[0].cooling_flags &= !32);
 
     camera.close(&sdk).expect("disconnect");

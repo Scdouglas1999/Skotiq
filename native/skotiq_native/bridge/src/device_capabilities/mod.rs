@@ -120,7 +120,7 @@ async fn refresh_volatile_state(device_id: &str, capabilities: &mut DeviceCapabi
                 caps.ccd_temperature = status.sensor_temp;
                 caps.set_ccd_temperature = status.target_temp;
                 caps.cooler_power = status.cooler_power;
-                caps.cooler_on = Some(status.cooler_on);
+                caps.cooler_on = status.cooler_on;
             }
         }
         DeviceCapabilities::FilterWheel(caps) => {

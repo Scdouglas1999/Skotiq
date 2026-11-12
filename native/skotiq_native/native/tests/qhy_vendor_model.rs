@@ -360,7 +360,7 @@ mod vendor_model {
             "CURPWM 127.5 of 255 is 50 %, got {power}"
         );
         let status = camera.get_status().await.unwrap();
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.target_temp, Some(-10.0));
         assert!(status.sensor_temp.is_some());
 

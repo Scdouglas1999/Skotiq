@@ -263,7 +263,7 @@ mod scenario {
             .expect("cooler below its range");
         let status = camera.get_status().await.expect("status");
         assert_eq!(status.target_temp, Some(-40.0));
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.cooler_power, Some(37.0));
 
         camera.disconnect().await.expect("disconnect");
@@ -271,7 +271,7 @@ mod scenario {
         let mut camera = SvbonyCamera::new(0);
         camera.connect().await.expect("reconnect");
         let status = camera.get_status().await.expect("status after reconnect");
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.target_temp, Some(-40.0));
     }
 

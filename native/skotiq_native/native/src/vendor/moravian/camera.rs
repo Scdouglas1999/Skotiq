@@ -68,7 +68,6 @@ impl MoravianCamera {
             core: CameraCore::new(
                 format!("moravian_{}", camera_id),
                 format!("Moravian Camera {}", camera_id),
-                0.0,
             ),
             handle: SdkHandle(std::ptr::null_mut()),
             serial: None,
@@ -313,8 +312,15 @@ impl MoravianCamera {
             state: self.core.state,
             sensor_temp: session.value(GV_CHIP_TEMPERATURE).map(f64::from),
             cooler_power: cooler_percent(&session),
-            target_temp: Some(self.core.cooler().target_c),
-            cooler_on: self.core.cooler().enabled,
+            // gxccd reports neither the cooler switch nor its set-point
+            // (gxccd.h GV_*), so both are known only once this connection has
+            // set them; the power above is the camera's.
+            target_temp: self.core.cooler().target_c,
+            cooler_on: if self.core.capabilities.can_cool {
+                self.core.cooler().enabled
+            } else {
+                Some(false)
+            },
             gain: self.core.gain,
             offset: self.core.offset,
             bin_x: self.core.bin_x,
@@ -684,21 +690,28 @@ impl MoravianCamera {
         let session = self.session(api);
         if enabled {
             // Setting a temperature is what switches cooling on; without a named
-            // set-point the one this driver holds is kept.
-            let target = target.unwrap_or(self.core.cooler().target_c);
+            // set-point, the one this connection last set, never an invented one.
+            let target = target.or(self.core.cooler().target_c).ok_or_else(|| {
+                DriverError::InvalidParameter(format!(
+                    "Moravian camera '{}' needs a target temperature to cool: \
+                     the camera cannot report the one it holds",
+                    self.core.name
+                ))
+            })?;
             if !session.set_temperature(target as c_float) {
                 return Err(self.failure(&session, &format!("set the cooler to {:.1} C", target)));
             }
             self.core.update_cooler(|cooler| {
-                cooler.enabled = true;
-                cooler.target_c = target;
+                cooler.enabled = Some(true);
+                cooler.target_c = Some(target);
             });
             tracing::info!("Moravian cooler on: target {} C", target);
         } else {
             if !session.set_temperature(TEMP_COOLER_OFF) {
                 return Err(self.failure(&session, "turn the cooler off"));
             }
-            self.core.update_cooler(|cooler| cooler.enabled = false);
+            self.core
+                .update_cooler(|cooler| cooler.enabled = Some(false));
             tracing::info!("Moravian cooler off");
         }
         Ok(())

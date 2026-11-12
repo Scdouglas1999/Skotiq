@@ -21,10 +21,12 @@ abstract interface class HostCalibrationTools {
 
   Future<Map<String, dynamic>> getCalibrationSettings();
 
+  /// A null [gain] or [offset] matches only a dark that has none (a camera
+  /// without that control).
   Future<String?> matchDarkFromLibrary({
     required double exposureTime,
-    required int gain,
-    int offset = 0,
+    required int? gain,
+    int? offset,
     int binX = 1,
     int binY = 1,
     double? temperature,

@@ -172,14 +172,10 @@ impl CameraDriver for PlayerOneCamera {
             None
         };
 
-        // Resolve cooler_on / target_temp.
-        //
-        // Priority: SDK read-back of `POA_COOLER` / `POA_TARGET_TEMP` — that is
-        // the authoritative register on the device. If either succeeds we
-        // refresh the cached state so future reads stay consistent. If the SDK
-        // path is unsupported by this camera/firmware we fall back to the
-        // tracked state written by `set_cooler`. Cameras without a cooler at
-        // all report `cooler_on = false` and `target_temp = None`.
+        // The camera's `POA_COOLER` / `POA_TARGET_TEMP` registers, kept in the
+        // core; when a read fails, the last read-back or command answers, and
+        // with neither the state is unknown. Cameras without a cooler report
+        // it off with no set-point.
         let (cooler_on, target_temp) = if has_cooler {
             let cached = self.core.cooler();
 
@@ -193,20 +189,21 @@ impl CameraDriver for PlayerOneCamera {
             // `&self` reads converge on the device's truth.
             if live_enabled.is_some() || live_target_c.is_some() {
                 self.core.update_cooler(|cooler| {
-                    if let Some(e) = live_enabled {
-                        cooler.enabled = e;
+                    if live_enabled.is_some() {
+                        cooler.enabled = live_enabled;
                     }
-                    if let Some(t) = live_target_c {
-                        cooler.target_c = t;
+                    if live_target_c.is_some() {
+                        cooler.target_c = live_target_c;
                     }
                 });
             }
 
-            let enabled = live_enabled.unwrap_or(cached.enabled);
-            let target = Some(live_target_c.unwrap_or(cached.target_c));
-            (enabled, target)
+            (
+                live_enabled.or(cached.enabled),
+                live_target_c.or(cached.target_c),
+            )
         } else {
-            (false, None)
+            (Some(false), None)
         };
 
         Ok(CameraStatus {
@@ -481,9 +478,9 @@ impl CameraDriver for PlayerOneCamera {
         // accurately on cameras whose firmware doesn't expose POA_COOLER for
         // read-back. Only update after both SDK calls above succeeded.
         self.core.update_cooler(|cooler| {
-            cooler.enabled = enabled;
+            cooler.enabled = Some(enabled);
             if let Some(target) = target_temp {
-                cooler.target_c = target.round();
+                cooler.target_c = Some(target.round());
             }
         });
 

@@ -144,7 +144,9 @@ pub struct CameraStatus {
     pub sensor_temp: Option<f64>,
     pub cooler_power: Option<f64>,
     pub target_temp: Option<f64>,
-    pub cooler_on: bool,
+    /// `None` when the camera does not say and this connection has not set
+    /// it; see `skotiq_device::CameraStatus::cooler_on`.
+    pub cooler_on: Option<bool>,
     pub gain: i32,
     pub offset: i32,
     pub bin_x: i32,

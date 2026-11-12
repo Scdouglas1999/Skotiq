@@ -454,11 +454,11 @@ impl DeviceDriver for TouptekCamera {
                 self.cooler_target_range = cooler.target_range;
                 self.tec_voltage_max = cooler.tec_voltage_max;
                 self.core.update_cooler(|state| {
-                    if let Some(enabled) = cooler.enabled {
-                        state.enabled = enabled;
+                    if cooler.enabled.is_some() {
+                        state.enabled = cooler.enabled;
                     }
-                    if let Some(target) = cooler.target_c {
-                        state.target_c = target;
+                    if cooler.target_c.is_some() {
+                        state.target_c = cooler.target_c;
                     }
                 });
             }
@@ -477,7 +477,7 @@ impl DeviceDriver for TouptekCamera {
             self.core.sensor_info.width,
             self.core.sensor_info.height,
             self.core.sensor_info.bit_depth,
-            if self.core.cooler().enabled {
+            if self.core.cooler().enabled == Some(true) {
                 ", cooler on"
             } else {
                 ""
@@ -614,7 +614,7 @@ impl CameraDriver for TouptekCamera {
                 self.cooler_power_locked(&lock, handle),
             )
         } else {
-            (false, None)
+            (Some(false), None)
         };
 
         let exposure_remaining = if self.core.state == CameraState::Exposing {
@@ -629,11 +629,11 @@ impl CameraDriver for TouptekCamera {
             state: self.core.state,
             sensor_temp,
             cooler_power,
-            target_temp: self
-                .core
-                .capabilities
-                .can_cool
-                .then(|| self.core.cooler().target_c),
+            target_temp: if self.core.capabilities.can_cool {
+                self.core.cooler().target_c
+            } else {
+                None
+            },
             cooler_on,
             gain,
             offset: self.core.offset,
@@ -1040,9 +1040,9 @@ impl CameraDriver for TouptekCamera {
         })?;
 
         self.core.update_cooler(|cooler| {
-            cooler.enabled = enabled;
+            cooler.enabled = Some(enabled);
             if let Some(target) = target_temp {
-                cooler.target_c = target;
+                cooler.target_c = Some(target);
             }
         });
         self.forget_cooler_power();

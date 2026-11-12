@@ -289,8 +289,8 @@
         "t": "integer"
       },
       "offset": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "bin_x": {
         "v": 2,
@@ -347,12 +347,12 @@
         "t": "null"
       },
       "gain": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "offset": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "bin_x": {
         "v": 1,
@@ -409,12 +409,12 @@
         "t": "null"
       },
       "gain": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "offset": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "bin_x": {
         "v": 1,
@@ -454,8 +454,8 @@
       "equipmentProfileId": null,
       "opticalTrainId": null,
       "temperature": null,
-      "gain": 0,
-      "offset": 0,
+      "gain": null,
+      "offset": null,
       "binX": 1,
       "binY": 1,
       "width": null,
@@ -540,7 +540,7 @@
       "opticalTrainId": null,
       "temperature": null,
       "gain": 0,
-      "offset": 0,
+      "offset": null,
       "binX": 2,
       "binY": 2,
       "width": null,
@@ -556,8 +556,8 @@
       "equipmentProfileId": null,
       "opticalTrainId": null,
       "temperature": null,
-      "gain": 0,
-      "offset": 0,
+      "gain": null,
+      "offset": null,
       "binX": 1,
       "binY": 1,
       "width": null,
@@ -694,8 +694,8 @@
     "equipmentProfileId": null,
     "opticalTrainId": null,
     "temperature": null,
-    "gain": 0,
-    "offset": 0,
+    "gain": null,
+    "offset": null,
     "binX": 1,
     "binY": 1,
     "width": null,
@@ -711,8 +711,8 @@
     "equipmentProfileId": null,
     "opticalTrainId": null,
     "temperature": null,
-    "gain": 0,
-    "offset": 0,
+    "gain": null,
+    "offset": null,
     "binX": 1,
     "binY": 1,
     "width": null,
@@ -729,7 +729,7 @@
     "opticalTrainId": null,
     "temperature": null,
     "gain": 0,
-    "offset": 0,
+    "offset": null,
     "binX": 2,
     "binY": 2,
     "width": null,
@@ -959,8 +959,8 @@
         "t": "integer"
       },
       "offset": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "bin_x": {
         "v": 2,
@@ -1017,12 +1017,12 @@
         "t": "null"
       },
       "gain": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "offset": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "bin_x": {
         "v": 1,
@@ -1079,12 +1079,12 @@
         "t": "null"
       },
       "gain": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "offset": {
-        "v": 0,
-        "t": "integer"
+        "v": null,
+        "t": "null"
       },
       "bin_x": {
         "v": 1,

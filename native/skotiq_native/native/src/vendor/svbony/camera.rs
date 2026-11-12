@@ -40,7 +40,6 @@ impl SvbonyCamera {
             core: CameraCore::new(
                 format!("svbony_{}", camera_id),
                 format!("SVBony Camera {}", camera_id),
-                -10.0,
             ),
             serial_number: None,
             image_type: SvbImgType::Raw16,
@@ -295,11 +294,13 @@ impl SvbonyCamera {
         }
         if self.core.capabilities.can_cool {
             if let Ok(enabled) = read_control(sdk, self.camera_id, SvbControlType::CoolerEnable) {
-                self.core.update_cooler(|cooler| cooler.enabled = enabled != 0);
+                self.core
+                    .update_cooler(|cooler| cooler.enabled = Some(enabled != 0));
             }
             if let Ok(target) = read_control(sdk, self.camera_id, SvbControlType::TargetTemperature)
             {
-                self.core.update_cooler(|cooler| cooler.target_c = target as f64 / 10.0);
+                self.core
+                    .update_cooler(|cooler| cooler.target_c = Some(target as f64 / 10.0));
             }
         }
     }

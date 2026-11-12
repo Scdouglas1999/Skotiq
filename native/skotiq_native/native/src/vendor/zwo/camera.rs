@@ -129,8 +129,13 @@ impl ZwoCamera {
             exposure_active: AtomicBool::new(false),
             current_subframe: None,
             exposure_range_us: None,
-            // -10 C is the power-on value the SDK holds in its target register.
-            cooler_state: Mutex::new(CoolerState::off(-10.0)),
+            // Off at -10 C is the camera's power-on state. Reported only when
+            // both reads fail, which the rig has not shown; whether a failed
+            // read should say "unknown" instead is a rig-night question.
+            cooler_state: Mutex::new(CoolerState {
+                enabled: Some(false),
+                target_c: Some(-10.0),
+            }),
             temperature_skip_first_pending: Mutex::new(false),
         }
     }

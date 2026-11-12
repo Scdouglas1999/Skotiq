@@ -128,9 +128,9 @@ async fn set_cooler_propagates_sdk_failure_without_mutating_state() {
     );
 
     // State must not have advanced.
-    assert!(
-        !cam.cooler_on,
-        "cooler_on must remain false after a failed set_cooler"
+    assert_eq!(
+        cam.cooler_on, None,
+        "cooler_on must stay unknown after a failed set_cooler"
     );
     assert_eq!(
         cam.cooler_target_c, None,
@@ -147,7 +147,7 @@ async fn set_cooler_rejects_disconnected_camera() {
 
     let result = cam.set_cooler(true, Some(-10.0)).await;
     assert!(matches!(result, Err(DriverError::NotConnected)));
-    assert!(!cam.cooler_on);
+    assert_eq!(cam.cooler_on, None);
     assert_eq!(cam.cooler_target_c, None);
 }
 
@@ -161,7 +161,7 @@ async fn set_cooler_rejects_camera_without_cooler() {
 
     let result = cam.set_cooler(true, Some(-10.0)).await;
     assert!(matches!(result, Err(DriverError::NotSupported)));
-    assert!(!cam.cooler_on);
+    assert_eq!(cam.cooler_on, None);
     assert_eq!(cam.cooler_target_c, None);
 }
 
@@ -199,8 +199,14 @@ fn only_unbinned_color_frames_carry_a_pattern() {
         width: 10,
         height: 10,
     };
-    assert_eq!(frame_bayer(Some(BayerPattern::Rggb), 1, None), Some(BayerPattern::Rggb));
-    assert_eq!(frame_bayer(Some(BayerPattern::Rggb), 1, Some(&sub)), Some(BayerPattern::Grbg));
+    assert_eq!(
+        frame_bayer(Some(BayerPattern::Rggb), 1, None),
+        Some(BayerPattern::Rggb)
+    );
+    assert_eq!(
+        frame_bayer(Some(BayerPattern::Rggb), 1, Some(&sub)),
+        Some(BayerPattern::Grbg)
+    );
     assert_eq!(frame_bayer(Some(BayerPattern::Rggb), 2, None), None);
     assert_eq!(frame_bayer(None, 1, Some(&sub)), None);
 }
@@ -217,7 +223,10 @@ fn area(x: u32, y: u32, width: u32, height: u32) -> Area {
 #[test]
 fn the_imaging_area_is_the_effective_area_when_it_fits_the_chip() {
     let chip = area(0, 0, 80, 60);
-    assert_eq!(imaging_area(chip, Some(area(4, 2, 72, 56))), area(4, 2, 72, 56));
+    assert_eq!(
+        imaging_area(chip, Some(area(4, 2, 72, 56))),
+        area(4, 2, 72, 56)
+    );
     assert_eq!(imaging_area(chip, None), chip);
     assert_eq!(imaging_area(chip, Some(area(0, 0, 0, 0))), chip);
     assert_eq!(imaging_area(chip, Some(area(10, 0, 80, 60))), chip);
@@ -227,15 +236,24 @@ fn the_imaging_area_is_the_effective_area_when_it_fits_the_chip() {
 fn readout_windows_are_binned_and_placed_in_the_imaging_area() {
     let imaging = area(4, 2, 72, 56);
     assert_eq!(readout_window(imaging, 1, None).unwrap(), imaging);
-    assert_eq!(readout_window(imaging, 2, None).unwrap(), area(2, 1, 36, 28));
+    assert_eq!(
+        readout_window(imaging, 2, None).unwrap(),
+        area(2, 1, 36, 28)
+    );
     let sub = SubFrame {
         start_x: 10,
         start_y: 6,
         width: 20,
         height: 12,
     };
-    assert_eq!(readout_window(imaging, 1, Some(&sub)).unwrap(), area(14, 8, 20, 12));
-    assert_eq!(readout_window(imaging, 2, Some(&sub)).unwrap(), area(12, 7, 20, 12));
+    assert_eq!(
+        readout_window(imaging, 1, Some(&sub)).unwrap(),
+        area(14, 8, 20, 12)
+    );
+    assert_eq!(
+        readout_window(imaging, 2, Some(&sub)).unwrap(),
+        area(12, 7, 20, 12)
+    );
     let too_wide = SubFrame {
         start_x: 30,
         start_y: 0,
@@ -278,7 +296,10 @@ fn only_the_codes_qhyccderr_defines_are_named() {
         other => panic!("{other:?}"),
     }
     // 4 is QHYCCD_COLOR, a capability answer, not "disconnected".
-    assert!(matches!(check_qhy_error(4, "x"), Err(DriverError::SdkError(_))));
+    assert!(matches!(
+        check_qhy_error(4, "x"),
+        Err(DriverError::SdkError(_))
+    ));
 }
 
 #[test]

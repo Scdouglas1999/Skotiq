@@ -152,7 +152,6 @@ impl PlayerOneCamera {
             core: CameraCore::new(
                 format!("native:playerone:{}", camera_id),
                 format!("native:playerone:{}", camera_id),
-                0.0,
             ),
             image_format: POAImgFormat::Raw16,
             geometry_applied: false,

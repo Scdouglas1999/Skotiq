@@ -1198,6 +1198,68 @@ fn write_metadata_stub(path: &Path, imagetyp: &str, date_obs: &str, ccd_temp: f6
     write_fits(path, &image, &h).expect("write metadata stub");
 }
 
+/// A camera without gain or offset control (FLI, Atik CCDs) writes neither card
+/// on its lights or its darks: the two agree on them. A dark without the cards
+/// against lights that have them is still unverified, never read as gain 0.
+#[test]
+fn darks_and_lights_without_gain_cards_agree_on_gain() {
+    let dir = temp_dir("calibration_report_gainless");
+    let gainless = |path: &Path, imagetyp: &str| {
+        let image = ImageData::from_u16(2, 2, 1, &[10u16; 4]);
+        let mut h = FitsHeader::new();
+        h.set_string("IMAGETYP", imagetyp);
+        h.set_string("INSTRUME", "Test Cam");
+        h.set_float("CCD-TEMP", -10.0);
+        h.set_float("EXPTIME", 60.0);
+        h.set_int("XBINNING", 1);
+        h.set_int("YBINNING", 1);
+        h.set_string("DATE-OBS", "2026-08-14T21:00:00");
+        write_fits(path, &image, &h).expect("write gainless stub");
+    };
+    let light = dir.join("light.fits");
+    gainless(&light, "LIGHT");
+    let dark = dir.join("dark.fits");
+    gainless(&dark, "DARK");
+
+    let report = build_calibration_report(
+        &light.to_string_lossy(),
+        &CalibrationArgs {
+            dark: Some(dark.to_string_lossy().to_string()),
+            ..CalibrationArgs::default()
+        },
+    );
+    let slot_dark = slot(&report, "dark");
+    assert_eq!(slot_dark.quality, MatchQuality::Exact, "{:?}", slot_dark);
+    assert!(
+        slot_dark.unverified.is_empty(),
+        "{:?}",
+        slot_dark.unverified
+    );
+
+    let light_with_gain = dir.join("light_gain.fits");
+    write_metadata_stub(&light_with_gain, "LIGHT", "2026-08-14T21:00:00", -10.0);
+    let report = build_calibration_report(
+        &light_with_gain.to_string_lossy(),
+        &CalibrationArgs {
+            dark: Some(dark.to_string_lossy().to_string()),
+            ..CalibrationArgs::default()
+        },
+    );
+    let slot_dark = slot(&report, "dark");
+    assert!(
+        slot_dark.mismatches.is_empty(),
+        "{:?}",
+        slot_dark.mismatches
+    );
+    for dimension in ["GAIN", "OFFSET"] {
+        assert!(
+            slot_dark.unverified.iter().any(|d| d == dimension),
+            "{dimension}: {:?}",
+            slot_dark.unverified
+        );
+    }
+}
+
 /// The age term is judged at exactly the documented constant: a dark that old to
 /// the second is still fresh, and one second older is stale.
 #[test]

@@ -116,7 +116,11 @@ impl CameraDriver for QhyCamera {
             state,
             sensor_temp: self.temperature(&sdk),
             target_temp: self.cooler_target_c,
-            cooler_on: self.cooler_on,
+            cooler_on: if self.has_cooler {
+                self.cooler_on
+            } else {
+                Some(false)
+            },
             cooler_power: self.cooler_power(&sdk),
             gain: self.current_gain,
             offset: self.current_offset,
@@ -403,7 +407,7 @@ impl CameraDriver for QhyCamera {
             }
             let sdk = QhySdk::lock().await?;
             self.start_cooling(&sdk, target)?;
-            self.cooler_on = true;
+            self.cooler_on = Some(true);
             self.cooler_target_c = Some(target);
         } else {
             self.keepalive.stop();
@@ -425,7 +429,7 @@ impl CameraDriver for QhyCamera {
                     "switch its cooler off",
                 )?;
             }
-            self.cooler_on = false;
+            self.cooler_on = Some(false);
             self.cooler_target_c = None;
         }
         Ok(())
@@ -670,7 +674,7 @@ impl CameraDriver for QhyCamera {
 
         self.configure(&sdk)?;
         self.settle_gain_and_offset(&sdk)?;
-        if self.cooler_on {
+        if self.cooler_on == Some(true) {
             if let Some(target) = self.cooler_target_c {
                 self.start_cooling(&sdk, target)?;
             }

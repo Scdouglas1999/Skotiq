@@ -134,13 +134,32 @@ impl CameraDriver for SvbonyCamera {
             None
         };
 
-        let cooler_power = if self.core.capabilities.can_cool && self.core.cooler().enabled {
-            self.control(SvbControlType::CoolerPower)
+        // The camera's own cooler registers; the last read-back or command
+        // answers for a read that fails.
+        let (cooler_on, target_temp, cooler_power) = if self.core.capabilities.can_cool {
+            let cached = self.core.cooler();
+            let enabled = self
+                .control(SvbControlType::CoolerEnable)
+                .await
+                .ok()
+                .map(|v| v != 0);
+            let target = self
+                .control(SvbControlType::TargetTemperature)
+                .await
+                .ok()
+                .map(|v| v as f64 / 10.0);
+            let power = self
+                .control(SvbControlType::CoolerPower)
                 .await
                 .map(|v| v as f64)
-                .ok()
+                .ok();
+            (
+                enabled.or(cached.enabled),
+                target.or(cached.target_c),
+                power,
+            )
         } else {
-            None
+            (Some(false), None, None)
         };
 
         let exposure_remaining = if self.core.state == CameraState::Exposing {
@@ -158,12 +177,8 @@ impl CameraDriver for SvbonyCamera {
             state: self.core.state,
             sensor_temp,
             cooler_power,
-            target_temp: if self.core.capabilities.can_cool {
-                Some(self.core.cooler().target_c)
-            } else {
-                None
-            },
-            cooler_on: self.core.cooler().enabled,
+            target_temp,
+            cooler_on,
             gain,
             offset,
             bin_x: self.core.bin_x,
@@ -358,10 +373,12 @@ impl CameraDriver for SvbonyCamera {
                 SvbControlType::TargetTemperature,
                 (target * 10.0).round() as i64,
             )?;
-            self.core.update_cooler(|cooler| cooler.target_c = tenths as f64 / 10.0);
+            self.core
+                .update_cooler(|cooler| cooler.target_c = Some(tenths as f64 / 10.0));
         }
 
-        self.core.update_cooler(|cooler| cooler.enabled = enabled);
+        self.core
+            .update_cooler(|cooler| cooler.enabled = Some(enabled));
         Ok(())
     }
 

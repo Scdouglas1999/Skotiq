@@ -909,7 +909,7 @@ mod fake_sdk_contract {
             .await
             .expect("set cooler");
         let status = camera.get_status().await.expect("camera status");
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.gain, 42);
         assert_eq!(status.offset, 8);
         camera
@@ -1221,7 +1221,7 @@ mod fake_sdk_contract {
             .await
             .expect("Player One set cooler");
         let status = cooled.get_status().await.expect("Player One status");
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.gain, 73);
         assert_eq!(status.offset, 11);
 
@@ -1419,7 +1419,7 @@ mod fake_sdk_contract {
             .await
             .expect("QHY set cooler");
         let status = cooled.get_status().await.expect("QHY status");
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.target_temp, Some(-18.0));
         assert_eq!(status.gain, 81);
         assert_eq!(status.offset, 14);

@@ -25,9 +25,10 @@ class RemoteDarkLibraryEntry {
   /// the host could not read sensor temperature.
   final double? sensorTempC;
 
-  final int gain;
+  /// Null for a camera without gain or offset control.
+  final int? gain;
 
-  final int offset;
+  final int? offset;
 
   final int binX;
 
@@ -86,8 +87,8 @@ class RemoteDarkLibraryEntry {
       fileName: json['fileName'] as String? ?? '',
       exposureDuration: (json['exposureDuration'] as num?)?.toDouble() ?? 0.0,
       sensorTempC: (json['sensorTempC'] as num?)?.toDouble(),
-      gain: (json['gain'] as num?)?.toInt() ?? 0,
-      offset: (json['offset'] as num?)?.toInt() ?? 0,
+      gain: (json['gain'] as num?)?.toInt(),
+      offset: (json['offset'] as num?)?.toInt(),
       binX: (json['binX'] as num?)?.toInt() ?? 1,
       binY: (json['binY'] as num?)?.toInt() ?? 1,
       frameType: json['frameType'] as String? ?? 'dark',
@@ -293,8 +294,10 @@ class RemoteDefectMap {
 class DarkUploadMetadata {
   final double exposureDuration;
   final double? sensorTempC;
-  final int gain;
-  final int offset;
+
+  /// Null for a camera without gain or offset control.
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
   final String frameType;
@@ -306,8 +309,8 @@ class DarkUploadMetadata {
   const DarkUploadMetadata({
     required this.exposureDuration,
     this.sensorTempC,
-    this.gain = 0,
-    this.offset = 0,
+    this.gain,
+    this.offset,
     this.binX = 1,
     this.binY = 1,
     this.frameType = 'dark',
@@ -320,8 +323,8 @@ class DarkUploadMetadata {
   Map<String, dynamic> toJson() => {
     'exposureDuration': exposureDuration,
     if (sensorTempC != null) 'sensorTempC': sensorTempC,
-    'gain': gain,
-    'offset': offset,
+    if (gain != null) 'gain': gain,
+    if (offset != null) 'offset': offset,
     'binX': binX,
     'binY': binY,
     'frameType': frameType,

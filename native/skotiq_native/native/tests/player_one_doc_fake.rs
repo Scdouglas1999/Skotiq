@@ -290,7 +290,7 @@ async fn exposure_gain_temperature_and_cooler_controls_have_the_header_types() {
     assert_eq!(camera.get_gain().await.unwrap(), 250);
     camera.set_cooler(true, Some(-9.6)).await.unwrap();
     let status = camera.get_status().await.unwrap();
-    assert!(status.cooler_on);
+    assert_eq!(status.cooler_on, Some(true));
     assert_eq!(status.target_temp, Some(-10.0));
     assert_eq!(status.sensor_temp, Some(-10.5));
     assert_eq!(status.cooler_power, Some(42.0));
