@@ -151,20 +151,20 @@ class LiveStackingStats {
     this.lastOtherFilter,
   });
 
-  /// What became of the frames taken through another filter, in a sentence;
-  /// null when there are none.
+  /// Why frames were left out of the stack for their filter and what to do
+  /// about it; null when none were.
   String? get otherFilterNote {
     if (otherFilterFrames == 0) return null;
     final stack = filter == null ? 'unfiltered frames' : '$filter frames';
     final latest = lastOtherFilter == null
         ? 'no filter'
         : 'the $lastOtherFilter filter';
-    final frames = otherFilterFrames == 1
-        ? '1 frame taken with $latest was'
-        : '$otherFilterFrames frames taken with another filter (most '
-              'recently $latest) were';
-    return 'This stack is of $stack. $frames left out of it. To stack them, '
-        'stop and start a new live stack.';
+    return otherFilterFrames == 1
+        ? 'It was taken with $latest and this stack is of $stack. To stack '
+              'it, stop and start a new live stack.'
+        : 'They were taken with another filter (most recently $latest) and '
+              'this stack is of $stack. To stack them, stop and start a new '
+              'live stack.';
   }
 }
 

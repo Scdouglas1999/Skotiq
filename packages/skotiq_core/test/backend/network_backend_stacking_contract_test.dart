@@ -226,8 +226,8 @@ void main() {
       expect(stats.lastOtherFilter, 'R');
       expect(
         stats.otherFilterNote,
-        'This stack is of L frames. 1 frame taken with the R filter was left '
-        'out of it. To stack them, stop and start a new live stack.',
+        'It was taken with the R filter and this stack is of L frames. To '
+        'stack it, stop and start a new live stack.',
       );
     });
   });

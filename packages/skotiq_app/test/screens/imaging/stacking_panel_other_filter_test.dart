@@ -67,11 +67,12 @@ void main() {
     );
 
     expect(find.text('Stacking L'), findsOneWidget);
-    expect(find.text('1 frame not stacked'), findsOneWidget);
+    // The banner is one sentence run: its title, then its message.
     expect(
-      find.text(
-        'This stack is of L frames. 1 frame taken with the R filter was left '
-        'out of it. To stack them, stop and start a new live stack.',
+      find.textContaining(
+        '1 frame left out It was taken with the R filter and this stack is '
+        'of L frames. To stack it, stop and start a new live stack.',
+        findRichText: true,
       ),
       findsOneWidget,
     );
@@ -90,6 +91,9 @@ void main() {
     );
 
     expect(find.text('Stacking L'), findsOneWidget);
-    expect(find.textContaining('not stacked'), findsNothing);
+    expect(
+      find.textContaining('left out', findRichText: true),
+      findsNothing,
+    );
   });
 }

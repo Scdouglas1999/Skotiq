@@ -782,8 +782,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
               padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
               child: SkotiqBanner(
                 title: stats.otherFilterFrames == 1
-                    ? '1 frame not stacked'
-                    : '${stats.otherFilterFrames} frames not stacked',
+                    ? '1 frame left out'
+                    : '${stats.otherFilterFrames} frames left out',
                 message: stats.otherFilterNote!,
                 tone: BannerTone.info,
               ),
