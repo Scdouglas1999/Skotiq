@@ -151,6 +151,20 @@ impl CameraOps for UnifiedDeviceOps {
             native_image.data.len()
         );
 
+        // What the camera says of itself: where it clips, and whether it has
+        // gain and offset controls. Best-effort by design: a driver that cannot
+        // answer its own status must not cost us the frame.
+        let camera_status = match get_camera_status(camera_id.to_string()).await {
+            Ok(status) => Some(status),
+            Err(e) => {
+                tracing::debug!(
+                    "[EXPOSURE] No status from {camera_id} ({e}); judging saturation from \
+                     the frame alone and keeping its gain and offset as reported"
+                );
+                None
+            }
+        };
+
         // Validate downloaded image data to catch corrupted/bad frames early
         // This prevents cascading failures in autofocus, plate solving, etc.
         {
@@ -163,25 +177,15 @@ impl CameraOps for UnifiedDeviceOps {
 
             tracing::debug!("[EXPOSURE] Starting image validation...");
 
-            // Ask the sensor where it clips. Saturation is meaningless without a
-            // ceiling, and no constant can supply one: a driver that
-            // right-justifies a 12-bit sensor clips at 4095 and an 8-bit
-            // container (the SVBony RAW8 connect fallback) at 255, both far
-            // under any 16-bit threshold, so without this every clipped frame
-            // off those cameras passes in silence. Best-effort by design — a
-            // driver that cannot answer its own status must not cost us the
-            // frame, so failure just leaves the validator on the frame's own
-            // clipping evidence.
-            let sensor_max_adu = match get_camera_status(camera_id.to_string()).await {
-                Ok(status) => Some(status.max_adu).filter(|&max_adu| max_adu > 0),
-                Err(e) => {
-                    tracing::debug!(
-                        "[EXPOSURE] No sensor ceiling from {camera_id} ({e}); \
-                         judging saturation from the frame alone"
-                    );
-                    None
-                }
-            };
+            // Saturation is meaningless without a ceiling, and no constant can
+            // supply one: a driver that right-justifies a 12-bit sensor clips
+            // at 4095 and an 8-bit container (the SVBony RAW8 connect fallback)
+            // at 255, both far under any 16-bit threshold, so without this
+            // every clipped frame off those cameras passes in silence.
+            let sensor_max_adu = camera_status
+                .as_ref()
+                .map(|status| status.max_adu)
+                .filter(|&max_adu| max_adu > 0);
 
             // Use comprehensive validation - bias frames (very short exposures) are allowed to have uniform data
             let is_bias_frame = duration_secs < 0.1; // Bias frames are typically < 100ms
@@ -219,13 +223,17 @@ impl CameraOps for UnifiedDeviceOps {
         } else {
             duration_secs
         };
-        // A gain or offset the driver could not read arrives as a placeholder
-        // (Alpaca, INDI); as `None` the commanded value stands in for it.
-        let gain = crate::device_manager::ops::camera::camera_setting_or_unknown(
+        // The frame's gain and offset, decided here once for the file's cards,
+        // its database row and the last-frame store alike.
+        let gain = crate::device_manager::ops::camera::frame_setting(
+            camera_status.as_ref().map(|status| status.can_set_gain),
             native_image.metadata.gain,
+            gain,
         );
-        let offset = crate::device_manager::ops::camera::camera_setting_or_unknown(
+        let offset = crate::device_manager::ops::camera::frame_setting(
+            camera_status.as_ref().map(|status| status.can_set_offset),
             native_image.metadata.offset,
+            offset,
         );
         // The display, statistics and stars are ready in the store before the
         // exposure is announced complete, so whoever reacts to the event finds them.
@@ -338,14 +346,16 @@ impl CameraOps for UnifiedDeviceOps {
         let status = get_camera_status(camera_id.to_string())
             .await
             .map_err(|e| format!("Failed to get camera status: {}", e))?;
-        Ok(Some(status.cooler_on))
+        Ok(status.cooler_on)
     }
 
     async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
         let status = get_camera_status(camera_id.to_string())
             .await
             .map_err(|e| format!("Failed to get camera status: {}", e))?;
-        Ok(status.target_temp.filter(|_| status.cooler_on))
+        Ok(status
+            .target_temp
+            .filter(|_| status.cooler_on == Some(true)))
     }
 
     async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {

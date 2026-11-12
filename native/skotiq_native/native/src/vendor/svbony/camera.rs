@@ -17,7 +17,6 @@ impl SvbonyCamera {
             core: CameraCore::new(
                 format!("svbony_{}", camera_id),
                 format!("SVBony Camera {}", camera_id),
-                -10.0,
             ),
             image_type: SvbImgType::Raw16,
             image_buffer: Vec::new(),

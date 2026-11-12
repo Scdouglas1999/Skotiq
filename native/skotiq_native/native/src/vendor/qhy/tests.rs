@@ -110,8 +110,9 @@ fn container_max_adu_agrees_with_pipeline_saturation_threshold() {
     assert!(adc_range_only(12) < PIPELINE_SATURATION_THRESHOLD);
 }
 
-/// get_status must reflect the locally-tracked cooler state
-/// after a successful set_cooler, not hardcode `cooler_on: false`.
+/// get_status reports the cooler as this connection set it, and unknown
+/// before it has: the QHY SDK cannot read the cooler back, and a camera may be
+/// cooling from an earlier session.
 ///
 /// The QHY SDK is not loaded in unit tests, so we cannot drive set_cooler
 /// end-to-end through the SDK call path. Instead we exercise the read
@@ -124,20 +125,16 @@ async fn get_status_reflects_tracked_cooler_state() {
     cam.connected = true;
     cam.has_cooler = true;
 
-    // Baseline: never-set cooler is reported as off.
     let status = cam.get_status().await.expect("get_status should succeed");
-    assert!(!status.cooler_on, "default cooler_on must be false");
+    assert_eq!(status.cooler_on, None, "a never-set cooler is unknown");
     assert_eq!(status.target_temp, None, "default target_temp must be None");
 
     // Simulate a successful set_cooler(true, -10.0) commit.
-    cam.cooler_on = true;
+    cam.cooler_on = Some(true);
     cam.cooler_target_c = Some(-10.0);
 
     let status = cam.get_status().await.expect("get_status should succeed");
-    assert!(
-        status.cooler_on,
-        "get_status must reflect tracked cooler_on=true"
-    );
+    assert_eq!(status.cooler_on, Some(true));
     assert_eq!(
         status.target_temp,
         Some(-10.0),
@@ -145,11 +142,11 @@ async fn get_status_reflects_tracked_cooler_state() {
     );
 
     // Simulate a successful set_cooler(false, _) commit.
-    cam.cooler_on = false;
+    cam.cooler_on = Some(false);
     cam.cooler_target_c = None;
 
     let status = cam.get_status().await.expect("get_status should succeed");
-    assert!(!status.cooler_on, "get_status must reflect cooler_on=false");
+    assert_eq!(status.cooler_on, Some(false));
     assert_eq!(status.target_temp, None);
 }
 
@@ -171,9 +168,9 @@ async fn set_cooler_propagates_sdk_failure_without_mutating_state() {
     );
 
     // State must not have advanced.
-    assert!(
-        !cam.cooler_on,
-        "cooler_on must remain false after a failed set_cooler"
+    assert_eq!(
+        cam.cooler_on, None,
+        "cooler_on must stay unknown after a failed set_cooler"
     );
     assert_eq!(
         cam.cooler_target_c, None,
@@ -190,7 +187,7 @@ async fn set_cooler_rejects_disconnected_camera() {
 
     let result = cam.set_cooler(true, Some(-10.0)).await;
     assert!(matches!(result, Err(DriverError::NotConnected)));
-    assert!(!cam.cooler_on);
+    assert_eq!(cam.cooler_on, None);
     assert_eq!(cam.cooler_target_c, None);
 }
 
@@ -204,6 +201,6 @@ async fn set_cooler_rejects_camera_without_cooler() {
 
     let result = cam.set_cooler(true, Some(-10.0)).await;
     assert!(matches!(result, Err(DriverError::NotSupported)));
-    assert!(!cam.cooler_on);
+    assert_eq!(cam.cooler_on, None);
     assert_eq!(cam.cooler_target_c, None);
 }

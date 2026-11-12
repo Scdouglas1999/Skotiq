@@ -27,7 +27,7 @@ impl CameraDriver for AtikCamera {
             }
         };
 
-        let (cooler_power, target_temp) = if self.core.capabilities.can_cool {
+        let (cooler_on, cooler_power, target_temp) = if self.core.capabilities.can_cool {
             let mut flags: c_int = 0;
             let mut level: c_int = 0;
             let mut minlvl: c_int = 0;
@@ -52,12 +52,20 @@ impl CameraDriver for AtikCamera {
                     None
                 };
                 let target = Some(setpoint as f64 / 100.0);
-                (power, target)
+                // Cooling unless warming up, as the camera reports it; kept so
+                // disconnect warms a camera that is cooling.
+                let cooling = flags & ARTEMIS_COOLING_INFO_COOLINGON != 0
+                    && flags & ARTEMIS_COOLING_INFO_WARMINGUP == 0;
+                self.core.update_cooler(|cooler| {
+                    cooler.enabled = Some(cooling);
+                    cooler.target_c = target;
+                });
+                (Some(cooling), power, target)
             } else {
-                (None, None)
+                (self.core.cooler().enabled, None, None)
             }
         } else {
-            (None, None)
+            (Some(false), None, None)
         };
 
         let exposure_remaining = if self.core.state == CameraState::Exposing {
@@ -74,7 +82,7 @@ impl CameraDriver for AtikCamera {
             sensor_temp,
             cooler_power,
             target_temp,
-            cooler_on: self.core.cooler().enabled,
+            cooler_on,
             gain: self.core.gain,
             offset: self.core.offset,
             bin_x: self.core.bin_x,
@@ -275,11 +283,16 @@ impl CameraDriver for AtikCamera {
         }
 
         // ArtemisSetCooling *is* the enable on this SDK, so cooling needs a
-        // setpoint; when the caller names none we reuse the one this driver
-        // already holds rather than inventing a temperature. Switching off
-        // goes through ArtemisCoolerWarmUp and needs no setpoint at all.
+        // setpoint; when the caller names none, the one this connection last
+        // set, never an invented temperature. Switching off goes through
+        // ArtemisCoolerWarmUp and needs no setpoint at all.
         let setpoint_c = if enabled {
-            Some(target_temp.unwrap_or(self.core.cooler().target_c))
+            Some(target_temp.or(self.core.cooler().target_c).ok_or_else(|| {
+                DriverError::InvalidParameter(format!(
+                    "Atik camera '{}' needs a target temperature to cool",
+                    self.core.name
+                ))
+            })?)
         } else {
             None
         };
@@ -319,9 +332,9 @@ impl CameraDriver for AtikCamera {
         }
 
         self.core.update_cooler(|cooler| {
-            cooler.enabled = enabled;
+            cooler.enabled = Some(enabled);
             if let Some(target) = setpoint_c {
-                cooler.target_c = target;
+                cooler.target_c = Some(target);
             }
         });
         Ok(())

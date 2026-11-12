@@ -14,7 +14,11 @@ class CameraStatus {
   final double? sensorTemp;
   final double? coolerPower;
   final double? targetTemp;
-  final bool coolerOn;
+
+  /// Whether the cooler is switched on; null when the camera does not say
+  /// and the host has not set it since connecting (the camera may still be
+  /// cooling from an earlier session).
+  final bool? coolerOn;
   final int gain;
   final int offset;
   final int binX;
@@ -34,7 +38,7 @@ class CameraStatus {
     this.sensorTemp,
     this.coolerPower,
     this.targetTemp,
-    required this.coolerOn,
+    this.coolerOn,
     required this.gain,
     required this.offset,
     required this.binX,
@@ -60,7 +64,7 @@ class CameraStatus {
       targetTemp:
           (json['target_temp'] ?? json['targetTemp'] ?? json['setpoint'])
               ?.toDouble(),
-      coolerOn: json['cooler_on'] ?? json['coolerOn'] ?? false,
+      coolerOn: (json['cooler_on'] ?? json['coolerOn']) as bool?,
       gain: json['gain'] as int? ?? 0,
       offset: json['offset'] as int? ?? 0,
       binX: (json['bin_x'] ?? json['binX']) as int? ?? 1,

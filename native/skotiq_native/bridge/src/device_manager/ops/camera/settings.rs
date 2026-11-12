@@ -185,6 +185,11 @@ impl DeviceManager {
                         crate::device_manager::ops::sim_gate::not_connected_camera(),
                     ));
                 }
+                if !cam.status.can_set_gain {
+                    return Err(DeviceOpError::unsupported(
+                        "This simulated camera has no gain control",
+                    ));
+                }
                 cam.status.gain = gain;
                 Ok(())
             }
@@ -283,6 +288,11 @@ impl DeviceManager {
                     return Err(DeviceOpError::not_connected(
                         None,
                         crate::device_manager::ops::sim_gate::not_connected_camera(),
+                    ));
+                }
+                if !cam.status.can_set_offset {
+                    return Err(DeviceOpError::unsupported(
+                        "This simulated camera has no offset control",
                     ));
                 }
                 cam.status.offset = offset;
@@ -742,7 +752,7 @@ impl DeviceManager {
                         crate::device_manager::ops::sim_gate::not_connected_camera(),
                     ));
                 }
-                cam.status.cooler_on = enabled;
+                cam.status.cooler_on = Some(enabled);
                 if let Some(t) = target_temp {
                     cam.status.target_temp = Some(t);
                 }

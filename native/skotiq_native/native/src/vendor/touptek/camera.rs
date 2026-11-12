@@ -52,7 +52,6 @@ impl TouptekCamera {
         let mut core = CameraCore::new(
             format!("touptek_{}", device_index),
             format!("{} Camera {}", brand, device_index),
-            -10.0,
         );
         core.gain = 100;
         Self {

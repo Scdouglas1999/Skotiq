@@ -28,7 +28,6 @@ impl MoravianCamera {
             core: CameraCore::new(
                 format!("moravian_{}", camera_id),
                 format!("Moravian Camera {}", camera_id),
-                0.0,
             ),
             handle: SdkHandle(std::ptr::null_mut()),
             last_frame_dims: None,

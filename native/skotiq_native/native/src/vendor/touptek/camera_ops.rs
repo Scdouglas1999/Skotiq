@@ -476,6 +476,32 @@ impl CameraDriver for TouptekCamera {
         // telemetry, not as a control hint.
         let cooler_power = None;
 
+        // The camera's TEC switch and set-point; the last command answers for
+        // a read that fails.
+        let (cooler_on, target_temp) = if self.core.capabilities.can_cool {
+            let read_option = |option: c_uint| {
+                with_sdk(&lock, &brand, |sdk| {
+                    let mut value: c_int = 0;
+                    // SAFETY: `handle` was loaded from `self.handle` while connected; `&mut value` is a valid stack out-pointer for get_Option.
+                    let rc = unsafe { (sdk.get_option)(handle, option, &mut value) };
+                    Ok((rc >= 0).then_some(value))
+                })
+                .ok()
+                .flatten()
+            };
+            let cached = self.core.cooler();
+            (
+                read_option(OGMACAM_OPTION_TEC)
+                    .map(|v| v != 0)
+                    .or(cached.enabled),
+                read_option(OGMACAM_OPTION_TECTARGET)
+                    .map(|tenths| f64::from(tenths) / 10.0)
+                    .or(cached.target_c),
+            )
+        } else {
+            (Some(false), None)
+        };
+
         let exposure_remaining = if self.core.state == CameraState::Exposing {
             self.core.exposure_started_at.map(|started_at| {
                 (self.core.exposure_duration - started_at.elapsed().as_secs_f64()).max(0.0)
@@ -489,8 +515,8 @@ impl CameraDriver for TouptekCamera {
             state: self.core.state,
             sensor_temp: Some(current_temp),
             cooler_power,
-            target_temp: Some(self.core.cooler().target_c),
-            cooler_on: self.core.cooler().enabled,
+            target_temp,
+            cooler_on,
             gain,
             offset: self.core.offset,
             bin_x: self.core.bin_x,
@@ -871,9 +897,9 @@ impl CameraDriver for TouptekCamera {
         })?;
 
         self.core.update_cooler(|cooler| {
-            cooler.enabled = enabled;
+            cooler.enabled = Some(enabled);
             if let Some(target) = target_temp {
-                cooler.target_c = target;
+                cooler.target_c = Some(target);
             }
         });
         Ok(())

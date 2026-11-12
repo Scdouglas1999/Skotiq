@@ -83,8 +83,8 @@ async fn touptek_get_cooler_power_reports_not_supported_instead_of_estimate() {
     let mut camera = TouptekCamera::new(0, "OGMA");
     camera.core.connected = true;
     camera.core.update_cooler(|cooler| {
-        cooler.enabled = true;
-        cooler.target_c = -10.0;
+        cooler.enabled = Some(true);
+        cooler.target_c = Some(-10.0);
     });
 
     let err = camera.get_cooler_power().await.unwrap_err();

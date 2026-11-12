@@ -20,6 +20,8 @@ pub(crate) const OGMACAM_FLAG_HEAT: u64 = 0x0000008000000000;
 
 // Options (values verified against toupcam.h / ogmacam.h)
 pub(crate) const OGMACAM_OPTION_TEC: c_uint = 0x08;
+// 0x0f = TOUPCAM_OPTION_TECTARGET, the cooler set-point in 0.1 C.
+pub(crate) const OGMACAM_OPTION_TECTARGET: c_uint = 0x0f;
 // 0x06 = TOUPCAM_OPTION_BITDEPTH (0 = 8-bit, 1 = 16-bit). Do not confuse with 0x04
 // (OPTION_RAW): writing bit depth to 0x04 re-sets RAW and leaves the camera in 8-bit,
 // while download parses W*H bytes as W*H*2 u16 garbage.

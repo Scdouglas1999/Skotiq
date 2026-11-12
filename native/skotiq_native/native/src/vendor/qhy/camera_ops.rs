@@ -204,7 +204,11 @@ impl CameraDriver for QhyCamera {
             // Why: tracked locally because QHY SDK has no register to read
             // back cooler enable / target setpoint.
             target_temp: self.cooler_target_c,
-            cooler_on: self.cooler_on,
+            cooler_on: if self.has_cooler {
+                self.cooler_on
+            } else {
+                Some(false)
+            },
             cooler_power,
             gain: self.current_gain,
             offset: self.current_offset,
@@ -477,7 +481,7 @@ impl CameraDriver for QhyCamera {
         // setpoint write leaves the previous state intact (no silent fallback).
         // QHY SDK has no register to read cooler enable back — CONTROL_COOLER
         // is the target setpoint, not an on/off flag — so we mirror locally.
-        self.cooler_on = enabled;
+        self.cooler_on = Some(enabled);
         self.cooler_target_c = committed_target;
 
         Ok(())

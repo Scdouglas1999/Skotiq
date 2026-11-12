@@ -48,7 +48,7 @@ List<Override> _readyRig({
             deviceName: 'ZWO ASI1600MM Pro',
             temperature: -7.4,
             targetTemp: -10,
-            isCooling: true,
+            coolerOn: true,
           ),
         ),
       ),

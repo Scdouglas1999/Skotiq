@@ -45,11 +45,10 @@ pub struct QhyCamera {
     pub(crate) is_color: bool,
     pub(crate) bayer_pattern: Option<BayerPattern>,
 
-    // Why: QHY SDK has no register to read the cooler enable state back —
-    // CONTROL_COOLER is the target-temperature setpoint, not an on/off flag.
-    // Track locally (mirrors Atik pattern) so get_status reflects the last
-    // set_cooler call instead of hardcoding `false`.
-    pub(crate) cooler_on: bool,
+    // The QHY SDK has no register to read the cooler switch or set-point back
+    // (CONTROL_COOLER is the set-point to write, not an on/off flag), so both
+    // are this connection's last command, unknown before one.
+    pub(crate) cooler_on: Option<bool>,
     pub(crate) cooler_target_c: Option<f64>,
 }
 
@@ -87,7 +86,7 @@ impl QhyCamera {
             has_st4_port: false,
             is_color: false,
             bayer_pattern: None,
-            cooler_on: false,
+            cooler_on: None,
             cooler_target_c: None,
         }
     }

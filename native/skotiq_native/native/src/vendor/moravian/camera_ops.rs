@@ -61,8 +61,15 @@ impl CameraDriver for MoravianCamera {
             state: self.core.state,
             sensor_temp: current_temp,
             cooler_power,
-            target_temp: Some(self.core.cooler().target_c),
-            cooler_on: self.core.cooler().enabled,
+            // gxccd reports neither the cooler switch nor its set-point
+            // (gxccd.h GV_*), so both are known only once this connection has
+            // set them; the power above is the camera's.
+            target_temp: self.core.cooler().target_c,
+            cooler_on: if self.core.capabilities.can_cool {
+                self.core.cooler().enabled
+            } else {
+                Some(false)
+            },
             gain: self.core.gain,
             offset: self.core.offset,
             bin_x: self.core.bin_x,
@@ -369,9 +376,15 @@ impl CameraDriver for MoravianCamera {
 
         if enabled {
             // gxccd_set_temperature *is* the enable here, so cooling needs a
-            // setpoint; when the caller names none we reuse the one this
-            // driver already holds rather than inventing a temperature.
-            let target = target_temp.unwrap_or(self.core.cooler().target_c);
+            // setpoint; when the caller names none, the one this connection
+            // last set, never an invented temperature.
+            let target = target_temp.or(self.core.cooler().target_c).ok_or_else(|| {
+                DriverError::InvalidParameter(format!(
+                    "Moravian camera '{}' needs a target temperature to cool: \
+                     the camera cannot report the one it holds",
+                    self.core.name
+                ))
+            })?;
             // SAFETY: the connection was checked at entry so handle is open; gxccd_set_temperature takes the handle plus a c_float by value.
             let ret = unsafe { (sdk.set_temperature)(handle, target as c_float) };
             if ret < 0 {
@@ -389,8 +402,8 @@ impl CameraDriver for MoravianCamera {
                 )));
             }
             self.core.update_cooler(|cooler| {
-                cooler.enabled = true;
-                cooler.target_c = target;
+                cooler.enabled = Some(true);
+                cooler.target_c = Some(target);
             });
             tracing::info!("Moravian cooler enabled: target {} C", target);
         } else {
@@ -398,7 +411,8 @@ impl CameraDriver for MoravianCamera {
             // No caller setpoint is involved or needed.
             // SAFETY: handle is open (connection checked at entry); gxccd_set_temperature accepts the handle and a c_float by value.
             unsafe { (sdk.set_temperature)(handle, TEMP_COOLER_OFF) };
-            self.core.update_cooler(|cooler| cooler.enabled = false);
+            self.core
+                .update_cooler(|cooler| cooler.enabled = Some(false));
             tracing::info!("Moravian cooler disabled");
         }
 

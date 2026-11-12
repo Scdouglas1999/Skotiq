@@ -909,7 +909,7 @@ mod fake_sdk_contract {
             .await
             .expect("set cooler");
         let status = camera.get_status().await.expect("camera status");
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.gain, 42);
         assert_eq!(status.offset, 8);
         camera
@@ -1221,7 +1221,7 @@ mod fake_sdk_contract {
             .await
             .expect("Player One set cooler");
         let status = cooled.get_status().await.expect("Player One status");
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.gain, 73);
         assert_eq!(status.offset, 11);
 
@@ -1410,7 +1410,7 @@ mod fake_sdk_contract {
             .await
             .expect("QHY set cooler");
         let status = cooled.get_status().await.expect("QHY status");
-        assert!(status.cooler_on);
+        assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.target_temp, Some(-18.0));
         assert_eq!(status.gain, 81);
         assert_eq!(status.offset, 14);
@@ -2332,7 +2332,7 @@ unsafe fn write_cstr(buf:*mut c_char,text:&[u8]){for i in 0..256{*buf.add(i)=0;}
 #![allow(non_snake_case)]
 use std::ffi::{c_char,c_float,c_int,c_void};
 use std::sync::atomic::{AtomicI32,Ordering};
-static GAIN:AtomicI32=AtomicI32::new(0); static OFFSET:AtomicI32=AtomicI32::new(0); static BIN_X:AtomicI32=AtomicI32::new(1); static BIN_Y:AtomicI32=AtomicI32::new(1); static SETPOINT:AtomicI32=AtomicI32::new(-1000); static FILTER_POS:AtomicI32=AtomicI32::new(0);
+static GAIN:AtomicI32=AtomicI32::new(0); static OFFSET:AtomicI32=AtomicI32::new(0); static BIN_X:AtomicI32=AtomicI32::new(1); static BIN_Y:AtomicI32=AtomicI32::new(1); static SETPOINT:AtomicI32=AtomicI32::new(-1000); static FILTER_POS:AtomicI32=AtomicI32::new(0); static COOLING_FLAGS:AtomicI32=AtomicI32::new(1);
 static mut IMAGE:[u8;384]=[0;384];
 #[repr(C)] struct ArtemisProperties{protocol:c_int,pixels_x:c_int,pixels_y:c_int,pixel_microns_x:c_float,pixel_microns_y:c_float,ccd_flags:c_int,camera_flags:c_int,description:[c_char;40],manufacturer:[c_char;40]}
 // SAFETY: callers pass buffers of >=100 bytes per the fake SDK contract.
@@ -2361,9 +2361,9 @@ fn write_fixed(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for 
 #[no_mangle] pub unsafe extern "C" fn ArtemisGetImageData(_handle:*mut c_void,x:*mut c_int,y:*mut c_int,w:*mut c_int,h:*mut c_int,binx:*mut c_int,biny:*mut c_int)->c_int{if !x.is_null(){*x=0;} if !y.is_null(){*y=0;} if !w.is_null(){*w=16;} if !h.is_null(){*h=12;} if !binx.is_null(){*binx=BIN_X.load(Ordering::SeqCst);} if !biny.is_null(){*biny=BIN_Y.load(Ordering::SeqCst);} for i in 0..192{let v=2000u16.wrapping_add(i as u16); IMAGE[i*2]=(v&0xff) as u8; IMAGE[i*2+1]=(v>>8) as u8;} 0}
 // SAFETY: IMAGE is a static test buffer; tests are single-threaded over this fake SDK.
 #[no_mangle] pub extern "C" fn ArtemisImageBuffer(_handle:*mut c_void)->*mut c_void{unsafe{IMAGE.as_mut_ptr() as *mut c_void}}
-#[no_mangle] pub extern "C" fn ArtemisSetCooling(_handle:*mut c_void,setpoint:c_int)->c_int{SETPOINT.store(setpoint,Ordering::SeqCst);0}
-#[no_mangle] pub unsafe extern "C" fn ArtemisCoolingInfo(_handle:*mut c_void,flags:*mut c_int,level:*mut c_int,minlvl:*mut c_int,maxlvl:*mut c_int,setpoint:*mut c_int)->c_int{if !flags.is_null(){*flags=1;} if !level.is_null(){*level=35;} if !minlvl.is_null(){*minlvl=0;} if !maxlvl.is_null(){*maxlvl=100;} if !setpoint.is_null(){*setpoint=SETPOINT.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn ArtemisCoolerWarmUp(_handle:*mut c_void)->c_int{0}
+#[no_mangle] pub extern "C" fn ArtemisSetCooling(_handle:*mut c_void,setpoint:c_int)->c_int{SETPOINT.store(setpoint,Ordering::SeqCst);COOLING_FLAGS.store(1|64,Ordering::SeqCst);0}
+#[no_mangle] pub unsafe extern "C" fn ArtemisCoolingInfo(_handle:*mut c_void,flags:*mut c_int,level:*mut c_int,minlvl:*mut c_int,maxlvl:*mut c_int,setpoint:*mut c_int)->c_int{if !flags.is_null(){*flags=COOLING_FLAGS.load(Ordering::SeqCst);} if !level.is_null(){*level=35;} if !minlvl.is_null(){*minlvl=0;} if !maxlvl.is_null(){*maxlvl=100;} if !setpoint.is_null(){*setpoint=SETPOINT.load(Ordering::SeqCst);} 0}
+#[no_mangle] pub extern "C" fn ArtemisCoolerWarmUp(_handle:*mut c_void)->c_int{COOLING_FLAGS.store(1|32,Ordering::SeqCst);0}
 #[no_mangle] pub unsafe extern "C" fn ArtemisTemperatureSensorInfo(_handle:*mut c_void,_sensor:c_int,temp:*mut c_int)->c_int{if !temp.is_null(){*temp=-950;} 0}
 #[no_mangle] pub extern "C" fn ArtemisSetGain(_handle:*mut c_void,_preview:c_int,gain:c_int,offset:c_int)->c_int{GAIN.store(gain,Ordering::SeqCst); OFFSET.store(offset,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn ArtemisGetGain(_handle:*mut c_void,_preview:c_int,gain:*mut c_int,offset:*mut c_int)->c_int{if !gain.is_null(){*gain=GAIN.load(Ordering::SeqCst);} if !offset.is_null(){*offset=OFFSET.load(Ordering::SeqCst);} 0}
@@ -2435,7 +2435,7 @@ fn chars(text:&str)->[Ch;64]{let mut out=[0 as Ch;64]; for (i,ch) in text.bytes(
 fn model(index:usize)->*const OgmacamModelV2{let mut res:[OgmacamResolution;16]=unsafe{std::mem::zeroed()}; let (w,h)=full(index); res[0]=OgmacamResolution{width:w,height:h}; let flags:u64=if index==0{0x80|0x20000|0x200|0x08|0x20|0x10000|0x0000008000000000}else{0x10|0x20}; let name=if index==0{b"OGMA AP26CC\0".as_ptr()}else{b"OGMA GP2000M\0".as_ptr()}; Box::into_raw(Box::new(OgmacamModelV2{name:name as *const c_char,flag:flags,maxspeed:1,preview:1,still:1,maxfanspeed:if index==0{3}else{0},ioctrol:0,xpixsz:3.76,ypixsz:3.76,res}))}
 fn final_size()->(u32,u32){let bin=BIN.load(Ordering::SeqCst).max(1) as u32; (ROI_W.load(Ordering::SeqCst)/bin,ROI_H.load(Ordering::SeqCst)/bin)}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_EnumV2(devs:*mut OgmacamDeviceV2)->c_uint{if devs.is_null(){return 0;} *devs.add(0)=OgmacamDeviceV2{displayname:chars("OGMA AP26CC"),id:chars(IDS[0]),model:model(0)}; *devs.add(1)=OgmacamDeviceV2{displayname:chars("OGMA GP2000M"),id:chars(IDS[1]),model:model(1)}; 2}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_Open(id:*const c_void)->*mut c_void{if id.is_null(){return std::ptr::null_mut();} let p=id as *const Ch; let mut text=String::new(); let mut i=0; while *p.add(i)!=0{text.push(*p.add(i) as u8 as char); i+=1;} let Some(index)=IDS.iter().position(|known|*known==text) else {return std::ptr::null_mut()}; ACTIVE.store(index,Ordering::SeqCst); let (w,h)=full(index); ROI_W.store(w,Ordering::SeqCst); ROI_H.store(h,Ordering::SeqCst); BIN.store(1,Ordering::SeqCst); *OPTIONS.lock().unwrap()=[0;64]; (index+1) as *mut c_void}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_Open(id:*const c_void)->*mut c_void{if id.is_null(){return std::ptr::null_mut();} let p=id as *const Ch; let mut text=String::new(); let mut i=0; while *p.add(i)!=0{text.push(*p.add(i) as u8 as char); i+=1;} let Some(index)=IDS.iter().position(|known|*known==text) else {return std::ptr::null_mut()}; ACTIVE.store(index,Ordering::SeqCst); let (w,h)=full(index); ROI_W.store(w,Ordering::SeqCst); ROI_H.store(h,Ordering::SeqCst); BIN.store(1,Ordering::SeqCst); {let mut o=OPTIONS.lock().unwrap(); let cooler=(o[0x08],o[0x0f]); *o=[0;64]; o[0x08]=cooler.0; o[0x0f]=cooler.1;} (index+1) as *mut c_void}
 #[no_mangle] pub extern "C" fn Ogmacam_Close(_h:*mut c_void){let mut s=STREAM.lock().unwrap(); s.2=false; s.1+=1;}
 #[no_mangle] pub extern "C" fn Ogmacam_Stop(_h:*mut c_void)->c_int{let mut s=STREAM.lock().unwrap(); s.2=false; s.1+=1; 0}
 #[no_mangle] pub extern "C" fn Ogmacam_Version()->*const c_char{b"fake-ogma-1.0\0".as_ptr() as *const c_char}
@@ -2444,7 +2444,7 @@ fn final_size()->(u32,u32){let bin=BIN.load(Ordering::SeqCst).max(1) as u32; (RO
 #[no_mangle] pub extern "C" fn Ogmacam_put_ExpoAGain(_h:*mut c_void,gain:u16)->c_int{GAIN.store(gain.clamp(100,5000) as i32,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_ExpoAGainRange(_h:*mut c_void,min:*mut u16,max:*mut u16,def:*mut u16)->c_int{if !min.is_null(){*min=100;} if !max.is_null(){*max=5000;} if !def.is_null(){*def=150;} 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Temperature(_h:*mut c_void,temp:*mut i16)->c_int{if !temp.is_null(){*temp=TEMP.load(Ordering::SeqCst) as i16;} 0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_Temperature(_h:*mut c_void,temp:i16)->c_int{TEMP.store(temp as i32,Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_Temperature(_h:*mut c_void,temp:i16)->c_int{TEMP.store(temp as i32,Ordering::SeqCst); OPTIONS.lock().unwrap()[0x0f]=temp as c_int; 0}
 #[no_mangle] pub extern "C" fn Ogmacam_put_Option(_h:*mut c_void,opt:c_uint,value:c_int)->c_int{if opt as usize>=64{return -1;} if opt==0x17{if value<1||value>4{return -2;} BIN.store(value,Ordering::SeqCst);} OPTIONS.lock().unwrap()[opt as usize]=value; 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Option(_h:*mut c_void,opt:c_uint,value:*mut c_int)->c_int{if value.is_null()||opt as usize>=64{return -1;} let stored=OPTIONS.lock().unwrap()[opt as usize]; *value=match opt{0x2e=>100,0x37=>2,0x07=>1,_=>stored}; 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_RawFormat(_h:*mut c_void,fourcc:*mut c_uint,bits:*mut c_uint)->c_int{if !fourcc.is_null(){*fourcc=u32::from_le_bytes(*b"RGGB") as c_uint;} if !bits.is_null(){*bits=12;} 0}

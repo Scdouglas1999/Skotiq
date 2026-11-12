@@ -20,6 +20,9 @@ struct InstantCompleteCamera {
     exposure_checked: Arc<AtomicUsize>,
     connected: bool,
     completes: bool,
+    /// Whether the camera has gain and offset controls; its frames report
+    /// gain 0 and offset 0 either way, as the FLI and Atik CCD drivers do.
+    controls_gain: bool,
 }
 
 impl InstantCompleteCamera {
@@ -31,6 +34,7 @@ impl InstantCompleteCamera {
             exposure_checked,
             connected: true,
             completes: true,
+            controls_gain: false,
         }
     }
 
@@ -74,7 +78,11 @@ impl DeviceDriver for InstantCompleteCamera {
 #[async_trait::async_trait]
 impl CameraDriver for InstantCompleteCamera {
     fn capabilities(&self) -> CameraCapabilities {
-        CameraCapabilities::default()
+        CameraCapabilities {
+            can_set_gain: self.controls_gain,
+            can_set_offset: self.controls_gain,
+            ..CameraCapabilities::default()
+        }
     }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
@@ -83,7 +91,7 @@ impl CameraDriver for InstantCompleteCamera {
             sensor_temp: None,
             cooler_power: None,
             target_temp: None,
-            cooler_on: false,
+            cooler_on: Some(false),
             gain: 0,
             offset: 0,
             bin_x: 1,
@@ -269,6 +277,87 @@ async fn exposure_polling_short_circuits_when_complete() {
         exposure_checked.load(Ordering::SeqCst) > 0,
         "Exposure status should be checked at least once"
     );
+}
+
+/// The frame of a camera without gain and offset controls records neither,
+/// whatever its driver reports and whatever the capture asked for, so its file
+/// has no GAIN or OFFSET card. A camera with the controls records its own report.
+#[tokio::test]
+async fn a_camera_without_gain_control_writes_no_gain_or_offset_card() {
+    let mgr = get_device_manager();
+    for (device_id, controls_gain, expected) in [
+        ("native:test_camera_gainless", false, (None, None)),
+        ("native:test_camera_with_gain", true, (Some(0), Some(0))),
+    ] {
+        let device_id = device_id.to_string();
+        mgr.register_device(
+            DeviceInfo {
+                id: device_id.clone(),
+                name: "Test Camera".to_string(),
+                device_type: DeviceType::Camera,
+                driver_type: DriverType::Native,
+                description: "Test camera".to_string(),
+                driver_version: "test".to_string(),
+                serial_number: None,
+                unique_id: None,
+                display_name: "Test Camera".to_string(),
+            },
+            false,
+        )
+        .await;
+        mgr.native_cameras.write().await.insert(
+            device_id.clone(),
+            Box::new(InstantCompleteCamera {
+                controls_gain,
+                ..InstantCompleteCamera::new(device_id.clone(), Arc::new(AtomicUsize::new(0)))
+            }),
+        );
+
+        let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
+        let image = ops
+            .camera_start_exposure(
+                skotiq_sequencer::ExposureRequest::new(&device_id, 0.5)
+                    .gain(Some(120))
+                    .offset(Some(30)),
+            )
+            .await;
+        cleanup_test_camera(mgr, &device_id).await;
+        let image = image.expect("exposure");
+        assert_eq!((image.gain, image.offset), expected, "{device_id}");
+
+        let rig = skotiq_sequencer::RunRig::default();
+        let identity = skotiq_sequencer::FrameIdentity::default();
+        let ctx = skotiq_sequencer::sample_frame_context(
+            &ops,
+            &skotiq_sequencer::CaptureFacts {
+                rig: &rig,
+                identity: &identity,
+                commanded_secs: 0.5,
+                binning: (1, 1),
+                frame_type: "Light",
+                exposure_started_at: chrono::Utc::now(),
+                filter: (None, None),
+                target_name: None,
+                set_temp_c: None,
+                bayer_pattern: None,
+            },
+            &image,
+        )
+        .await;
+        let header = build_rich_header(&image, &ctx, None).fits_header();
+        assert_eq!(
+            header.get_int("GAIN"),
+            expected.0.map(i64::from),
+            "{device_id}"
+        );
+        assert_eq!(
+            header.get_int("OFFSET"),
+            expected.1.map(i64::from),
+            "{device_id}"
+        );
+        let row = skotiq_sequencer::scheduling::FrameCaptureMetadata::from(&ctx);
+        assert_eq!((row.gain, row.offset), expected, "{device_id}");
+    }
 }
 
 #[tokio::test]

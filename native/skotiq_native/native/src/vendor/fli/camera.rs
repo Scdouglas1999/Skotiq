@@ -28,11 +28,7 @@ impl FliCamera {
         let device_id = device_path.replace("/", "_").replace("\\", "_");
         Self {
             device_path: device_path.clone(),
-            core: CameraCore::new(
-                format!("fli_{}", device_id),
-                "FLI Camera".to_string(),
-                -10.0,
-            ),
+            core: CameraCore::new(format!("fli_{}", device_id), "FLI Camera".to_string()),
             handle: FLI_INVALID_DEVICE,
             serial: None,
             visible: VisibleArea::default(),

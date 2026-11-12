@@ -19,7 +19,7 @@ fn idle() -> Result<CameraStatus, DriverError> {
         sensor_temp: None,
         cooler_power: None,
         target_temp: None,
-        cooler_on: false,
+        cooler_on: Some(false),
         gain: 800,
         offset: 0,
         bin_x: 1,

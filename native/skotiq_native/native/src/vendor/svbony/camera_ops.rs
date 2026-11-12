@@ -21,13 +21,32 @@ impl CameraDriver for SvbonyCamera {
             None
         };
 
-        let cooler_power = if self.core.capabilities.can_cool && self.core.cooler().enabled {
-            self.get_control_value_async(SvbControlType::CoolerPower)
+        // The camera's own cooler registers; the last command answers for a
+        // read that fails.
+        let (cooler_on, target_temp, cooler_power) = if self.core.capabilities.can_cool {
+            let cached = self.core.cooler();
+            let enabled = self
+                .get_control_value_async(SvbControlType::CoolerEnable)
+                .await
+                .ok()
+                .map(|v| v != 0);
+            let target = self
+                .get_control_value_async(SvbControlType::TargetTemperature)
+                .await
+                .ok()
+                .map(|v| v as f64 / 10.0);
+            let power = self
+                .get_control_value_async(SvbControlType::CoolerPower)
                 .await
                 .map(|v| v as f64)
-                .ok()
+                .ok();
+            (
+                enabled.or(cached.enabled),
+                target.or(cached.target_c),
+                power,
+            )
         } else {
-            None
+            (Some(false), None, None)
         };
 
         let exposure_remaining = if self.core.state == CameraState::Exposing {
@@ -45,12 +64,8 @@ impl CameraDriver for SvbonyCamera {
             state: self.core.state,
             sensor_temp,
             cooler_power,
-            target_temp: if self.core.capabilities.can_cool {
-                Some(self.core.cooler().target_c)
-            } else {
-                None
-            },
-            cooler_on: self.core.cooler().enabled,
+            target_temp,
+            cooler_on,
             gain,
             offset,
             bin_x: self.core.bin_x,
@@ -285,10 +300,12 @@ impl CameraDriver for SvbonyCamera {
             // finite values in this range; NaN sentinel would be clamped to 0.
             self.set_control_value_async(SvbControlType::TargetTemperature, (target * 10.0) as i64)
                 .await?;
-            self.core.update_cooler(|cooler| cooler.target_c = target);
+            self.core
+                .update_cooler(|cooler| cooler.target_c = Some(target));
         }
 
-        self.core.update_cooler(|cooler| cooler.enabled = enabled);
+        self.core
+            .update_cooler(|cooler| cooler.enabled = Some(enabled));
         Ok(())
     }
 

@@ -69,6 +69,10 @@ pub(crate) const ARTEMIS_CAMERA_HAS_GUIDE_PORT: c_int = 32;
 // ARTEMISCOLOURTYPE (AtikDefs.h:53-61). Note that 0 is NOT "monochrome":
 // the vendor header documents it as "either the device is not a camera or the
 // colour cannot be determined", and monochrome has its own value.
+// ArtemisCoolingInfo flags (AtikDefs.h).
+pub(crate) const ARTEMIS_COOLING_INFO_WARMINGUP: c_int = 32;
+pub(crate) const ARTEMIS_COOLING_INFO_COOLINGON: c_int = 64;
+
 pub(crate) const ARTEMIS_COLOUR_UNKNOWN: c_int = 0;
 pub(crate) const ARTEMIS_COLOUR_NONE: c_int = 1;
 pub(crate) const ARTEMIS_COLOUR_RGGB: c_int = 2;

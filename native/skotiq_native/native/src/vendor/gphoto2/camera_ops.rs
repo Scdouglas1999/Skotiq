@@ -208,7 +208,7 @@ impl CameraDriver for GPhoto2Camera {
             sensor_temp: None, // DSLRs don't report sensor temp
             cooler_power: None,
             target_temp: None,
-            cooler_on: false,
+            cooler_on: Some(false),
             gain: self.current_gain,
             offset: self.current_offset,
             bin_x: 1,

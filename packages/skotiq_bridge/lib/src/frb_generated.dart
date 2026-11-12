@@ -13050,7 +13050,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sensorTemp: dco_decode_opt_box_autoadd_f_64(arr[2]),
       coolerPower: dco_decode_opt_box_autoadd_f_64(arr[3]),
       targetTemp: dco_decode_opt_box_autoadd_f_64(arr[4]),
-      coolerOn: dco_decode_bool(arr[5]),
+      coolerOn: dco_decode_opt_box_autoadd_bool(arr[5]),
       gain: dco_decode_i_32(arr[6]),
       offset: dco_decode_i_32(arr[7]),
       binX: dco_decode_i_32(arr[8]),
@@ -17150,7 +17150,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_sensorTemp = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_coolerPower = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_targetTemp = sse_decode_opt_box_autoadd_f_64(deserializer);
-    var var_coolerOn = sse_decode_bool(deserializer);
+    var var_coolerOn = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_gain = sse_decode_i_32(deserializer);
     var var_offset = sse_decode_i_32(deserializer);
     var var_binX = sse_decode_i_32(deserializer);
@@ -22405,7 +22405,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_f_64(self.sensorTemp, serializer);
     sse_encode_opt_box_autoadd_f_64(self.coolerPower, serializer);
     sse_encode_opt_box_autoadd_f_64(self.targetTemp, serializer);
-    sse_encode_bool(self.coolerOn, serializer);
+    sse_encode_opt_box_autoadd_bool(self.coolerOn, serializer);
     sse_encode_i_32(self.gain, serializer);
     sse_encode_i_32(self.offset, serializer);
     sse_encode_i_32(self.binX, serializer);

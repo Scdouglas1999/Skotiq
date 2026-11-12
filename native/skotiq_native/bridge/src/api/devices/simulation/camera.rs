@@ -16,6 +16,45 @@ pub const SIM_GUIDE_PIXEL_UM: f64 = 3.75;
 /// Focal length of the simulated guide scope, in millimeters (a 60 mm f/4).
 pub const SIM_GUIDE_FOCAL_LENGTH_MM: f64 = 240.0;
 
+/// `SKOTIQ_SIM_CAMERA_TRAITS` gives the simulated imaging camera limits of real
+/// cameras the default simulator does not have, as a comma-separated list:
+/// `no-gain` (no gain or offset control, as FLI and Atik CCDs), `no-cooler`,
+/// and `cooler-unreported` (a cooler that cannot say whether it is on until
+/// Skotiq sets it, as FLI and Moravian).
+pub(crate) const SIM_CAMERA_TRAITS_ENV: &str = "SKOTIQ_SIM_CAMERA_TRAITS";
+
+/// The limits `SKOTIQ_SIM_CAMERA_TRAITS` names.
+#[flutter_rust_bridge::frb(ignore)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct SimCameraTraits {
+    pub(crate) no_gain: bool,
+    pub(crate) no_cooler: bool,
+    pub(crate) cooler_unreported: bool,
+}
+
+impl SimCameraTraits {
+    fn parse(text: &str) -> Self {
+        let mut traits = Self::default();
+        for token in text.split(',').map(str::trim).filter(|t| !t.is_empty()) {
+            match token.to_ascii_lowercase().as_str() {
+                "no-gain" => traits.no_gain = true,
+                "no-cooler" => traits.no_cooler = true,
+                "cooler-unreported" => traits.cooler_unreported = true,
+                other => tracing::warn!("{SIM_CAMERA_TRAITS_ENV}: unknown trait '{other}' ignored"),
+            }
+        }
+        traits
+    }
+}
+
+/// The simulated imaging camera's traits, read once per process.
+pub(crate) fn sim_imaging_camera_traits() -> SimCameraTraits {
+    static TRAITS: OnceLock<SimCameraTraits> = OnceLock::new();
+    *TRAITS.get_or_init(|| {
+        SimCameraTraits::parse(&std::env::var(SIM_CAMERA_TRAITS_ENV).unwrap_or_default())
+    })
+}
+
 /// Whether the two simulated cameras have traded ids, as two USB cameras do
 /// when a hub drops and the SDK enumerates them again in the other order (the
 /// reference rig, Nov 8 2026: `native:zwo:1` came back as the guide camera).
@@ -99,7 +138,9 @@ pub(crate) fn sim_camera_unit(device_id: &str) -> &'static SimCameraUnit {
     if is_sim_guide_camera(device_id) {
         SIM_GUIDE_UNIT.get_or_init(|| SimCameraUnit::new(SimulatedCamera::guide_camera()))
     } else {
-        SIM_IMAGING_UNIT.get_or_init(|| SimCameraUnit::new(SimulatedCamera::default()))
+        SIM_IMAGING_UNIT.get_or_init(|| {
+            SimCameraUnit::new(SimulatedCamera::imaging_camera(sim_imaging_camera_traits()))
+        })
     }
 }
 
@@ -117,7 +158,7 @@ impl Default for SimulatedCamera {
                 sensor_temp: Some(20.0),
                 cooler_power: Some(0.0),
                 target_temp: Some(-10.0),
-                cooler_on: false,
+                cooler_on: Some(false),
                 gain: 100,
                 offset: 10,
                 bin_x: 1,
@@ -136,6 +177,26 @@ impl Default for SimulatedCamera {
 }
 
 impl SimulatedCamera {
+    /// The simulated imaging camera with `traits` applied.
+    pub(crate) fn imaging_camera(traits: SimCameraTraits) -> Self {
+        let mut camera = Self::default();
+        if traits.no_gain {
+            camera.status.can_set_gain = false;
+            camera.status.can_set_offset = false;
+            camera.status.gain = 0;
+            camera.status.offset = 0;
+        }
+        if traits.no_cooler {
+            camera.status.can_cool = false;
+            camera.status.target_temp = None;
+            camera.status.cooler_power = None;
+        } else if traits.cooler_unreported {
+            camera.status.cooler_on = None;
+            camera.status.target_temp = None;
+        }
+        camera
+    }
+
     /// The simulated guide camera: uncooled, small, mono.
     pub(crate) fn guide_camera() -> Self {
         let mut camera = Self::default();
@@ -388,7 +449,7 @@ pub(crate) async fn advance_sim_cooler(device_id: &str) {
 
     let mut guard = get_sim_camera_for(device_id).write().await;
     let current = guard.status.sensor_temp.unwrap_or(SIM_AMBIENT_TEMP_C);
-    let (target, rate) = if guard.status.cooler_on {
+    let (target, rate) = if guard.status.cooler_on == Some(true) {
         (
             guard.status.target_temp.unwrap_or(SIM_AMBIENT_TEMP_C),
             SIM_COOL_RATE_C_PER_SEC,
@@ -408,7 +469,7 @@ pub(crate) async fn advance_sim_cooler(device_id: &str) {
     if !guard.status.can_cool {
         return;
     }
-    guard.status.cooler_power = Some(if !guard.status.cooler_on {
+    guard.status.cooler_power = Some(if guard.status.cooler_on != Some(true) {
         0.0
     } else if (target - next).abs() > 0.5 {
         // Pulling down to the setpoint.
