@@ -49,9 +49,19 @@ impl FliCamera {
         // SAFETY: self.handle is open; both out-pointers are valid stack pointers.
         let result = unsafe { (sdk.get_pixel_size)(self.handle, &mut pixel_x, &mut pixel_y) };
         check_fli_error(result, "get pixel size")?;
-        // A zero pitch zeroes the plate scale everywhere downstream.
-        let pixel_x = pixel_size_microns(pixel_x)?;
-        let pixel_y = pixel_size_microns(pixel_y)?;
+        // 0.0 is the unknown pitch every consumer skips (bridge
+        // device_manager/ops/camera): no XPIXSZ, no solver scale hint.
+        let (pixel_x, pixel_y) = match (pixel_size_microns(pixel_x)?, pixel_size_microns(pixel_y)?)
+        {
+            (Some(x), Some(y)) => (x, y),
+            _ => {
+                tracing::warn!(
+                    "FLI camera '{}' does not report its pixel size",
+                    self.core.name
+                );
+                (0.0, 0.0)
+            }
+        };
 
         let mut ul_x: c_long = 0;
         let mut ul_y: c_long = 0;
