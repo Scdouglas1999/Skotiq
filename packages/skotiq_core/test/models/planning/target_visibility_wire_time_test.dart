@@ -15,7 +15,10 @@ void main() {
   // UTC with a Z and is the same instant on the client, in its local time.
   test('a rise time with an offset is the same instant, local here', () {
     final info = converter.fromJson(_visibility('2026-11-12T03:00:00.000Z'));
-    expect(info.riseTime, DateTime.utc(2026, 11, 12, 3));
+    expect(
+      info.riseTime!.isAtSameMomentAs(DateTime.utc(2026, 11, 12, 3)),
+      isTrue,
+    );
     expect(info.riseTime!.isUtc, isFalse);
   });
 

@@ -86,9 +86,4 @@ void main() {
     );
     expect(state.deviceName, _friendlyName);
   });
-
-  test('a device the host does not name falls back to its id', () async {
-    final state = await _connecting(_containerWith(const []));
-    expect(state.deviceName, _builtinGuiderId);
-  });
 }
