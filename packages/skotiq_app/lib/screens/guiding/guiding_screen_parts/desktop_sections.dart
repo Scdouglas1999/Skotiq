@@ -349,8 +349,6 @@ mixin _GuidingDesktopSections
   }
 
   Widget _buildControls(bool isConnected, Phd2State phd2State) {
-    final guiderId = ref.watch(guiderStateProvider).deviceId;
-    final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
     final settingsAsync = ref.watch(appSettingsProvider);
     final canPersistGuidingSettings = settingsAsync.hasValue &&
         !settingsAsync.isLoading &&
@@ -367,13 +365,8 @@ mixin _GuidingDesktopSections
         settleTimeout: _settleTimeout,
       ),
       onStopGuiding: () => ref.read(phd2ControllerProvider).stopGuiding(),
-      onPauseGuiding: isPhd2Guider
-          ? () => ref.read(phd2ControllerProvider).pauseGuiding()
-          : null,
-      onResumeGuiding: isPhd2Guider
-          ? () => ref.read(phd2ControllerProvider).resumeGuiding()
-          : null,
-      pauseUnavailableReason: isPhd2Guider ? null : kBuiltinGuiderNoPauseReason,
+      onPauseGuiding: () => ref.read(phd2ControllerProvider).pauseGuiding(),
+      onResumeGuiding: () => ref.read(phd2ControllerProvider).resumeGuiding(),
       onLoop: () => ref.read(phd2ControllerProvider).loop(),
       onFindStar: _autoSelectStar,
       onDeselectStar: _deselectStar,

@@ -65,14 +65,6 @@ class GuideControlsPanel extends StatefulWidget {
   final Future<String?> Function()? onFindStar;
   final Future<void> Function()? onDeselectStar;
 
-  /// Why Pause cannot be used with the active guider, when it cannot.
-  ///
-  /// A control that is unavailable for a reason the app knows must say the
-  /// reason: the built-in guider has no pause, and a Pause button that simply
-  /// did nothing left the operator unable to tell whether corrections were
-  /// suspended — the one thing pause exists to tell them.
-  final String? pauseUnavailableReason;
-
   final double ditherAmount;
   final bool ditherRaOnly;
   final void Function(double)? onDitherAmountChanged;
@@ -97,7 +89,6 @@ class GuideControlsPanel extends StatefulWidget {
     this.onLoop,
     this.onFindStar,
     this.onDeselectStar,
-    this.pauseUnavailableReason,
     this.ditherAmount = 5.0,
     this.ditherRaOnly = false,
     this.onDitherAmountChanged,
@@ -271,7 +262,6 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
                     ? widget.onResumeGuiding
                     : (state.canPause ? widget.onPauseGuiding : null))
                 : null,
-            unavailableReason: widget.pauseUnavailableReason,
           ),
           // Outline, not a fill: 05 §5 gives a view ONE primary, and Start
           // owns it here. Loop exposures, Auto select and Deselect were all
@@ -729,7 +719,6 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
     Future<String?> Function()? onPressedReporting,
     bool isOutline = false,
     bool small = false,
-    String? unavailableReason,
 
     /// The control's full name for assistive tech, when [label] is the short
     /// form that fits the grid.
@@ -752,9 +741,6 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
     final isThisBusy = isStop ? _stopInFlight : _positiveInFlight == id;
     final laneBusy = isStop ? _stopInFlight : _positiveBusy;
     final isDisabled = action == null || laneBusy;
-    // A reason only applies while the control is genuinely unavailable — never
-    // over a control that is merely busy with its own command.
-    final reason = action == null ? unavailableReason : null;
 
     // These are the controls that start and stop guiding, so they must publish
     // a button role and their enabled state. Without this wrapper the bare
@@ -767,9 +753,7 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
       container: true,
       button: true,
       enabled: !isDisabled,
-      label: reason == null
-          ? (semanticLabel ?? label)
-          : '${semanticLabel ?? label} — $reason',
+      label: semanticLabel ?? label,
       onTap: isDisabled ? null : () => _runReportingAction(id, action),
       excludeSemantics: true,
       child: Material(
@@ -849,28 +833,8 @@ class _GuideControlsPanelState extends State<GuideControlsPanel> {
       ),
     );
 
-    if (reason == null) {
-      return tooltip == null
-          ? button
-          : Tooltip(
-              message: tooltip, excludeFromSemantics: true, child: button);
-    }
-
-    // The button stays disabled — it is genuinely not a live control, and the
-    // semantics node above says so. What changes is that pressing it is no
-    // longer silent: a hover tooltip is invisible to the operator who clicks,
-    // and invisible to touch entirely. `excludeFromSemantics` keeps the
-    // tooltip from publishing a second, state-less node over the button's own
-    // (the reason is already carried in its label).
-    return Tooltip(
-      message: reason,
-      excludeFromSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        excludeFromSemantics: true,
-        onTap: () => setState(() => _noticeText = reason),
-        child: button,
-      ),
-    );
+    return tooltip == null
+        ? button
+        : Tooltip(message: tooltip, excludeFromSemantics: true, child: button);
   }
 }
