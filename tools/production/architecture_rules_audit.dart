@@ -654,8 +654,14 @@ List<_Violation> _checkRustDirection() {
 // ---------------------------------------------------------------------------
 // backend-class
 
+const _backendClassNames = 'NetworkBackend|FfiBackend|DisconnectedBackend';
+
+/// A type test, a cast, a pattern (`case NetworkBackend _`, a switch arm
+/// `NetworkBackend() =>`) or a `runtimeType` comparison.
 final _backendClassTest = RegExp(
-  r'\b(is!?|as)\s+(NetworkBackend|FfiBackend|DisconnectedBackend)\b',
+  '\\b(?:is!?|as|case)\\s+(?:$_backendClassNames)\\b'
+  '|\\b(?:$_backendClassNames)\\s*\\(\\s*\\)\\s*(?:=>|when\\b)'
+  '|\\bruntimeType\\s*[!=]=\\s*(?:$_backendClassNames)\\b',
 );
 
 List<_Site> _backendClassSites(List<String> files) {
@@ -672,7 +678,7 @@ List<_Site> _backendClassSites(List<String> files) {
         _Site(
           '${_basename(path)}::${_dartEnclosing(lines, line)}',
           '$path:${line + 1}',
-          '`${m.group(1)} ${m.group(2)}`',
+          '`${m.group(0)!.replaceAll(RegExp(r'\s+'), ' ')}`',
         ),
       );
     }

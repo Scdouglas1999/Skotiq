@@ -156,6 +156,23 @@ Future<void> main() async {
     stderrHas: ['`as FfiBackend`'],
   );
 
+  await check(
+    'a backend class matched as a pattern or by runtimeType fails',
+    (root) => _write(
+      root,
+      'packages/skotiq_app/lib/screens/linked.dart',
+      'bool a(Object b) => switch (b) { NetworkBackend() => true, _ => false };\n'
+          'bool c(Object b) { if (b case FfiBackend _) return true; return false; }\n'
+          'bool d(Object b) => b.runtimeType == DisconnectedBackend;\n',
+    ),
+    exitCode: 1,
+    stderrHas: [
+      'linked.dart:1: `NetworkBackend() =>`',
+      'linked.dart:2: `case FfiBackend`',
+      'linked.dart:3: `runtimeType == DisconnectedBackend`',
+    ],
+  );
+
   await check('backend class names in comments, strings, tests and the '
       'backend files pass', (root) async {
     await _write(
