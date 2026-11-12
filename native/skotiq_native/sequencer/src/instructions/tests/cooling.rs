@@ -231,6 +231,34 @@ async fn a_cooler_short_of_its_setpoint_still_fails_for_the_operator_who_asked()
     assert!(run.decisions.is_empty(), "{:?}", run.decisions);
 }
 
+/// On a night colder than the set-point the sensor starts below it, and a
+/// cooler cannot warm it up to it: the rig sat at 9.1 °C under a 10 °C
+/// set-point with the cooler at 0 % for the step's whole limit. Colder than
+/// asked is cold enough.
+#[tokio::test(start_paused = true)]
+async fn a_sensor_already_colder_than_the_setpoint_is_cooled_at_once() {
+    let started = tokio::time::Instant::now();
+    let run = cool_node_with(&[-11.2], false).await;
+
+    assert_eq!(run.status, NodeStatus::Success);
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "the step must not wait for a cooler that cannot warm the sensor; waited {:?}",
+        started.elapsed()
+    );
+    assert!(
+        run.warnings.is_empty() && run.decisions.is_empty(),
+        "a sensor colder than its set-point is not a quality problem: {:?} {:?}",
+        run.warnings,
+        run.decisions
+    );
+    assert_eq!(
+        run.set_temp_c,
+        Some(-10.0),
+        "the cooler keeps its set-point"
+    );
+}
+
 /// A sensor that warms while its cooler runs is a cooler fault (a dead fan, a
 /// TEC driven the wrong way) and a risk to the camera, so it stops the run
 /// whatever the quality setting says.

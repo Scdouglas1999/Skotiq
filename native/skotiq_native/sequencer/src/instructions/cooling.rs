@@ -35,11 +35,7 @@ pub async fn execute_cool_camera(
     let target_temp = config.target_temp;
     let temp_range = (start_temp - target_temp).abs();
 
-    // 0.5 °C tolerance covers typical cooler noise on TEC-equipped cameras
-    // (ZWO/QHY/PlayerOne all report jitter in the ±0.3 °C range when
-    // settled); tighter would force a fake "cooling" loop on a camera
-    // that is already where we want it.
-    let already_at_target = (start_temp - target_temp).abs() < 0.5;
+    let already_at_target = is_cold_enough(start_temp, target_temp);
 
     if let Err(e) = ctx
         .run
@@ -60,10 +56,17 @@ pub async fn execute_cool_camera(
                 ))
             }
         };
-        let msg = format!(
-            "At target: {:.1}°C ({:.0}% power)",
-            start_temp, cooler_power
-        );
+        let msg = if start_temp <= target_temp - SETPOINT_TOLERANCE_C {
+            format!(
+                "Already colder than the {:.1}°C set-point: {:.1}°C ({:.0}% power)",
+                target_temp, start_temp, cooler_power
+            )
+        } else {
+            format!(
+                "At target: {:.1}°C ({:.0}% power)",
+                start_temp, cooler_power
+            )
+        };
         tracing::info!("Camera already at target temperature: {}", msg);
         if let Some(cb) = progress_callback {
             cb(100.0, msg.clone());
@@ -155,7 +158,7 @@ pub async fn execute_cool_camera(
             );
         }
 
-        if (current_temp - target_temp).abs() < 0.5 {
+        if is_cold_enough(current_temp, target_temp) {
             let msg = format!(
                 "Target reached: {:.1}°C ({:.0}% power)",
                 current_temp, cooler_power
@@ -215,6 +218,17 @@ pub async fn execute_cool_camera(
         sleep(Duration::from_secs_f64(POLL_SECS)).await;
         elapsed_secs += POLL_SECS;
     }
+}
+
+/// Read jitter of a settled TEC sensor (ZWO, QHY and PlayerOne report about
+/// ±0.3 °C) that still counts as at the set-point.
+const SETPOINT_TOLERANCE_C: f64 = 0.5;
+
+/// Whether a sensor under a running cooler is where the cool step wants it.
+/// Colder than the set-point counts: on a night colder than the set-point
+/// the sensor starts below it, and a cooler cannot warm it up to it.
+fn is_cold_enough(sensor_temp: f64, target_temp: f64) -> bool {
+    sensor_temp < target_temp + SETPOINT_TOLERANCE_C
 }
 
 /// How far past its starting temperature, away from the set-point, a cooled
