@@ -11,7 +11,9 @@ deep-sky objects without an internet connection.
 
 The data is licensed under the Creative Commons Attribution-ShareAlike 4.0
 International license: <https://creativecommons.org/licenses/by-sa/4.0/>.
-That data license does not apply to Skotiq's program code.
+That data license does not apply to Skotiq's program code. `NOTICE.txt` is
+the attribution that ships with the file; the app lists it under Settings >
+About > Open-source licenses.
 
 To move to a newer OpenNGC release, replace the file, update the version and
 `sha256` of `SkyCatalog.dso` and the release asset together, and update the

@@ -49,14 +49,58 @@ FilterIntegration acceptedInGoalFilter(
   List<FilterIntegration> accepted,
   String goalFilter,
 ) {
-  final key = goalFilter.trim().isEmpty
-      ? 'unfiltered'
-      : goalFilter.trim().toLowerCase();
+  final key = _goalFilterKey(goalFilter);
   for (final f in accepted) {
     if (f.filter.toLowerCase() == key) return f;
   }
   return FilterIntegration(filter: goalFilter, frames: 0, seconds: 0);
 }
+
+/// What each of [goals] counts as done, in the order given.
+///
+/// Two goals can name the same filter at different exposures. They share that
+/// filter's accepted time, which fills them in order and leaves any surplus on
+/// the last, so a filter's time is counted once however many goals name it.
+List<FilterIntegration> acceptedPerGoal(
+  List<FilterIntegration> accepted,
+  List<IntegrationGoal> goals,
+) {
+  final left = <String, ({double seconds, int frames})>{};
+  final lastInFilter = <String, int>{};
+  for (var i = 0; i < goals.length; i++) {
+    lastInFilter[_goalFilterKey(goals[i].filter)] = i;
+  }
+  return [
+    for (var i = 0; i < goals.length; i++)
+      () {
+        final goal = goals[i];
+        final key = _goalFilterKey(goal.filter);
+        final available = left[key] ??= () {
+          final all = acceptedInGoalFilter(accepted, goal.filter);
+          return (seconds: all.seconds, frames: all.frames);
+        }();
+        final wanted = goal.frameCount * goal.exposureSeconds;
+        final takesRest =
+            lastInFilter[key] == i || available.seconds <= wanted;
+        final seconds = takesRest ? available.seconds : wanted;
+        final frames = takesRest
+            ? available.frames
+            : (available.frames * seconds / available.seconds).round();
+        left[key] = (
+          seconds: available.seconds - seconds,
+          frames: available.frames - frames,
+        );
+        return FilterIntegration(
+          filter: goal.filter,
+          frames: frames,
+          seconds: seconds,
+        );
+      }(),
+  ];
+}
+
+String _goalFilterKey(String goalFilter) =>
+    goalFilter.trim().isEmpty ? 'unfiltered' : goalFilter.trim().toLowerCase();
 
 /// The sessions that imaged a target: every session holding one of its light
 /// frames, and any session row that names the target.
@@ -82,10 +126,11 @@ Set<int> targetSessionIds(
 /// Progress is time: the goal is the target's per-filter integration goals
 /// (frames x exposure), the ones Plan and the Scheduler write, and what is done
 /// is the accepted light seconds in those filters, at whatever exposure they
-/// were taken. Frame counts are shown beside it, never instead of it. A target set up before those existed
-/// may carry only the old single hours goal (`targets.goal_integration_secs`);
-/// with no per-filter goal it still counts, as one goal over all filters, so a
-/// goal the user set does not turn into "Not set".
+/// were taken ([acceptedPerGoal]). Frame counts are shown beside it, never
+/// instead of it. A target set up before those existed may carry only the old
+/// single hours goal (`targets.goal_integration_secs`); with no per-filter
+/// goal it still counts, as one goal over all filters, so a goal the user set
+/// does not turn into "Not set".
 class TargetGoal {
   const TargetGoal({
     required this.goalSecs,
@@ -97,7 +142,7 @@ class TargetGoal {
 
   factory TargetGoal.of({
     required List<FilterIntegration> accepted,
-    required Iterable<IntegrationGoal> goals,
+    required List<IntegrationGoal> goals,
     required double oldTotalGoalSecs,
   }) {
     final perFilterGoalSecs = goals.fold(
@@ -107,10 +152,10 @@ class TargetGoal {
     if (perFilterGoalSecs > 0) {
       return TargetGoal(
         goalSecs: perFilterGoalSecs,
-        doneSecs: goals.fold(
-          0.0,
-          (sum, g) => sum + acceptedInGoalFilter(accepted, g.filter).seconds,
-        ),
+        doneSecs: acceptedPerGoal(
+          accepted,
+          goals,
+        ).fold(0.0, (sum, done) => sum + done.seconds),
         allFilters: false,
       );
     }

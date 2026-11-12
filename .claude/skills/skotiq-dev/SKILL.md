@@ -47,7 +47,7 @@ parallel table, or a special case for one device, caller or mode.
 
 | Fact | Owner |
 | --- | --- |
-| Local host vs linked host vs no host | `packages/skotiq_core/lib/src/backend/remote_host.dart`: `backend.remoteHost` (null when the host is this process), `hasNoHost`, `runsRigHere`, `ownsDeviceBridge`; `isRemoteModeProvider`, `isRemoteClientProvider` in `providers/backend_provider.dart`. The only file that tests a backend's class. |
+| Local host vs linked host vs no host | `packages/skotiq_core/lib/src/backend/remote_host.dart`: `backend.remoteHost` (null when the host is this process), `hasNoHost`, `runsRigHere`, `ownsDeviceBridge`; `isRemoteModeProvider`, `isRemoteClientProvider` in `providers/backend_provider.dart`. Nothing outside the backend files tests a backend's class (section 4). |
 | Host data (both sides) | role interfaces in `packages/skotiq_core/lib/src/backend/roles/host_data/`, remote halves in `backend/network_backend/host_data/`, one getter each on `RemoteHost`. Recipe: section 3.8. |
 | Stale async work after a host switch | `AsyncScopes` / `ref.backendScope()` in `packages/skotiq_core/lib/src/providers/async_scope.dart`; dialogs: `HostBoundDialogState` in `packages/skotiq_app/lib/utils/authority_bound_dialog.dart` |
 | Sequence node types (Dart) | `NodeKind` in `packages/skotiq_core/lib/src/models/sequence/sequence_models/node_kind.dart`, one entry per type in `node_kinds.dart`: wire name, legacy names, icon, category, container flag, required devices, field table, describe, diff, captures. App icon and tint: `packages/skotiq_app/lib/screens/sequencer/widgets/node_appearance.dart`. Palette: `packages/skotiq_core/lib/src/providers/sequence/node_palette.dart`. Tree insert: `packages/skotiq_app/lib/screens/sequencer/widgets/tree_insert.dart`. |
@@ -61,7 +61,7 @@ parallel table, or a special case for one device, caller or mode.
 | Error text a user sees | `userFacingError`, `failureText`, `describeError` in `packages/skotiq_core/lib/src/errors/error_text.dart`. Never show `$e` or `e.toString()`. |
 | Charts | `SkotiqChart` and `ChartScale` in `packages/skotiq_ui/lib/src/charts/` |
 | Widgets, tokens, look | `package:skotiq_ui/skotiq_ui.dart` (`lib/src/components`, `tokens`, `theme`); design language `docs/design/overhaul/02-design-language.md`, components `05-components.md` |
-| App routes | `packages/skotiq_app/lib/router/app_router.dart` |
+| App routes | `AppRoute` in `packages/skotiq_app/lib/router/app_routes.dart`: one enum value per path (label, icon, rail group, palette words, tour, parent, redirect). Locations with parameters are built by `AppRoutes.*`; a tab a link can name is an enum with `QueryWord` (`router/query_word.dart`). `router/app_router.dart` builds the GoRouter from the table and maps each route to its screen. Core cannot import the table, so the few route strings core models carry are checked by `packages/skotiq_app/test/router/app_routes_test.dart`. |
 | API routes and their policy | one enum per area in `packages/skotiq_remote_protocol/lib/src/wire/routes/*_api.dart`, listed in `src/wire/api_routes.dart` and exported by `lib/wire.dart`; server binding `apps/desktop/lib/headless_api/route_table.dart`; handler classes `apps/desktop/lib/headless_api/handlers/` (barrel `handlers.dart`), built in `apps/desktop/lib/headless_api_server/handler_initialization.dart` |
 | Wire error body and shared DTOs | `ApiErrorBody`, DTOs under `packages/skotiq_remote_protocol/lib/src/wire/` |
 | Host start-up (GUI host and daemon) | steps `apps/desktop/lib/host/host_steps.dart`; always-on services by role `packages/skotiq_app/lib/startup/always_on_services.dart`; start-up prompts `packages/skotiq_app/lib/startup/startup_surface_queue.dart` |
@@ -130,14 +130,16 @@ Read the nearest existing example first and copy its shape. Every recipe ends wi
    clippy, and the Windows type check (section 6) for anything `#[cfg(windows)]`.
 
 ### 3.5 Screen
-1. Directory `packages/skotiq_app/lib/screens/<feature>/` (desktop-only entry code in `apps/desktop/lib/`),
-   route in `router/app_router.dart`.
+1. Directory `packages/skotiq_app/lib/screens/<feature>/` (desktop-only entry code in `apps/desktop/lib/`).
+   Route: one `AppRoute` value in `router/app_routes.dart` and its arm in `_screen` in
+   `router/app_router.dart` (the switch does not compile without it). Link to it with
+   `AppRoute.x.path` or an `AppRoutes.x(...)` builder, never a path or query written as a string.
 2. Build from `skotiq_ui` components and tokens; charts with `SkotiqChart`; text through
    `skotiq_astro` formatters and `userFacingError`. Every state: loading, empty, error, linked to a
    host, no host, phone width (420 px), red night theme.
 3. Data from providers in `skotiq_core`. Linked mode works by the provider picking the role's side; a
    screen that needs files only the rig has asks `isRemoteClientProvider`.
-4. Launch and drive it (section 5). A screen is not done until you have used it.
+4. Launch and drive it (section 6). A screen is not done until you have used it.
 
 ### 3.6 Event
 1. Rust: the variant in the right enum under `native/skotiq_native/bridge/src/event/`, emitted where
@@ -224,7 +226,7 @@ commit instead of hiding it.
 | --- | --- |
 | Any Dart | `dart analyze <changed paths>` (no new issues); `flutter test --concurrency=4` in each changed package (`dart test` in `skotiq_astro`) |
 | Any Rust | in `native/skotiq_native`: `cargo test --release -p <crate>`, `cargo clippy --release -p <crate> --all-targets`; for code Windows uses: `cargo check --release --target x86_64-pc-windows-gnu --workspace --all-targets` |
-| Structure | `melos run audit:architecture` (the rules in section 4; it says where a change goes when it fails) and `audit:bridge-boundary` |
+| Structure | `melos run audit:architecture` (the first three rules in section 4: dependency direction and `src/` imports, backend class tests, per-node-type dispatch; it says where a change goes when it fails) and `audit:bridge-boundary` |
 | Moved or renamed code | `melos run audit:behavioral:sync` and `audit:placeholders:sync`, then the plain gates `audit:behavioral`, `audit:placeholders`, `audit:fail-closed` |
 | Nodes | node codec goldens (3.1) and `cargo test --release -p skotiq_sequencer` |
 | Settings | `test/settings/` in `skotiq_core` (generated table, base compatibility) |
