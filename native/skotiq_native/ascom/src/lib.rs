@@ -99,8 +99,8 @@ pub use camera::{
 pub use cover_calibrator::{CoverCalibrator, CoverCalibratorFullStatus};
 pub use dome::{Dome, DomeFullStatus};
 pub use error::{AscomError, AscomResult};
-pub use filter_wheel::{FilterWheel, FilterWheelFullStatus};
-pub use focuser::{Focuser, FocuserCapabilities, FocuserFullStatus};
+pub use filter_wheel::FilterWheel;
+pub use focuser::Focuser;
 pub use health::{ConnectionHealth, HealthMonitor};
 pub use mount::{
     Mount, MountCapabilities, MountFullStatus, MountGuideRates, MountMotionStatus,
@@ -109,7 +109,7 @@ pub use mount::{
 pub use observing_conditions::{
     ObservingConditions, ObservingConditionsFullStatus, SkyStatus, WeatherStatus, WindStatus,
 };
-pub use rotator::{Rotator, RotatorFullStatus};
+pub use rotator::Rotator;
 pub use safety_monitor::{SafetyMonitor, SafetyMonitorFullStatus};
 pub use switch::{Switch, SwitchChannelState, SwitchFullStatus};
 
