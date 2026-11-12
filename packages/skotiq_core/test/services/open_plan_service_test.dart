@@ -69,7 +69,7 @@ void main() {
         .saveSequence(first.read(currentSequenceProvider)!);
     final open = first.read(currentSequenceProvider)!;
     editor.applyPersistedSave(
-      expectedSequenceId: open.id,
+      savedFrom: open,
       databaseId: id,
       name: open.name,
       description: open.description,

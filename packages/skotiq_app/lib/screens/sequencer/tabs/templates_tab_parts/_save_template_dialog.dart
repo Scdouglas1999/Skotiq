@@ -91,7 +91,7 @@ class _SaveTemplateDialogState extends ConsumerState<_SaveTemplateDialog>
       }
 
       ref.read(currentSequenceProvider.notifier).applyPersistedSave(
-            expectedSequenceId: widget.sequence.id,
+            savedFrom: widget.sequence,
             databaseId: savedId,
             name: templateSequence.name,
             description: templateSequence.description,

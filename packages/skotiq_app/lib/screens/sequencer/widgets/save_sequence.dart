@@ -32,7 +32,7 @@ Future<void> saveOpenSequence(BuildContext context, WidgetRef ref) async {
       ref,
       scope,
       sequence,
-      openSequenceId: sequence.id,
+      open: sequence,
     );
     if (scope.isStale || !context.mounted) return;
     _announceSaved(context, sequence.name, snapshotError);
@@ -56,7 +56,8 @@ Future<void> showSaveSequenceDialog(
     );
 
 /// Write [toSave] to the library under [scope]'s host and re-anchor the open
-/// plan (still [openSequenceId]) on the saved row.
+/// plan on the saved row. [open] is the open plan as it was when the save
+/// began; what was edited since stays unsaved.
 ///
 /// Returns the version-history snapshot's error, or null when the snapshot
 /// was taken too. The row itself is durable once this returns; a failed
@@ -65,7 +66,7 @@ Future<Object?> _writeToLibrary(
   WidgetRef ref,
   AsyncScope<SkotiqBackend> scope,
   Sequence toSave, {
-  required String openSequenceId,
+  required Sequence open,
 }) async {
   final repository = ref.read(sequenceRepositoryProvider);
   final savedId =
@@ -80,7 +81,7 @@ Future<Object?> _writeToLibrary(
   }
   if (scope.isStale) return snapshotError;
   ref.read(currentSequenceProvider.notifier).applyPersistedSave(
-        expectedSequenceId: openSequenceId,
+        savedFrom: open,
         databaseId: savedId,
         name: toSave.name,
         description: toSave.description,
@@ -242,7 +243,7 @@ class _SaveSequenceDialogState extends ConsumerState<SaveSequenceDialog>
         ref,
         host,
         sequenceToSave,
-        openSequenceId: widget.sequence.id,
+        open: widget.sequence,
       );
       if (!mounted || host.isStale) return;
       Navigator.pop(context);

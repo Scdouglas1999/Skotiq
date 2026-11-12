@@ -5,6 +5,8 @@
 // library save on the Saved tab. A user who stops at either of the first two
 // believes the plan is saved when it is not.
 
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -97,6 +99,29 @@ void main() {
     expect(find.text('Saved "Whirlpool LRGB"'), findsOneWidget);
     expect(editor.isDirty, isFalse);
     expect(find.text('· unsaved changes'), findsNothing);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  testWidgets('an edit made while Ctrl+S is writing stays unsaved',
+      (tester) async {
+    final write = Completer<int>();
+    when(() => repository.saveSequence(any(),
+        isTemplate: any(named: 'isTemplate'))).thenAnswer((_) => write.future);
+    final handle = await pumpWith(tester, _plan(databaseId: 7));
+    final editor = handle.container.read(currentSequenceProvider.notifier);
+    editor.setName('Whirlpool LRGB');
+    await tester.pump();
+
+    await pressCtrlS(tester);
+    editor.setName('Whirlpool LRGB v2');
+    write.complete(7);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Saved "Whirlpool LRGB"'), findsOneWidget);
+    expect(editor.state?.name, 'Whirlpool LRGB v2');
+    expect(editor.isDirty, isTrue);
+    expect(find.text('· unsaved changes'), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
   });
 
