@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1224619038;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -452526340;
 
 // Section: executor
 
@@ -740,28 +740,6 @@ fn wire__crate__api__finishing_analyze__api_color_calibrate_impl(
                 transform_result_dco::<_, _, String>((move || {
                     let output_ok =
                         crate::api::finishing_analyze::api_color_calibrate(api_args_json)?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__finishing_combine__api_combine_channels_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    args_json: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_combine_channels",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_args_json = args_json.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, String>((move || {
-                    let output_ok =
-                        crate::api::finishing_combine::api_combine_channels(api_args_json)?;
                     Ok(output_ok)
                 })())
             }
@@ -28476,14 +28454,6 @@ mod io {
         args_json: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__finishing_analyze__api_color_calibrate_impl(port_, args_json)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__finishing_combine__api_combine_channels(
-        port_: i64,
-        args_json: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__finishing_combine__api_combine_channels_impl(port_, args_json)
     }
 
     #[unsafe(no_mangle)]

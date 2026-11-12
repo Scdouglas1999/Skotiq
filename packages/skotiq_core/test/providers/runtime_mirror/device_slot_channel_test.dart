@@ -381,8 +381,8 @@ void main() {
         () => client.backend.connectDevice(DeviceType.focuser, 'sim_focuser_1'),
       ).thenAnswer((_) => hostAnswers.future);
       final connecting = client.container
-          .read(focuserStateProvider.notifier)
-          .connect('sim_focuser_1', deviceName: 'Simulated Focuser');
+          .read(deviceServiceProvider)
+          .connect(DeviceType.focuser, 'sim_focuser_1');
       await settle();
       expect(
         client.container.read(focuserStateProvider).connectionState,
@@ -400,7 +400,7 @@ void main() {
       expect(slot.connectionState, DeviceConnectionState.connecting);
       expect(slot.deviceId, 'sim_focuser_1');
       hostAnswers.completeError(StateError('gave up'));
-      await connecting;
+      await expectLater(connecting, throwsA(isA<StateError>()));
     });
 
     test('a slot holding no device is never touched', () async {

@@ -155,7 +155,6 @@ abstract interface class VendorSdkBackend {
 /// owned by the focuser/camera drivers in Rust, and the orchestration is
 /// stateless from the Dart side.
 abstract class DeviceBackend {
-
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType);
 
   Future<List<DeviceInfo>> discoverIndiAtAddress(String host, int port);
@@ -493,6 +492,12 @@ abstract class DeviceBackend {
   /// # Arguments
   /// * `deviceId` - The unique identifier for the device
   Future<void> stopDeviceHeartbeat(String deviceId);
+
+  /// The device types this backend's native side reconnects by itself once
+  /// their heartbeat is lost. Whoever else reconnects devices leaves these
+  /// alone, or the two connect the same device at once. Empty for a backend
+  /// that does not run the rig's devices.
+  Set<DeviceType> get nativeReconnectedDeviceTypes;
 
   /// Check device health status
   ///

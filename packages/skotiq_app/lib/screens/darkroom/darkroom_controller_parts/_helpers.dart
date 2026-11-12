@@ -240,6 +240,7 @@ List<DarkroomParamSpec> _decodeParams(List<dynamic> raw) {
     final displayName = entry['displayName'];
     final kindWire = entry['kind'];
     final allowed = entry['allowed'];
+    final allowedLabels = entry['allowedLabels'];
     final required = entry['required'];
     final independent = entry['independent'];
     final summary = entry['summary'];
@@ -260,6 +261,11 @@ List<DarkroomParamSpec> _decodeParams(List<dynamic> raw) {
         length: darkroomInteger(entry['length']),
         allowed: allowed is List
             ? List.unmodifiable(allowed.whereType<String>())
+            : const [],
+        allowedLabels: allowed is List &&
+                allowedLabels is List &&
+                allowedLabels.length == allowed.length
+            ? List.unmodifiable(allowedLabels.whereType<String>())
             : const [],
         defaultValue: entry['default'],
         // A parameter the registry does not describe as jointly constrained is

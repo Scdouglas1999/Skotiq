@@ -38,7 +38,7 @@ pub(super) async fn run_command_handler(run: Arc<Run>, mut rx: mpsc::Receiver<Ex
             }
             ExecutorCommand::Stop => {
                 run.is_cancelled.store(true, Ordering::Relaxed);
-                run.state.transition(ExecutorState::Stopping);
+                run.state.begin_stopping();
                 // Keep the command future alive. Breaking here
                 // lets this select! branch win and drops the
                 // node-execution future before its hardware

@@ -36,6 +36,20 @@ import 'package:skotiq_core/skotiq_core.dart';
 /// that the harness wires into the mocked stream getters; widgets listening
 /// to `backend.eventStream` will see whatever the test pushes here.
 class MockBackend extends Mock implements SkotiqBackend {
+  /// The native policy (the heartbeat reconnects these itself), unless a test
+  /// stubs another answer.
+  @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes =>
+      super.noSuchMethod(Invocation.getter(#nativeReconnectedDeviceTypes))
+          as Set<DeviceType>? ??
+      const {
+        DeviceType.mount,
+        DeviceType.guider,
+        DeviceType.dome,
+        DeviceType.weather,
+        DeviceType.coverCalibrator,
+      };
+
   // Why nullable + late-bound: the controllers are owned by [mockBackend]
   // (the factory), not the constructor — mocktail's `Mock` requires a
   // zero-arg constructor and adding a constructor argument here would

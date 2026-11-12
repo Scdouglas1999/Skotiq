@@ -274,6 +274,7 @@ class DeviceService {
             attempt: attempt,
             maxAttempts: maxAttempts,
           ),
+      connect: _connect,
       reconnectTarget: _reconnectTarget,
     );
     _switchChannels = SwitchChannelService(ref: _ref, backend: _backend);

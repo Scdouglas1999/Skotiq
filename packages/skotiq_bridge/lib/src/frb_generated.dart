@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1224619038;
+  int get rustContentHash => -452526340;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -257,10 +257,6 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiImagingApiClearDeviceImage({required String deviceId});
 
   Future<String> crateApiFinishingAnalyzeApiColorCalibrate({
-    required String argsJson,
-  });
-
-  Future<String> crateApiFinishingCombineApiCombineChannels({
     required String argsJson,
   });
 
@@ -2510,36 +2506,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiFinishingAnalyzeApiColorCalibrateConstMeta =>
       const TaskConstMeta(
         debugName: "api_color_calibrate",
-        argNames: ["argsJson"],
-      );
-
-  @override
-  Future<String> crateApiFinishingCombineApiCombineChannels({
-    required String argsJson,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(argsJson);
-          return wire.wire__crate__api__finishing_combine__api_combine_channels(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_String,
-          decodeErrorData: dco_decode_String,
-        ),
-        constMeta: kCrateApiFinishingCombineApiCombineChannelsConstMeta,
-        argValues: [argsJson],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiFinishingCombineApiCombineChannelsConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_combine_channels",
         argNames: ["argsJson"],
       );
 

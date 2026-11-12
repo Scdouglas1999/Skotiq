@@ -434,18 +434,41 @@ extension _SequencerLifecycle on SequencerHandlers {
       operation: 'sequencer.stop',
     );
     final executor = container.read(sequenceExecutorProvider);
-    await executor.stop(preserveCheckpoint: preserveCheckpoint);
-    publishHostMutationFromContainer(
+    final stopped = executor.stop(preserveCheckpoint: preserveCheckpoint);
+    void published() => publishHostMutationFromContainer(
       container,
       entityType: HostMutationEntity.sequencer,
       action: HostMutationAction.stopped,
     );
+    if (!wasRunning) {
+      await stopped;
+      published();
+      return jsonOk({
+        if (commandId != null) 'commandId': commandId,
+        'status': 'stopped',
+        'preserveCheckpoint': preserveCheckpoint,
+        kWasRunningField: false,
+        'message': 'No sequence was running; nothing to stop.',
+      });
+    }
+    // The run's stopping phase (an exposure's abort, the shutdown steps a dawn
+    // park started) can take minutes. The caller is answered now and follows
+    // the run's state; a stop that fails leaves the run `stopFailed`, which
+    // status and the run record show.
+    unawaited(
+      stopped.then(
+        (_) => published(),
+        onError: (Object error, StackTrace stackTrace) => _logger.error(
+          'Stop did not complete: $error\n$stackTrace',
+          source: 'SequencerHandlers',
+        ),
+      ),
+    );
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
-      'status': 'stopped',
+      'status': 'stopping',
       'preserveCheckpoint': preserveCheckpoint,
-      kWasRunningField: wasRunning,
-      if (!wasRunning) 'message': 'No sequence was running; nothing to stop.',
+      kWasRunningField: true,
     });
   }
 

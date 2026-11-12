@@ -418,7 +418,29 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
     }
     crate::api::devices::simulation::clear_sim_exposure().await;
 
-    let site = (39.9719, -75.3576);
+    // A site where it is night whenever the test runs: the daylight gate
+    // refuses light frames under a Sun above -12 degrees.
+    let now = chrono::Utc::now();
+    let site = (0..24)
+        .map(|hour| (39.9719, -180.0 + 15.0 * f64::from(hour)))
+        .min_by(|a, b| {
+            skotiq_sequencer::solar::sun_altitude_degrees(a.0, a.1, &now)
+                .total_cmp(&skotiq_sequencer::solar::sun_altitude_degrees(b.0, b.1, &now))
+        })
+        .unwrap();
+    // The simulated mount takes its hour angle, and so its pier side, from the
+    // app's site.
+    let previous_site = crate::api::get_state()
+        .get_observer_location()
+        .ok()
+        .flatten();
+    crate::api::get_state()
+        .set_observer_location(Some(crate::storage::ObserverLocation {
+            latitude: site.0,
+            longitude: site.1,
+            elevation: 120.0,
+        }))
+        .unwrap();
     let mut ctx = target_context(mount_id, NGC7380_J2000);
     let slewed =
         skotiq_sequencer::instructions::execute_slew(&SlewConfig::default(), &ctx, None).await;
@@ -586,4 +608,5 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
         !date_obs.contains('Z'),
         "DATE-OBS carries a zone suffix, which the FITS standard does not allow: {date_obs}"
     );
+    let _ = crate::api::get_state().set_observer_location(previous_site);
 }

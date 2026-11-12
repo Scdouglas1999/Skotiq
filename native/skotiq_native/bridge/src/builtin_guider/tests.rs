@@ -1700,3 +1700,40 @@ async fn a_settle_that_runs_out_keeps_guiding_and_reads_true() {
     let above = settle_timeout_message(2.4, 1.5, 5.0, 60.0);
     assert!(above.contains("still above 1.50 px"), "{above}");
 }
+
+/// A stop that lands while a guide frame is in flight: the loop's iteration
+/// finishes and writes its status before it sees the stop flag. The guider
+/// read "Guiding" afterwards with nothing running (the run had stopped it).
+#[tokio::test]
+async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
+    let _serial = test_serial().lock().await;
+    reset_guider_state().await;
+    state().write().await.connected = true;
+    {
+        let _op = op_lock().lock().await;
+        begin_loop(
+            |guard| {
+                guard.guiding = true;
+                guard.last_status.state = "Guiding".to_string();
+            },
+            GuidingEvent::Calibrating,
+            |controller, stop_flag| async move {
+                while !stop_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                    tokio::time::sleep(Duration::from_millis(1)).await;
+                }
+                // The frame in flight completes after the stop was asked for.
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                controller.write().await.last_status.state = "Guiding".to_string();
+            },
+        )
+        .await;
+    }
+
+    stop().await.expect("stop");
+
+    let guard = state().read().await;
+    assert_eq!(guard.last_status.state, "Connected");
+    assert!(!guard.guiding);
+    drop(guard);
+    reset_guider_state().await;
+}

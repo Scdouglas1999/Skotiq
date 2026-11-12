@@ -7,6 +7,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 import '../utils/skotiq_data_directory.dart';
 
 final focusModelServiceProvider = Provider<FocusModelService>((ref) {
@@ -92,7 +93,7 @@ class FocusHistoryPoint {
   });
 
   Map<String, dynamic> toJson() => {
-    'timestamp': timestamp.toIso8601String(),
+    'timestamp': timestamp.toWireTime(),
     'temperature': temperatureCelsius,
     'position': focusPosition,
     'hfr': hfr,
@@ -101,7 +102,7 @@ class FocusHistoryPoint {
 
   factory FocusHistoryPoint.fromJson(Map<String, dynamic> json) =>
       FocusHistoryPoint(
-        timestamp: DateTime.parse(json['timestamp'] as String),
+        timestamp: parseWireTime(json['timestamp'] as String),
         temperatureCelsius: (json['temperature'] as num).toDouble(),
         focusPosition: json['position'] as int,
         hfr: (json['hfr'] as num).toDouble(),
@@ -146,7 +147,7 @@ class FocusModel {
     'intercept': intercept,
     'rSquared': rSquared,
     'dataPointCount': dataPointCount,
-    'lastUpdated': lastUpdated.toIso8601String(),
+    'lastUpdated': lastUpdated.toWireTime(),
   };
 
   factory FocusModel.fromJson(Map<String, dynamic> json) => FocusModel(
@@ -154,7 +155,7 @@ class FocusModel {
     intercept: (json['intercept'] as num).toDouble(),
     rSquared: (json['rSquared'] as num).toDouble(),
     dataPointCount: json['dataPointCount'] as int,
-    lastUpdated: DateTime.parse(json['lastUpdated'] as String),
+    lastUpdated: parseWireTime(json['lastUpdated'] as String),
   );
 }
 
