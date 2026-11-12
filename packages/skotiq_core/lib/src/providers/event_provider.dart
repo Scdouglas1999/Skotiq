@@ -127,14 +127,23 @@ class EventHistoryNotifier extends StateNotifier<List<SkotiqEvent>> {
     state = [event, ...state].take(maxHistorySize).toList();
   }
 
+  final Set<SkotiqEvent> _earlier = Set.identity();
+
   /// Fill an empty history with events that happened before this window was
   /// listening (a linked client's first connect), newest first.
   void seedEarlier(List<SkotiqEvent> newestFirst) {
     if (!mounted || state.isNotEmpty) return;
-    state = newestFirst.take(maxHistorySize).toList();
+    final earlier = newestFirst.take(maxHistorySize).toList();
+    _earlier.addAll(earlier);
+    state = earlier;
   }
 
+  /// Whether [event] came with [seedEarlier]: it is part of the night so
+  /// far, not something that just happened.
+  bool happenedEarlier(SkotiqEvent event) => _earlier.contains(event);
+
   void clear() {
+    _earlier.clear();
     state = [];
   }
 
