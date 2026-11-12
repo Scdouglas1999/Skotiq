@@ -179,7 +179,9 @@ async fn cool_node_with(temps: &[f64], stop_on_quality_problems: bool) -> CoolRu
 
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }

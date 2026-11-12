@@ -59,9 +59,7 @@ pub(crate) fn enumerate_brand_devices_from_sdk(
 
     // Why: count is c_uint (u32) returned by OgmacamEnumV2; widening u32 -> usize is
     // value-preserving on every Tier 1 target.
-    for i in 0..count as usize {
-        let dev = &arr[i];
-
+    for dev in arr.iter().take(count as usize) {
         let name = touptek_device_string(&dev.displayname);
         let id = touptek_device_string(&dev.id);
 
@@ -80,12 +78,16 @@ pub(crate) fn enumerate_brand_devices_from_sdk(
         } else {
             (0, 0, 0, 0, 0.0, 0.0)
         };
+        if (flags & (OGMACAM_FLAG_FILTERWHEEL | OGMACAM_FLAG_AUTOFOCUSER)) != 0 {
+            tracing::debug!("{brand}: '{name}' is a filter wheel or focuser, not a camera");
+            continue;
+        }
 
         devices.push(TouptekDeviceInfo {
             camera_id: id,
             name,
             serial_number: None,
-            discovery_index: i,
+            discovery_index: devices.len(),
             model_flags: flags,
             max_fan_speed,
             width,
@@ -124,7 +126,8 @@ pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, DriverError> {
     let mut load_errors = Vec::new();
     let mut none_installed = true;
 
-    for &(dll_name, _func_prefix, brand_name) in TOUPTEK_BRANDS {
+    for &(library_base, _func_prefix, brand_name) in TOUPTEK_BRANDS {
+        let dll_name = brand_library_file(library_base);
         if let Err(err) = get_sdk_for_brand(brand_name) {
             tracing::debug!(
                 "Touptek brand SDK '{}' ({}) not available, skipping",
@@ -132,11 +135,7 @@ pub async fn discover_devices() -> Result<Vec<TouptekDeviceInfo>, DriverError> {
                 dll_name
             );
             none_installed &= matches!(err, DriverError::SdkNotInstalled(_));
-            load_errors.push((
-                brand_name.to_string(),
-                dll_name.to_string(),
-                err.to_string(),
-            ));
+            load_errors.push((brand_name.to_string(), dll_name, err.to_string()));
             continue;
         }
         loaded_sdk_count += 1;

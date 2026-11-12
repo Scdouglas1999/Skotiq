@@ -50,10 +50,22 @@ impl DeviceManager {
             .splitn(3, ':')
             .nth(2)
             .ok_or("Invalid native device ID format")?;
+        let site: skotiq_device::SiteSource = Arc::new(|| {
+            let location = crate::api::get_state()
+                .get_observer_location()
+                .ok()
+                .flatten()?;
+            Some(skotiq_device::MountSiteInfo {
+                latitude_deg: location.latitude,
+                longitude_deg: location.longitude,
+                elevation_m: Some(location.elevation),
+            })
+        });
         let handle = family
             .open(OpenRequest {
                 address,
                 name: &info.name,
+                site,
             })
             .await
             .map_err(|e| e.to_string())?;
@@ -177,8 +189,11 @@ impl DeviceManager {
                 if !mount.is_connected() {
                     return Ok(false);
                 }
+                // A coordinate read, because it always crosses the wire. The
+                // LX200 driver answers the tracking state from memory on most
+                // firmware, so a mount that had gone silent still passed.
                 mount
-                    .get_tracking()
+                    .get_coordinates()
                     .await
                     .map(|_| true)
                     .map_err(|e| format!("Native mount liveness probe failed: {}", e))

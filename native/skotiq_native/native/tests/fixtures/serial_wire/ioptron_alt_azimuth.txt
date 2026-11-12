@@ -1,0 +1,20 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+< 5035
+> :GLS#
+< -271431468028210531#
+> :FW1#
+< 210607210329#
+> :FW2#
+< 210105210106#
+  -> Ok(())
+  name=iOptron AZ Mount Pro (<PORT>) can_pulse_guide=false
+call pulse_guide(North, 40)
+  -> Err(NotSupported)
+call get_side_of_pier
+  -> Ok(Unknown)
+call disconnect
+> :Q#
+< 1
+  -> Ok(())

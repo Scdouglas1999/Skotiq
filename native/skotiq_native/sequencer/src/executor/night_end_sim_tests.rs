@@ -133,6 +133,59 @@ async fn dawn_park_still_runs_the_plans_shutdown_steps() {
     assert!(notified(&calls, "Warm camera: done"), "calls={calls:?}");
 }
 
+/// Nothing a checkpoint says turns the run's triggers off. A checkpoint
+/// written by an older build, or edited by hand, with `"triggers_enabled":
+/// false` resumes a run that still parks at dawn.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_checkpoint_that_says_triggers_are_off_still_parks_at_dawn() {
+    let dir = std::env::temp_dir().join(format!(
+        "skotiq_triggers_off_checkpoint_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(night_plan(node(
+        "home",
+        "Home mount",
+        NodeType::HomeMount,
+    )));
+    checkpoint.executor_state = super::ExecutorState::Running;
+    checkpoint.is_active = true;
+    checkpoint.camera_id = Some("cam-1".to_string());
+    checkpoint.mount_id = Some("mount-1".to_string());
+    let mut file = serde_json::to_value(&checkpoint).unwrap();
+    file["trigger_state"] = serde_json::json!({ "triggers_enabled": false });
+    std::fs::write(
+        dir.join("skotiq_session.checkpoint"),
+        serde_json::to_string(&file).unwrap(),
+    )
+    .unwrap();
+
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    ops.cooler_idle.store(true, Ordering::SeqCst);
+    let mut executor = super::SequenceExecutor::new();
+    executor.set_checkpoint_dir(&dir);
+    executor.set_device_ops(ops.clone() as SharedDeviceOps);
+    executor
+        .resume_from_checkpoint()
+        .await
+        .expect("the checkpoint resumes");
+    executor.start().await.expect("executor starts");
+    wait_for_monitor(&ops).await;
+
+    bring_dawn_near(&executor).await;
+    let state = wait_until_finished(&executor).await;
+    let calls = ops.calls();
+    let _ = executor.stop().await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(state, super::ExecutorState::Cancelled, "calls={calls:?}");
+    assert!(
+        calls.iter().any(|c| c == "mount_park:mount-1"),
+        "dawn must park the resumed run; calls={calls:?}"
+    );
+}
+
 /// A stop that arrives while dawn is putting the rig away is a request: the
 /// executor shared behind a lock is free again at once and reads `Stopping`,
 /// the plan's Warm camera is not cut short, and the stop is confirmed when it
@@ -293,7 +346,10 @@ async fn a_stopped_run_leaves_guiding_it_did_not_start_and_says_so() {
     let mut warned = false;
     loop {
         match events.try_recv() {
-            Ok(super::ExecutorEvent::Warning { message }) => {
+            Ok(
+                super::ExecutorEvent::Warning { message }
+                | super::ExecutorEvent::NoticedWarning { message, .. },
+            ) => {
                 warned |= message.contains("started outside this run");
             }
             Ok(_) | Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => {}
@@ -315,9 +371,13 @@ async fn a_stopped_run_leaves_guiding_it_did_not_start_and_says_so() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn dawn_without_parking_runs_the_plans_own_park_and_warm() {
     let ops = Arc::new(ScriptedDeviceOps::new());
-    let mut executor = super::SequenceExecutor::new();
+    let executor = super::SequenceExecutor::new();
     let mut events = executor.subscribe();
-    executor.set_park_policy(DAWN_OFF).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.park_policy = DAWN_OFF)
+        .await
+        .unwrap();
     let plan = night_plan(node("park", "Park mount", NodeType::Park));
     let mut executor = start_night(executor, ops.clone(), plan).await;
     wait_for_monitor(&ops).await;
@@ -500,7 +560,8 @@ async fn last_nights_stop_time_is_rolled_to_tonight_and_the_target_images() {
     let mut skipped = false;
     while let Ok(event) = events.try_recv() {
         match event {
-            super::ExecutorEvent::Warning { message } => warnings.push(message),
+            super::ExecutorEvent::Warning { message }
+            | super::ExecutorEvent::NoticedWarning { message, .. } => warnings.push(message),
             super::ExecutorEvent::TriggerFired { trigger_id, .. }
                 if trigger_id == crate::node::logic::target_header::TARGET_END_WHEN_TRIGGER_ID =>
             {

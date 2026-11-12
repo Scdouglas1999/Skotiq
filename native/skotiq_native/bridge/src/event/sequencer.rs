@@ -30,6 +30,29 @@ impl SequencerErrorKind {
     }
 }
 
+/// A happening the run carries on through and tells the operator about once.
+/// The `DecisionLogged` row that carries it is what the app raises the
+/// notification from; the `Error` (a warning) that carries it is the line in
+/// the run's warnings and raises nothing of its own. Mirrors
+/// `skotiq_sequencer::RunNotice`.
+#[frb]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SequencerNotice {
+    AutofocusContinued,
+    RejectStreak,
+    ProblemNoticed,
+}
+
+impl From<skotiq_sequencer::RunNotice> for SequencerNotice {
+    fn from(notice: skotiq_sequencer::RunNotice) -> Self {
+        match notice {
+            skotiq_sequencer::RunNotice::AutofocusContinued => Self::AutofocusContinued,
+            skotiq_sequencer::RunNotice::RejectStreak => Self::RejectStreak,
+            skotiq_sequencer::RunNotice::ProblemNoticed => Self::ProblemNoticed,
+        }
+    }
+}
+
 #[frb]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SequencerEvent {
@@ -96,6 +119,9 @@ pub enum SequencerEvent {
     Error {
         message: String,
         kind: SequencerErrorKind,
+        /// Set on the warning line of a happening its decision row announces.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        notice: Option<SequencerNotice>,
     },
     /// A meridian flip finished. Mirrors
     /// `ExecutorEvent::MeridianFlipOutcome`.
@@ -558,6 +584,9 @@ pub enum SequencerEvent {
         /// has been stamped with one.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         sequence_run_id: Option<i64>,
+        /// Set on the row of a happening the operator is told about once.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        notice: Option<SequencerNotice>,
     },
 }
 

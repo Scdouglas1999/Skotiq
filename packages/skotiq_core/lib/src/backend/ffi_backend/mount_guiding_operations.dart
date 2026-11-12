@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiMountGuidingOperations on _FfiBackendBase {
-
   @override
   Future<void> mountSlewToCoordinates(
     String deviceId,
@@ -479,78 +478,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> phd2StartGuiding({
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) async {
-    await _native(
-      'phd2StartGuiding',
-      () => bridge.apiPhd2StartGuiding(
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-      ),
-    );
-  }
-
-  @override
-  Future<void> phd2StopGuiding() async {
-    await _native('phd2StopGuiding', () => bridge.apiPhd2StopGuiding());
-  }
-
-  @override
-  Future<void> phd2Dither({
-    double amount = 5.0,
-    bool raOnly = false,
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) async {
-    await _native(
-      'phd2Dither',
-      () => bridge.apiPhd2Dither(
-        amount: amount,
-        raOnly: raOnly ? 1 : 0,
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-      ),
-    );
-  }
-
-  @override
-  Future<Phd2Status> phd2GetStatus() async {
-    // A status the UI polls, not a command: without the native library
-    // "disconnected" is the truthful answer, so this does not refuse.
-    final status = bridge.NativeBridge.isNativeAvailable
-        ? await bridge.apiPhd2GetStatus()
-        : const bridge.Phd2Status(
-            connected: false,
-            state: 'Disconnected',
-            rmsRa: 0,
-            rmsDec: 0,
-            rmsTotal: 0,
-            snr: 0,
-            starMass: 0,
-          );
-    return _guiderStatus(status);
-  }
-
-  @override
-  Future<Phd2StarImage> phd2GetStarImage({int size = 50}) async {
-    final image = await bridge.apiPhd2GetStarImage(size: size);
-    return Phd2StarImage(
-      frame: image.frame,
-      width: image.width,
-      height: image.height,
-      starX: image.starX,
-      starY: image.starY,
-      pixels: Uint8List.fromList(image.pixels),
-    );
-  }
-
-  @override
   Future<List<String>> phd2GetAlgoParamNames({required String axis}) async {
     return await _native(
       'phd2GetAlgoParamNames',
@@ -582,14 +509,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> phd2SetPaused(bool paused) async {
-    await _native(
-      'phd2SetPaused',
-      () => bridge.apiPhd2SetPaused(paused: paused),
-    );
-  }
-
-  @override
   Future<void> phd2ClearCalibration({String which = 'both'}) async {
     await _native(
       'phd2ClearCalibration',
@@ -603,57 +522,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<Phd2CalibrationData> phd2GetCalibrationData() async {
-    final data = await _native(
-      'phd2GetCalibrationData',
-      () => bridge.apiPhd2GetCalibrationData(),
-    );
-    return _calibrationData(data);
-  }
-
-  @override
-  Future<(double, double)> phd2FindStar() async {
-    final result = await _native(
-      'phd2FindStar',
-      () => bridge.apiPhd2FindStar(),
-    );
-    return (result.$1, result.$2);
-  }
-
-  @override
-  Future<void> phd2SetLockPosition({
-    required double x,
-    required double y,
-    bool exact = false,
-  }) async {
-    await _native(
-      'phd2SetLockPosition',
-      () => bridge.apiPhd2SetLockPosition(x: x, y: y, exact: exact),
-    );
-  }
-
-  @override
-  Future<(double, double)> phd2GetLockPosition() async {
-    final result = await _native(
-      'phd2GetLockPosition',
-      () => bridge.apiPhd2GetLockPosition(),
-    );
-    return (result.$1, result.$2);
-  }
-
-  @override
-  Future<void> phd2Loop() async {
-    await _native('phd2Loop', () => bridge.apiPhd2Loop());
-  }
-
-  @override
-  Future<void> phd2DeselectStar() async {
-    await _native('phd2DeselectStar', () => bridge.apiPhd2DeselectStar());
-  }
-
-  @override
   Future<void> guiderStartGuiding({
-    required String deviceId,
     double settlePixels = 1.0,
     double settleTime = 10.0,
     double settleTimeout = 60.0,
@@ -661,7 +530,6 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     await _native(
       'guiderStartGuiding',
       () => bridge.apiGuiderStartGuiding(
-        deviceId: _canonicalGuiderDeviceId(deviceId),
         settlePixels: settlePixels,
         settleTime: settleTime,
         settleTimeout: settleTimeout,
@@ -670,16 +538,12 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> guiderStopGuiding({required String deviceId}) async {
-    await _native(
-      'guiderStop',
-      () => bridge.apiGuiderStop(deviceId: _canonicalGuiderDeviceId(deviceId)),
-    );
+  Future<void> guiderStopGuiding() async {
+    await _native('guiderStop', () => bridge.apiGuiderStop());
   }
 
   @override
   Future<void> guiderDither({
-    required String deviceId,
     double amount = 5.0,
     bool raOnly = false,
     double settlePixels = 1.0,
@@ -689,9 +553,8 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
     await _native(
       'guiderDither',
       () => bridge.apiGuiderDither(
-        deviceId: _canonicalGuiderDeviceId(deviceId),
         amount: amount,
-        raOnly: raOnly ? 1 : 0,
+        raOnly: raOnly,
         settlePixels: settlePixels,
         settleTime: settleTime,
         settleTimeout: settleTimeout,
@@ -700,76 +563,58 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> guiderLoop({required String deviceId}) async {
+  Future<void> guiderLoop() async {
+    await _native('guiderLoop', () => bridge.apiGuiderLoop());
+  }
+
+  @override
+  Future<void> guiderSetPaused(bool paused) async {
     await _native(
-      'guiderLoop',
-      () => bridge.apiGuiderLoop(deviceId: _canonicalGuiderDeviceId(deviceId)),
+      'guiderSetPaused',
+      () => bridge.apiGuiderSetPaused(paused: paused),
     );
   }
 
   @override
-  Future<(double, double)> guiderFindStar({required String deviceId}) async {
+  Future<(double, double)> guiderFindStar() async {
     final result = await _native(
       'guiderFindStar',
-      () => bridge.apiGuiderFindStar(
-        deviceId: _canonicalGuiderDeviceId(deviceId),
-      ),
+      () => bridge.apiGuiderFindStar(),
     );
     return (result.$1, result.$2);
   }
 
   @override
   Future<void> guiderSetLockPosition({
-    required String deviceId,
     required double x,
     required double y,
     bool exact = false,
   }) async {
     await _native(
       'guiderSetLockPosition',
-      () => bridge.apiGuiderSetLockPosition(
-        deviceId: _canonicalGuiderDeviceId(deviceId),
-        x: x,
-        y: y,
-        exact: exact,
-      ),
+      () => bridge.apiGuiderSetLockPosition(x: x, y: y, exact: exact),
     );
   }
 
   @override
-  Future<(double, double)> guiderGetLockPosition({
-    required String deviceId,
-  }) async {
+  Future<(double, double)> guiderGetLockPosition() async {
     final result = await _native(
       'guiderGetLockPosition',
-      () => bridge.apiGuiderGetLockPosition(
-        deviceId: _canonicalGuiderDeviceId(deviceId),
-      ),
+      () => bridge.apiGuiderGetLockPosition(),
     );
     return (result.$1, result.$2);
   }
 
   @override
-  Future<void> guiderDeselectStar({required String deviceId}) async {
-    await _native(
-      'guiderDeselectStar',
-      () => bridge.apiGuiderDeselectStar(
-        deviceId: _canonicalGuiderDeviceId(deviceId),
-      ),
-    );
+  Future<void> guiderDeselectStar() async {
+    await _native('guiderDeselectStar', () => bridge.apiGuiderDeselectStar());
   }
 
   @override
-  Future<Phd2StarImage> guiderGetStarImage({
-    required String deviceId,
-    int size = 50,
-  }) async {
+  Future<Phd2StarImage> guiderGetStarImage({int size = 50}) async {
     final image = await _native(
       'guiderGetStarImage',
-      () => bridge.apiGuiderGetStarImage(
-        deviceId: _canonicalGuiderDeviceId(deviceId),
-        size: size,
-      ),
+      () => bridge.apiGuiderGetStarImage(size: size),
     );
     return Phd2StarImage(
       frame: image.frame,
@@ -782,32 +627,20 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<Phd2Status> guiderGetStatus({required String deviceId}) async {
+  Future<Phd2Status> guiderGetStatus() async {
     // A status the UI polls, not a command: without the native library
     // "disconnected" is the truthful answer, so this does not refuse.
     if (!bridge.NativeBridge.isNativeAvailable) {
       return const Phd2Status(state: 'Disconnected', connected: false);
     }
-    final id = _canonicalGuiderDeviceId(deviceId);
-    final status = await bridge.apiGuiderGetStatus(deviceId: id);
-    // Only the built-in multi-star guider tracks more than its lock star.
-    final trackedStars = id == builtinGuiderDeviceId
-        ? decodeTrackedStars(
-            await bridge.apiBuiltinGuiderGetTrackedStarsJson(),
-          )
-        : const <GuideStar>[];
-    return _guiderStatus(status, trackedStars: trackedStars);
+    return _guiderStatus(await bridge.apiGuiderGetStatus());
   }
 
   @override
-  Future<Phd2CalibrationData> guiderGetCalibration({
-    required String deviceId,
-  }) async {
+  Future<Phd2CalibrationData> guiderGetCalibration() async {
     final data = await _native(
       'guiderGetCalibration',
-      () => bridge.apiGuiderGetCalibration(
-        deviceId: _canonicalGuiderDeviceId(deviceId),
-      ),
+      () => bridge.apiGuiderGetCalibration(),
     );
     return _calibrationData(data);
   }
@@ -922,10 +755,8 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 }
 
-Phd2Status _guiderStatus(
-  bridge.Phd2Status status, {
-  List<GuideStar> trackedStars = const [],
-}) => Phd2Status(
+Phd2Status _guiderStatus(bridge.GuiderStatus status) => Phd2Status(
+  deviceId: status.deviceId,
   state: status.state,
   connected: status.connected,
   rmsRa: status.rmsRa,
@@ -934,11 +765,23 @@ Phd2Status _guiderStatus(
   snr: status.snr,
   starMass: status.starMass,
   pixelScale: status.pixelScale,
-  trackedStars: trackedStars,
+  trackedStars: [
+    for (final star in status.trackedStars)
+      GuideStar(
+        id: star.id,
+        x: star.x,
+        y: star.y,
+        flux: star.flux,
+        snr: star.snr,
+        isLock: star.isLock,
+        residual: star.residual,
+        weight: star.weight,
+      ),
+  ],
   stopReason: status.stopReason,
 );
 
-Phd2CalibrationData _calibrationData(bridge.Phd2CalibrationData data) =>
+Phd2CalibrationData _calibrationData(bridge.GuiderCalibration data) =>
     Phd2CalibrationData(
       isCalibrated: data.isCalibrated,
       rotationAngle: data.raAngle,

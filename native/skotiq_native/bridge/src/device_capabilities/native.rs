@@ -1,6 +1,6 @@
 use super::*;
 
-/// Get capabilities for a native SDK device
+/// Get capabilities for a native SDK camera or mount
 ///
 /// Native SDK devices (ZWO, QHY, PlayerOne, etc.) typically have well-defined
 /// capabilities that can be queried from their SDK functions. This function
@@ -140,76 +140,6 @@ pub(crate) async fn get_native_capabilities(
                 Err(SkotiqError::hardware_error(
                     device_id,
                     "Native mount not connected",
-                ))
-            }
-        }
-        crate::device::DeviceType::Focuser => {
-            let focuser = mgr
-                .handles
-                .concrete::<crate::device_manager::rig::focuser::VendorFocuser>(device_id);
-            if let Some(focuser) = focuser {
-                let focuser = focuser.driver.read().await;
-                let position = focuser.get_position().await.ok();
-                let temperature = focuser.get_temperature().await.ok().flatten();
-                // Why: transient-state probe — if the focuser SDK is busy with
-                // another command we treat the focuser as stationary in this
-                // snapshot. The equipment poller re-reads on a 500 ms cadence,
-                // so a false "stationary" reading self-corrects within a frame.
-                let is_moving = focuser.is_moving().await.unwrap_or(false);
-                Ok(DeviceCapabilities::Focuser(FocuserCapabilities {
-                    max_position: focuser.get_max_position(),
-                    step_size: Some(focuser.get_step_size()),
-                    absolute: true,
-                    position,
-                    temperature,
-                    is_moving,
-                    can_halt: true,
-                    ..Default::default()
-                }))
-            } else {
-                Err(SkotiqError::hardware_error(
-                    device_id,
-                    "Native focuser not connected",
-                ))
-            }
-        }
-        crate::device::DeviceType::FilterWheel => {
-            let wheel = mgr
-                .handles
-                .concrete::<crate::device_manager::rig::filter_wheel::VendorFilterWheel>(device_id);
-            if let Some(wheel) = wheel {
-                let fw = wheel.driver.read().await;
-                // Why: vendor SDKs that don't persist filter labels (e.g. ZWO
-                // EFW) return an error here on first connect. Empty vec → UI
-                // renders generic "Filter 1, Filter 2..." labels indexed off
-                // `get_filter_count()`, which is sufficient for slot selection.
-                let names = fw.get_filter_names().await.unwrap_or_default();
-                let position = fw.get_position().await.ok().map(|p| p as i32);
-                // Why: same transient-state contract as focuser is_moving above.
-                let is_moving = fw.is_moving().await.unwrap_or(false);
-                Ok(DeviceCapabilities::FilterWheel(FilterWheelCapabilities {
-                    position_count: fw.get_filter_count(),
-                    current_position: position,
-                    filter_names: names,
-                    is_moving,
-                    // The `FilterWheelDriver` trait requires `set_filter_name`,
-                    // so every native wheel can be renamed. Leaving this at the
-                    // `Default::default()` `false` under-reported a working
-                    // feature: on the live rig a real ZWO EFW advertised
-                    // `canSetFilterNames: false`, yet
-                    // `POST /api/filter-wheel/names` with
-                    // ["L","R","G","B","Ha","OIII","SII","Dark"] returned 200 and
-                    // both `/api/filter-wheel/names` and
-                    // `/api/equipment/filter-wheel/status` served the new labels
-                    // back. Any UI that gates its rename control on this flag
-                    // hides a feature the hardware supports.
-                    can_set_filter_names: true,
-                    ..Default::default()
-                }))
-            } else {
-                Err(SkotiqError::hardware_error(
-                    device_id,
-                    "Native filter wheel not connected",
                 ))
             }
         }

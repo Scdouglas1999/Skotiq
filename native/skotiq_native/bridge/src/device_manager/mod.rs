@@ -5,6 +5,7 @@
 //! device type). The per-protocol connect and health-check helpers live in
 //! `crate::dispatch`.
 
+pub(crate) mod accessory;
 pub(crate) mod connection;
 pub(crate) mod epoch;
 pub(crate) mod handle;
@@ -405,14 +406,9 @@ impl DeviceManager {
         devices.get(device_id).cloned()
     }
 
-    /// Check if a device is connected
-    ///
-    /// # `unwrap_or` policy
-    ///
-    /// Device-not-registered → "not connected". Same rationale as
-    /// `state::SharedAppState::is_device_connected`: a tri-state return
-    /// (yes/no/unknown) would force every caller to handle an "unknown"
-    /// branch that the UI maps back to "not connected" anyway.
+    /// Whether a device is connected. An id that is not registered is not
+    /// connected: a third answer would only be mapped back to "not connected"
+    /// by every caller.
     pub async fn is_connected(&self, device_id: &str) -> bool {
         let devices = self.devices.read().await;
         devices

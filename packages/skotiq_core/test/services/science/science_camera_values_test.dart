@@ -64,6 +64,39 @@ void main() {
       expect(values.saturationAdu, greaterThan(_realMaxPixel - 64));
     });
 
+    test('a camera that records a lower saturation level saturates there, '
+        'while e-/ADU keeps scaling by the container', () {
+      final container = resolveScienceCameraValues(
+        cameraName: 'Canon EOS M50',
+        driverGain: 100,
+        maxAdu: 16383,
+        adcBitDepth: 14,
+        entry: null,
+      );
+      final recorded = resolveScienceCameraValues(
+        cameraName: 'Canon EOS M50',
+        driverGain: 100,
+        maxAdu: 16383,
+        saturationAdu: 11892,
+        adcBitDepth: 14,
+        entry: null,
+      );
+      expect(container.saturationAdu, 16381);
+      expect(recorded.saturationAdu, 11892);
+      expect(recorded.source, contains("camera's recorded level"));
+      expect(recorded.electronsPerAdu, container.electronsPerAdu);
+      // A recorded level above the clip point does not raise it.
+      final above = resolveScienceCameraValues(
+        cameraName: 'Canon EOS M50',
+        driverGain: 100,
+        maxAdu: 16383,
+        saturationAdu: 16383,
+        adcBitDepth: 14,
+        entry: null,
+      );
+      expect(above.saturationAdu, 16381);
+    });
+
     test('a flat-pair measurement at the gain in use wins over the chart', () {
       const measurement = ScienceGainMeasurement(
         cameraName: _rigCamera,

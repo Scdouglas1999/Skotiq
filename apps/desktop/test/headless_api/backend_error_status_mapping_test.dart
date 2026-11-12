@@ -156,6 +156,9 @@ void main() {
         deviceId: 'native:zwo:0',
         currentOperation: 'exposing',
       ),
+      const bridge_error.SkotiqError.invalidState(
+        'Guiding is paused. Resume guiding before dithering.',
+      ),
       const bridge_error.SkotiqError.resourceExhausted(
         resource: 'disk',
         message: 'no space left',
@@ -219,6 +222,10 @@ void main() {
       const bridge_error.SkotiqError.exposureCancelled(): 409,
       const bridge_error.SkotiqError.noImageAvailable(): 404,
       const bridge_error.SkotiqError.timeout('slew'): 504,
+      // A paused guider asked to dither: the request does not fit the state.
+      const bridge_error.SkotiqError.invalidState(
+        'Guiding is paused. Resume guiding before dithering.',
+      ): 409,
     };
 
     // The wire code per status. Only a genuine 500 is `internal_error`:

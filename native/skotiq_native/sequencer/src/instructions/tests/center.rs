@@ -64,7 +64,9 @@ async fn center_node_on_cloud(stop_on_quality_problems: bool) -> CenterNodeRun {
 
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }

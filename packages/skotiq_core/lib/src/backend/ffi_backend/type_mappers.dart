@@ -274,6 +274,10 @@ extension _FfiBackendTypeMappers on _FfiBackendBase {
           dart_error.SkotiqError.notSupported(deviceId, operation),
       deviceBusy: (deviceId, currentOperation) =>
           dart_error.SkotiqError.deviceBusy(deviceId, currentOperation),
+      invalidState: (message) => dart_error.SkotiqError(
+        category: dart_error.BackendErrorCategory.busy,
+        message: message,
+      ),
 
       imageError: (message) => dart_error.SkotiqError(
         category: dart_error.BackendErrorCategory.imaging,

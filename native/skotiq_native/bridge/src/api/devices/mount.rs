@@ -27,22 +27,46 @@ use super::*;
 
 // Mount control
 
+/// Get mount status
+pub async fn api_get_mount_status(device_id: String) -> Result<MountStatus, SkotiqError> {
+    let mgr = get_device_manager();
+    mgr.mount_get_status(&device_id)
+        .await
+        .map_err(SkotiqError::from)
+}
+
+/// Slew mount to coordinates
+pub async fn api_mount_slew_to_coordinates(
+    device_id: String,
+    ra: f64,
+    dec: f64,
+) -> Result<(), SkotiqError> {
+    let mgr = get_device_manager();
+    mgr.mount_slew(&device_id, ra, dec)
+        .await
+        .map_err(SkotiqError::from)
+}
+
 /// Sync mount to coordinates
-pub async fn mount_sync(device_id: String, ra: f64, dec: f64) -> Result<(), SkotiqError> {
+pub async fn api_mount_sync_to_coordinates(
+    device_id: String,
+    ra: f64,
+    dec: f64,
+) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.mount_sync(&device_id, ra, dec)
         .await
         .map_err(SkotiqError::from)
 }
 
-/// Park mount
-pub async fn mount_park(device_id: String) -> Result<(), SkotiqError> {
+/// Park the mount
+pub async fn api_mount_park(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.mount_park(&device_id).await.map_err(SkotiqError::from)
 }
 
-/// Unpark mount
-pub async fn mount_unpark(device_id: String) -> Result<(), SkotiqError> {
+/// Unpark the mount
+pub async fn api_mount_unpark(device_id: String) -> Result<(), SkotiqError> {
     let mgr = get_device_manager();
     mgr.mount_unpark(&device_id)
         .await
@@ -61,7 +85,7 @@ pub async fn mount_abort(device_id: String) -> Result<(), SkotiqError> {
 /// is told before the mount stops: it pauses instead of reading the stop as
 /// the mount's tracking limit. The run's own commands go through device ops,
 /// not this call.
-pub async fn mount_set_tracking(device_id: String, enabled: u8) -> Result<(), SkotiqError> {
+pub async fn api_mount_set_tracking(device_id: String, enabled: u8) -> Result<(), SkotiqError> {
     if enabled == 0 {
         // Never wait on the executor lock to stop a mount.
         if let Ok(executor) = crate::api::sequencer::get_sequence_executor().try_read() {
@@ -82,22 +106,32 @@ pub async fn mount_set_tracking_rate(device_id: String, rate: i32) -> Result<(),
         .map_err(SkotiqError::from)
 }
 
-/// Pulse guide mount
-pub async fn mount_pulse_guide(
+/// Pulse guide the mount in a direction for a duration
+pub async fn api_mount_pulse_guide(
     device_id: String,
     direction: String,
-    duration_ms: u32,
+    duration_ms: i32,
 ) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_pulse_guide(&device_id, direction, duration_ms)
-        .await
-        .map_err(SkotiqError::from)
-}
+    tracing::info!(
+        target: "skotiq_bridge::api::devices::mount",
+        "Pulse guiding {} for {}ms in direction {}",
+        device_id,
+        duration_ms,
+        direction
+    );
 
-/// Get mount status
-pub async fn mount_get_status(device_id: String) -> Result<MountStatus, SkotiqError> {
+    match direction.to_lowercase().as_str() {
+        "north" | "n" | "south" | "s" | "east" | "e" | "west" | "w" => {}
+        _ => {
+            return Err(SkotiqError::InvalidParameter(format!(
+                "Unknown direction: {}",
+                direction
+            )))
+        }
+    };
+
     let mgr = get_device_manager();
-    mgr.mount_get_status(&device_id)
+    mgr.mount_pulse_guide(&device_id, direction, duration_ms as u32)
         .await
         .map_err(SkotiqError::from)
 }
@@ -206,4 +240,99 @@ pub async fn mount_set_time(
     )
     .await
     .map_err(SkotiqError::from)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::api_mount_set_tracking;
+    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
+    use crate::api::get_device_manager;
+    use crate::api::sequencer::{api_sequencer_start, api_sequencer_stop, get_sequence_executor};
+    use crate::device::{DeviceInfo, DeviceType, DriverType};
+    use skotiq_sequencer::{
+        DelayConfig, ExecutorState, NodeDefinition, NodeType, SequenceDefinition,
+    };
+
+    const MOUNT: &str = "sim_mount_1";
+
+    async fn connect_tracking_sim_mount() {
+        let info = DeviceInfo {
+            id: MOUNT.to_string(),
+            name: "Simulated Mount".to_string(),
+            device_type: DeviceType::Mount,
+            driver_type: DriverType::Simulator,
+            description: "Simulator under test".to_string(),
+            driver_version: "1.0".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Simulated Mount".to_string(),
+        };
+        let manager = get_device_manager();
+        manager.register_device(info.clone(), false).await;
+        manager
+            .connect_simulator(&info)
+            .await
+            .expect("the simulator connects");
+        let mut mount = get_sim_mount().write().await;
+        mount.status.parked = false;
+        mount.status.slewing = false;
+        mount.status.tracking = true;
+    }
+
+    /// Tracking switched off from Skotiq's mount controls (the app and the
+    /// headless host both call this function) during a run is the operator's
+    /// stop. The run has to hear of it before the mount stops; otherwise a
+    /// stop on the west side near transit reads as the mount's tracking limit
+    /// and the run flips the mount.
+    #[tokio::test]
+    async fn a_tracking_stop_from_the_app_during_a_run_is_the_operators() {
+        let _serialized = sim_singleton_test_lock().lock().await;
+        connect_tracking_sim_mount().await;
+
+        let mut sequence = SequenceDefinition::new("Long wait".to_string());
+        sequence.nodes.push(NodeDefinition {
+            id: "wait".to_string(),
+            name: "Wait".to_string(),
+            node_type: NodeType::Delay(DelayConfig { seconds: 120.0 }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        {
+            let mut executor = get_sequence_executor().write().await;
+            executor.set_device_ops(std::sync::Arc::new(
+                skotiq_sequencer::device_ops::NullDeviceOps,
+            ));
+            // The run's monitor must not read the null mount's tracking and
+            // clear the stop before it is checked.
+            executor.mount_id = None;
+            executor.load_sequence(sequence).expect("sequence loads");
+        }
+        api_sequencer_start().await.expect("run starts");
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+        while get_sequence_executor().read().await.get_state().await != ExecutorState::Running {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "the run never started"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+
+        api_mount_set_tracking(MOUNT.to_string(), 0)
+            .await
+            .expect("tracking stops");
+        let operator_stopped = {
+            let executor = get_sequence_executor().read().await;
+            let state = executor.trigger_manager().read().await.state();
+            let stopped = state.read().await.tracking.operator_stopped();
+            stopped
+        };
+        api_sequencer_stop(None).await.expect("run stops");
+
+        assert!(
+            operator_stopped,
+            "the run was not told the stop was the operator's"
+        );
+        assert!(!get_sim_mount().read().await.status.tracking);
+    }
 }

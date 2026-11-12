@@ -428,7 +428,7 @@ fn write_frame_atomic(
         .map_err(|e| format!("cannot write '{}': {e}", path.display()))?;
     finish_atomic(&temp, path)?;
     Ok(json!({
-        "format": format.extension(),
+        "format": skotiq_imaging::frame_extension(format),
         "path": path.to_string_lossy(),
         "bytes": file_size(path),
         "width": image.width(),

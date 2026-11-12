@@ -20,7 +20,10 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
   bool _loading = true;
   bool _pushing = false;
   String? _error;
-  int _loadGeneration = 0;
+
+  /// Status loads (the newest one wins) and pushes sent to the host; what
+  /// the old host answers after a host change is dropped.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
 
   @override
@@ -43,8 +46,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
   }
 
   Future<void> _load({bool authorityChanged = false}) async {
-    final generation = ++_loadGeneration;
-    final backend = ref.read(backendProvider);
+    final load = _hostScopes.beginLatest();
     if (mounted) {
       setState(() {
         _loading = true;
@@ -56,16 +58,12 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
       });
     }
     try {
-      final linkedHost = backend.remoteHost;
+      final linkedHost = load.value.remoteHost;
       if (linkedHost == null) {
         throw StateError('The imaging host is not connected.');
       }
       final status = await linkedHost.cloudSync.getCloudSyncStatus();
-      if (!mounted ||
-          generation != _loadGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
-        return;
-      }
+      if (load.isStale) return;
       setState(() {
         _status = status;
         _loading = false;
@@ -79,11 +77,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
         name: 'CloudSyncSettings',
         level: 900,
       );
-      if (!mounted ||
-          generation != _loadGeneration ||
-          !identical(ref.read(backendProvider), backend)) {
-        return;
-      }
+      if (load.isStale) return;
       setState(() {
         _loading = false;
         _error = 'Could not load cloud sync status from the imaging host.';
@@ -93,8 +87,8 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
 
   Future<void> _pushNow() async {
     if (_pushing) return;
-    final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
+    final push = _hostScopes.begin();
+    final linkedHost = push.value.remoteHost;
     if (linkedHost == null) {
       setState(() => _error = 'The imaging host is not connected.');
       return;
@@ -105,7 +99,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
     });
     try {
       final result = await linkedHost.cloudSync.pushCloudSyncNow();
-      if (!mounted || !identical(ref.read(backendProvider), backend)) return;
+      if (!mounted || push.isStale) return;
       if (!result.success) {
         setState(() {
           _error = result.errorMessage ??
@@ -125,15 +119,13 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
         name: 'CloudSyncSettings',
         level: 1000,
       );
-      if (!mounted || !identical(ref.read(backendProvider), backend)) return;
+      if (!mounted || push.isStale) return;
       setState(() {
         _error = 'The imaging host could not push its cloud backup. Check the '
             'host sync configuration and try again.';
       });
     } finally {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
-        setState(() => _pushing = false);
-      }
+      if (push.isCurrent) setState(() => _pushing = false);
     }
   }
 
@@ -218,8 +210,7 @@ class _RemoteCloudSyncCardState extends ConsumerState<RemoteCloudSyncCard> {
                 label: 'Last push',
                 value: status.lastPushAt == null
                     ? 'Never'
-                    : DateFormat('MMM d, yyyy HH:mm')
-                        .format(status.lastPushAt!.toLocal()),
+                    : ClockFormat.monthDayYearHm(status.lastPushAt!.toLocal()),
               ),
               if (status.lastError != null || _error != null) ...[
                 const SizedBox(height: 12),
@@ -487,7 +478,6 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
       itemCount: _bundles.length,
       itemBuilder: (context, index) {
         final bundle = _bundles[index];
-        final sizeKb = (bundle.sizeBytes / 1024).toStringAsFixed(1);
         return ListTile(
           leading: Icon(LucideIcons.archive, color: colors.primary),
           title: Text(
@@ -497,8 +487,8 @@ class _RemoteBrowserDialogState extends State<_RemoteBrowserDialog> {
             ),
           ),
           subtitle: Text(
-            '$sizeKb KB | '
-            '${DateFormat('MMM d, yyyy HH:mm').format(bundle.createdAt.toLocal())}'
+            '${ByteFormat.size(bundle.sizeBytes)} | '
+            '${ClockFormat.monthDayYearHm(bundle.createdAt.toLocal())}'
             '${bundle.sha256.isEmpty ? ' | no integrity hash' : ''}',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textSecondary,

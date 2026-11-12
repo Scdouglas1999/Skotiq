@@ -130,6 +130,36 @@ pub(crate) fn check_efw_error(code: c_int) -> Result<(), DriverError> {
     }
 }
 
+/// How long a wheel that was just plugged in or powered up may take to count
+/// its slots.
+const SLOT_DETECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
+
+/// `EFWGetProperty` once the wheel knows its slot count. A wheel that was just
+/// plugged in or powered up turns once to count its slots and answers
+/// EFW_ERROR_MOVING until it has (EFW_filter.h); NINA waits for it the same way.
+async fn read_property(sdk: &EfwSdk, id: c_int) -> Result<EFWInfo, DriverError> {
+    let deadline = std::time::Instant::now() + SLOT_DETECTION_TIMEOUT;
+    loop {
+        // SAFETY: EFWInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
+        let mut info: EFWInfo = unsafe { std::mem::zeroed() };
+        // SAFETY: `info` is a valid stack pointer; the caller opened `id`.
+        let result = unsafe { (sdk.get_property)(id, &mut info) };
+        if result != EFWError::EFW_ERROR_MOVING as c_int {
+            check_efw_error(result)?;
+            return Ok(info);
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(DriverError::Timeout(format!(
+                "ZWO EFW {} was still counting its filter slots after {} s; check its power and \
+                 USB cable, then connect it again",
+                id,
+                SLOT_DETECTION_TIMEOUT.as_secs()
+            )));
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+}
+
 #[derive(Debug)]
 pub struct ZwoFilterWheel {
     pub(crate) filterwheel_id: i32,
@@ -236,18 +266,10 @@ impl DeviceDriver for ZwoFilterWheel {
         // no pointer to invalidate; the lock guard keeps every other task out of
         // the EFW SDK while it re-scans its internal ID table.
         let num_wheels = unsafe { (sdk.get_num)() };
-        let mut id_is_present = false;
-        for index in 0..num_wheels {
-            let mut discovered_id: c_int = -1;
-            // SAFETY: index is bounded by EFWGetNum and discovered_id is a
-            // valid output pointer.
-            let result = unsafe { (sdk.get_id)(index, &mut discovered_id) };
-            if result == 0 && discovered_id == self.filterwheel_id {
-                id_is_present = true;
-                break;
-            }
-        }
-        if !id_is_present {
+        // SAFETY: index is bounded by EFWGetNum and `listed` is a valid output
+        // pointer.
+        let listed = |index, listed: &mut c_int| unsafe { (sdk.get_id)(index, listed) };
+        if !id_is_listed(num_wheels, listed, self.filterwheel_id) {
             let reported = num_wheels.max(0);
             return Err(DriverError::DeviceNotFound(format!(
                 "ZWO EFW ID {} is not present (SDK reported {} wheel{})",
@@ -273,11 +295,7 @@ impl DeviceDriver for ZwoFilterWheel {
             let _ = unsafe { (locked_sdk.close)(filterwheel_id) };
         });
 
-        // SAFETY: EFWInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
-        let mut info: EFWInfo = unsafe { std::mem::zeroed() };
-        // SAFETY: `info` is a valid stack pointer; filterwheel_id was successfully opened above.
-        let result = unsafe { (sdk.get_property)(self.filterwheel_id, &mut info) };
-        check_efw_error(result)?;
+        let info = read_property(&sdk, self.filterwheel_id).await?;
 
         self.slot_count = info.slot_num;
         self.name = safe_cstr_to_string(info.name.as_ptr(), 64);
@@ -295,17 +313,7 @@ impl DeviceDriver for ZwoFilterWheel {
         // SAFETY: `sn` is a valid stack pointer; filterwheel_id is open.
         let connect_serial_number =
             if unsafe { (sdk.get_serial_number)(self.filterwheel_id, &mut sn) } == 0 {
-                let sn_bytes: [u8; 8] = sn.id;
-                let sn_str = sn_bytes
-                    .iter()
-                    .take_while(|&&b| b != 0)
-                    .map(|&b| format!("{:02X}", b))
-                    .collect::<String>();
-                if sn_str.is_empty() {
-                    None
-                } else {
-                    Some(sn_str)
-                }
+                accessory_serial(sn.id)
             } else {
                 None
             };
@@ -380,8 +388,9 @@ impl DeviceDriver for ZwoFilterWheel {
         let sdk = EfwSdk::lock().await?;
         // SAFETY: filterwheel_id is valid because self.connected is true (only set after successful connect()).
         let result = unsafe { (sdk.close)(self.filterwheel_id) };
-        check_efw_error(result)?;
 
+        // Forgotten even when the close fails: a wheel unplugged while connected
+        // cannot be closed, and the wheel plugged in next may get its id.
         self.connected = false;
         self.settle_after_move_pending
             .store(false, Ordering::Release);
@@ -394,6 +403,7 @@ impl DeviceDriver for ZwoFilterWheel {
             let mut reg = connected_efw().lock().unwrap_or_else(|e| e.into_inner());
             reg.remove(&self.filterwheel_id);
         }
+        check_efw_error(result)?;
 
         tracing::info!("Disconnected from ZWO EFW");
         Ok(())
@@ -595,32 +605,25 @@ pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>
         // SAFETY: `id` was just populated by EFWGetID.
         let result = unsafe { (sdk.open)(id) };
         if result == 0 {
-            // SAFETY: EFWInfo is `#[repr(C)]` POD; zeroed is a valid initial state.
-            let mut info: EFWInfo = unsafe { std::mem::zeroed() };
-            // SAFETY: `info` is a valid stack pointer; `id` was just successfully opened.
-            let property_result = unsafe { (sdk.get_property)(id, &mut info) };
-            if property_result != 0 {
-                // `info` would still be zeroed: an empty name and slot_num = 0, and
-                // discovery publishes that name verbatim as the device identity
-                // (native/src/discovery.rs). A blank, zero-slot entry is a wrong answer,
-                // not a discovery result. Close the handle and leave the wheel out of
-                // this scan; connect() runs the same EFWGetProperty (checked) and reports
-                // the failure if the user targets it, and the next scan retries.
-                tracing::error!(
-                    "ZWO EFW discovery: EFWGetProperty failed for filter wheel ID {} (EFW error {}); omitting it from this scan",
-                    id,
-                    property_result
-                );
-                // SAFETY: `id` was successfully opened above. EFWClose pairs with EFWOpen.
-                let _ = unsafe { (sdk.close)(id) };
-                continue;
-            }
-            // SAFETY: ASI SDK guarantees `info.name` is NUL-terminated within the 64-byte array.
-            let name = unsafe {
-                CStr::from_ptr(info.name.as_ptr())
-                    .to_string_lossy()
-                    .to_string()
+            let info = match read_property(&sdk, id).await {
+                Ok(info) => info,
+                Err(error) => {
+                    // Without its properties the wheel would be a blank, zero-slot
+                    // entry, and discovery publishes the name verbatim as the device
+                    // identity (native/src/discovery.rs). Leave it out of this scan;
+                    // connect() reads the same properties and reports the failure if
+                    // the user targets it, and the next scan retries.
+                    tracing::error!(
+                        "ZWO EFW discovery: EFWGetProperty failed for filter wheel ID {} ({}); omitting it from this scan",
+                        id,
+                        error
+                    );
+                    // SAFETY: `id` was successfully opened above. EFWClose pairs with EFWOpen.
+                    let _ = unsafe { (sdk.close)(id) };
+                    continue;
+                }
             };
+            let name = safe_cstr_to_string(info.name.as_ptr(), 64);
             let slot_count = info.slot_num;
 
             // Try to get serial number (must be done before close)
@@ -628,17 +631,7 @@ pub async fn discover_filter_wheels() -> Result<Vec<ZwoFilterWheelDiscoveryInfo>
             let mut sn: EFWSerialNumber = unsafe { std::mem::zeroed() };
             // SAFETY: `sn` is a valid stack pointer; `id` is open.
             let serial_number = if unsafe { (sdk.get_serial_number)(id, &mut sn) } == 0 {
-                let sn_bytes: [u8; 8] = sn.id;
-                let sn_str = sn_bytes
-                    .iter()
-                    .take_while(|&&b| b != 0)
-                    .map(|&b| format!("{:02X}", b))
-                    .collect::<String>();
-                if sn_str.is_empty() {
-                    None
-                } else {
-                    Some(sn_str)
-                }
+                accessory_serial(sn.id)
             } else {
                 None
             };

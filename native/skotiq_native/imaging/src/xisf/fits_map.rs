@@ -85,12 +85,9 @@ const MAPPINGS: &[Mapping] = &[
 
 const SOLUTION: &str = "AstrometricSolution:";
 const LEGACY_SOLUTION: &str = "PCL:AstrometricSolution:";
-/// Cards that make up a linear WCS; a change to any of them replaces the
-/// file's astrometric solution.
-const WCS_CARDS: [&str; 18] = [
-    "CTYPE1", "CTYPE2", "CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CD1_1", "CD1_2", "CD2_1",
-    "CD2_2", "PC1_1", "PC1_2", "PC2_1", "PC2_2", "CDELT1", "CDELT2", "CROTA2", "LONPOLE",
-];
+/// XISF image coordinates put the center of the first stored pixel at
+/// (0.5, 0.5), where FITS puts it at (1, 1).
+const FITS_TO_XISF_PIXEL: f64 = -0.5;
 
 /// WCS projection codes and the XISF projection vocabulary (Table 16).
 const PROJECTIONS: [(&str, &str); 7] = [
@@ -106,6 +103,12 @@ const PROJECTIONS: [(&str, &str); 7] = [
 /// The app's metadata for an image read from a unit.
 pub(crate) fn header_from_image(image: &XisfImageHeader) -> FitsHeader {
     let mut header = FitsHeader::new();
+    let dimension = |n: u64| u32::try_from(n).unwrap_or(u32::MAX);
+    header.set_image_size(
+        dimension(image.width()),
+        dimension(image.height()),
+        dimension(image.channels),
+    );
     for keyword in &image.fits_keywords {
         let name = keyword.name.trim().to_ascii_uppercase();
         match name.as_str() {
@@ -260,8 +263,11 @@ pub(crate) fn apply_header(image: &mut XisfImageHeader, old: &FitsHeader, new: &
         _ => {}
     }
 
-    let wcs_changed = WCS_CARDS
-        .iter()
+    let wcs_changed = old
+        .cards()
+        .chain(new.cards())
+        .map(|(card, _, _)| card)
+        .filter(|card| crate::fits::is_astrometry_keyword(card))
         .any(|card| old.get(card).map(value_card_text) != new.get(card).map(value_card_text));
     if wcs_changed {
         // A changed solution invalidates every layer of the old one,
@@ -382,66 +388,72 @@ fn frame_type_card(image_type: &str) -> String {
     }
 }
 
-/// The image-to-sky solution of a linear WCS, as the first layer of an XISF
-/// astrometric solution. XISF image coordinates put the center of the first
-/// stored pixel at (0.5, 0.5), where FITS puts it at (1, 1).
+/// The header's WCS, as the first layer of an XISF astrometric solution.
+///
+/// The geometry is written under the standard ids and again under
+/// PixInsight's earlier `PCL:` ids: PixInsight 1.9.4 reads only the latter,
+/// and without them falls back to the FITS keywords, which it reads right
+/// only in CD form. A newer reader takes the standard block first.
+///
+/// SIP distortion has no place in that layer (the standard's distortion
+/// layer is a spline model), so a distorted solution is written as its
+/// linear part, which is what PixInsight then uses; the SIP cards stay
+/// among the keywords for readers that take them from there.
 fn cards_to_solution(header: &FitsHeader, properties: &mut Vec<XisfProperty>) {
-    let Some(ctype1) = header.get_string("CTYPE1") else {
-        return;
-    };
-    let Some(projection) = ctype1
-        .get(5..8)
+    let Some(projection) = header
+        .get_string("CTYPE1")
+        .and_then(|ctype1| ctype1.get(5..8))
         .and_then(|code| PROJECTIONS.iter().find(|(c, _)| *c == code))
         .map(|(_, name)| *name)
     else {
         return;
     };
-    let (Some(crval1), Some(crval2), Some(crpix1), Some(crpix2)) = (
-        header.get_float("CRVAL1"),
-        header.get_float("CRVAL2"),
-        header.get_float("CRPIX1"),
-        header.get_float("CRPIX2"),
-    ) else {
+    let Some(wcs) = crate::SipWcs::from_header(header) else {
         return;
     };
-    let Some(matrix) = linear_matrix(header) else {
-        return;
-    };
-    let reference = [crpix1 - 0.5, crpix2 - 0.5];
-    let mut push = |id: &str, value: PropertyValue| {
-        properties.push(XisfProperty::new(format!("{SOLUTION}{id}"), value));
-    };
-    push("Version", PropertyValue::String("1.0".into()));
-    push("ProjectionSystem", PropertyValue::String(projection.into()));
-    push(
-        "ReferenceCelestialCoordinates",
-        PropertyValue::f64_vector(&[crval1, crval2]),
-    );
-    push("ReferenceImageCoordinates", PropertyValue::f64_vector(&reference));
-    push(
-        "LinearTransformationMatrix",
-        PropertyValue::f64_matrix(2, 2, &matrix),
-    );
+    let reference = [
+        wcs.crpix1 + FITS_TO_XISF_PIXEL,
+        wcs.crpix2 + FITS_TO_XISF_PIXEL,
+    ];
+    let mut geometry = vec![
+        ("ProjectionSystem", PropertyValue::String(projection.into())),
+        (
+            "ReferenceCelestialCoordinates",
+            PropertyValue::f64_vector(&[wcs.crval1, wcs.crval2]),
+        ),
+        ("ReferenceImageCoordinates", PropertyValue::f64_vector(&reference)),
+        (
+            "LinearTransformationMatrix",
+            PropertyValue::f64_matrix(2, 2, &[wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2]),
+        ),
+    ];
     if let (Some(lon), Some(lat)) = (header.get_float("LONPOLE"), header.get_float("LATPOLE")) {
-        push(
+        geometry.push((
             "CelestialPoleNativeCoordinates",
             PropertyValue::f64_vector(&[lon, lat]),
-        );
+        ));
     }
-    if let Some(system) = header
+    let system = header
         .get_string("RADESYS")
         .map(str::trim)
-        .filter(|s| *s == "ICRS" || *s == "GCRS")
-    {
-        push("CelestialReferenceSystem", PropertyValue::String(system.into()));
+        .filter(|s| *s == "ICRS" || *s == "GCRS");
+
+    let standard = std::iter::once(("Version", PropertyValue::String("1.0".into())))
+        .chain(geometry.iter().cloned())
+        .chain(system.map(|s| ("CelestialReferenceSystem", PropertyValue::String(s.into()))));
+    for (id, value) in standard {
+        properties.push(XisfProperty::new(format!("{SOLUTION}{id}"), value));
+    }
+    for (id, value) in geometry {
+        properties.push(XisfProperty::new(format!("{LEGACY_SOLUTION}{id}"), value));
     }
     properties.push(XisfProperty::new(
         "Observation:Center:RA",
-        PropertyValue::Float64(crval1),
+        PropertyValue::Float64(wcs.crval1),
     ));
     properties.push(XisfProperty::new(
         "Observation:Center:Dec",
-        PropertyValue::Float64(crval2),
+        PropertyValue::Float64(wcs.crval2),
     ));
     properties.push(XisfProperty::new(
         "Observation:Center:X",
@@ -451,29 +463,6 @@ fn cards_to_solution(header: &FitsHeader, properties: &mut Vec<XisfProperty>) {
         "Observation:Center:Y",
         PropertyValue::Float64(reference[1]),
     ));
-}
-
-/// The CD matrix in row order, from CD cards, PC with CDELT, or CDELT with
-/// CROTA2.
-fn linear_matrix(h: &FitsHeader) -> Option<[f64; 4]> {
-    if let (Some(a), Some(b), Some(c), Some(d)) = (
-        h.get_float("CD1_1"),
-        h.get_float("CD1_2"),
-        h.get_float("CD2_1"),
-        h.get_float("CD2_2"),
-    ) {
-        return Some([a, b, c, d]);
-    }
-    let (cdelt1, cdelt2) = (h.get_float("CDELT1")?, h.get_float("CDELT2")?);
-    if let Some(pc11) = h.get_float("PC1_1") {
-        let pc12 = h.get_float("PC1_2").unwrap_or(0.0);
-        let pc21 = h.get_float("PC2_1").unwrap_or(0.0);
-        let pc22 = h.get_float("PC2_2").unwrap_or(1.0);
-        return Some([cdelt1 * pc11, cdelt1 * pc12, cdelt2 * pc21, cdelt2 * pc22]);
-    }
-    let rotation = h.get_float("CROTA2").unwrap_or(0.0).to_radians();
-    let (sin, cos) = rotation.sin_cos();
-    Some([cdelt1 * cos, -cdelt2 * sin, cdelt1 * sin, cdelt2 * cos])
 }
 
 /// The cards of a linear WCS from the first layer of the image's solution,
@@ -504,26 +493,34 @@ fn solution_to_cards(image: &XisfImageHeader, header: &mut FitsHeader) {
     ) else {
         return;
     };
+    // A reference system or equinox the observation properties already gave
+    // the header stands; the solution's own system fills a header without one.
+    let radesys = header
+        .get_string("RADESYS")
+        .or_else(|| get("CelestialReferenceSystem").and_then(PropertyValue::as_str))
+        .map(|system| system.trim().to_string());
+    let equinox = header.get_float("EQUINOX");
+    crate::SipWcs::tan_only(
+        sky[0],
+        sky[1],
+        reference[0] - FITS_TO_XISF_PIXEL,
+        reference[1] - FITS_TO_XISF_PIXEL,
+        matrix[0],
+        matrix[1],
+        matrix[2],
+        matrix[3],
+    )
+    .write_to_header(header);
     header.set_string("CTYPE1", &format!("RA---{code}"));
     header.set_string("CTYPE2", &format!("DEC--{code}"));
-    header.set_float("CRVAL1", sky[0]);
-    header.set_float("CRVAL2", sky[1]);
-    header.set_float("CRPIX1", reference[0] + 0.5);
-    header.set_float("CRPIX2", reference[1] + 0.5);
-    header.set_float("CD1_1", matrix[0]);
-    header.set_float("CD1_2", matrix[1]);
-    header.set_float("CD2_1", matrix[2]);
-    header.set_float("CD2_2", matrix[3]);
-    header.set_string("CUNIT1", "deg");
-    header.set_string("CUNIT2", "deg");
     if let Some(pole) = vector("CelestialPoleNativeCoordinates", 2) {
         header.set_float("LONPOLE", pole[0]);
         header.set_float("LATPOLE", pole[1]);
     }
-    if header.get("RADESYS").is_none() {
-        let system = get("CelestialReferenceSystem")
-            .and_then(PropertyValue::as_str)
-            .unwrap_or("ICRS");
-        header.set_string("RADESYS", system.trim());
+    if let Some(system) = radesys {
+        header.set_string("RADESYS", &system);
+    }
+    if let Some(equinox) = equinox {
+        header.set_float("EQUINOX", equinox);
     }
 }

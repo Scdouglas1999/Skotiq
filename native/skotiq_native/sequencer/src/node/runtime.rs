@@ -72,9 +72,8 @@ tokio::task_local! {
 /// failure has already been published to the operator.
 ///
 /// Publishing per attempt makes one failed node produce one error entry per
-/// try: a node that fails with "No dome connected" (a message
-/// [`crate::instructions::is_device_disconnected_message`] classifies as a
-/// disconnect) runs six times, and the session report lists the same sentence
+/// try: a node that fails with "No dome connected" (a disconnect) runs six
+/// times, and the session report lists the same sentence
 /// six times with six identical Critical toasts, so the error count never
 /// matches the number of failed nodes.
 pub(crate) fn is_disconnect_retry_attempt() -> bool {
@@ -412,6 +411,7 @@ impl Node for RuntimeNode {
         }
 
         self.status = NodeStatus::Running;
+        context.run.take_settings();
         // render the node display name through the interpolation
         // engine so user-authored templates like
         // "Image ${target.name} with ${filter}" become live labels in the
@@ -729,6 +729,41 @@ mod resume_short_circuit_tests {
             enabled: true,
             children: Vec::new(),
         })
+    }
+
+    /// A setting changed during a run reaches the plan's next step: each node
+    /// takes the run's settings as it starts (an Autofocus node then reads its
+    /// filter offsets, a target its site), and the step before it ran with
+    /// what it started with.
+    #[tokio::test]
+    async fn the_next_step_takes_settings_changed_during_the_run() {
+        let executor = crate::executor::SequenceExecutor::new();
+        let mut ctx = ExecutionContext::new_for_test("root".to_string());
+        ctx.run.settings = Some(executor.run_config_store());
+
+        let mut first = delay_node("first", 0.0);
+        first.execute(&mut ctx).await;
+        let during_first = ctx.run.rig.clone();
+
+        executor
+            .handle()
+            .update_run_config(|config| {
+                config.filter_focus_offsets =
+                    std::collections::HashMap::from([("Ha".to_string(), 120)]);
+                config.latitude = Some(46.0);
+                config.longitude = Some(7.0);
+            })
+            .await
+            .expect("the settings apply");
+        assert!(during_first.filter_focus_offsets.is_empty());
+
+        let mut next = delay_node("next", 0.0);
+        next.execute(&mut ctx).await;
+        assert_eq!(ctx.run.rig.filter_focus_offsets.get("Ha"), Some(&120));
+        assert_eq!(
+            (ctx.run.rig.latitude, ctx.run.rig.longitude),
+            (Some(46.0), Some(7.0))
+        );
     }
 
     /// A node whose status was restored to `Success` on resume must

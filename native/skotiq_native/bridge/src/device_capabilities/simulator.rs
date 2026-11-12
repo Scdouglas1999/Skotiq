@@ -28,7 +28,7 @@ fn simulator_device_type(token: &str) -> Option<DeviceType> {
     }
 }
 
-/// Get capabilities for a simulator device.
+/// Get capabilities for a simulated camera or mount.
 ///
 /// Dispatches on the device type the id parses to. A type this module does not
 /// model is an error rather than a default: handing the app a camera stub for
@@ -162,162 +162,16 @@ pub(crate) async fn get_simulator_capabilities(
             max_pulse_guide_ms: Some(8000.0),
             ..Default::default()
         }),
-        DeviceType::Focuser => DeviceCapabilities::Focuser(FocuserCapabilities {
-            max_position: 100000,
-            max_increment: 50000,
-            step_size: Some(1.0),
-            absolute: true,
-            temp_comp_available: true,
-            can_halt: true,
-            can_reverse: true,
-            ..Default::default()
-        }),
-        DeviceType::FilterWheel => DeviceCapabilities::FilterWheel(FilterWheelCapabilities {
-            position_count: 7,
-            filter_names: vec![
-                "L".into(),
-                "R".into(),
-                "G".into(),
-                "B".into(),
-                "Ha".into(),
-                "OIII".into(),
-                "SII".into(),
-            ],
-            focus_offsets: vec![0, 10, 20, 30, 100, 120, 140],
-            can_set_filter_names: true,
-            can_set_focus_offsets: true,
-            ..Default::default()
-        }),
-        DeviceType::Rotator => DeviceCapabilities::Rotator(RotatorCapabilities {
-            can_reverse: true,
-            reverse: false,
-            step_size: Some(0.1),
-            is_moving: false,
-            mechanical_position: Some(0.0),
-            position: Some(0.0),
-            can_move_absolute: true,
-            can_halt: true,
-            can_sync: true,
-            // Simulator advertises the full mechanical sweep so the angle-range
-            // UI and its clamping are exercised end-to-end.
-            min_angle_deg: Some(0.0),
-            max_angle_deg: Some(360.0),
-        }),
-        DeviceType::Dome => DeviceCapabilities::Dome(DomeCapabilities {
-            can_set_azimuth: true,
-            can_park: true,
-            can_find_home: true,
-            can_set_shutter: true,
-            can_sync_azimuth: true,
-            azimuth: Some(0.0),
-            slewing: false,
-            at_home: true,
-            at_park: false,
-            shutter_status: Some(ShutterStatus::Closed),
-            can_slave: true,
-            slaved: false,
-            can_abort: true,
-        }),
-        DeviceType::CoverCalibrator => {
-            DeviceCapabilities::CoverCalibrator(CoverCalibratorCapabilities {
-                max_brightness: 255,
-                cover_present: true,
-                calibrator_present: true,
-                cover_state: Some(CoverState::Closed),
-                calibrator_state: Some(CalibratorState::Off),
-                brightness: Some(0),
-            })
-        }
-        DeviceType::Weather => DeviceCapabilities::Weather(WeatherCapabilities {
-            has_cloud_cover: true,
-            has_dew_point: true,
-            has_humidity: true,
-            has_pressure: true,
-            has_rain_rate: true,
-            has_sky_brightness: true,
-            has_sky_quality: true,
-            has_sky_temperature: true,
-            has_seeing: true,
-            has_temperature: true,
-            has_wind_direction: true,
-            has_wind_gust: true,
-            has_wind_speed: true,
-            average_period: Some(60.0),
-        }),
-        DeviceType::SafetyMonitor => {
-            // Read the simulator's live state. A monitor that can only ever
-            // answer SAFE means the unsafe-weather sweep — park, close, abort
-            // the run — is never exercisable offline, and an unreachable
-            // monitor reads unsafe so the safety layer fails closed.
-            let monitor = crate::api::devices::simulation::get_sim_safety_monitor()
-                .read()
-                .await;
-            let (is_safe, description) = if monitor.status.connected {
-                (
-                    monitor.status.is_safe,
-                    if monitor.status.is_safe {
-                        "Simulated conditions are safe"
-                    } else {
-                        "Simulated conditions are unsafe"
-                    },
-                )
-            } else {
-                (false, "Simulated safety monitor is not connected")
-            };
-            DeviceCapabilities::SafetyMonitor(SafetyMonitorCapabilities {
-                is_safe,
-                safety_description: Some(description.to_string()),
-            })
-        }
-        DeviceType::Switch => DeviceCapabilities::Switch(SwitchCapabilities {
-            switch_count: 4,
-            switches: vec![
-                SwitchInfo {
-                    index: 0,
-                    name: "Power Port 1".to_string(),
-                    description: "12V power output".to_string(),
-                    is_boolean: true,
-                    min_value: 0.0,
-                    max_value: 1.0,
-                    step: 1.0,
-                    can_write: true,
-                    value: 0.0,
-                },
-                SwitchInfo {
-                    index: 1,
-                    name: "Power Port 2".to_string(),
-                    description: "12V power output".to_string(),
-                    is_boolean: true,
-                    min_value: 0.0,
-                    max_value: 1.0,
-                    step: 1.0,
-                    can_write: true,
-                    value: 0.0,
-                },
-                SwitchInfo {
-                    index: 2,
-                    name: "Dew Heater A".to_string(),
-                    description: "Variable dew heater".to_string(),
-                    is_boolean: false,
-                    min_value: 0.0,
-                    max_value: 100.0,
-                    step: 1.0,
-                    can_write: true,
-                    value: 0.0,
-                },
-                SwitchInfo {
-                    index: 3,
-                    name: "USB Hub".to_string(),
-                    description: "USB hub power".to_string(),
-                    is_boolean: true,
-                    min_value: 0.0,
-                    max_value: 1.0,
-                    step: 1.0,
-                    can_write: true,
-                    value: 1.0,
-                },
-            ],
-        }),
+        // These have a handle and answer through it once connected
+        // (`read_capabilities`); an id that reaches here was never registered.
+        DeviceType::Focuser
+        | DeviceType::FilterWheel
+        | DeviceType::Rotator
+        | DeviceType::Dome
+        | DeviceType::CoverCalibrator
+        | DeviceType::Weather
+        | DeviceType::SafetyMonitor
+        | DeviceType::Switch => return Err(SkotiqError::DeviceNotFound(parsed.raw_id.clone())),
         // No `DeviceCapabilities` variant models a guider; say so rather than
         // answer with another device's capability set.
         DeviceType::Guider => {

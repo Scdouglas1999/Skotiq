@@ -33,6 +33,7 @@ import '../utils/device_id.dart';
 import 'bridge_error_message.dart';
 import 'device_connect_exception.dart';
 import 'sequencer_error_kind.dart';
+import 'sequencer_notice.dart';
 import 'skotiq_backend.dart';
 import '../models/settings/app_settings.dart' as models;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;

@@ -5,29 +5,6 @@
 use super::*;
 
 #[test]
-fn test_normalize_ra_diff_hours_no_wrap() {
-    // Simple cases with no wraparound
-    assert!((normalize_ra_diff_hours(1.0) - 1.0).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(-1.0) - (-1.0)).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(11.0) - 11.0).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(-11.0) - (-11.0)).abs() < 0.0001);
-}
-
-#[test]
-fn test_normalize_ra_diff_hours_wraparound() {
-    // Wraparound cases: 23h to 1h should be 2h diff, not 22h
-    assert!((normalize_ra_diff_hours(22.0) - (-2.0)).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(-22.0) - 2.0).abs() < 0.0001);
-
-    // 13 hours should wrap to -11 hours (shorter path)
-    assert!((normalize_ra_diff_hours(13.0) - (-11.0)).abs() < 0.0001);
-    assert!((normalize_ra_diff_hours(-13.0) - 11.0).abs() < 0.0001);
-
-    // Edge case: exactly 12 hours
-    assert!((normalize_ra_diff_hours(12.0).abs() - 12.0).abs() < 0.0001);
-}
-
-#[test]
 fn test_validate_slew_position_success() {
     // Exact match
     assert!(validate_slew_position(12.0, 45.0, 12.0, 45.0, 1.0 / 60.0).is_ok());
@@ -594,7 +571,9 @@ async fn slew_node_off_target(stop_on_quality_problems: bool) -> (NodeStatus, Ve
 
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }

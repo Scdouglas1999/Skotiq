@@ -21,8 +21,6 @@ const POLL_INTERVAL: Duration = Duration::from_secs(5);
 /// How long the hold may outlast its own prediction before it gives up on the
 /// hour angle ever arriving.
 const OVERRUN_ALLOWANCE_MINUTES: f64 = 15.0;
-/// Hour angle advances this many sidereal minutes per solar minute.
-const SIDEREAL_RATE: f64 = 1.002_737_909;
 
 /// Hold before the meridian when the next `exposure_secs` frame would still be
 /// exposing at the moment tracking is due to stop.
@@ -110,7 +108,7 @@ pub(crate) async fn hold_before_meridian(
 
     let minutes_to_flip = threshold_min - entry_ha_min;
     let flip_at = chrono::Local::now()
-        + chrono::Duration::seconds((minutes_to_flip * 60.0 / SIDEREAL_RATE).round() as i64);
+        + chrono::Duration::seconds((minutes_to_flip * 60.0 / crate::meridian::SIDEREAL_PER_SOLAR).round() as i64);
     let message = format!(
         "Stopped tracking {}; the flip runs when {target} is {threshold_min:.0} min past it \
          (at about {}).",
@@ -123,7 +121,7 @@ pub(crate) async fn hold_before_meridian(
     // Its own bound, not the flip gate's 30 minutes: the hold is as long as the
     // operator made it, and only an hour angle that never arrives overruns it.
     let bound = Duration::from_secs_f64(
-        (minutes_to_flip.max(0.0) / SIDEREAL_RATE + OVERRUN_ALLOWANCE_MINUTES) * 60.0,
+        (minutes_to_flip.max(0.0) / crate::meridian::SIDEREAL_PER_SOLAR + OVERRUN_ALLOWANCE_MINUTES) * 60.0,
     );
     let started = tokio::time::Instant::now();
     loop {

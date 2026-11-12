@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../models/backend/device_capabilities.dart';
 import '../services/disk_space_guard.dart';
@@ -69,6 +70,16 @@ final captureDirDiskSpaceProvider = StreamProvider.autoDispose<DiskSpaceInfo?>((
   }
 });
 
+/// The capture folder's free space as shown ("252 GiB"), or null before the
+/// first sample.
+///
+/// For `captureDirDiskSpaceProvider.select(freeSpaceText)`: the byte count
+/// changes with every sample while the shown size rarely does.
+String? freeSpaceText(AsyncValue<DiskSpaceInfo?> space) {
+  final info = space.valueOrNull;
+  return info == null ? null : ByteFormat.size(info.freeBytes);
+}
+
 /// Snapshot returned by [sequenceDiskProjectionProvider] holding both the
 /// projected byte count and the projection severity. `null` for `projection`
 /// means there is no current sequence to project.
@@ -108,8 +119,15 @@ final sequenceDiskProjectionProvider =
       // Look up camera capabilities from the connected camera (if any). Without
       // capabilities the projection still runs but the severity is "info"
       // (size unknown). The guard takes a nullable.
-      final cameraState = ref.watch(cameraStateProvider);
-      final cameraId = cameraState.deviceId ?? '';
+      // Each recompute asks the OS for free space (a `df`, or a PowerShell
+      // process on Windows). It follows the capture folder's 10 s free-space
+      // sample and the camera's id, not the whole camera state, which changes
+      // with every temperature poll and exposure progress tick.
+      ref.watch(
+        captureDirDiskSpaceProvider.select((s) => s.valueOrNull?.freeBytes),
+      );
+      final cameraId =
+          ref.watch(cameraStateProvider.select((c) => c.deviceId)) ?? '';
       CameraCapabilities? capabilities;
       if (cameraId.isNotEmpty) {
         capabilities = await ref.watch(

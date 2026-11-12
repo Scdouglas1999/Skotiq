@@ -175,14 +175,6 @@ impl SerialLink {
         })
     }
 
-    /// Sends `command` and returns the single byte the mount answers with.
-    pub(crate) fn command_byte(&self, command: &[u8], rule: &ReplyRule) -> Result<u8, DriverError> {
-        self.exchange(|io| {
-            io.send(command)?;
-            io.read_reply_byte(rule)
-        })
-    }
-
     /// Sends a command the mount does not answer.
     pub(crate) fn command_no_reply(&self, command: &[u8]) -> Result<(), DriverError> {
         self.exchange(|io| io.send(command))
@@ -198,6 +190,14 @@ impl Exchange<'_> {
     pub(crate) fn send(&mut self, command: &[u8]) -> Result<(), DriverError> {
         self.port.write_all(command).map_err(DriverError::Io)?;
         self.port.flush().map_err(DriverError::Io)
+    }
+
+    /// Drops what the device sent that nobody read, such as a reply that came
+    /// after its command had timed out, so it cannot pass for the next reply.
+    pub(crate) fn discard_input(&mut self) -> Result<(), DriverError> {
+        self.port
+            .clear(serialport::ClearBuffer::Input)
+            .map_err(|e| DriverError::Io(e.into()))
     }
 
     /// One byte, or `None` when the read brought nothing yet.

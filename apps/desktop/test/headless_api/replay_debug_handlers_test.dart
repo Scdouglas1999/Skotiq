@@ -25,9 +25,6 @@ void main() {
     setUp(() async {
       database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       backend = _MockSequencerBackend();
-      when(
-        () => backend.sequencerSetDecisionLoggingEnabled(any()),
-      ).thenAnswer((_) async {});
       container = ProviderContainer(
         overrides: [
           databaseProvider.overrideWithValue(database),
@@ -98,43 +95,37 @@ void main() {
       expect(response.statusCode, HttpStatus.badRequest);
     });
 
-    test(
-      'settings are strict and enabled updates persist plus seed runtime',
-      () async {
-        final settings = await handlers.handleGetSettings(
-          get('/api/sequencer/replay-debug/settings'),
-        );
-        final settingsBody = jsonDecode(await settings.readAsString()) as Map;
-        expect(settingsBody['enabled'], isTrue);
-        expect(settingsBody['retentionDays'], 90);
+    test('settings are strict and an enabled update persists and reaches the '
+        'run configuration', () async {
+      final settings = await handlers.handleGetSettings(
+        get('/api/sequencer/replay-debug/settings'),
+      );
+      final settingsBody = jsonDecode(await settings.readAsString()) as Map;
+      expect(settingsBody['enabled'], isTrue);
+      expect(settingsBody['retentionDays'], 90);
 
-        final updated = await handlers.handleSetEnabled(
-          post('/api/sequencer/replay-debug/settings/enabled', {
-            'enabled': false,
-          }),
-        );
-        final updatedBody = jsonDecode(await updated.readAsString()) as Map;
-        expect(updatedBody['status'], 'ok');
-        expect(updatedBody['enabled'], isFalse);
-        expect(
-          await database.settingsDao.getSetting('replay_debug.enabled'),
-          'false',
-        );
-        verify(
-          () => backend.sequencerSetDecisionLoggingEnabled(false),
-        ).called(1);
+      final updated = await handlers.handleSetEnabled(
+        post('/api/sequencer/replay-debug/settings/enabled', {
+          'enabled': false,
+        }),
+      );
+      final updatedBody = jsonDecode(await updated.readAsString()) as Map;
+      expect(updatedBody['status'], 'ok');
+      expect(updatedBody['enabled'], isFalse);
+      expect(
+        await database.settingsDao.getSetting('replay_debug.enabled'),
+        'false',
+      );
+      expect(await container.read(replayDebugEnabledProvider.future), isFalse);
 
-        await database.settingsDao.setSetting('replay_debug.enabled', 'broken');
-        final corrupt = await translateHandlerErrors(
-          handlers.handleGetSettings(
-            get('/api/sequencer/replay-debug/settings'),
-          ),
-        );
-        expect(corrupt.statusCode, HttpStatus.internalServerError);
-        final corruptBody = jsonDecode(await corrupt.readAsString()) as Map;
-        expect(corruptBody['error'], 'replay_settings_corrupt');
-      },
-    );
+      await database.settingsDao.setSetting('replay_debug.enabled', 'broken');
+      final corrupt = await translateHandlerErrors(
+        handlers.handleGetSettings(get('/api/sequencer/replay-debug/settings')),
+      );
+      expect(corrupt.statusCode, HttpStatus.internalServerError);
+      final corruptBody = jsonDecode(await corrupt.readAsString()) as Map;
+      expect(corruptBody['error'], 'replay_settings_corrupt');
+    });
 
     test('retention and clear mutate the host authority', () async {
       final retention = await handlers.handleSetRetention(

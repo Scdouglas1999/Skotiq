@@ -48,17 +48,20 @@ pub enum DeviceError {
     #[error("{}", not_configured_text(*.device))]
     NotConfigured { device: DeviceKind },
 
-    /// The device is configured but not connected.
-    #[error("{message}")]
+    /// The device is configured but not connected, or its connection was
+    /// lost. `message` is the driver's own account.
+    #[error("The {device} is not connected ({message})")]
     NotConnected { device: DeviceKind, message: String },
 
     /// The device layer or the driver behind it cannot do this.
-    #[error("{message}")]
-    Unsupported {
-        /// The trait method that was asked for.
-        operation: &'static str,
-        message: String,
-    },
+    #[error("{0}")]
+    Unsupported(String),
+
+    /// The device refused the request as it was asked: a value out of range,
+    /// an unknown device, a state that forbids it (a parked mount). Asking
+    /// again unchanged gets the same answer.
+    #[error("{0}")]
+    Rejected(String),
 
     /// The operation was stopped on request before it finished.
     #[error("{0}")]
@@ -104,10 +107,30 @@ impl DeviceError {
         device: DeviceKind::SafetyMonitor,
     };
 
-    pub fn unsupported(operation: &'static str, message: impl Into<String>) -> Self {
-        Self::Unsupported {
-            operation,
-            message: message.into(),
+    pub fn unsupported(message: impl Into<String>) -> Self {
+        Self::Unsupported(message.into())
+    }
+
+    /// The same failure, its words prefixed with `what` was being done.
+    pub fn context(self, what: &str) -> Self {
+        self.reworded(|message| format!("{what}: {message}"))
+    }
+
+    /// The same kind of failure in other words. A missing device keeps its
+    /// fixed sentence.
+    pub fn reworded(self, words: impl FnOnce(String) -> String) -> Self {
+        match self {
+            Self::NotConfigured { device } => Self::NotConfigured { device },
+            Self::NotConnected { device, message } => Self::NotConnected {
+                device,
+                message: words(message),
+            },
+            Self::Unsupported(message) => Self::Unsupported(words(message)),
+            Self::Rejected(message) => Self::Rejected(words(message)),
+            Self::Cancelled(message) => Self::Cancelled(words(message)),
+            Self::Timeout(message) => Self::Timeout(words(message)),
+            Self::InvalidFrame(message) => Self::InvalidFrame(words(message)),
+            Self::Failed(message) => Self::Failed(words(message)),
         }
     }
 
@@ -135,22 +158,11 @@ impl From<DeviceError> for String {
     }
 }
 
-/// Whether a failure message that has already been flattened to text says the
-/// rig has no guider.
-///
-/// Only for a message that left the device layer as an instruction result or
-/// an event. Code that still holds the [`DeviceError`] matches on
-/// [`DeviceError::NotConfigured`] instead.
-pub fn message_says_no_guider_configured(message: &str) -> bool {
-    message.contains(NO_GUIDER_CONFIGURED)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// These texts reach the operator, the event stream and the Dart side,
-    /// and the flattened-message predicate depends on the first.
+    /// These texts reach the operator, the event stream and the Dart side.
     #[test]
     fn not_configured_keeps_the_text_operators_and_events_see() {
         assert_eq!(
@@ -180,15 +192,5 @@ mod tests {
         ] {
             assert!(!DeviceError::from(text).is_not_configured(DeviceKind::Guider));
         }
-    }
-
-    #[test]
-    fn a_flattened_message_is_recognized_by_its_text() {
-        let flattened = format!("Dither failed after frame 3/8: {}", DeviceError::NO_GUIDER);
-        assert!(message_says_no_guider_configured(&flattened));
-        assert!(!message_says_no_guider_configured("Guide star lost"));
-        assert!(!message_says_no_guider_configured(
-            "PHD2 connection refused"
-        ));
     }
 }

@@ -328,6 +328,14 @@ pub enum ExecutorEvent {
     Warning {
         message: String,
     },
+    /// The run's warning for a happening it carries on through and tells the
+    /// operator about once, from the decision row that carries the same
+    /// `notice`. The app lists it with the run's warnings and raises no second
+    /// notice for it.
+    NoticedWarning {
+        notice: crate::decision::RunNotice,
+        message: String,
+    },
     /// One step had a problem and the run carries on: a check that could not
     /// be made, a recovery step that did not take, a trigger action that was
     /// skipped. The operator is told as a warning; nothing about the run's
@@ -342,12 +350,8 @@ pub enum ExecutorEvent {
         message: String,
     },
     /// A meridian flip finished — successfully, degraded (it needed retries),
-    /// aborted, or failed outright.
-    ///
-    /// `MeridianFlipEvent` is log-only unless a caller wires
-    /// `with_event_channel`, and the trigger path does not, so this variant is
-    /// what carries the flip verdict — a failed post-flip recenter included —
-    /// into the run vitals.
+    /// aborted, or failed outright. This is what carries the flip verdict, a
+    /// failed post-flip recenter included, into the run vitals.
     MeridianFlipOutcome {
         /// `"success"`, `"failed"`, or `"aborted"`.
         outcome: String,

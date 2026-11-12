@@ -17,7 +17,7 @@ class _QueueTable extends ConsumerWidget {
     int targetId,
     String targetName,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final goalsSvc = ref.read(integrationGoalServiceProvider);
     final constraintsSvc = ref.read(targetConstraintServiceProvider);
     final queueSvc = ref.read(schedulerQueueServiceProvider);
@@ -55,9 +55,8 @@ class _QueueTable extends ConsumerWidget {
         );
       },
     );
-    if (confirmed != true) return;
-    if (!context.mounted) return;
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (confirmed != true || !context.mounted) return;
+    if (host.isStale) {
       _showAuthorityChanged(context);
       return;
     }
@@ -67,16 +66,14 @@ class _QueueTable extends ConsumerWidget {
     await queueSvc.remove(targetId);
     await goalsSvc.deleteForTarget(targetId);
     await constraintsSvc.deleteForTarget(targetId);
-    if (!context.mounted || !identical(ref.read(backendProvider), authority)) {
-      return;
-    }
+    if (!context.mounted || host.isStale) return;
     ref.invalidate(allIntegrationGoalsProvider);
     ref.invalidate(integrationGoalProgressProvider(targetId));
     // Surface the change immediately even though the auto-reeval listeners
     // will also fire — `evaluateNow` waits, the listeners don't.
     await _reevaluate(
       ref,
-      authority: authority,
+      authority: host.value,
       reason: 'row removed from scheduler',
     );
   }
@@ -85,7 +82,7 @@ class _QueueTable extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final goalsSvc = ref.read(integrationGoalServiceProvider);
     final constraintsSvc = ref.read(targetConstraintServiceProvider);
     final queueSvc = ref.read(schedulerQueueServiceProvider);
@@ -123,22 +120,19 @@ class _QueueTable extends ConsumerWidget {
         );
       },
     );
-    if (confirmed != true) return;
-    if (!context.mounted) return;
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (confirmed != true || !context.mounted) return;
+    if (host.isStale) {
       _showAuthorityChanged(context);
       return;
     }
     await queueSvc.removeAll();
     await goalsSvc.deleteAll();
     await constraintsSvc.deleteAll();
-    if (!context.mounted || !identical(ref.read(backendProvider), authority)) {
-      return;
-    }
+    if (!context.mounted || host.isStale) return;
     ref.invalidate(allIntegrationGoalsProvider);
     await _reevaluate(
       ref,
-      authority: authority,
+      authority: host.value,
       reason: 'scheduler queue cleared',
     );
   }

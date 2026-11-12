@@ -21,6 +21,7 @@
 // only in the Rust log.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,8 +96,10 @@ void main() {
   late _PermissiveBackend backend;
   late StreamController<bridge_event.SkotiqEvent> eventController;
   late SkotiqDatabase db;
-  late List<Map<Symbol, Object?>> pushedQualityChecks;
-  late List<String?> pushedRejectFolders;
+
+  /// Every run config the executor was sent. The last one before a start is
+  /// the launch's own; one may come before it from host start-up.
+  late List<Map<String, dynamic>> pushedConfigs;
   ProviderContainer? container;
 
   ProviderContainer buildContainer({AppSettingsState? settings}) {
@@ -120,8 +123,7 @@ void main() {
 
   setUp(() {
     container = null;
-    pushedQualityChecks = [];
-    pushedRejectFolders = [];
+    pushedConfigs = [];
     backend = _PermissiveBackend();
     eventController = StreamController<bridge_event.SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => eventController.stream);
@@ -132,22 +134,11 @@ void main() {
     when(
       () => backend.sequencerSetActiveSequenceRunId(any()),
     ).thenAnswer((_) async {});
-    when(
-      () => backend.sequencerUpdateDefaultQualityCheck(
-        hfrThreshold: any(named: 'hfrThreshold'),
-        hfrBaselinePercent: any(named: 'hfrBaselinePercent'),
-        eccentricityThreshold: any(named: 'eccentricityThreshold'),
-        starCountMin: any(named: 'starCountMin'),
-        maxConsecutiveRejects: any(named: 'maxConsecutiveRejects'),
-        enabled: any(named: 'enabled'),
-      ),
-    ).thenAnswer((inv) async {
-      pushedQualityChecks.add(inv.namedArguments);
-    });
-    when(() => backend.sequencerUpdateRejectFolderPath(any())).thenAnswer((
-      inv,
-    ) async {
-      pushedRejectFolders.add(inv.positionalArguments.first as String?);
+    when(() => backend.sequencerApplyRunConfig(any())).thenAnswer((inv) async {
+      pushedConfigs.add(
+        jsonDecode(inv.positionalArguments.first as String)
+            as Map<String, dynamic>,
+      );
     });
     // `stop()` waits for the authoritative terminal event, so the fake
     // executor has to send one back or the test hangs on teardown.
@@ -190,18 +181,18 @@ void main() {
       await executor.startLoadedRun();
 
       expect(
-        pushedQualityChecks,
-        hasLength(1),
+        pushedConfigs,
+        isNotEmpty,
         reason:
             'the bare load->start path pushed nothing at all, so grading was '
             'inert on every headless night',
       );
-      final pushed = pushedQualityChecks.single;
-      expect(pushed[#enabled], isTrue);
-      expect(pushed[#starCountMin], 100000);
-      expect(pushed[#maxConsecutiveRejects], 9999);
-      expect(pushed[#hfrThreshold], 4.25);
-      expect(pushedRejectFolders, ['/captures/rejects']);
+      final pushed =
+          pushedConfigs.last['default_quality_check'] as Map<String, dynamic>;
+      expect(pushed['star_count_min'], 100000);
+      expect(pushed['max_consecutive_rejects'], 9999);
+      expect(pushed['hfr_threshold'], 4.25);
+      expect(pushedConfigs.last['reject_folder_path'], '/captures/rejects');
     });
 
     test('grading switched OFF is pushed as OFF, not left unsaid', () async {
@@ -212,10 +203,10 @@ void main() {
 
       await executor.startLoadedRun();
 
-      expect(pushedQualityChecks, hasLength(1));
+      expect(pushedConfigs.last, contains('default_quality_check'));
       expect(
-        pushedQualityChecks.single[#enabled],
-        isFalse,
+        pushedConfigs.last['default_quality_check'],
+        isNull,
         reason:
             'a previous run may have left grading armed in the executor; the '
             'seed states the operator setting either way',
@@ -226,15 +217,8 @@ void main() {
       'a failed push refuses the launch instead of running on defaults',
       () async {
         when(
-          () => backend.sequencerUpdateDefaultQualityCheck(
-            hfrThreshold: any(named: 'hfrThreshold'),
-            hfrBaselinePercent: any(named: 'hfrBaselinePercent'),
-            eccentricityThreshold: any(named: 'eccentricityThreshold'),
-            starCountMin: any(named: 'starCountMin'),
-            maxConsecutiveRejects: any(named: 'maxConsecutiveRejects'),
-            enabled: any(named: 'enabled'),
-          ),
-        ).thenThrow(StateError('executor rejected the quality check'));
+          () => backend.sequencerApplyRunConfig(any()),
+        ).thenThrow(StateError('executor refused the settings'));
         final c = buildContainer(settings: _gradingOn);
         final executor = c.read(sequenceExecutorProvider);
 
@@ -269,63 +253,42 @@ void main() {
           'sequencer_dither_settle_time': '3.0',
           'sequencer_dither_settle_timeout': '30.0',
         });
-        final pushedIntervals = <int>[];
-        final pushedDither = <Map<Symbol, Object?>>[];
-        when(() => backend.sequencerUpdateAutofocusInterval(any())).thenAnswer((
-          inv,
-        ) async {
-          pushedIntervals.add(inv.positionalArguments.first as int);
-        });
-        when(
-          () => backend.sequencerUpdateDitherConfig(
-            pixels: any(named: 'pixels'),
-            settlePixels: any(named: 'settlePixels'),
-            settleTime: any(named: 'settleTime'),
-            settleTimeout: any(named: 'settleTimeout'),
-            raOnly: any(named: 'raOnly'),
-          ),
-        ).thenAnswer((inv) async {
-          pushedDither.add(inv.namedArguments);
-        });
         final c = buildContainer(settings: _gradingOn);
         final executor = c.read(sequenceExecutorProvider);
 
         await executor.startLoadedRun();
 
-        expect(pushedIntervals, [60]);
-        expect(pushedDither, hasLength(1));
-        expect(pushedDither.single[#pixels], 3.0);
-        expect(pushedDither.single[#settleTime], 3.0);
-        expect(pushedDither.single[#settleTimeout], 30.0);
+        final atStart = pushedConfigs.last;
+        expect(atStart['autofocus_interval_frames'], 60);
+        final dither = atStart['dither'] as Map<String, dynamic>;
+        expect(dither['pixels'], 3.0);
+        expect(dither['settle_time'], 3.0);
+        expect(dither['settle_timeout'], 30.0);
       },
     );
   });
 
   group('B. both launch paths seed identically', () {
-    test(
-      'start() pushes the same quality check the native seed does',
-      () async {
-        final c = buildContainer(settings: _gradingOn);
-        c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
-        final executor = c.read(sequenceExecutorProvider);
+    test('start() sends the same run config the native seed does', () async {
+      final c = buildContainer(settings: _gradingOn);
+      c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
+      final executor = c.read(sequenceExecutorProvider);
 
-        await executor.start();
-        final viaStart = List<Map<Symbol, Object?>>.from(pushedQualityChecks);
-        await executor.stop();
-        pushedQualityChecks.clear();
+      await executor.start();
+      final viaStart = pushedConfigs.last;
+      await executor.stop();
+      pushedConfigs.clear();
 
-        await executor.startLoadedRun();
+      await executor.startLoadedRun();
 
-        expect(viaStart, hasLength(1));
-        expect(
-          pushedQualityChecks.single,
-          viaStart.single,
-          reason:
-              'one seed site, so a field added for the editor path cannot go '
-              'missing on the headless one',
-        );
-      },
-    );
+      expect(
+        pushedConfigs.last,
+        viaStart,
+        reason:
+            'one seed site, so a field added for the editor path cannot go '
+            'missing on the headless one',
+      );
+    });
   });
 
   group('C. a target dropped by its end_when says so on the run record', () {

@@ -3,6 +3,7 @@
 //! and the background plate solve the app logged for it.
 
 use super::SolveOutcome;
+use crate::quality::RejectReason;
 
 /// NGC 891 as the plan had it.
 pub(crate) const TARGET_RA_DEG: f64 = 2.375_947_222 * 15.0;
@@ -65,4 +66,63 @@ pub(crate) fn rows_from(csv: &str) -> Vec<Row> {
             }
         })
         .collect()
+}
+
+impl Row {
+    /// The check the night's grader named, read back from the sentence the
+    /// database kept. `None` for a frame the night accepted.
+    pub(crate) fn db_reject(&self) -> Option<RejectReason> {
+        if self.db_accepted {
+            return None;
+        }
+        let r = self.db_reason.as_str();
+        let after = |marker: &str| -> f64 {
+            let rest =
+                &r[r.find(marker).unwrap_or_else(|| panic!("{marker} in {r}")) + marker.len()..];
+            let end = rest
+                .find(|c: char| !(c.is_ascii_digit() || c == '.'))
+                .unwrap_or(rest.len());
+            rest[..end]
+                .parse()
+                .unwrap_or_else(|_| panic!("number after {marker} in {r}"))
+        };
+        let count = || {
+            self.stars
+                .unwrap_or_else(|| panic!("star count of row {}", self.id))
+        };
+        let hfr = || self.hfr.unwrap_or_else(|| panic!("HFR of row {}", self.id));
+        Some(if r.starts_with("no stars") {
+            RejectReason::NoStars
+        } else if r.starts_with("eccentricity") {
+            RejectReason::Eccentricity {
+                eccentricity: after("eccentricity "),
+                limit: after("threshold "),
+            }
+        } else if r.starts_with("star count") && r.contains("below minimum") {
+            RejectReason::StarCountBelowMinimum {
+                count: count(),
+                minimum: after("minimum ") as u32,
+            }
+        } else if r.starts_with("star count") {
+            RejectReason::StarCountBelowBaseline {
+                count: count(),
+                baseline: after("baseline "),
+                drop_percent: 100.0 - after("(limit "),
+            }
+        } else if r.starts_with("HFR") && r.contains("baseline") {
+            RejectReason::HfrAboveBaseline {
+                hfr: hfr(),
+                baseline: after("baseline "),
+                percent: after("+ "),
+                limit: after("(limit "),
+            }
+        } else if r.starts_with("HFR") {
+            RejectReason::HfrAboveLimit {
+                hfr: hfr(),
+                limit: after("threshold "),
+            }
+        } else {
+            panic!("row {} has a reject reason no check writes: {r}", self.id)
+        })
+    }
 }

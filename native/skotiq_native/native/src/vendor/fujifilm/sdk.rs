@@ -140,6 +140,13 @@ crate::load_vendor_sdk! {
                 l_api_param: c_long,
                 ...
             ) -> c_long,
+        cap_prop: b"XSDK_CapProp\0"
+            => unsafe extern "C" fn(
+                h_camera: XsdkHandle,
+                l_api_code: c_long,
+                l_api_param: c_long,
+                ...
+            ) -> c_long,
         get_prop: b"XSDK_GetProp\0"
             => unsafe extern "C" fn(
                 h_camera: XsdkHandle,

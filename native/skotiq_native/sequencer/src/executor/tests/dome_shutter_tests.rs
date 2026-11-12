@@ -79,7 +79,11 @@ async fn start(sequence: SequenceDefinition) -> DomeRun {
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(ops.clone());
     executor.dome_id = Some("dome-1".to_string());
-    executor.set_safety_check_interval_secs(5).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.safety_check_interval_secs = 5)
+        .await
+        .unwrap();
     {
         let mut manager = executor.trigger_manager.write().await;
         let ids: Vec<String> = manager.triggers().iter().map(|t| t.id.clone()).collect();
@@ -130,7 +134,10 @@ impl DomeRun {
                     Ok(ExecutorEvent::TriggerFired {
                         trigger_id, action, ..
                     }) => fired.push(format!("{trigger_id} -> {action}")),
-                    Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                    Ok(
+                        ExecutorEvent::Warning { message }
+                        | ExecutorEvent::NoticedWarning { message, .. },
+                    ) => warnings.push(message),
                     Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                     Err(broadcast::error::RecvError::Closed) => return,
                 }

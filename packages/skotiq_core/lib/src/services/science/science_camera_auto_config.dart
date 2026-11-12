@@ -33,9 +33,10 @@ import '../../backend/remote_host.dart';
 /// read noise at the driver gain in use (a flat-pair measurement for that
 /// camera and gain, else the model's published gain chart), and a saturation
 /// threshold just below the driver-reported pixel-container full scale
-/// (`CameraStatus.maxAdu`). A camera with no chart and no measurement keeps
-/// whatever e⁻/ADU and read noise were configured, and the source label says
-/// so.
+/// (`CameraStatus.maxAdu`), or the camera's own lower saturation level
+/// (`CameraStatus.saturationAdu`) when it records one. A camera with no chart
+/// and no measurement keeps whatever e⁻/ADU and read noise were configured,
+/// and the source label says so.
 ///
 /// The sync is opt-out: `science.camera.auto_managed=false` (set when the
 /// user manually edits any of the three fields) freezes the values, and
@@ -61,10 +62,10 @@ class ScienceCameraAutoConfig {
   int _syncGeneration = 0;
   bool _retired = false;
 
-  /// Last (name, gain, maxAdu) tuple applied, to skip redundant writes. Keyed on
-  /// the container full scale rather than bit depth because that is what the
-  /// written values are actually derived from.
-  (String, int?, int)? _lastApplied;
+  /// Last (name, gain, maxAdu, saturationAdu) applied, to skip redundant
+  /// writes. Keyed on the container full scale rather than bit depth because
+  /// that is what the written values are actually derived from.
+  (String, int?, int, int?)? _lastApplied;
 
   ScienceCameraAutoConfig(this._ref, this._backend);
 
@@ -100,6 +101,7 @@ class ScienceCameraAutoConfig {
       final maxAdu = status != null && status.maxAdu > 0
           ? status.maxAdu
           : 65535;
+      final saturationAdu = status?.saturationAdu;
       if (identity.gain == null &&
           status != null &&
           status.connected &&
@@ -111,7 +113,9 @@ class ScienceCameraAutoConfig {
         );
       }
       if (!_isCurrent(generation)) return;
-      if (!force && _lastApplied == (identity.name, identity.gain, maxAdu)) {
+      if (!force &&
+          _lastApplied ==
+              (identity.name, identity.gain, maxAdu, saturationAdu)) {
         return;
       }
 
@@ -125,6 +129,7 @@ class ScienceCameraAutoConfig {
         cameraName: identity.name,
         driverGain: identity.gain,
         maxAdu: maxAdu,
+        saturationAdu: saturationAdu,
         adcBitDepth: bitDepth,
         entry: specs.databaseEntry,
         readNoiseOverride:
@@ -155,7 +160,7 @@ class ScienceCameraAutoConfig {
         await dao.setSettings(changedUpdates);
         if (!_isCurrent(generation)) return;
       }
-      _lastApplied = (identity.name, identity.gain, maxAdu);
+      _lastApplied = (identity.name, identity.gain, maxAdu, saturationAdu);
       if (changedUpdates.isNotEmpty) {
         _logger.info(
           'Science camera settings auto-updated ($reason): $source -> '
@@ -377,11 +382,15 @@ class ScienceCameraValues {
 /// The saturation threshold is two ADC steps below [maxAdu]. Sensors often
 /// stop one code short of the driver's full scale (an ASI1600 driver reports
 /// 65520 and its frames top out at 65504), and the star detector counts a
-/// star saturated only when its peak is above the threshold.
+/// star saturated only when its peak is above the threshold. A camera that
+/// records a lower saturation level ([saturationAdu]: a Canon raw file's
+/// specular white level, 11892 at ISO 100 on an EOS M50 whose container
+/// holds 16383) saturates there. e⁻/ADU keeps scaling by [maxAdu].
 ScienceCameraValues resolveScienceCameraValues({
   required String cameraName,
   required int? driverGain,
   required int maxAdu,
+  int? saturationAdu,
   required int adcBitDepth,
   required CameraSensorEntry? entry,
   double? readNoiseOverride,
@@ -391,7 +400,11 @@ ScienceCameraValues resolveScienceCameraValues({
   final bits = curve?.adcBitDepth ?? adcBitDepth;
   final adcMax = (1 << bits) - 1;
   final step = maxAdu > adcMax ? (maxAdu / adcMax).round() : 1;
-  final saturation = math.max(255, maxAdu - 2 * step);
+  final clip = math.max(255, maxAdu - 2 * step);
+  final recorded = saturationAdu != null && saturationAdu > 0
+      ? saturationAdu
+      : null;
+  final saturation = recorded == null ? clip : math.min(recorded, clip);
   final model = entry?.model ?? cameraName;
   final gainLabel = driverGain == null ? 'unknown gain' : 'gain $driverGain';
   final parts = <String>[];
@@ -454,7 +467,12 @@ ScienceCameraValues resolveScienceCameraValues({
       parts.add('read noise unchanged: no published figure at $gainLabel');
     }
   }
-  parts.add('saturation $saturation ADU ($bits-bit ADC, full scale $maxAdu)');
+  parts.add(
+    recorded != null && recorded < clip
+        ? "saturation $saturation ADU (the camera's recorded level; "
+              'full scale $maxAdu)'
+        : 'saturation $saturation ADU ($bits-bit ADC, full scale $maxAdu)',
+  );
   return ScienceCameraValues(
     saturationAdu: saturation,
     electronsPerAdu: ePerAdu,

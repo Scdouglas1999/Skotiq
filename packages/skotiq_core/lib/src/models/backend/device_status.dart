@@ -24,6 +24,12 @@ class CameraStatus {
   final double pixelSizeX;
   final double pixelSizeY;
   final int maxAdu;
+
+  /// Where the sensor stops responding linearly, when the camera records it
+  /// below [maxAdu] (a DSLR's per-ISO saturation level from its last raw
+  /// file). Only saturation checks use it; full-scale arithmetic keeps
+  /// [maxAdu].
+  final int? saturationAdu;
   final bool canCool;
   final bool canSetGain;
   final bool canSetOffset;
@@ -44,6 +50,7 @@ class CameraStatus {
     required this.pixelSizeX,
     required this.pixelSizeY,
     required this.maxAdu,
+    this.saturationAdu,
     required this.canCool,
     required this.canSetGain,
     required this.canSetOffset,
@@ -73,6 +80,7 @@ class CameraStatus {
       pixelSizeY:
           (json['pixel_size_y'] ?? json['pixelSizeY'])?.toDouble() ?? 0.0,
       maxAdu: (json['max_adu'] ?? json['maxAdu']) as int? ?? 65535,
+      saturationAdu: (json['saturation_adu'] ?? json['saturationAdu']) as int?,
       canCool: json['can_cool'] ?? json['canCool'] ?? false,
       canSetGain: json['can_set_gain'] ?? json['canSetGain'] ?? false,
       canSetOffset: json['can_set_offset'] ?? json['canSetOffset'] ?? false,
@@ -95,6 +103,7 @@ class CameraStatus {
     'pixelSizeX': pixelSizeX,
     'pixelSizeY': pixelSizeY,
     'maxAdu': maxAdu,
+    'saturationAdu': saturationAdu,
     'canCool': canCool,
     'canSetGain': canSetGain,
     'canSetOffset': canSetOffset,

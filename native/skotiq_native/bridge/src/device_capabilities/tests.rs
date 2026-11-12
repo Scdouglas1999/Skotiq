@@ -75,28 +75,18 @@ async fn capability_cache_stores_and_invalidates_by_device() {
 
 #[cfg(windows)]
 #[test]
-fn capability_probe_only_owns_known_disconnected_session() {
-    assert!(capability_probe_should_own_connection(Ok(false)));
-    assert!(!capability_probe_should_own_connection(Ok(true)));
-    assert!(!capability_probe_should_own_connection(Err(
-        "Connected property unavailable".to_string(),
-    )));
-}
-
-#[cfg(windows)]
-#[test]
 fn ascom_device_type_normalization_requires_exact_device_type() {
     assert_eq!(
         normalize_ascom_capability_device_type("Camera"),
-        Some(AscomCapabilityDeviceType::Camera)
+        Some(crate::device::DeviceType::Camera)
     );
     assert_eq!(
         normalize_ascom_capability_device_type("Telescope"),
-        Some(AscomCapabilityDeviceType::Mount)
+        Some(crate::device::DeviceType::Mount)
     );
     assert_eq!(
         normalize_ascom_capability_device_type("CoverCalibrator"),
-        Some(AscomCapabilityDeviceType::CoverCalibrator)
+        Some(crate::device::DeviceType::CoverCalibrator)
     );
     assert_eq!(normalize_ascom_capability_device_type("CameraGuard"), None);
 }
@@ -224,6 +214,7 @@ impl skotiq_device::CameraDriver for FakeRangedCamera {
             bit_depth: 16,
             color: false,
             bayer_pattern: None,
+            saturation_adu: None,
         }
     }
     async fn get_readout_modes(

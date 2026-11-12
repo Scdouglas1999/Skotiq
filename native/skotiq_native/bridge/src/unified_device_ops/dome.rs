@@ -17,7 +17,7 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_open_shutter(dome_id)
             .await
-            .map_err(|e| format!("Open dome shutter failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Dome))
     }
 
     async fn dome_close(&self, dome_id: &str) -> DeviceResult<()> {
@@ -26,7 +26,7 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_close_shutter(dome_id)
             .await
-            .map_err(|e| format!("Close dome shutter failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Dome))
     }
 
     async fn dome_park(&self, dome_id: &str) -> DeviceResult<()> {
@@ -35,14 +35,14 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_park(dome_id)
             .await
-            .map_err(|e| format!("Park dome failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Dome))
     }
 
     async fn dome_get_shutter_status(&self, dome_id: &str) -> DeviceResult<String> {
         let status = get_device_manager()
             .dome_get_shutter_status(dome_id)
             .await
-            .map_err(|e| format!("Get dome shutter status failed: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Dome))?;
 
         // Convert i32 status to string
         // ASCOM ShutterStatus: 0=Open, 1=Closed, 2=Opening, 3=Closing, 4=Error

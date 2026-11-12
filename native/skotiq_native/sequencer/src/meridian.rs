@@ -30,10 +30,7 @@ pub fn calculate_meridian_crossing(
         time_to_crossing -= 24.0;
     }
 
-    // Convert sidereal hours to solar seconds
-    // 1 sidereal hour = 0.99726957 solar hours = 3589.77 solar seconds
-    let sidereal_to_solar = 0.99726957;
-    let solar_hours = time_to_crossing * sidereal_to_solar;
+    let solar_hours = time_to_crossing / SIDEREAL_PER_SOLAR;
     // Why: `time_to_crossing` is normalized to [0, 24]
     // hours by the loop above; `solar_hours * 3600` is therefore ≤ ~86400.
     // Rust 1.45+ defines f64 → i64 as saturating-on-overflow / 0-on-NaN,
@@ -61,18 +58,23 @@ pub fn target_of_date(ra_hours: f64, dec_degrees: f64, when: DateTime<Utc>) -> (
 /// Time, normalized to -12..+12: negative is east of the meridian
 /// (approaching), positive is west of it (past the meridian).
 pub fn hour_angle(ra_hours: f64, lst_hours: f64) -> f64 {
-    let mut ha = lst_hours - ra_hours;
-
-    // Normalize to -12 to +12 range
-    while ha < -12.0 {
-        ha += 24.0;
-    }
-    while ha > 12.0 {
-        ha -= 24.0;
-    }
-
-    ha
+    wrap_hours(lst_hours - ra_hours)
 }
+
+/// A difference of two right ascensions or sidereal times, in hours, as the
+/// shorter way round the sky: in (-12, 12]. Half a day either way is +12.
+pub fn wrap_hours(delta: f64) -> f64 {
+    let wrapped = delta.rem_euclid(24.0);
+    if wrapped > 12.0 {
+        wrapped - 24.0
+    } else {
+        wrapped
+    }
+}
+
+/// Sidereal time elapsed per unit of solar (UTC) time: the rate a target's
+/// hour angle grows and a stopped mount's right ascension falls behind.
+pub const SIDEREAL_PER_SOLAR: f64 = 1.002_737_909_35;
 
 /// Calculate the UTC time at which a meridian flip should be triggered, given
 /// how many minutes past the meridian the flip waits for. Longitude is
@@ -203,6 +205,12 @@ pub fn alt_az_to_ra_dec(
     (ra, dec.to_degrees())
 }
 
+/// Julian Day of a UTC instant (Meeus, Astronomical Algorithms, 7.1), to the
+/// whole second. The one Julian Day the sequencer and the bridge use.
+///
+/// The second is kept whole on purpose: values computed from two reads of the
+/// clock in the same second (a mount read-back and the frame header written
+/// from it) come out identical.
 pub fn julian_day(dt: &DateTime<Utc>) -> f64 {
     let year = dt.year();
     // Why: `month()` returns u32 in [1, 12]; u32 → i32
@@ -236,7 +244,8 @@ pub fn julian_day(dt: &DateTime<Utc>) -> f64 {
         - 1524.5
 }
 
-/// Calculate Local Sidereal Time in hours
+/// Local mean sidereal time in hours, in [0, 24), at Julian Day `jd` for an
+/// observer at `longitude` degrees (east positive, west negative); Meeus 12.4.
 pub fn local_sidereal_time(jd: f64, longitude: f64) -> f64 {
     let t = (jd - 2451545.0) / 36525.0;
 
@@ -504,70 +513,87 @@ mod tests {
         }
     }
 
+    /// One second of right ascension or sidereal time is 15 arcseconds, so
+    /// an arcsecond of sky is this many hours.
+    const ARCSECOND_IN_HOURS: f64 = 1.0 / 15.0 / 3600.0;
+
+    fn hms(h: f64, m: f64, s: f64) -> f64 {
+        h + m / 60.0 + s / 3600.0
+    }
+
+    /// Meeus, Astronomical Algorithms (2nd ed.), examples 7.a and 12.a/12.b.
     #[test]
-    fn test_julian_day_epoch() {
-        // J2000 epoch: January 1, 2000, 12:00 TT (approximately 11:58:56 UTC)
+    fn julian_day_and_sidereal_time_match_published_values() {
         let j2000 = Utc.with_ymd_and_hms(2000, 1, 1, 12, 0, 0).unwrap();
-        let jd = julian_day(&j2000);
+        assert_eq!(julian_day(&j2000), 2_451_545.0);
 
-        // Should be very close to 2451545.0
-        assert!((jd - 2451545.0).abs() < 0.01);
+        let sputnik = Utc.with_ymd_and_hms(1957, 10, 4, 19, 26, 24).unwrap();
+        assert!((julian_day(&sputnik) - 2_436_116.31).abs() < 1e-9);
+
+        let midnight = Utc.with_ymd_and_hms(1987, 4, 10, 0, 0, 0).unwrap();
+        assert_eq!(julian_day(&midnight), 2_446_895.5);
+        let gmst = local_sidereal_time(julian_day(&midnight), 0.0);
+        assert!(
+            (gmst - hms(13.0, 10.0, 46.3668)).abs() < ARCSECOND_IN_HOURS,
+            "GMST {gmst} h"
+        );
+
+        let evening = Utc.with_ymd_and_hms(1987, 4, 10, 19, 21, 0).unwrap();
+        let gmst = local_sidereal_time(julian_day(&evening), 0.0);
+        assert!(
+            (gmst - hms(8.0, 34.0, 57.0896)).abs() < ARCSECOND_IN_HOURS,
+            "GMST {gmst} h"
+        );
+        // An observer 77.0656 deg west is that many degrees of sidereal time
+        // behind Greenwich.
+        let lst = local_sidereal_time(julian_day(&evening), -77.0656);
+        assert!(
+            (wrap_hours(lst - (gmst - 77.0656 / 15.0))).abs() < ARCSECOND_IN_HOURS,
+            "LST {lst} h"
+        );
     }
 
-    // Consolidation parity (release pass, Wave C2)
-    //
-    // `bridge/src/unified_device_ops.rs` carried private `julian_day` /
-    // `local_sidereal_time` copies and now imports these. The retired bodies
-    // are transcribed verbatim below and compared with exact `==` on f64,
-    // not an epsilon: a tolerance would pass even if the bridge's mount
-    // altitude and AIRMASS fallback started disagreeing with the sequencer's.
-
-    /// The body deleted from `unified_device_ops.rs:2133`. Note it cast
-    /// `(y + 4716) as f64` after integer addition where this module widens
-    /// first — exact either way for calendar years, which is the point.
-    fn retired_bridge_julian_day(dt: chrono::DateTime<Utc>) -> f64 {
-        use chrono::{Datelike, Timelike};
-
-        let year = dt.year();
-        let month = dt.month() as i32;
-        let day = dt.day() as f64;
-        let hour = dt.hour() as f64 + dt.minute() as f64 / 60.0 + dt.second() as f64 / 3600.0;
-
-        let (y, m) = if month <= 2 {
-            (year - 1, month + 12)
-        } else {
-            (year, month)
-        };
-
-        let a = (y as f64 / 100.0).floor();
-        let b = 2.0 - a + (a / 4.0).floor();
-
-        (365.25 * (y + 4716) as f64).floor()
-            + (30.6001 * (m + 1) as f64).floor()
-            + day
-            + hour / 24.0
-            + b
-            - 1524.5
+    /// Two reads of the clock inside one second give one Julian Day.
+    #[test]
+    fn julian_day_is_whole_seconds() {
+        let j2000 = Utc.with_ymd_and_hms(2000, 1, 1, 12, 0, 0).unwrap();
+        let later = j2000 + chrono::Duration::milliseconds(617);
+        assert_eq!(julian_day(&later), julian_day(&j2000));
+        let next = j2000 + chrono::Duration::seconds(1);
+        let days = julian_day(&next) - julian_day(&j2000);
+        assert!((days * 86_400.0 - 1.0).abs() < 1e-4, "{} s", days * 86_400.0);
     }
 
-    /// The body deleted from `unified_device_ops.rs:2159`.
-    fn retired_bridge_local_sidereal_time(jd: f64, longitude: f64) -> f64 {
-        let t = (jd - 2451545.0) / 36525.0;
-
-        let gmst = 280.46061837 + 360.98564736629 * (jd - 2451545.0) + 0.000387933 * t * t
-            - t * t * t / 38710000.0;
-
-        let lst = (gmst + longitude) % 360.0;
-        if lst < 0.0 {
-            (lst + 360.0) / 15.0
-        } else {
-            lst / 15.0
+    #[test]
+    fn wrap_hours_takes_the_shorter_way_round() {
+        for (delta, wrapped) in [
+            (0.0, 0.0),
+            (1.5, 1.5),
+            (-1.5, -1.5),
+            (23.0, -1.0),
+            (-23.0, 1.0),
+            (12.0, 12.0),
+            (-12.0, 12.0),
+            (36.0, 12.0),
+            (24.0, 0.0),
+            (-24.0, 0.0),
+            (48.25, 0.25),
+            (12.5, -11.5),
+            (-12.5, 11.5),
+        ] {
+            assert!(
+                (wrap_hours(delta) - wrapped).abs() < 1e-12,
+                "{delta} h wrapped to {}, expected {wrapped}",
+                wrap_hours(delta)
+            );
         }
+        assert_eq!(hour_angle(1.0, 23.0), -2.0);
+        assert_eq!(hour_angle(23.0, 1.0), 2.0);
     }
 
     /// Instants walking the month-rollback branch, leap day, the century and
     /// 400-year Gregorian corrections, midnight, and both sides of J2000.
-    fn parity_instants() -> Vec<chrono::DateTime<Utc>> {
+    fn range_instants() -> Vec<chrono::DateTime<Utc>> {
         vec![
             Utc.with_ymd_and_hms(2000, 1, 1, 12, 0, 0).unwrap(),
             Utc.with_ymd_and_hms(1999, 12, 31, 23, 59, 59).unwrap(),
@@ -583,37 +609,9 @@ mod tests {
     }
 
     #[test]
-    fn julian_day_is_bit_identical_to_the_retired_bridge_copy() {
-        for dt in parity_instants() {
-            assert_eq!(
-                julian_day(&dt),
-                retired_bridge_julian_day(dt),
-                "julian_day diverged at {dt}"
-            );
-        }
-    }
-
-    #[test]
-    fn local_sidereal_time_is_bit_identical_to_the_retired_bridge_copy() {
-        // Longitudes east, west, on the prime meridian, and past the
-        // antimeridian in both directions so the negative branch runs.
-        let longitudes = [0.0, -122.4194, 151.2093, 179.9999, -179.9999, -400.0];
-        for dt in parity_instants() {
-            let jd = julian_day(&dt);
-            for lon in longitudes {
-                assert_eq!(
-                    local_sidereal_time(jd, lon),
-                    retired_bridge_local_sidereal_time(jd, lon),
-                    "local_sidereal_time diverged at {dt} lon={lon}"
-                );
-            }
-        }
-    }
-
-    #[test]
     fn local_sidereal_time_stays_in_range() {
         let longitudes = [0.0, -122.4194, 151.2093, 179.9999, -179.9999, -400.0];
-        for dt in parity_instants() {
+        for dt in range_instants() {
             let jd = julian_day(&dt);
             for lon in longitudes {
                 let lst = local_sidereal_time(jd, lon);
@@ -623,39 +621,5 @@ mod tests {
                 );
             }
         }
-    }
-
-    #[test]
-    fn scheduling_astronomy_is_a_deliberately_separate_julian_date() {
-        // Pins the non-adoption note on `scheduling::astronomy::julian_date`.
-        // That one is Fliegel-Van Flandern on a MILLISECOND day fraction, kept
-        // byte-compatible with the Dart planetarium so `scoring` can assert
-        // numeric parity against it. This module's is Meeus on a WHOLE-SECOND
-        // day fraction.
-        //
-        // On a whole-second instant the two agree exactly — which is why this
-        // consolidation could not simply pick one and be done: they are the
-        // same number right up until they are not.
-        for dt in parity_instants() {
-            assert_eq!(
-                julian_day(&dt),
-                crate::scheduling::astronomy::julian_date(&dt),
-                "whole-second Julian Dates should coincide at {dt}"
-            );
-        }
-
-        // Add sub-second time and they part company, because `julian_day`
-        // truncates at the second and `julian_date` does not. Merging them
-        // would therefore move one caller's numbers.
-        let sub_second = Utc
-            .with_ymd_and_hms(2026, 8, 13, 3, 21, 44)
-            .unwrap()
-            .with_nanosecond(617_000_000)
-            .unwrap();
-        assert_ne!(
-            julian_day(&sub_second),
-            crate::scheduling::astronomy::julian_date(&sub_second),
-            "the two forms must not silently agree on a sub-second instant"
-        );
     }
 }

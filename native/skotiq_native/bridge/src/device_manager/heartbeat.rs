@@ -180,12 +180,8 @@ impl DeviceManager {
         device_type: &DeviceType,
         driver_type: &DriverType,
     ) -> Result<bool, String> {
-        // INDI devices are checked through the shared server connection,
-        // which that check also recovers.
-        if *driver_type != DriverType::Indi {
-            if let Some(handle) = self.handles.get(device_id) {
-                return handle.heartbeat(device_id).await;
-            }
+        if let Some(handle) = self.handles.get(device_id) {
+            return handle.heartbeat(device_id).await;
         }
         match driver_type {
             DriverType::Alpaca => {
@@ -249,9 +245,6 @@ impl DeviceManager {
 
         Ok(connected)
     }
-
-    // perform_alpaca_health_check / perform_ascom_health_check /
-    // perform_indi_health_check moved to crate::dispatch::{alpaca,ascom,indi}.
 
     /// Start heartbeat monitoring for a device with default configuration
     ///

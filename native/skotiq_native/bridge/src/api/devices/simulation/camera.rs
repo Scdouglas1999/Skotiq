@@ -186,6 +186,7 @@ impl Default for SimulatedCamera {
                 pixel_size_x: 3.76,
                 pixel_size_y: 3.76,
                 max_adu: crate::sim_frame::SIM_MAX_ADU as u32,
+                saturation_adu: None,
                 can_cool: true,
                 can_set_gain: true,
                 can_set_offset: true,
@@ -491,46 +492,4 @@ pub(crate) async fn advance_sim_cooler(device_id: &str) {
         // Holding at the setpoint.
         35.0
     });
-}
-
-/// Get camera status
-pub async fn api_get_camera_status(device_id: String) -> Result<CameraStatus, SkotiqError> {
-    crate::api::devices::camera::get_camera_status(device_id).await
-}
-
-/// Set camera cooling target
-pub async fn api_set_camera_cooler(
-    device_id: String,
-    enabled: u8,
-    target_temp: Option<f64>,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        target: "skotiq_bridge::api::devices::camera",
-        "Setting camera cooler for {}: enabled={}, target={:?}",
-        device_id,
-        enabled,
-        target_temp
-    );
-    let mgr = get_device_manager();
-    mgr.camera_set_cooler(&device_id, enabled != 0, target_temp)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Set camera gain
-pub async fn api_set_camera_gain(device_id: String, gain: i32) -> Result<(), SkotiqError> {
-    tracing::info!(target: "skotiq_bridge::api::devices::camera", "Setting camera gain for {}: {}", device_id, gain);
-    let mgr = get_device_manager();
-    mgr.camera_set_gain(&device_id, gain)
-        .await
-        .map_err(SkotiqError::from)
-}
-
-/// Set camera offset
-pub async fn api_set_camera_offset(device_id: String, offset: i32) -> Result<(), SkotiqError> {
-    tracing::info!(target: "skotiq_bridge::api::devices::camera", "Setting camera offset for {}: {}", device_id, offset);
-    let mgr = get_device_manager();
-    mgr.camera_set_offset(&device_id, offset)
-        .await
-        .map_err(SkotiqError::from)
 }

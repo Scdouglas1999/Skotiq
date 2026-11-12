@@ -267,19 +267,46 @@ fn test_retry_config_prefers_retry_after_header() {
 }
 
 #[test]
-fn test_alpaca_error_conversion() {
-    let error = AlpacaError::timeout("test_operation", 5000);
-    let error_string: String = error.into();
-    assert!(error_string.contains("5000ms"));
-    assert!(error_string.contains("test_operation"));
+fn alpaca_errors_reach_drivers_as_the_failure_they_name() {
+    use skotiq_device::DriverError;
 
-    let error = AlpacaError::DeviceError {
-        code: 1031,
-        message: "Method unavailable".to_string(),
+    let not_connected = AlpacaError::DeviceError {
+        code: 0x407,
+        message: "Telescope is not connected".to_string(),
     };
-    let error_string: String = error.into();
-    assert!(error_string.contains("1031"));
-    assert!(error_string.contains("Method unavailable"));
+    assert!(matches!(
+        DriverError::from(not_connected),
+        DriverError::NotConnected
+    ));
+    let not_implemented = AlpacaError::DeviceError {
+        code: 0x400,
+        message: "PulseGuide is not implemented".to_string(),
+    };
+    assert!(matches!(
+        DriverError::from(not_implemented),
+        DriverError::NotSupported
+    ));
+    let invalid = AlpacaError::DeviceError {
+        code: 0x401,
+        message: "Gain 900 is out of range".to_string(),
+    };
+    assert!(matches!(
+        DriverError::from(invalid),
+        DriverError::InvalidParameter(message) if message == "Gain 900 is out of range"
+    ));
+    let timeout = DriverError::from(AlpacaError::timeout("test_operation", 5000));
+    assert!(
+        matches!(&timeout, DriverError::Timeout(text) if text.contains("5000ms") && text.contains("test_operation")),
+        "{timeout:?}"
+    );
+
+    // A failure of no particular kind keeps the protocol's wording.
+    let parked = DriverError::from(AlpacaError::DeviceError {
+        code: 0x408,
+        message: "Mount is parked".to_string(),
+    });
+    assert!(matches!(parked, DriverError::Backend(_)));
+    assert_eq!(parked.to_string(), "Device error 1032: Mount is parked");
 }
 
 #[test]

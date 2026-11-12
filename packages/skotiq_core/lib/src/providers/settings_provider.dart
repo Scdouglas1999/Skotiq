@@ -43,7 +43,7 @@ export '../settings/device_retries.dart';
 export '../settings/guide_settle.dart';
 export '../settings/preflight_strictness.dart';
 export '../settings/setting.dart'
-    show ExecutorConfig, Setting, SettingFamily, SettingSync, SettingValue;
+    show Setting, SettingFamily, SettingSync, SettingValue;
 export '../settings/store_settings.dart' show StoreSettings;
 
 part 'settings_sections/general.dart';

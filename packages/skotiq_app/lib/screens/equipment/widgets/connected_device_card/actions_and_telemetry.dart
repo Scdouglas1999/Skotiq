@@ -30,9 +30,8 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
   /// One attempt, no loop: a second failure shows on the card again and the
   /// user decides what to do next.
   Future<void> _retryConnect() async {
-    final revision = _beginDeviceCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDeviceCommand();
+    if (command == null) return;
     try {
       await ref.read(deviceServiceProvider).retryConnect(widget.type);
     } catch (e) {
@@ -43,7 +42,7 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
         );
       }
     } finally {
-      _finishDeviceCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 

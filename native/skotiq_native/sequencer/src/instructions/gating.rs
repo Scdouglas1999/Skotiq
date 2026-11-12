@@ -13,9 +13,8 @@ use super::*;
 /// where Dart rejects and the native gate allows, and the Sun in civil
 /// twilight is far too bright for science LIGHT frames.
 ///
-/// The Dart side can push a tighter or looser value at session start via
-/// `SequenceExecutor::update_max_sun_altitude`; this constant is the floor
-/// used when nothing was pushed, or when a non-finite value is seen.
+/// The run config's `max_sun_altitude_degrees` can set a tighter or looser
+/// value; this constant is used when it sets none, or a non-finite one.
 pub const DEFAULT_MAX_SUN_ALTITUDE_DEGREES: f64 = -12.0;
 
 /// Structural gate on pointing inherited from a `TargetHeader` that still

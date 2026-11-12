@@ -876,3 +876,53 @@ async fn a_dslr_frame_records_its_iso_as_gain_and_isospeed() {
     assert_eq!(parsed.get_int("GAIN"), Some(1600));
     assert_eq!(parsed.get_int("ISOSPEED"), Some(1600));
 }
+
+/// A sequence frame and a manual capture are saved in one format: the
+/// sequencer names its files by the device layer's extension, both are
+/// written by `write_capture_frame`, and both read the format from the run
+/// configuration the app applies.
+#[tokio::test]
+async fn a_sequence_frame_and_a_manual_capture_take_their_format_from_the_run_config() {
+
+    let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+        .lock()
+        .await;
+    let handle = skotiq_sequencer::executor_handle();
+    let before = handle.run_config();
+    let mut xisf = before.clone();
+    xisf.frame_format = skotiq_sequencer::FrameFormat {
+        format: skotiq_sequencer::ArchiveFormat::Xisf,
+        xisf_compression: skotiq_imaging::XisfCompression::from_name("zstd+sh").unwrap(),
+        xisf_checksums: true,
+    };
+    crate::api::api_sequencer_apply_run_config(serde_json::to_string(&xisf).unwrap())
+        .await
+        .expect("the run config applies");
+
+    let extension = crate::unified_device_ops::create_unified_device_ops().frame_file_extension();
+    let scratch = temp_scratch_dir("run_config_format");
+    let path = scratch.join(format!("frame.{extension}"));
+    let ctx = FrameContext::new_light("session-format", 1, 1, 1.0, 1);
+    let written = write_capture_frame(
+        path.to_string_lossy().to_string(),
+        8,
+        8,
+        vec![1000; 64],
+        FrameHeader::from_frame_context(&ctx),
+    )
+    .await;
+    handle
+        .apply_run_config(before)
+        .await
+        .expect("the earlier run config applies again");
+
+    written.expect("the frame is saved");
+    assert_eq!(extension, "xisf");
+    let bytes = std::fs::read(&path).expect("the frame is on disk");
+    assert!(bytes.starts_with(b"XISF0100"), "an XISF file");
+    let head = String::from_utf8_lossy(&bytes[..bytes.len().min(16 * 1024)]);
+    assert!(
+        head.contains("zstd+sh"),
+        "the run config's compression was not used: {head}"
+    );
+}

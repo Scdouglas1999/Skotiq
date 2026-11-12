@@ -307,26 +307,6 @@ typedef struct wire_cst_secondary_rig_config_api {
   double *site_elevation_m;
 } wire_cst_secondary_rig_config_api;
 
-typedef struct wire_cst_record_string_i_32 {
-  struct wire_cst_list_prim_u_8_strict *field0;
-  int32_t field1;
-} wire_cst_record_string_i_32;
-
-typedef struct wire_cst_list_record_string_i_32 {
-  struct wire_cst_record_string_i_32 *ptr;
-  int32_t len;
-} wire_cst_list_record_string_i_32;
-
-typedef struct wire_cst_list_bool {
-  bool *ptr;
-  int32_t len;
-} wire_cst_list_bool;
-
-typedef struct wire_cst_list_prim_f_64_loose {
-  double *ptr;
-  int32_t len;
-} wire_cst_list_prim_f_64_loose;
-
 typedef struct wire_cst_record_string_f_64 {
   struct wire_cst_list_prim_u_8_strict *field0;
   double field1;
@@ -346,15 +326,6 @@ typedef struct wire_cst_list_record_string_map_string_f_64_none {
   struct wire_cst_record_string_map_string_f_64_none *ptr;
   int32_t len;
 } wire_cst_list_record_string_map_string_f_64_none;
-
-typedef struct wire_cst_recovery_config_update {
-  double retry_interval_secs;
-  double max_duration_secs;
-  bool stop_tracking_during_recovery;
-  bool abort_on_meridian;
-  bool audible_alert_when_entered;
-  bool park_and_close_when_recovery_gives_up;
-} wire_cst_recovery_config_update;
 
 typedef struct wire_cst_observer_location {
   double latitude;
@@ -1157,6 +1128,7 @@ typedef struct wire_cst_SequencerEvent_ExposureCompleted {
 typedef struct wire_cst_SequencerEvent_Error {
   struct wire_cst_list_prim_u_8_strict *message;
   int32_t kind;
+  int32_t *notice;
 } wire_cst_SequencerEvent_Error;
 
 typedef struct wire_cst_SequencerEvent_MeridianFlipOutcome {
@@ -1390,6 +1362,7 @@ typedef struct wire_cst_SequencerEvent_DecisionLogged {
   struct wire_cst_list_prim_u_8_strict *details_json;
   struct wire_cst_list_prim_u_8_strict *node_id;
   int64_t *sequence_run_id;
+  int32_t *notice;
 } wire_cst_SequencerEvent_DecisionLogged;
 
 typedef union SequencerEventKind {
@@ -1677,6 +1650,22 @@ typedef struct wire_cst_list_star_crop_api {
   int32_t len;
 } wire_cst_list_star_crop_api;
 
+typedef struct wire_cst_tracked_guide_star {
+  uint32_t id;
+  double x;
+  double y;
+  double flux;
+  double snr;
+  bool is_lock;
+  double *residual;
+  double weight;
+} wire_cst_tracked_guide_star;
+
+typedef struct wire_cst_list_tracked_guide_star {
+  struct wire_cst_tracked_guide_star *ptr;
+  int32_t len;
+} wire_cst_list_tracked_guide_star;
+
 typedef struct wire_cst_api_depth_floor_suggestion {
   double floor_adu;
   double dark_noise_adu;
@@ -1790,6 +1779,7 @@ typedef struct wire_cst_camera_status {
   double pixel_size_x;
   double pixel_size_y;
   uint32_t max_adu;
+  uint32_t *saturation_adu;
   bool can_cool;
   bool can_set_gain;
   bool can_set_offset;
@@ -2014,6 +2004,37 @@ typedef struct wire_cst_focuser_status {
   bool has_temperature;
 } wire_cst_focuser_status;
 
+typedef struct wire_cst_guide_star_image {
+  uint32_t frame;
+  uint32_t width;
+  uint32_t height;
+  double star_x;
+  double star_y;
+  struct wire_cst_list_prim_u_8_strict *pixels;
+} wire_cst_guide_star_image;
+
+typedef struct wire_cst_guider_calibration {
+  bool is_calibrated;
+  double *ra_angle;
+  double *dec_angle;
+  double *ra_rate;
+  double *dec_rate;
+} wire_cst_guider_calibration;
+
+typedef struct wire_cst_guider_status {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+  bool connected;
+  struct wire_cst_list_prim_u_8_strict *state;
+  double rms_ra;
+  double rms_dec;
+  double rms_total;
+  double snr;
+  double star_mass;
+  double *pixel_scale;
+  struct wire_cst_list_prim_u_8_strict *stop_reason;
+  struct wire_cst_list_tracked_guide_star *tracked_stars;
+} wire_cst_guider_status;
+
 typedef struct wire_cst_mount_guard_solve {
   double ra_hours;
   double dec_degrees;
@@ -2060,35 +2081,6 @@ typedef struct wire_cst_mount_time_info {
   int64_t utc_unix_seconds;
   double utc_offset_hours;
 } wire_cst_mount_time_info;
-
-typedef struct wire_cst_phd_2_calibration_data {
-  bool is_calibrated;
-  double *ra_angle;
-  double *dec_angle;
-  double *ra_rate;
-  double *dec_rate;
-} wire_cst_phd_2_calibration_data;
-
-typedef struct wire_cst_phd_2_star_image {
-  uint32_t frame;
-  uint32_t width;
-  uint32_t height;
-  double star_x;
-  double star_y;
-  struct wire_cst_list_prim_u_8_strict *pixels;
-} wire_cst_phd_2_star_image;
-
-typedef struct wire_cst_phd_2_status {
-  bool connected;
-  struct wire_cst_list_prim_u_8_strict *state;
-  double rms_ra;
-  double rms_dec;
-  double rms_total;
-  double snr;
-  double star_mass;
-  double *pixel_scale;
-  struct wire_cst_list_prim_u_8_strict *stop_reason;
-} wire_cst_phd_2_status;
 
 typedef struct wire_cst_plate_solve_result {
   bool success;
@@ -2338,6 +2330,10 @@ typedef struct wire_cst_SkotiqError_DeviceBusy {
   struct wire_cst_list_prim_u_8_strict *current_operation;
 } wire_cst_SkotiqError_DeviceBusy;
 
+typedef struct wire_cst_SkotiqError_InvalidState {
+  struct wire_cst_list_prim_u_8_strict *field0;
+} wire_cst_SkotiqError_InvalidState;
+
 typedef struct wire_cst_SkotiqError_ImageError {
   struct wire_cst_list_prim_u_8_strict *field0;
 } wire_cst_SkotiqError_ImageError;
@@ -2434,6 +2430,7 @@ typedef union SkotiqErrorKind {
   struct wire_cst_SkotiqError_OperationFailed OperationFailed;
   struct wire_cst_SkotiqError_NotSupported NotSupported;
   struct wire_cst_SkotiqError_DeviceBusy DeviceBusy;
+  struct wire_cst_SkotiqError_InvalidState InvalidState;
   struct wire_cst_SkotiqError_ImageError ImageError;
   struct wire_cst_SkotiqError_CameraError CameraError;
   struct wire_cst_SkotiqError_ExposureFailed ExposureFailed;
@@ -2510,19 +2507,17 @@ void frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_build
 void frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_build_master_flat(int64_t port_,
                                                                                              struct wire_cst_list_prim_u_8_strict *args_json);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_get_config(int64_t port_);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_builtin_guider_get_config(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_get_tracked_stars_json(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_set_config(int64_t port_,
-                                                                                double exposure_secs,
-                                                                                int32_t gain,
-                                                                                int32_t offset,
-                                                                                int32_t binning,
-                                                                                uint32_t calibration_ms,
-                                                                                uint64_t settle_sleep_ms,
-                                                                                double min_pulse_ms,
-                                                                                double max_pulse_ms);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_builtin_guider_set_config(int64_t port_,
+                                                                                   double exposure_secs,
+                                                                                   int32_t gain,
+                                                                                   int32_t offset,
+                                                                                   int32_t binning,
+                                                                                   uint32_t calibration_ms,
+                                                                                   uint64_t settle_sleep_ms,
+                                                                                   double min_pulse_ms,
+                                                                                   double max_pulse_ms);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__api_calculate_altitude(double ra_hours,
                                                                                                       double dec_degrees,
@@ -2805,31 +2800,27 @@ void frbgen_skotiq_bridge_wire__crate__api__event_stream__api_event_stream(int64
 void frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_extract_background(int64_t port_,
                                                                                       struct wire_cst_list_prim_u_8_strict *args_json);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names(int64_t port_,
-                                                                                                         struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_get_names(int64_t port_,
+                                                                                             struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name(int64_t port_,
-                                                                                                           struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                           struct wire_cst_list_prim_u_8_strict *name);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names(int64_t port_,
-                                                                                                                struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                                struct wire_cst_list_String *names);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position(int64_t port_,
-                                                                                                            struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                            int32_t position);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_halt(int64_t port_,
-                                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_move_relative(int64_t port_,
+void frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names(int64_t port_,
                                                                                                     struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                    int32_t delta);
+                                                                                                    struct wire_cst_list_String *names);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_move_to(int64_t port_,
-                                                                                              struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                              int32_t position);
+void frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_set_position(int64_t port_,
+                                                                                                struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                                int32_t position);
+
+void frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_halt(int64_t port_,
+                                                                               struct wire_cst_list_prim_u_8_strict *device_id);
+
+void frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_move_relative(int64_t port_,
+                                                                                        struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                        int32_t delta);
+
+void frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_move_to(int64_t port_,
+                                                                                  struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                  int32_t position);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_generate_fits_thumbnail(int64_t port_,
                                                                                  struct wire_cst_list_prim_u_8_strict *file_path,
@@ -2839,9 +2830,6 @@ void frbgen_skotiq_bridge_wire__crate__api__storage__api_get_active_profile(int6
 
 void frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_camera_capabilities(int64_t port_,
                                                                                      struct wire_cst_list_prim_u_8_strict *device_id);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_get_camera_status(int64_t port_,
-                                                                                               struct wire_cst_list_prim_u_8_strict *device_id);
 
 void frbgen_skotiq_bridge_wire__crate__api__connection__api_get_connected_devices(int64_t port_);
 
@@ -2867,14 +2855,14 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__dome__api_get_dome_status(i
 void frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_filterwheel_capabilities(int64_t port_,
                                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status(int64_t port_,
-                                                                                                          struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_get_filterwheel_status(int64_t port_,
+                                                                                              struct wire_cst_list_prim_u_8_strict *device_id);
 
 void frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_focuser_capabilities(int64_t port_,
                                                                                       struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_get_focuser_status(int64_t port_,
-                                                                                                 struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_get_focuser_status(int64_t port_,
+                                                                                     struct wire_cst_list_prim_u_8_strict *device_id);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_get_last_image(int64_t port_,
                                                                         struct wire_cst_list_prim_u_8_strict *device_id);
@@ -2887,8 +2875,8 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__storage__api_get_loc
 void frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_mount_capabilities(int64_t port_,
                                                                                     struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_get_mount_status(int64_t port_,
-                                                                                             struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_get_mount_status(int64_t port_,
+                                                                                 struct wire_cst_list_prim_u_8_strict *device_id);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_get_plate_solver_path(void);
 
@@ -2899,8 +2887,8 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get
 void frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_rotator_capabilities(int64_t port_,
                                                                                       struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_get_rotator_status(int64_t port_,
-                                                                                                 struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_get_rotator_status(int64_t port_,
+                                                                                     struct wire_cst_list_prim_u_8_strict *device_id);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__environment__api_get_safety_monitor_status(int64_t port_,
                                                                                                 struct wire_cst_list_prim_u_8_strict *device_id);
@@ -2919,50 +2907,42 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__init__api_get_versio
 void frbgen_skotiq_bridge_wire__crate__api__devices__environment__api_get_weather_conditions(int64_t port_,
                                                                                              struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_deselect_star(int64_t port_,
-                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_deselect_star(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_dither(int64_t port_,
-                                                                    struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                    double amount,
-                                                                    uint8_t ra_only,
-                                                                    double settle_pixels,
-                                                                    double settle_time,
-                                                                    double settle_timeout);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_dither(int64_t port_,
+                                                                       double amount,
+                                                                       bool ra_only,
+                                                                       double settle_pixels,
+                                                                       double settle_time,
+                                                                       double settle_timeout);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_find_star(int64_t port_,
-                                                                       struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_find_star(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_calibration(int64_t port_,
-                                                                             struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_calibration(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_lock_position(int64_t port_,
-                                                                               struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_lock_position(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_star_image(int64_t port_,
-                                                                            struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                            uint32_t size);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_star_image(int64_t port_,
+                                                                               uint32_t size);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_status(int64_t port_,
-                                                                        struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_status(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_loop(int64_t port_,
-                                                                  struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_loop(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_set_lock_position(int64_t port_,
-                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                               double x,
-                                                                               double y,
-                                                                               bool exact);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_set_lock_position(int64_t port_,
+                                                                                  double x,
+                                                                                  double y,
+                                                                                  bool exact);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_start_guiding(int64_t port_,
-                                                                           struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                           double settle_pixels,
-                                                                           double settle_time,
-                                                                           double settle_timeout);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_set_paused(int64_t port_,
+                                                                           bool paused);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_stop(int64_t port_,
-                                                                  struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_start_guiding(int64_t port_,
+                                                                              double settle_pixels,
+                                                                              double settle_time,
+                                                                              double settle_timeout);
+
+void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_stop(int64_t port_);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__init__api_init(void);
 
@@ -3016,30 +2996,30 @@ void frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_solve(i
                                                                                struct wire_cst_list_prim_u_8_strict *camera_id,
                                                                                double exposure_secs);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_park(int64_t port_,
-                                                                                       struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_park(int64_t port_,
+                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_pulse_guide(int64_t port_,
-                                                                                              struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                              struct wire_cst_list_prim_u_8_strict *direction,
-                                                                                              int32_t duration_ms);
+void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_pulse_guide(int64_t port_,
+                                                                                  struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                  struct wire_cst_list_prim_u_8_strict *direction,
+                                                                                  int32_t duration_ms);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_set_tracking(int64_t port_,
-                                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                               uint8_t enabled);
+void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_set_tracking(int64_t port_,
+                                                                                   struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                   uint8_t enabled);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates(int64_t port_,
-                                                                                                      struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                      double ra,
-                                                                                                      double dec);
+void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_slew_to_coordinates(int64_t port_,
+                                                                                          struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                          double ra,
+                                                                                          double dec);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates(int64_t port_,
-                                                                                                      struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                      double ra,
-                                                                                                      double dec);
+void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_sync_to_coordinates(int64_t port_,
+                                                                                          struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                          double ra,
+                                                                                          double dec);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_unpark(int64_t port_,
-                                                                                         struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_unpark(int64_t port_,
+                                                                             struct wire_cst_list_prim_u_8_strict *device_id);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types(void);
 
@@ -3064,18 +3044,7 @@ void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_connect(int64_t port_
                                                                    struct wire_cst_list_prim_u_8_strict *host,
                                                                    uint16_t *port);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_deselect_star(int64_t port_);
-
 void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_disconnect(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_dither(int64_t port_,
-                                                                  double amount,
-                                                                  uint8_t ra_only,
-                                                                  double settle_pixels,
-                                                                  double settle_time,
-                                                                  double settle_timeout);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_find_star(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_flip_calibration(int64_t port_);
 
@@ -3086,20 +3055,9 @@ void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_algo_param(int64_
 void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_algo_param_names(int64_t port_,
                                                                                 struct wire_cst_list_prim_u_8_strict *axis);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_calibration_data(int64_t port_);
-
 void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_exposure(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_lock_position(int64_t port_);
-
 void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_profile(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_star_image(int64_t port_,
-                                                                          uint32_t size);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_status(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_loop(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_algo_param(int64_t port_,
                                                                           struct wire_cst_list_prim_u_8_strict *axis,
@@ -3108,20 +3066,6 @@ void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_algo_param(int64_
 
 void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_exposure(int64_t port_,
                                                                         uint32_t exposure_ms);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_lock_position(int64_t port_,
-                                                                             double x,
-                                                                             double y,
-                                                                             bool exact);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_paused(int64_t port_, bool paused);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_start_guiding(int64_t port_,
-                                                                         double settle_pixels,
-                                                                         double settle_time,
-                                                                         double settle_timeout);
-
-void frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_stop_guiding(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_plan_focuser_backlash_calibration(int64_t port_,
                                                                                            struct wire_cst_list_prim_u_8_strict *config_json,
@@ -3167,24 +3111,24 @@ void frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_reduce_stars_
 
 void frbgen_skotiq_bridge_wire__crate__api__hotplug__api_rescan_devices(int64_t port_);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_halt(int64_t port_,
-                                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
+void frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_halt(int64_t port_,
+                                                                               struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_move_relative(int64_t port_,
-                                                                                                    struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                    double delta);
+void frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_relative(int64_t port_,
+                                                                                        struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                        double delta);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_move_to(int64_t port_,
-                                                                                              struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                              double angle);
+void frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_to(int64_t port_,
+                                                                                  struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                  double angle);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse(int64_t port_,
-                                                                                                  struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                  bool reverse);
+void frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_set_reverse(int64_t port_,
+                                                                                      struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                      bool reverse);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa(int64_t port_,
-                                                                                                 struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                                 double pa);
+void frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_sync_to_pa(int64_t port_,
+                                                                                     struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                     double pa);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_autofocus(int64_t port_,
                                                                        struct wire_cst_list_prim_u_8_strict *device_id,
@@ -3243,9 +3187,10 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_sequencer_apply_defect_
                                                                                     uint8_t kernel_diameter,
                                                                                     bool save_original);
 
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint(int64_t port_);
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config(int64_t port_,
+                                                                                                      struct wire_cst_list_prim_u_8_strict *config_json);
 
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure(int64_t port_);
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_get_adaptive_swap_json(int64_t port_);
 
@@ -3289,18 +3234,8 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequence_run_id(int64_t port_,
                                                                                                                 int64_t *sequence_run_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(int64_t port_,
-                                                                                                            struct wire_cst_list_prim_u_8_strict *saving);
-
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_set_checkpoint_dir(int64_t port_,
                                                                                                    struct wire_cst_list_prim_u_8_strict *path);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled(int64_t port_,
-                                                                                                                  bool enabled);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries(int64_t port_,
-                                                                                                        uint32_t camera_retries,
-                                                                                                        uint32_t filter_wheel_retries);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices(int64_t port_,
                                                                                                  struct wire_cst_list_prim_u_8_strict *camera_id,
@@ -3308,18 +3243,7 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
                                                                                                  struct wire_cst_list_prim_u_8_strict *focuser_id,
                                                                                                  struct wire_cst_list_prim_u_8_strict *filterwheel_id,
                                                                                                  struct wire_cst_list_prim_u_8_strict *rotator_id,
-                                                                                                 struct wire_cst_list_String *filter_names,
-                                                                                                 struct wire_cst_list_record_string_i_32 *filter_focus_offsets);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(int64_t port_,
-                                                                                                     bool park_on_unsafe_weather,
-                                                                                                     bool park_before_dawn);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds(int64_t port_,
-                                                                                                                       uint32_t seconds);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode(int64_t port_,
-                                                                                                          struct wire_cst_list_prim_u_8_strict *mode);
+                                                                                                 struct wire_cst_list_String *filter_names);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_save_path(int64_t port_,
                                                                                                    struct wire_cst_list_prim_u_8_strict *path);
@@ -3327,15 +3251,9 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_simulation_mode(int64_t port_,
                                                                                                          bool enabled);
 
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(int64_t port_,
-                                                                                                                  bool stop_on_quality_problems);
-
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear(int64_t port_,
                                                                                                                 uint32_t duration_secs,
                                                                                                                 struct wire_cst_list_prim_u_8_strict *reason);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(int64_t port_,
-                                                                                                                        uint32_t seconds);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_skip(int64_t port_);
 
@@ -3348,12 +3266,6 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_
                                                                                      struct wire_cst_list_prim_u_8_strict *origin);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config(int64_t port_,
-                                                                                                             struct wire_cst_list_prim_u_8_strict *config_json);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval(int64_t port_,
-                                                                                                               uint32_t every_n_frames);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_cloud_motion(int64_t port_,
                                                                                                          double *current_cover_percent,
@@ -3375,61 +3287,8 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
                                                                                                              double wind_weight,
                                                                                                              int64_t generated_unix_secs);
 
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure(int64_t port_,
-                                                                                                                      bool enabled,
-                                                                                                                      double target_snr,
-                                                                                                                      double reference_sky_brightness_mag,
-                                                                                                                      double min_exposure_secs,
-                                                                                                                      double max_exposure_secs,
-                                                                                                                      struct wire_cst_list_String *per_filter_enabled_keys,
-                                                                                                                      struct wire_cst_list_bool *per_filter_enabled_values,
-                                                                                                                      struct wire_cst_list_String *per_filter_min_keys,
-                                                                                                                      struct wire_cst_list_prim_f_64_loose *per_filter_min_values,
-                                                                                                                      struct wire_cst_list_String *per_filter_max_keys,
-                                                                                                                      struct wire_cst_list_prim_f_64_loose *per_filter_max_values);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check(int64_t port_,
-                                                                                                                  double *hfr_threshold,
-                                                                                                                  double *hfr_baseline_percent,
-                                                                                                                  double *eccentricity_threshold,
-                                                                                                                  uint32_t *star_count_min,
-                                                                                                                  uint32_t max_consecutive_rejects,
-                                                                                                                  bool enabled);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config(int64_t port_,
-                                                                                                          double pixels,
-                                                                                                          double settle_pixels,
-                                                                                                          double settle_time,
-                                                                                                          double settle_timeout,
-                                                                                                          bool ra_only);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets(int64_t port_,
-                                                                                                           struct wire_cst_list_record_string_i_32 *offsets);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_location(int64_t port_,
-                                                                                                     double *latitude,
-                                                                                                     double *longitude);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config(int64_t port_,
-                                                                                                                 struct wire_cst_list_prim_u_8_strict *config_json);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile(int64_t port_,
-                                                                                                             struct wire_cst_list_prim_u_8_strict *observer_name,
-                                                                                                             double *site_elevation_m,
-                                                                                                             struct wire_cst_list_prim_u_8_strict *camera_make,
-                                                                                                             struct wire_cst_list_prim_u_8_strict *camera_model,
-                                                                                                             struct wire_cst_list_prim_u_8_strict *telescope_name,
-                                                                                                             double *telescope_focal_length_mm,
-                                                                                                             double *telescope_aperture_mm);
-
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_pending_integration_carry_over(int64_t port_,
                                                                                                                            struct wire_cst_list_record_string_map_string_f_64_none *carry_over);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config(int64_t port_,
-                                                                                                            struct wire_cst_recovery_config_update *update);
-
-void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path(int64_t port_,
-                                                                                                               struct wire_cst_list_prim_u_8_strict *path);
 
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_sky_brightness(int64_t port_,
                                                                                                            double *mag);
@@ -3437,29 +3296,6 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_seque
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict(int64_t port_,
                                                                                                             bool *unsafe_override,
                                                                                                             bool advisory);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_set_camera_binning(int64_t port_,
-                                                                                    struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                    int32_t bin_x,
-                                                                                    int32_t bin_y);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_cooler(int64_t port_,
-                                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                               uint8_t enabled,
-                                                                                               double *target_temp);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_gain(int64_t port_,
-                                                                                             struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                             int32_t gain);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_offset(int64_t port_,
-                                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                               int32_t offset);
-
-void frbgen_skotiq_bridge_wire__crate__api__imaging__api_set_capture_file_format(int64_t port_,
-                                                                                 struct wire_cst_list_prim_u_8_strict *format,
-                                                                                 struct wire_cst_list_prim_u_8_strict *xisf_compression,
-                                                                                 bool xisf_checksums);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__storage__api_set_location(struct wire_cst_observer_location *location);
 
@@ -3583,16 +3419,6 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_update_frame_cards(int6
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__storage__api_update_settings(struct wire_cst_app_settings *settings);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__camera__cancel_exposure(int64_t port_,
-                                                                             struct wire_cst_list_prim_u_8_strict *device_id);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__filter_wheel_set_position(int64_t port_,
-                                                                                             struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                             int32_t position);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__focuser__focuser_halt(int64_t port_,
-                                                                           struct wire_cst_list_prim_u_8_strict *device_id);
-
 void frbgen_skotiq_bridge_wire__crate__api__devices__camera__get_camera_status(int64_t port_,
                                                                                struct wire_cst_list_prim_u_8_strict *device_id);
 
@@ -3605,9 +3431,6 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_find_home(int6
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_site(int64_t port_,
                                                                            struct wire_cst_list_prim_u_8_strict *device_id);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_status(int64_t port_,
-                                                                             struct wire_cst_list_prim_u_8_strict *device_id);
-
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_time(int64_t port_,
                                                                            struct wire_cst_list_prim_u_8_strict *device_id);
 
@@ -3615,14 +3438,6 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_move_axis(int6
                                                                             struct wire_cst_list_prim_u_8_strict *device_id,
                                                                             int32_t axis,
                                                                             double rate);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_park(int64_t port_,
-                                                                       struct wire_cst_list_prim_u_8_strict *device_id);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_pulse_guide(int64_t port_,
-                                                                              struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                              struct wire_cst_list_prim_u_8_strict *direction,
-                                                                              uint32_t duration_ms);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_park(int64_t port_,
                                                                            struct wire_cst_list_prim_u_8_strict *device_id);
@@ -3638,10 +3453,6 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_time(int64
                                                                            int64_t utc_unix_seconds,
                                                                            double utc_offset_hours);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_tracking(int64_t port_,
-                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                               uint8_t enabled);
-
 void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_tracking_rate(int64_t port_,
                                                                                     struct wire_cst_list_prim_u_8_strict *device_id,
                                                                                     int32_t rate);
@@ -3654,14 +3465,6 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_slew_alt_az(in
                                                                               double altitude,
                                                                               double azimuth);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_sync(int64_t port_,
-                                                                       struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                       double ra,
-                                                                       double dec);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_unpark(int64_t port_,
-                                                                         struct wire_cst_list_prim_u_8_strict *device_id);
-
 void frbgen_skotiq_bridge_wire__crate__api__secondary_rig__secondary_rig_status_api_default(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_cooler(int64_t port_,
@@ -3669,13 +3472,13 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_cooler(i
                                                                                uint8_t enabled,
                                                                                double *target_temp);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__set_camera_gain(int64_t port_,
-                                                                                   struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                   int32_t gain);
+void frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_gain(int64_t port_,
+                                                                             struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                             int32_t gain);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__set_camera_offset(int64_t port_,
-                                                                                     struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                                     int32_t offset);
+void frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_offset(int64_t port_,
+                                                                               struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                               int32_t offset);
 
 void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__simulated_camera_default(int64_t port_);
 
@@ -3696,14 +3499,6 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__si
 void frbgen_skotiq_bridge_wire__crate__api__plate_solve__solve_hints_default(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__star_detection_config_api_default(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__camera__start_exposure(int64_t port_,
-                                                                            struct wire_cst_list_prim_u_8_strict *device_id,
-                                                                            double duration_secs,
-                                                                            int32_t gain,
-                                                                            int32_t offset,
-                                                                            int32_t bin_x,
-                                                                            int32_t bin_y);
 
 struct wire_cst_api_acquisition_settings *frbgen_skotiq_bridge_cst_new_box_autoadd_api_acquisition_settings(void);
 
@@ -3789,8 +3584,6 @@ struct wire_cst_polar_alignment_status *frbgen_skotiq_bridge_cst_new_box_autoadd
 
 struct wire_cst_record_f_64_f_64 *frbgen_skotiq_bridge_cst_new_box_autoadd_record_f_64_f_64(void);
 
-struct wire_cst_recovery_config_update *frbgen_skotiq_bridge_cst_new_box_autoadd_recovery_config_update(void);
-
 struct wire_cst_rotator_capabilities *frbgen_skotiq_bridge_cst_new_box_autoadd_rotator_capabilities(void);
 
 struct wire_cst_safety_event *frbgen_skotiq_bridge_cst_new_box_autoadd_safety_event(void);
@@ -3800,6 +3593,8 @@ struct wire_cst_safety_monitor_capabilities *frbgen_skotiq_bridge_cst_new_box_au
 struct wire_cst_secondary_rig_config_api *frbgen_skotiq_bridge_cst_new_box_autoadd_secondary_rig_config_api(void);
 
 struct wire_cst_sequencer_event *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event(void);
+
+int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(int32_t value);
 
 int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status(int32_t value);
 
@@ -3827,8 +3622,6 @@ struct wire_cst_list_api_depth_curve_point *frbgen_skotiq_bridge_cst_new_list_ap
 
 struct wire_cst_list_api_depth_goal *frbgen_skotiq_bridge_cst_new_list_api_depth_goal(int32_t len);
 
-struct wire_cst_list_bool *frbgen_skotiq_bridge_cst_new_list_bool(int32_t len);
-
 struct wire_cst_list_detected_star_info *frbgen_skotiq_bridge_cst_new_list_detected_star_info(int32_t len);
 
 struct wire_cst_list_device_info *frbgen_skotiq_bridge_cst_new_list_device_info(int32_t len);
@@ -3842,8 +3635,6 @@ struct wire_cst_list_focus_data_point *frbgen_skotiq_bridge_cst_new_list_focus_d
 struct wire_cst_list_frame_card_update *frbgen_skotiq_bridge_cst_new_list_frame_card_update(int32_t len);
 
 struct wire_cst_list_mount_guard_status *frbgen_skotiq_bridge_cst_new_list_mount_guard_status(int32_t len);
-
-struct wire_cst_list_prim_f_64_loose *frbgen_skotiq_bridge_cst_new_list_prim_f_64_loose(int32_t len);
 
 struct wire_cst_list_prim_f_64_strict *frbgen_skotiq_bridge_cst_new_list_prim_f_64_strict(int32_t len);
 
@@ -3869,8 +3660,6 @@ struct wire_cst_list_record_string_f_64 *frbgen_skotiq_bridge_cst_new_list_recor
 
 struct wire_cst_list_record_string_field_availability *frbgen_skotiq_bridge_cst_new_list_record_string_field_availability(int32_t len);
 
-struct wire_cst_list_record_string_i_32 *frbgen_skotiq_bridge_cst_new_list_record_string_i_32(int32_t len);
-
 struct wire_cst_list_record_string_map_string_f_64_none *frbgen_skotiq_bridge_cst_new_list_record_string_map_string_f_64_none(int32_t len);
 
 struct wire_cst_list_record_string_u_32 *frbgen_skotiq_bridge_cst_new_list_record_string_u_32(int32_t len);
@@ -3880,6 +3669,8 @@ struct wire_cst_list_scheduler_score_entry *frbgen_skotiq_bridge_cst_new_list_sc
 struct wire_cst_list_star_crop_api *frbgen_skotiq_bridge_cst_new_list_star_crop_api(int32_t len);
 
 struct wire_cst_list_switch_info *frbgen_skotiq_bridge_cst_new_list_switch_info(int32_t len);
+
+struct wire_cst_list_tracked_guide_star *frbgen_skotiq_bridge_cst_new_list_tracked_guide_star(int32_t len);
 
 struct wire_cst_list_tracking_rate *frbgen_skotiq_bridge_cst_new_list_tracking_rate(int32_t len);
 static int64_t dummy_method_to_enforce_bundling(void) {
@@ -3926,12 +3717,12 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_image_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_polar_alignment_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_record_f_64_f_64);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_recovery_config_update);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_rotator_capabilities);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_safety_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_safety_monitor_capabilities);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_secondary_rig_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_star_detection_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_stretch_params_api);
@@ -3945,7 +3736,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_String);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_depth_curve_point);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_depth_goal);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_bool);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_detected_star_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_device_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_device_type);
@@ -3953,7 +3743,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_focus_data_point);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_frame_card_update);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_mount_guard_status);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_f_64_loose);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_f_64_strict);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_i_32_loose);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_i_32_strict);
@@ -3966,12 +3755,12 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_quirk_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_f_64);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_field_availability);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_i_32);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_map_string_f_64_none);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_record_string_u_32);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_scheduler_score_entry);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_star_crop_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_switch_info);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_tracked_guide_star);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_tracking_rate);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__api_invalidate_discovery_cache);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device);
@@ -4001,11 +3790,10 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_capture_preview);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_get_recommended_settings);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_camera_set_readout_mode);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_set_camera_binning);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__cancel_exposure);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__get_camera_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_cooler);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__start_exposure);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_gain);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_offset);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_calibrator_off);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_calibrator_on);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_close_cover);
@@ -4026,60 +3814,45 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__dome__api_get_dome_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__environment__api_get_safety_monitor_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__environment__api_get_weather_conditions);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__filter_wheel_set_position);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__set_camera_gain);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__set_camera_offset);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__focuser__focuser_halt);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_get_names);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_set_position);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_get_filterwheel_status);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_halt);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_move_relative);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_move_to);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_get_focuser_status);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_get_mount_status);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_park);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_pulse_guide);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_set_tracking);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_slew_to_coordinates);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_sync_to_coordinates);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_unpark);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_abort);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_find_home);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_site);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_time);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_move_axis);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_park);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_pulse_guide);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_park);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_site);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_time);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_tracking);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_tracking_rate);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_site_capabilities);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_slew_alt_az);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_sync);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_unpark);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_get_camera_status);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_cooler);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_gain);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_offset);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_get_rotator_status);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_halt);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_relative);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_to);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_set_reverse);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_sync_to_pa);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__simulated_camera_default);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_dome_default);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_weather_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_halt);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_move_relative);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_move_to);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_get_focuser_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__simulated_focuser_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_get_mount_status);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_park);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_pulse_guide);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_set_tracking);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_unpark);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__simulated_mount_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_get_rotator_status);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_halt);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_move_relative);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_move_to);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__simulated_rotator_default);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__switch__api_switch_get_max);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__switch__api_switch_get_name);
@@ -4116,6 +3889,20 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_deconvolve_preview);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_extract_background);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_reduce_stars_preview);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_builtin_guider_get_config);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_builtin_guider_set_config);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_deselect_star);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_dither);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_find_star);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_calibration);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_lock_position);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_star_image);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_status);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_loop);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_set_lock_position);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_set_paused);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_start_guiding);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_stop);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_get_device_health);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_start_device_heartbeat);
@@ -4156,7 +3943,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_rgba_jpeg_file);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_rgba_png_file);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_sequencer_apply_defect_map);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_set_capture_file_format);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_add_frame);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_add_frame_from_data);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_stacking_frame_count);
@@ -4182,43 +3968,17 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_recovery_sync);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_set_settings);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_solve);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_get_config);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_get_tracked_stars_json);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_set_config);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_deselect_star);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_dither);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_find_star);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_calibration);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_lock_position);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_star_image);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_status);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_loop);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_set_lock_position);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_start_guiding);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_stop);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_launch_phd2);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_clear_calibration);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_connect);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_deselect_star);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_disconnect);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_dither);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_find_star);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_flip_calibration);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_algo_param);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_algo_param_names);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_calibration_data);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_exposure);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_lock_position);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_profile);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_star_image);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_status);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_loop);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_algo_param);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_exposure);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_lock_position);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_paused);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_start_guiding);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_stop_guiding);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_get_plate_solver_path);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_plate_solve_blind);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_plate_solve_near);
@@ -4262,7 +4022,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__api_broadcast_deactivate);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__api_broadcast_get_active);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__api_calculate_altitude);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_get_adaptive_swap_json);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_get_cloud_motion_json);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_get_current_recovery_json);
@@ -4270,32 +4030,13 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_recovery_abort);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_recovery_try_now);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequence_run_id);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_save_path);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_simulation_mode);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_cloud_motion);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_conditions_score);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_location);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_pending_integration_carry_over);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_sky_brightness);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sky_atlas__api_sky_atlas);

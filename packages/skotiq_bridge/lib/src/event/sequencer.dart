@@ -254,6 +254,9 @@ sealed class SequencerEvent with _$SequencerEvent {
   const factory SequencerEvent.error({
     required String message,
     required SequencerErrorKind kind,
+
+    /// Set on the warning line of a happening its decision row announces.
+    SequencerNotice? notice,
   }) = SequencerEvent_Error;
 
   /// A meridian flip finished. Mirrors
@@ -750,5 +753,15 @@ sealed class SequencerEvent with _$SequencerEvent {
     /// `sequence_runs.id` this decision belongs to, if the executor
     /// has been stamped with one.
     PlatformInt64? sequenceRunId,
+
+    /// Set on the row of a happening the operator is told about once.
+    SequencerNotice? notice,
   }) = SequencerEvent_DecisionLogged;
 }
+
+/// A happening the run carries on through and tells the operator about once.
+/// The `DecisionLogged` row that carries it is what the app raises the
+/// notification from; the `Error` (a warning) that carries it is the line in
+/// the run's warnings and raises nothing of its own. Mirrors
+/// `skotiq_sequencer::RunNotice`.
+enum SequencerNotice { autofocusContinued, rejectStreak, problemNoticed }

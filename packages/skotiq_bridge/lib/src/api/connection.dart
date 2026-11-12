@@ -8,7 +8,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `connect_device_expecting`, `device_info_from_id`, `is_phd2_device_id`, `native_display_name`
+// These functions are ignored because they are not marked as `pub`: `connect_device_expecting`, `device_info_from_id`, `native_display_name`
 
 /// Connect to a device
 Future<void> apiConnectDevice({

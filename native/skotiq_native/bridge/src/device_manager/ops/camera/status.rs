@@ -1,5 +1,6 @@
 use super::*;
 use crate::event::EquipmentEvent;
+use skotiq_indi::names as indi;
 
 impl DeviceManager {
     /// Read the camera's status. A reading whose sensor temperature or
@@ -138,6 +139,7 @@ impl DeviceManager {
                                 .as_ref()
                                 .map(|c| if c.max_adu == 0 { 65535 } else { c.max_adu })
                                 .unwrap_or(65535),
+                            saturation_adu: None,
                             can_cool: ascom_caps
                                 .as_ref()
                                 .map(|c| c.can_set_ccd_temperature)
@@ -177,30 +179,33 @@ impl DeviceManager {
                 let cameras = self.alpaca_cameras.read().await;
                 if let Some(camera) = cameras.get(device_id) {
                     let status = camera.get_status().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca camera status for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let capabilities = camera.get_capabilities().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca camera capabilities for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let sensor = camera.get_sensor_info().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca camera sensor info for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let gain = camera.gain().await.ok();
@@ -237,6 +242,7 @@ impl DeviceManager {
                         pixel_size_x: sensor.pixel_size_x,
                         pixel_size_y: sensor.pixel_size_y,
                         max_adu: sensor.max_adu as u32,
+                        saturation_adu: None,
                         can_cool: capabilities.can_set_ccd_temperature,
                         can_set_gain: gain.is_some(),
                         can_set_offset: offset.is_some(),
@@ -250,7 +256,6 @@ impl DeviceManager {
             Some(DriverType::Simulator) => {
                 crate::device_manager::ops::sim_gate::read_camera_status(device_id)
                     .await
-                    .map_err(DeviceOpError::from)
             }
             Some(DriverType::Native) => {
                 let native_cameras = self.native_cameras.read().await;
@@ -304,6 +309,7 @@ impl DeviceManager {
                         } else {
                             sensor_info.max_adu
                         },
+                        saturation_adu: sensor_info.saturation_adu,
                         can_cool: capabilities.can_cool,
                         can_set_gain: capabilities.can_set_gain,
                         can_set_offset: capabilities.can_set_offset,
@@ -326,15 +332,19 @@ impl DeviceManager {
 
                     // Query INDI camera properties
                     let sensor_temp = locked_client
-                        .get_number(&device_name, "CCD_TEMPERATURE", "CCD_TEMPERATURE_VALUE")
+                        .get_number(
+                            &device_name,
+                            indi::CCD_TEMPERATURE,
+                            indi::CCD_TEMPERATURE_VALUE,
+                        )
                         .await;
                     let cooler_state = locked_client
-                        .get_switch(&device_name, "CCD_COOLER", "COOLER_ON")
+                        .get_switch(&device_name, indi::CCD_COOLER, indi::COOLER_ON)
                         .await;
                     let has_cooler = cooler_state.is_some();
                     let cooler_on = cooler_state.unwrap_or(false);
                     let bin_x = locked_client
-                        .get_number(&device_name, "CCD_BINNING", "HOR_BIN")
+                        .get_number(&device_name, indi::CCD_BINNING, indi::HOR_BIN)
                         .await
                         .map(|v| v as i32)
                         .ok_or_else(|| {
@@ -344,7 +354,7 @@ impl DeviceManager {
                             ))
                         })?;
                     let bin_y = locked_client
-                        .get_number(&device_name, "CCD_BINNING", "VER_BIN")
+                        .get_number(&device_name, indi::CCD_BINNING, indi::VER_BIN)
                         .await
                         .map(|v| v as i32)
                         .ok_or_else(|| {
@@ -354,7 +364,7 @@ impl DeviceManager {
                             ))
                         })?;
                     let exposure_value = locked_client
-                        .get_number(&device_name, "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE")
+                        .get_number(&device_name, indi::CCD_EXPOSURE, indi::CCD_EXPOSURE_VALUE)
                         .await;
 
                     // Determine camera state based on exposure value
@@ -371,7 +381,7 @@ impl DeviceManager {
 
                     // Read sensor info from INDI CCD_INFO property.
                     let sensor_width = locked_client
-                        .get_number(&device_name, "CCD_INFO", "CCD_MAX_X")
+                        .get_number(&device_name, indi::CCD_INFO, indi::CCD_MAX_X)
                         .await
                         .map(|v| v as u32)
                         .ok_or_else(|| {
@@ -381,7 +391,7 @@ impl DeviceManager {
                             ))
                         })?;
                     let sensor_height = locked_client
-                        .get_number(&device_name, "CCD_INFO", "CCD_MAX_Y")
+                        .get_number(&device_name, indi::CCD_INFO, indi::CCD_MAX_Y)
                         .await
                         .map(|v| v as u32)
                         .ok_or_else(|| {
@@ -391,7 +401,7 @@ impl DeviceManager {
                             ))
                         })?;
                     let pixel_size_x = locked_client
-                        .get_number(&device_name, "CCD_INFO", "CCD_PIXEL_SIZE_X")
+                        .get_number(&device_name, indi::CCD_INFO, indi::CCD_PIXEL_SIZE_X)
                         .await
                         .ok_or_else(|| {
                             DeviceOpError::hardware(Some(device_id.to_string()), format!(
@@ -400,7 +410,7 @@ impl DeviceManager {
                             ))
                         })?;
                     let pixel_size_y = locked_client
-                        .get_number(&device_name, "CCD_INFO", "CCD_PIXEL_SIZE_Y")
+                        .get_number(&device_name, indi::CCD_INFO, indi::CCD_PIXEL_SIZE_Y)
                         .await
                         .ok_or_else(|| {
                             DeviceOpError::hardware(Some(device_id.to_string()), format!(
@@ -409,7 +419,7 @@ impl DeviceManager {
                             ))
                         })?;
                     let bit_depth = locked_client
-                        .get_number(&device_name, "CCD_INFO", "CCD_BITSPERPIXEL")
+                        .get_number(&device_name, indi::CCD_INFO, indi::CCD_BITSPERPIXEL)
                         .await
                         .map(|v| v as u32)
                         .ok_or_else(|| {
@@ -428,34 +438,38 @@ impl DeviceManager {
                         ));
                     }
                     let gain_value = match locked_client
-                        .get_number(&device_name, "CCD_GAIN", "GAIN")
+                        .get_number(&device_name, indi::CCD_GAIN, indi::GAIN)
                         .await
                     {
                         Some(value) => Some(value),
                         None => {
                             locked_client
-                                .get_number(&device_name, "CCD_CONTROLS", "Gain")
+                                .get_number(&device_name, indi::CCD_CONTROLS, indi::CONTROLS_GAIN)
                                 .await
                         }
                     };
                     let offset_value = locked_client
-                        .get_number(&device_name, "CCD_OFFSET", "OFFSET")
+                        .get_number(&device_name, indi::CCD_OFFSET, indi::OFFSET)
                         .await;
                     let gain = gain_value.map(|v| v as i32).unwrap_or(0);
                     let offset = offset_value.map(|v| v as i32).unwrap_or(0);
                     let cooler_power = locked_client
-                        .get_number(&device_name, "CCD_COOLER_POWER", "CCD_COOLER_VALUE")
+                        .get_number(&device_name, indi::CCD_COOLER_POWER, indi::CCD_COOLER_VALUE)
                         .await;
                     let has_gain = gain_value.is_some();
                     let has_offset = offset_value.is_some();
                     let max_adu_from_driver = match locked_client
-                        .get_number(&device_name, "CCD_MAX_PIXEL_VALUE", "CCD_MAX_PIXEL_VALUE")
+                        .get_number(
+                            &device_name,
+                            indi::CCD_MAX_PIXEL_VALUE,
+                            indi::CCD_MAX_PIXEL_VALUE,
+                        )
                         .await
                     {
                         Some(value) => Some(value),
                         None => {
                             locked_client
-                                .get_number(&device_name, "CCD_INFO", "CCD_MAX_PIXEL")
+                                .get_number(&device_name, indi::CCD_INFO, indi::CCD_MAX_PIXEL)
                                 .await
                         }
                     };
@@ -483,6 +497,7 @@ impl DeviceManager {
                         pixel_size_x,
                         pixel_size_y,
                         max_adu,
+                        saturation_adu: None,
                         can_cool: has_cooler,
                         can_set_gain: has_gain,
                         can_set_offset: has_offset,
@@ -526,12 +541,13 @@ impl DeviceManager {
                 let native_cameras = self.native_cameras.read().await;
                 if let Some(camera) = native_cameras.get(device_id) {
                     return camera.get_recommended_settings().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to query recommended settings for native camera {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     });
                 }

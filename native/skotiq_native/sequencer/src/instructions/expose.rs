@@ -99,6 +99,7 @@ pub async fn execute_exposure(
         progress_callback,
     )
     .await
+    .result
 }
 
 /// Run-scoped controls a burst needs but an [`InstructionContext`] cannot
@@ -125,6 +126,16 @@ impl BurstControl<'_> {
     }
 }
 
+/// How a burst ended, and what of it only the burst knows.
+#[derive(Debug)]
+pub struct BurstEnd {
+    pub result: InstructionResult,
+    /// Frames of this burst the grader rejected, counted as each was graded.
+    /// The run's own count (`GradingState::frames_rejected`) also moves with
+    /// every other burst in the run, a Parallel branch's or a second camera's.
+    pub frames_rejected: u32,
+}
+
 /// entry point that accepts a save-path renderer. Use this from
 /// the expose-instruction node wrapper so user templates in
 /// `ExposureConfig.save_to` (including hierarchical paths and per-frame
@@ -138,6 +149,30 @@ pub async fn execute_exposure_with_renderer(
     // frame is RECORDED as — the camera's own report, bounded (see
     // [`recorded_exposure_secs`]) — not the node's planned duration. Every
     // integration total downstream rides on it.
+    progress_callback: impl Fn(u32, u32, f64),
+) -> BurstEnd {
+    let mut frames_rejected = 0;
+    let result = take_burst(
+        config,
+        ctx,
+        path_renderer,
+        control,
+        &mut frames_rejected,
+        progress_callback,
+    )
+    .await;
+    BurstEnd {
+        result,
+        frames_rejected,
+    }
+}
+
+async fn take_burst(
+    config: &ExposureConfig,
+    ctx: &InstructionContext,
+    path_renderer: Option<FrameSavePathRenderer>,
+    control: &BurstControl<'_>,
+    frames_rejected: &mut u32,
     progress_callback: impl Fn(u32, u32, f64),
 ) -> InstructionResult {
     let camera_id = match ctx.camera_id() {
@@ -252,8 +287,8 @@ pub async fn execute_exposure_with_renderer(
     };
 
     let mut completed_exposures = 0u32;
-    // Warn once per burst when dithers are skipped for lack of a guider.
-    let mut dither_skipped_warned = false;
+    // Say once per burst that its dithers are skipped.
+    let mut dither_skip_noted = false;
     let mut hfr_values = Vec::new();
 
     // Image Grading: local bindings for the per-frame grading state.
@@ -488,7 +523,7 @@ pub async fn execute_exposure_with_renderer(
                     ctx,
                     RetriedDevice::Camera,
                     camera_retries_done,
-                    &error.to_string(),
+                    error,
                     &format!("on frame {}/{}", frame, config.count),
                 )
                 .await
@@ -497,8 +532,9 @@ pub async fn execute_exposure_with_renderer(
                     RetryOutcome::Cancelled => {
                         return InstructionResult::cancelled("Exposure cancelled")
                     }
-                    RetryOutcome::GiveUp(message) => {
-                        return InstructionResult::failure(format!("Exposure failed: {}", message))
+                    RetryOutcome::GiveUp(failure) => {
+                        return InstructionResult::failure(format!("Exposure failed: {failure}"))
+                            .caused_by(&failure.error)
                     }
                 },
             }
@@ -564,99 +600,49 @@ pub async fn execute_exposure_with_renderer(
 
         // Per-frame HFR feeds the HfrDegraded / FocusDrift triggers; computing
         // it here (rather than only on autofocus) gives the triggers real-time
-        // visibility into focus health between AF runs.
-        let measured_hfr = if !is_light_frame {
-            // Calibration frames have no stars; skip the detector entirely.
-            None
+        // visibility into focus health between AF runs. The star count feeds
+        // the grader's star_count_min floor, the shape its eccentricity gate
+        // (`None` is "unknown, don't reject") and the star-shape watch.
+        // Calibration frames have no stars; the detector is skipped for them.
+        let measurement = if !is_light_frame {
+            crate::device_ops::LightFrameMeasurement::default()
         } else {
-            match ctx.run.device_ops.calculate_image_hfr(&image_data).await {
-                Ok(Some(hfr)) => {
-                    tracing::info!("Frame {}/{} HFR: {:.2} pixels", frame, config.count, hfr);
-                    hfr_values.push(hfr);
-                    Some(hfr)
-                }
-                Ok(None) => {
-                    tracing::warn!(
-                        "Frame {}/{} - no stars detected for HFR calculation",
-                        frame,
-                        config.count
-                    );
-                    None
+            match ctx.run.device_ops.measure_light_frame(&image_data).await {
+                Ok(measurement) => {
+                    match measurement.hfr {
+                        Some(hfr) => {
+                            tracing::info!(
+                                "Frame {}/{} HFR: {:.2} pixels",
+                                frame,
+                                config.count,
+                                hfr
+                            );
+                            hfr_values.push(hfr);
+                        }
+                        None => tracing::warn!(
+                            "Frame {}/{} - no stars detected for HFR calculation",
+                            frame,
+                            config.count
+                        ),
+                    }
+                    measurement
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "Frame {}/{} - HFR calculation failed: {}",
+                        "Frame {}/{} - star measurement failed: {}",
                         frame,
                         config.count,
                         e
                     );
-                    None
+                    crate::device_ops::LightFrameMeasurement::default()
                 }
             }
         };
-
-        // Image Grading: derive star count from the star detector so
-        // the grading check can apply the star_count_min floor.
-        let measured_star_count = if !is_light_frame {
-            None
-        } else {
-            match ctx.run.device_ops.detect_stars_in_image(&image_data).await {
-                Ok(stars) => Some(stars.len() as u32),
-                Err(e) => {
-                    tracing::debug!(
-                        "Frame {}/{} - star detection failed for grading: {}",
-                        frame,
-                        config.count,
-                        e
-                    );
-                    None
-                }
-            }
-        };
-
-        // Per-frame eccentricity (0.0 = round, →1.0 = trailed) from the star
-        // shape moments. `None` is honest absence — no stars, or too few
-        // reliable stars to form a stable median — which `grade_frame` treats
-        // as "unknown, don't reject". With stars present this is a real
-        // measurement, so a configured `eccentricity_threshold` now fires.
-        let measured_shape = if !is_light_frame {
-            None
-        } else {
-            match ctx
-                .run
-                .device_ops
-                .measure_frame_star_shape(&image_data)
-                .await
-            {
-                Ok(shape) => shape,
-                Err(e) => {
-                    tracing::debug!(
-                        "Frame {}/{} - eccentricity measurement failed for grading: {}",
-                        frame,
-                        config.count,
-                        e
-                    );
-                    None
-                }
-            }
-        };
+        let measured_hfr = measurement.hfr;
+        let measured_star_count = measurement.star_count;
+        let measured_shape = measurement.star_shape;
         let measured_eccentricity = measured_shape.map(|shape| shape.eccentricity);
-        let measured_trail = if !is_light_frame {
-            None
-        } else {
-            match ctx.run.device_ops.measure_frame_trail(&image_data).await {
-                Ok(trail) => trail,
-                Err(e) => {
-                    tracing::debug!(
-                        "Frame {}/{} - trail measurement failed for grading: {}",
-                        frame,
-                        config.count,
-                        e
-                    );
-                    None
-                }
-            }
-        };
+        let measured_trail = measurement.trail;
         let metrics = crate::quality::FrameMetrics {
             hfr: measured_hfr,
             eccentricity: measured_eccentricity,
@@ -803,7 +789,7 @@ pub async fn execute_exposure_with_renderer(
             } else {
                 (crate::quality::FrameGrade::Pass, base_path.clone(), false)
             };
-            let (grade, save_dir, was_graded) = match untracked_reason.clone() {
+            let (grade, save_dir, was_graded) = match untracked_reason {
                 Some(reason) => (
                     crate::quality::FrameGrade::Reject {
                         reason,
@@ -990,6 +976,9 @@ pub async fn execute_exposure_with_renderer(
             // default — a whole automated night produces FITS files on disk and no
             // database rows, so no Analytics stats and no gallery entries. The
             // grader DECISION stays gated inside `emit_grade_progress`.
+            if matches!(grade, crate::quality::FrameGrade::Reject { .. }) {
+                *frames_rejected += 1;
+            }
             emit_grade_progress(
                 ctx,
                 grade,
@@ -1043,116 +1032,23 @@ pub async fn execute_exposure_with_renderer(
         // `frame < config.count` skips the dither after the final frame:
         // dithering after the last exposure of a burst leaves the mount
         // off-target for the next instruction (and wastes time).
-        if let Some(dither_every) = config.dither_every {
-            // `is_light_frame`: never dither a calibration burst — the serializer
-            // inherits the global dither-every default onto every exposure node,
-            // so darks/flats would otherwise pulse the mount between frames.
-            if is_light_frame
-                && dither_every > 0
-                && frame % dither_every == 0
-                && frame < config.count
-                && !skip_dither_while_unguided(ctx, &mut dither_skipped_warned).await
+        // `is_light_frame`: never dither a calibration burst — the serializer
+        // inherits the global dither-every default onto every exposure node,
+        // so darks/flats would otherwise pulse the mount between frames.
+        let dither_due = config.dither_every.is_some_and(|every| {
+            is_light_frame && every > 0 && frame % every == 0 && frame < config.count
+        });
+        if dither_due {
+            if let Err(stop) = dither_in_burst(
+                ctx,
+                config,
+                frame,
+                completed_exposures,
+                &mut dither_skip_noted,
+            )
+            .await
             {
-                tracing::info!("Dithering...");
-                // Dual-rig — guard the burst dither so a piggybacking secondary
-                // camera is clear before the mount pulses (no-op single-rig).
-                let dither_result = dither_guarded(ctx, || {
-                    ctx.run.device_ops.guider_dither(
-                        config.dither_pixels,
-                        config.dither_settle_pixels,
-                        config.dither_settle_time,
-                        config.dither_settle_timeout,
-                        config.dither_ra_only,
-                    )
-                })
-                .await;
-                if dither_result.is_ok() {
-                    // A dither that settled ends a failure streak, as the
-                    // standalone Dither node counts it. It also restarts the
-                    // Dither Interval trigger's count: left unmarked, the
-                    // trigger counted the whole burst as undithered and
-                    // dithered again the moment the burst ended.
-                    if let Some(trigger_state) = &ctx.run.trigger_state {
-                        let mut state = trigger_state.write().await;
-                        state.latches.consecutive_dither_failures = 0;
-                        state.mark_dither_performed_in_burst(completed_exposures);
-                    }
-                    announce_dither_performed(ctx);
-                }
-                if let Err(e) = dither_result {
-                    // An UNGUIDED rig cannot dither, and that is a
-                    // CONFIGURATION state — not a guiding failure. No star was
-                    // lost, no walking-noise problem is being masked, and no
-                    // recovery/guiding trigger can help, so killing an
-                    // otherwise-healthy burst over it is wrong.
-                    //
-                    // It bites by default: the serializer inherits the GLOBAL
-                    // dither-every onto every exposure node (see the
-                    // `is_light_frame` note above), so a plain light burst on a
-                    // rig with no guider schedules a dither it can never perform.
-                    // Reproduced on the desktop build with the simulator camera:
-                    // an 8-frame burst died after frame 3 with "Dither failed
-                    // after frame 3/8: No active guider configured", losing the
-                    // remaining 5 frames and the unattended night with them.
-                    //
-                    // Skip loudly, once per burst, and keep imaging. Every other
-                    // dither/settle failure keeps the fail-closed abort below.
-                    if e == crate::device_ops::DeviceError::NO_GUIDER {
-                        if !dither_skipped_warned {
-                            dither_skipped_warned = true;
-                            tracing::warn!(
-                                "Dither requested after frame {}/{} but no guider is \
-                                 configured — skipping dithers for the rest of this \
-                                 burst. Frames will be UNDITHERED (walking noise); \
-                                 connect a guider or set dither-every to 0 to \
-                                 silence this.",
-                                frame,
-                                config.count
-                            );
-                        }
-                    } else if ctx.stops_on_quality_problems().await {
-                        // The operator asked for quality problems to stop the
-                        // run: fail the burst as this used to by default.
-                        let error_message = format!(
-                            "Dither failed after frame {}/{}: {}",
-                            frame, config.count, e
-                        );
-                        tracing::error!("{}", error_message);
-                        if let Some(event_tx) = &ctx.run.event_tx {
-                            let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
-                                message: error_message.clone(),
-                            });
-                        }
-                        return InstructionResult::failure(error_message);
-                    } else {
-                        // A dither that does not settle costs some stacking
-                        // quality, not the frames, and the standalone Dither node
-                        // already carries on through it. Failing the burst here
-                        // ended the run (owner decision 2026-10-06: only a risk
-                        // to the hardware stops a run by itself). The operator is
-                        // told once per streak — a lost guide star is the guide
-                        // star triggers' business, not this burst's.
-                        let streak = match &ctx.run.trigger_state {
-                            Some(trigger_state) => {
-                                let mut state = trigger_state.write().await;
-                                state.latches.consecutive_dither_failures =
-                                    state.latches.consecutive_dither_failures.saturating_add(1);
-                                state.latches.consecutive_dither_failures
-                            }
-                            None => 1,
-                        };
-                        let problem = format!(
-                            "Dither failed after frame {}/{}: {}. The frames are unaffected, \
-                             but they are not dithered until a dither settles again.",
-                            frame, config.count, e
-                        );
-                        if streak == 1 {
-                            ctx.notify_quality_problem_continuing("Exposure burst", &problem);
-                        } else {
-                            tracing::warn!("{} ({} in a row)", problem, streak);
-                        }
-                    }
-                }
+                return stop;
             }
         }
     }
@@ -1371,7 +1267,7 @@ async fn recenter_after_mount_fault(
 async fn untracked_exposure_reason(
     ctx: &InstructionContext,
     started: chrono::DateTime<chrono::Utc>,
-) -> Option<String> {
+) -> Option<crate::quality::RejectReason> {
     let trigger_state = ctx.run.trigger_state.as_ref()?;
     if trigger_state
         .read()
@@ -1380,9 +1276,7 @@ async fn untracked_exposure_reason(
         .mount_fault_at
         .is_some_and(|at| at >= started.timestamp())
     {
-        return Some(
-            "the mount moved on its own or lost its position during this exposure".to_string(),
-        );
+        return Some(crate::quality::RejectReason::MountMoved);
     }
     let (limit_hold, lost_since_start, expected, run_owns_tracking) = {
         let state = trigger_state.read().await;
@@ -1397,7 +1291,7 @@ async fn untracked_exposure_reason(
         )
     };
     if limit_hold || lost_since_start {
-        return Some("the mount stopped tracking during this exposure".to_string());
+        return Some(crate::quality::RejectReason::TrackingStopped);
     }
     // The monitor polls on its own cadence; a stop in the last seconds of the
     // frame is read from the mount directly.
@@ -1407,7 +1301,7 @@ async fn untracked_exposure_reason(
                 ctx.run.device_ops.mount_is_tracking(mount_id).await,
                 Ok(false)
             ) {
-                return Some("the mount was not tracking at the end of this exposure".to_string());
+                return Some(crate::quality::RejectReason::NotTrackingAtEnd);
             }
         }
     }
@@ -1476,20 +1370,102 @@ async fn watch_star_shape(
     }
 }
 
-/// Whether a burst skips its dither because the run is imaging unguided (the
-/// guide-star recovery ran out). Logged once per burst; the operator was told
-/// when guiding was given up.
-async fn skip_dither_while_unguided(ctx: &InstructionContext, warned: &mut bool) -> bool {
-    if !ctx.imaging_unguided().await {
-        return false;
+/// The dither a burst's dither-every asks for after `frame`, under
+/// [`DitherCounts::OnlyWhenSettled`]. `Err` ends the burst: only when the
+/// operator asked quality problems to stop the run.
+async fn dither_in_burst(
+    ctx: &InstructionContext,
+    config: &ExposureConfig,
+    frame: u32,
+    frames_into_burst: u32,
+    skip_noted: &mut bool,
+) -> Result<(), InstructionResult> {
+    tracing::info!("Dithering...");
+    let dither = crate::DitherConfig {
+        pixels: config.dither_pixels,
+        settle_pixels: config.dither_settle_pixels,
+        settle_time: config.dither_settle_time,
+        settle_timeout: config.dither_settle_timeout,
+        ra_only: config.dither_ra_only,
+        ..crate::DitherConfig::default()
+    };
+    match dither_once(ctx, &dither, DitherCounts::OnlyWhenSettled).await {
+        DitherOutcome::Dithered => {
+            // Restarts the Dither Interval trigger's count: left unmarked,
+            // the trigger counted the whole burst as undithered and dithered
+            // again the moment the burst ended.
+            if let Some(trigger_state) = &ctx.run.trigger_state {
+                trigger_state
+                    .write()
+                    .await
+                    .mark_dither_performed_in_burst(frames_into_burst);
+            }
+        }
+        DitherOutcome::Skipped(DitherSkip::Unguided) => {
+            if !std::mem::replace(skip_noted, true) {
+                tracing::info!(
+                    "Dithers skipped for the rest of this burst: the run is imaging unguided \
+                     since the guide star was lost"
+                );
+            }
+        }
+        DitherOutcome::Skipped(DitherSkip::GuiderHeld(why)) => {
+            tracing::info!(
+                "Dither after frame {}/{} skipped: {why}",
+                frame,
+                config.count
+            );
+        }
+        // A burst dithers at random, so there is no grid center.
+        DitherOutcome::Skipped(DitherSkip::GridCenter) => {}
+        // An UNGUIDED rig cannot dither, and that is a configuration state,
+        // not a guiding failure: no recovery or guiding trigger can help, so
+        // ending an otherwise healthy burst over it is wrong. It bites by
+        // default: the serializer inherits the global dither-every onto every
+        // exposure node, so a light burst on a rig with no guider schedules
+        // dithers it can never perform (reproduced with the simulator camera:
+        // an 8-frame burst died after frame 3 with "Dither failed after frame
+        // 3/8: No active guider configured").
+        DitherOutcome::Failed { error, .. } if error == DeviceError::NO_GUIDER => {
+            if !std::mem::replace(skip_noted, true) {
+                tracing::warn!(
+                    "Dither requested after frame {}/{} but no guider is configured — skipping \
+                     dithers for the rest of this burst. Frames will be UNDITHERED (walking \
+                     noise); connect a guider or set dither-every to 0 to silence this.",
+                    frame,
+                    config.count
+                );
+            }
+        }
+        DitherOutcome::Failed { error, streak } => {
+            if ctx.stops_on_quality_problems().await {
+                let error_message =
+                    format!("Dither failed after frame {}/{}: {}", frame, config.count, error);
+                tracing::error!("{}", error_message);
+                if let Some(event_tx) = &ctx.run.event_tx {
+                    let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
+                        message: error_message.clone(),
+                    });
+                }
+                return Err(InstructionResult::failure(error_message));
+            }
+            // A dither that does not settle costs some stacking quality, not
+            // the frames (owner decision 2026-10-06: only a risk to the
+            // hardware stops a run by itself). The operator is told once per
+            // streak; a lost guide star is the guide-star triggers' business.
+            let problem = format!(
+                "Dither failed after frame {}/{}: {}. The frames are unaffected, but they are \
+                 not dithered until a dither settles again.",
+                frame, config.count, error
+            );
+            if streak == 1 {
+                ctx.notify_quality_problem_continuing("Exposure burst", &problem);
+            } else {
+                tracing::warn!("{} ({} in a row)", problem, streak);
+            }
+        }
     }
-    if !std::mem::replace(warned, true) {
-        tracing::info!(
-            "Dithers skipped for the rest of this burst: the run is imaging unguided since \
-             the guide star was lost"
-        );
-    }
-    true
+    Ok(())
 }
 
 /// Seconds a whole-burst filter change is expected to take, including the focus
@@ -1536,7 +1512,10 @@ async fn apply_burst_filter(
                 if let Err(e) =
                     move_filter_wheel(ctx, fw_id, WheelTarget::Position(index), None).await
                 {
-                    return Err(InstructionResult::failure(e));
+                    return Err(
+                        InstructionResult::failure(format!("Filter change failed: {e}"))
+                            .caused_by(&e.error),
+                    );
                 }
                 let filter_name = match config.filter.as_deref() {
                     Some(name) if !name.is_empty() => Some(name.to_string()),
@@ -1561,7 +1540,8 @@ async fn apply_burst_filter(
                                 return Err(InstructionResult::failure(format!(
                                     "Failed to read filter names for focus offset lookup: {}",
                                     e
-                                )));
+                                ))
+                                .caused_by(&e));
                             }
                         }
                     }
@@ -1572,20 +1552,25 @@ async fn apply_burst_filter(
                         return Err(InstructionResult::failure(format!(
                             "Focus offset failed for filter \"{}\": {}",
                             filter_name, e
-                        )));
+                        ))
+                        .caused_by(&e));
                     }
                 }
             } else if let Some(filter) = &config.filter {
                 tracing::info!("Changing to filter by name: {}", filter);
                 if let Err(e) = move_filter_wheel(ctx, fw_id, WheelTarget::Name(filter), None).await
                 {
-                    return Err(InstructionResult::failure(e));
+                    return Err(
+                        InstructionResult::failure(format!("Filter change failed: {e}"))
+                            .caused_by(&e.error),
+                    );
                 }
                 if let Err(e) = apply_filter_focus_offset(filter, ctx, None).await {
                     return Err(InstructionResult::failure(format!(
                         "Focus offset failed for filter \"{}\": {}",
                         filter, e
-                    )));
+                    ))
+                    .caused_by(&e));
                 }
             }
         }

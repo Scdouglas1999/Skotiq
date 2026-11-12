@@ -25,9 +25,7 @@ void main() {
       'costs one read', () async {
     final host = mirrorHost();
     var status = const Phd2Status(state: 'Stopped', connected: true);
-    when(
-      () => host.backend.guiderGetStatus(deviceId: _guiderId),
-    ).thenAnswer((_) async => status);
+    when(() => host.backend.guiderGetStatus()).thenAnswer((_) async => status);
     final guider = host.container.read(guiderStateProvider.notifier);
     guider.setConnecting(_guiderId, 'Built-in guider');
     guider.setConnected();
@@ -49,7 +47,7 @@ void main() {
     }
     await settle(const Duration(milliseconds: 100));
 
-    verify(() => host.backend.guiderGetStatus(deviceId: _guiderId)).called(1);
+    verify(() => host.backend.guiderGetStatus()).called(1);
     // The event says guiding at once; the status read adds the RMS.
     final sent = host.sent.where((u) => u.channel == 'guiderStatus').toList();
     expect(sent.length, inInclusiveRange(1, 2));
@@ -60,7 +58,7 @@ void main() {
   test('a client that links while the host guides shows it guiding, with '
       'the reason a held guider gave', () async {
     final host = mirrorHost();
-    when(() => host.backend.guiderGetStatus(deviceId: _guiderId)).thenAnswer(
+    when(() => host.backend.guiderGetStatus()).thenAnswer(
       (_) async => const Phd2Status(
         state: 'Guiding',
         connected: true,
@@ -90,7 +88,7 @@ void main() {
   test('a guider whose status still says guiding after it was stopped '
       'shows stopped on the client: its events say so', () async {
     final host = mirrorHost();
-    when(() => host.backend.guiderGetStatus(deviceId: _guiderId)).thenAnswer(
+    when(() => host.backend.guiderGetStatus()).thenAnswer(
       (_) async => const Phd2Status(state: 'Guiding', connected: true),
     );
     final guider = host.container.read(guiderStateProvider.notifier);
@@ -113,7 +111,7 @@ void main() {
       'client', () async {
     final host = mirrorHost();
     when(
-      () => host.backend.guiderGetStatus(deviceId: kPhd2CanonicalId),
+      () => host.backend.guiderGetStatus(),
     ).thenThrow(StateError('PHD2 not connected'));
     final guider = host.container.read(guiderStateProvider.notifier);
     guider.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
@@ -131,8 +129,7 @@ void main() {
   test('a guider with nothing to report leaves the client as it is', () async {
     final host = mirrorHost();
     final client = mirrorClient(host.container);
-    client.container.read(phd2StateProvider.notifier).state =
-        Phd2State.looping;
+    client.container.read(phd2StateProvider.notifier).state = Phd2State.looping;
     await hydrateHostRuntimeState(client.container, client.backend);
     expect(client.container.read(phd2StateProvider), Phd2State.looping);
   });

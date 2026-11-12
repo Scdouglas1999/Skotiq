@@ -178,6 +178,13 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     )..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])).watch();
   }
 
+  /// Whether any frame is stored: one EXISTS read on each write to the
+  /// table, where watching every row reads and maps the whole library.
+  Stream<bool> watchHasAnyImage() {
+    final any = existsQuery(select(capturedImages));
+    return selectExpressions([any]).watchSingle().map((row) => row.read(any)!);
+  }
+
   Future<List<CapturedImage>> getImagesForSession(int sessionId) {
     return (select(capturedImages)
           ..where((i) => i.sessionId.equals(sessionId))

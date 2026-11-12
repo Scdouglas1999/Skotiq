@@ -17,99 +17,20 @@ impl DeviceDriver for FujifilmCamera {
     }
 
     fn is_connected(&self) -> bool {
-        self.connected
+        self.session.is_some()
     }
 
     async fn connect(&mut self) -> Result<(), DriverError> {
+        if self.is_connected() {
+            return Ok(());
+        }
         let sdk = FujifilmSdk::lock().await?;
+        let session = session::join(&sdk, &self.serial_number).await?;
+        let camera_handle = session.handle();
+        self.firmware_version = session.firmware().to_string();
+        let actual_name = session.product().to_string();
 
-        // 1. Initialize SDK
-        // SAFETY: XSDK_Init accepts a NULL reserved-parameter per XAPI.h. May return XSDK_ERRCODE_LOADLIB if already initialized — handled below.
-        let result = unsafe { (sdk.init)(std::ptr::null_mut()) };
-        if result != XSDK_COMPLETE {
-            let (api_code, err_code) = last_error(std::ptr::null_mut(), &sdk);
-            if err_code != XSDK_ERRCODE_LOADLIB {
-                return Err(sdk_failure("starting the Fujifilm SDK", api_code, err_code));
-            }
-        }
-
-        // 2. Find the body's enumeration index. XSDK_OpenEx names a camera as
-        //    "ENUM:<n>", n being its place in the list the last XSDK_Detect
-        //    built (SDK Programming Reference 4.1.3.1), not by serial number.
-        let listed = list_cameras(&sdk).await?;
-        let index = listed
-            .iter()
-            .position(|c| {
-                c.as_ref()
-                    .is_some_and(|c| c.address() == self.serial_number)
-            })
-            .ok_or_else(|| {
-                DriverError::DeviceNotFound(format!(
-                    "Fujifilm camera {} is not attached. Check the USB cable, that the camera \
-                     is on, and that its PC CONNECTION MODE is USB TETHER SHOOTING AUTO.",
-                    self.serial_number
-                ))
-            })?;
-        let device = CString::new(format!("ENUM:{index}"))
-            .map_err(|_| DriverError::InvalidParameter("Invalid camera index".into()))?;
-
-        // 3. Open the session (using blocking sleep to avoid raw pointer across await)
-        let camera_handle = {
-            let mut handle: XsdkHandle = std::ptr::null_mut();
-            let mut camera_mode: c_long = 0;
-
-            for attempt in 1..=3 {
-                wait_for_close_settle();
-                // SAFETY: `device.as_ptr()` is a non-null pointer to a NUL-terminated CString owned by `device` for the duration of this loop iteration; `&mut handle` and `&mut camera_mode` are valid stack out-pointers; the trailing NULL is the documented "use defaults for options" sentinel per XAPI.h.
-                let result = unsafe {
-                    (sdk.open_ex)(
-                        device.as_ptr(),
-                        &mut handle,
-                        &mut camera_mode,
-                        std::ptr::null_mut(),
-                    )
-                };
-                if result == XSDK_COMPLETE {
-                    break;
-                }
-                let (api_code, err_code) = last_error(std::ptr::null_mut(), &sdk);
-                if attempt == 3 || err_code != XSDK_ERRCODE_SEQUENCE {
-                    return Err(sdk_failure("opening the camera", api_code, err_code));
-                }
-                // Use blocking sleep here to avoid raw pointer across await
-                std::thread::sleep(Duration::from_millis(100 * (1 << attempt)));
-            }
-            handle
-        };
-
-        // 4. Confirm the session is on this body.
-        let mut dev_info = XsdkDeviceInformation::default();
-        // SAFETY: `camera_handle` was just opened; `&mut dev_info` is a valid stack out-pointer to a `#[repr(C, packed)]` XsdkDeviceInformation that the SDK populates. The `cstr_to_string` helpers read its packed [c_char; N] fields via slice references (no misaligned pointer reads).
-        unsafe { (sdk.get_device_info)(camera_handle, &mut dev_info) };
-        let opened_serial = cstr_to_string(&dev_info.str_serial_no);
-        let actual_name = cstr_to_string(&dev_info.str_product);
-        let opened_address = if opened_serial.is_empty() {
-            actual_name.as_str()
-        } else {
-            opened_serial.as_str()
-        };
-        if !opened_address.is_empty() && opened_address != self.serial_number {
-            close_camera(camera_handle, &sdk);
-            return Err(DriverError::DeviceNotFound(format!(
-                "Fujifilm camera {} moved in the SDK's camera list (ENUM:{} is now {}). \
-                 Search for devices again and reconnect.",
-                self.serial_number, index, opened_address
-            )));
-        }
-        self.camera_handle = HandleWrapper(camera_handle);
-        self.firmware_version = cstr_to_string(&dev_info.str_firmware);
-
-        // 5. Set PC priority mode
-        // SAFETY: `camera_handle` was opened above; XSDK_SetPriorityMode takes (handle, c_long) POD per XAPI.h. XSDK_PRIORITY_PC is the documented constant for granting PC exclusive control.
-        unsafe { (sdk.set_priority_mode)(camera_handle, XSDK_PRIORITY_PC) };
-        std::thread::sleep(Duration::from_millis(100));
-
-        // 6. CRITICAL: Set dynamic range to 100 BEFORE ISO operations
+        // 1. CRITICAL: Set dynamic range to 100 BEFORE ISO operations
         // SAFETY: `camera_handle` valid; XSDK_SetDynamicRange takes (handle, c_long) POD per XAPI.h. Must precede ISO operations per the module header's SDK behavior §1.
         unsafe { (sdk.set_dynamic_range)(camera_handle, XSDK_DR_100) };
         std::thread::sleep(Duration::from_millis(100));
@@ -125,7 +46,7 @@ impl DeviceDriver for FujifilmCamera {
             self.sensor_info.pixel_size_y = pixel_size;
         }
 
-        // 7. Ask the body which RAW output depth it is set to. A GFX switched
+        // 2. Ask the body which RAW output depth it is set to. A GFX switched
         //    to SDK_RAWOUTPUTDEPTH_16BIT (XAPIOpt.H:585) delivers samples that
         //    reach 65535, four times the model table's 16383 estimate, and a
         //    max_adu that low makes every such frame look saturated. Only the
@@ -133,7 +54,7 @@ impl DeviceDriver for FujifilmCamera {
         //    rest answer XSDK_ERRCODE_API_NOTFOUND, and we keep the estimate.
         if self.model.supports_16bit_raw() {
             let mut raw_output_depth: c_long = 0;
-            // SAFETY: `camera_handle` was opened via XSDK_OpenEx earlier in this function; `&mut raw_output_depth` is a valid stack out-pointer to a c_long. API_PARAM_GetRAWOutputDepth is 1 (one out-pointer) in every model header that defines it.
+            // SAFETY: `camera_handle` is the session's open handle; `&mut raw_output_depth` is a valid stack out-pointer to a c_long. API_PARAM_GetRAWOutputDepth is 1 (one out-pointer) in every model header that defines it.
             let result = unsafe {
                 (sdk.get_prop)(
                     camera_handle,
@@ -160,14 +81,14 @@ impl DeviceDriver for FujifilmCamera {
 
         self.refresh_raw_depth();
 
-        // 8. Long exposure noise reduction makes the body shoot a dark of the
+        // 3. Long exposure noise reduction makes the body shoot a dark of the
         //    same length after every frame and subtract it: twice the time per
         //    frame, a calibration nobody chose, and a frame that arrives long
         //    after the download stops waiting. The owner's NINA plugin turns it
         //    off by default; so does this driver, and says so.
         self.long_exposure_nr = switch_off_long_exposure_nr(camera_handle, &sdk, &self.id);
 
-        // 9. Query ISO capabilities
+        // 4. Query ISO capabilities
         let mut iso_count: c_long = 0;
         // SAFETY: `camera_handle` valid; a NULL value buffer asks only for the count (SDK Programming Reference 4.1.9.13); `&mut iso_count` is a valid stack out-pointer.
         let result =
@@ -188,16 +109,16 @@ impl DeviceDriver for FujifilmCamera {
             Vec::new()
         };
 
-        // 10. Get current ISO
+        // 5. Get current ISO
         let mut current_iso: c_long = 0;
         // SAFETY: `camera_handle` valid; `&mut current_iso` is a valid stack out-pointer to c_long; XSDK_GetSensitivity writes the current ISO value per XAPI.h.
         unsafe { (sdk.get_sensitivity)(camera_handle, &mut current_iso) };
         self.current_iso = current_iso as i32;
 
-        // 11. Frames left from before this session would be downloaded as ours.
+        // 6. Frames left from before this session would be downloaded as ours.
         discard_buffered_frames(camera_handle, &sdk);
 
-        self.connected = true;
+        self.session = Some(session);
         tracing::info!(
             "Connected to Fujifilm {} ({})",
             self.name,
@@ -208,18 +129,18 @@ impl DeviceDriver for FujifilmCamera {
     }
 
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
+        let Some(session) = self.session.clone() else {
             return Ok(());
-        }
+        };
 
         let sdk = FujifilmSdk::lock().await?;
 
-        // Stop any ongoing exposure. We still close the handle if this fails — the
-        // handle must be released — but a failed bulb stop means the shutter may be
+        // Stop any ongoing exposure. The session is released even if this fails,
+        // but a failed bulb stop means the shutter may be
         // left open on a camera we are about to stop talking to, which the operator
         // has to be told about.
         if self.is_bulb_mode {
-            if let Err(e) = self.stop_bulb_exposure().await {
+            if let Err(e) = self.stop_bulb_exposure(&sdk).await {
                 tracing::error!(
                     "Fujifilm {}: failed to close the bulb shutter before disconnect: {}. The shutter may still be open; power-cycle the camera if the exposure does not end.",
                     self.id,
@@ -228,10 +149,9 @@ impl DeviceDriver for FujifilmCamera {
             }
         }
 
-        close_camera(self.camera_handle.0, &sdk);
-
-        self.camera_handle = HandleWrapper(std::ptr::null_mut());
-        self.connected = false;
+        self.end_live_view(&sdk).await;
+        self.session = None;
+        session::leave(&sdk, &session);
         self.is_exposing = false;
         self.is_bulb_mode = false;
 
@@ -297,8 +217,8 @@ impl FujifilmCamera {
             {
                 let sdk = FujifilmSdk::lock().await?;
                 let mut img_info = XsdkImageInformation::default();
-                // SAFETY: `self.camera_handle.0` valid; `&mut img_info` is a valid stack out-pointer to a `#[repr(C, packed)]` XsdkImageInformation that the SDK populates per XAPI.h. Packed fields are copied into locals before use (misaligned references would be UB).
-                let result = unsafe { (sdk.read_image_info)(self.camera_handle.0, &mut img_info) };
+                // SAFETY: `self.handle()` valid; `&mut img_info` is a valid stack out-pointer to a `#[repr(C, packed)]` XsdkImageInformation that the SDK populates per XAPI.h. Packed fields are copied into locals before use (misaligned references would be UB).
+                let result = unsafe { (sdk.read_image_info)(self.handle(), &mut img_info) };
                 let (format, data_size, bit_depth) = (
                     img_info.l_format,
                     img_info.l_data_size,
@@ -310,16 +230,15 @@ impl FujifilmCamera {
                         // SAFETY: `buffer` holds exactly `data_size` bytes and that size is passed, so XSDK_ReadImage cannot write past it.
                         let result = unsafe {
                             (sdk.read_image)(
-                                self.camera_handle.0,
+                                self.handle(),
                                 buffer.as_mut_ptr(),
                                 data_size as c_ulong,
                             )
                         };
                         if result != XSDK_COMPLETE {
-                            let error =
-                                sdk_error(self.camera_handle.0, &sdk, "downloading the RAW frame");
+                            let error = sdk_error(self.handle(), &sdk, "downloading the RAW frame");
                             // SAFETY: as above; the failed frame is removed so it cannot be read as the next one.
-                            unsafe { (sdk.delete_image)(self.camera_handle.0) };
+                            unsafe { (sdk.delete_image)(self.handle()) };
                             return Err(error);
                         }
                         // XSDK_ReadImage removed the frame from the buffer.
@@ -327,8 +246,8 @@ impl FujifilmCamera {
                     }
                     // The JPEG or HEIF of a RAW+JPEG shot: the RAW is next.
                     skipped += 1;
-                    // SAFETY: `self.camera_handle.0` valid; XSDK_DeleteImage takes only the handle.
-                    if unsafe { (sdk.delete_image)(self.camera_handle.0) } == XSDK_COMPLETE {
+                    // SAFETY: `self.handle()` valid; XSDK_DeleteImage takes only the handle.
+                    if unsafe { (sdk.delete_image)(self.handle()) } == XSDK_COMPLETE {
                         continue;
                     }
                 }
@@ -375,7 +294,7 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
-        if !self.connected {
+        if !self.is_connected() {
             return Err(DriverError::NotConnected);
         }
         // Between exposures, ask the camera something, so a body that was
@@ -384,7 +303,7 @@ impl CameraDriver for FujifilmCamera {
         // Reference 4.1.2.2, Note).
         if !self.is_exposing {
             let sdk = FujifilmSdk::lock().await?;
-            frames_in_buffer(self.camera_handle.0, &sdk)?;
+            frames_in_buffer(self.handle(), &sdk)?;
         }
 
         let state = if self.is_exposing {
@@ -417,18 +336,19 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
-        if !self.connected {
+        if !self.is_connected() {
             return Err(DriverError::NotConnected);
         }
 
         let sdk = FujifilmSdk::lock().await?;
+        self.end_live_view(&sdk).await;
 
         if let Some(gain) = params.gain {
             self.apply_iso(&sdk, gain).await?;
         }
 
         // A frame already waiting would be downloaded as this exposure's.
-        let stale = discard_buffered_frames(self.camera_handle.0, &sdk);
+        let stale = discard_buffered_frames(self.handle(), &sdk);
         if stale > 0 {
             tracing::warn!(
                 "Fujifilm {}: discarded {} frame(s) left in the camera before the exposure",
@@ -444,10 +364,7 @@ impl CameraDriver for FujifilmCamera {
             .choose(params.duration_secs)
             .map_err(DriverError::InvalidParameter)?;
         let (code, seconds) = match shutter {
-            Shutter::Bulb { seconds } => {
-                drop(sdk);
-                return self.start_bulb_exposure(seconds).await;
-            }
+            Shutter::Bulb { seconds } => return self.start_bulb_exposure(&sdk, seconds).await,
             Shutter::Timed { code, seconds } => (code as c_long, seconds),
         };
         if (seconds - params.duration_secs).abs() > f64::EPSILON {
@@ -464,10 +381,10 @@ impl CameraDriver for FujifilmCamera {
 
         let mut shot_opt: c_long = 0;
         let mut af_status: c_long = 0;
-        // SAFETY: `self.camera_handle.0` valid; out-pointers reference distinct c_long stack locals; XSDK_RELEASE_SHOOT_S1OFF is the documented "one-shot full-press-and-release" trigger flag from XAPI.h for non-bulb exposures.
+        // SAFETY: `self.handle()` valid; out-pointers reference distinct c_long stack locals; XSDK_RELEASE_SHOOT_S1OFF is the documented "one-shot full-press-and-release" trigger flag from XAPI.h for non-bulb exposures.
         let result = unsafe {
             (sdk.release)(
-                self.camera_handle.0,
+                self.handle(),
                 XSDK_RELEASE_SHOOT_S1OFF,
                 &mut shot_opt,
                 &mut af_status,
@@ -475,11 +392,7 @@ impl CameraDriver for FujifilmCamera {
         };
 
         if result != XSDK_COMPLETE {
-            return Err(sdk_error(
-                self.camera_handle.0,
-                &sdk,
-                "releasing the shutter",
-            ));
+            return Err(sdk_error(self.handle(), &sdk, "releasing the shutter"));
         }
 
         self.exposure_start = Some(Instant::now());
@@ -506,12 +419,13 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
-        if !self.connected {
+        if !self.is_connected() {
             return Err(DriverError::NotConnected);
         }
 
         if self.is_bulb_mode {
-            self.stop_bulb_exposure().await?;
+            let sdk = FujifilmSdk::lock().await?;
+            self.stop_bulb_exposure(&sdk).await?;
         }
 
         let downloaded = self.wait_for_raw_frame().await;
@@ -591,7 +505,7 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
-        if !self.connected {
+        if !self.is_connected() {
             return Err(DriverError::NotConnected);
         }
 
@@ -664,12 +578,6 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn capture_preview(&self) -> Result<Vec<u8>, DriverError> {
-        if !self.is_live_view_active() {
-            return Err(DriverError::SdkError(
-                "Fujifilm live view is not active — start live view on the camera first"
-                    .to_string(),
-            ));
-        }
-        self.read_live_view_frame().await
+        self.live_view_frame().await
     }
 }

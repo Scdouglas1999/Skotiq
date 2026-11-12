@@ -569,6 +569,12 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
         crate::api::api_save_fits_from_last_capture(device_id.to_string(), path, header(), keeper)
             .await
     };
+    let saving = |choice| async move {
+        skotiq_sequencer::executor_handle()
+            .update_run_config(|config| config.camera_file_saving = choice)
+            .await
+            .expect("the setting applies");
+    };
     let scratch = Scratch::new("camera_file");
     let fits_only = scratch.file("fits_only.fits");
     let both = scratch.file("both.fits");
@@ -576,15 +582,15 @@ async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
     let live_view = scratch.file("live_view.fits");
 
     store().await;
-    crate::api::api_sequencer_set_camera_file_saving("converted".to_string()).await.unwrap();
+    saving(skotiq_sequencer::CameraFileSaving::Converted).await;
     let recorded_fits_only = save(fits_only.clone(), true).await;
-    crate::api::api_sequencer_set_camera_file_saving("both".to_string()).await.unwrap();
+    saving(skotiq_sequencer::CameraFileSaving::Both).await;
     let recorded_both = save(both.clone(), true).await;
     // A live-view or loop frame is no keeper: FITS only, whatever the setting.
     let recorded_live_view = save(live_view.clone(), false).await;
-    crate::api::api_sequencer_set_camera_file_saving("camera".to_string()).await.unwrap();
+    saving(skotiq_sequencer::CameraFileSaving::CameraFile).await;
     let recorded_camera_only = save(camera_only.clone(), true).await;
-    crate::api::api_sequencer_set_camera_file_saving("converted".to_string()).await.unwrap();
+    saving(skotiq_sequencer::CameraFileSaving::Converted).await;
     crate::last_frame::clear(device_id).await;
 
     assert_eq!(recorded_fits_only.unwrap(), fits_only);

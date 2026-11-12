@@ -146,10 +146,13 @@ Future<void> defaultUpdateApplySafetyCheckWithReader(
 /// lets the offer arrive when the run ends, which is exactly when an operator
 /// can act on it.
 final updatePromptHoldProvider = Provider<String?>((ref) {
-  // Watched, not read, so this recomputes as the rig's state changes.
+  // Watched, not read, so this recomputes as the rig's state changes; only
+  // what the hold depends on, so telemetry polls do not recompute it.
   ref.watch(sequenceExecutionStateProvider);
-  ref.watch(cameraStateProvider);
-  ref.watch(mountStateProvider);
+  ref.watch(
+    cameraStateProvider.select((c) => (c.connectionState, c.isExposing)),
+  );
+  ref.watch(mountStateProvider.select((m) => (m.connectionState, m.isSlewing)));
   return updatePromptHeldBackReason(ref.read);
 });
 

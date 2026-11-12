@@ -95,7 +95,7 @@ impl ComDispatch for Recorder {
         ));
         state.last_returns = call.returns;
         match state.reply {
-            Reply::Refuse => Err(call.invoke_error("{cause}".to_string())),
+            Reply::Refuse => Err(call.invoke_error("{cause}".to_string(), None)),
             Reply::WrongType => Err(call.type_error(99, Some("{detail}".to_string()))),
             Reply::Value => Ok(match call.returns {
                 ComKind::Void => ComValue::Empty,

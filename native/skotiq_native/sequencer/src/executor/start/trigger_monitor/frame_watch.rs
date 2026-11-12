@@ -17,6 +17,7 @@ use crate::frame_watch::{
     assess, FrameAssessed, FrameObservation, FrameVerdict, FrameWatch, FrameWatchConfig,
     FrameWatchEvent, HorizonObstructionReport, HorizonPoint, Pointing, SolveOutcome, WatchAction,
 };
+use crate::quality::RejectReason;
 use std::collections::VecDeque;
 
 pub(crate) use crate::executor::OBSTRUCTION_TRIGGER_ID;
@@ -244,7 +245,7 @@ impl FrameWatchStage {
             else {
                 continue;
             };
-            let (path, accepted, reason, hfr, eccentricity, star_count, capture) = match *detail {
+            let (path, reject, hfr, eccentricity, star_count, capture) = match *detail {
                 ProgressDetail::FrameAccepted {
                     save_path: Some(path),
                     hfr,
@@ -252,7 +253,7 @@ impl FrameWatchStage {
                     star_count,
                     capture,
                     ..
-                } => (path, true, None, hfr, eccentricity, star_count, capture),
+                } => (path, None, hfr, eccentricity, star_count, capture),
                 ProgressDetail::FrameRejected {
                     reject_path,
                     reason,
@@ -263,7 +264,6 @@ impl FrameWatchStage {
                     ..
                 } => (
                     reject_path,
-                    false,
                     Some(reason),
                     hfr,
                     eccentricity,
@@ -302,8 +302,7 @@ impl FrameWatchStage {
                 filter: state.latches.current_filter.clone(),
                 exposure_secs: capture.exposure_secs,
                 exposure_started_secs: self.clock.elapsed().as_secs_f64() - capture.exposure_secs,
-                accepted_by_grader: accepted,
-                grader_reason: reason,
+                grader_reject: reject,
                 star_count,
                 hfr,
                 eccentricity,
@@ -324,12 +323,7 @@ impl FrameWatchStage {
             // Until the frame is measured, a grader reject for trailed or lost
             // stars already holds autofocus, so a sweep due at this frame's end
             // does not start on it.
-            if let Some(reason) = observation
-                .grader_reason
-                .as_deref()
-                .filter(|_| !observation.accepted_by_grader)
-                .and_then(provisional_hold_reason)
-            {
+            if let Some(reason) = observation.grader_reject.and_then(provisional_hold_reason) {
                 dispatcher
                     .rig
                     .trigger_state
@@ -393,7 +387,7 @@ impl FrameWatchStage {
             save_path: obs.save_path.clone(),
             filter: obs.filter.clone(),
             exposure_secs: obs.exposure_secs,
-            was_accepted: obs.accepted_by_grader,
+            was_accepted: obs.accepted_by_grader(),
             solve_attempted: !matches!(obs.solve, SolveOutcome::NotAttempted),
             plate_solved: solved_ra_deg.is_some(),
             solved_ra_deg,
@@ -632,8 +626,8 @@ impl FrameWatchStage {
         let (lat, lon) = {
             let rc = rig.runtime_config.read();
             (
-                rc.latitude.or(rig.context.latitude),
-                rc.longitude.or(rig.context.longitude),
+                rc.latitude.or(rig.devices().latitude),
+                rc.longitude.or(rig.devices().longitude),
             )
         };
         let (Some(lat), Some(lon)) = (lat, lon) else {
@@ -742,8 +736,8 @@ impl FrameWatchStage {
         let (lat, lon) = {
             let rc = dispatcher.rig.runtime_config.read();
             (
-                rc.latitude.or(dispatcher.rig.context.latitude),
-                rc.longitude.or(dispatcher.rig.context.longitude),
+                rc.latitude.or(dispatcher.rig.devices().latitude),
+                rc.longitude.or(dispatcher.rig.devices().longitude),
             )
         };
         let next = match (lat, lon) {
@@ -827,7 +821,7 @@ impl FrameWatchStage {
         dispatcher.run.warning(message.clone());
         if let Err(e) = dispatcher
             .rig
-            .device_ops
+            .device_ops()
             .send_notification("warning", "Obstruction", &message, None)
             .await
         {
@@ -962,10 +956,10 @@ impl FrameWatchStage {
 }
 
 /// The autofocus hold a grader reject implies before the frame is measured.
-fn provisional_hold_reason(grader_reason: &str) -> Option<String> {
-    if grader_reason.contains("eccentricity") {
+fn provisional_hold_reason(reject: RejectReason) -> Option<String> {
+    if reject.stars_trailed() {
         Some("the last frame's stars were trailed".to_string())
-    } else if grader_reason.contains("star count") || grader_reason.contains("no stars") {
+    } else if reject.lost_stars() {
         Some("the last frame lost most of its stars".to_string())
     } else {
         None
@@ -977,6 +971,63 @@ fn file_label(path: &str) -> String {
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.to_string())
+}
+
+#[cfg(test)]
+mod provisional_hold_tests {
+    use super::{provisional_hold_reason, RejectReason};
+
+    #[test]
+    fn a_trailed_or_starless_reject_holds_autofocus_and_a_soft_one_does_not() {
+        let trailed = "the last frame's stars were trailed";
+        let lost = "the last frame lost most of its stars";
+        for (reject, hold) in [
+            (
+                RejectReason::Trailed {
+                    length_px: 24.5,
+                    width_px: 2.1,
+                    axis_ratio: 11.7,
+                },
+                Some(trailed),
+            ),
+            (
+                RejectReason::Eccentricity {
+                    eccentricity: 0.9,
+                    limit: 0.8,
+                },
+                Some(trailed),
+            ),
+            (RejectReason::NoStars, Some(lost)),
+            (
+                RejectReason::StarCountBelowMinimum {
+                    count: 3,
+                    minimum: 20,
+                },
+                Some(lost),
+            ),
+            (
+                RejectReason::StarCountBelowBaseline {
+                    count: 300,
+                    baseline: 2000.0,
+                    drop_percent: 50.0,
+                },
+                Some(lost),
+            ),
+            (
+                RejectReason::HfrAboveLimit {
+                    hfr: 4.0,
+                    limit: 3.0,
+                },
+                None,
+            ),
+        ] {
+            assert_eq!(
+                provisional_hold_reason(reject).as_deref(),
+                hold,
+                "{reject:?}"
+            );
+        }
+    }
 }
 
 #[cfg(test)]

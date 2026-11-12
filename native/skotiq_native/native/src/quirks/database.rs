@@ -241,7 +241,7 @@ fn fli_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
 
 fn skywatcher_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
     vec![
-        // REMOVED: `Communication(RequiredBaudRate(9600))` — `vendor/skywatcher.rs`
+        // REMOVED: `Communication(RequiredBaudRate(9600))` — `vendor/skywatcher/`
         // already hardcodes `SYNSCAN_BAUD_RATE = 9600` and the discovery routine
         // probes the `SYNSCAN_DISCOVERY_BAUD_RATES = [115200, 9600]` list directly.
         // Routing baud-rate selection through quirks would force a second source of
@@ -250,11 +250,9 @@ fn skywatcher_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
         // REMOVED: `Timing(DelayBetweenCommands(50))` until `send_command` actually
         // consumes it. Keeping it live made the quirks DB look effective when it was not.
         // EQ6-R Pro and AZ-GTi model-specific quirks (GotoPrecisionArcsec,
-        // GuideRateScale, DelayAfterConnect) are DEFERRED: the Sky-Watcher driver
-        // does not currently differentiate models post-discovery (mount name is
-        // always `Sky-Watcher (PORT)`), so the `ModelContains("EQ6"|"GTi")` matcher
-        // never fires. Wiring requires plumbing a version-query result into the
-        // mount struct's `name` field. Not yet wired.
+        // GuideRateScale, DelayAfterConnect) are DEFERRED: the driver names the
+        // model from the motor board version (`Sky-Watcher EQ6-R Pro (PORT)`),
+        // but nothing reads these quirks for Sky-Watcher mounts yet.
     ]
 }
 
@@ -268,8 +266,8 @@ fn ioptron_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
         // by anything outside the diagnostics display.
         //
         // CEM/GEM model-specific quirks DEFERRED: same reason as Sky-Watcher —
-        // iOptron mount model is derived from `GET_MOUNT_VERSION` at connect time
-        // but is stored only inside `self.mount_model`; the `name` field used by
+        // iOptron mount model is derived from `:MountInfo#` at connect time
+        // and kept in the driver's session; the `name` field used by
         // quirks lookup is `"iOptron {model} ({port})"` which does happen to
         // include the model substring, but the existing quirk policies
         // (GotoPrecisionArcsec, SyncRequiresAlignment) have no consumers in the

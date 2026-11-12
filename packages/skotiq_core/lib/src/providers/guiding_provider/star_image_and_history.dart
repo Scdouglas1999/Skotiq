@@ -89,10 +89,7 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
 
     _pollInFlight = true;
     try {
-      final image = await backend.guiderGetStarImage(
-        deviceId: guiderId,
-        size: size,
-      );
+      final image = await backend.guiderGetStarImage(size: size);
       if (mounted &&
           generation == _pollGeneration &&
           identical(backend, ref.read(backendProvider)) &&

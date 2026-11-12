@@ -30,12 +30,18 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
   final List<RemoteSequenceRun> _runs = [];
   int _total = 0;
   int _nextOffset = 0;
-  int _generation = 0;
   bool _loading = false;
   bool _exhausted = false;
   Object? _error;
   bool _notLinked = false;
-  SkotiqBackend? _loadedBackend;
+
+  /// A page was asked for since the last refresh; until then the list is
+  /// loading, not empty.
+  bool _requested = false;
+
+  /// Page loads. A refresh drops the ones still loading; a host change
+  /// refreshes (see build), so pages from two hosts never mix.
+  late final _pageLoads = ref.backendScopes(alive: () => mounted);
 
   @override
   void initState() {
@@ -50,8 +56,8 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
 
   Future<void> _loadMore() async {
     if (!mounted || _loading || _exhausted) return;
-    final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
+    final load = _pageLoads.begin();
+    final linkedHost = load.value.remoteHost;
     if (linkedHost == null) {
       setState(() {
         _notLinked = true;
@@ -59,13 +65,8 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
       });
       return;
     }
-    if (_loadedBackend != null && !identical(_loadedBackend, backend)) {
-      await _refresh();
-      return;
-    }
-    _loadedBackend = backend;
-    final requestGeneration = _generation;
     final requestOffset = _nextOffset;
+    _requested = true;
     setState(() {
       _notLinked = false;
       _loading = true;
@@ -76,14 +77,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
         limit: _pageSize,
         offset: requestOffset,
       );
-      if (!mounted) return;
-      if (requestGeneration != _generation ||
-          !identical(ref.read(backendProvider), backend)) {
-        if (requestGeneration == _generation) {
-          unawaited(_refresh());
-        }
-        return;
-      }
+      if (load.isStale) return;
       if (page.items.length > _pageSize) {
         throw StateError(
           'The host returned ${page.items.length} runs for a '
@@ -124,14 +118,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
-      if (requestGeneration != _generation ||
-          !identical(ref.read(backendProvider), backend)) {
-        if (requestGeneration == _generation) {
-          unawaited(_refresh());
-        }
-        return;
-      }
+      if (load.isStale) return;
       setState(() {
         _loading = false;
         _error = e;
@@ -141,7 +128,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
 
   Future<void> _refresh() async {
     if (!mounted) return;
-    _generation++;
+    _pageLoads.cancelAll();
     setState(() {
       _runs.clear();
       _total = 0;
@@ -149,7 +136,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
       _loading = false;
       _exhausted = false;
       _error = null;
-      _loadedBackend = null;
+      _requested = false;
     });
     await _loadMore();
   }
@@ -202,7 +189,7 @@ class _SessionPickerScreenState extends ConsumerState<SessionPickerScreen> {
         ),
       );
     }
-    if (_runs.isEmpty && (_loading || _loadedBackend == null)) {
+    if (_runs.isEmpty && (_loading || !_requested)) {
       return const Center(
         child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36),
       );

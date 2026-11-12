@@ -589,7 +589,7 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skotiq_imaging::{add_wcs_headers, read_frame, WcsInfo};
+    use skotiq_imaging::{add_wcs_headers, read_frame};
     use std::path::PathBuf;
 
     /// A scratch directory that deletes itself when the test ends. Cleanup runs
@@ -878,7 +878,15 @@ mod tests {
         h.set_string("IMAGETYP", "MASTER_LIGHT");
         add_wcs_headers(
             &mut h,
-            &WcsInfo::from_plate_solve(83.822, -5.391, 12.0, 1.5, image.width, image.height),
+            &skotiq_imaging::SipWcs::from_pointing(
+                83.822,
+                -5.391,
+                12.0,
+                1.5,
+                image.width,
+                image.height,
+            )
+            .cd_only(),
         );
         h.set_string("CTYPE1", "RA---TAN-SIP");
         h.set_string("CTYPE2", "DEC--TAN-SIP");

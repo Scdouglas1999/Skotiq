@@ -146,7 +146,9 @@ pub(crate) const API_CODE_GET_LIVE_VIEW_STATUS: c_long = 0x332D;
 
 // Live view quality (XAPIOpt.h lines 574-579)
 pub(crate) const SDK_LIVEVIEW_QUALITY_FINE: c_long = 0x0001;
+#[allow(dead_code)]
 pub(crate) const SDK_LIVEVIEW_QUALITY_NORMAL: c_long = 0x0002;
+#[allow(dead_code)]
 pub(crate) const SDK_LIVEVIEW_QUALITY_BASIC: c_long = 0x0003;
 
 // Live view size (XAPIOpt.h lines 582-590)
@@ -156,14 +158,34 @@ pub(crate) const SDK_LIVEVIEW_SIZE_M: c_long = 0x0002; // 800px
 #[allow(dead_code)]
 pub(crate) const SDK_LIVEVIEW_SIZE_S: c_long = 0x0003; // 640px
 
-// Focus control API codes (XAPIOpt.h lines 265-275, 316)
+// Focus control (XAPIOpt.h: API codes 265-316, SDK_FOCUS_* 944-946).
+pub(crate) const API_CODE_SET_FOCUS_MODE: c_long = 0x2201;
+pub(crate) const API_CODE_GET_FOCUS_MODE: c_long = 0x2202;
 pub(crate) const API_CODE_SET_FOCUS_POS: c_long = 0x2207;
 pub(crate) const API_CODE_GET_FOCUS_POS: c_long = 0x2208;
 pub(crate) const API_CODE_CAP_FOCUS_POS: c_long = 0x2259;
-#[allow(dead_code)]
-pub(crate) const API_CODE_SET_FOCUS_MODE: c_long = 0x2201;
-#[allow(dead_code)]
-pub(crate) const API_CODE_GET_FOCUS_MODE: c_long = 0x2202;
+/// CapFocusPos passes two values: the structure's size and the structure.
+pub(crate) const API_PARAM_CAP_FOCUS_POS: c_long = 2;
+pub(crate) const SDK_FOCUS_MANUAL: c_long = 0x0001;
+pub(crate) const SDK_FOCUS_AFS: c_long = 0x8001;
+pub(crate) const SDK_FOCUS_AFC: c_long = 0x8002;
+
+/// `SDK_FOCUS_POS_CAP` (XAPIOpt.h lines 69-78), filled by CapFocusPos.
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct SdkFocusPosCap {
+    pub(crate) l_size_focus_pos_cap: c_long,
+    pub(crate) l_struct_ver: c_long,
+    pub(crate) l_focus_pls_inf: c_long,
+    pub(crate) l_focus_pls_mod: c_long,
+    pub(crate) l_focus_over_search_pls_inf: c_long,
+    pub(crate) l_focus_over_search_pls_mod: c_long,
+    pub(crate) l_focus_pls_fcs_depth_cap: c_long,
+    pub(crate) l_min_drive_step_mf_drive_end_thresh: c_long,
+}
+
+/// `lStructVer` of this structure version ("Fixed to 0x00010000").
+pub(crate) const SDK_FOCUS_POS_CAP_VERSION: c_long = 0x0001_0000;
 
 // RAW output depth (XAPIOpt.H lines 228-229 for the Set/Get API codes, line 263
 // for the capability code). GFX-class bodies can be switched between 14-bit and
@@ -191,14 +213,6 @@ pub(crate) const SDK_OFF: c_long = 0x0002;
 // these counts for the codes above (API_PARAM_<name>).
 pub(crate) const API_PARAM_NONE: c_long = 0;
 pub(crate) const API_PARAM_ONE_VALUE: c_long = 1;
-
-// Focus mode constants
-#[allow(dead_code)]
-pub(crate) const SDK_FOCUS_MODE_MF: c_long = 0x0001;
-#[allow(dead_code)]
-pub(crate) const SDK_FOCUS_MODE_AFS: c_long = 0x0002;
-#[allow(dead_code)]
-pub(crate) const SDK_FOCUS_MODE_AFC: c_long = 0x0003;
 
 // Dynamic range (XAPI.h lines 2087-2090)
 pub(crate) const XSDK_DR_100: c_long = 100;

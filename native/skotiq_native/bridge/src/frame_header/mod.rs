@@ -564,7 +564,10 @@ pub(crate) async fn write_capture_frame(
     }
 
     let path = std::path::PathBuf::from(file_path);
-    let options = crate::capture_file_format::current().options;
+    let options = skotiq_sequencer::executor_handle()
+        .run_config()
+        .frame_format
+        .write_options();
     tokio::task::spawn_blocking(move || write_frame_with(&path, &image, &header, &options))
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {}", e)))?

@@ -2,6 +2,8 @@ call connect
 @ port baud=9600 data=8 parity=none stop=1 flow=none
 > :GVP#
 < 10micron GM1000HPS#
+> :GR#
+< 05:30:00#
   -> Ok(())
   id=native:10micron:<PORT_ID> name=10micron GM1000HPS (<PORT>) vendor=Other("LX200") connected=true
   can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=true can_find_home=false can_set_park=false
@@ -47,15 +49,15 @@ call sync_to_coordinates(5.5123, -20.2512)
 > :Sd-20*15:04#
 < 1
 > :CM#
-<  M31 EX GAL MAG 3.5 SZ178.0'#
+< Coordinates     matched        #
   -> Ok(())
 call set_tracking(false)
-> :Q#
+> :AL#
   -> Ok(())
 call get_tracking
   -> Ok(false)
 call set_tracking(true)
-> :TQ#
+> :AP#
   -> Ok(())
 call get_tracking
   -> Ok(true)
@@ -114,7 +116,9 @@ call abort_slew
 > :Q#
   -> Ok(())
 call get_side_of_pier
-  -> Ok(Unknown)
+> :pS#
+< West#
+  -> Ok(West)
 call get_alt_az
 > :GA#
 < +45*30:00#

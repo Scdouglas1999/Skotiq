@@ -1,0 +1,101 @@
+<defSwitchVector device="Light Panel Simulator" name="CONNECTION" label="Connection" group="Main Control" state="Ok" perm="rw" rule="OneOfMany" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="CONNECT" label="Connect">
+On
+    </defSwitch>
+    <defSwitch name="DISCONNECT" label="Disconnect">
+Off
+    </defSwitch>
+</defSwitchVector>
+<defTextVector device="Light Panel Simulator" name="DRIVER_INFO" label="Driver Info" group="General Info" state="Idle" perm="ro" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defText name="DRIVER_NAME" label="Name">
+Light Panel Simulator
+    </defText>
+    <defText name="DRIVER_EXEC" label="Exec">
+indi_simulator_lightpanel
+    </defText>
+    <defText name="DRIVER_VERSION" label="Version">
+1.0
+    </defText>
+    <defText name="DRIVER_INTERFACE" label="Interface">
+33792
+    </defText>
+</defTextVector>
+<defSwitchVector device="Light Panel Simulator" name="DEBUG" label="Debug" group="Options" state="Idle" perm="rw" rule="OneOfMany" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="ENABLE" label="Enable">
+Off
+    </defSwitch>
+    <defSwitch name="DISABLE" label="Disable">
+On
+    </defSwitch>
+</defSwitchVector>
+<defSwitchVector device="Light Panel Simulator" name="SIMULATION" label="Simulation" group="Options" state="Idle" perm="rw" rule="OneOfMany" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="ENABLE" label="Enable">
+Off
+    </defSwitch>
+    <defSwitch name="DISABLE" label="Disable">
+On
+    </defSwitch>
+</defSwitchVector>
+<defSwitchVector device="Light Panel Simulator" name="CONFIG_PROCESS" label="Configuration" group="Options" state="Idle" perm="rw" rule="AtMostOne" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="CONFIG_LOAD" label="Load">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_SAVE" label="Save">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_DEFAULT" label="Default">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_PURGE" label="Purge">
+Off
+    </defSwitch>
+</defSwitchVector>
+<defNumberVector device="Light Panel Simulator" name="POLLING_PERIOD" label="Polling" group="Options" state="Idle" perm="rw" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defNumber name="PERIOD_MS" label="Period (ms)" format="%.f" min="10" max="600000" step="1000">
+1000
+    </defNumber>
+</defNumberVector>
+<defTextVector device="Light Panel Simulator" name="ACTIVE_DEVICES" label="Snoop devices" group="Options" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defText name="ACTIVE_FILTER" label="Filter">
+Filter Simulator
+    </defText>
+</defTextVector>
+<defNumberVector device="Light Panel Simulator" name="FLAT_LIGHT_FILTER_INTENSITY" label="Filter Intensity" group="Preset" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:02:36">
+    <defNumber name="Red" label="Red" format="%0.f" min="0" max="255" step="10">
+0
+    </defNumber>
+    <defNumber name="Green" label="Green" format="%0.f" min="0" max="255" step="10">
+0
+    </defNumber>
+    <defNumber name="Blue" label="Blue" format="%0.f" min="0" max="255" step="10">
+0
+    </defNumber>
+    <defNumber name="H_Alpha" label="H_Alpha" format="%0.f" min="0" max="255" step="10">
+0
+    </defNumber>
+    <defNumber name="SII" label="SII" format="%0.f" min="0" max="255" step="10">
+0
+    </defNumber>
+    <defNumber name="OIII" label="OIII" format="%0.f" min="0" max="255" step="10">
+0
+    </defNumber>
+    <defNumber name="LPR" label="LPR" format="%0.f" min="0" max="255" step="10">
+0
+    </defNumber>
+    <defNumber name="Luminance" label="Luminance" format="%0.f" min="0" max="255" step="10">
+0
+    </defNumber>
+</defNumberVector>
+<defSwitchVector device="Light Panel Simulator" name="FLAT_LIGHT_CONTROL" label="Flat Light" group="Main Control" state="Idle" perm="rw" rule="OneOfMany" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defSwitch name="FLAT_LIGHT_ON" label="On">
+Off
+    </defSwitch>
+    <defSwitch name="FLAT_LIGHT_OFF" label="Off">
+On
+    </defSwitch>
+</defSwitchVector>
+<defNumberVector device="Light Panel Simulator" name="FLAT_LIGHT_INTENSITY" label="Brightness" group="Main Control" state="Idle" perm="rw" timeout="0" timestamp="2026-11-12T14:02:36">
+    <defNumber name="FLAT_LIGHT_INTENSITY_VALUE" label="Value" format="%.f" min="0" max="255" step="10">
+0
+    </defNumber>
+</defNumberVector>

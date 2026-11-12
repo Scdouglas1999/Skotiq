@@ -15,6 +15,7 @@
 
 use crate::client::IndiClient;
 use crate::error::IndiResult;
+use crate::protocol::names::*;
 use crate::{IndiPermission, IndiProperty, IndiPropertyType};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -44,25 +45,6 @@ impl IndiSwitchDevice {
             client,
             device_name: device_name.to_string(),
         }
-    }
-
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
     }
 
     /// Get all switch-type properties on this device
@@ -193,16 +175,16 @@ impl IndiSwitchDevice {
 fn is_internal_switch_property(name: &str) -> bool {
     matches!(
         name,
-        "CONNECTION"
-            | "DEBUG"
-            | "DEBUG_LEVEL"
-            | "SIMULATION"
-            | "CONFIG_PROCESS"
-            | "DEVICE_PORT_SCAN"
-            | "ACTIVE_DEVICES"
-            | "UPLOAD_MODE"
-            | "LOG_OUTPUT"
-            | "LOG_LEVEL"
+        CONNECTION
+            | DEBUG
+            | DEBUG_LEVEL
+            | SIMULATION
+            | CONFIG_PROCESS
+            | DEVICE_PORT_SCAN
+            | ACTIVE_DEVICES
+            | UPLOAD_MODE
+            | LOG_OUTPUT
+            | LOG_LEVEL
     ) || name.starts_with("TELESCOPE_")
         || name.starts_with("CCD_")
         || name.starts_with("FILTER_")
@@ -224,13 +206,10 @@ impl IndiSwitchDevice {
             .ok()
             .and_then(|i| switches.into_iter().nth(i))
             .ok_or_else(|| {
-                skotiq_device::DriverError::Backend(
-                    format!(
-                        "Switch index {} out of range (device has {} switches)",
-                        index, count
-                    )
-                    .into(),
-                )
+                skotiq_device::DriverError::InvalidParameter(format!(
+                    "Switch index {} out of range (device has {} switches)",
+                    index, count
+                ))
             })
     }
 

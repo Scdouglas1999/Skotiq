@@ -4,9 +4,13 @@
 //! Capabilities describe what operations a device supports, allowing the UI
 //! and sequencer to adapt to device limitations.
 //!
+//! A connected device of a type with a handle (filter wheel, focuser and the
+//! accessories) answers through that handle (`read_capabilities`). Cameras and
+//! mounts are still read per protocol in the submodules here.
+//!
 //! # Connect/Disconnect-probe guard
 //!
-//! A capability probe for an Alpaca or ASCOM device probes `is_connected()`
+//! A capability probe for an Alpaca or ASCOM camera or mount probes `is_connected()`
 //! before it touches the connection, because a blind
 //! `connect → read properties → disconnect` cycle drops a session the user
 //! already has open in the UI.
@@ -48,13 +52,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 // Re-use enums from device module to avoid FRB conflicts
 use crate::device::{CalibratorState, CoverState, TrackingRate};
 
 // Import native traits for connect/disconnect and live filter-wheel queries.
 #[cfg(windows)]
-use skotiq_device::{DeviceDriver, FilterWheelDriver};
+use skotiq_device::DeviceDriver;
 
 pub(crate) mod alpaca;
 pub(crate) use alpaca::*;
@@ -244,14 +248,7 @@ pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabiliti
         }
     }
 
-    // Return capability data from the backend-specific capability providers.
-    let capabilities = match parsed.driver_type {
-        crate::device::DriverType::Alpaca => get_alpaca_capabilities(device_id).await,
-        crate::device::DriverType::Ascom => get_ascom_capabilities(device_id).await,
-        crate::device::DriverType::Indi => get_indi_capabilities(device_id).await,
-        crate::device::DriverType::Native => get_native_capabilities(device_id).await,
-        crate::device::DriverType::Simulator => get_simulator_capabilities(&parsed).await,
-    }?;
+    let capabilities = read_capabilities(device_id, &parsed).await?;
 
     let mut cache = capability_cache().lock().await;
     cache.insert(
@@ -263,4 +260,40 @@ pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabiliti
     );
 
     Ok(capabilities)
+}
+
+/// What the device supports, from its handle.
+///
+/// Cameras and mounts have no handle yet: their capabilities are still read
+/// per protocol (`alpaca`, `ascom`, `indi`, `native`, `simulator`), as is an
+/// id nobody registered. When one of them gets a handle, its arm here moves
+/// to the handle.
+async fn read_capabilities(
+    device_id: &str,
+    parsed: &crate::device_id::ParsedDeviceId,
+) -> Result<DeviceCapabilities, SkotiqError> {
+    use crate::device::{DeviceType, DriverType};
+    let mgr = crate::api::get_device_manager();
+    let registered_type = mgr.get_device(device_id).await.map(|d| d.info.device_type);
+    match registered_type {
+        Some(
+            DeviceType::FilterWheel
+            | DeviceType::Focuser
+            | DeviceType::Rotator
+            | DeviceType::Dome
+            | DeviceType::Switch
+            | DeviceType::Weather
+            | DeviceType::SafetyMonitor
+            | DeviceType::CoverCalibrator,
+        ) => mgr.handle(device_id).await?.capabilities(device_id).await,
+        Some(DeviceType::Camera | DeviceType::Mount | DeviceType::Guider) | None => {
+            match parsed.driver_type {
+                DriverType::Alpaca => get_alpaca_capabilities(device_id).await,
+                DriverType::Ascom => get_ascom_capabilities(device_id).await,
+                DriverType::Indi => get_indi_capabilities(device_id).await,
+                DriverType::Native => get_native_capabilities(device_id).await,
+                DriverType::Simulator => get_simulator_capabilities(parsed).await,
+            }
+        }
+    }
 }

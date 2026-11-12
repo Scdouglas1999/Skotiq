@@ -104,7 +104,12 @@ fn every_sample_format_codec_and_shuffle_round_trips() {
                     (image.width, image.height, image.channels, image.pixel_type),
                     "{what}"
                 );
-                assert_eq!(cards(&back_header), cards(&header), "{what}");
+                // The header leads with the image size, as a FITS header does.
+                let mut size = FitsHeader::new();
+                size.set_image_size(image.width, image.height, image.channels);
+                let expected: Vec<_> = cards(&size).into_iter().chain(cards(&header)).collect();
+                assert_eq!(cards(&back_header), expected, "{what}");
+                assert_eq!(cards(&read_frame_header(&path).unwrap()), expected, "{what}");
                 assert_eq!(back_header.comments, header.comments, "{what}");
                 assert_eq!(back_header.history, header.history, "{what}");
             }
@@ -254,6 +259,78 @@ fn a_wcs_becomes_the_first_layer_of_an_astrometric_solution_and_back() {
     assert_eq!(cards.get_float("FOCALLEN"), Some(1016.0));
     assert_eq!(cards.get_string("DATE-OBS"), Some("2026-11-11T07:12:06.250"));
     assert_eq!(cards.get_string("IMAGETYP"), Some("Light"));
+}
+
+/// The solution an XISF file carries is the WCS the app reads from the same
+/// cards, whichever form the header writes its linear part in.
+#[test]
+fn the_astrometric_solution_is_the_wcs_the_app_reads() {
+    let forms: [(&str, &[(&str, f64)]); 4] = [
+        ("CD diagonal only", &[("CD1_1", -2.1e-4), ("CD2_2", 2.1e-4)]),
+        (
+            "PC without PC1_1",
+            &[("CDELT1", -2.1e-4), ("CDELT2", 2.1e-4), ("PC1_2", -0.2), ("PC2_1", 0.2)],
+        ),
+        (
+            "PC beside CD",
+            &[
+                ("CD1_1", -4.2e-4),
+                ("CD2_2", 4.2e-4),
+                ("CDELT1", -2.1e-4),
+                ("CDELT2", 2.1e-4),
+                ("PC1_1", 0.94),
+                ("PC1_2", -0.34),
+                ("PC2_1", 0.34),
+                ("PC2_2", 0.94),
+            ],
+        ),
+        ("CDELT and CROTA2", &[("CDELT1", -2.1e-4), ("CDELT2", 2.1e-4), ("CROTA2", 21.0)]),
+    ];
+    for (name, linear) in forms {
+        let mut header = capture_header();
+        header.set_string("CTYPE1", "RA---TAN");
+        header.set_string("CTYPE2", "DEC--TAN");
+        header.set_float("CRVAL1", 35.6);
+        header.set_float("CRVAL2", 42.3);
+        header.set_float("CRPIX1", 2048.5);
+        header.set_float("CRPIX2", 1536.5);
+        for (key, value) in linear {
+            header.set_float(key, *value);
+        }
+        let wcs = crate::SipWcs::from_header(&header).unwrap();
+        let image = image_header_from_fits(&header, &test_image(8, 8, 1, PixelType::U16));
+        let solution = |id: &str| {
+            image
+                .property(&format!("AstrometricSolution:{id}"))
+                .and_then(PropertyValue::as_f64_values)
+                .unwrap_or_else(|| panic!("{name}: no {id}"))
+        };
+        assert_eq!(
+            solution("LinearTransformationMatrix"),
+            vec![wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2],
+            "{name}"
+        );
+        assert_eq!(solution("ReferenceImageCoordinates"), vec![2048.0, 1536.0], "{name}");
+        // PixInsight 1.9.4 reads only the earlier `PCL:` ids; without them it
+        // falls back to the keywords, and reads every form but CD wrong.
+        for id in [
+            "ProjectionSystem",
+            "ReferenceCelestialCoordinates",
+            "ReferenceImageCoordinates",
+            "LinearTransformationMatrix",
+        ] {
+            assert_eq!(
+                image.property(&format!("PCL:AstrometricSolution:{id}")),
+                image.property(&format!("AstrometricSolution:{id}")),
+                "{name}: {id}"
+            );
+        }
+
+        let mut bare = image.clone();
+        bare.fits_keywords.clear();
+        let back = crate::SipWcs::from_header(&header_from_image(&bare)).unwrap();
+        assert_eq!(back, wcs, "{name}");
+    }
 }
 
 #[test]

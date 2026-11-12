@@ -31,6 +31,7 @@ import 'dart:developer' as developer;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../database/daos/settings_dao.dart';
+import '../../settings/setting.dart' show Setting;
 import '../../settings/store_settings.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../utils/legacy_install_migration.dart'
@@ -285,14 +286,18 @@ class SecretsStore {
     complete =
         await _migrateBlob(
           dao,
-          transportKey: NotificationTransportKind.email.settingKey,
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.email,
+          ),
           secretFields: const {'password': SecretField.emailPassword},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey: NotificationTransportKind.pushover.settingKey,
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.pushover,
+          ),
           secretFields: const {
             'apiToken': SecretField.pushoverApiToken,
             'userKey': SecretField.pushoverUserKey,
@@ -302,21 +307,27 @@ class SecretsStore {
     complete =
         await _migrateBlob(
           dao,
-          transportKey: NotificationTransportKind.telegram.settingKey,
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.telegram,
+          ),
           secretFields: const {'botToken': SecretField.telegramBotToken},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey: NotificationTransportKind.discord.settingKey,
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.discord,
+          ),
           secretFields: const {'webhookUrl': SecretField.discordWebhookUrl},
         ) &&
         complete;
     complete =
         await _migrateBlob(
           dao,
-          transportKey: NotificationTransportKind.mqtt.settingKey,
+          row: StoreSettings.notificationTransport(
+            NotificationTransportKind.mqtt,
+          ),
           secretFields: const {'password': SecretField.mqttPassword},
         ) &&
         complete;
@@ -333,10 +344,10 @@ class SecretsStore {
 
   Future<bool> _migrateBlob(
     SettingsDao dao, {
-    required String transportKey,
+    required Setting<String?> row,
     required Map<String, String> secretFields,
   }) async {
-    final raw = await dao.getSetting(transportKey);
+    final raw = await dao.read(row);
     if (raw == null) return true;
 
     Map<String, dynamic> blob;
@@ -346,7 +357,7 @@ class SecretsStore {
       blob = Map<String, dynamic>.from(decoded);
     } catch (e) {
       developer.log(
-        '[SecretsStore] Skipping migration of $transportKey: bad JSON ($e)',
+        '[SecretsStore] Skipping migration of ${row.key}: bad JSON ($e)',
         name: 'SecretsStore',
         level: 900,
       );
@@ -366,9 +377,9 @@ class SecretsStore {
     }
 
     if (changed) {
-      await dao.setSetting(transportKey, jsonEncode(blob));
+      await dao.write(row, jsonEncode(blob));
       developer.log(
-        '[SecretsStore] Migrated secrets out of $transportKey',
+        '[SecretsStore] Migrated secrets out of ${row.key}',
         name: 'SecretsStore',
         level: 800,
       );
@@ -377,8 +388,10 @@ class SecretsStore {
   }
 
   Future<bool> _migrateWebhookBlob(SettingsDao dao) async {
-    final transportKey = NotificationTransportKind.webhookGeneric.settingKey;
-    final raw = await dao.getSetting(transportKey);
+    final row = StoreSettings.notificationTransport(
+      NotificationTransportKind.webhookGeneric,
+    );
+    final raw = await dao.read(row);
     if (raw == null) return true;
 
     Map<String, dynamic> blob;
@@ -388,7 +401,7 @@ class SecretsStore {
       blob = Map<String, dynamic>.from(decoded);
     } catch (error) {
       developer.log(
-        '[SecretsStore] Skipping migration of $transportKey: bad JSON '
+        '[SecretsStore] Skipping migration of ${row.key}: bad JSON '
         '($error)',
         name: 'SecretsStore',
         level: 900,
@@ -422,9 +435,9 @@ class SecretsStore {
     }
 
     if (changed) {
-      await dao.setSetting(transportKey, jsonEncode(blob));
+      await dao.write(row, jsonEncode(blob));
       developer.log(
-        '[SecretsStore] Migrated secrets out of $transportKey',
+        '[SecretsStore] Migrated secrets out of ${row.key}',
         name: 'SecretsStore',
         level: 800,
       );

@@ -121,6 +121,9 @@ pub struct GPhoto2Camera {
     /// `None` until the first frame is decoded, when `resolve_max_adu` falls
     /// back to the model-table estimate.
     pub(crate) measured_white_level: Option<u32>,
+    /// The most recently decoded frame's saturation level when the camera
+    /// recorded one below its white level (it varies with the ISO).
+    pub(crate) measured_saturation_level: Option<u32>,
     pub(crate) is_color: bool,
 
     // Camera capabilities (populated on connect)
@@ -202,6 +205,7 @@ impl GPhoto2Camera {
             // and superseded by the decoded frame's real depth.
             bit_depth: 14,
             measured_white_level: None,
+            measured_saturation_level: None,
             is_color: true, // All DSLRs are color
             can_capture: false,
             can_preview: false,
@@ -1187,17 +1191,20 @@ impl GPhoto2Camera {
         camera_file: skotiq_device::CameraFile,
     ) -> Result<ImageData, DriverError> {
         let raw_bytes = camera_file.bytes.as_slice();
-        // Detect the RAW format from magic bytes. If it is NOT a recognised
-        // RAW (i.e. the body handed us a JPEG because it is in JPEG-only mode),
-        // fail with an actionable message instead of feeding JPEG to LibRaw's
-        // RAW decoder and emitting an opaque "failed to decode" every frame.
-        let Some(extension) = skotiq_imaging::raw_format_extension(raw_bytes) else {
-            return Err(DriverError::SdkError(
-                "gPhoto2: the camera returned a non-RAW file (it appears to be JPEG). \
-                 Set the camera's image quality to RAW (or RAW+JPEG) — astro capture \
-                 requires the linear RAW sensor data."
-                    .to_string(),
-            ));
+        // A body set to JPEG (or anything else that is no raw file) gets an
+        // actionable message instead of LibRaw's opaque decode failure on
+        // every frame.
+        let Some(extension) = skotiq_imaging::camera_raw_extension(raw_bytes) else {
+            let what = if raw_bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                "it appears to be JPEG"
+            } else {
+                "Skotiq does not recognize its format"
+            };
+            return Err(DriverError::SdkError(format!(
+                "gPhoto2: the camera returned a file that is not a raw image ({what}). \
+                 Set the camera's image quality to RAW (or RAW+JPEG): astro capture \
+                 needs the linear raw sensor data."
+            )));
         };
 
         let frame = skotiq_imaging::read_raw_bytes(raw_bytes).map_err(|e| {
@@ -1210,6 +1217,8 @@ impl GPhoto2Camera {
         // on. The mosaic is right-justified at its native depth, so the white
         // level is the container full scale and must not be scaled up.
         self.adopt_decoded_depth(frame.bits_per_pixel, frame.white_level);
+        self.measured_saturation_level =
+            (frame.saturation_level < frame.white_level).then_some(frame.saturation_level);
 
         tracing::info!(
             "gPhoto2: Decoded RAW mosaic: {}x{}, {}-bit, filter {}, camera: {} {} ({})",

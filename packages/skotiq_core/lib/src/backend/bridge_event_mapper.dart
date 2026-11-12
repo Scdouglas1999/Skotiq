@@ -3,6 +3,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../models/backend/event_types.dart' as core;
 import 'frame_capture_metadata.dart' show FrameCapture;
 import 'sequencer_error_kind.dart';
+import 'sequencer_notice.dart';
 
 /// Reconstructs a typed [bridge.SkotiqEvent] from the collapsed
 /// [core.SkotiqEvent] envelope that [FfiBackend] emits onto
@@ -467,6 +468,7 @@ bridge.SequencerEvent _sequencerEventFromCore(
           data[kSequencerErrorKindKey],
           severity: severity,
         ),
+        notice: sequencerNoticeFromWire(data[kSequencerNoticeKey]),
       );
     case 'MeridianFlipOutcome':
       return bridge.SequencerEvent.meridianFlipOutcome(
@@ -585,6 +587,7 @@ bridge.SequencerEvent _sequencerEventFromCore(
         detailsJson: data['details_json'] as String? ?? '',
         nodeId: _optionalString(data, 'node_id'),
         sequenceRunId: _optionalInt(data, 'sequence_run_id'),
+        notice: sequencerNoticeFromWire(data[kSequencerNoticeKey]),
       );
     case 'DepthGoalCompleted':
       return bridge.SequencerEvent.depthGoalCompleted(

@@ -943,7 +943,8 @@ class SkotiqApi {
   }
 
   // =========================================================================
-  // PHD2 Guiding
+  // Guiding: the host's guider (PHD2 or the built-in guider), and PHD2's
+  // connection
   // =========================================================================
 
   async phd2Connect(host, port) {
@@ -954,28 +955,28 @@ class SkotiqApi {
     return this._post('/api/phd2/disconnect', {});
   }
 
-  async phd2StartGuiding(settlePixels, settleTime, settleTimeout) {
-    return this._post('/api/phd2/start-guiding', {
+  async guiderStartGuiding(settlePixels, settleTime, settleTimeout) {
+    return this._post('/api/guider/start-guiding', {
       settlePixels: settlePixels || 1.0,
       settleTime: settleTime || 10.0,
       settleTimeout: settleTimeout || 60.0,
     });
   }
 
-  async phd2StopGuiding() {
-    return this._post('/api/phd2/stop-guiding', {});
+  async guiderStopGuiding() {
+    return this._post('/api/guider/stop-guiding', {});
   }
 
-  async phd2GetStatus() {
-    return this._get('/api/phd2/status');
+  async guiderGetStatus() {
+    return this._get('/api/guider/status');
   }
 
-  async phd2Dither(amount) {
-    return this._post('/api/phd2/dither', { amount: amount || 5.0 });
+  async guiderDither(amount) {
+    return this._post('/api/guider/dither', { amount: amount || 5.0 });
   }
 
-  async phd2SetPaused(paused) {
-    return this._post('/api/phd2/pause', { paused });
+  async guiderSetPaused(paused) {
+    return this._post('/api/guider/pause', { paused });
   }
 
   // =========================================================================
