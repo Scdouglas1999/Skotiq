@@ -8,12 +8,13 @@
 //! - Mallincam
 //! - And many other white-label brands
 
+use crate::camera_core::{CameraCore, SdkHandle};
 use crate::vendor::sdk_loader::{SdkLock, SdkLockHeld, SdkUnavailable};
 use async_trait::async_trait;
 use libloading::Library;
 use skotiq_device::camera::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+    ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
 use skotiq_device::Vendor;
 use skotiq_device::{CameraDriver, DeviceDriver, DriverError};
