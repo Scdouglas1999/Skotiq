@@ -1,0 +1,1890 @@
+{
+  "dark library tolerances": {
+    "reads": {
+      "missing": {
+        "exposureSecs": 0.5,
+        "temperatureC": 1.0
+      },
+      "stored": {
+        "exposureSecs": 0.25,
+        "temperatureC": 2.0
+      },
+      "whole numbers": {
+        "exposureSecs": 1.0,
+        "temperatureC": 3.0
+      },
+      "unreadable": {
+        "error": "ArgumentError"
+      },
+      "empty": {
+        "error": "ArgumentError"
+      },
+      "negative": {
+        "error": "ArgumentError"
+      }
+    },
+    "writes": {}
+  },
+  "dark library settings": {
+    "reads": {
+      "missing": {
+        "autoCalibrate": false,
+        "temperatureTolerance": 1.0
+      },
+      "stored": {
+        "autoCalibrate": true,
+        "temperatureTolerance": 2.0
+      },
+      "unreadable": {
+        "autoCalibrate": false,
+        "temperatureTolerance": 1.0
+      },
+      "empty": {
+        "autoCalibrate": false,
+        "temperatureTolerance": 1.0
+      }
+    },
+    "writes": {
+      "tolerance 3.5": {
+        "dark_library.temp_tolerance": "3.5",
+        "calibration.auto_calibrate": "false"
+      },
+      "tolerance 4": {
+        "dark_library.temp_tolerance": "4.0",
+        "calibration.auto_calibrate": "false"
+      }
+    }
+  },
+  "defect map": {
+    "reads": {
+      "missing": {
+        "autoApply": false,
+        "method": "median",
+        "kernel": 3,
+        "saveOriginal": false,
+        "loadError": null
+      },
+      "stored": {
+        "autoApply": true,
+        "method": "mean",
+        "kernel": 5,
+        "saveOriginal": true,
+        "loadError": null
+      },
+      "off": {
+        "autoApply": false,
+        "method": "median",
+        "kernel": 3,
+        "saveOriginal": false,
+        "loadError": null
+      },
+      "unreadable": {
+        "autoApply": false,
+        "method": "gaussian",
+        "kernel": 3,
+        "saveOriginal": false,
+        "loadError": null
+      },
+      "empty": {
+        "autoApply": false,
+        "method": "median",
+        "kernel": 3,
+        "saveOriginal": false,
+        "loadError": null
+      },
+      "unknown kernel": {
+        "autoApply": false,
+        "method": "median",
+        "kernel": 3,
+        "saveOriginal": false,
+        "loadError": null
+      }
+    },
+    "writes": {
+      "auto apply on": {
+        "defectMap.autoApply": "true"
+      },
+      "method and kernel": {
+        "defectMap.autoApply": "true",
+        "defectMap.method": "gaussian",
+        "defectMap.kernelDiameter": "7"
+      },
+      "keep the original": {
+        "defectMap.autoApply": "true",
+        "defectMap.method": "gaussian",
+        "defectMap.kernelDiameter": "7",
+        "defectMap.saveOriginal": "true"
+      },
+      "auto apply off": {
+        "defectMap.autoApply": "false",
+        "defectMap.method": "gaussian",
+        "defectMap.kernelDiameter": "7",
+        "defectMap.saveOriginal": "true"
+      }
+    }
+  },
+  "meridian flip": {
+    "reads": {
+      "missing": {
+        "standaloneMonitoringEnabled": false,
+        "triggerMethod": "minutesPastMeridian",
+        "minutesPastMeridian": 5.0,
+        "minutesBeforeLimit": 10.0,
+        "hourAngleThreshold": 0.5,
+        "trackingLimitWaitMinutes": 0.0,
+        "pauseBeforeMeridianMinutes": 0.0,
+        "trackingLimitPolicy": "flipEarly",
+        "pauseGuidingBeforeFlip": true,
+        "recenterAfterFlip": true,
+        "refocusAfterFlip": false,
+        "settleTimeSeconds": 10.0,
+        "resumeGuidingAfterFlip": true,
+        "maxRetries": 3,
+        "retryDelaysSeconds": [
+          30.0,
+          60.0,
+          120.0
+        ],
+        "failureAction": "pauseAndAlert",
+        "soundAlertOnFlip": false,
+        "pushNotificationOnFlip": true
+      },
+      "stored": {
+        "standaloneMonitoringEnabled": false,
+        "triggerMethod": "minutesPastMeridian",
+        "minutesPastMeridian": 12.0,
+        "minutesBeforeLimit": 10.0,
+        "hourAngleThreshold": 0.5,
+        "trackingLimitWaitMinutes": 0.0,
+        "pauseBeforeMeridianMinutes": 0.0,
+        "trackingLimitPolicy": "flipEarly",
+        "pauseGuidingBeforeFlip": true,
+        "recenterAfterFlip": true,
+        "refocusAfterFlip": false,
+        "settleTimeSeconds": 10.0,
+        "resumeGuidingAfterFlip": true,
+        "maxRetries": 3,
+        "retryDelaysSeconds": [
+          30.0,
+          60.0,
+          120.0
+        ],
+        "failureAction": "pauseAndAlert",
+        "soundAlertOnFlip": false,
+        "pushNotificationOnFlip": true
+      },
+      "one field": {
+        "standaloneMonitoringEnabled": false,
+        "triggerMethod": "minutesPastMeridian",
+        "minutesPastMeridian": 7.5,
+        "minutesBeforeLimit": 10.0,
+        "hourAngleThreshold": 0.5,
+        "trackingLimitWaitMinutes": 0.0,
+        "pauseBeforeMeridianMinutes": 0.0,
+        "trackingLimitPolicy": "flipEarly",
+        "pauseGuidingBeforeFlip": true,
+        "recenterAfterFlip": true,
+        "refocusAfterFlip": false,
+        "settleTimeSeconds": 10.0,
+        "resumeGuidingAfterFlip": true,
+        "maxRetries": 3,
+        "retryDelaysSeconds": [
+          30.0,
+          60.0,
+          120.0
+        ],
+        "failureAction": "pauseAndAlert",
+        "soundAlertOnFlip": false,
+        "pushNotificationOnFlip": true
+      },
+      "empty": {
+        "standaloneMonitoringEnabled": false,
+        "triggerMethod": "minutesPastMeridian",
+        "minutesPastMeridian": 5.0,
+        "minutesBeforeLimit": 10.0,
+        "hourAngleThreshold": 0.5,
+        "trackingLimitWaitMinutes": 0.0,
+        "pauseBeforeMeridianMinutes": 0.0,
+        "trackingLimitPolicy": "flipEarly",
+        "pauseGuidingBeforeFlip": true,
+        "recenterAfterFlip": true,
+        "refocusAfterFlip": false,
+        "settleTimeSeconds": 10.0,
+        "resumeGuidingAfterFlip": true,
+        "maxRetries": 3,
+        "retryDelaysSeconds": [
+          30.0,
+          60.0,
+          120.0
+        ],
+        "failureAction": "pauseAndAlert",
+        "soundAlertOnFlip": false,
+        "pushNotificationOnFlip": true
+      },
+      "not json": {
+        "error": "StateError"
+      },
+      "not an object": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "minutes after 9": {
+        "meridian_flip_settings": "{\"minutesPastMeridian\":9.0}"
+      },
+      "back to the default": {
+        "meridian_flip_settings": "{\"minutesPastMeridian\":5.0}"
+      }
+    }
+  },
+  "polar alignment config": {
+    "reads": {
+      "missing": {
+        "exposureTime": 5.0,
+        "stepSize": 15.0,
+        "binning": 2,
+        "isNorth": true,
+        "manualRotation": false,
+        "rotateEast": true,
+        "solveTimeout": 90.0,
+        "iterationCadenceSecs": 3.0,
+        "autoCompleteThreshold": 30.0,
+        "startFromCurrent": true,
+        "gain": null,
+        "offset": null
+      },
+      "stored": {
+        "exposureTime": 7.5,
+        "stepSize": 15.0,
+        "binning": 2,
+        "isNorth": true,
+        "manualRotation": false,
+        "rotateEast": true,
+        "solveTimeout": 90.0,
+        "iterationCadenceSecs": 3.0,
+        "autoCompleteThreshold": 30.0,
+        "startFromCurrent": true,
+        "gain": null,
+        "offset": null
+      },
+      "empty": {
+        "exposureTime": 5.0,
+        "stepSize": 15.0,
+        "binning": 2,
+        "isNorth": true,
+        "manualRotation": false,
+        "rotateEast": true,
+        "solveTimeout": 90.0,
+        "iterationCadenceSecs": 3.0,
+        "autoCompleteThreshold": 30.0,
+        "startFromCurrent": true,
+        "gain": null,
+        "offset": null
+      },
+      "not json": {
+        "exposureTime": 5.0,
+        "stepSize": 15.0,
+        "binning": 2,
+        "isNorth": true,
+        "manualRotation": false,
+        "rotateEast": true,
+        "solveTimeout": 90.0,
+        "iterationCadenceSecs": 3.0,
+        "autoCompleteThreshold": 30.0,
+        "startFromCurrent": true,
+        "gain": null,
+        "offset": null
+      }
+    },
+    "writes": {
+      "exposure 4": {
+        "polar_alignment_config": "{\"exposureTime\":4.0,\"stepSize\":15.0,\"binning\":2,\"isNorth\":true,\"manualRotation\":false,\"rotateEast\":true,\"solveTimeout\":90.0,\"iterationCadenceSecs\":3.0,\"autoCompleteThreshold\":30.0,\"startFromCurrent\":true,\"gain\":null,\"offset\":null}"
+      }
+    }
+  },
+  "active planning project": {
+    "reads": {
+      "missing": null,
+      "stored": 12,
+      "spaces": 12,
+      "empty": null,
+      "zero": null,
+      "not a number": null
+    },
+    "writes": {
+      "choose 7": {
+        "planning.active_project_id": "7"
+      },
+      "choose none": {
+        "planning.active_project_id": ""
+      }
+    }
+  },
+  "decision log": {
+    "reads": {
+      "missing": {
+        "enabled": true,
+        "retentionDays": 90
+      },
+      "stored": {
+        "enabled": false,
+        "retentionDays": 30
+      },
+      "on": {
+        "enabled": true,
+        "retentionDays": 90
+      },
+      "upper case and spaces": {
+        "enabled": false,
+        "retentionDays": 45
+      },
+      "unreadable": {
+        "enabled": {
+          "error": "FormatException"
+        },
+        "retentionDays": {
+          "error": "FormatException"
+        }
+      },
+      "empty": {
+        "enabled": {
+          "error": "FormatException"
+        },
+        "retentionDays": {
+          "error": "FormatException"
+        }
+      },
+      "out of range": {
+        "enabled": true,
+        "retentionDays": {
+          "error": "FormatException"
+        }
+      },
+      "too long": {
+        "enabled": true,
+        "retentionDays": {
+          "error": "FormatException"
+        }
+      }
+    },
+    "writes": {}
+  },
+  "science settings": {
+    "reads": {
+      "missing": {
+        "advancedModeEnabled": false,
+        "overlayEnabled": true,
+        "photometryEnabled": true,
+        "photometricCalibrationEnabled": true,
+        "transparencyEnabled": true,
+        "psfMapEnabled": true,
+        "astrometricResidualsEnabled": true,
+        "movingObjectsEnabled": false,
+        "skyAtlasEnabled": false,
+        "skyAtlasLimitGb": 25,
+        "narrowbandRatiosEnabled": false,
+        "frameQualityMapsEnabled": true,
+        "surface3dEnabled": true,
+        "manualPurgeOnly": true,
+        "fitsHeaderWritebackEnabled": true,
+        "mpcObservatoryCode": "",
+        "aavsoObserverCode": "",
+        "observerName": "",
+        "mpcAstrometricCatalog": "",
+        "tnsBotId": 0,
+        "tnsBotName": "",
+        "tnsReportingGroupId": 0,
+        "tnsDataSourceId": 0,
+        "tnsReporterName": "",
+        "tnsUseSandbox": false,
+        "autoFrameGradingEnabled": false,
+        "frameGradeRulesJson": null,
+        "scienceGuideCollapsed": false
+      },
+      "all on": {
+        "advancedModeEnabled": true,
+        "overlayEnabled": true,
+        "photometryEnabled": true,
+        "photometricCalibrationEnabled": true,
+        "transparencyEnabled": true,
+        "psfMapEnabled": true,
+        "astrometricResidualsEnabled": true,
+        "movingObjectsEnabled": true,
+        "skyAtlasEnabled": true,
+        "skyAtlasLimitGb": 25,
+        "narrowbandRatiosEnabled": true,
+        "frameQualityMapsEnabled": true,
+        "surface3dEnabled": true,
+        "manualPurgeOnly": true,
+        "fitsHeaderWritebackEnabled": true,
+        "mpcObservatoryCode": "",
+        "aavsoObserverCode": "",
+        "observerName": "",
+        "mpcAstrometricCatalog": "",
+        "tnsBotId": 0,
+        "tnsBotName": "",
+        "tnsReportingGroupId": 0,
+        "tnsDataSourceId": 0,
+        "tnsReporterName": "",
+        "tnsUseSandbox": true,
+        "autoFrameGradingEnabled": true,
+        "frameGradeRulesJson": null,
+        "scienceGuideCollapsed": true
+      },
+      "all off": {
+        "advancedModeEnabled": false,
+        "overlayEnabled": false,
+        "photometryEnabled": false,
+        "photometricCalibrationEnabled": false,
+        "transparencyEnabled": false,
+        "psfMapEnabled": false,
+        "astrometricResidualsEnabled": false,
+        "movingObjectsEnabled": false,
+        "skyAtlasEnabled": false,
+        "skyAtlasLimitGb": 25,
+        "narrowbandRatiosEnabled": false,
+        "frameQualityMapsEnabled": false,
+        "surface3dEnabled": false,
+        "manualPurgeOnly": false,
+        "fitsHeaderWritebackEnabled": false,
+        "mpcObservatoryCode": "",
+        "aavsoObserverCode": "",
+        "observerName": "",
+        "mpcAstrometricCatalog": "",
+        "tnsBotId": 0,
+        "tnsBotName": "",
+        "tnsReportingGroupId": 0,
+        "tnsDataSourceId": 0,
+        "tnsReporterName": "",
+        "tnsUseSandbox": false,
+        "autoFrameGradingEnabled": false,
+        "frameGradeRulesJson": null,
+        "scienceGuideCollapsed": false
+      },
+      "upper case": {
+        "advancedModeEnabled": true,
+        "overlayEnabled": true,
+        "photometryEnabled": true,
+        "photometricCalibrationEnabled": true,
+        "transparencyEnabled": true,
+        "psfMapEnabled": true,
+        "astrometricResidualsEnabled": true,
+        "movingObjectsEnabled": true,
+        "skyAtlasEnabled": true,
+        "skyAtlasLimitGb": 25,
+        "narrowbandRatiosEnabled": true,
+        "frameQualityMapsEnabled": true,
+        "surface3dEnabled": true,
+        "manualPurgeOnly": true,
+        "fitsHeaderWritebackEnabled": true,
+        "mpcObservatoryCode": "",
+        "aavsoObserverCode": "",
+        "observerName": "",
+        "mpcAstrometricCatalog": "",
+        "tnsBotId": 0,
+        "tnsBotName": "",
+        "tnsReportingGroupId": 0,
+        "tnsDataSourceId": 0,
+        "tnsReporterName": "",
+        "tnsUseSandbox": true,
+        "autoFrameGradingEnabled": true,
+        "frameGradeRulesJson": null,
+        "scienceGuideCollapsed": true
+      },
+      "empty": {
+        "advancedModeEnabled": false,
+        "overlayEnabled": true,
+        "photometryEnabled": true,
+        "photometricCalibrationEnabled": true,
+        "transparencyEnabled": true,
+        "psfMapEnabled": true,
+        "astrometricResidualsEnabled": true,
+        "movingObjectsEnabled": false,
+        "skyAtlasEnabled": false,
+        "skyAtlasLimitGb": 25,
+        "narrowbandRatiosEnabled": false,
+        "frameQualityMapsEnabled": true,
+        "surface3dEnabled": true,
+        "manualPurgeOnly": true,
+        "fitsHeaderWritebackEnabled": true,
+        "mpcObservatoryCode": "",
+        "aavsoObserverCode": "",
+        "observerName": "",
+        "mpcAstrometricCatalog": "",
+        "tnsBotId": 0,
+        "tnsBotName": "",
+        "tnsReportingGroupId": 0,
+        "tnsDataSourceId": 0,
+        "tnsReporterName": "",
+        "tnsUseSandbox": false,
+        "autoFrameGradingEnabled": false,
+        "frameGradeRulesJson": "",
+        "scienceGuideCollapsed": false
+      },
+      "unreadable switch": {
+        "error": "FormatException"
+      },
+      "unreadable number": {
+        "error": "FormatException"
+      },
+      "identity": {
+        "advancedModeEnabled": false,
+        "overlayEnabled": true,
+        "photometryEnabled": true,
+        "photometricCalibrationEnabled": true,
+        "transparencyEnabled": true,
+        "psfMapEnabled": true,
+        "astrometricResidualsEnabled": true,
+        "movingObjectsEnabled": false,
+        "skyAtlasEnabled": false,
+        "skyAtlasLimitGb": 50,
+        "narrowbandRatiosEnabled": false,
+        "frameQualityMapsEnabled": true,
+        "surface3dEnabled": true,
+        "manualPurgeOnly": true,
+        "fitsHeaderWritebackEnabled": true,
+        "mpcObservatoryCode": "G40",
+        "aavsoObserverCode": "XYZ",
+        "observerName": " A. Observer ",
+        "mpcAstrometricCatalog": "Gaia3",
+        "tnsBotId": 1234,
+        "tnsBotName": "bot",
+        "tnsReportingGroupId": 5,
+        "tnsDataSourceId": 6,
+        "tnsReporterName": "A. Observer",
+        "tnsUseSandbox": false,
+        "autoFrameGradingEnabled": false,
+        "frameGradeRulesJson": "{\"maxHfr\":4.0}",
+        "scienceGuideCollapsed": false
+      },
+      "atlas limit": {
+        "advancedModeEnabled": false,
+        "overlayEnabled": true,
+        "photometryEnabled": true,
+        "photometricCalibrationEnabled": true,
+        "transparencyEnabled": true,
+        "psfMapEnabled": true,
+        "astrometricResidualsEnabled": true,
+        "movingObjectsEnabled": false,
+        "skyAtlasEnabled": false,
+        "skyAtlasLimitGb": 25,
+        "narrowbandRatiosEnabled": false,
+        "frameQualityMapsEnabled": true,
+        "surface3dEnabled": true,
+        "manualPurgeOnly": true,
+        "fitsHeaderWritebackEnabled": true,
+        "mpcObservatoryCode": "",
+        "aavsoObserverCode": "",
+        "observerName": "",
+        "mpcAstrometricCatalog": "",
+        "tnsBotId": 0,
+        "tnsBotName": "",
+        "tnsReportingGroupId": 0,
+        "tnsDataSourceId": 0,
+        "tnsReporterName": "",
+        "tnsUseSandbox": false,
+        "autoFrameGradingEnabled": false,
+        "frameGradeRulesJson": null,
+        "scienceGuideCollapsed": false
+      },
+      "atlas limit text": {
+        "advancedModeEnabled": false,
+        "overlayEnabled": true,
+        "photometryEnabled": true,
+        "photometricCalibrationEnabled": true,
+        "transparencyEnabled": true,
+        "psfMapEnabled": true,
+        "astrometricResidualsEnabled": true,
+        "movingObjectsEnabled": false,
+        "skyAtlasEnabled": false,
+        "skyAtlasLimitGb": 25,
+        "narrowbandRatiosEnabled": false,
+        "frameQualityMapsEnabled": true,
+        "surface3dEnabled": true,
+        "manualPurgeOnly": true,
+        "fitsHeaderWritebackEnabled": true,
+        "mpcObservatoryCode": "",
+        "aavsoObserverCode": "",
+        "observerName": "",
+        "mpcAstrometricCatalog": "",
+        "tnsBotId": 0,
+        "tnsBotName": "",
+        "tnsReportingGroupId": 0,
+        "tnsDataSourceId": 0,
+        "tnsReporterName": "",
+        "tnsUseSandbox": false,
+        "autoFrameGradingEnabled": false,
+        "frameGradeRulesJson": null,
+        "scienceGuideCollapsed": false
+      },
+      "grading by the older switch": {
+        "advancedModeEnabled": false,
+        "overlayEnabled": true,
+        "photometryEnabled": true,
+        "photometricCalibrationEnabled": true,
+        "transparencyEnabled": true,
+        "psfMapEnabled": true,
+        "astrometricResidualsEnabled": true,
+        "movingObjectsEnabled": false,
+        "skyAtlasEnabled": false,
+        "skyAtlasLimitGb": 25,
+        "narrowbandRatiosEnabled": false,
+        "frameQualityMapsEnabled": true,
+        "surface3dEnabled": true,
+        "manualPurgeOnly": true,
+        "fitsHeaderWritebackEnabled": true,
+        "mpcObservatoryCode": "",
+        "aavsoObserverCode": "",
+        "observerName": "",
+        "mpcAstrometricCatalog": "",
+        "tnsBotId": 0,
+        "tnsBotName": "",
+        "tnsReportingGroupId": 0,
+        "tnsDataSourceId": 0,
+        "tnsReporterName": "",
+        "tnsUseSandbox": false,
+        "autoFrameGradingEnabled": true,
+        "frameGradeRulesJson": null,
+        "scienceGuideCollapsed": false
+      }
+    },
+    "writes": {
+      "advanced on": {
+        "science.advanced_mode.enabled": "true"
+      },
+      "photometry off": {
+        "science.advanced_mode.enabled": "true",
+        "science.feature.photometry": "false"
+      },
+      "sky atlas on, 80 GB": {
+        "science.advanced_mode.enabled": "true",
+        "science.feature.photometry": "false",
+        "science.feature.sky_atlas": "true",
+        "science.sky_atlas.limit_gb": "80"
+      },
+      "negative atlas limit": {
+        "science.advanced_mode.enabled": "true",
+        "science.feature.photometry": "false",
+        "science.feature.sky_atlas": "true",
+        "science.sky_atlas.limit_gb": "0"
+      },
+      "identity": {
+        "science.advanced_mode.enabled": "true",
+        "science.feature.photometry": "false",
+        "science.feature.sky_atlas": "true",
+        "science.sky_atlas.limit_gb": "0",
+        "science.mpc.observatory_code": "G40",
+        "science.aavso.observer_code": "XYZ",
+        "science.observer.name": "A. Observer",
+        "science.mpc.ast_cat": "Gaia3",
+        "science.tns.bot_id": "1234",
+        "science.tns.bot_name": "bot",
+        "science.tns.group_id": "5",
+        "science.tns.source_id": "6",
+        "science.tns.reporter": "A. Observer",
+        "science.tns.use_sandbox": "true"
+      },
+      "the rest": {
+        "science.advanced_mode.enabled": "true",
+        "science.overlay.enabled": "false",
+        "science.feature.photometry": "true",
+        "science.feature.photometric_calibration": "true",
+        "science.feature.transparency": "true",
+        "science.feature.psf_map": "true",
+        "science.feature.astrometric_residuals": "true",
+        "science.feature.moving_objects": "true",
+        "science.feature.narrowband_ratios": "true",
+        "science.feature.frame_quality_maps": "true",
+        "science.feature.surface3d": "true",
+        "science.feature.sky_atlas": "true",
+        "science.sky_atlas.limit_gb": "0",
+        "science.writeback.fits_header_enabled": "false",
+        "science.mpc.observatory_code": "G40",
+        "science.aavso.observer_code": "XYZ",
+        "science.observer.name": "A. Observer",
+        "science.mpc.ast_cat": "Gaia3",
+        "science.tns.bot_id": "1234",
+        "science.tns.bot_name": "bot",
+        "science.tns.group_id": "5",
+        "science.tns.source_id": "6",
+        "science.tns.reporter": "A. Observer",
+        "science.tns.use_sandbox": "true",
+        "science.guide.collapsed": "true"
+      }
+    }
+  },
+  "science overlay grid": {
+    "reads": {
+      "missing": {
+        "overlayOpacity": 0.35,
+        "liveGridRows": 12,
+        "liveGridCols": 16,
+        "analysisGridRows": 24,
+        "analysisGridCols": 32
+      },
+      "stored": {
+        "overlayOpacity": 0.5,
+        "liveGridRows": 8,
+        "liveGridCols": 10,
+        "analysisGridRows": 48,
+        "analysisGridCols": 64
+      },
+      "out of range": {
+        "overlayOpacity": 0.95,
+        "liveGridRows": 4,
+        "liveGridCols": 64,
+        "analysisGridRows": 4,
+        "analysisGridCols": 96
+      },
+      "empty": {
+        "overlayOpacity": 0.35,
+        "liveGridRows": 12,
+        "liveGridCols": 16,
+        "analysisGridRows": 24,
+        "analysisGridCols": 32
+      },
+      "unreadable opacity": {
+        "error": "FormatException"
+      },
+      "unreadable rows": {
+        "error": "FormatException"
+      }
+    },
+    "writes": {
+      "save": {
+        "science.overlay.opacity": "0.6",
+        "science.overlay.live_grid_rows": "6",
+        "science.overlay.live_grid_cols": "8",
+        "science.overlay.analysis_grid_rows": "30",
+        "science.overlay.analysis_grid_cols": "40"
+      }
+    }
+  },
+  "differential photometry selection": {
+    "reads": {
+      "missing": {
+        "differentialEnabled": false,
+        "target": null,
+        "comparisons": []
+      },
+      "stored": {
+        "differentialEnabled": true,
+        "target": {
+          "objectId": "a",
+          "label": "A",
+          "raDegrees": 10.5,
+          "decDegrees": -3.25
+        },
+        "comparisons": [
+          {
+            "objectId": "b",
+            "label": "B",
+            "raDegrees": 11.0,
+            "decDegrees": 4.0
+          }
+        ]
+      },
+      "install rows": {
+        "differentialEnabled": false,
+        "target": null,
+        "comparisons": []
+      },
+      "unreadable switch": {
+        "error": "FormatException"
+      },
+      "unreadable anchors": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "turn on": {
+        "science.photometry.differential_active": "true"
+      },
+      "target and comparison": {
+        "science.photometry.differential_active": "true",
+        "science.photometry.target_anchor": "{\"objectId\":\"a\",\"label\":\"A\",\"raDegrees\":10.5,\"decDegrees\":-3.25}",
+        "science.photometry.comparison_anchors": "[{\"objectId\":\"b\",\"label\":\"B\",\"raDegrees\":11.0,\"decDegrees\":4.0}]"
+      },
+      "clear comparisons": {
+        "science.photometry.differential_active": "true",
+        "science.photometry.target_anchor": "{\"objectId\":\"a\",\"label\":\"A\",\"raDegrees\":10.5,\"decDegrees\":-3.25}",
+        "science.photometry.comparison_anchors": "[]"
+      },
+      "clear target": {
+        "science.photometry.differential_active": "true",
+        "science.photometry.target_anchor": "",
+        "science.photometry.comparison_anchors": "[]"
+      },
+      "clear all": {
+        "science.photometry.differential_active": "false",
+        "science.photometry.target_anchor": "",
+        "science.photometry.comparison_anchors": "[]"
+      }
+    }
+  },
+  "transient alert settings": {
+    "reads": {
+      "missing": {
+        "enabledSources": [
+          "manual",
+          "tns"
+        ],
+        "typesToMonitor": [
+          "asteroid",
+          "cataclysmic",
+          "comet",
+          "gammaRayBurst",
+          "nova",
+          "other",
+          "supernova",
+          "variableStar"
+        ],
+        "magnitudeThreshold": 15.0,
+        "notifyOnNew": true,
+        "autoQueueBright": false,
+        "autoQueueMagnitude": 10.0
+      },
+      "stored": {
+        "enabledSources": [
+          "tns"
+        ],
+        "typesToMonitor": [
+          "nova",
+          "supernova"
+        ],
+        "magnitudeThreshold": 13.5,
+        "notifyOnNew": false,
+        "autoQueueBright": true,
+        "autoQueueMagnitude": 11.0
+      },
+      "upper case and spaces": {
+        "enabledSources": [
+          "manual",
+          "tns"
+        ],
+        "typesToMonitor": [
+          "asteroid",
+          "cataclysmic",
+          "comet",
+          "gammaRayBurst",
+          "nova",
+          "other",
+          "supernova",
+          "variableStar"
+        ],
+        "magnitudeThreshold": 15.0,
+        "notifyOnNew": false,
+        "autoQueueBright": true,
+        "autoQueueMagnitude": 10.0
+      },
+      "unreadable": {
+        "enabledSources": [
+          "manual",
+          "tns"
+        ],
+        "typesToMonitor": [
+          "asteroid",
+          "cataclysmic",
+          "comet",
+          "gammaRayBurst",
+          "nova",
+          "other",
+          "supernova",
+          "variableStar"
+        ],
+        "magnitudeThreshold": 15.0,
+        "notifyOnNew": true,
+        "autoQueueBright": false,
+        "autoQueueMagnitude": 10.0
+      },
+      "empty": {
+        "enabledSources": [
+          "manual",
+          "tns"
+        ],
+        "typesToMonitor": [
+          "asteroid",
+          "cataclysmic",
+          "comet",
+          "gammaRayBurst",
+          "nova",
+          "other",
+          "supernova",
+          "variableStar"
+        ],
+        "magnitudeThreshold": 15.0,
+        "notifyOnNew": true,
+        "autoQueueBright": false,
+        "autoQueueMagnitude": 10.0
+      },
+      "no sources": {
+        "enabledSources": [],
+        "typesToMonitor": [
+          "nova"
+        ],
+        "magnitudeThreshold": 15.0,
+        "notifyOnNew": true,
+        "autoQueueBright": false,
+        "autoQueueMagnitude": 10.0
+      }
+    },
+    "writes": {
+      "magnitude 14": {
+        "transient_alert_enabled_sources": "[\"tns\",\"manual\"]",
+        "transient_alert_types_to_monitor": "[\"nova\",\"supernova\",\"cataclysmic\",\"comet\",\"asteroid\",\"variableStar\",\"gammaRayBurst\",\"other\"]",
+        "transient_alert_magnitude_threshold": "14.0",
+        "transient_alert_notify_on_new": "true",
+        "transient_alert_auto_queue_bright": "false",
+        "transient_alert_auto_queue_magnitude": "10.0"
+      },
+      "switches": {
+        "transient_alert_enabled_sources": "[\"tns\",\"manual\"]",
+        "transient_alert_types_to_monitor": "[\"nova\",\"supernova\",\"cataclysmic\",\"comet\",\"asteroid\",\"variableStar\",\"gammaRayBurst\",\"other\"]",
+        "transient_alert_magnitude_threshold": "14.0",
+        "transient_alert_notify_on_new": "false",
+        "transient_alert_auto_queue_bright": "true",
+        "transient_alert_auto_queue_magnitude": "10.5"
+      },
+      "toggle a source": {
+        "transient_alert_enabled_sources": "[\"tns\"]",
+        "transient_alert_types_to_monitor": "[\"nova\",\"supernova\",\"cataclysmic\",\"comet\",\"asteroid\",\"variableStar\",\"gammaRayBurst\",\"other\"]",
+        "transient_alert_magnitude_threshold": "14.0",
+        "transient_alert_notify_on_new": "false",
+        "transient_alert_auto_queue_bright": "true",
+        "transient_alert_auto_queue_magnitude": "10.5"
+      }
+    }
+  },
+  "transient alert states": {
+    "reads": {
+      "missing": {},
+      "stored": {
+        "at2026abc": "acknowledged",
+        "sn2026xy": "dismissed"
+      },
+      "unknown state": {
+        "at2026abc": "newAlert"
+      }
+    },
+    "writes": {
+      "acknowledge": {
+        "transient_alert_state_at2026abc": "acknowledged"
+      },
+      "dismiss another": {
+        "transient_alert_state_at2026abc": "acknowledged",
+        "transient_alert_state_sn2026xy": "dismissed"
+      },
+      "clear all": {}
+    }
+  },
+  "notification routing": {
+    "reads": {
+      "missing": {
+        "enabled": true,
+        "rules": {
+          "sequenceStarted": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequenceCompleted": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequenceFailed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequenceStopped": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequencePaused": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequenceResumed": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "targetStarted": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "targetCompleted": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "meridianFlipPerformed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "autofocusCompleted": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "autofocusFailed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "autofocusContinued": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "frameCaptured": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "frameRejected": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "warning",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "problemNoticed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "warning",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "exposureFailed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "recoveryStarted": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "warning",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "recoveryRecovered": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "recoveryGaveUp": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "critical",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "guidingLost": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "guidingRecovered": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "weatherUnsafe": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "weatherSafeAgain": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "mountFault": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "critical",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "cloudArriving": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "warning",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "cloudOpening": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "transientDiscovered": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "critical",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "darkroomDraftReady": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "diskSpaceLow": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "equipmentDisconnected": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "triggerFired": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "custom": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          }
+        }
+      },
+      "stored": {
+        "enabled": true,
+        "rules": {
+          "sequenceStarted": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequenceCompleted": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequenceFailed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequenceStopped": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequencePaused": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "sequenceResumed": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "targetStarted": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "targetCompleted": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "meridianFlipPerformed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "autofocusCompleted": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "autofocusFailed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "autofocusContinued": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "frameCaptured": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "frameRejected": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "warning",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "problemNoticed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "warning",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "exposureFailed": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "recoveryStarted": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "warning",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "recoveryRecovered": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "recoveryGaveUp": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "critical",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "guidingLost": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "guidingRecovered": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "weatherUnsafe": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "weatherSafeAgain": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "mountFault": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "critical",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "cloudArriving": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "warning",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "cloudOpening": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "transientDiscovered": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "critical",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "darkroomDraftReady": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "diskSpaceLow": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "equipmentDisconnected": {
+            "transports": [
+              "inApp",
+              "systemPush"
+            ],
+            "minSeverity": "error",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "triggerFired": {
+            "transports": [
+              "inApp"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          },
+          "custom": {
+            "transports": [
+              "discord"
+            ],
+            "minSeverity": "info",
+            "maxPerHour": 0,
+            "debounceSeconds": 0,
+            "titleTemplate": null,
+            "bodyTemplate": null,
+            "enabled": true
+          }
+        }
+      },
+      "empty": {
+        "error": "StateError"
+      },
+      "not json": {
+        "error": "StateError"
+      }
+    },
+    "writes": {
+      "save": {
+        "notification_routing_matrix": "{\"enabled\":true,\"rules\":{\"sequenceStarted\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"sequenceCompleted\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"sequenceFailed\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"error\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"sequenceStopped\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"sequencePaused\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"sequenceResumed\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"targetStarted\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"targetCompleted\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"meridianFlipPerformed\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"autofocusCompleted\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"autofocusFailed\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"error\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"autofocusContinued\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"frameCaptured\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"frameRejected\":{\"transports\":[\"inApp\"],\"minSeverity\":\"warning\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"problemNoticed\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"warning\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"exposureFailed\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"error\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"recoveryStarted\":{\"transports\":[\"inApp\"],\"minSeverity\":\"warning\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"recoveryRecovered\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"recoveryGaveUp\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"critical\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"guidingLost\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"error\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"guidingRecovered\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"weatherUnsafe\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"error\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"weatherSafeAgain\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"mountFault\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"critical\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"cloudArriving\":{\"transports\":[\"inApp\"],\"minSeverity\":\"warning\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"cloudOpening\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"transientDiscovered\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"critical\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"darkroomDraftReady\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"diskSpaceLow\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"error\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"equipmentDisconnected\":{\"transports\":[\"inApp\",\"systemPush\"],\"minSeverity\":\"error\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"triggerFired\":{\"transports\":[\"inApp\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true},\"custom\":{\"transports\":[\"email\"],\"minSeverity\":\"info\",\"maxPerHour\":0,\"debounceSeconds\":0,\"titleTemplate\":null,\"bodyTemplate\":null,\"enabled\":true}}}",
+        "notification_legacy_credentials_carried_v1": "true"
+      }
+    }
+  },
+  "flat settings": {
+    "reads": {
+      "missing": {
+        "histogramTarget": 50.0,
+        "tolerancePercent": 10.0,
+        "minExposure": 0.001,
+        "maxExposure": 30.0,
+        "frameCount": 30,
+        "gain": 0,
+        "binning": 1,
+        "savePath": null,
+        "createDateSubfolder": true,
+        "createFilterSubfolders": true,
+        "imageDownloadTimeoutSeconds": 60
+      },
+      "stored": {
+        "histogramTarget": 40.0,
+        "tolerancePercent": 5.0,
+        "minExposure": 0.001,
+        "maxExposure": 30.0,
+        "frameCount": 30,
+        "gain": 0,
+        "binning": 1,
+        "savePath": "/data/flats",
+        "createDateSubfolder": false,
+        "createFilterSubfolders": false,
+        "imageDownloadTimeoutSeconds": 60
+      },
+      "some fields": {
+        "histogramTarget": 35.0,
+        "tolerancePercent": 10.0,
+        "minExposure": 0.001,
+        "maxExposure": 30.0,
+        "frameCount": 12,
+        "gain": 0,
+        "binning": 1,
+        "savePath": null,
+        "createDateSubfolder": true,
+        "createFilterSubfolders": true,
+        "imageDownloadTimeoutSeconds": 60
+      },
+      "empty": {
+        "histogramTarget": 50.0,
+        "tolerancePercent": 10.0,
+        "minExposure": 0.001,
+        "maxExposure": 30.0,
+        "frameCount": 30,
+        "gain": 0,
+        "binning": 1,
+        "savePath": null,
+        "createDateSubfolder": true,
+        "createFilterSubfolders": true,
+        "imageDownloadTimeoutSeconds": 60
+      },
+      "not json": {
+        "histogramTarget": 50.0,
+        "tolerancePercent": 10.0,
+        "minExposure": 0.001,
+        "maxExposure": 30.0,
+        "frameCount": 30,
+        "gain": 0,
+        "binning": 1,
+        "savePath": null,
+        "createDateSubfolder": true,
+        "createFilterSubfolders": true,
+        "imageDownloadTimeoutSeconds": 60
+      },
+      "not an object": {
+        "histogramTarget": 50.0,
+        "tolerancePercent": 10.0,
+        "minExposure": 0.001,
+        "maxExposure": 30.0,
+        "frameCount": 30,
+        "gain": 0,
+        "binning": 1,
+        "savePath": null,
+        "createDateSubfolder": true,
+        "createFilterSubfolders": true,
+        "imageDownloadTimeoutSeconds": 60
+      }
+    },
+    "writes": {
+      "frame count 25": {
+        "flat_wizard_global_settings": "{\"savePath\":null,\"histogramTarget\":50.0,\"tolerancePercent\":10.0,\"frameCount\":25,\"createDateSubfolder\":true,\"createFilterSubfolders\":true}"
+      },
+      "folder": {
+        "flat_wizard_global_settings": "{\"savePath\":\"/data/flats\",\"histogramTarget\":50.0,\"tolerancePercent\":10.0,\"frameCount\":25,\"createDateSubfolder\":true,\"createFilterSubfolders\":true}"
+      }
+    }
+  },
+  "capture settings": {
+    "reads": {
+      "missing": {
+        "exposureTime": 2.0,
+        "gain": 100,
+        "offset": 50,
+        "binningX": 1,
+        "binningY": 1,
+        "filter": null,
+        "frameType": "light"
+      },
+      "stored": {
+        "exposureTime": 12.0,
+        "gain": 100,
+        "offset": 50,
+        "binningX": 1,
+        "binningY": 1,
+        "filter": null,
+        "frameType": "light"
+      },
+      "empty": {
+        "exposureTime": 2.0,
+        "gain": 100,
+        "offset": 50,
+        "binningX": 1,
+        "binningY": 1,
+        "filter": null,
+        "frameType": "light"
+      },
+      "not json": {
+        "exposureTime": 2.0,
+        "gain": 100,
+        "offset": 50,
+        "binningX": 1,
+        "binningY": 1,
+        "filter": null,
+        "frameType": "light"
+      }
+    },
+    "writes": {
+      "exposure 20": {
+        "imaging_capture_settings_profile_1": "{\"exposureTime\":20.0,\"gain\":100,\"offset\":50,\"binningX\":1,\"binningY\":1,\"filter\":null,\"frameType\":\"light\",\"fastReadout\":false,\"readoutModeIndex\":null}"
+      }
+    }
+  },
+  "connect the equipment at start": {
+    "reads": {
+      "missing": true,
+      "on": true,
+      "off": false,
+      "upper case": true,
+      "one": false,
+      "empty": false
+    },
+    "writes": {}
+  }
+}
