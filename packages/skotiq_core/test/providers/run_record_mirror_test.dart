@@ -212,7 +212,19 @@ void main() {
 
     final ended = client.read(lastEndedRunProvider)!;
     expect(ended.planLoadedOnHost, isTrue);
+    expect(client.read(sequenceStopEvidenceProvider), isNull);
     expect(ended.ranLoadedPlan('client-id'), isTrue);
+
+    // The host knows the operator stopped it; this client was not listening
+    // to the run's events when that was said.
+    host.read(sequenceStopEvidenceProvider.notifier).state =
+        const SequenceStopDecision(SequenceStopAuthor.operatorPress);
+    await _published();
+    await hydrateHostRuntimeState(client, backend);
+    expect(
+      client.read(sequenceStopEvidenceProvider)?.author,
+      SequenceStopAuthor.operatorPress,
+    );
 
     // The host opens another plan: the ended run is no longer this plan's.
     host

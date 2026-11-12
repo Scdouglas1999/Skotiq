@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/backend/sequencer_status.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/last_ended_run.dart';
+import '../../sequence/run_stop_classification.dart';
+import '../../sequence/sequence_progress.dart';
 import '../../sequence/sequence_selection.dart';
 import '../../sequence_stats_provider.dart';
 import '../runtime_mirror_channel.dart';
@@ -13,6 +15,7 @@ typedef RunRecordSnapshot = ({
   CompletedImagingRun? imagingRun,
   LastEndedRun? lastEnded,
   bool lastEndedPlanLoaded,
+  SequenceStopDecision? stopEvidence,
   DateTime? runStartedAt,
 });
 
@@ -27,6 +30,7 @@ final _runRecordSnapshotProvider = Provider<RunRecordSnapshot>((ref) {
         lastEnded.ranLoadedPlan(
           ref.watch(currentSequenceProvider.select((s) => s?.id)),
         ),
+    stopEvidence: ref.watch(sequenceStopEvidenceProvider),
     runStartedAt: ref.watch(runStartedAtProvider),
   );
 });
@@ -72,6 +76,9 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
               // is its own.
               'planLoaded': value.lastEndedPlanLoaded,
             },
+      // Who ended the run. A client learns it from the run's events only
+      // while it is connected and listening; the host always knows.
+      'stop': _encodeStop(value.stopEvidence),
       'runStartedAt': value.runStartedAt?.toUtc().millisecondsSinceEpoch,
     };
   }
@@ -115,7 +122,37 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
     context.read(runStartedAtProvider.notifier).state = jsonInstant(
       value['runStartedAt'],
     )?.toLocal();
+    // A host from before this field says nothing; what the client gathered
+    // from the events stands.
+    if (value.containsKey('stop')) {
+      context.read(sequenceStopEvidenceProvider.notifier).state = _decodeStop(
+        value['stop'],
+      );
+    }
   }
+}
+
+Map<String, dynamic>? _encodeStop(SequenceStopDecision? stop) => stop == null
+    ? null
+    : {
+        'author': stop.author.name,
+        'origin': stop.origin,
+        'originLabel': stop.originLabel,
+        'parked': stop.parked,
+      };
+
+SequenceStopDecision? _decodeStop(Object? raw) {
+  if (raw is! Map) return null;
+  final author = SequenceStopAuthor.values
+      .where((a) => a.name == raw['author'])
+      .firstOrNull;
+  if (author == null) return null;
+  return SequenceStopDecision(
+    author,
+    origin: jsonString(raw['origin']),
+    originLabel: jsonString(raw['originLabel']),
+    parked: raw['parked'] == true,
+  );
 }
 
 Map<String, dynamic>? _encodeResult(SequenceTerminalRunResult? result) {

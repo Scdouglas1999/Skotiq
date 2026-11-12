@@ -6,6 +6,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
@@ -84,6 +85,7 @@ void _hostRecord(
   CompletedImagingRun? imagingRun,
   LastEndedRun? lastEnded,
   bool lastEndedPlanLoaded = true,
+  SequenceStopDecision? stopEvidence,
   DateTime? runStartedAt,
 }) {
   applyHostRuntimeUpdate(
@@ -96,6 +98,7 @@ void _hostRecord(
         imagingRun: imagingRun,
         lastEnded: lastEnded,
         lastEndedPlanLoaded: lastEnded != null && lastEndedPlanLoaded,
+        stopEvidence: stopEvidence,
         runStartedAt: runStartedAt,
       )),
     ),
@@ -228,6 +231,16 @@ void main() {
         );
     _hostRecord(client, backend, lastEnded: ended());
     expect(client.read(nightRunPhaseProvider), NightRunPhase.finished);
+
+    // Nothing here says who ended it: the host's record does.
+    expect(client.read(nightHeaderProvider).ending, NightRunEnding.ended);
+    _hostRecord(
+      client,
+      backend,
+      lastEnded: ended(),
+      stopEvidence: const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+    );
+    expect(client.read(nightHeaderProvider).ending, NightRunEnding.stopped);
 
     // The host has since opened another plan.
     _hostRecord(client, backend, lastEnded: ended(), lastEndedPlanLoaded: false);
