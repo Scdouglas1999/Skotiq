@@ -32,7 +32,6 @@ import '../../services/adaptive_swap_service.dart' show AdaptiveSwapBackend;
 /// are sequencer-runtime mutations and the adaptive-swap composer depends
 /// on exactly that pair.
 abstract class SequencerBackend implements AdaptiveSwapBackend {
-
   Future<void> sequencerStart();
 
   /// Stop the sequencer
@@ -229,6 +228,10 @@ abstract class SequencerBackend implements AdaptiveSwapBackend {
     required int maxConsecutiveRejects,
     required bool enabled,
   });
+
+  /// What every save does with a camera's own file: a
+  /// [CameraFileSaving.settingValue]. Applied on the host.
+  Future<void> sequencerSetCameraFileSaving(String saving);
 
   /// Update the reject-folder override at runtime. `null` or
   /// empty string => fall back to `<save_path>/Reject/`.

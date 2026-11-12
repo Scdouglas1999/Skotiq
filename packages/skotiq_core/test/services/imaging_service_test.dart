@@ -623,7 +623,7 @@ void main() {
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
         late TestBackendNotifier remoteBackendNotifier;
         final remoteContainer = ProviderContainer(
@@ -736,7 +736,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -842,7 +842,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       late _RecordingScienceProcessingService science;
       final remoteContainer = ProviderContainer(
@@ -941,7 +941,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final remoteContainer = ProviderContainer(
         overrides: [
@@ -1078,6 +1078,7 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         sentPaths.add(invocation.namedArguments[#filePath] as String);
+        return invocation.namedArguments[#filePath] as String;
       });
 
       final remoteContainer = ProviderContainer(
@@ -1241,7 +1242,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final service = container.read(imagingServiceProvider);
       await service.captureImage(settings: settings, targetName: 'M31');
@@ -1297,7 +1298,7 @@ void main() {
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
         SkotiqEvent completionFrom(String deviceId) => SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -1374,7 +1375,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(
@@ -1555,7 +1556,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       // Verify currentImageProvider is null initially
       expect(container.read(currentImageProvider), isNull);
@@ -1749,7 +1750,7 @@ void main() {
             filePath: any(named: 'filePath'),
             headerData: any(named: 'headerData'),
           ),
-        ).thenAnswer((_) async {});
+        ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
         final service = container.read(imagingServiceProvider);
 
@@ -1845,7 +1846,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final service = container.read(imagingServiceProvider);
       final result = await service.captureImage(settings: settings);
@@ -1908,6 +1909,7 @@ void main() {
           headers.add(
             invocation.namedArguments[#headerData] as FitsWriteHeader,
           );
+          return invocation.namedArguments[#filePath] as String;
         });
 
         final service = container.read(imagingServiceProvider);
@@ -1970,6 +1972,7 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         headers.add(invocation.namedArguments[#headerData] as FitsWriteHeader);
+        return invocation.namedArguments[#filePath] as String;
       });
 
       final service = container.read(imagingServiceProvider);
@@ -2037,7 +2040,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
     }
 
     setUp(() {
@@ -2269,7 +2272,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       const settings = ExposureSettings(
         exposureTime: 5.0,
@@ -2519,7 +2522,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);
@@ -2591,7 +2594,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final capturedImages = <CapturedImageData>[];
       final errors = <String>[];
@@ -2652,7 +2655,7 @@ void main() {
           filePath: any(named: 'filePath'),
           headerData: any(named: 'headerData'),
         ),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
 
       final capturedImages = <CapturedImageData>[];
       final service = container.read(imagingServiceProvider);

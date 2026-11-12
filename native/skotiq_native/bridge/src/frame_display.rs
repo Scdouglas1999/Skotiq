@@ -58,14 +58,10 @@ pub(crate) fn for_file(image: &ImageData, header: &skotiq_imaging::FitsHeader) -
     }
 }
 
-/// The imaging crate's name for a device-reported Bayer cell.
+/// The imaging crate's name for a device-reported color filter.
 pub(crate) fn device_filter(pattern: skotiq_device::BayerPattern) -> skotiq_imaging::ColorFilterArray {
-    skotiq_imaging::ColorFilterArray::Bayer(match pattern {
-        skotiq_device::BayerPattern::Rggb => skotiq_imaging::BayerPattern::RGGB,
-        skotiq_device::BayerPattern::Grbg => skotiq_imaging::BayerPattern::GRBG,
-        skotiq_device::BayerPattern::Gbrg => skotiq_imaging::BayerPattern::GBRG,
-        skotiq_device::BayerPattern::Bggr => skotiq_imaging::BayerPattern::BGGR,
-    })
+    skotiq_imaging::ColorFilterArray::parse(&pattern.fits_name())
+        .expect("every device color filter has a BAYERPAT spelling the imaging crate reads")
 }
 
 fn histogram(values: &[u8]) -> Vec<u32> {

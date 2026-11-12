@@ -1,7 +1,6 @@
 part of '../ffi_backend.dart';
 
 mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
-
   @override
   Future<void> sequencerStart() async {
     bridge.NativeBridge.requireNative('sequencerStart');
@@ -309,6 +308,14 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
         maxConsecutiveRejects: maxConsecutiveRejects,
         enabled: enabled,
       ),
+    );
+  }
+
+  @override
+  Future<void> sequencerSetCameraFileSaving(String saving) async {
+    await _native(
+      'sequencerSetCameraFileSaving',
+      () => bridge.apiSequencerSetCameraFileSaving(saving: saving),
     );
   }
 

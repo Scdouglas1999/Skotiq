@@ -806,6 +806,7 @@ impl CameraDriver for TouptekCamera {
             subframe: self.subframe.clone(),
             readout_mode: None,
             vendor_data: VendorFeatures::default(),
+            camera_file: None,
         };
 
         Ok(ImageData {

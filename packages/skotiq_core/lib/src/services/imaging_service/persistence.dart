@@ -1,7 +1,10 @@
 part of '../imaging_service.dart';
 
 extension _ImagingServicePersistence on ImagingService {
-  Future<void> _saveFitsFile({
+  /// Returns the path the frame is recorded by (see
+  /// [ImagingBackend.saveFitsFromLastCapture]), or null when this backend no
+  /// longer has authority.
+  Future<String?> _saveFitsFile({
     required SkotiqBackend backend,
     required String deviceId,
     required String filePath,
@@ -9,7 +12,7 @@ extension _ImagingServicePersistence on ImagingService {
     String? targetName,
     required DateTime timestamp,
   }) async {
-    if (!_hasBackendAuthority(backend)) return;
+    if (!_hasBackendAuthority(backend)) return null;
 
     // The host reads the rig when it writes the file, as it does for a
     // sequence's frame; this carries only what the devices cannot say.
@@ -26,8 +29,8 @@ extension _ImagingServicePersistence on ImagingService {
       binY: exposureSettings.binningY,
     );
 
-    if (!_hasBackendAuthority(backend)) return;
-    await backend.saveFitsFromLastCapture(
+    if (!_hasBackendAuthority(backend)) return null;
+    return backend.saveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: filePath,
       headerData: header,
@@ -89,7 +92,7 @@ extension _ImagingServicePersistence on ImagingService {
     final companion = CapturedImagesCompanion(
       filePath: drift.Value(filePath),
       fileName: drift.Value(path.basename(filePath)),
-      fileFormat: const drift.Value('fits'),
+      fileFormat: drift.Value(ImageFileFormat.recordNameForPath(filePath)),
       fileSize: drift.Value(fileSize),
       sessionId: drift.Value(sessionId),
       targetId: const drift.Value(null), // Link to target if available

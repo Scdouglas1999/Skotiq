@@ -102,6 +102,7 @@ impl CameraDriver for FixedFrameCamera {
                 subframe: None,
                 readout_mode: None,
                 vendor_data: VendorFeatures::default(),
+                camera_file: None,
             },
         })
     }
@@ -349,7 +350,7 @@ async fn a_mono_frame_publishes_the_same_measurements_from_either_entry_point() 
         ("sequence mono", &sequence, MONO),
     ]);
     assert_eq!(
-        (returned.sensor_type.as_deref(), returned.bayer_offset),
+        (returned.sensor_type.as_deref(), returned.color_filter),
         (Some("Monochrome"), None)
     );
 }
@@ -371,8 +372,8 @@ async fn a_color_frame_publishes_the_same_measurements_from_either_entry_point()
         ("sequence color", &sequence, COLOR),
     ]);
     assert_eq!(
-        (returned.sensor_type.as_deref(), returned.bayer_offset),
-        (Some("Color"), Some((1, 0)))
+        (returned.sensor_type.as_deref(), returned.color_filter),
+        (Some("Color"), Some(BayerPattern::Grbg))
     );
 }
 

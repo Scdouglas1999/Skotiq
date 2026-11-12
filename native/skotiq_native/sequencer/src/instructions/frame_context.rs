@@ -83,17 +83,6 @@ async fn rig_read<T>(
     }
 }
 
-/// `BAYERPAT` for the offset a camera reports with a color frame.
-fn bayer_pattern_of_offset(offset: (i32, i32)) -> Option<&'static str> {
-    match offset {
-        (0, 0) => Some("RGGB"),
-        (1, 0) => Some("GRBG"),
-        (0, 1) => Some("GBRG"),
-        (1, 1) => Some("BGGR"),
-        _ => None,
-    }
-}
-
 /// Everything a saved frame records about the rig and the exposure, read at
 /// one moment: after readout, immediately before the file is written.
 ///
@@ -163,10 +152,9 @@ pub async fn sample_frame_context(
     frame_ctx.bayer_pattern = match image_data.sensor_type.as_deref() {
         Some(s) if s.eq_ignore_ascii_case("Monochrome") || s.eq_ignore_ascii_case("Mono") => None,
         _ => image_data
-            .bayer_offset
-            .and_then(bayer_pattern_of_offset)
-            .or(facts.bayer_pattern)
-            .map(str::to_string),
+            .color_filter
+            .map(|pattern| pattern.fits_name())
+            .or(facts.bayer_pattern.map(str::to_string)),
     };
 
     frame_ctx.observer_name = identity.observer_name.clone();

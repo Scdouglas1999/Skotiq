@@ -49,6 +49,7 @@ abstract class AppSettings with _$AppSettings {
     @Default(0.0) double longitude,
     @Default(0.0) double elevation,
     @Default('') String fileNamingPattern,
+    @Default('converted') String cameraFileSaving,
     @Default(5) int meridianFlipMinutes,
     @Default(60) int autoFocusEveryMinutes,
     @Default(3) int ditherEveryFrames,

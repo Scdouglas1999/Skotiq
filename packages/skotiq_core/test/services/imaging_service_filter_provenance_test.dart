@@ -137,7 +137,7 @@ void main() {
         filePath: any(named: 'filePath'),
         headerData: any(named: 'headerData'),
       ),
-    ).thenAnswer((_) async {});
+    ).thenAnswer((invocation) async => invocation.namedArguments[#filePath] as String);
   });
 
   tearDown(() => events.close());

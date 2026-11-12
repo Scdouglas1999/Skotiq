@@ -372,6 +372,27 @@ pub async fn api_sequencer_update_default_quality_check(
     Ok(())
 }
 
+/// What a frame from a camera that delivers its own file (a DSLR's raw file)
+/// is saved as: `converted` (FITS, the default), `camera` (the camera's file
+/// as delivered) or `both`. Read by every save, a run's and a manual
+/// capture's.
+pub async fn api_sequencer_set_camera_file_saving(saving: String) -> Result<(), SkotiqError> {
+    let saving = skotiq_sequencer::CameraFileSaving::from_setting(&saving).ok_or_else(|| {
+        SkotiqError::InvalidParameter(format!(
+            "unknown camera-file saving '{saving}' (expected converted, camera or both)"
+        ))
+    })?;
+    tracing::info!("Updating camera-file saving: {:?}", saving);
+    let mut executor = get_sequence_executor().write().await;
+    executor.update_camera_file_saving(saving).await;
+    Ok(())
+}
+
+/// The saving choice every save reads.
+pub(crate) async fn camera_file_saving() -> skotiq_sequencer::CameraFileSaving {
+    get_sequence_executor().read().await.run_config().camera_file_saving
+}
+
 /// update the reject-folder override at runtime. Empty string =>
 /// None (i.e. fall back to `<save_path>/Reject/`).
 pub async fn api_sequencer_update_reject_folder_path(

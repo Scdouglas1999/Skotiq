@@ -197,7 +197,7 @@ fn bayer_pattern_from_sensor(
     offset_y: Option<i32>,
 ) -> Option<String> {
     crate::ascom_sensor_type::bayer_pattern_from_sensor(sensor_type, offset_x, offset_y)
-        .map(|pattern| crate::ascom_sensor_type::bayer_pattern_fits_name(pattern).to_string())
+        .map(|pattern| pattern.fits_name())
 }
 
 /// Connection health status for ASCOM devices
@@ -736,6 +736,7 @@ impl AscomCameraWrapper {
                                             subframe: None,
                                             readout_mode: None,
                                             vendor_data: VendorFeatures::default(),
+                                            camera_file: None,
                                         },
                                     };
                                     tracing::info!(

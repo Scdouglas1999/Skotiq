@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1224619038;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -114770230;
 
 // Section: executor
 
@@ -5954,6 +5954,16 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequenc
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_active_sequence_run_id", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_sequence_run_id = sequence_run_id.cst_decode(); move |context| async move {
                     transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
                          let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_active_sequence_run_id(api_sequence_run_id).await?;   Ok(output_ok)
+                    })().await)
+                } })
+}
+fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    saving: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_camera_file_saving", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_saving = saving.cst_decode(); move |context| async move {
+                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
+                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_camera_file_saving(api_saving).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -30436,6 +30446,16 @@ mod io {
         wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequence_run_id_impl(
             port_,
             sequence_run_id,
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(
+        port_: i64,
+        saving: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving_impl(
+            port_, saving,
         )
     }
 

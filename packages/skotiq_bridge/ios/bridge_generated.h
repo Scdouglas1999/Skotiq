@@ -3295,6 +3295,9 @@ void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequence_run_id(int64_t port_,
                                                                                                                 int64_t *sequence_run_id);
 
+void frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(int64_t port_,
+                                                                                                            struct wire_cst_list_prim_u_8_strict *saving);
+
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_set_checkpoint_dir(int64_t port_,
                                                                                                    struct wire_cst_list_prim_u_8_strict *path);
 
@@ -4261,6 +4264,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_recovery_abort);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_recovery_try_now);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequence_run_id);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices);

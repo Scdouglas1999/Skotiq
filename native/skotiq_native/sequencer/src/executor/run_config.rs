@@ -88,6 +88,42 @@ pub struct RunConfig {
     pub stop_on_quality_problems: bool,
     /// Whether decisions are written to the replay log.
     pub decision_logging_enabled: bool,
+    /// What is saved for a frame from a camera that delivers its own file.
+    pub camera_file_saving: CameraFileSaving,
+}
+
+/// What is saved for a frame from a camera that delivers its own file (a
+/// DSLR's or mirrorless body's raw file). A camera that delivers none (every
+/// astronomy camera) always gets the converted file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum CameraFileSaving {
+    /// The app's own file (FITS), as before the camera's file was kept.
+    #[default]
+    Converted,
+    /// The camera's file exactly as delivered, and nothing else.
+    CameraFile,
+    /// Both, side by side under one name.
+    Both,
+}
+
+impl CameraFileSaving {
+    /// From the app setting's stored value.
+    pub fn from_setting(value: &str) -> Option<Self> {
+        match value {
+            "converted" => Some(Self::Converted),
+            "camera" => Some(Self::CameraFile),
+            "both" => Some(Self::Both),
+            _ => None,
+        }
+    }
+
+    pub fn writes_converted(self) -> bool {
+        self != Self::CameraFile
+    }
+
+    pub fn writes_camera_file(self) -> bool {
+        self != Self::Converted
+    }
 }
 
 impl Default for RunConfig {
@@ -114,6 +150,7 @@ impl Default for RunConfig {
             meridian_flip: None,
             stop_on_quality_problems: false,
             decision_logging_enabled: true,
+            camera_file_saving: CameraFileSaving::default(),
         }
     }
 }
@@ -167,10 +204,11 @@ pub(crate) enum Section {
     MeridianFlip,
     StopOnQualityProblems,
     DecisionLogging,
+    CameraFileSaving,
 }
 
 impl Section {
-    const ALL: [Section; 20] = [
+    const ALL: [Section; 21] = [
         Section::Dither,
         Section::Autofocus,
         Section::AutofocusInterval,
@@ -191,6 +229,7 @@ impl Section {
         Section::MeridianFlip,
         Section::StopOnQualityProblems,
         Section::DecisionLogging,
+        Section::CameraFileSaving,
     ];
 
     /// The name the change is announced under in
@@ -217,6 +256,7 @@ impl Section {
             Section::MeridianFlip => "meridian_flip_config",
             Section::StopOnQualityProblems => "stop_on_quality_problems",
             Section::DecisionLogging => "decision_logging",
+            Section::CameraFileSaving => "camera_file_saving",
         }
     }
 }
@@ -246,6 +286,7 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         meridian_flip,
         stop_on_quality_problems,
         decision_logging_enabled,
+        camera_file_saving,
     } = new;
     [
         (Section::Dither, *dither != old.dither),
@@ -309,6 +350,10 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         (
             Section::DecisionLogging,
             *decision_logging_enabled != old.decision_logging_enabled,
+        ),
+        (
+            Section::CameraFileSaving,
+            *camera_file_saving != old.camera_file_saving,
         ),
     ]
     .into_iter()

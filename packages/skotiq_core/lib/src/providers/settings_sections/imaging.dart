@@ -5,6 +5,7 @@
 //   * imageFormat (currently FITS only)
 //   * fileNamingPattern (template like `$TARGET_$FILTER_$DATE_$SEQ`)
 //   * bitDepth (currently 16-bit only)
+//   * cameraFileSaving (a camera's own raw file, FITS, or both)
 //
 // Does NOT own:
 //   * Save-path defaults → see `file_paths.dart`.
@@ -21,4 +22,7 @@ extension ImagingSettingsSection on AppSettingsNotifier {
       _set(AppSettingDefs.fileNamingPattern, value);
 
   Future<void> setBitDepth(String value) => _set(AppSettingDefs.bitDepth, value);
+
+  Future<void> setCameraFileSaving(String value) =>
+      _set(AppSettingDefs.cameraFileSaving, value);
 }

@@ -16,7 +16,7 @@
 //! settings; they are in [`super::setup`].
 
 use super::{
-    DefectMapApplyState, ExecutorEvent, ObserverProfile, ParkPolicy, RunConfig, RunConfigStore,
+    CameraFileSaving, DefectMapApplyState, ExecutorEvent, ObserverProfile, ParkPolicy, RunConfig, RunConfigStore,
     SequenceExecutor,
 };
 use crate::node::context::{CloudMotionSnapshot, TransparencyBackupPlan};
@@ -137,6 +137,13 @@ impl SequenceExecutor {
         check: Option<crate::quality::ImageQualityCheck>,
     ) {
         self.update_config(|config| config.default_quality_check = check)
+            .await;
+    }
+
+    /// What is saved for a frame from a camera that delivers its own file.
+    /// Every save reads it, the run's and a manual capture's.
+    pub async fn update_camera_file_saving(&mut self, saving: CameraFileSaving) {
+        self.update_config(|config| config.camera_file_saving = saving)
             .await;
     }
 

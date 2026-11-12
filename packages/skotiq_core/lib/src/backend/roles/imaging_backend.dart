@@ -29,11 +29,13 @@ import '../../models/plate_solver.dart'
 ///   * Sequencer image grading / quality config — see [SequencerBackend].
 ///   * Profile / settings — see [ProfileSettingsBackend].
 abstract class ImagingBackend {
-
-  /// Save the camera's last frame as FITS on the host, where its pixels
-  /// already are. The host reads the rig for the header when it writes the
-  /// file; [headerData] carries what a device cannot say.
-  Future<void> saveFitsFromLastCapture({
+  /// Save the camera's last frame on the host, where its pixels already are:
+  /// as FITS at [filePath], as the camera's own file beside it, or both, as
+  /// the host's camera-file setting says. The host reads the rig for the
+  /// header when it writes the file; [headerData] carries what a device
+  /// cannot say. Returns the path the frame is recorded by: [filePath] when a
+  /// FITS file is written, else the camera's file.
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,

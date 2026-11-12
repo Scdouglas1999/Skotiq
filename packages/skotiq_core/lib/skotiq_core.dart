@@ -184,6 +184,7 @@ export 'src/models/import/canonical_sequence_node.dart';
 export 'src/models/import/import_result.dart';
 
 export 'src/providers/app_version_provider.dart';
+export 'src/providers/camera_file_saving_sync.dart';
 export 'src/providers/focuser_backlash_calibration_provider.dart';
 export 'src/providers/focuser_backlash_provider.dart';
 export 'src/providers/database_provider.dart';

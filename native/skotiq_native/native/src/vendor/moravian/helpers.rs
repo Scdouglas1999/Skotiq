@@ -100,13 +100,18 @@ pub(crate) fn native_bayer(x_odd: bool, y_odd: bool) -> BayerPattern {
     }
 }
 
-/// Adjust a Bayer pattern for the vertical mirror we apply to every frame.
-/// Reversing the row order of an even-height frame swaps the two Bayer rows.
+/// Adjust a color filter for the vertical mirror we apply to every frame.
+/// Reversing the row order of a frame whose height is a whole number of cells
+/// reverses the rows of the cell.
 pub(crate) fn flip_bayer_vertical(p: BayerPattern) -> BayerPattern {
     match p {
         BayerPattern::Rggb => BayerPattern::Gbrg,
         BayerPattern::Gbrg => BayerPattern::Rggb,
         BayerPattern::Grbg => BayerPattern::Bggr,
         BayerPattern::Bggr => BayerPattern::Grbg,
+        BayerPattern::XTrans(mut cell) => {
+            cell.0.reverse();
+            BayerPattern::XTrans(cell)
+        }
     }
 }

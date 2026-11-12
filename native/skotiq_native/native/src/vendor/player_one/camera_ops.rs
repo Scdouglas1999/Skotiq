@@ -463,6 +463,7 @@ impl CameraDriver for PlayerOneCamera {
                 subframe: self.current_subframe.clone(),
                 readout_mode: None, // Player One doesn't support readout modes
                 vendor_data: vendor_features,
+                camera_file: None,
             },
         })
     }

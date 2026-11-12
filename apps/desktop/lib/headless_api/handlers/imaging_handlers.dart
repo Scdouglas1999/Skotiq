@@ -446,17 +446,15 @@ class ImagingHandlers implements RouteSource {
     await Directory(path.dirname(canonicalFilePath)).create(recursive: true);
 
     final backend = container.read(imagingBackendProvider);
-    await backend.saveFitsFromLastCapture(
+    final savedPath = await backend.saveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: canonicalFilePath,
       headerData: headerData,
     );
     if (showApiCapturesInPreview) {
-      unawaited(
-        _showSavedCaptureInPreview(deviceId, canonicalFilePath, headerData),
-      );
+      unawaited(_showSavedCaptureInPreview(deviceId, savedPath, headerData));
     }
-    return jsonOk({'status': 'saved'});
+    return jsonOk({'status': 'saved', 'path': savedPath});
   }
 
   /// Every remote capture, keeper or scratch, ends with this save, so it is

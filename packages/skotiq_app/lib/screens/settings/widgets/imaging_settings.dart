@@ -104,12 +104,35 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                 SettingRow(
                   icon: LucideIcons.file,
                   title: 'Archive format',
-                  subtitle:
-                      'Captured images are saved as lossless 16-bit FITS files',
+                  subtitle: 'The FITS files Skotiq writes are lossless 16-bit',
                   trailing: Text(
                     '$kCaptureImageFormat · $kCaptureBitDepth',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
+                ),
+                SettingRow(
+                  icon: LucideIcons.camera,
+                  title: 'Camera raw files',
+                  subtitle: 'For DSLR and mirrorless cameras. The raw file is '
+                      'kept exactly as the camera made it; the FITS file also '
+                      'records the telescope, mount and site.',
+                  trailing: SettingsDropdown(
+                    value: settings.cameraFileSaving,
+                    items: [
+                      for (final saving in CameraFileSaving.values)
+                        saving.settingValue,
+                    ],
+                    itemLabels: [
+                      for (final saving in CameraFileSaving.values)
+                        saving.label,
+                    ],
+                    onChanged: (value) => ref
+                        .read(appSettingsProvider.notifier)
+                        .setCameraFileSaving(value),
+                    width: 210,
+                    narrowWidth: 180,
+                  ),
+                  stackWhenNarrow: true,
                 ),
                 SettingRow(
                   icon: LucideIcons.fileText,

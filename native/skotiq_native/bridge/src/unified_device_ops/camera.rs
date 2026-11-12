@@ -236,6 +236,7 @@ impl CameraOps for UnifiedDeviceOps {
                 height: native_image.height,
                 data: native_image.data.clone(),
                 bayer_pattern: native_image.bayer_pattern,
+                camera_file: native_image.metadata.camera_file.clone(),
                 exposure: crate::last_frame::ExposureRecord {
                     started_at,
                     exposure_secs,
@@ -253,8 +254,7 @@ impl CameraOps for UnifiedDeviceOps {
             return Err(e.to_string().into());
         }
 
-        let (sensor_type, bayer_offset) =
-            crate::last_frame::sensor_type_and_offset(native_image.bayer_pattern);
+        let sensor_type = crate::last_frame::sensor_type(native_image.bayer_pattern.as_ref());
 
         exposure.end(true, EventSeverity::Info);
 
@@ -280,7 +280,8 @@ impl CameraOps for UnifiedDeviceOps {
             filter: None,
             timestamp: native_image.metadata.timestamp.timestamp(),
             sensor_type,
-            bayer_offset,
+            color_filter: native_image.bayer_pattern,
+            camera_file: native_image.metadata.camera_file,
         })
     }
 

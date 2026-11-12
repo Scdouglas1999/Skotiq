@@ -925,54 +925,56 @@ pub async fn execute_exposure_with_renderer(
             )
             .await;
 
-            if let Err(e) = ctx
-                .run
-                .device_ops
-                .save_fits(
-                    &image_data,
-                    // Why: `PathBuf::to_str()` returns None only when the
-                    // path is not valid UTF-8 — on Windows our save paths are always
-                    // platform-default (UTF-16 → UTF-8) and on Unix the user's home dir is
-                    // the root, both ASCII-safe in practice. Falling back to the bare
-                    // filename keeps the save call going against the platform's CWD; the
-                    // FITS writer downstream will surface any path-resolution error.
-                    full_path.to_str().unwrap_or(&filename),
-                    &frame_ctx,
-                )
-                .await
-            {
-                // A FITS save failure is data loss — the
-                // exposure is already complete and the image bytes are in
-                // RAM, so a failed write means that frame is gone. The
-                // previous warn-and-continue was the audit-flagged silent
-                // fallback: the user would discover the missing frame hours
-                // later when checking captures, with no surfaced error.
-                //
-                // Policy: log at ERROR, emit an ExecutorEvent::Error so the
-                // UI sees it, and return InstructionResult::failure so the
-                // sequence stops and the user can intervene (out-of-disk,
-                // permission denied, drive disconnected — every cause needs
-                // human action).
-                let error_message = format!(
-                    "FITS save failed for frame {}/{} at '{}': {}. \
-                     Image data has been lost. Sequence aborted to preserve \
-                     remaining storage and surface the issue.",
-                    frame,
-                    config.count,
-                    full_path.display(),
-                    e
-                );
-                tracing::error!("{}", error_message);
-                if let Some(event_tx) = &ctx.run.event_tx {
-                    // Why: a closed receiver (no UI subscribers) is benign —
-                    // headless / API runs may have no listeners. The log line
-                    // above is the durable record.
-                    let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
-                        message: error_message.clone(),
-                    });
+            let saved = crate::device_ops::save_frame(
+                ctx.run.device_ops.as_ref(),
+                &image_data,
+                // Why: `PathBuf::to_str()` returns None only when the
+                // path is not valid UTF-8 — on Windows our save paths are always
+                // platform-default (UTF-16 → UTF-8) and on Unix the user's home dir is
+                // the root, both ASCII-safe in practice. Falling back to the bare
+                // filename keeps the save call going against the platform's CWD; the
+                // FITS writer downstream will surface any path-resolution error.
+                full_path.to_str().unwrap_or(&filename),
+                &frame_ctx,
+                ctx.run.camera_file_saving,
+            )
+            .await;
+            let full_path = match saved {
+                Ok(path) => std::path::PathBuf::from(path),
+                Err(e) => {
+                    // A FITS save failure is data loss — the
+                    // exposure is already complete and the image bytes are in
+                    // RAM, so a failed write means that frame is gone. The
+                    // previous warn-and-continue was the audit-flagged silent
+                    // fallback: the user would discover the missing frame hours
+                    // later when checking captures, with no surfaced error.
+                    //
+                    // Policy: log at ERROR, emit an ExecutorEvent::Error so the
+                    // UI sees it, and return InstructionResult::failure so the
+                    // sequence stops and the user can intervene (out-of-disk,
+                    // permission denied, drive disconnected — every cause needs
+                    // human action).
+                    let error_message = format!(
+                        "Saving frame {}/{} at '{}' failed: {}. \
+                         Image data has been lost. Sequence aborted to preserve \
+                         remaining storage and surface the issue.",
+                        frame,
+                        config.count,
+                        full_path.display(),
+                        e
+                    );
+                    tracing::error!("{}", error_message);
+                    if let Some(event_tx) = &ctx.run.event_tx {
+                        // Why: a closed receiver (no UI subscribers) is benign —
+                        // headless / API runs may have no listeners. The log line
+                        // above is the durable record.
+                        let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
+                            message: error_message.clone(),
+                        });
+                    }
+                    return InstructionResult::failure(error_message);
                 }
-                return InstructionResult::failure(error_message);
-            }
+            };
             tracing::info!("Saved: {}", full_path.display());
 
             // Register EVERY saved frame, graded or not, and emit the

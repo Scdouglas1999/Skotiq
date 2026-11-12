@@ -360,10 +360,12 @@ const Map<String, List<String>> kSettingsSearchTerms = {
   ],
   'imaging': [
     'Archive format',
-    'Captured images are saved as lossless 16-bit FITS files',
+    'Camera raw files',
     'File format',
     'File naming pattern',
+    'For DSLR and mirrorless cameras. The raw file is',
     'Imaging',
+    'The FITS files Skotiq writes are lossless 16-bit',
   ],
   'integrations': [
     'Application token',
@@ -961,7 +963,8 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
         'Reject folder path',
   },
   'imaging': {
-    'Captured images are saved as lossless 16-bit FITS files': 'Archive format',
+    'For DSLR and mirrorless cameras. The raw file is': 'Camera raw files',
+    'The FITS files Skotiq writes are lossless 16-bit': 'Archive format',
   },
   'integrations': {
     'Open Skotiq on the rig to enable plugins and enter':

@@ -376,6 +376,7 @@ impl Run {
         context.run.identity.telescope_aperture_mm = config.observer_profile.telescope_aperture_mm;
         context.run.grading.default_quality_check = config.default_quality_check.clone();
         context.run.grading.reject_folder_path = config.reject_folder_path.clone();
+        context.run.camera_file_saving = config.camera_file_saving;
 
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),

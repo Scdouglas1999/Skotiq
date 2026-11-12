@@ -142,6 +142,7 @@ void main() {
       writtenPaths.add(path);
       File(path).createSync(recursive: true);
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
     });
   });
 

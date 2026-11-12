@@ -48,7 +48,12 @@ bool _sanitizes(Setting<Object?> setting) => switch (setting) {
 const Set<String> _addedSinceBase = {
   'qhy_discovery_enabled',
   'catalog_base_url',
+  'camera_file_saving',
 };
+
+/// Wire fields of settings declared after the base build; the base wire form
+/// is compared without them.
+const Set<String> _wireAddedSinceBase = {'cameraFileSaving'};
 
 /// [rows] without the settings the base build did not have.
 Map<String, String> _baseOnly(Map<String, String> rows) => {
@@ -208,7 +213,8 @@ void main() {
 
   test('the wire form matches the base build', () {
     Map<String, dynamic> plain(models.AppSettings s) =>
-        jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>;
+        (jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>)
+          ..removeWhere((key, _) => _wireAddedSinceBase.contains(key));
     expect(
       plain(AppSettingsCodec.toWire(const AppSettingsState())),
       fixture['wireDefault'],

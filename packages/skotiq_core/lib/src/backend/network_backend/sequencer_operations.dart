@@ -455,6 +455,15 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
   }
 
   @override
+  Future<void> sequencerSetCameraFileSaving(String saving) {
+    // The setting syncs to the host, whose own copy of this service applies it.
+    throw UnsupportedError(
+      'The camera-file setting is applied by the imaging host, not a linked '
+      'client.',
+    );
+  }
+
+  @override
   Future<void> sequencerUpdateRejectFolderPath(String? path) async {
     // Forwarded to the remote host. Server side maps to
     // api_sequencer_update_reject_folder_path.

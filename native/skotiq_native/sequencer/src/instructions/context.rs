@@ -394,6 +394,8 @@ pub struct RunShared {
     pub dither_barrier: Option<Arc<crate::dual_rig::DitherBarrier>>,
     /// How often a failed camera exposure or filter-wheel move is retried.
     pub device_retry: super::DeviceRetryHandle,
+    /// What a frame from a camera that delivers its own file is saved as.
+    pub camera_file_saving: crate::CameraFileSaving,
 }
 
 impl RunShared {
@@ -417,6 +419,7 @@ impl RunShared {
             defect_map_apply: Arc::default(),
             dither_barrier: None,
             device_retry: super::DeviceRetryHandle::single_attempt(),
+            camera_file_saving: crate::CameraFileSaving::default(),
         }
     }
 

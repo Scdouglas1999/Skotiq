@@ -119,6 +119,15 @@ const List<Setting<Object?>> kAppSettingsTable = [
     normalize: normalizeCaptureImageFormat,
     seeded: true,
   ),
+  /// What a frame from a camera that delivers its own raw file is saved as
+  /// (see [CameraFileSaving]). The host keeps the native save in step with it
+  /// (`cameraFileSavingSyncProvider`), for sequences and manual captures.
+  TextSetting(
+    'cameraFileSaving',
+    'camera_file_saving',
+    'converted',
+    normalize: normalizeCameraFileSaving,
+  ),
   TextSetting(
     'fileNamingPattern',
     'file_naming_pattern',

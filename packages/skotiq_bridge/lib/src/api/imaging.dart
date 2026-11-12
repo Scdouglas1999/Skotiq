@@ -309,15 +309,18 @@ Future<void> apiSaveRgbaJpegFile({
   quality: quality,
 );
 
-/// Save the device's last captured frame as FITS, without moving its pixels
-/// across the FFI boundary.
+/// Save the device's last captured frame, without moving its pixels across
+/// the FFI boundary: as FITS at `file_path`, as the camera's own file beside
+/// it, or both, as the camera-file setting says.
 ///
 /// The header is the one a sequence's frame gets, less the cards that tie a
 /// frame to a run: the rig is read by `skotiq_sequencer::sample_frame_context`
-/// and the file is written by the same `save_fits`.
+/// and the file is written by the same `save_frame`.
 ///
-/// Returns an error if no image has been captured yet for the specified device.
-Future<void> apiSaveFitsFromLastCapture({
+/// Returns the path the frame is recorded by (the FITS file when one is
+/// written, else the camera's file), or an error if no image has been
+/// captured yet for the specified device.
+Future<String> apiSaveFitsFromLastCapture({
   required String deviceId,
   required String filePath,
   required FitsWriteHeader headerData,

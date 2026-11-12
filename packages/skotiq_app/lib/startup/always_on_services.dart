@@ -59,6 +59,13 @@ class AlwaysOnService {
 /// [AlwaysOnServices.stop]; the provider's own `onDispose` releases what it
 /// holds when the container is disposed.
 final List<AlwaysOnService> alwaysOnServices = [
+  AlwaysOnService(
+    'camera-file setting',
+    cameraFileSavingSyncProvider,
+    _hosts,
+    'a DSLR or mirrorless frame saved by hand or by a sequence keeps the '
+        'camera raw file the Imaging settings ask for',
+  ),
   // Notifications and alerts.
   AlwaysOnService(
     'notification router',

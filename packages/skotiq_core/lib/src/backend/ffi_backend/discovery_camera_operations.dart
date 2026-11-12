@@ -11,7 +11,6 @@ String _sanitizeDeviceText(String value) => value
     .trim();
 
 mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
-
   @override
   Future<List<DeviceInfo>> discoverDevices(DeviceType deviceType) async {
     final bridgeType = _toBridgeDeviceType(deviceType);
@@ -144,11 +143,7 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
       }
     } catch (e, stackTrace) {
       _logger.severe('Native connection failed for $deviceId', e, stackTrace);
-      throw DeviceConnectException(
-        deviceId,
-        e,
-        reason: bridgeErrorMessage(e),
-      );
+      throw DeviceConnectException(deviceId, e, reason: bridgeErrorMessage(e));
     }
   }
 
@@ -329,12 +324,12 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
   }) async {
-    await bridge.apiSaveFitsFromLastCapture(
+    return bridge.apiSaveFitsFromLastCapture(
       deviceId: deviceId,
       filePath: filePath,
       headerData: _toBridgeFitsHeader(headerData),

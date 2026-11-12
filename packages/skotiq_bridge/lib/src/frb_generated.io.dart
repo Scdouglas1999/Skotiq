@@ -14859,6 +14859,34 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequence_run_idPtr
           .asFunction<void Function(int, ffi.Pointer<ffi.Int64>)>();
 
+  void
+  wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> saving,
+  ) {
+    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(
+      port_,
+      saving,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_savingPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving',
+      );
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving =
+      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_savingPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__sequencer__lifecycle__api_sequencer_set_checkpoint_dir(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> path,

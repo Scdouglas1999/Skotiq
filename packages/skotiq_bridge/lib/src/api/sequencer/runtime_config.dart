@@ -7,7 +7,7 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_run_config`
+// These functions are ignored because they are not marked as `pub`: `apply_run_config`, `camera_file_saving`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Set simulation mode (use mock devices instead of real hardware)
@@ -199,6 +199,16 @@ Future<void> apiSequencerUpdateDefaultQualityCheck({
       maxConsecutiveRejects: maxConsecutiveRejects,
       enabled: enabled,
     );
+
+/// What a frame from a camera that delivers its own file (a DSLR's raw file)
+/// is saved as: `converted` (FITS, the default), `camera` (the camera's file
+/// as delivered) or `both`. Read by every save, a run's and a manual
+/// capture's.
+Future<void> apiSequencerSetCameraFileSaving({required String saving}) =>
+    RustLib.instance.api
+        .crateApiSequencerRuntimeConfigApiSequencerSetCameraFileSaving(
+          saving: saving,
+        );
 
 /// update the reject-folder override at runtime. Empty string =>
 /// None (i.e. fall back to `<save_path>/Reject/`).

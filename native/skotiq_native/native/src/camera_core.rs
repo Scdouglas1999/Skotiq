@@ -155,6 +155,7 @@ impl Frame {
                 subframe: self.subframe,
                 readout_mode: self.readout_mode,
                 vendor_data: self.vendor_data,
+                camera_file: None,
             },
         }
     }
@@ -218,16 +219,18 @@ pub(crate) fn image_dimension(vendor: &str, axis: &str, value: usize) -> Result<
 
 /// The Bayer index the ASI-style SDKs (ZWO, Player One, SVBony) report:
 /// 0 RGGB, 1 BGGR, 2 GRBG, 3 GBRG. Anything else reads as RGGB.
-/// The device layer's name for a decoded raw frame's color filter. X-Trans has
-/// none, so an X-Trans mosaic is delivered without a pattern.
-pub(crate) fn mosaic_bayer_pattern(cfa: &skotiq_imaging::ColorFilterArray) -> Option<BayerPattern> {
+/// The device layer's name for a decoded raw frame's color filter.
+pub(crate) fn mosaic_bayer_pattern(cfa: &skotiq_imaging::ColorFilterArray) -> BayerPattern {
     use skotiq_imaging::BayerPattern as Cell;
     match cfa {
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::RGGB) => Some(BayerPattern::Rggb),
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::GRBG) => Some(BayerPattern::Grbg),
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::GBRG) => Some(BayerPattern::Gbrg),
-        skotiq_imaging::ColorFilterArray::Bayer(Cell::BGGR) => Some(BayerPattern::Bggr),
-        skotiq_imaging::ColorFilterArray::XTrans(_) => None,
+        skotiq_imaging::ColorFilterArray::Bayer(Cell::RGGB) => BayerPattern::Rggb,
+        skotiq_imaging::ColorFilterArray::Bayer(Cell::GRBG) => BayerPattern::Grbg,
+        skotiq_imaging::ColorFilterArray::Bayer(Cell::GBRG) => BayerPattern::Gbrg,
+        skotiq_imaging::ColorFilterArray::Bayer(Cell::BGGR) => BayerPattern::Bggr,
+        skotiq_imaging::ColorFilterArray::XTrans(_) => BayerPattern::XTrans(
+            skotiq_device::XTransCell::from_letters(&cfa.letters())
+                .expect("an X-Trans cell is 36 R, G and B letters"),
+        ),
     }
 }
 
@@ -399,5 +402,21 @@ mod tests {
         assert_eq!(image.metadata.temperature, Some(-9.5));
         assert_eq!(image.metadata.subframe.map(|s| s.width), Some(16));
         assert_eq!(image.metadata.readout_mode, None);
+    }
+}
+
+#[cfg(test)]
+mod mosaic_pattern_tests {
+    use super::*;
+
+    #[test]
+    fn a_decoded_xtrans_mosaic_keeps_its_cell_in_the_device_layer() {
+        let letters = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+        let cfa = skotiq_imaging::ColorFilterArray::parse(letters).unwrap();
+        let pattern = mosaic_bayer_pattern(&cfa);
+        assert!(matches!(pattern, BayerPattern::XTrans(_)));
+        assert_eq!(pattern.fits_name(), letters);
+        let bayer = skotiq_imaging::ColorFilterArray::parse("GBRG").unwrap();
+        assert_eq!(mosaic_bayer_pattern(&bayer), BayerPattern::Gbrg);
     }
 }

@@ -182,6 +182,7 @@ impl DeviceManager {
                             subframe: None,
                             readout_mode: None,
                             vendor_data: skotiq_device::VendorFeatures::default(),
+                            camera_file: None,
                         },
                     });
                 }
@@ -384,6 +385,7 @@ impl DeviceManager {
                                     subframe: None,
                                     readout_mode: None,
                                     vendor_data: skotiq_device::VendorFeatures::default(),
+                                    camera_file: None,
                                 },
                             }
                         };
@@ -517,6 +519,7 @@ impl DeviceManager {
                         }),
                         readout_mode: None,
                         vendor_data: skotiq_device::VendorFeatures::default(),
+                        camera_file: None,
                     },
                 })
             }

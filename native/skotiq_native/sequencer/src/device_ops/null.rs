@@ -111,7 +111,8 @@ impl CameraOps for NullDeviceOps {
             filter: None,
             timestamp: chrono::Utc::now().timestamp(),
             sensor_type: Some("Monochrome".to_string()), // Default to Mono
-            bayer_offset: None,                          // No Bayer pattern for mono
+            color_filter: None,
+            camera_file: None,
         })
     }
 

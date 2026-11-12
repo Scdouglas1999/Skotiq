@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1224619038;
+  int get rustContentHash => -114770230;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -989,7 +989,7 @@ abstract class RustLibApi extends BaseApi {
     required String configJson,
   });
 
-  Future<void> crateApiImagingApiSaveFitsFromLastCapture({
+  Future<String> crateApiImagingApiSaveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
@@ -1104,6 +1104,10 @@ abstract class RustLibApi extends BaseApi {
   Future<void>
   crateApiSequencerRuntimeConfigApiSequencerSetActiveSequenceRunId({
     PlatformInt64? sequenceRunId,
+  });
+
+  Future<void> crateApiSequencerRuntimeConfigApiSequencerSetCameraFileSaving({
+    required String saving,
   });
 
   Future<void> crateApiSequencerLifecycleApiSequencerSetCheckpointDir({
@@ -8131,7 +8135,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiImagingApiSaveFitsFromLastCapture({
+  Future<String> crateApiImagingApiSaveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
@@ -8151,7 +8155,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
               );
         },
         codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
+          decodeSuccessData: dco_decode_String,
           decodeErrorData: dco_decode_skotiq_error,
         ),
         constMeta: kCrateApiImagingApiSaveFitsFromLastCaptureConstMeta,
@@ -9115,6 +9119,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_sequencer_set_active_sequence_run_id",
         argNames: ["sequenceRunId"],
+      );
+
+  @override
+  Future<void> crateApiSequencerRuntimeConfigApiSequencerSetCameraFileSaving({
+    required String saving,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(saving);
+          return wire
+              .wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiSequencerRuntimeConfigApiSequencerSetCameraFileSavingConstMeta,
+        argValues: [saving],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerRuntimeConfigApiSequencerSetCameraFileSavingConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_set_camera_file_saving",
+        argNames: ["saving"],
       );
 
   @override

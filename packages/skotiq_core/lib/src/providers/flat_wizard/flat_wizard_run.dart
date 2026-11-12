@@ -527,11 +527,12 @@ extension FlatWizardRun on FlatWizardNotifier {
           final filename =
               '${_sanitizeComponent('Flat_${filterSetting.filterName}_'
               '${_fmtStamp(captureTime)}_$frameNum')}.fits';
-          final filePath = paths.join(filterSavePath, filename);
+          final requestedPath = paths.join(filterSavePath, filename);
+          final String filePath;
           try {
-            await backend.saveFitsFromLastCapture(
+            filePath = await backend.saveFitsFromLastCapture(
               deviceId: cameraId,
-              filePath: filePath,
+              filePath: requestedPath,
               headerData: await manualFrameHeader(
                 ref,
                 frameType: FrameType.flat.imageType,

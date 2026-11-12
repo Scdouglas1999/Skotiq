@@ -1688,19 +1688,22 @@ pub struct FitsWriteHeader {
     pub rotator_id: Option<String>,
 }
 
-/// Save the device's last captured frame as FITS, without moving its pixels
-/// across the FFI boundary.
+/// Save the device's last captured frame, without moving its pixels across
+/// the FFI boundary: as FITS at `file_path`, as the camera's own file beside
+/// it, or both, as the camera-file setting says.
 ///
 /// The header is the one a sequence's frame gets, less the cards that tie a
 /// frame to a run: the rig is read by `skotiq_sequencer::sample_frame_context`
-/// and the file is written by the same `save_fits`.
+/// and the file is written by the same `save_frame`.
 ///
-/// Returns an error if no image has been captured yet for the specified device.
+/// Returns the path the frame is recorded by (the FITS file when one is
+/// written, else the camera's file), or an error if no image has been
+/// captured yet for the specified device.
 pub async fn api_save_fits_from_last_capture(
     device_id: String,
     file_path: String,
     header_data: FitsWriteHeader,
-) -> Result<(), SkotiqError> {
+) -> Result<String, SkotiqError> {
     tracing::info!(
         "Saving FITS from last capture for device {} to: {}",
         device_id,
@@ -1769,12 +1772,17 @@ pub async fn api_save_fits_from_last_capture(
     )
     .await;
 
-    device_ops
-        .save_fits(&image, &file_path, &frame_ctx)
-        .await
-        .map_err(|e| SkotiqError::OperationFailed(e.to_string()))?;
-    tracing::info!("FITS file saved successfully from last capture");
-    Ok(())
+    let saved = skotiq_sequencer::save_frame(
+        device_ops.as_ref(),
+        &image,
+        &file_path,
+        &frame_ctx,
+        crate::api::sequencer::camera_file_saving().await,
+    )
+    .await
+    .map_err(|e| SkotiqError::OperationFailed(e.to_string()))?;
+    tracing::info!("Frame saved from last capture: {}", saved);
+    Ok(saved)
 }
 
 // Image processing

@@ -549,6 +549,7 @@ impl CameraDriver for ZwoCamera {
                 subframe: self.current_subframe.clone(),
                 readout_mode: None,
                 vendor_data,
+                camera_file: None,
             },
         })
     }

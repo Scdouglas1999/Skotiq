@@ -430,7 +430,7 @@ impl CameraDriver for FujifilmCamera {
         }
         self.refresh_raw_depth();
 
-        let bayer_pattern = crate::camera_core::mosaic_bayer_pattern(&frame.cfa);
+        let bayer_pattern = Some(crate::camera_core::mosaic_bayer_pattern(&frame.cfa));
 
         let metadata = ImageMetadata {
             exposure_time: self.exposure_duration.as_secs_f64(),
@@ -443,6 +443,10 @@ impl CameraDriver for FujifilmCamera {
             subframe: None,
             readout_mode: None,
             vendor_data: VendorFeatures::default(),
+            camera_file: Some(skotiq_device::CameraFile {
+                file_name: "frame.RAF".to_string(),
+                bytes: std::sync::Arc::new(buffer),
+            }),
         };
 
         Ok(ImageData {

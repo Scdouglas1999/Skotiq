@@ -782,7 +782,7 @@ class _SaveFitsBackend extends DisconnectedBackend {
       );
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
@@ -790,6 +790,7 @@ class _SaveFitsBackend extends DisconnectedBackend {
     calls++;
     this.filePath = filePath;
     parentExistedAtSave = File(filePath).parent.existsSync();
+    return filePath;
   }
 }
 

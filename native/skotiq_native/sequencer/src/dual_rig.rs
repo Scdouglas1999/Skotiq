@@ -480,6 +480,8 @@ pub struct SecondaryFrameMeta {
     /// Base directory the primary is saving into. The secondary saves into a
     /// `<base>/<rig_label>/` subfolder so the two rigs' subs never collide.
     pub save_base: Option<std::path::PathBuf>,
+    /// What a frame from a camera that delivers its own file is saved as.
+    pub camera_file_saving: crate::CameraFileSaving,
 }
 
 impl SecondaryRig {
@@ -781,10 +783,15 @@ async fn capture_secondary_frame(
     let full_path = save_dir.join(&file_name);
     let path_str = full_path.to_string_lossy().to_string();
 
-    device_ops
-        .save_fits(&image, &path_str, &ctx)
-        .await
-        .map_err(|e| format!("save_fits failed: {e}"))?;
+    let path_str = crate::device_ops::save_frame(
+        device_ops.as_ref(),
+        &image,
+        &path_str,
+        &ctx,
+        meta.camera_file_saving,
+    )
+    .await
+    .map_err(|e| format!("saving the frame failed: {e}"))?;
 
     tracing::info!(
         "Secondary rig '{}' saved frame {} -> {}",

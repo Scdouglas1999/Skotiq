@@ -154,6 +154,7 @@ void main() {
     ).thenAnswer((invocation) async {
       final path = invocation.namedArguments[#filePath] as String;
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
     });
   });
 

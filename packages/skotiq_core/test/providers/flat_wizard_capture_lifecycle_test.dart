@@ -616,7 +616,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
       _image(_onTargetAdu);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
@@ -627,6 +627,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
     }
     saveCount++;
     savedPaths.add(filePath);
+    return filePath;
   }
 }
 
@@ -725,12 +726,13 @@ class _AutoNetworkBackend extends Mock implements NetworkBackend {
       _image(_onTargetAdu);
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
   }) async {
     savedPaths.add(filePath);
+    return filePath;
   }
 
   @override

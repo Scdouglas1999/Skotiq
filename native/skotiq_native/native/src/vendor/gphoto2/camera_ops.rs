@@ -445,12 +445,19 @@ impl CameraDriver for GPhoto2Camera {
         }
 
         let raw_bytes = self.download_from_camera(&sdk)?;
+        let file_name = self
+            .last_capture_path
+            .as_ref()
+            .map(|path| cstr_from_array(&path.name))
+            .unwrap_or_default();
 
         self.exposure_state = ExposureState::Idle;
         self.last_capture_path = None;
 
-        // Decode the RAW file to 16-bit image data
-        self.decode_raw_to_image_data(&raw_bytes)
+        self.decode_raw_to_image_data(skotiq_device::CameraFile {
+            file_name,
+            bytes: std::sync::Arc::new(raw_bytes),
+        })
     }
 
     async fn set_cooler(

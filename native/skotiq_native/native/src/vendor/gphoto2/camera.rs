@@ -1103,8 +1103,9 @@ impl GPhoto2Camera {
     /// (`skotiq_imaging::read_raw_bytes`), never a demosaiced RGB rendering.
     pub(crate) fn decode_raw_to_image_data(
         &mut self,
-        raw_bytes: &[u8],
+        camera_file: skotiq_device::CameraFile,
     ) -> Result<ImageData, DriverError> {
+        let raw_bytes = camera_file.bytes.as_slice();
         // Detect the RAW format from magic bytes. If it is NOT a recognised
         // RAW (i.e. the body handed us a JPEG because it is in JPEG-only mode),
         // fail with an actionable message instead of feeding JPEG to LibRaw's
@@ -1140,7 +1141,7 @@ impl GPhoto2Camera {
             extension,
         );
 
-        let bayer_pattern = crate::camera_core::mosaic_bayer_pattern(&frame.cfa);
+        let bayer_pattern = Some(crate::camera_core::mosaic_bayer_pattern(&frame.cfa));
         let skotiq_imaging::RawFrame {
             width,
             height,
@@ -1192,6 +1193,16 @@ impl GPhoto2Camera {
                     },
                     ..Default::default()
                 },
+                camera_file: Some(skotiq_device::CameraFile {
+                    // A body that names no file still gets the extension its
+                    // bytes are in.
+                    file_name: if camera_file.extension().is_some() {
+                        camera_file.file_name.clone()
+                    } else {
+                        format!("frame.{extension}")
+                    },
+                    bytes: camera_file.bytes.clone(),
+                }),
             },
         })
     }

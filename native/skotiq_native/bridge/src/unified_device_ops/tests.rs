@@ -123,6 +123,7 @@ impl CameraDriver for InstantCompleteCamera {
                 subframe: None,
                 readout_mode: None,
                 vendor_data: VendorFeatures::default(),
+                camera_file: None,
             },
         })
     }

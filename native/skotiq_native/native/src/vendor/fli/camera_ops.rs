@@ -247,6 +247,7 @@ impl CameraDriver for FliCamera {
             subframe: self.subframe.clone(),
             readout_mode: None,
             vendor_data: VendorFeatures::default(),
+            camera_file: None,
         };
 
         self.state = CameraState::Idle;

@@ -484,7 +484,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
           // Call native FITS save API
           // Note: This uses the raw data still in memory on the Rust side
-          await _saveFitsFile(
+          final recordedPath = await _saveFitsFile(
             backend: backend,
             deviceId: deviceId,
             filePath: savedFilePath,
@@ -492,7 +492,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             targetName: targetName,
             timestamp: observationStartedAt,
           );
-          if (!_hasBackendAuthority(backend)) return null;
+          if (recordedPath == null || !_hasBackendAuthority(backend)) {
+            return null;
+          }
+          savedFilePath = recordedPath;
 
           imageData = imageData.copyWith(filePath: savedFilePath);
           final currentPreview = _ref.read(currentImageProvider);

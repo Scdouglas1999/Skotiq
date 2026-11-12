@@ -104,7 +104,7 @@ pub use lifecycle::StopOrigin;
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;
-pub use run_config::{RunConfig, RunConfigStore};
+pub use run_config::{CameraFileSaving, RunConfig, RunConfigStore};
 use run_config::{RunStaging, SkyFeed};
 pub(crate) use run_state::{RunCell, RunControl};
 use trigger_context::*;

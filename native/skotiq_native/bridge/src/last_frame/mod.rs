@@ -21,6 +21,8 @@ pub(crate) struct RawFrame {
     /// `None` for a monochrome sensor.
     pub bayer_pattern: Option<BayerPattern>,
     pub exposure: ExposureRecord,
+    /// The camera's own file for the frame, when it delivered one.
+    pub camera_file: Option<skotiq_device::CameraFile>,
 }
 
 /// What the camera layer recorded about the exposure behind a frame: the
@@ -42,7 +44,7 @@ impl RawFrame {
     /// The frame as the sequencer's device layer hands frames around, for
     /// the code a manual save shares with a sequence's.
     pub(crate) fn into_image_data(self) -> skotiq_sequencer::ImageData {
-        let (sensor_type, bayer_offset) = sensor_type_and_offset(self.bayer_pattern);
+        let sensor_type = sensor_type(self.bayer_pattern.as_ref());
         skotiq_sequencer::ImageData {
             width: self.width,
             height: self.height,
@@ -55,27 +57,15 @@ impl RawFrame {
             filter: None,
             timestamp: self.exposure.started_at.timestamp(),
             sensor_type,
-            bayer_offset,
+            color_filter: self.bayer_pattern,
+            camera_file: self.camera_file,
         }
     }
 }
 
-/// The sequencer's `ImageData` names the color filter by its offset.
-pub(crate) fn sensor_type_and_offset(
-    pattern: Option<BayerPattern>,
-) -> (Option<String>, Option<(i32, i32)>) {
-    match pattern {
-        Some(pattern) => {
-            let offset = match pattern {
-                BayerPattern::Rggb => (0, 0),
-                BayerPattern::Grbg => (1, 0),
-                BayerPattern::Gbrg => (0, 1),
-                BayerPattern::Bggr => (1, 1),
-            };
-            (Some("Color".to_string()), Some(offset))
-        }
-        None => (Some("Monochrome".to_string()), None),
-    }
+/// The sequencer's `ImageData` sensor type for a frame's color filter.
+pub(crate) fn sensor_type(pattern: Option<&BayerPattern>) -> Option<String> {
+    Some(if pattern.is_some() { "Color" } else { "Monochrome" }.to_string())
 }
 
 /// One camera's last frame: what the screens draw, and the samples it was

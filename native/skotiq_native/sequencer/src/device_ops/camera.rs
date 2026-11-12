@@ -18,8 +18,25 @@ pub struct ImageData {
     pub timestamp: i64,
     /// Sensor type: "Monochrome" or "Color"
     pub sensor_type: Option<String>,
-    /// Bayer pattern offset (X, Y) - determines actual pattern based on offsets
-    pub bayer_offset: Option<(i32, i32)>,
+    /// The color filter at the frame's pixel (0, 0); `None` for a mono frame.
+    pub color_filter: Option<skotiq_device::BayerPattern>,
+    /// The camera's own file for this frame (a DSLR's raw file), when it
+    /// delivered one.
+    pub camera_file: Option<skotiq_device::CameraFile>,
+}
+
+impl ImageData {
+    /// The 2x2 Bayer cell for the previews that demosaic a frame; `None` for
+    /// a mono frame and for X-Trans, which they show as luminance.
+    pub fn bayer_cell(&self) -> Option<skotiq_imaging::BayerPattern> {
+        match self.color_filter? {
+            skotiq_device::BayerPattern::Rggb => Some(skotiq_imaging::BayerPattern::RGGB),
+            skotiq_device::BayerPattern::Grbg => Some(skotiq_imaging::BayerPattern::GRBG),
+            skotiq_device::BayerPattern::Gbrg => Some(skotiq_imaging::BayerPattern::GBRG),
+            skotiq_device::BayerPattern::Bggr => Some(skotiq_imaging::BayerPattern::BGGR),
+            skotiq_device::BayerPattern::XTrans(_) => None,
+        }
+    }
 }
 
 /// Binned-pixel camera ROI used for one exposure.

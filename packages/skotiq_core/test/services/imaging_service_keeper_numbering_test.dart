@@ -171,6 +171,7 @@ void main() {
       final path = invocation.namedArguments[#filePath] as String;
       writtenPaths.add(path);
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
     });
   });
 

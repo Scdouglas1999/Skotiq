@@ -421,6 +421,7 @@ impl CameraDriver for QhyCamera {
                 subframe: None, // Need to track this
                 readout_mode: None,
                 vendor_data,
+                camera_file: None,
             },
         })
     }

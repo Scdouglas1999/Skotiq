@@ -1,7 +1,6 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
-
   @override
   Future<List<EquipmentProfile>> getProfiles() async {
     final response = await _get('profiles');
@@ -1163,7 +1162,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> saveFitsFromLastCapture({
+  Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,
     required FitsWriteHeader headerData,
@@ -1210,8 +1209,15 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
         );
       }
 
-      // Consume response body to complete the request
-      await response.transform(utf8.decoder).join();
+      final reply = jsonDecode(await response.transform(utf8.decoder).join());
+      final saved = reply is Map ? reply['path'] : null;
+      if (saved is! String || saved.isEmpty) {
+        throw const IoException(
+          message: 'imaging/save-fits-from-capture returned no saved path',
+          userMessage: 'The host saved the frame but did not say where',
+        );
+      }
+      return saved;
     });
   }
 

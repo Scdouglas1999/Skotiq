@@ -85,7 +85,8 @@ fn seq_frame(width: u32, height: u32) -> SeqImageData {
         filter: None,
         timestamp: 0,
         sensor_type: None,
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -205,6 +206,7 @@ async fn a_manual_frame_with_no_rig_connected_writes_these_cards() {
             height: 8,
             data: vec![1000; 64],
             bayer_pattern: Some(skotiq_device::BayerPattern::Gbrg),
+            camera_file: None,
             exposure: crate::last_frame::ExposureRecord {
                 started_at: at("2026-03-14T03:21:09.250Z"),
                 exposure_secs: 60.0,
@@ -504,3 +506,101 @@ const MANUAL_NO_RIG: &[&str] = &[
     "SITEELEV=                 50.0",
     "END",
 ];
+
+/// A frame from a camera that delivers its own file (a DSLR's raw file) is
+/// saved as the camera-file setting says. With "both" the FITS file's header
+/// is card for card the one a FITS-only save writes, and the camera's file
+/// sits beside it byte for byte; with "camera" only the camera's file is
+/// written and it is the path the frame is recorded by.
+#[tokio::test]
+async fn a_camera_file_is_kept_beside_an_identical_fits_file() {
+    let device_id = "golden_camera_file";
+    let camera_bytes = b"II*\0 bytes exactly as the camera wrote them".to_vec();
+    let store = || async {
+        crate::last_frame::store(
+            device_id,
+            crate::last_frame::RawFrame {
+                width: 8,
+                height: 8,
+                data: vec![1000; 64],
+                bayer_pattern: Some(skotiq_device::BayerPattern::Rggb),
+                camera_file: Some(skotiq_device::CameraFile {
+                    file_name: "IMG_0042.CR3".to_string(),
+                    bytes: std::sync::Arc::new(camera_bytes.clone()),
+                }),
+                exposure: crate::last_frame::ExposureRecord {
+                    started_at: at("2026-03-14T03:21:09.250Z"),
+                    exposure_secs: 30.0,
+                    gain: Some(800),
+                    offset: None,
+                    temperature: Some(21.0),
+                    bits_per_pixel: 14,
+                },
+            },
+            30.0,
+        )
+        .await
+        .expect("store frame");
+    };
+    let header = || crate::api::FitsWriteHeader {
+        object_name: Some("M31".to_string()),
+        exposure_time: 30.0,
+        frame_type: "Light".to_string(),
+        filter: None,
+        gain: Some(800),
+        offset: None,
+        bin_x: 1,
+        bin_y: 1,
+        telescope: None,
+        instrument: Some("Canon EOS R6".to_string()),
+        observer: None,
+        focal_length: None,
+        aperture: None,
+        site_latitude: None,
+        site_longitude: None,
+        site_elevation: None,
+        mount_id: Some("golden_absent_mount".to_string()),
+        focuser_id: None,
+        filter_wheel_id: None,
+        rotator_id: None,
+    };
+    let save = |path: String| async move {
+        crate::api::api_save_fits_from_last_capture(device_id.to_string(), path, header()).await
+    };
+    let scratch = Scratch::new("camera_file");
+    let fits_only = scratch.file("fits_only.fits");
+    let both = scratch.file("both.fits");
+    let camera_only = scratch.file("camera_only.fits");
+
+    store().await;
+    crate::api::api_sequencer_set_camera_file_saving("converted".to_string()).await.unwrap();
+    let recorded_fits_only = save(fits_only.clone()).await;
+    crate::api::api_sequencer_set_camera_file_saving("both".to_string()).await.unwrap();
+    let recorded_both = save(both.clone()).await;
+    crate::api::api_sequencer_set_camera_file_saving("camera".to_string()).await.unwrap();
+    let recorded_camera_only = save(camera_only.clone()).await;
+    crate::api::api_sequencer_set_camera_file_saving("converted".to_string()).await.unwrap();
+    crate::last_frame::clear(device_id).await;
+
+    assert_eq!(recorded_fits_only.unwrap(), fits_only);
+    assert!(!std::path::Path::new(&fits_only.replace(".fits", ".CR3")).exists());
+
+    assert_eq!(recorded_both.unwrap(), both);
+    assert_eq!(std::fs::read(both.replace(".fits", ".CR3")).unwrap(), camera_bytes);
+    // DATE is when the file was written; the pointing is whatever mount the
+    // process has, read at each save.
+    let varying = ["DATE", "RA", "OBJCTRA", "DEC", "OBJCTDEC", "OBJCTALT", "AIRMASS", "EQUINOX", "RADESYS"];
+    let cards = |path: &str| -> Vec<String> {
+        header_cards(path)
+            .into_iter()
+            .filter(|card| !varying.contains(&card[..card.len().min(8)].trim_end()))
+            .collect()
+    };
+    assert_eq!(cards(&both), cards(&fits_only));
+    assert!(cards(&both).iter().any(|card| card.starts_with("BAYERPAT= 'RGGB")));
+
+    let camera_path = camera_only.replace(".fits", ".CR3");
+    assert_eq!(recorded_camera_only.unwrap(), camera_path);
+    assert_eq!(std::fs::read(&camera_path).unwrap(), camera_bytes);
+    assert!(!std::path::Path::new(&camera_only).exists());
+}

@@ -233,7 +233,8 @@ fn synthetic_star_field(width: u32, height: u32, count: usize, sigma: f64) -> Im
         filter: None,
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -294,7 +295,8 @@ fn star_detect_fixture(name: &str) -> ImageData {
         filter: Some("L".to_string()),
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 
@@ -382,7 +384,8 @@ fn donut_field(radius: f64) -> ImageData {
         filter: Some("L".to_string()),
         timestamp: 0,
         sensor_type: Some("Monochrome".to_string()),
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     }
 }
 

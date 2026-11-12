@@ -147,22 +147,6 @@ pub fn bayer_pattern_from_sensor(
     }
 }
 
-/// The FITS `BAYERPAT` spelling of a pattern.
-//
-// The only non-test caller is the `#[cfg(windows)]` ASCOM COM worker, so
-// off-Windows this is reached solely by the regression suite below; the allow
-// keeps the `-D warnings` gate green while the logic stays compiled and tested
-// everywhere.
-#[cfg_attr(not(windows), allow(dead_code))]
-pub fn bayer_pattern_fits_name(pattern: BayerPattern) -> &'static str {
-    match pattern {
-        BayerPattern::Rggb => "RGGB",
-        BayerPattern::Grbg => "GRBG",
-        BayerPattern::Gbrg => "GBRG",
-        BayerPattern::Bggr => "BGGR",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -283,7 +267,7 @@ mod tests {
         offset_y: Option<i32>,
     ) -> Option<String> {
         bayer_pattern_from_sensor(sensor_type, offset_x, offset_y)
-            .map(|pattern| bayer_pattern_fits_name(pattern).to_string())
+            .map(|pattern| pattern.fits_name())
     }
 
     /// The COM worker's adapter answers the same families the same way, and
@@ -411,14 +395,10 @@ mod tests {
         for (x, y) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
             let pattern =
                 bayer_pattern_from_sensor(2, Some(x), Some(y)).expect("offsets name a pattern");
-            let name = bayer_pattern_fits_name(pattern);
-            let back = match name {
-                "RGGB" => BayerPattern::Rggb,
-                "GRBG" => BayerPattern::Grbg,
-                "GBRG" => BayerPattern::Gbrg,
-                "BGGR" => BayerPattern::Bggr,
-                other => panic!("offsets ({x}, {y}) produced unmappable BAYERPAT {other}"),
-            };
+            let name = pattern.fits_name();
+            let back = BayerPattern::from_fits_name(&name).unwrap_or_else(|| {
+                panic!("offsets ({x}, {y}) produced unmappable BAYERPAT {name}")
+            });
             assert_eq!(back, pattern);
         }
     }

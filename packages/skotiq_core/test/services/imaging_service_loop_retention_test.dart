@@ -147,6 +147,7 @@ void main() {
       writtenPaths.add(path);
       // The real Rust save leaves a file behind; the DB insert path stats it.
       File(path).writeAsBytesSync(const <int>[0]);
+      return invocation.namedArguments[#filePath] as String;
     });
   });
 

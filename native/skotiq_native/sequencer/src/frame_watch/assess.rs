@@ -113,7 +113,8 @@ fn load_frame(path: &str) -> Result<ImageData, String> {
         filter: header.get_string("FILTER").map(|s| s.to_string()),
         timestamp: 0,
         sensor_type: None,
-        bayer_offset: None,
+        color_filter: None,
+        camera_file: None,
     })
 }
 
