@@ -102,6 +102,12 @@ crate::load_vendor_sdk! {
             => unsafe extern "C" fn(h_camera: XsdkHandle, p_data: *mut u8, l_data_size: c_ulong) -> c_long,
         delete_image: b"XSDK_DeleteImage\0"
             => unsafe extern "C" fn(h_camera: XsdkHandle) -> c_long,
+        get_buffer_capacity: b"XSDK_GetBufferCapacity\0"
+            => unsafe extern "C" fn(
+                h_camera: XsdkHandle,
+                pl_shoot_frame_num: *mut c_long,
+                pl_total_frame_num: *mut c_long,
+            ) -> c_long,
         cap_shutter_speed: b"XSDK_CapShutterSpeed\0"
             => unsafe extern "C" fn(
                 h_camera: XsdkHandle,
@@ -144,69 +150,74 @@ crate::load_vendor_sdk! {
     }
 }
 
-/// Map XSDK error codes to DriverError
-pub(crate) fn check_xapi_error(h_camera: XsdkHandle, sdk: &FujifilmSdk) -> Result<(), DriverError> {
+/// The error for an SDK call on `h_camera` that did not return
+/// `XSDK_COMPLETE`, from the SDK's last error number. `action` says what the
+/// driver was doing, in the words the user sees.
+pub(crate) fn sdk_error(h_camera: XsdkHandle, sdk: &FujifilmSdk, action: &str) -> DriverError {
+    let (api_code, err_code) = last_error(h_camera, sdk);
+    sdk_failure(action, api_code, err_code)
+}
+
+/// The SDK's last (API code, error number) for `h_camera`.
+pub(crate) fn last_error(h_camera: XsdkHandle, sdk: &FujifilmSdk) -> (c_long, c_long) {
     let mut api_code: c_long = 0;
     let mut err_code: c_long = 0;
     // SAFETY: the caller passes the table it just called through (this function is called only after a failed SDK call); `h_camera` is either a valid handle returned by XSDK_OpenEx or `std::ptr::null_mut()` (which XSDK_GetErrorNumber tolerates per XAPI.h for retrieving last init error); `&mut api_code` and `&mut err_code` are valid stack out-pointers to c_long.
     unsafe { (sdk.get_error_number)(h_camera, &mut api_code, &mut err_code) };
+    (api_code, err_code)
+}
 
-    match err_code {
-        XSDK_ERRCODE_NOERR => Ok(()),
+/// When `XSDK_Close` last returned. The Programming Reference (4.1.3.2,
+/// IMPORTANT NOTICE) requires 600 ms after a close before the SDK is used
+/// again; it is honored just before the next open, so a disconnect stays quick.
+static LAST_CLOSE: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+const CLOSE_SETTLE: Duration = Duration::from_millis(600);
 
-        // Sequence/parameter errors
-        XSDK_ERRCODE_SEQUENCE => Err(DriverError::SdkError("API call sequence error".into())),
-        XSDK_ERRCODE_PARAM => Err(DriverError::InvalidParameter("Invalid parameter".into())),
-        XSDK_ERRCODE_INVALID_CAMERA => Err(DriverError::NotConnected),
+pub(crate) fn close_camera(h_camera: XsdkHandle, sdk: &FujifilmSdk) {
+    // SAFETY: `h_camera` is a handle XSDK_OpenEx returned and nothing uses it after this call; XSDK_Close is the contractual release for XSDK_OpenEx per XAPI.h.
+    unsafe { (sdk.close)(h_camera) };
+    *LAST_CLOSE.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
+}
 
-        // SDK/hardware errors
-        XSDK_ERRCODE_LOADLIB => Ok(()), // Already initialized, recoverable
-        XSDK_ERRCODE_UNSUPPORTED => Err(DriverError::NotSupported),
-        XSDK_ERRCODE_BUSY => Err(DriverError::SdkError("Camera is busy".into())),
-        XSDK_ERRCODE_AF_TIMEOUT => Err(DriverError::Timeout("Autofocus timeout".into())),
-        XSDK_ERRCODE_SHOOT_ERROR => Err(DriverError::SdkError("Shooting error".into())),
-        XSDK_ERRCODE_FRAME_FULL => Err(DriverError::SdkError("Camera buffer full".into())),
-        XSDK_ERRCODE_STANDBY => Err(DriverError::SdkError("Camera in standby".into())),
-
-        // Driver/model errors
-        XSDK_ERRCODE_NODRIVER => Err(DriverError::SdkNotLoaded),
-        XSDK_ERRCODE_NO_MODEL_MODULE => {
-            Err(DriverError::SdkError("Model-specific DLL not found".into()))
-        }
-        XSDK_ERRCODE_API_NOTFOUND => Err(DriverError::NotSupported),
-        XSDK_ERRCODE_API_MISMATCH => Err(DriverError::SdkError("API version mismatch".into())),
-        XSDK_ERRCODE_INVALID_USBMODE => Err(DriverError::SdkError(
-            "Camera not in correct USB mode".into(),
-        )),
-        XSDK_ERRCODE_FORCEMODE_BUSY => Err(DriverError::SdkError(
-            "Force mode operation in progress".into(),
-        )),
-        XSDK_ERRCODE_RUNNING_OTHER_FUNCTION => {
-            Err(DriverError::SdkError("Another operation running".into()))
-        }
-
-        // Communication errors
-        XSDK_ERRCODE_COMMUNICATION => {
-            Err(DriverError::SdkError("USB/WiFi communication error".into()))
-        }
-        XSDK_ERRCODE_TIMEOUT => Err(DriverError::Timeout("Operation timeout".into())),
-        XSDK_ERRCODE_COMBINATION => Err(DriverError::InvalidParameter(
-            "Invalid parameter combination".into(),
-        )),
-        XSDK_ERRCODE_WRITEERROR => Err(DriverError::SdkError("Write error".into())),
-        XSDK_ERRCODE_CARDFULL => Err(DriverError::SdkError("Memory card full".into())),
-
-        // Hardware/internal errors
-        XSDK_ERRCODE_HARDWARE => Err(DriverError::SdkError("Camera hardware error".into())),
-        XSDK_ERRCODE_INTERNAL => Err(DriverError::SdkError("Internal SDK error".into())),
-        XSDK_ERRCODE_MEMFULL => Err(DriverError::SdkError("SDK memory allocation failed".into())),
-        XSDK_ERRCODE_UNKNOWN => Err(DriverError::SdkError("Unknown error".into())),
-
-        _ => Err(DriverError::SdkError(format!(
-            "XAPI error: API=0x{:04X}, ERR=0x{:08X}",
-            api_code, err_code
-        ))),
+pub(crate) fn wait_for_close_settle() {
+    let closed = *LAST_CLOSE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(remaining) = closed.and_then(|at| CLOSE_SETTLE.checked_sub(at.elapsed())) {
+        std::thread::sleep(remaining);
     }
+}
+
+/// Frames waiting in the camera's buffer, per `XSDK_GetBufferCapacity`.
+pub(crate) fn frames_in_buffer(
+    h_camera: XsdkHandle,
+    sdk: &FujifilmSdk,
+) -> Result<c_long, DriverError> {
+    let mut shot: c_long = 0;
+    let mut total: c_long = 0;
+    // SAFETY: `h_camera` is the connected XSDK handle; both out-pointers are valid stack c_long locals.
+    let result = unsafe { (sdk.get_buffer_capacity)(h_camera, &mut shot, &mut total) };
+    if result != XSDK_COMPLETE {
+        return Err(sdk_error(
+            h_camera,
+            sdk,
+            "reading the camera's image buffer",
+        ));
+    }
+    Ok(shot)
+}
+
+/// Delete every frame waiting in the camera's buffer (at most eight), so the
+/// next download cannot return a frame from an earlier exposure. Returns how
+/// many were deleted.
+pub(crate) fn discard_buffered_frames(h_camera: XsdkHandle, sdk: &FujifilmSdk) -> usize {
+    let mut discarded = 0;
+    while discarded < 8 && frames_in_buffer(h_camera, sdk).is_ok_and(|n| n > 0) {
+        // SAFETY: `h_camera` is the connected XSDK handle; XSDK_DeleteImage takes only the handle.
+        if unsafe { (sdk.delete_image)(h_camera) } != XSDK_COMPLETE {
+            break;
+        }
+        discarded += 1;
+    }
+    discarded
 }
 
 pub(crate) fn cstr_to_string(arr: &[c_char; 256]) -> String {

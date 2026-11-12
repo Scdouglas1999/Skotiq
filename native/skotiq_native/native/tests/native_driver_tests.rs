@@ -2290,7 +2290,8 @@ unsafe fn fill<const N:usize>(buf:&mut [c_char;N],text:&[u8]){for b in buf.iter_
 #[no_mangle] pub unsafe extern "C" fn XSDK_ReadImageInfo(_h:XsdkHandle,info:*mut XsdkImageInformation)->c_long{if info.is_null(){return -1;} (*info).l_format=7; (*info).l_data_size=0; (*info).l_image_pix_width=0; (*info).l_image_pix_height=0; (*info).l_image_bit_depth=0; 0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_ReadImage(_h:XsdkHandle,_data:*mut u8,_size:c_ulong)->c_long{0}
 #[no_mangle] pub extern "C" fn XSDK_DeleteImage(_h:XsdkHandle)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_CapShutterSpeed(_h:XsdkHandle,num:*mut c_long,speeds:*mut c_long,bulb:*mut c_long)->c_long{if !num.is_null(){*num=3;} if !speeds.is_null(){*speeds.add(0)=-1; *speeds.add(1)=1000; *speeds.add(2)=500;} if !bulb.is_null(){*bulb=1;} 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_GetBufferCapacity(_h:XsdkHandle,shot:*mut c_long,total:*mut c_long)->c_long{if !shot.is_null(){*shot=0;} if !total.is_null(){*total=0;} 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_CapShutterSpeed(_h:XsdkHandle,num:*mut c_long,speeds:*mut c_long,bulb:*mut c_long)->c_long{if !num.is_null(){*num=3;} if !speeds.is_null(){*speeds.add(0)=-1; *speeds.add(1)=9843; *speeds.add(2)=976;} if !bulb.is_null(){*bulb=0;} 0}
 #[no_mangle] pub extern "C" fn XSDK_SetShutterSpeed(_h:XsdkHandle,_speed:c_long,_bulb:c_long)->c_long{0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_CapSensitivity(_h:XsdkHandle,num:*mut c_long,values:*mut c_long)->c_long{if !num.is_null(){*num=5;} if !values.is_null(){for (i,v) in [100,200,400,800,1600].iter().enumerate(){*values.add(i)=*v;}} 0}
 #[no_mangle] pub extern "C" fn XSDK_SetSensitivity(_h:XsdkHandle,value:c_long)->c_long{ISO.store(value as i32,Ordering::SeqCst);0}
