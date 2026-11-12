@@ -172,7 +172,7 @@ impl CameraOps for UnifiedDeviceOps {
             // driver that cannot answer its own status must not cost us the
             // frame, so failure just leaves the validator on the frame's own
             // clipping evidence.
-            let sensor_max_adu = match api_get_camera_status(camera_id.to_string()).await {
+            let sensor_max_adu = match get_camera_status(camera_id.to_string()).await {
                 Ok(status) => Some(status.max_adu).filter(|&max_adu| max_adu > 0),
                 Err(e) => {
                     tracing::debug!(
@@ -309,13 +309,13 @@ impl CameraOps for UnifiedDeviceOps {
         );
 
         // `DeviceManager::camera_set_cooler` publishes the cooling event.
-        api_set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
+        set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
             .await
             .map_err(|e| format!("Cooler control failed: {}", e).into())
     }
 
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = api_get_camera_status(camera_id.to_string())
+        let status = get_camera_status(camera_id.to_string())
             .await
             .map_err(|e| format!("Failed to get camera status: {}", e))?;
 
@@ -325,7 +325,7 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = api_get_camera_status(camera_id.to_string())
+        let status = get_camera_status(camera_id.to_string())
             .await
             .map_err(|e| format!("Failed to get camera status: {}", e))?;
 
@@ -335,21 +335,21 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
-        let status = api_get_camera_status(camera_id.to_string())
+        let status = get_camera_status(camera_id.to_string())
             .await
             .map_err(|e| format!("Failed to get camera status: {}", e))?;
         Ok(Some(status.cooler_on))
     }
 
     async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
-        let status = api_get_camera_status(camera_id.to_string())
+        let status = get_camera_status(camera_id.to_string())
             .await
             .map_err(|e| format!("Failed to get camera status: {}", e))?;
         Ok(status.target_temp.filter(|_| status.cooler_on))
     }
 
     async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
-        let status = api_get_camera_status(camera_id.to_string())
+        let status = get_camera_status(camera_id.to_string())
             .await
             .map_err(|e| format!("Failed to get camera status: {}", e))?;
 

@@ -8,24 +8,41 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Sync mount to coordinates
-Future<void> mountSync({
+/// Get mount status
+Future<MountStatus> apiGetMountStatus({required String deviceId}) => RustLib
+    .instance
+    .api
+    .crateApiDevicesMountApiGetMountStatus(deviceId: deviceId);
+
+/// Slew mount to coordinates
+Future<void> apiMountSlewToCoordinates({
   required String deviceId,
   required double ra,
   required double dec,
-}) => RustLib.instance.api.crateApiDevicesMountMountSync(
+}) => RustLib.instance.api.crateApiDevicesMountApiMountSlewToCoordinates(
   deviceId: deviceId,
   ra: ra,
   dec: dec,
 );
 
-/// Park mount
-Future<void> mountPark({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesMountMountPark(deviceId: deviceId);
+/// Sync mount to coordinates
+Future<void> apiMountSyncToCoordinates({
+  required String deviceId,
+  required double ra,
+  required double dec,
+}) => RustLib.instance.api.crateApiDevicesMountApiMountSyncToCoordinates(
+  deviceId: deviceId,
+  ra: ra,
+  dec: dec,
+);
 
-/// Unpark mount
-Future<void> mountUnpark({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesMountMountUnpark(deviceId: deviceId);
+/// Park the mount
+Future<void> apiMountPark({required String deviceId}) =>
+    RustLib.instance.api.crateApiDevicesMountApiMountPark(deviceId: deviceId);
+
+/// Unpark the mount
+Future<void> apiMountUnpark({required String deviceId}) =>
+    RustLib.instance.api.crateApiDevicesMountApiMountUnpark(deviceId: deviceId);
 
 /// Abort mount slew
 Future<void> mountAbort({required String deviceId}) =>
@@ -37,10 +54,10 @@ Future<void> mountAbort({required String deviceId}) =>
 /// is told before the mount stops: it pauses instead of reading the stop as
 /// the mount's tracking limit. The run's own commands go through device ops,
 /// not this call.
-Future<void> mountSetTracking({
+Future<void> apiMountSetTracking({
   required String deviceId,
   required int enabled,
-}) => RustLib.instance.api.crateApiDevicesMountMountSetTracking(
+}) => RustLib.instance.api.crateApiDevicesMountApiMountSetTracking(
   deviceId: deviceId,
   enabled: enabled,
 );
@@ -54,20 +71,16 @@ Future<void> mountSetTrackingRate({
   rate: rate,
 );
 
-/// Pulse guide mount
-Future<void> mountPulseGuide({
+/// Pulse guide the mount in a direction for a duration
+Future<void> apiMountPulseGuide({
   required String deviceId,
   required String direction,
   required int durationMs,
-}) => RustLib.instance.api.crateApiDevicesMountMountPulseGuide(
+}) => RustLib.instance.api.crateApiDevicesMountApiMountPulseGuide(
   deviceId: deviceId,
   direction: direction,
   durationMs: durationMs,
 );
-
-/// Get mount status
-Future<MountStatus> mountGetStatus({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesMountMountGetStatus(deviceId: deviceId);
 
 /// Move mount axis at specified rate (degrees/second)
 /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)

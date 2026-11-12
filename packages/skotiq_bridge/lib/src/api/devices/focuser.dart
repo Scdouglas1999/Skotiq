@@ -3,10 +3,35 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import '../../device.dart';
 import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+/// Get focuser status
+Future<FocuserStatus> apiGetFocuserStatus({required String deviceId}) => RustLib
+    .instance
+    .api
+    .crateApiDevicesFocuserApiGetFocuserStatus(deviceId: deviceId);
+
+/// Move focuser to position
+Future<void> apiFocuserMoveTo({
+  required String deviceId,
+  required int position,
+}) => RustLib.instance.api.crateApiDevicesFocuserApiFocuserMoveTo(
+  deviceId: deviceId,
+  position: position,
+);
+
+/// Move focuser by relative amount
+Future<void> apiFocuserMoveRelative({
+  required String deviceId,
+  required int delta,
+}) => RustLib.instance.api.crateApiDevicesFocuserApiFocuserMoveRelative(
+  deviceId: deviceId,
+  delta: delta,
+);
+
 /// Halt focuser
-Future<void> focuserHalt({required String deviceId}) =>
-    RustLib.instance.api.crateApiDevicesFocuserFocuserHalt(deviceId: deviceId);
+Future<void> apiFocuserHalt({required String deviceId}) => RustLib.instance.api
+    .crateApiDevicesFocuserApiFocuserHalt(deviceId: deviceId);
