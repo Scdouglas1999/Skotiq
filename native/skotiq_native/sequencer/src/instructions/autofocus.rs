@@ -29,7 +29,7 @@ pub(crate) async fn notify_autofocus_failed_continuing(
     result: &InstructionResult,
     position_before: Option<i32>,
 ) {
-    let notice = record_autofocus_failed_continuing(
+    let line = record_autofocus_failed_continuing(
         ctx,
         source,
         serde_json::json!({ "node_id": ctx.node_id }),
@@ -37,9 +37,9 @@ pub(crate) async fn notify_autofocus_failed_continuing(
         position_before,
     )
     .await;
-    tracing::warn!("{}", notice);
+    tracing::warn!("{}", line.message);
     if let Some(event_tx) = &ctx.run.event_tx {
-        let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message: notice });
+        let _ = event_tx.send(line.into_event());
     }
 }
 
@@ -47,14 +47,14 @@ pub(crate) async fn notify_autofocus_failed_continuing(
 /// while imaging carries on, the row the app raises its "Autofocus failed —
 /// continuing" notification from, with the fields of `context` added to its
 /// details. Every autofocus that carries on records it here, once. Returns
-/// the operator's notice.
+/// the run's warning line for it, which carries the row's notice.
 pub(crate) async fn record_autofocus_failed_continuing(
     ctx: &InstructionContext,
     source: &str,
     context: serde_json::Value,
     result: &InstructionResult,
     position_before: Option<i32>,
-) -> String {
+) -> crate::executor::NoticeLine {
     let position_after = read_autofocus_position(ctx).await;
     let origin_restored = result
         .data
@@ -75,8 +75,9 @@ pub(crate) async fn record_autofocus_failed_continuing(
         position_after,
         origin_restored,
     );
-    ctx.run.emit_decision(continuation.decision);
-    continuation.operator_message
+    let (decision, line) = continuation.split();
+    ctx.run.emit_decision(decision);
+    line
 }
 
 /// Process-wide hardware admission for autofocus. Every entry path ultimately

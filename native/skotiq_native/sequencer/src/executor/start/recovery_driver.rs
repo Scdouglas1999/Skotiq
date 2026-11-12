@@ -947,12 +947,10 @@ async fn continue_unguided(c: UnguidedContinuation<'_>) {
             "imaging_unguided": true,
         }),
     );
-    let mut decision = continuation.decision;
+    let (mut decision, line) = continuation.split();
     decision.sequence_run_id = c.active_run_id;
     let _ = c.decision_tx.send(decision);
-    let _ = c.event_tx.send(ExecutorEvent::Warning {
-        message: continuation.operator_message,
-    });
+    let _ = c.event_tx.send(line.into_event());
 
     // Same ordering as a recovery that succeeded: the generation advances
     // before the node tree is released.
@@ -1280,7 +1278,10 @@ mod tests {
             loop {
                 match event_rx.recv().await {
                     Ok(ExecutorEvent::Error { message }) => errors.push(message),
-                    Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                    Ok(
+                        ExecutorEvent::Warning { message }
+                        | ExecutorEvent::NoticedWarning { message, .. },
+                    ) => warnings.push(message),
                     Ok(ExecutorEvent::RecoveryGaveUp { context, .. })
                     | Ok(ExecutorEvent::RecoveryCompleted { context }) => {
                         ended_as = Some(context.cause.clone());

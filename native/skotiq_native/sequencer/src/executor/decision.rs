@@ -77,8 +77,12 @@ impl SequenceExecutor {
     /// check the return value — the persistence subscriber is the
     /// source of truth and a lost broadcast slot is recovered on the
     /// next emit.
+    ///
+    /// A row with a notice goes out with logging off too: the app raises the
+    /// operator's notification from it, and the warning that goes with it is
+    /// never toasted on its own.
     pub fn emit_decision(&self, mut event: crate::decision::DecisionEvent) -> bool {
-        if !self.decision_logging_enabled() {
+        if event.notice.is_none() && !self.decision_logging_enabled() {
             return false;
         }
         if event.sequence_run_id.is_none() {

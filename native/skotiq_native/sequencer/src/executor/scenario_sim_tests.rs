@@ -2360,7 +2360,8 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
         while let Ok(event) = events.try_recv() {
             match event {
                 super::ExecutorEvent::TriggerFired { trigger_id, .. } => fired.push(trigger_id),
-                super::ExecutorEvent::Warning { message } => warnings.push(message),
+                super::ExecutorEvent::Warning { message }
+                | super::ExecutorEvent::NoticedWarning { message, .. } => warnings.push(message),
                 _ => {}
             }
         }
@@ -2369,7 +2370,9 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
     // Long enough for a recovery to have frozen the run, as it did on the rig.
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }
@@ -2433,7 +2436,9 @@ async fn a_transparency_drop_with_no_backup_plan_notifies_and_keeps_imaging() {
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
     while warnings.is_empty() && tokio::time::Instant::now() < deadline {
         while let Ok(event) = events.try_recv() {
-            if let super::ExecutorEvent::Warning { message } = event {
+            if let super::ExecutorEvent::Warning { message }
+            | super::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 if message.starts_with("Transparency Dropped") {
                     warnings.push(message);
                 }
@@ -2978,7 +2983,9 @@ fn retry_warnings(
 ) -> Vec<String> {
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             if message.contains("Retrying in") {
                 warnings.push(message);
             }
@@ -3397,7 +3404,9 @@ async fn a_stale_unsafe_verdict_is_set_aside_under_fail_open() {
     let _ = executor.stop().await;
     let mut warnings = Vec::new();
     while let Ok(event) = events.try_recv() {
-        if let super::ExecutorEvent::Warning { message } = event {
+        if let super::ExecutorEvent::Warning { message }
+        | super::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warnings.push(message);
         }
     }

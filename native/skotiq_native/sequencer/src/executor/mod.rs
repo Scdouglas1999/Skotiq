@@ -58,9 +58,8 @@ const DEFAULT_SAFETY_CHECK_INTERVAL_SECS: u64 = 30;
 /// converge and the run carries on at the pre-autofocus position: a trigger's
 /// refocus, an Autofocus node, a recovery node's refocus, an exposure trigger's
 /// refocus and the post-flip refocus all write it. The app raises its
-/// "Autofocus failed — continuing" notification from this row, so the Replay
-/// screen's copy, the notification and the tests that pin the policy cannot
-/// drift apart.
+/// "Autofocus failed — continuing" notification from the row's
+/// [`crate::decision::RunNotice::AutofocusContinued`].
 pub const AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY: &str =
     "Autofocus failed — continuing with last-good focus";
 
@@ -487,14 +486,57 @@ pub(crate) fn autofocus_trigger_unguided_hold(
     }
 }
 
-/// What the run records and tells the operator when an autofocus does not
-/// converge and imaging continues.
-pub(crate) struct AutofocusTriggerContinuation {
-    /// Replay row (`SystemEvent`) naming the focus the run decided to keep. The
-    /// app's "Autofocus failed — continuing" notification is raised from it.
+/// What the run records and tells the operator about a happening it carries
+/// on through: an autofocus that did not converge, a quality problem.
+pub(crate) struct ContinuedHappening {
+    /// Replay row (`SystemEvent`) the app raises the notification from; it
+    /// carries the notice.
     pub(crate) decision: crate::decision::DecisionEvent,
     /// One-line notice for the run's warnings.
     pub(crate) operator_message: String,
+    notice: crate::decision::RunNotice,
+}
+
+/// The run's warning line for a continued happening, marked with the notice its
+/// decision row carries so the app lists it without telling it a second time.
+pub(crate) struct NoticeLine {
+    notice: crate::decision::RunNotice,
+    pub(crate) message: String,
+}
+
+impl NoticeLine {
+    pub(crate) fn into_event(self) -> ExecutorEvent {
+        ExecutorEvent::NoticedWarning {
+            notice: self.notice,
+            message: self.message,
+        }
+    }
+}
+
+impl ContinuedHappening {
+    fn new(
+        notice: crate::decision::RunNotice,
+        decision: crate::decision::DecisionEvent,
+        operator_message: String,
+    ) -> Self {
+        Self {
+            decision: decision.with_notice(notice),
+            operator_message,
+            notice,
+        }
+    }
+
+    /// The decision row and the warning line, to be sent where the run sends
+    /// each.
+    pub(crate) fn split(self) -> (crate::decision::DecisionEvent, NoticeLine) {
+        (
+            self.decision,
+            NoticeLine {
+                notice: self.notice,
+                message: self.operator_message,
+            },
+        )
+    }
 }
 
 /// The continuation record for any autofocus that did not converge while the
@@ -508,7 +550,7 @@ pub(crate) fn autofocus_failure_continuation(
     position_before: Option<i32>,
     position_after: Option<i32>,
     origin_restored: Option<bool>,
-) -> AutofocusTriggerContinuation {
+) -> ContinuedHappening {
     let mut details = serde_json::json!({
         "source": source,
         "reason": reason,
@@ -545,23 +587,21 @@ pub(crate) fn autofocus_failure_continuation(
         ),
     };
 
-    AutofocusTriggerContinuation {
+    ContinuedHappening::new(
+        crate::decision::RunNotice::AutofocusContinued,
         decision,
         operator_message,
-    }
+    )
 }
 
 /// Summary of the decision row written when the software judged something bad
 /// — guiding, pointing or settling — and the run carried on because the
 /// operator has not asked it to stop for that. The app raises its "Problem
-/// noticed — the run continues" notification from this row and matches the
-/// text verbatim.
+/// noticed — the run continues" notification from the row's
+/// [`crate::decision::RunNotice::ProblemNoticed`].
 pub const QUALITY_PROBLEM_CONTINUED_SUMMARY: &str = "Problem noticed — the run continues";
 
-/// How the run's Warning for such a problem ends. The app raises the problem's
-/// notice from the decision row and lists the Warning with the run's warnings,
-/// so it does not toast a Warning ending in these words a second time; it
-/// matches the text verbatim.
+/// How the run's Warning for such a problem ends.
 pub const QUALITY_PROBLEM_CONTINUES_NOTE: &str = "The run continues. To have problems like this \
      stop the run instead, turn on Stop the run for quality problems in Settings > Sequencer.";
 
@@ -574,7 +614,7 @@ pub(crate) fn quality_problem_continuation(
     source: &str,
     problem: &str,
     context: serde_json::Value,
-) -> AutofocusTriggerContinuation {
+) -> ContinuedHappening {
     let mut details = serde_json::json!({
         "source": source,
         "problem": problem,
@@ -583,14 +623,15 @@ pub(crate) fn quality_problem_continuation(
     {
         details.extend(context);
     }
-    AutofocusTriggerContinuation {
-        decision: crate::decision::DecisionEvent::new(
+    ContinuedHappening::new(
+        crate::decision::RunNotice::ProblemNoticed,
+        crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::SystemEvent,
             QUALITY_PROBLEM_CONTINUED_SUMMARY.to_string(),
             details,
         ),
-        operator_message: format!("{source}: {problem} {QUALITY_PROBLEM_CONTINUES_NOTE}"),
-    }
+        format!("{source}: {problem} {QUALITY_PROBLEM_CONTINUES_NOTE}"),
+    )
 }
 
 #[cfg(test)]

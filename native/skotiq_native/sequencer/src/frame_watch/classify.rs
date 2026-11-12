@@ -23,7 +23,7 @@
 //!   graded as usual.
 
 use super::config::{FrameWatchConfig, HorizonPoint};
-use crate::quality::{filter_baseline_key, FilterBaseline};
+use crate::quality::{filter_baseline_key, FilterBaseline, RejectReason};
 use std::collections::{HashMap, VecDeque};
 
 /// A frame keeping less than this fraction of its baseline's stars collapsed.
@@ -112,8 +112,8 @@ pub struct FrameObservation {
     /// When the exposure began, in seconds on the clock
     /// [`FrameWatch::recentered`] is given.
     pub exposure_started_secs: f64,
-    pub accepted_by_grader: bool,
-    pub grader_reason: Option<String>,
+    /// The check that rejected the frame; `None` when the grader kept it.
+    pub grader_reject: Option<RejectReason>,
     pub star_count: Option<u32>,
     pub hfr: Option<f64>,
     pub eccentricity: Option<f64>,
@@ -138,6 +138,10 @@ pub struct FrameObservation {
 }
 
 impl FrameObservation {
+    pub fn accepted_by_grader(&self) -> bool {
+        self.grader_reject.is_none()
+    }
+
     /// Whether the frame's stars are trails: the mount was not tracking or
     /// the shapes are lines.
     pub fn trailed(&self) -> bool {
@@ -356,12 +360,8 @@ impl FrameWatch {
         verdict.trailed = obs.trailed();
 
         let background_shifted = self.background_shifted(&key, obs.background_adu);
-        let trailed = verdict.trailed
-            || obs
-                .grader_reason
-                .as_deref()
-                .is_some_and(|r| r.contains("eccentricity"));
-        if !verdict.collapsed && !verdict.off_target && obs.accepted_by_grader {
+        let trailed = verdict.trailed || obs.grader_reject.is_some_and(|r| r.stars_trailed());
+        if !verdict.collapsed && !verdict.off_target && obs.accepted_by_grader() {
             self.baselines.entry(key.clone()).or_default().record(
                 obs.star_count,
                 obs.hfr,

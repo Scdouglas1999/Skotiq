@@ -372,7 +372,8 @@ pub(crate) async fn push_forensic_sample(
 
 /// Summary line of the decision row written when a streak of rejected frames
 /// reaches the operator's limit. The app raises its "Frames being rejected"
-/// notification from this row, once per streak; the run carries on.
+/// notification from the row's [`crate::decision::RunNotice::RejectStreak`],
+/// once per streak; the run carries on.
 pub const IMAGE_GRADING_REJECT_STREAK_SUMMARY: &str =
     "Frames rejected in a row — the run continues";
 
@@ -556,7 +557,7 @@ pub(crate) async fn emit_grade_progress(
                 hfr_baseline: baseline_snapshot,
                 environment: env_snapshot.clone(),
                 recent_frames: &history_snapshot,
-                grader_reason: reason.as_str(),
+                reason: *reason,
             });
             tracing::info!(
                 "[FORENSICS] Frame {}/{} cause={} evidence={:?}",
@@ -574,7 +575,7 @@ pub(crate) async fn emit_grade_progress(
             let structured = crate::node::ProgressDetail::FrameRejected {
                 frame,
                 total,
-                reason: reason.clone(),
+                reason: *reason,
                 hfr: *hfr,
                 eccentricity: *eccentricity,
                 star_count: *star_count,
@@ -641,7 +642,7 @@ pub(crate) async fn emit_grade_progress(
                 serde_json::json!({
                     "frame": frame,
                     "total": total,
-                    "reason": reason,
+                    "reason": reason.to_string(),
                     "hfr": hfr,
                     "eccentricity": eccentricity,
                     "star_count": star_count,
@@ -667,7 +668,7 @@ pub(crate) async fn emit_grade_progress(
                     (Some(alt), Some(az)) => format!(" at alt {alt:.1}°, az {az:.1}°"),
                     _ => String::new(),
                 };
-                let notice = format!(
+                let message = format!(
                     "Image grading: {} frames in a row rejected (notify limit {}), most recently \
                      frame {}/{}{}: {}. The run continues and every frame is kept; rejects are in \
                      the Reject folder. Accepted so far: {}, rejected: {}.",
@@ -680,25 +681,30 @@ pub(crate) async fn emit_grade_progress(
                     accepted,
                     rejected,
                 );
-                tracing::warn!("{}", notice);
+                tracing::warn!("{}", message);
                 if let Some(event_tx) = &ctx.run.event_tx {
-                    let _ =
-                        event_tx.send(crate::executor::ExecutorEvent::Warning { message: notice });
+                    let _ = event_tx.send(crate::executor::ExecutorEvent::NoticedWarning {
+                        notice: crate::decision::RunNotice::RejectStreak,
+                        message,
+                    });
                 }
-                ctx.run.emit_decision(crate::decision::DecisionEvent::new(
-                    crate::decision::DecisionCategory::SystemEvent,
-                    IMAGE_GRADING_REJECT_STREAK_SUMMARY.to_string(),
-                    serde_json::json!({
-                        "consecutive_rejects": consecutive,
-                        "limit": max_consecutive,
-                        "frame": frame,
-                        "total": total,
-                        "reason": reason,
-                        "reject_path": full_path.display().to_string(),
-                        "accepted_total": accepted,
-                        "rejected_total": rejected,
-                    }),
-                ));
+                ctx.run.emit_decision(
+                    crate::decision::DecisionEvent::new(
+                        crate::decision::DecisionCategory::SystemEvent,
+                        IMAGE_GRADING_REJECT_STREAK_SUMMARY.to_string(),
+                        serde_json::json!({
+                            "consecutive_rejects": consecutive,
+                            "limit": max_consecutive,
+                            "frame": frame,
+                            "total": total,
+                            "reason": reason.to_string(),
+                            "reject_path": full_path.display().to_string(),
+                            "accepted_total": accepted,
+                            "rejected_total": rejected,
+                        }),
+                    )
+                    .with_notice(crate::decision::RunNotice::RejectStreak),
+                );
             }
         }
     }

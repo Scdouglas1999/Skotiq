@@ -15,7 +15,7 @@ use super::fixture::{
 use super::*;
 use crate::quality::{
     filter_baseline_key, grade_frame_with_baselines, update_hfr_baseline, FilterBaseline,
-    FrameMetrics, ImageQualityCheck, DEFAULT_STAR_COUNT_DROP_PERCENT,
+    FrameMetrics, ImageQualityCheck, RejectReason, DEFAULT_STAR_COUNT_DROP_PERCENT,
 };
 use std::collections::{BTreeSet, HashMap};
 
@@ -34,7 +34,7 @@ fn rig_check() -> ImageQualityCheck {
 }
 
 /// Grade every row the way `expose.rs` does, returning (id, reject reason).
-fn grade_night(rows: &[Row]) -> Vec<(u32, Option<String>)> {
+fn grade_night(rows: &[Row]) -> Vec<(u32, Option<RejectReason>)> {
     let check = rig_check();
     let mut baselines: HashMap<String, FilterBaseline> = HashMap::new();
     let (mut global_hfr, mut global_samples) = (None, Vec::new());
@@ -60,7 +60,7 @@ fn grade_night(rows: &[Row]) -> Vec<(u32, Option<String>)> {
                     .or_default()
                     .record(row.stars, row.hfr, Some(row.alt));
             }
-            (row.id, grade.reject_reason().map(str::to_string))
+            (row.id, grade.reject_reason().copied())
         })
         .collect()
 }
@@ -70,7 +70,7 @@ fn the_grader_rejects_the_untracked_and_trailed_frames_and_no_good_frame() {
     let rows = rows();
     assert_eq!(rows.len(), 192);
     let graded = grade_night(&rows);
-    let reason = |id: u32| graded.iter().find(|(i, _)| *i == id).unwrap().1.clone();
+    let reason = |id: u32| graded.iter().find(|(i, _)| *i == id).unwrap().1;
 
     let row = |id: u32| rows.iter().find(|r| r.id == id).unwrap();
     assert!(
@@ -79,20 +79,26 @@ fn the_grader_rejects_the_untracked_and_trailed_frames_and_no_good_frame() {
     );
     let g_0089 = reason(639).expect("G_0089 is rejected");
     assert!(
-        g_0089.starts_with("star count 868 is"),
+        matches!(
+            g_0089,
+            RejectReason::StarCountBelowBaseline { count: 868, .. }
+        ),
         "G_0089 is judged against its neighbors, not the early 965: {g_0089}"
     );
     let b_0086 = reason(640).expect("B_0086 is rejected");
     assert!(
-        b_0086.starts_with("HFR 3.15 px exceeds baseline"),
+        matches!(b_0086, RejectReason::HfrAboveBaseline { .. }),
         "{b_0086}"
     );
+    assert!(b_0086
+        .to_string()
+        .starts_with("HFR 3.15 px exceeds baseline"));
 
     // Before the trees, the only other rejects are the frames the eccentricity
     // limit already rejected on the night.
     let eccentricity_rejects: BTreeSet<u32> = rows
         .iter()
-        .filter(|r| r.id < 688 && r.db_reason.contains("eccentricity"))
+        .filter(|r| r.id < 688 && matches!(r.db_reject(), Some(RejectReason::Eccentricity { .. })))
         .map(|r| r.id)
         .collect();
     let new_rejects: BTreeSet<u32> = graded
@@ -155,7 +161,7 @@ fn replay_rows(
     let mut watch = FrameWatch::new(config);
     let mut verdicts = Vec::new();
     for row in rows.iter().filter(|r| ids.contains(&r.id)) {
-        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1.clone();
+        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1;
         let obs = observation(row, reason);
         let mut verdict = watch.observe(&obs);
         let mut follow_ups = Vec::new();
@@ -176,7 +182,7 @@ fn replay_rows(
     Replay { verdicts }
 }
 
-fn observation(row: &Row, reason: Option<String>) -> FrameObservation {
+fn observation(row: &Row, reason: Option<RejectReason>) -> FrameObservation {
     FrameObservation {
         save_path: format!("row-{}", row.id),
         target_id: None,
@@ -184,8 +190,7 @@ fn observation(row: &Row, reason: Option<String>) -> FrameObservation {
         filter: Some(row.filter.clone()),
         exposure_secs: row.exposure_secs,
         exposure_started_secs: row.captured_at - row.exposure_secs,
-        accepted_by_grader: reason.is_none(),
-        grader_reason: reason,
+        grader_reject: reason,
         star_count: row.stars,
         hfr: row.hfr,
         eccentricity: row.ecc,
@@ -360,8 +365,10 @@ fn cloud_over_a_rising_target_is_reported_and_imaging_carries_on() {
         filter: Some("L".to_string()),
         exposure_secs: 120.0,
         exposure_started_secs: f64::from(i) * 130.0,
-        accepted_by_grader: stars > 1000,
-        grader_reason: None,
+        grader_reject: (stars <= 1000).then_some(RejectReason::StarCountBelowMinimum {
+            count: stars,
+            minimum: 1000,
+        }),
         star_count: Some(stars),
         hfr: Some(2.0),
         eccentricity: Some(0.5),
@@ -480,8 +487,10 @@ fn a_long_pause_starts_a_new_run_of_collapsed_frames() {
         filter: Some("L".to_string()),
         exposure_secs: 120.0,
         exposure_started_secs: start,
-        accepted_by_grader: stars > 1000,
-        grader_reason: None,
+        grader_reject: (stars <= 1000).then_some(RejectReason::StarCountBelowMinimum {
+            count: stars,
+            minimum: 1000,
+        }),
         star_count: Some(stars),
         hfr: Some(2.0),
         eccentricity: Some(0.5),
@@ -524,7 +533,7 @@ fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
     let mut watch = FrameWatch::new(FrameWatchConfig::default());
     let mut confirmations = Vec::new();
     for row in rows.iter().filter(|r| r.id >= 529) {
-        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1.clone();
+        let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1;
         let obs = FrameObservation {
             save_path: format!("row-{}", row.id),
             target_id: None,
@@ -532,8 +541,7 @@ fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
             filter: Some(row.filter.clone()),
             exposure_secs: row.exposure_secs,
             exposure_started_secs: row.captured_at - row.exposure_secs,
-            accepted_by_grader: reason.is_none(),
-            grader_reason: reason,
+            grader_reject: reason,
             star_count: row.stars,
             hfr: row.hfr,
             eccentricity: row.ecc,
@@ -671,4 +679,56 @@ fn references_are_separate_per_target_and_survive_revisiting() {
     // A new run gets a fresh reference.
     let mut next_run = FrameWatch::new(FrameWatchConfig::default());
     assert!(!next_run.observe(&returning).off_target);
+}
+
+/// The grader's trail check rejects frames whose stars the detector reads as
+/// round; the watch takes that reject as trailed stars all the same.
+#[test]
+fn a_frame_rejected_as_trailed_reads_as_trailed_though_its_stars_measure_round() {
+    let frame = |grader_reject| FrameObservation {
+        save_path: "trailed".to_string(),
+        target_id: None,
+        target_name: Some("NGC0891".to_string()),
+        filter: Some("L".to_string()),
+        exposure_secs: 120.0,
+        exposure_started_secs: 0.0,
+        grader_reject,
+        star_count: Some(1500),
+        hfr: Some(2.0),
+        eccentricity: Some(0.5),
+        altitude_deg: Some(60.0),
+        azimuth_deg: Some(280.0),
+        pier_side: Some("East".to_string()),
+        solve: SolveOutcome::NotAttempted,
+        target_ra_deg: Some(TARGET_RA_DEG),
+        target_dec_deg: Some(TARGET_DEC_DEG),
+        field_short_side_arcmin: Some(FIELD_SHORT_SIDE_ARCMIN),
+        background_adu: None,
+        guide_rms: None,
+        guide_rms_samples: 0,
+        guiding_lost: false,
+        mount_not_tracking: false,
+    };
+    let trailed = frame(Some(RejectReason::Trailed {
+        length_px: 24.5,
+        width_px: 2.1,
+        axis_ratio: 11.7,
+    }));
+    assert_eq!(
+        FrameWatch::new(FrameWatchConfig::default())
+            .observe(&trailed)
+            .degraded
+            .as_deref(),
+        Some("the last frame's stars were trailed")
+    );
+    let soft = frame(Some(RejectReason::HfrAboveLimit {
+        hfr: 4.0,
+        limit: 3.0,
+    }));
+    assert_eq!(
+        FrameWatch::new(FrameWatchConfig::default())
+            .observe(&soft)
+            .degraded,
+        None
+    );
 }

@@ -2449,7 +2449,10 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
                 {
                     return;
                 }
-                Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => warnings.push(message),
                 Ok(ExecutorEvent::Error { message }) => errors.push(message),
                 Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => return,
@@ -2461,7 +2464,9 @@ async fn failed_trigger_autofocus(persisted: serde_json::Value) -> FailedTrigger
     tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
     loop {
         match events.try_recv() {
-            Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+            Ok(
+                ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. },
+            ) => warnings.push(message),
             Ok(ExecutorEvent::Error { message }) => errors.push(message),
             Ok(_) | Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
             Err(_) => break,
@@ -2573,8 +2578,73 @@ async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
 /// `Failure`, which short-circuits its container: the rest of the target, and
 /// with it the night, ended at the first missed curve fit.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
+    let FailedAutofocusRun {
+        state,
+        completed,
+        warnings,
+        errors,
+        decisions,
+        calls,
+    } = run_a_failing_autofocus_node(true).await;
+    let decisions: Vec<&str> = decisions.iter().map(|d| d.summary.as_str()).collect();
+    assert!(
+        !calls.iter().any(|c| c.starts_with("mount_park")
+            || c.starts_with("cover_close")
+            || c.starts_with("dome_close")),
+        "a failed autofocus node moved or closed hardware: {calls:?}"
+    );
+    assert!(
+        completed
+            .iter()
+            .any(|(id, status)| id == "after" && *status == NodeStatus::Success),
+        "the node after the failed autofocus never ran: {completed:?} errors={errors:?}"
+    );
+    assert_eq!(
+        state,
+        ExecutorState::Completed,
+        "errors={errors:?} warnings={warnings:?}"
+    );
+    assert!(
+        decisions.contains(&super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
+        "the operator must be notified: {decisions:?}"
+    );
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
+        "{warnings:?}"
+    );
+}
+
+/// The operator turned decision logging off: the run keeps no replay rows of
+/// its own, but the row a notification is raised from still goes out, or the
+/// failed autofocus would reach the operator as nothing at all (its warning is
+/// never toasted on its own).
+#[tokio::test]
+async fn a_failed_autofocus_is_told_with_decision_logging_off() {
+    let run = run_a_failing_autofocus_node(false).await;
+    assert_eq!(run.state, ExecutorState::Completed, "{:?}", run.errors);
+    let noticed: Vec<_> = run
+        .decisions
+        .iter()
+        .filter(|d| d.notice == Some(crate::decision::RunNotice::AutofocusContinued))
+        .collect();
+    assert_eq!(noticed.len(), 1, "{:?}", run.decisions);
+}
+
+/// What a run whose Autofocus node fails, followed by a Delay, sent out.
+struct FailedAutofocusRun {
+    state: ExecutorState,
+    completed: Vec<(crate::NodeId, NodeStatus)>,
+    warnings: Vec<String>,
+    errors: Vec<String>,
+    decisions: Vec<crate::decision::DecisionEvent>,
+    calls: Vec<String>,
+}
+
+#[allow(clippy::await_holding_lock)]
+async fn run_a_failing_autofocus_node(decision_logging: bool) -> FailedAutofocusRun {
     let _serial = crate::AF_GATE_TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
@@ -2638,6 +2708,9 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
             manager.remove_trigger(id);
         }
     }
+    executor
+        .set_decision_logging_enabled(decision_logging)
+        .await;
     let mut events = executor.subscribe();
     let mut decision_rx = executor.subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");
@@ -2665,7 +2738,9 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
     loop {
         match events.try_recv() {
             Ok(ExecutorEvent::NodeCompleted { id, status }) => completed.push((id, status)),
-            Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+            Ok(
+                ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. },
+            ) => warnings.push(message),
             Ok(ExecutorEvent::Error { message }) => errors.push(message),
             Ok(_) | Err(broadcast::error::TryRecvError::Lagged(_)) => continue,
             Err(_) => break,
@@ -2673,41 +2748,20 @@ async fn a_failed_autofocus_node_notifies_and_the_sequence_goes_on() {
     }
     let mut decisions = Vec::new();
     while let Ok(decision) = decision_rx.try_recv() {
-        decisions.push(decision.summary);
+        decisions.push(decision);
     }
     let state = executor.get_state().await;
     let calls = ops.calls();
     wait_for_the_autofocus_gate_to_clear().await;
 
-    assert!(
-        !calls.iter().any(|c| c.starts_with("mount_park")
-            || c.starts_with("cover_close")
-            || c.starts_with("dome_close")),
-        "a failed autofocus node moved or closed hardware: {calls:?}"
-    );
-    assert!(
-        completed
-            .iter()
-            .any(|(id, status)| id == "after" && *status == NodeStatus::Success),
-        "the node after the failed autofocus never ran: {completed:?} errors={errors:?}"
-    );
-    assert_eq!(
+    FailedAutofocusRun {
         state,
-        ExecutorState::Completed,
-        "errors={errors:?} warnings={warnings:?}"
-    );
-    assert!(
-        decisions
-            .iter()
-            .any(|s| s == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
-        "the operator must be notified: {decisions:?}"
-    );
-    assert!(
-        warnings
-            .iter()
-            .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
-        "{warnings:?}"
-    );
+        completed,
+        warnings,
+        errors,
+        decisions,
+        calls,
+    }
 }
 
 /// A child that fails every time it runs, standing in for whatever the
@@ -2825,7 +2879,9 @@ async fn a_failed_recovery_autofocus_notifies_and_the_retries_go_on() {
     );
     let mut warned = false;
     while let Ok(event) = events.try_recv() {
-        if let ExecutorEvent::Warning { message } = event {
+        if let ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } =
+            event
+        {
             warned |= message.contains("Recovery autofocus did not converge");
         }
     }
@@ -2883,7 +2939,9 @@ async fn a_failed_exposure_trigger_autofocus_is_a_notice_not_a_failed_run() {
             ExecutorEvent::InstructionFailed { node_name, message } => {
                 errors.push(format!("{node_name}: {message}"))
             }
-            ExecutorEvent::Warning { message } => warnings.push(message),
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
+                warnings.push(message)
+            }
             _ => {}
         }
     }
@@ -2980,7 +3038,9 @@ async fn a_notify_exposure_trigger_tells_once_per_episode_and_never_stops_the_ru
                 action,
                 ..
             } => fired.push(format!("{trigger_name} -> {action}")),
-            ExecutorEvent::Warning { message } => warnings.push(message),
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
+                warnings.push(message)
+            }
             ExecutorEvent::Error { message } => errors.push(message),
             _ => {}
         }
@@ -3126,7 +3186,10 @@ async fn run_with_bad_guiding_trigger(
                 Ok(ExecutorEvent::TriggerFired {
                     trigger_id, action, ..
                 }) => fired.push(format!("{trigger_id} -> {action}")),
-                Ok(ExecutorEvent::Warning { message }) => warnings.push(message),
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => warnings.push(message),
                 Ok(ExecutorEvent::RecoveryStarted { .. }) => recovery_started = true,
                 Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => return,
@@ -3253,7 +3316,10 @@ async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecent
     let _ = tokio::time::timeout(std::time::Duration::from_secs(30), async {
         loop {
             match events.recv().await {
-                Ok(ExecutorEvent::Warning { message }) => {
+                Ok(
+                    ExecutorEvent::Warning { message }
+                    | ExecutorEvent::NoticedWarning { message, .. },
+                ) => {
                     let done = message.contains("recenter");
                     warnings.push(message);
                     if done {
@@ -3383,6 +3449,7 @@ async fn a_recovery_node_set_to_notify_carries_on_and_tells_the_operator() {
     assert_eq!(summaries, vec![super::QUALITY_PROBLEM_CONTINUED_SUMMARY]);
     let warned = std::iter::from_fn(|| events.try_recv().ok()).any(|e| {
         matches!(e, ExecutorEvent::Warning { message }
+            | ExecutorEvent::NoticedWarning { message, .. }
             if message.contains("Recovery 'Protect solve'") && message.contains("failed 2 times"))
     });
     assert!(

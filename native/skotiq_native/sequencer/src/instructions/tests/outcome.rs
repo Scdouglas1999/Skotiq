@@ -22,7 +22,10 @@ async fn settle_with(result: InstructionResult, stop_on_quality_problems: bool) 
     let mut failures = Vec::new();
     while let Ok(event) = events.try_recv() {
         match event {
-            crate::executor::ExecutorEvent::Warning { message } => warnings.push(message),
+            crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } => {
+                warnings.push(message)
+            }
             crate::executor::ExecutorEvent::InstructionFailed { message, .. } => {
                 failures.push(message)
             }

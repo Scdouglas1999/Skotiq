@@ -1126,6 +1126,7 @@ typedef struct wire_cst_SequencerEvent_ExposureCompleted {
 typedef struct wire_cst_SequencerEvent_Error {
   struct wire_cst_list_prim_u_8_strict *message;
   int32_t kind;
+  int32_t *notice;
 } wire_cst_SequencerEvent_Error;
 
 typedef struct wire_cst_SequencerEvent_MeridianFlipOutcome {
@@ -1359,6 +1360,7 @@ typedef struct wire_cst_SequencerEvent_DecisionLogged {
   struct wire_cst_list_prim_u_8_strict *details_json;
   struct wire_cst_list_prim_u_8_strict *node_id;
   int64_t *sequence_run_id;
+  int32_t *notice;
 } wire_cst_SequencerEvent_DecisionLogged;
 
 typedef union SequencerEventKind {
@@ -3589,6 +3591,8 @@ struct wire_cst_secondary_rig_config_api *frbgen_skotiq_bridge_cst_new_box_autoa
 
 struct wire_cst_sequencer_event *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event(void);
 
+int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(int32_t value);
+
 int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status(int32_t value);
 
 struct wire_cst_star_detection_config_api *frbgen_skotiq_bridge_cst_new_box_autoadd_star_detection_config_api(void);
@@ -3715,6 +3719,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_safety_monitor_capabilities);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_secondary_rig_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_star_detection_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_stretch_params_api);

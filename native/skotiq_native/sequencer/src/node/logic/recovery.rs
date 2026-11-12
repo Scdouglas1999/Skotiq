@@ -89,11 +89,10 @@ pub async fn execute_recovery(
                         serde_json::json!({ "node_id": node.id() }),
                     );
                     tracing::warn!("{}", continuation.operator_message);
-                    context.run.emit_decision(continuation.decision);
+                    let (decision, line) = continuation.split();
+                    context.run.emit_decision(decision);
                     if let Some(tx) = &context.run.event_tx {
-                        let _ = tx.send(ExecutorEvent::Warning {
-                            message: continuation.operator_message,
-                        });
+                        let _ = tx.send(line.into_event());
                     }
                     NodeStatus::Success
                 }

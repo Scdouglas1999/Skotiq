@@ -11510,6 +11510,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNotice dco_decode_box_autoadd_sequencer_notice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sequencer_notice(raw);
+  }
+
+  @protected
   ShutterStatus dco_decode_box_autoadd_shutter_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_shutter_status(raw);
@@ -13253,6 +13259,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_sequencer_notice(raw);
+  }
+
+  @protected
   ShutterStatus? dco_decode_opt_box_autoadd_shutter_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_shutter_status(raw);
@@ -13822,6 +13834,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return SequencerEvent_Error(
           message: dco_decode_String(raw[1]),
           kind: dco_decode_sequencer_error_kind(raw[2]),
+          notice: dco_decode_opt_box_autoadd_sequencer_notice(raw[3]),
         );
       case 14:
         return SequencerEvent_MeridianFlipOutcome(
@@ -14042,10 +14055,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           detailsJson: dco_decode_String(raw[4]),
           nodeId: dco_decode_opt_String(raw[5]),
           sequenceRunId: dco_decode_opt_box_autoadd_i_64(raw[6]),
+          notice: dco_decode_opt_box_autoadd_sequencer_notice(raw[7]),
         );
       default:
         throw Exception("unreachable");
     }
+  }
+
+  @protected
+  SequencerNotice dco_decode_sequencer_notice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SequencerNotice.values[raw as int];
   }
 
   @protected
@@ -15513,6 +15533,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_sequencer_event(deserializer));
+  }
+
+  @protected
+  SequencerNotice sse_decode_box_autoadd_sequencer_notice(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sequencer_notice(deserializer));
   }
 
   @protected
@@ -18008,6 +18036,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sequencer_notice(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   ShutterStatus? sse_decode_opt_box_autoadd_shutter_status(
     SseDeserializer deserializer,
   ) {
@@ -18748,7 +18789,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 13:
         var var_message = sse_decode_String(deserializer);
         var var_kind = sse_decode_sequencer_error_kind(deserializer);
-        return SequencerEvent_Error(message: var_message, kind: var_kind);
+        var var_notice = sse_decode_opt_box_autoadd_sequencer_notice(
+          deserializer,
+        );
+        return SequencerEvent_Error(
+          message: var_message,
+          kind: var_kind,
+          notice: var_notice,
+        );
       case 14:
         var var_outcome = sse_decode_String(deserializer);
         var var_targetName = sse_decode_String(deserializer);
@@ -19135,6 +19183,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_detailsJson = sse_decode_String(deserializer);
         var var_nodeId = sse_decode_opt_String(deserializer);
         var var_sequenceRunId = sse_decode_opt_box_autoadd_i_64(deserializer);
+        var var_notice = sse_decode_opt_box_autoadd_sequencer_notice(
+          deserializer,
+        );
         return SequencerEvent_DecisionLogged(
           timestampIso: var_timestampIso,
           category: var_category,
@@ -19142,10 +19193,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           detailsJson: var_detailsJson,
           nodeId: var_nodeId,
           sequenceRunId: var_sequenceRunId,
+          notice: var_notice,
         );
       default:
         throw UnimplementedError('');
     }
+  }
+
+  @protected
+  SequencerNotice sse_decode_sequencer_notice(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SequencerNotice.values[inner];
   }
 
   @protected
@@ -19879,6 +19938,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
+  int cst_encode_sequencer_notice(SequencerNotice raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -20758,6 +20823,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_sequencer_event(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_sequencer_notice(
+    SequencerNotice self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sequencer_notice(self, serializer);
   }
 
   @protected
@@ -22795,6 +22869,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sequencer_notice(
+    SequencerNotice? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sequencer_notice(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_shutter_status(
     ShutterStatus? self,
     SseSerializer serializer,
@@ -23375,10 +23462,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_32(frame, serializer);
         sse_encode_u_32(total, serializer);
         sse_encode_f_64(durationSecs, serializer);
-      case SequencerEvent_Error(message: final message, kind: final kind):
+      case SequencerEvent_Error(
+        message: final message,
+        kind: final kind,
+        notice: final notice,
+      ):
         sse_encode_i_32(13, serializer);
         sse_encode_String(message, serializer);
         sse_encode_sequencer_error_kind(kind, serializer);
+        sse_encode_opt_box_autoadd_sequencer_notice(notice, serializer);
       case SequencerEvent_MeridianFlipOutcome(
         outcome: final outcome,
         targetName: final targetName,
@@ -23751,6 +23843,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         detailsJson: final detailsJson,
         nodeId: final nodeId,
         sequenceRunId: final sequenceRunId,
+        notice: final notice,
       ):
         sse_encode_i_32(33, serializer);
         sse_encode_String(timestampIso, serializer);
@@ -23759,7 +23852,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_String(detailsJson, serializer);
         sse_encode_opt_String(nodeId, serializer);
         sse_encode_opt_box_autoadd_i_64(sequenceRunId, serializer);
+        sse_encode_opt_box_autoadd_sequencer_notice(notice, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_sequencer_notice(
+    SequencerNotice self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
