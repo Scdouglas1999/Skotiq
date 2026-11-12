@@ -332,6 +332,10 @@ impl Rotator for SimRotator {
             max_angle_deg: Some(360.0),
         })
     }
+
+    async fn mechanical_position(&self) -> Result<f64, DriverError> {
+        Ok(self.read().await?.mechanical_position)
+    }
 }
 
 struct SimSwitch;

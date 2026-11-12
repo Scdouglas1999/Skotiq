@@ -10,9 +10,11 @@ use crate::event::EquipmentEvent;
 impl DeviceManager {
     // Rotator commands publish their state change (see `state_events`).
 
-    /// Move rotator to absolute sky position (degrees), publishing
-    /// `RotatorMoveStarted` and then `RotatorMoveCompleted` with the angle
-    /// read back (the target when it cannot be read).
+    /// Move rotator to absolute sky position (degrees) and wait until it is
+    /// at rest, publishing `RotatorMoveStarted` and then
+    /// `RotatorMoveCompleted` with the angle read back (the target when it
+    /// cannot be read). An IRotatorV4 driver returns from `MoveAbsolute` as the
+    /// move starts and reports `IsMoving` until it ends.
     pub async fn rotator_move_absolute(
         &self,
         device_id: &str,
@@ -26,9 +28,13 @@ impl DeviceManager {
             device_id: device_id.to_string(),
             target_angle: position,
         });
-        let result = self
+        let result = match self
             .rotator_move_absolute_dispatch(device_id, position)
-            .await;
+            .await
+        {
+            Ok(()) => self.wait_rotator_at_rest(device_id).await,
+            Err(e) => Err(e),
+        };
         self.publish_rotator_move_end(device_id, result.is_ok().then_some(position))
             .await;
         result
@@ -107,6 +113,34 @@ impl DeviceManager {
         .await;
         self.note_status_read(device_id, &result);
         result
+    }
+
+    /// Degrees the mechanism is at, before any sync offset.
+    pub async fn rotator_get_mechanical_position(
+        &self,
+        device_id: &str,
+    ) -> Result<f64, DeviceOpError> {
+        self.rotator(device_id)
+            .await?
+            .mechanical_position()
+            .await
+            .map_err(|e| device_error(device_id, e))
+    }
+
+    /// Polls `IsMoving` until the rotator stops; a halt ends the wait too.
+    async fn wait_rotator_at_rest(&self, device_id: &str) -> Result<(), DeviceOpError> {
+        let limit = crate::timeout_ops::Timeouts::rotator_move();
+        let deadline = tokio::time::Instant::now() + limit;
+        while self.rotator_is_moving(device_id).await? {
+            if tokio::time::Instant::now() >= deadline {
+                return Err(DeviceOpError::Timeout {
+                    device_id: Some(device_id.to_string()),
+                    detail: format!("Rotator {device_id} is still moving after {limit:?}"),
+                });
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+        Ok(())
     }
 
     pub async fn rotator_is_moving(&self, device_id: &str) -> Result<bool, DeviceOpError> {

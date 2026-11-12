@@ -16,6 +16,10 @@ enum AscomRotatorCommand {
     SetReverse(bool, oneshot::Sender<Result<(), DeviceOpError>>),
     InterfaceVersion(oneshot::Sender<Result<i32, DeviceOpError>>),
     MechanicalPosition(oneshot::Sender<Result<f64, DeviceOpError>>),
+    Connected(oneshot::Sender<Result<bool, DeviceOpError>>),
+    CanReverse(oneshot::Sender<Result<bool, DeviceOpError>>),
+    Reverse(oneshot::Sender<Result<bool, DeviceOpError>>),
+    StepSize(oneshot::Sender<Result<f64, DeviceOpError>>),
 }
 
 pub struct AscomRotatorWrapper {
@@ -84,6 +88,18 @@ impl AscomRotatorWrapper {
                     }
                     AscomRotatorCommand::MechanicalPosition(reply) => {
                         let _ = reply.send(rotator.mechanical_position().map_err(DeviceOpError::from));
+                    }
+                    AscomRotatorCommand::Connected(reply) => {
+                        let _ = reply.send(rotator.is_connected().map_err(DeviceOpError::from));
+                    }
+                    AscomRotatorCommand::CanReverse(reply) => {
+                        let _ = reply.send(rotator.can_reverse().map_err(DeviceOpError::from));
+                    }
+                    AscomRotatorCommand::Reverse(reply) => {
+                        let _ = reply.send(rotator.reverse().map_err(DeviceOpError::from));
+                    }
+                    AscomRotatorCommand::StepSize(reply) => {
+                        let _ = reply.send(rotator.step_size().map_err(DeviceOpError::from));
                     }
                 }
                 PumpOutcome::DidWork
@@ -183,7 +199,8 @@ impl AscomRotatorWrapper {
         super::recv_with_timeout("Rotator", rx, Timeouts::property_write(), "set_reverse").await
     }
 
-    /// The ASCOM `InterfaceVersion`; `CanReverse` and `Sync` arrived in IRotatorV3.
+    /// The ASCOM `InterfaceVersion`; `Sync` and `MechanicalPosition` arrived in
+    /// IRotatorV3.
     pub async fn interface_version(&self) -> Result<i32, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
@@ -201,5 +218,52 @@ impl AscomRotatorWrapper {
             .await
             .map_err(|error| format!("Send error: {}", error))?;
         super::recv_with_timeout("Rotator", rx, Timeouts::property_read(), "mechanical_position").await
+    }
+
+    /// Fails with NotConnected when the driver says it is not connected.
+    pub async fn heartbeat(&self) -> Result<(), DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomRotatorCommand::Connected(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        let connected =
+            super::recv_with_timeout("Rotator", rx, Timeouts::property_read(), "connected").await?;
+        if connected {
+            Ok(())
+        } else {
+            Err(DeviceOpError::not_connected(
+                None,
+                "The ASCOM rotator reports Connected = false",
+            ))
+        }
+    }
+
+    pub async fn can_reverse(&self) -> Result<bool, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomRotatorCommand::CanReverse(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Rotator", rx, Timeouts::property_read(), "can_reverse").await
+    }
+
+    pub async fn reverse(&self) -> Result<bool, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomRotatorCommand::Reverse(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Rotator", rx, Timeouts::property_read(), "reverse").await
+    }
+
+    /// Degrees per step.
+    pub async fn step_size(&self) -> Result<f64, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomRotatorCommand::StepSize(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Rotator", rx, Timeouts::property_read(), "step_size").await
     }
 }
