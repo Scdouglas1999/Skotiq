@@ -2,11 +2,10 @@
 //!
 //! Every warp in the crate that reads a source at fractional positions comes
 //! here. The registration warp, the mosaic, the atlas fold and the difference
-//! reprojection share [`Interpolator::taps`]; the live stack shares its
-//! bilinear weights through [`Bilinear::edge_clamped`]; the PSF crop and the
-//! chroma lattice share [`bilinear_clamped`]. The forms differ in edge rule and
-//! in the order of their floating-point operations, and each caller keeps the
-//! one its outputs were made with.
+//! reprojection share [`Interpolator::taps`]; the PSF crop and the chroma
+//! lattice share [`bilinear_clamped`]. The two differ in edge rule and in the
+//! order of their floating-point operations, and each caller keeps the one its
+//! outputs were made with.
 
 /// High-quality resampling kernels for the warp step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -61,7 +60,7 @@ impl Interpolator {
         Some(match self {
             Interpolator::Bilinear => {
                 let (ix, iy) = (ix as usize, iy as usize);
-                Taps::Bilinear(Bilinear::new(ix, iy, ix + 1, iy + 1, fx, fy))
+                Taps::Bilinear(Bilinear::new(ix, iy, fx, fy))
             }
             Interpolator::CatmullRom => separable(fx, fy, ix, iy, 2, catmull_rom),
             Interpolator::Lanczos3 => separable(fx, fy, ix, iy, 3, lanczos3),
@@ -152,23 +151,19 @@ impl Separable {
     }
 }
 
-/// The four pixels and weights of a bilinear sample.
+/// The 2×2 cell at `(x0, y0)` and the weights of a bilinear sample in it.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Bilinear {
     x0: usize,
     y0: usize,
-    x1: usize,
-    y1: usize,
     weights: [f64; 4],
 }
 
 impl Bilinear {
-    fn new(x0: usize, y0: usize, x1: usize, y1: usize, dx: f64, dy: f64) -> Self {
+    fn new(x0: usize, y0: usize, dx: f64, dy: f64) -> Self {
         Self {
             x0,
             y0,
-            x1,
-            y1,
             weights: [
                 (1.0 - dx) * (1.0 - dy),
                 dx * (1.0 - dy),
@@ -178,36 +173,11 @@ impl Bilinear {
         }
     }
 
-    /// A sample whose base pixel `(⌊sx⌋, ⌊sy⌋)` lies inside the frame; the
-    /// neighbor past the last column or row repeats the edge. An on-grid sample
-    /// on the last row or column gives that neighbor no weight, so the identity
-    /// warp keeps the whole frame.
     #[inline]
-    pub(crate) fn edge_clamped(sx: f64, sy: f64, width: usize, height: usize) -> Option<Self> {
-        let x0 = sx.floor();
-        let y0 = sy.floor();
-        let (ix, iy) = (x0 as i64, y0 as i64);
-        if ix < 0 || iy < 0 || ix >= width as i64 || iy >= height as i64 {
-            return None;
-        }
-        let (ix, iy) = (ix as usize, iy as usize);
-        Some(Self::new(
-            ix,
-            iy,
-            (ix + 1).min(width - 1),
-            (iy + 1).min(height - 1),
-            sx - x0,
-            sy - y0,
-        ))
-    }
-
-    #[inline]
-    pub(crate) fn apply(&self, at: impl Fn(usize, usize) -> f64) -> f64 {
+    fn apply(&self, at: impl Fn(usize, usize) -> f64) -> f64 {
         let [w00, w10, w01, w11] = self.weights;
-        w00 * at(self.x0, self.y0)
-            + w10 * at(self.x1, self.y0)
-            + w01 * at(self.x0, self.y1)
-            + w11 * at(self.x1, self.y1)
+        let (x0, y0) = (self.x0, self.y0);
+        w00 * at(x0, y0) + w10 * at(x0 + 1, y0) + w01 * at(x0, y0 + 1) + w11 * at(x0 + 1, y0 + 1)
     }
 }
 
@@ -301,18 +271,6 @@ mod tests {
             assert!(interp.taps(f64::NEG_INFINITY, 8.0, 16, 16).is_none());
             assert!(!kernel_inside(f64::NAN, 8.0, 16, 16, interp));
         }
-    }
-
-    #[test]
-    fn the_live_stack_bilinear_keeps_the_last_row_and_column() {
-        let plane: Vec<f64> = (0..16).map(|i| i as f64).collect();
-        let at = |x: usize, y: usize| plane[y * 4 + x];
-        let corner = Bilinear::edge_clamped(3.0, 3.0, 4, 4).expect("on grid");
-        assert_eq!(corner.apply(at), 15.0);
-        assert!(Bilinear::edge_clamped(4.0, 0.0, 4, 4).is_none());
-        assert!(Interpolator::Bilinear.taps(3.0, 3.0, 4, 4).is_none());
-        let mid = Bilinear::edge_clamped(1.5, 2.25, 4, 4).expect("inside");
-        assert_eq!(mid.apply(at), 2.25 * 4.0 + 1.5);
     }
 
     #[test]

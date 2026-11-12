@@ -7,7 +7,6 @@
 //! - Parallel pixel operations via rayon
 
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
-use crate::resample::Bilinear;
 use crate::stack_master::{FrameProvenance, StackProvenance};
 use crate::{
     debayer_u16, detect_stars, BayerPattern, DebayerAlgorithm, DetectedStar, ImageData, PixelType,
@@ -1092,12 +1091,44 @@ fn apply_transform_bilinear(
                 let ry = y as f64 - transform.ty;
                 let fx = inv_cos * rx - inv_sin * ry;
                 let fy = inv_sin * rx + inv_cos * ry;
-                let Some(cell) = Bilinear::edge_clamped(fx, fy, width, height) else {
+
+                let fx_floor = fx.floor();
+                let fy_floor = fy.floor();
+                let ix = fx_floor as i64;
+                let iy = fy_floor as i64;
+
+                // Require the base pixel (ix, iy) in range. The +1 neighbours
+                // only contribute when the fractional offset is non-zero, so a
+                // sample landing exactly on the last row/column (dx==0/dy==0)
+                // must not be dropped: an `ix+1 >= width` test would discard
+                // the entire last row and column even under the identity
+                // transform. Clamp the +1 index to the edge; its weight is 0
+                // when the corresponding offset is 0 (exact on-grid), and it
+                // edge-extends otherwise.
+                if ix < 0 || iy < 0 || ix >= width as i64 || iy >= height as i64 {
+                    // Out of bounds: leave as NaN
                     continue;
-                };
+                }
+
+                let ix = ix as usize;
+                let iy = iy as usize;
+                let ix1 = (ix + 1).min(width - 1);
+                let iy1 = (iy + 1).min(height - 1);
+                let dx = fx - fx_floor;
+                let dy = fy - fy_floor;
+
+                let w00 = (1.0 - dx) * (1.0 - dy);
+                let w10 = dx * (1.0 - dy);
+                let w01 = (1.0 - dx) * dy;
+                let w11 = dx * dy;
+
                 for c in 0..channels {
-                    row[x * channels + c] =
-                        cell.apply(|ix, iy| frame_pixels[iy * stride + ix * channels + c]);
+                    let p00 = frame_pixels[iy * stride + ix * channels + c];
+                    let p10 = frame_pixels[iy * stride + ix1 * channels + c];
+                    let p01 = frame_pixels[iy1 * stride + ix * channels + c];
+                    let p11 = frame_pixels[iy1 * stride + ix1 * channels + c];
+
+                    row[x * channels + c] = w00 * p00 + w10 * p10 + w01 * p01 + w11 * p11;
                 }
             }
 
