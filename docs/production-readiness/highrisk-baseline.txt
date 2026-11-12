@@ -59,6 +59,8 @@ native/skotiq_native/bridge/src/api/post_session/registration_preview.rs	the_pre
 native/skotiq_native/bridge/src/api/post_session/uniform_delivery.rs	deliver	highrisk	1	baseline	let reference = header.get_string("GRIDREF").unwrap_or_default().to_string();
 native/skotiq_native/bridge/src/api/post_session/uniform_delivery.rs	deliver	highrisk	1	baseline	|| coverage_header.get_string("GRIDREF").unwrap_or_default() != reference
 native/skotiq_native/bridge/src/api/sequencer/event_bridge.rs	run_sequencer_event_loop	highrisk	1	baseline	node_id: node_id.clone().unwrap_or_default(),
+native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	api_sequencer_start	highrisk	1	baseline	let sequence_name = executor.sequence_name().unwrap_or_default().to_string();
+native/skotiq_native/bridge/src/api/sequencer/lifecycle.rs	starting_a_run_announces_the_plan_by_name	highrisk	1	baseline	get_sequence_executor().write().await.stop().await.ok();
 native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	highrisk	1	baseline	auth_token: s.config.auth_token.clone().unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sequencer/mosaic.rs	from	highrisk	1	baseline	watermark_template: s.config.watermark_text.clone().unwrap_or_default(),
 native/skotiq_native/bridge/src/api/sky_atlas/tests.rs	add_frame_wrapper_matches_fold	highrisk	1	baseline	std::fs::remove_dir_all(&dir).ok();
