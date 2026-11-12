@@ -97,14 +97,13 @@ impl Roi {
 
 /// The ROI the SDK will take for `subframe` on a `max_width` x `max_height`
 /// binned sensor: the width a multiple of 4 and the height of 2
-/// (PlayerOneCamera.h, POASetImageSize), and on a color sensor an even start so
-/// the frame begins on the Bayer cell its header names. `None` is the whole
-/// binned sensor.
+/// (PlayerOneCamera.h, POASetImageSize) and an even start, which SDK 3.10.1
+/// makes of every start (POACamera::SetImgStartPixel) and which keeps a color
+/// frame on the Bayer cell its header names. `None` is the whole binned sensor.
 pub(crate) fn roi_for(
     subframe: Option<&SubFrame>,
     max_width: c_int,
     max_height: c_int,
-    color: bool,
 ) -> Result<Roi, DriverError> {
     let Some(sf) = subframe else {
         return Ok(Roi {
@@ -123,15 +122,12 @@ pub(crate) fn roi_for(
         to_int(sf.width),
         to_int(sf.height),
     ) {
-        (Some(x), Some(y), Some(width), Some(height)) if fits => {
-            let start = |v: c_int| if color { v & !1 } else { v };
-            Roi {
-                x: start(x),
-                y: start(y),
-                width: width & !3,
-                height: height & !1,
-            }
-        }
+        (Some(x), Some(y), Some(width), Some(height)) if fits => Roi {
+            x: x & !1,
+            y: y & !1,
+            width: width & !3,
+            height: height & !1,
+        },
         _ => {
             return Err(DriverError::InvalidParameter(format!(
                 "subframe {}x{} at ({}, {}) does not fit the {}x{} binned sensor",
@@ -245,12 +241,7 @@ impl PlayerOneCamera {
         subframe: Option<&SubFrame>,
     ) -> Result<(), DriverError> {
         let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
-        let wanted = roi_for(
-            subframe,
-            info.max_width / bin,
-            info.max_height / bin,
-            info.is_color_camera != 0,
-        )?;
+        let wanted = roi_for(subframe, info.max_width / bin, info.max_height / bin)?;
         let current = self
             .core
             .subframe
@@ -266,8 +257,9 @@ impl PlayerOneCamera {
         // Until the read-back below succeeds the camera's geometry is unknown.
         self.geometry_applied = false;
 
-        // Bin first: it resets the ROI to the binned full frame (PlayerOneCamera.h,
-        // POASetImageBin). The size goes before the start so the ROI always fits.
+        // Bin first: it rescales the ROI and its start (PlayerOneCamera.h,
+        // POASetImageBin). Then the size, which re-centers the ROI in SDK 3.10.1
+        // (POACamera::SetImgSize), and the start last.
         // SAFETY: the camera is open; all three calls take the id and ints by value.
         check_poa_error(
             unsafe { (sdk.set_image_bin)(self.camera_id, bin) },

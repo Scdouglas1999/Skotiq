@@ -326,6 +326,34 @@ async fn an_exposure_outside_the_camera_range_is_refused_not_cut_to_fit() {
 
 #[tokio::test]
 #[ignore = "needs the document-based Player One fake on LD_LIBRARY_PATH (see the file header)"]
+async fn a_mono_subframe_is_asked_for_on_the_even_start_the_sdk_takes() {
+    let mut camera = connected(MONO_ID).await;
+    let wanted = SubFrame {
+        start_x: 5,
+        start_y: 7,
+        width: 32,
+        height: 16,
+    };
+    fake().clear();
+    let frame = take(&mut camera, params(0.01, 1, Some(wanted.clone()))).await;
+    assert_eq!(
+        fake().calls("POASetImageStartPos"),
+        vec![format!("POASetImageStartPos({MONO_ID},4,6)")]
+    );
+    assert_eq!(frame.data[0], (6 << 8) | 4);
+    // The camera already holds that subframe, so the next frame sends no geometry.
+    fake().clear();
+    take(&mut camera, params(0.01, 1, Some(wanted))).await;
+    assert!(
+        fake().calls("POASetImage").is_empty(),
+        "{:?}",
+        fake().calls("POASetImage")
+    );
+    camera.disconnect().await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "needs the document-based Player One fake on LD_LIBRARY_PATH (see the file header)"]
 async fn the_wheel_homes_reads_minus_one_while_turning_and_keeps_names_as_given() {
     let homing = std::env::var("FAKE_PW_HOMING_MS")
         .ok()
