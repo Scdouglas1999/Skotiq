@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
@@ -17,3 +18,21 @@ final Map<SkyCatalog, Future<List<int>> Function()> builtInCatalogs = {
     return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
   },
 };
+
+/// Attribution and license of the built-in catalog data.
+const String builtInCatalogNoticeAsset =
+    'packages/skotiq_core/assets/catalogs/NOTICE.txt';
+
+bool _catalogLicensesListed = false;
+
+/// Lists the built-in catalog data on Flutter's licenses page, next to the
+/// packages. Calling it again adds nothing.
+void listBuiltInCatalogLicenses() {
+  if (_catalogLicensesListed) return;
+  _catalogLicensesListed = true;
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(const [
+      'OpenNGC (catalog data)',
+    ], await rootBundle.loadString(builtInCatalogNoticeAsset));
+  });
+}

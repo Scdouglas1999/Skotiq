@@ -1,0 +1,12 @@
+OpenNGC database, release 2023.12 (NGC.csv)
+Compiled by Mattia Verga and the OpenNGC contributors.
+https://github.com/mattiaverga/OpenNGC
+
+Skotiq includes this file unmodified and uses it for deep-sky object names,
+positions, sizes and magnitudes.
+
+The data is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International license:
+https://creativecommons.org/licenses/by-sa/4.0/
+
+That data license does not apply to Skotiq's program code.

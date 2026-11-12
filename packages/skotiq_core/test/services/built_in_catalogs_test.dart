@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -49,6 +49,20 @@ void main() {
       p.join(packageRoot, 'assets', 'catalogs', 'NGC.csv'),
     ).readAsBytesSync();
     expect(sha256.convert(bytes).toString(), SkyCatalog.dso.sha256);
+  });
+
+  test('the licenses page credits OpenNGC and names its license', () async {
+    listBuiltInCatalogLicenses();
+    listBuiltInCatalogLicenses();
+
+    final entries = await LicenseRegistry.licenses
+        .where((entry) => entry.packages.contains('OpenNGC (catalog data)'))
+        .toList();
+    expect(entries, hasLength(1));
+    final text = entries.single.paragraphs.map((p) => p.text).join('\n');
+    expect(text, contains('Mattia Verga'));
+    expect(text, contains('https://github.com/mattiaverga/OpenNGC'));
+    expect(text, contains('creativecommons.org/licenses/by-sa/4.0'));
   });
 
   test('a fresh install finds Messier, NGC and IC objects by name', () async {

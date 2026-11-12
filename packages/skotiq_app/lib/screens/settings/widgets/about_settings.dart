@@ -359,13 +359,17 @@ class _LicenseCard extends ConsumerWidget {
                 // Flutter's own page, fed by LicenseRegistry, so the credits
                 // list is the set of packages actually linked into this build
                 // rather than a hand-maintained list that would drift.
-                onPressed: () => showLicensePage(
-                  context: context,
-                  applicationName: 'Skotiq',
-                  applicationVersion:
-                      'Version ${appVersion.version} (build ${appVersion.buildNumber})',
-                  applicationLegalese: '$kSkotiqCopyright\n$kSkotiqLicenseName',
-                ),
+                onPressed: () {
+                  listBuiltInCatalogLicenses();
+                  showLicensePage(
+                    context: context,
+                    applicationName: 'Skotiq',
+                    applicationVersion:
+                        'Version ${appVersion.version} (build ${appVersion.buildNumber})',
+                    applicationLegalese:
+                        '$kSkotiqCopyright\n$kSkotiqLicenseName',
+                  );
+                },
               ),
             ],
           ),
