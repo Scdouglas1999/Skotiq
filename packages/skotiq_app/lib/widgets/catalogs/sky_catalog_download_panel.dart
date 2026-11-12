@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import '../../router/app_routes.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -60,7 +60,7 @@ class SkyCatalogDownloadPanel extends ConsumerWidget {
       variant: ButtonVariant.ghost,
       size: ButtonSize.small,
       onPressed: () =>
-          GoRouter.of(context).goToSettings(SettingsSectionId.catalogs),
+          openSettings(context, SettingsSectionId.catalogs),
     );
 
     final (IconData icon, String heading, String text, List<Widget> actions) =

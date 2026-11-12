@@ -13,8 +13,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 // summary the launcher dialog renders before a run starts. (Matches the
 // established precedent in screens/framing/widgets/framing_canvas.dart.)
 // ignore: implementation_imports
-import 'package:skotiq_core/src/services/stack_light_selector.dart'
-    show stackLightSelectorProvider, NoLightsToStackException;
 import '../../accessible_dropdown.dart';
 import '../../stack_result/recent_stacks_panel.dart';
 import '../../stack_result/stack_and_share_dialog.dart';

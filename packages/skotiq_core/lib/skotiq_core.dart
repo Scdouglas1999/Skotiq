@@ -678,6 +678,8 @@ export 'src/services/live_stack_master_library.dart';
 export 'src/services/live_stacking_broadcast_service.dart';
 // Stack-and-Share Loop (components C6/C8): orchestrator + share/export service.
 export 'src/services/stack_and_share_service.dart';
+export 'src/services/stack_light_selector.dart'
+    show NoLightsToStackException, StackLightSelector, stackLightSelectorProvider;
 export 'src/services/stack_share_export_service.dart';
 // Post-session (offline/batch) integration: archival masters + multi-night
 // accumulation + master-flat library.
