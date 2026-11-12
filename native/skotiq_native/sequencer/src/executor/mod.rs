@@ -138,7 +138,6 @@ pub struct SequenceExecutor {
     pub save_path: Option<std::path::PathBuf>,
     /// Trigger manager for monitoring conditions
     trigger_manager: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     /// Checkpoint manager for crash recovery.
     /// stored behind an `Arc` so the streaming-checkpoint task
     /// (spawned inside `start()`) shares the SAME instance — including its
@@ -230,7 +229,6 @@ impl SequenceExecutor {
             cover_calibrator_id: None,
             save_path: None,
             trigger_manager: Arc::new(RwLock::new(trigger_manager)),
-            triggers_enabled: true,
             checkpoint_manager: None,
             run: None,
             depth_goal_ops: None,

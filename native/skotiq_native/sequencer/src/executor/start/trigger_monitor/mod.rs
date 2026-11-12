@@ -28,18 +28,13 @@ use policy::{select_dispatches, DispatchPolicy};
 use polling::DevicePoller;
 
 /// Run the monitor until a trigger ends the run or the run is cancelled.
-/// Returns every firing that was acted on. Never returns for a run with
-/// triggers disabled, so the run does not read it as a monitor that died.
+/// Returns every firing that was acted on.
 pub(super) async fn run_trigger_monitor_poll_loop(
     run: Arc<Run>,
     custom_branch_context: ExecutionContext,
     recovery_requests: mpsc::Sender<crate::recovery::RecoveryCause>,
     heartbeat_tx: watch::Sender<u64>,
 ) -> Vec<(String, RecoveryAction)> {
-    if !run.triggers_enabled {
-        std::future::pending::<()>().await;
-        return Vec::new();
-    }
     let sequence = run.plan.sequence.as_ref();
     let explicit_end = sequence.is_some_and(super::explicit_end::owns_dawn_end);
     let calibration_run = sequence.is_some_and(super::calibration_run::is_calibration_only);

@@ -43,35 +43,29 @@ pub struct WizardCheckpoint {
 }
 
 /// What a checkpoint keeps of the trigger state: the persisted fields of its
-/// parts, plus the three run settings the executor holds beside it. One flat
+/// parts, plus the two run settings the executor holds beside it. One flat
 /// JSON object, every field tolerant of being absent from an older file.
+/// Older files also carry `triggers_enabled`; it is read and ignored, because
+/// nothing a checkpoint says may turn off dawn or weather parking.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TriggerStateSnapshot {
     #[serde(flatten)]
     pub state: PersistedTriggerState,
     #[serde(default)]
     pub safety_fail_mode: SafetyFailMode,
-    #[serde(default = "default_triggers_enabled")]
-    pub triggers_enabled: bool,
     #[serde(default)]
     pub filter_focus_offsets: HashMap<String, i32>,
-}
-
-fn default_triggers_enabled() -> bool {
-    true
 }
 
 impl TriggerStateSnapshot {
     pub fn from_state(
         state: &TriggerState,
         safety_fail_mode: SafetyFailMode,
-        triggers_enabled: bool,
         filter_focus_offsets: HashMap<String, i32>,
     ) -> Self {
         Self {
             state: state.persisted(),
             safety_fail_mode,
-            triggers_enabled,
             filter_focus_offsets,
         }
     }
@@ -900,12 +894,8 @@ mod tests {
         offsets.insert("Ha".to_string(), 42);
         offsets.insert("OIII".to_string(), -17);
 
-        let snapshot = TriggerStateSnapshot::from_state(
-            &original,
-            SafetyFailMode::WarnOnly,
-            true,
-            offsets.clone(),
-        );
+        let snapshot =
+            TriggerStateSnapshot::from_state(&original, SafetyFailMode::WarnOnly, offsets.clone());
 
         let json = serde_json::to_string(&snapshot).expect("snapshot must serialize");
         let restored_snapshot: TriggerStateSnapshot =
@@ -915,7 +905,6 @@ mod tests {
             "TriggerStateSnapshot serde round-trip must preserve every field"
         );
         assert_eq!(restored_snapshot.safety_fail_mode, SafetyFailMode::WarnOnly);
-        assert!(restored_snapshot.triggers_enabled);
         assert_eq!(restored_snapshot.filter_focus_offsets, offsets);
 
         let mut restored = TriggerState::new();
@@ -1032,7 +1021,6 @@ mod tests {
         assert_eq!(snapshot.state.target.current_target_name, None);
         assert!(!snapshot.state.telemetry.weather_safe);
         assert_eq!(snapshot.safety_fail_mode, SafetyFailMode::FailClosed);
-        assert!(snapshot.triggers_enabled, "triggers default to on");
         assert!(snapshot.filter_focus_offsets.is_empty());
     }
 
@@ -1050,12 +1038,8 @@ mod tests {
         state.latches.grid_dither_index = 4;
         state.latches.baseline_hfr = Some(2.1);
 
-        let snapshot = TriggerStateSnapshot::from_state(
-            &state,
-            SafetyFailMode::FailClosed,
-            true,
-            HashMap::new(),
-        );
+        let snapshot =
+            TriggerStateSnapshot::from_state(&state, SafetyFailMode::FailClosed, HashMap::new());
 
         let mut checkpoint =
             SessionCheckpoint::new(SequenceDefinition::new("Persist test".to_string()));

@@ -24,7 +24,6 @@ pub(crate) struct CheckpointSources {
     pub rig: RunRig,
     pub settings: RunConfigStore,
     pub trigger_manager: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     pub budget_registry: BudgetRegistry,
     pub smart_exposure_states: Arc<RwLock<HashMap<NodeId, SmartExposureCheckpoint>>>,
     pub resume: ResumeRecord,
@@ -88,7 +87,6 @@ impl CheckpointWriter {
         checkpoint.set_trigger_state(TriggerStateSnapshot::from_state(
             &*trigger_state.read().await,
             config.safety_fail_mode,
-            sources.triggers_enabled,
             config.filter_focus_offsets,
         ));
 

@@ -298,7 +298,6 @@ pub(crate) struct Run {
     pub shared: ExecutorShared,
     pub device_ops: SharedDeviceOps,
     pub triggers: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     pub decisions: DecisionLog,
     pub recovery: RecoveryHandles,
     pub checkpoint: Option<Arc<CheckpointWriter>>,
@@ -538,7 +537,7 @@ impl Run {
                 monitor_finished = true;
                 // An unattended run depends on the monitor for weather,
                 // altitude and drift limits; without it nothing may expose.
-                if self.triggers_enabled && !is_cancelled.load(Ordering::Relaxed) {
+                if !is_cancelled.load(Ordering::Relaxed) {
                     tracing::error!(
                         "Safety monitoring (trigger monitor) exited unexpectedly! \
                          Cancelling sequence to prevent unmonitored execution."
@@ -602,8 +601,7 @@ impl Run {
 
         // The last science frame can still be queued or solving when its node
         // ends. Its assessment is finished first, with every action disabled.
-        if self.triggers_enabled
-            && !monitor_finished
+        if !monitor_finished
             && result == NodeStatus::Success
             && !is_cancelled.load(Ordering::Acquire)
         {
@@ -917,7 +915,6 @@ impl Run {
             },
             device_ops,
             triggers: Arc::new(RwLock::new(TriggerManager::new())),
-            triggers_enabled: true,
             decisions: DecisionLog {
                 tx: decisions,
                 run_id: Arc::default(),
