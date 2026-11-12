@@ -330,35 +330,6 @@ pub fn get_executor() -> &'static Arc<RwLock<SequenceExecutor>> {
     EXECUTOR.get_or_init(|| Arc::new(RwLock::new(SequenceExecutor::new())))
 }
 
-/// What a trigger-initiated dither attempt should be recorded as.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DitherTriggerOutcome {
-    /// Dither happened; reset the interval.
-    Performed,
-    /// The rig has no guider, so there is nothing to dither. Reset the interval
-    /// anyway — the condition cannot change mid-run, and leaving it unmarked made
-    /// the trigger re-fire on every single exposure.
-    SkippedNoGuider,
-    /// A genuine failure (guide star lost, settle timeout). Keep the interval due
-    /// so the next exposure retries, and warn.
-    Failed,
-}
-
-/// Classify a dither result. Split out from the trigger loop so the three cases
-/// are testable without standing up an executor.
-pub(crate) fn classify_dither_result(
-    status: NodeStatus,
-    message: Option<&str>,
-) -> DitherTriggerOutcome {
-    if status == NodeStatus::Success {
-        return DitherTriggerOutcome::Performed;
-    }
-    if message.is_some_and(crate::device_ops::message_says_no_guider_configured) {
-        return DitherTriggerOutcome::SkippedNoGuider;
-    }
-    DitherTriggerOutcome::Failed
-}
-
 /// What a trigger-fired autofocus failure costs the run, and therefore what the
 /// run is allowed to do next.
 ///

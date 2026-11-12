@@ -1377,7 +1377,7 @@ impl MeridianFlipExecutor {
         // degrees shrink the tolerance by cos(Dec), to seconds of arc near the
         // pole, and a flip that landed was failed on read-back jitter.
         let ra_diff_deg =
-            normalize_ra_diff_hours(post_ra - expect_ra) * 15.0 * expect_dec.to_radians().cos();
+            crate::meridian::wrap_hours(post_ra - expect_ra) * 15.0 * expect_dec.to_radians().cos();
         let dec_diff_deg = post_dec - expect_dec;
         let tolerance_deg = self.config.flip_coordinate_tolerance_deg;
         if ra_diff_deg.abs() > tolerance_deg || dec_diff_deg.abs() > tolerance_deg {
@@ -1504,7 +1504,7 @@ impl MeridianFlipExecutor {
             };
 
             let ra_offset =
-                normalize_ra_diff_hours((result.ra_degrees / 15.0) - ctx.target_ra_hours);
+                crate::meridian::wrap_hours((result.ra_degrees / 15.0) - ctx.target_ra_hours);
             let dec_offset = result.dec_degrees - ctx.target_dec_degrees;
 
             // Apply cos(dec) to RA when converting to arcsec for the same reason
@@ -2301,18 +2301,6 @@ fn format_failure_action(action: FlipFailureAction) -> &'static str {
         FlipFailureAction::PauseAndAlert => "Paused sequence and alerted user",
         FlipFailureAction::AbortAndPark => "Aborted sequence and parking mount",
     }
-}
-
-/// Normalize an RA difference (hours) to the shortest signed angular distance,
-/// accounting for the 0/24h wraparound.
-fn normalize_ra_diff_hours(diff: f64) -> f64 {
-    let mut wrapped = diff % 24.0;
-    if wrapped > 12.0 {
-        wrapped -= 24.0;
-    } else if wrapped < -12.0 {
-        wrapped += 24.0;
-    }
-    wrapped
 }
 
 #[cfg(test)]

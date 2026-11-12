@@ -514,6 +514,7 @@ pub(crate) async fn capture_converged_flats(
         progress_callback,
     )
     .await
+    .result
 }
 
 fn surface_cleanup_failure(result: &mut InstructionResult, cleanup_error: String) {
