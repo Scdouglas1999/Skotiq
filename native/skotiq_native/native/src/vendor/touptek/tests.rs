@@ -328,3 +328,29 @@ async fn offset_range_without_a_black_level_reports_not_supported() {
         Err(DriverError::NotSupported)
     ));
 }
+
+/// Model flags as the SDKs' own model tables (`<Prefix>_all_Model`, 60.33015) list them.
+const ATR585M_FLAGS: u64 = 0x0000_0488_876b_84d9;
+const ALTAIR_H183C_FLAGS: u64 = 0x0000_0000_8169_2241;
+
+#[test]
+fn every_model_bins_and_takes_subframes() {
+    for flags in [ATR585M_FLAGS, ALTAIR_H183C_FLAGS] {
+        assert_eq!(flags & OGMACAM_FLAG_BINSKIP_SUPPORTED, 0);
+        let caps = model_capabilities(flags);
+        assert!(caps.can_set_binning, "{flags:#x}");
+        assert_eq!((caps.max_bin_x, caps.max_bin_y), (4, 4));
+        assert!(caps.can_subframe, "{flags:#x}");
+    }
+    // The H183C has no hardware ROI either (flag 0x08 clear).
+    assert_eq!(ALTAIR_H183C_FLAGS & 0x08, 0);
+}
+
+#[test]
+fn model_flags_say_what_else_a_camera_can_do() {
+    let caps = model_capabilities(ATR585M_FLAGS);
+    assert!(caps.can_cool && caps.can_set_offset && !caps.has_guider_port);
+    let caps = model_capabilities(ALTAIR_H183C_FLAGS);
+    assert!(!caps.can_cool && caps.can_set_offset && caps.has_guider_port);
+}
+

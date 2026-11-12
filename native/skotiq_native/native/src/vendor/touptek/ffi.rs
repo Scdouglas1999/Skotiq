@@ -13,7 +13,6 @@ pub(crate) const OGMACAM_FLAG_MONO: u64 = 0x00000010;
 pub(crate) const OGMACAM_FLAG_TEC: u64 = 0x00000080;
 pub(crate) const OGMACAM_FLAG_TEC_ONOFF: u64 = 0x00020000;
 pub(crate) const OGMACAM_FLAG_ST4: u64 = 0x00000200;
-pub(crate) const OGMACAM_FLAG_ROI_HARDWARE: u64 = 0x00000008;
 pub(crate) const OGMACAM_FLAG_BINSKIP_SUPPORTED: u64 = 0x00000020;
 pub(crate) const OGMACAM_FLAG_GETTEMPERATURE: u64 = 0x00000400;
 pub(crate) const OGMACAM_FLAG_FAN: u64 = 0x00010000;

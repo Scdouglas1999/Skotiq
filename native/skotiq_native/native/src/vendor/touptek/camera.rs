@@ -200,6 +200,29 @@ pub(crate) fn read_option(
     }
 }
 
+/// What a model can do, from its SDK model flags.
+///
+/// Binning is the SDK's digital binning (`OPTION_BINNING`) and a subframe is
+/// `put_Roi`; the SDK offers both on every model, as INDI and NINA use them.
+/// `FLAG_BINSKIP_SUPPORTED` is about the bin/skip resolution modes of
+/// `put_Mode`, and `FLAG_ROI_HARDWARE` says only that the sensor crops in
+/// hardware; almost no ToupTek-family astro camera sets the former.
+pub(crate) fn model_capabilities(model_flags: u64) -> CameraCapabilities {
+    let has = |flag: u64| (model_flags & flag) != 0;
+    CameraCapabilities {
+        can_cool: has(OGMACAM_FLAG_TEC) && has(OGMACAM_FLAG_TEC_ONOFF),
+        can_set_gain: true,
+        can_set_offset: has(OGMACAM_FLAG_BLACKLEVEL),
+        can_set_binning: true,
+        can_subframe: true,
+        has_shutter: false,
+        has_guider_port: has(OGMACAM_FLAG_ST4),
+        max_bin_x: 4,
+        max_bin_y: 4,
+        supports_readout_modes: false,
+    }
+}
+
 /// The sensor region, top row first, that covers a subframe given in binned pixels.
 ///
 /// The SDK counts ROI coordinates in unbinned sensor pixels and needs an even

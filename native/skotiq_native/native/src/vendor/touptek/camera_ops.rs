@@ -105,7 +105,6 @@ fn configure_stream(
     if rc < 0 {
         return Err(touptek_failure("switch to software trigger", name, rc));
     }
-
     // The camera keeps the conversion gain another program left it in. Skotiq offers no
     // choice of it yet, so every frame is taken in low conversion gain, as NINA and INDI
     // do by default.
@@ -360,25 +359,7 @@ impl DeviceDriver for TouptekCamera {
             None => device_info.name.clone(),
         };
 
-        let can_cool = (self.model_flags & OGMACAM_FLAG_TEC) != 0;
-        let can_set_temp = (self.model_flags & OGMACAM_FLAG_TEC_ONOFF) != 0;
-        let has_st4 = (self.model_flags & OGMACAM_FLAG_ST4) != 0;
-        let can_bin = (self.model_flags & OGMACAM_FLAG_BINSKIP_SUPPORTED) != 0;
-        let can_subframe = (self.model_flags & OGMACAM_FLAG_ROI_HARDWARE) != 0;
-        let can_set_offset = (self.model_flags & OGMACAM_FLAG_BLACKLEVEL) != 0;
-
-        self.core.capabilities = CameraCapabilities {
-            can_cool: can_cool && can_set_temp,
-            can_set_gain: true,
-            can_set_offset,
-            can_set_binning: can_bin,
-            can_subframe,
-            has_shutter: false,
-            has_guider_port: has_st4,
-            max_bin_x: if can_bin { 4 } else { 1 },
-            max_bin_y: if can_bin { 4 } else { 1 },
-            supports_readout_modes: false,
-        };
+        self.core.capabilities = model_capabilities(self.model_flags);
 
         let quirk_lookup_id = format!(
             "native:touptek:{}:{}",
