@@ -230,7 +230,7 @@ impl CameraDriver for ZwoCamera {
         let mut exp_status: c_int = 0;
         // SAFETY: `exp_status` is a valid stack pointer; camera_id is valid (self.connected was checked).
         let result = unsafe { (sdk.get_exp_status)(self.camera_id, &mut exp_status) };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
 
         let exposure_active = self.exposure_active.load(Ordering::Acquire);
         let state = match exp_status {
@@ -354,7 +354,7 @@ impl CameraDriver for ZwoCamera {
         };
         // SAFETY: camera_id is valid (connected=true checked earlier).
         let result = unsafe { (sdk.start_exposure)(self.camera_id, is_dark) };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
 
         // Track exposure time for metadata
         self.exposure_time = params.duration_secs;
@@ -372,7 +372,7 @@ impl CameraDriver for ZwoCamera {
         let sdk = AsiSdk::lock().await?;
         // SAFETY: camera_id is valid (connected=true checked earlier).
         let result = unsafe { (sdk.stop_exposure)(self.camera_id) };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
         self.exposure_active.store(false, Ordering::Release);
 
         tracing::info!("Aborted exposure");
@@ -389,7 +389,7 @@ impl CameraDriver for ZwoCamera {
         let mut status: c_int = 0;
         // SAFETY: `status` is a valid stack pointer; camera_id is valid (connected=true checked).
         let result = unsafe { (sdk.get_exp_status)(self.camera_id, &mut status) };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
 
         let is_complete = status == ASIExposureStatus::Success as c_int;
         if is_complete {
@@ -440,7 +440,7 @@ impl CameraDriver for ZwoCamera {
                 &mut img_type,
             )
         };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
 
         let bytes_per_pixel = if img_type == ASIImgType::Raw16 as c_int {
             2
@@ -460,7 +460,7 @@ impl CameraDriver for ZwoCamera {
                 buffer_size as c_long,
             )
         };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
 
         // Why: 8-bit pixel `x: u8` widened to u16 then multiplied by 256 is the standard
         // 8-bit to 16-bit promotion; u8 -> u16 is always lossless.

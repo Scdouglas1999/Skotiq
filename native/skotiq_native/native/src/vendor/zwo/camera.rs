@@ -257,7 +257,7 @@ impl ZwoCamera {
         let result = unsafe {
             (sdk.get_control_value)(self.camera_id, control as c_int, &mut value, &mut is_auto)
         };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
         Ok(value)
     }
 
@@ -273,7 +273,7 @@ impl ZwoCamera {
         let result = unsafe {
             (sdk.get_control_value)(self.camera_id, control as c_int, &mut value, &mut is_auto)
         };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
         Ok(value)
     }
 
@@ -294,7 +294,7 @@ impl ZwoCamera {
                 if auto { ASI_TRUE } else { ASI_FALSE },
             )
         };
-        check_asi_error(result)
+        check_open_camera_error(result)
     }
 
     /// Set a control value under a lock the caller already holds.
@@ -314,7 +314,7 @@ impl ZwoCamera {
                 if auto { ASI_TRUE } else { ASI_FALSE },
             )
         };
-        check_asi_error(result)
+        check_open_camera_error(result)
     }
 
     /// Read a control back after writing it, falling back to `requested`
@@ -406,7 +406,7 @@ impl ZwoCamera {
         // SAFETY: `num_controls` is a valid stack pointer; camera_id is valid
         // (camera opened during connect).
         let result = unsafe { (sdk.get_num_controls)(self.camera_id, &mut num_controls) };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
 
         for i in 0..num_controls {
             // SAFETY: ASIControlCaps is `#[repr(C)]` POD; zeroed is a safe
@@ -628,10 +628,10 @@ impl ZwoCamera {
                 self.image_type as c_int,
             )
         };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
         // SAFETY: as above; the start keeps the ROI inside the binned sensor.
         let result = unsafe { (sdk.set_start_pos)(self.camera_id, roi.x, roi.y) };
-        check_asi_error(result)?;
+        check_open_camera_error(result)?;
 
         self.current_bin = bin;
         self.current_width = roi.width;

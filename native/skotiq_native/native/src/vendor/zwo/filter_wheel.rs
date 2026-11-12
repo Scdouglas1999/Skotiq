@@ -130,6 +130,16 @@ pub(crate) fn check_efw_error(code: c_int) -> Result<(), DriverError> {
     }
 }
 
+/// [`check_efw_error`] for a call on a wheel that `connect` opened: an id the
+/// SDK no longer knows (INVALID_INDEX, INVALID_ID) is a wheel that left the
+/// bus, as for the camera ([`super::sdk::check_open_camera_error`]).
+pub(crate) fn check_open_wheel_error(code: c_int) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_efw_error(code),
+    }
+}
+
 /// How long a wheel that was just plugged in or powered up may take to count
 /// its slots.
 const SLOT_DETECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
@@ -190,7 +200,7 @@ impl ZwoFilterWheel {
         // SAFETY: `position` is a valid stack pointer and
         // filterwheel_id is valid while this filter wheel is connected.
         let result = unsafe { (sdk.get_position)(self.filterwheel_id, &mut position) };
-        check_efw_error(result)?;
+        check_open_wheel_error(result)?;
         Ok(position)
     }
 
@@ -431,7 +441,7 @@ impl FilterWheelDriver for ZwoFilterWheel {
         tracing::debug!("Moving ZWO EFW to position {}", position);
         // SAFETY: `position` was bounds-checked against slot_count earlier in this function; filterwheel_id is valid (connected=true checked).
         let result = unsafe { (sdk.set_position)(self.filterwheel_id, position) };
-        check_efw_error(result)?;
+        check_open_wheel_error(result)?;
         self.settle_after_move_pending
             .store(true, Ordering::Release);
         Ok(())
