@@ -152,8 +152,9 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
   DarkGroupKey _darkGroupFromPayload(Map<String, dynamic> payload) {
     return DarkGroupKey(
       exposureTime: requireDouble(payload, 'exposureTime', min: 0, max: 86400),
-      gain: requireInt(payload, 'gain', min: 0),
-      offset: requireInt(payload, 'offset', min: 0),
+      // Absent for a camera without gain or offset control.
+      gain: optionalInt(payload, 'gain', min: 0),
+      offset: optionalInt(payload, 'offset', min: 0),
       binX: requireInt(payload, 'binX', min: 1, max: 16),
       binY: requireInt(payload, 'binY', min: 1, max: 16),
       frameType: _darkFrameType(payload),
@@ -321,8 +322,8 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
     final filePath = requireString(payload, 'filePath');
     final exposureDuration = requireDouble(payload, 'exposureDuration', min: 0);
-    final gain = optionalInt(payload, 'gain') ?? 0;
-    final offset = optionalInt(payload, 'offset') ?? 0;
+    final gain = optionalInt(payload, 'gain');
+    final offset = optionalInt(payload, 'offset');
     final binX = optionalInt(payload, 'binX', min: 1) ?? 1;
     final binY = optionalInt(payload, 'binY', min: 1) ?? 1;
     final sensorTempC = optionalDouble(payload, 'sensorTempC');
@@ -425,8 +426,8 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
 
     final exposureDuration = requireDouble(meta, 'exposureDuration', min: 0);
     final sensorTempC = optionalDouble(meta, 'sensorTempC');
-    final gain = optionalInt(meta, 'gain') ?? 0;
-    final offset = optionalInt(meta, 'offset') ?? 0;
+    final gain = optionalInt(meta, 'gain');
+    final offset = optionalInt(meta, 'offset');
     final binX = optionalInt(meta, 'binX', min: 1) ?? 1;
     final binY = optionalInt(meta, 'binY', min: 1) ?? 1;
     final frameType = optionalString(meta, 'frameType') ?? 'dark';
@@ -618,8 +619,8 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     final payload = await readJsonObject(request);
 
     final exposureDuration = requireDouble(payload, 'exposureDuration', min: 0);
-    final gain = optionalInt(payload, 'gain') ?? 0;
-    final offset = optionalInt(payload, 'offset') ?? 0;
+    final gain = optionalInt(payload, 'gain');
+    final offset = optionalInt(payload, 'offset');
     final binX = optionalInt(payload, 'binX', min: 1) ?? 1;
     final binY = optionalInt(payload, 'binY', min: 1) ?? 1;
     final sensorTempC = optionalDouble(payload, 'sensorTempC');
@@ -684,8 +685,8 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     final payload = await readJsonObject(request);
 
     final exposureTime = requireDouble(payload, 'exposureTime', min: 0);
-    final gain = requireInt(payload, 'gain');
-    final offset = optionalInt(payload, 'offset') ?? 0;
+    final gain = optionalInt(payload, 'gain');
+    final offset = optionalInt(payload, 'offset');
     final binX = optionalInt(payload, 'binX', min: 1) ?? 1;
     final binY = optionalInt(payload, 'binY', min: 1) ?? 1;
     final temperature = optionalDouble(payload, 'temperature');

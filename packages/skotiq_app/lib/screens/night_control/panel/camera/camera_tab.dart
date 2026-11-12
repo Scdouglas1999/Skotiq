@@ -133,6 +133,7 @@ class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
           'nightPanelCoolerNotConnected',
           MetricTone.warning,
         ),
+      NightCoolerState.notReported => ('nightPanelCoolerNotReported', null),
       NightCoolerState.off => ('nightPanelCoolerOff', null),
       NightCoolerState.cooling => ('nightPanelCoolerCooling', null),
       NightCoolerState.atSetpoint => (

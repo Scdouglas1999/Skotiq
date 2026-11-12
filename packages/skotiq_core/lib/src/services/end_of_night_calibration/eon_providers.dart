@@ -65,7 +65,7 @@ class ProviderEonRig implements EonRig {
       final status = await _ref.read(backendProvider).getCameraStatus(id!);
       return EonCameraInfo(
         canCool: status.canCool,
-        coolerOn: status.coolerOn,
+        coolerOn: status.coolerOn == true,
         targetTempC: status.targetTemp,
         sensorTempC: status.sensorTemp,
       );

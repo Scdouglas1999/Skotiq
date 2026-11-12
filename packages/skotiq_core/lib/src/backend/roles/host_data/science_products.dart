@@ -77,6 +77,7 @@ abstract interface class ScienceProducts {
   Stream<List<ScienceFrameQualityMetricsRow>>
   watchSessionlessFrameQualityMetricsRecent();
 
+  /// The tile metrics of the frame measured last outside a session, whole.
   Stream<List<ScienceTileMetricRow>> watchSessionlessTileMetricsRecent();
 
   Stream<List<AstrometryResidualVectorRow>> watchSessionlessResidualsRecent();

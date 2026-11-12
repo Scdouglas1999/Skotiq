@@ -457,8 +457,12 @@ fn compare_dimension(
     light: &FitsHeader,
     master: &FitsHeader,
 ) -> Comparison {
-    let (Some(l), Some(m)) = (light.get(dimension), master.get(dimension)) else {
-        return Comparison::Unavailable;
+    let (l, m) = match (light.get(dimension), master.get(dimension)) {
+        (Some(l), Some(m)) => (l, m),
+        // A camera without gain or offset control writes neither card, on its
+        // lights and its masters alike: both lacking it is the same setting.
+        (None, None) if matches!(dimension, "GAIN" | "OFFSET") => return Comparison::Same,
+        _ => return Comparison::Unavailable,
     };
     let light_text = l.to_header_string();
     let master_text = m.to_header_string();

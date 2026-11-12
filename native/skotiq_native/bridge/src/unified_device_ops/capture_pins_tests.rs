@@ -62,7 +62,7 @@ impl CameraDriver for FixedFrameCamera {
             sensor_temp: None,
             cooler_power: None,
             target_temp: None,
-            cooler_on: false,
+            cooler_on: Some(false),
             gain: 0,
             offset: 0,
             bin_x: 1,

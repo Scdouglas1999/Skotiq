@@ -1741,9 +1741,7 @@
 
 ## telescope.can_set_pier_side [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/cansetpierside query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/cansetpierside query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/cansetpierside query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_set_pier_side [http 400]
 > GET /api/v1/telescope/#/cansetpierside query[ClientID=<id>&ClientTransactionID=0]

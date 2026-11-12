@@ -188,6 +188,29 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Text('Cooler',
+                        style: SkotiqTypography.caption
+                            .copyWith(color: widget.colors.textSecondary)),
+                    Text(
+                      !isConnected
+                          ? '—'
+                          : switch (cameraState.coolerOn) {
+                              true => 'On',
+                              false => 'Off',
+                              null => 'Not reported',
+                            },
+                      style: SkotiqTypography.readoutSm.copyWith(
+                        color: isConnected && cameraState.coolerOn != null
+                            ? widget.colors.textPrimary
+                            : widget.colors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
                     Text('Power',
                         style: SkotiqTypography.caption
                             .copyWith(color: widget.colors.textSecondary)),

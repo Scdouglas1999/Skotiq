@@ -383,8 +383,10 @@ class FlatLibraryEntry {
   final int? equipmentProfileId;
   final String? opticalTrainId;
   final double? temperature;
-  final int gain;
-  final int offset;
+
+  /// Null for a camera without gain or offset control.
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
   final int? width;

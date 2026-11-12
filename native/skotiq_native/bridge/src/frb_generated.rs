@@ -8377,7 +8377,7 @@ impl SseDecode for crate::device::CameraStatus {
         let mut var_sensorTemp = <Option<f64>>::sse_decode(deserializer);
         let mut var_coolerPower = <Option<f64>>::sse_decode(deserializer);
         let mut var_targetTemp = <Option<f64>>::sse_decode(deserializer);
-        let mut var_coolerOn = <bool>::sse_decode(deserializer);
+        let mut var_coolerOn = <Option<bool>>::sse_decode(deserializer);
         let mut var_gain = <i32>::sse_decode(deserializer);
         let mut var_offset = <i32>::sse_decode(deserializer);
         let mut var_binX = <i32>::sse_decode(deserializer);
@@ -17870,7 +17870,7 @@ impl SseEncode for crate::device::CameraStatus {
         <Option<f64>>::sse_encode(self.sensor_temp, serializer);
         <Option<f64>>::sse_encode(self.cooler_power, serializer);
         <Option<f64>>::sse_encode(self.target_temp, serializer);
-        <bool>::sse_encode(self.cooler_on, serializer);
+        <Option<bool>>::sse_encode(self.cooler_on, serializer);
         <i32>::sse_encode(self.gain, serializer);
         <i32>::sse_encode(self.offset, serializer);
         <i32>::sse_encode(self.bin_x, serializer);
@@ -25539,7 +25539,7 @@ mod io {
                 sensor_temp: core::ptr::null_mut(),
                 cooler_power: core::ptr::null_mut(),
                 target_temp: core::ptr::null_mut(),
-                cooler_on: Default::default(),
+                cooler_on: core::ptr::null_mut(),
                 gain: Default::default(),
                 offset: Default::default(),
                 bin_x: Default::default(),
@@ -31110,7 +31110,7 @@ mod io {
         sensor_temp: *mut f64,
         cooler_power: *mut f64,
         target_temp: *mut f64,
-        cooler_on: bool,
+        cooler_on: *mut bool,
         gain: i32,
         offset: i32,
         bin_x: i32,

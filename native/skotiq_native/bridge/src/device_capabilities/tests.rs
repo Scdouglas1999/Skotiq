@@ -138,7 +138,7 @@ impl skotiq_device::CameraDriver for FakeRangedCamera {
             sensor_temp: Some(-5.0),
             cooler_power: Some(40.0),
             target_temp: Some(-10.0),
-            cooler_on: true,
+            cooler_on: Some(true),
             gain: 100,
             offset: 30,
             bin_x: 1,

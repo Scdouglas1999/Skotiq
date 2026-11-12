@@ -1,5 +1,5 @@
 use super::*;
-use skotiq_imaging::read_frame;
+use skotiq_imaging::{add_wcs_headers, WcsInfo};
 use std::path::PathBuf;
 
 /// A scratch directory that deletes itself when the test ends. Cleanup runs
@@ -305,6 +305,79 @@ fn integrate_session_stamps_reference_wcs_into_master() {
     near("CD2_1", ref_wcs.cd2_1);
     near("CD2_2", ref_wcs.cd2_2);
     assert_eq!(h.get_string("CTYPE1"), Some("RA---TAN"));
+}
+
+/// A reference frame solved with SIP distortion hands the master the same
+/// solution: the master is on the reference's pixel grid, so a master that
+/// kept only the CD matrix would put its corners where the optics do not.
+#[test]
+fn integrate_session_keeps_the_reference_frames_sip_in_the_master() {
+    let dir = temp_dir("integrate_session_keeps_the_reference_frames_sip_in_the_master");
+    let size = 256u32;
+    let stars = base_stars(size as f64);
+    let ref_wcs = skotiq_imaging::SipWcs {
+        a_order: 2,
+        b_order: 2,
+        a_coeffs: vec![0.0, 0.0, 3.0e-5, 0.0, -2.0e-5, 0.0, 1.5e-5, 0.0, 0.0],
+        b_coeffs: vec![0.0, 0.0, -1.0e-5, 0.0, 2.5e-5, 0.0, 4.0e-5, 0.0, 0.0],
+        ap_order: 2,
+        bp_order: 2,
+        ap_coeffs: vec![0.0, 0.0, -3.0e-5, 0.0, 2.0e-5, 0.0, -1.5e-5, 0.0, 0.0],
+        bp_coeffs: vec![0.0, 0.0, 1.0e-5, 0.0, -2.5e-5, 0.0, -4.0e-5, 0.0, 0.0],
+        ..skotiq_imaging::SipWcs::from_pointing(83.822, -5.391, 12.0, 1.5, size, size)
+    };
+
+    let mut light_paths = Vec::new();
+    let shifts = [(0.0, 0.0), (3.0, -2.0), (-2.0, 4.0)];
+    for (i, (dx, dy)) in shifts.iter().enumerate() {
+        let field = render_field(size, &shift_stars(&stars, *dx, *dy), 200.0);
+        let p = dir.join(format!("siplight{i}.fits"));
+        if i == 0 {
+            let mut h = FitsHeader::new();
+            h.set_string("IMAGETYP", "LIGHT");
+            ref_wcs.write_to_header(&mut h);
+            write_fits(&p, &field, &h).expect("write synthetic light with SIP");
+        } else {
+            write_field_fits(&p, &field);
+        }
+        light_paths.push(p.to_string_lossy().to_string());
+    }
+    let master_path = dir.join("sipmaster.fits");
+    let args = serde_json::json!({
+        "lightPaths": light_paths,
+        "reference": light_paths[0],
+        "exposuresSec": [60.0, 60.0, 60.0],
+        "settings": {
+            "align": synthetic_align(),
+            "integration": { "reject": "auto", "outputBitDepth": "f32" }
+        },
+        "output": { "masterFitsPath": master_path.to_string_lossy() }
+    });
+    api_integrate_session(args.to_string()).expect("integration should succeed");
+
+    let reference = skotiq_imaging::SipWcs::from_header(
+        &read_frame(Path::new(&light_paths[0]))
+            .expect("read reference")
+            .1,
+    )
+    .expect("the reference has a WCS");
+    let (_, h) = read_frame(master_path.as_path()).expect("read master");
+    assert_eq!(h.get_string("CTYPE1"), Some("RA---TAN-SIP"));
+    let master = skotiq_imaging::SipWcs::from_header(&h).expect("the master has a WCS");
+    assert_eq!(
+        master, reference,
+        "the master carries the reference's solution"
+    );
+    assert_eq!(master.a_order, 2);
+    // The distortion is real at this size: a corner moves by more than the
+    // linear part alone says.
+    let corner = f64::from(size - 1);
+    let linear = skotiq_imaging::SipWcs::from(&master.cd_only()).pixel_to_world(corner, corner);
+    let full = master.pixel_to_world(corner, corner);
+    assert!(
+        (full.1 - linear.1).abs() * 3600.0 > 0.1,
+        "{full:?} vs {linear:?}"
+    );
 }
 
 /// A reference frame with NO astrometry must leave the master WCS-less (the
@@ -1196,6 +1269,68 @@ fn write_metadata_stub(path: &Path, imagetyp: &str, date_obs: &str, ccd_temp: f6
     h.set_string("IMAGETYP", imagetyp);
     set_frame_metadata(&mut h, date_obs, ccd_temp, 60.0);
     write_fits(path, &image, &h).expect("write metadata stub");
+}
+
+/// A camera without gain or offset control (FLI, Atik CCDs) writes neither card
+/// on its lights or its darks: the two agree on them. A dark without the cards
+/// against lights that have them is still unverified, never read as gain 0.
+#[test]
+fn darks_and_lights_without_gain_cards_agree_on_gain() {
+    let dir = temp_dir("calibration_report_gainless");
+    let gainless = |path: &Path, imagetyp: &str| {
+        let image = ImageData::from_u16(2, 2, 1, &[10u16; 4]);
+        let mut h = FitsHeader::new();
+        h.set_string("IMAGETYP", imagetyp);
+        h.set_string("INSTRUME", "Test Cam");
+        h.set_float("CCD-TEMP", -10.0);
+        h.set_float("EXPTIME", 60.0);
+        h.set_int("XBINNING", 1);
+        h.set_int("YBINNING", 1);
+        h.set_string("DATE-OBS", "2026-08-14T21:00:00");
+        write_fits(path, &image, &h).expect("write gainless stub");
+    };
+    let light = dir.join("light.fits");
+    gainless(&light, "LIGHT");
+    let dark = dir.join("dark.fits");
+    gainless(&dark, "DARK");
+
+    let report = build_calibration_report(
+        &light.to_string_lossy(),
+        &CalibrationArgs {
+            dark: Some(dark.to_string_lossy().to_string()),
+            ..CalibrationArgs::default()
+        },
+    );
+    let slot_dark = slot(&report, "dark");
+    assert_eq!(slot_dark.quality, MatchQuality::Exact, "{:?}", slot_dark);
+    assert!(
+        slot_dark.unverified.is_empty(),
+        "{:?}",
+        slot_dark.unverified
+    );
+
+    let light_with_gain = dir.join("light_gain.fits");
+    write_metadata_stub(&light_with_gain, "LIGHT", "2026-08-14T21:00:00", -10.0);
+    let report = build_calibration_report(
+        &light_with_gain.to_string_lossy(),
+        &CalibrationArgs {
+            dark: Some(dark.to_string_lossy().to_string()),
+            ..CalibrationArgs::default()
+        },
+    );
+    let slot_dark = slot(&report, "dark");
+    assert!(
+        slot_dark.mismatches.is_empty(),
+        "{:?}",
+        slot_dark.mismatches
+    );
+    for dimension in ["GAIN", "OFFSET"] {
+        assert!(
+            slot_dark.unverified.iter().any(|d| d == dimension),
+            "{dimension}: {:?}",
+            slot_dark.unverified
+        );
+    }
 }
 
 /// The age term is judged at exactly the documented constant: a dark that old to

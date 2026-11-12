@@ -311,6 +311,36 @@ async fn open_cover_uses_connected_panel_when_context_has_no_role() {
     );
 }
 
+/// ASCOM: `Unknown` is for hardware that cannot tell its state, and clients
+/// carry on as normal. A panel that always says so must not time out the step.
+#[tokio::test(start_paused = true)]
+async fn calibrator_on_finishes_on_a_panel_that_cannot_tell_its_state() {
+    let ops = Arc::new(
+        ScriptedDomeRotatorOps::new()
+            .with_active_cover_calibrator_id("sim_cc")
+            .with_calibrator_state(4),
+    );
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.cover_calibrator_id = None;
+
+    let result = crate::instructions::execute_calibrator_on(
+        &crate::CalibratorOnConfig {
+            brightness: 128,
+            timeout_secs: 5,
+        },
+        &ctx,
+        None,
+    )
+    .await;
+
+    assert_eq!(
+        result.status,
+        NodeStatus::Success,
+        "Calibrator On must finish on a panel reporting Unknown, got {:?}",
+        result.message
+    );
+}
+
 // What the Dome Shutter Not Open trigger watches: the run expects an open
 // shutter from the Open Dome step that saw it open until the next Close Dome
 // or Park Dome.

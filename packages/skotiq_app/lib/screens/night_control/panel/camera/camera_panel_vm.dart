@@ -24,7 +24,16 @@ const double kNightAtSetpointTolerance = 0.5;
 /// The camera's own warm-up rate (`CameraWarmupController.start`), °C/min.
 const double kNightWarmUpRatePerMin = 2;
 
-enum NightCoolerState { notConnected, off, cooling, atSetpoint, warming }
+enum NightCoolerState {
+  notConnected,
+
+  /// Connected, and the camera does not say whether its cooler is on.
+  notReported,
+  off,
+  cooling,
+  atSetpoint,
+  warming,
+}
 
 /// Exposure values, from the manual settings or the run's step.
 @immutable
@@ -178,6 +187,7 @@ NightCoolerState nightCoolerState(CameraStateSnapshot camera) {
     return NightCoolerState.notConnected;
   }
   if (camera.isWarming) return NightCoolerState.warming;
+  if (camera.coolerOn == null) return NightCoolerState.notReported;
   if (!camera.isCooling) return NightCoolerState.off;
   final temp = camera.temperature;
   if (temp != null &&

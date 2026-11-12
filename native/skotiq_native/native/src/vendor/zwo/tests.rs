@@ -415,3 +415,39 @@ fn accessory_serials_read_as_before() {
     );
     assert_eq!(accessory_serial([0; 8]), None);
 }
+
+/// An id the SDK no longer knows means the device left the bus once it was
+/// open, and a wrong id before it was opened.
+#[test]
+fn an_unknown_id_on_an_open_device_reads_as_disconnected() {
+    let open_checks: [fn(c_int) -> Result<(), DriverError>; 3] = [
+        check_open_camera_error,
+        check_open_focuser_error,
+        check_open_wheel_error,
+    ];
+    let opening_checks: [fn(c_int) -> Result<(), DriverError>; 3] =
+        [check_asi_error, check_eaf_error, check_efw_error];
+    for code in [1, 2] {
+        for check in open_checks {
+            assert!(
+                matches!(check(code), Err(DriverError::Disconnected)),
+                "code {code}"
+            );
+        }
+        for check in opening_checks {
+            assert!(
+                matches!(check(code), Err(DriverError::InvalidDevice(_))),
+                "code {code}"
+            );
+        }
+    }
+    for (open, opening) in open_checks.into_iter().zip(opening_checks) {
+        for code in [0, 3, 4, 5, 9, 11, 16, 99] {
+            assert_eq!(
+                format!("{:?}", open(code)),
+                format!("{:?}", opening(code)),
+                "code {code}"
+            );
+        }
+    }
+}

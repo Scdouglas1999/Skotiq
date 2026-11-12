@@ -1,6 +1,11 @@
 //! FLI focuser implementation.
 
 use super::*;
+use std::time::Duration;
+
+/// How long a halted focuser may take to come to rest.
+const FLI_HALT_TIMEOUT: Duration = Duration::from_secs(5);
+const FLI_HALT_POLL: Duration = Duration::from_millis(100);
 
 pub struct FliFocuser {
     /// The address from the device id (see `open_device`).
@@ -71,6 +76,16 @@ impl FliFocuser {
         let result = unsafe { (sdk.get_stepper_position)(self.handle, &mut position) };
         check_fli_error(result, "get position")?;
         Ok(position)
+    }
+
+    /// One read of the steps left, under the SDK lock for that call only.
+    async fn steps_remaining(&self) -> Result<c_long, DriverError> {
+        let sdk = FliSdk::lock().await?;
+        let mut steps: c_long = 0;
+        // SAFETY: self.handle is valid (the caller checked the connection); `steps` is a valid stack pointer.
+        let result = unsafe { (sdk.get_steps_remaining)(self.handle, &mut steps) };
+        check_fli_error(result, "get steps remaining")?;
+        Ok(steps)
     }
 
     fn step(&self, sdk: &FliSdk, steps: c_long) -> Result<(), DriverError> {
@@ -188,15 +203,7 @@ impl FocuserDriver for FliFocuser {
             return Err(DriverError::NotConnected);
         }
 
-        let sdk = FliSdk::lock().await?;
-
-        let mut steps_remaining: c_long = 0;
-
-        // SAFETY: self.handle is valid (connected=true checked); `steps_remaining` is a valid stack pointer.
-        let result = unsafe { (sdk.get_steps_remaining)(self.handle, &mut steps_remaining) };
-        check_fli_error(result, "get steps remaining")?;
-
-        Ok(steps_remaining != 0)
+        Ok(self.steps_remaining().await? != 0)
     }
 
     async fn halt(&mut self) -> Result<(), DriverError> {
@@ -206,14 +213,32 @@ impl FocuserDriver for FliFocuser {
 
         // libfli has no halt call; a zero-step move is the halt on the older
         // focuser firmware (libfli-filter-focuser.c fli_stepmotor) and a move to
-        // where it is on the newer.
-        let sdk = FliSdk::lock().await?;
+        // where it is on the newer. The blocking FLIStepMotor sends the same
+        // command and then polls the motor inside libfli with no time limit,
+        // holding the FLI SDK lock (and so every FLI device) all the while.
+        {
+            let sdk = FliSdk::lock().await?;
+            // SAFETY: self.handle is valid (connected=true checked); 0 is a pass-by-value c_long.
+            let result = unsafe { (sdk.step_motor_async)(self.handle, 0) };
+            check_fli_error(result, "halt focuser")?;
+        }
 
-        // SAFETY: self.handle is valid (connected=true checked); 0 is a pass-by-value c_long.
-        let result = unsafe { (sdk.step_motor)(self.handle, 0) };
-        check_fli_error(result, "halt focuser")?;
-
-        Ok(())
+        let deadline = tokio::time::Instant::now() + FLI_HALT_TIMEOUT;
+        loop {
+            let steps_left = self.steps_remaining().await?;
+            if steps_left == 0 {
+                return Ok(());
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(DriverError::Timeout(format!(
+                    "FLI focuser '{}' was told to stop but was still moving {} s later, {} steps from its target",
+                    self.name,
+                    FLI_HALT_TIMEOUT.as_secs(),
+                    steps_left
+                )));
+            }
+            tokio::time::sleep(FLI_HALT_POLL).await;
+        }
     }
 
     fn get_max_position(&self) -> i32 {

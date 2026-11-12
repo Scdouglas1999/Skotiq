@@ -131,9 +131,14 @@ pub(crate) fn image_area(
 /// 7.4e-6 for the ML4022 (libfli-camera-usb.c). INDI (fli_ccd.cpp) and NINA
 /// (FLICamera.PixelSizeX) multiply by 1e6. Only the built-in table for the
 /// oldest MaxCam and parallel-port bodies holds microns (20.0), so a value
-/// below a millimeter is taken as meters.
-pub(crate) fn pixel_size_microns(reported: c_double) -> Result<f64, DriverError> {
-    if !reported.is_finite() || reported <= 0.0 {
+/// below a millimeter is taken as meters. That table has no pitch (0.0) for
+/// the CCD47-10 and CCD77 (libfli-camera.c knowndev), so 0 is an unknown
+/// pitch, not a fault.
+pub(crate) fn pixel_size_microns(reported: c_double) -> Result<Option<f64>, DriverError> {
+    if reported == 0.0 {
+        return Ok(None);
+    }
+    if !reported.is_finite() || reported < 0.0 {
         return Err(DriverError::SdkError(format!(
             "FLI camera reported a pixel size of {reported}"
         )));
@@ -143,7 +148,7 @@ pub(crate) fn pixel_size_microns(reported: c_double) -> Result<f64, DriverError>
     } else {
         reported
     };
-    Ok((microns * 1000.0).round() / 1000.0)
+    Ok(Some((microns * 1000.0).round() / 1000.0))
 }
 
 /// The exposure time FLISetExposureTime takes, in whole milliseconds.
@@ -281,21 +286,21 @@ mod tests {
 
     #[test]
     fn pixel_size_in_meters_becomes_microns() {
-        assert_eq!(pixel_size_microns(9e-6).unwrap(), 9.0);
-        assert_eq!(pixel_size_microns(7.4e-6).unwrap(), 7.4);
-        assert_eq!(pixel_size_microns(5.4e-6).unwrap(), 5.4);
+        assert_eq!(pixel_size_microns(9e-6).unwrap(), Some(9.0));
+        assert_eq!(pixel_size_microns(7.4e-6).unwrap(), Some(7.4));
+        assert_eq!(pixel_size_microns(5.4e-6).unwrap(), Some(5.4));
     }
 
     /// The oldest bodies' built-in table (libfli-camera.c knowndev) is in microns.
     #[test]
     fn pixel_size_table_in_microns_stays() {
-        assert_eq!(pixel_size_microns(20.0).unwrap(), 20.0);
-        assert_eq!(pixel_size_microns(24.0).unwrap(), 24.0);
+        assert_eq!(pixel_size_microns(20.0).unwrap(), Some(20.0));
+        assert_eq!(pixel_size_microns(24.0).unwrap(), Some(24.0));
     }
 
     #[test]
-    fn pixel_size_of_zero_is_an_error() {
-        assert!(pixel_size_microns(0.0).is_err());
+    fn pixel_size_of_zero_is_unknown_and_a_negative_one_an_error() {
+        assert_eq!(pixel_size_microns(0.0).unwrap(), None);
         assert!(pixel_size_microns(-9e-6).is_err());
         assert!(pixel_size_microns(f64::NAN).is_err());
     }

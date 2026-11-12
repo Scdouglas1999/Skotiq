@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../models/imaging/integrated_master.dart';
+import '../camera_setting_match.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
@@ -25,8 +26,8 @@ class FlatLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     int? equipmentProfileId,
     String? opticalTrainId,
     double? temperature,
-    int gain = 0,
-    int offset = 0,
+    int? gain,
+    int? offset,
     int binX = 1,
     int binY = 1,
     int? width,
@@ -90,7 +91,8 @@ class FlatLibraryDao extends DatabaseAccessor<SkotiqDatabase>
   ///
   /// Matching rules (mirrors [DarkLibraryDao.findBestMatch]):
   /// - `filter` must match exactly (a flat is filter-specific) when provided.
-  /// - `gain`, `offset`, and binning must match exactly.
+  /// - `gain`, `offset`, and binning must match exactly; a null gain or
+  ///   offset matches only a flat that has none.
   /// - Optical-train tag must match exactly when both sides provide one.
   /// - Temperature must be within [temperatureToleranceC] when both are known.
   /// - Among matches, the closest-temperature entry wins; ties break newest.
@@ -98,8 +100,8 @@ class FlatLibraryDao extends DatabaseAccessor<SkotiqDatabase>
   /// Returns null when nothing qualifies.
   Future<FlatLibraryEntry?> findBestMatch({
     String? filter,
-    int gain = 0,
-    int offset = 0,
+    int? gain,
+    int? offset,
     int binX = 1,
     int binY = 1,
     String? opticalTrainId,
@@ -110,8 +112,8 @@ class FlatLibraryDao extends DatabaseAccessor<SkotiqDatabase>
     final rows =
         await (select(flatLibrary)..where((f) {
               var matches =
-                  f.gain.equals(gain) &
-                  f.offset.equals(offset) &
+                  f.gain.isSetting(gain) &
+                  f.offset.isSetting(offset) &
                   f.binX.equals(binX) &
                   f.binY.equals(binY);
               if (filter != null && filter.trim().isNotEmpty) {

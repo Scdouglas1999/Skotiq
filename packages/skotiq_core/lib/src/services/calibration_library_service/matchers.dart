@@ -14,7 +14,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
   ) {
     // Hard requirements: exact gain / offset / binning, compatible camera —
     // for every one of those the lights actually carry.
-    final candidates = darks.where((r) => _tupleMatches(r, ctx)).toList();
+    final candidates = _tupleCandidates(darks, ctx);
     if (candidates.isEmpty) return null;
 
     final exposureTol = tol.dark.exposureSecs;
@@ -68,10 +68,11 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     });
     final best = pool.first;
 
-    final reasons = <String>[_tupleReason(ctx, requiredFor: 'darks')];
+    final reasons = <String>[_tupleReason(ctx, best, requiredFor: 'darks')];
     final warnings = <String>[];
     var score = _applyUnverifiedTuple(
       score: 100.0,
+      record: best,
       ctx: ctx,
       reasons: reasons,
       warnings: warnings,
@@ -136,7 +137,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     LightFrameContext ctx,
     CalibrationMatchTolerances tol,
   ) {
-    final pool = biases.where((r) => _tupleMatches(r, ctx)).toList();
+    final pool = _tupleCandidates(biases, ctx);
     if (pool.isEmpty) return null;
 
     pool.sort((a, b) {
@@ -147,12 +148,13 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     final best = pool.first;
 
     final reasons = <String>[
-      _tupleReason(ctx),
+      _tupleReason(ctx, best),
       'Newest of ${pool.length} candidate${pool.length == 1 ? '' : 's'}',
     ];
     final warnings = <String>[];
     var score = _applyUnverifiedTuple(
       score: 100.0,
+      record: best,
       ctx: ctx,
       reasons: reasons,
       warnings: warnings,
@@ -196,6 +198,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
           )
           .toList();
     }
+    pool = _preferExactTuple(pool, ctx);
     if (pool.isEmpty) return null;
 
     // Temperature gate at the flat tolerance, falling back when empty.
@@ -236,6 +239,7 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
     final warnings = <String>[];
     var score = _applyUnverifiedTuple(
       score: 100.0,
+      record: best,
       ctx: ctx,
       reasons: reasons,
       warnings: warnings,
@@ -336,19 +340,57 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
       r.binY == ctx.binY &&
       _cameraCompatible(r, ctx);
 
-  /// The capture dimensions the lights never recorded, in report order.
-  List<String> _unverifiedTupleDimensions(LightFrameContext ctx) => [
-    if (ctx.gain == null) 'gain',
-    if (ctx.offset == null) 'offset',
+  /// The records that pass [_tupleMatches], narrowed to those that state the
+  /// lights' gain and offset exactly when any does, a missing value included:
+  /// a camera without gain or offset control (FLI, Atik CCDs) records neither
+  /// on its lights or its masters, and two such frames agree.
+  List<CalibrationMasterRecord> _tupleCandidates(
+    Iterable<CalibrationMasterRecord> records,
+    LightFrameContext ctx,
+  ) => _preferExactTuple(
+    records.where((r) => _tupleMatches(r, ctx)).toList(),
+    ctx,
+  );
+
+  /// [candidates] narrowed as [_tupleCandidates] describes; a flat is narrowed
+  /// after its filter and optical train, which are hard requirements too.
+  List<CalibrationMasterRecord> _preferExactTuple(
+    List<CalibrationMasterRecord> candidates,
+    LightFrameContext ctx,
+  ) {
+    final exact = candidates
+        .where((r) => r.gain == ctx.gain && r.offset == ctx.offset)
+        .toList();
+    return exact.isEmpty ? candidates : exact;
+  }
+
+  /// The capture dimensions the lights never recorded while [record] does,
+  /// in report order. Both lacking one is agreement, not an unchecked value.
+  List<String> _unverifiedTupleDimensions(
+    LightFrameContext ctx,
+    CalibrationMasterRecord record,
+  ) => [
+    if (ctx.gain == null && record.gain != null) 'gain',
+    if (ctx.offset == null && record.offset != null) 'offset',
   ];
 
   /// The tuple line for a pick's reasons, naming only the dimensions that were
   /// really compared. An unrecorded gain/offset is left out here and stated
   /// explicitly by [_applyUnverifiedTuple] instead of being printed as a value.
-  String _tupleReason(LightFrameContext ctx, {String? requiredFor}) {
+  String _tupleReason(
+    LightFrameContext ctx,
+    CalibrationMasterRecord record, {
+    String? requiredFor,
+  }) {
     final compared = <String>[
-      if (ctx.gain != null) 'gain ${ctx.gain}',
-      if (ctx.offset != null) 'offset ${ctx.offset}',
+      if (ctx.gain != null)
+        'gain ${ctx.gain}'
+      else if (record.gain == null)
+        'no gain',
+      if (ctx.offset != null)
+        'offset ${ctx.offset}'
+      else if (record.offset == null)
+        'no offset',
       'bin ${ctx.binX}x${ctx.binY}',
     ];
     final tail = requiredFor == null ? '' : ' (required for $requiredFor)';
@@ -365,13 +407,14 @@ extension _CalibrationLibraryMatchers on CalibrationLibraryService {
   /// an exact match.
   double _applyUnverifiedTuple({
     required double score,
+    required CalibrationMasterRecord record,
     required LightFrameContext ctx,
     required List<String> reasons,
     required List<String> warnings,
     required String label,
   }) {
     var out = score;
-    for (final dimension in _unverifiedTupleDimensions(ctx)) {
+    for (final dimension in _unverifiedTupleDimensions(ctx, record)) {
       out -= _unverifiedDimensionPenalty;
       reasons.add('$dimension UNVERIFIED (the lights record none)');
       warnings.add(

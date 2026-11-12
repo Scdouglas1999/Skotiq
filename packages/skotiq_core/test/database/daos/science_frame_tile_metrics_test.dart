@@ -17,7 +17,7 @@ void main() {
       .into(db.imagingSessions)
       .insert(ImagingSessionsCompanion.insert(startTime: DateTime(2026, 11)));
 
-  Future<int> frame(int sessionId) => db
+  Future<int> frame(int? sessionId) => db
       .into(db.capturedImages)
       .insert(
         CapturedImagesCompanion.insert(
@@ -30,7 +30,7 @@ void main() {
       );
 
   Future<void> tiles(
-    int sessionId,
+    int? sessionId,
     int? imageId,
     int seconds, {
     int rows = 2,
@@ -102,10 +102,9 @@ void main() {
     final measured = await frame(s);
     await tiles(s, measured, 100);
     await tiles(s, null, 900);
-    expect(
-      (await frameTiles(s)).map((t) => t.capturedImageId).toSet(),
-      {measured},
-    );
+    expect((await frameTiles(s)).map((t) => t.capturedImageId).toSet(), {
+      measured,
+    });
 
     final bare = await session();
     await tiles(bare, null, 10);
@@ -171,5 +170,74 @@ void main() {
         );
       }
     }
+  });
+
+  group('outside a session', () {
+    Future<List<ScienceTileMetricRow>> sessionless() =>
+        db.scienceDao.watchSessionlessTileMetricsRecent().first;
+
+    test('gives the whole frame measured last', () async {
+      final older = await frame(null);
+      final newer = await frame(null);
+      await tiles(null, older, 100, rows: 10);
+      // A 64 x 60 grid, the size of one frame's layer on the rig.
+      await tiles(null, newer, 200, rows: 3840);
+      await tiles(await session(), await frame(null), 300);
+
+      final rows = await sessionless();
+      expect(rows, hasLength(3840));
+      expect(rows.every((t) => t.capturedImageId == newer), isTrue);
+    });
+
+    test('with no frame rows, gives the last measurement', () async {
+      expect(await sessionless(), isEmpty);
+      await tiles(null, null, 10, rows: 3);
+      await tiles(null, null, 20, rows: 2);
+      final rows = await sessionless();
+      expect(rows, hasLength(2));
+      expect(
+        rows.every((t) => t.timestamp.millisecondsSinceEpoch == 20000),
+        isTrue,
+      );
+    });
+
+    test('agrees with selectFrameScienceRows when a row has a frame', () async {
+      final random = Random(11);
+      for (var round = 0; round < 25; round++) {
+        await db.delete(db.scienceTileMetrics).go();
+        final frames = [for (var i = 0; i < 4; i++) await frame(null)];
+        for (var i = 0; i < 6; i++) {
+          await tiles(
+            null,
+            i == 0 || random.nextInt(4) != 0
+                ? frames[random.nextInt(frames.length)]
+                : null,
+            random.nextInt(5),
+            rows: 1 + random.nextInt(3),
+            layer: random.nextBool() ? 'snr' : 'clip_low',
+          );
+        }
+        final all =
+            await (db.select(db.scienceTileMetrics)
+                  ..where((t) => t.sessionId.isNull())
+                  ..orderBy([
+                    (t) => OrderingTerm.desc(t.timestamp),
+                    (t) => OrderingTerm.asc(t.tileRow),
+                    (t) => OrderingTerm.asc(t.tileCol),
+                  ]))
+                .get();
+        final expected = selectFrameScienceRows(
+          all,
+          capturedImageId: null,
+          imageIdOf: (t) => t.capturedImageId,
+          timestampOf: (t) => t.timestamp,
+        );
+        expect(
+          (await sessionless()).map((t) => t.id).toList(),
+          expected.map((t) => t.id).toList(),
+          reason: 'round $round',
+        );
+      }
+    });
   });
 }

@@ -1087,6 +1087,30 @@
 > PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=270&ClientID=<id>&ClientTransactionID=0]
 = Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
+## dome.slew_to_azimuth (DomeDriver, 370) [ok]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Ok(())
+
+## dome.slew_to_azimuth (DomeDriver, 370) [ascom 0x400]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(Operation not supported)
+
+## dome.slew_to_azimuth (DomeDriver, 370) [ascom 0x4FF without Value]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## dome.slew_to_azimuth (DomeDriver, 370) [http 400]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## dome.slew_to_azimuth (DomeDriver, 370) [http 500]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 500: Internal server error)
+
+## dome.slew_to_azimuth (DomeDriver, 370) [malformed json]
+> PUT /api/v1/dome/#/slewtoazimuth query[] form[Azimuth=10&ClientID=<id>&ClientTransactionID=0]
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
 ## dome.sync_to_azimuth [ok]
 > PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=0]
 = Ok(())
@@ -1115,90 +1139,53 @@
 > PUT /api/v1/dome/#/synctoazimuth query[] form[Azimuth=123.456&ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
-## dome.get_status [ok]
+## dome.status (DomeDriver) [ok]
 > GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(DomeStatus { shutter_status: Closed, azimuth: 180.5, altitude: Some(45.5), slewing: false, at_home: false, at_park: true, slaved: false })
+= Ok(DomeState { azimuth: 180.5, altitude: Some(45.5), shutter: Some(Closed), slewing: false, at_home: false, at_park: true, can_set_altitude: true, can_set_azimuth: true, can_set_shutter: true, can_slave: true, slaved: false })
 
-## dome.get_status [ascom 0x400]
+## dome.status (DomeDriver) [ascom 0x400]
 > GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canpark query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetaltitude query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetazimuth query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansetshutter query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canslave query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/cansyncazimuth query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
+= Err(Operation not supported)
 
-## dome.get_status [ascom 0x4FF without Value]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+## dome.status (DomeDriver) [ascom 0x4FF without Value]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(Device error 1279: Unspecified driver fault)
 
-## dome.get_status [http 400]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+## dome.status (DomeDriver) [http 400]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(HTTP error 400: Method not implemented)
 
-## dome.get_status [http 500]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+## dome.status (DomeDriver) [http 500]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
 
-## dome.get_status [malformed json]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/shutterstatus query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slaved query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/dome/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
+## dome.status (DomeDriver) [malformed json]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/dome/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)

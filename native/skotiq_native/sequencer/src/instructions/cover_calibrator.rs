@@ -4,6 +4,7 @@
 //! see them, and `super::*` supplies the imports the original file had.
 
 use super::*;
+use skotiq_device::ascom::cover_calibrator::Settle;
 
 // Cover calibrator (flat panel / dust cover) instructions
 
@@ -232,7 +233,8 @@ pub async fn execute_calibrator_off(
     }
 }
 
-/// Wait for cover to reach target state with timeout
+/// Wait for cover to reach target state with timeout; see [`Settle::cover`]
+/// for when the wait is over.
 /// States: 0=NotPresent, 1=Closed, 2=Moving, 3=Open, 4=Unknown, 5=Error
 pub(crate) async fn wait_for_cover_state(
     device_id: &str,
@@ -277,16 +279,16 @@ pub(crate) async fn wait_for_cover_state(
             .cover_calibrator_get_cover_state(device_id)
             .await
         {
-            Ok(state) => {
-                if state == target_state {
-                    tracing::debug!("Cover reached {} state", state_name);
+            Ok(state) => match Settle::cover(state.into(), target_state.into()) {
+                Settle::Done => {
+                    tracing::debug!("Cover reached {} state (reported {})", state_name, state);
                     return Ok(());
                 }
-                if state == 5 {
-                    return Err("Cover reported error state".to_string());
+                Settle::Failed => return Err("Cover reported error state".to_string()),
+                Settle::Waiting => {
+                    tracing::trace!("Cover state: {}, waiting for {}", state, state_name);
                 }
-                tracing::trace!("Cover state: {}, waiting for {}", state, state_name);
-            }
+            },
             Err(e) => {
                 tracing::warn!("Error checking cover state: {}", e);
                 // Continue polling - transient error
@@ -306,7 +308,8 @@ pub(crate) async fn wait_for_cover_state(
     }
 }
 
-/// Wait for calibrator to reach target state with timeout
+/// Wait for calibrator to reach target state with timeout; see
+/// [`Settle::calibrator`] for when the wait is over.
 /// States: 0=NotPresent, 1=Off, 2=NotReady, 3=Ready, 4=Unknown, 5=Error
 pub(crate) async fn wait_for_calibrator_state(
     device_id: &str,
@@ -364,16 +367,20 @@ pub(crate) async fn wait_for_calibrator_state(
             .cover_calibrator_get_calibrator_state(device_id)
             .await
         {
-            Ok(state) => {
-                if state == target_state {
-                    tracing::debug!("Calibrator reached {} state", state_name);
+            Ok(state) => match Settle::calibrator(state.into(), target_state.into()) {
+                Settle::Done => {
+                    tracing::debug!(
+                        "Calibrator reached {} state (reported {})",
+                        state_name,
+                        state
+                    );
                     return Ok(());
                 }
-                if state == 5 {
-                    return Err("Calibrator reported error state".to_string());
+                Settle::Failed => return Err("Calibrator reported error state".to_string()),
+                Settle::Waiting => {
+                    tracing::trace!("Calibrator state: {}, waiting for {}", state, state_name);
                 }
-                tracing::trace!("Calibrator state: {}, waiting for {}", state, state_name);
-            }
+            },
             Err(e) => {
                 tracing::warn!("Error checking calibrator state: {}", e);
                 // Continue polling - transient error

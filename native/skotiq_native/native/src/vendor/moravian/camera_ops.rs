@@ -152,31 +152,7 @@ impl CameraDriver for MoravianCamera {
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
         self.core.require_connected()?;
-        if self.read_modes.is_empty() {
-            return Ok(vec![ReadoutMode {
-                name: "Normal".to_string(),
-                description: "Standard readout mode".to_string(),
-                index: 0,
-                gain_min: None,
-                gain_max: None,
-                offset_min: None,
-                offset_max: None,
-            }]);
-        }
-        Ok(self
-            .read_modes
-            .iter()
-            .enumerate()
-            .map(|(index, name)| ReadoutMode {
-                name: name.clone(),
-                description: name.clone(),
-                index: index as i32,
-                gain_min: None,
-                gain_max: None,
-                offset_min: None,
-                offset_max: None,
-            })
-            .collect())
+        Ok(self.offered_read_modes())
     }
 
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {

@@ -52,7 +52,7 @@ Map<String, dynamic> _encodeCamera(CameraStateSnapshot s) => {
   'gain': s.gain,
   'offset': s.offset,
   'binning': s.binning,
-  'isCooling': s.isCooling,
+  'coolerOn': s.coolerOn,
   'isWarming': s.isWarming,
   'isExposing': s.isExposing,
 };
@@ -72,7 +72,7 @@ CameraStateSnapshot _decodeCamera(
   gain: jsonInt(json['gain']),
   offset: jsonInt(json['offset']),
   binning: jsonString(json['binning']),
-  isCooling: _flag(json['isCooling']),
+  coolerOn: json['coolerOn'] as bool?,
   isWarming: _flag(json['isWarming']),
   // The countdown follows the host's exposure events, which also end it. The
   // host's flag only starts it, for a client that links mid-exposure.

@@ -274,15 +274,22 @@ void main() {
         nightCoolerState(const CameraStateSnapshot()),
         NightCoolerState.notConnected,
       );
+      // A camera that does not report its cooler is not shown as off.
       expect(
         nightCoolerState(const CameraStateSnapshot(connectionState: connected)),
+        NightCoolerState.notReported,
+      );
+      expect(
+        nightCoolerState(
+          const CameraStateSnapshot(connectionState: connected, coolerOn: false),
+        ),
         NightCoolerState.off,
       );
       expect(
         nightCoolerState(
           const CameraStateSnapshot(
             connectionState: connected,
-            isCooling: true,
+            coolerOn: true,
             temperature: -9.7,
           ),
         ),
@@ -292,7 +299,7 @@ void main() {
         nightCoolerState(
           const CameraStateSnapshot(
             connectionState: connected,
-            isCooling: true,
+            coolerOn: true,
             temperature: -7.4,
           ),
         ),
@@ -302,7 +309,7 @@ void main() {
       expect(
         nightCoolerState(
           const CameraStateSnapshot(
-              connectionState: connected, isCooling: true),
+              connectionState: connected, coolerOn: true),
         ),
         NightCoolerState.cooling,
       );
@@ -310,7 +317,7 @@ void main() {
         nightCoolerState(
           const CameraStateSnapshot(
             connectionState: connected,
-            isCooling: true,
+            coolerOn: true,
             isWarming: true,
           ),
         ),

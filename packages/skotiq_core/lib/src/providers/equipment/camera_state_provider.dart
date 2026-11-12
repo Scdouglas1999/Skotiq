@@ -67,8 +67,9 @@ class CameraStateNotifier extends DeviceSlotNotifier<CameraStateSnapshot> {
     state = state.copyWith(targetTemp: temp);
   }
 
-  void setCooling(bool isCooling) {
-    state = state.copyWith(isCooling: isCooling);
+  /// The cooler's state; null when the camera does not report it.
+  void setCooling(bool? coolerOn) {
+    state = state.copyWith(coolerOn: coolerOn, clearCoolerOn: coolerOn == null);
   }
 
   /// Update warming state (gradual warm-up in progress)
@@ -81,7 +82,7 @@ class CameraStateNotifier extends DeviceSlotNotifier<CameraStateSnapshot> {
   /// device status event may repopulate cooler power if the driver reports it.
   void markCoolingDisabled() {
     state = state.copyWith(
-      isCooling: false,
+      coolerOn: false,
       isWarming: false,
       clearCoolerPower: true,
       lastSuccessfulCommunication: DateTime.now(),

@@ -241,7 +241,7 @@ impl DeviceManager {
                         sensor_temp: status.ccd_temperature,
                         cooler_power: status.cooler_power,
                         target_temp: setpoint,
-                        cooler_on: status.cooler_on.unwrap_or(false),
+                        cooler_on: status.cooler_on,
                         gain: gain.unwrap_or(0),
                         offset: offset.unwrap_or(0),
                         bin_x: status.bin_x,
@@ -263,8 +263,7 @@ impl DeviceManager {
                 ))
             }
             Some(DriverType::Simulator) => {
-                crate::device_manager::ops::sim_gate::read_camera_status(device_id)
-                    .await
+                crate::device_manager::ops::sim_gate::read_camera_status(device_id).await
             }
             Some(DriverType::Native) => {
                 let native_cameras = self.native_cameras.read().await;
@@ -351,7 +350,6 @@ impl DeviceManager {
                         .get_switch(&device_name, indi::CCD_COOLER, indi::COOLER_ON)
                         .await;
                     let has_cooler = cooler_state.is_some();
-                    let cooler_on = cooler_state.unwrap_or(false);
                     let bin_x = locked_client
                         .get_number(&device_name, indi::CCD_BINNING, indi::HOR_BIN)
                         .await
@@ -496,7 +494,7 @@ impl DeviceManager {
                         sensor_temp,
                         cooler_power,
                         target_temp: None,
-                        cooler_on,
+                        cooler_on: cooler_state,
                         gain,
                         offset,
                         bin_x,

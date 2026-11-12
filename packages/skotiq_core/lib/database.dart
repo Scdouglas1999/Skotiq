@@ -59,3 +59,5 @@ export 'src/database/daos/darkroom_jobs_dao.dart';
 export 'src/database/daos/delivery_targets_dao.dart';
 export 'src/database/daos/delivery_journal_dao.dart';
 export 'src/database/daos/calibration_tags_dao.dart';
+export 'src/database/database_health_check.dart';
+export 'src/database/integrity_findings.dart';

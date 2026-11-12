@@ -150,8 +150,9 @@ class FlatLibraryService {
             'CCD_TEMP',
             'SET-TEMP',
           ]),
-      gain: gain ?? headerInt('GAIN') ?? 0,
-      offset: offset ?? headerInt('OFFSET') ?? 0,
+      // A flat without the cards is from a camera with no such control.
+      gain: gain ?? headerInt('GAIN'),
+      offset: offset ?? headerInt('OFFSET'),
       binX: binX ?? headerInt('XBINNING') ?? 1,
       binY: binY ?? headerInt('YBINNING') ?? 1,
       width: result.width,
@@ -174,8 +175,8 @@ class FlatLibraryService {
   /// [FlatLibraryDao.findBestMatch]).
   Future<FlatLibraryEntry?> findBestMatch({
     String? filter,
-    int gain = 0,
-    int offset = 0,
+    int? gain,
+    int? offset,
     int binX = 1,
     int binY = 1,
     String? opticalTrainId,

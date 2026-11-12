@@ -142,7 +142,7 @@ void main() {
       cameraState: const CameraStateSnapshot(
         temperature: -9.8,
         targetTemp: -10,
-        isCooling: true,
+        coolerOn: true,
       ),
       filterWheelState: wheel,
       focuserState: const FocuserState(),

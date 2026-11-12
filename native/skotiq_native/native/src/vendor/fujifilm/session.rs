@@ -153,9 +153,14 @@ async fn open(sdk: &FujifilmSdk, address: &str) -> Result<Opened, DriverError> {
     // the last XSDK_Detect built (SDK Programming Reference 4.1.3.1), not by
     // serial number.
     let listed = list_cameras(sdk).await?;
-    let index = listed
+    let (index, body) = listed
         .iter()
-        .position(|c| c.as_ref().is_some_and(|c| c.address() == address))
+        .enumerate()
+        .find_map(|(i, c)| {
+            c.as_ref()
+                .filter(|c| c.address() == address)
+                .map(|c| (i, c))
+        })
         .ok_or_else(|| {
             DriverError::DeviceNotFound(format!(
                 "Fujifilm camera {address} is not attached. Check the USB cable, that the camera \
@@ -194,12 +199,22 @@ async fn open(sdk: &FujifilmSdk, address: &str) -> Result<Opened, DriverError> {
     unsafe { (sdk.get_device_info)(handle, &mut info) };
     let serial = cstr_to_string(&info.str_serial_no);
     let product = cstr_to_string(&info.str_product);
-    let opened_address = if serial.is_empty() { &product } else { &serial };
-    if !opened_address.is_empty() && opened_address != address {
+    // Compared field by field: either record may leave the serial empty, and
+    // a product name never matches a serial number.
+    let other_body = match (
+        body.serial_number.as_deref(),
+        serial.as_str(),
+        product.as_str(),
+    ) {
+        (Some(listed), opened, _) if !opened.is_empty() => (opened != listed).then_some(opened),
+        (_, _, opened) if !opened.is_empty() => (opened != body.name).then_some(opened),
+        _ => None,
+    };
+    if let Some(opened) = other_body {
         close_camera(handle, sdk);
         return Err(DriverError::DeviceNotFound(format!(
             "Fujifilm camera {address} moved in the SDK's camera list (ENUM:{index} is now \
-             {opened_address}). Search for devices again and reconnect."
+             {opened}). Search for devices again and reconnect."
         )));
     }
 

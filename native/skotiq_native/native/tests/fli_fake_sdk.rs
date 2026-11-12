@@ -317,6 +317,40 @@ async fn cooler_off_parks_the_setpoint() {
     camera.disconnect().await.unwrap();
 }
 
+/// libfli cannot read the cooler back: a camera Skotiq connects to while it
+/// still cools from an earlier session reports its cooler unknown, never off,
+/// with the power the camera reports. Once set, the state is what was set, and
+/// cooling without a set-point is refused rather than given an invented one.
+#[tokio::test]
+#[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]
+async fn a_cooler_libfli_cannot_read_is_unknown_until_set() {
+    let _guard = SERIAL.lock().await;
+    switches(&[]);
+    let mut earlier = connected_camera().await;
+    earlier.set_cooler(true, Some(-20.0)).await.unwrap();
+    earlier.disconnect().await.unwrap();
+
+    let mut camera = connected_camera().await;
+    let status = camera.get_status().await.unwrap();
+    assert_eq!((status.cooler_on, status.target_temp), (None, None));
+    assert_eq!(status.cooler_power, Some(42.0));
+    assert!(matches!(
+        camera.set_cooler(true, None).await,
+        Err(skotiq_device::DriverError::InvalidParameter(_))
+    ));
+
+    camera.set_cooler(true, Some(-15.0)).await.unwrap();
+    let status = camera.get_status().await.unwrap();
+    assert_eq!(
+        (status.cooler_on, status.target_temp),
+        (Some(true), Some(-15.0))
+    );
+    camera.set_cooler(true, None).await.unwrap();
+    camera.set_cooler(false, None).await.unwrap();
+    assert_eq!(camera.get_status().await.unwrap().cooler_on, Some(false));
+    camera.disconnect().await.unwrap();
+}
+
 /// A focuser target outside its travel is refused before it is sent.
 #[tokio::test]
 #[ignore = "needs the fake libfli on LD_LIBRARY_PATH"]

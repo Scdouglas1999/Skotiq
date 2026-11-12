@@ -554,7 +554,7 @@ pub(crate) fn build_master_header(
     int_args: &IntegrationArgs,
     resolved_reject: &Reject,
     provenance: &MasterProvenance,
-    reference_wcs: Option<&WcsInfo>,
+    reference_wcs: Option<&skotiq_imaging::SipWcs>,
     calibration: &CalibrationReport,
 ) -> FitsHeader {
     let mut header = FitsHeader::new();
@@ -609,11 +609,11 @@ pub(crate) fn build_master_header(
     // Carry the registration reference's WCS into the master so the mosaic
     // stitcher's `wcs_from_header` succeeds *without* a post-hoc plate solve. The
     // integration output lives on the reference's pixel grid (every sub is
-    // resampled onto it), so the reference's CRVAL/CRPIX/CD matrix describes the
-    // master 1:1. Absent on the reference → left absent here; the project-service
-    // cluster gates WCS-less panels out of the stitch.
+    // resampled onto it), so the reference's whole solution, SIP distortion
+    // included, describes the master 1:1. Absent on the reference → left absent
+    // here; the project-service cluster gates WCS-less panels out of the stitch.
     if let Some(wcs) = reference_wcs {
-        add_wcs_headers(&mut header, wcs);
+        wcs.write_to_header(&mut header);
         header.add_history("WCS carried from registration reference frame");
     }
     header
@@ -626,14 +626,14 @@ pub(crate) fn build_master_header(
 /// unreadable, or simply carries no astrometry yields `None` — integration still
 /// produces a master, just without a stamped WCS (the stitcher then gates that
 /// panel out). The header is read by [`skotiq_imaging::SipWcs::from_header`].
-pub(crate) fn reference_wcs_from_fits(path: &str) -> Option<WcsInfo> {
+pub(crate) fn reference_wcs_from_fits(path: &str) -> Option<skotiq_imaging::SipWcs> {
     let path = Path::new(path);
     if !skotiq_imaging::is_frame_path(path) {
         return None;
     }
     let header = read_frame_header(path).ok()?;
 
-    skotiq_imaging::SipWcs::from_header(&header).map(|wcs| wcs.cd_only())
+    skotiq_imaging::SipWcs::from_header(&header)
 }
 
 /// Write a stretched 8-bit preview PNG of a (U16 or F32) master.
