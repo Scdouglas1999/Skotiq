@@ -15,7 +15,7 @@ import '../backend/remote_host.dart';
 import '../backend/roles/host_data/host_records.dart';
 import 'database_provider.dart';
 import 'sequence/run_record.dart';
-import 'sequence/run_stop_classification.dart';
+import '../models/sequence/run_stop_classification.dart';
 
 /// Statistics collected during a sequence execution run.
 class SequenceRunStats {

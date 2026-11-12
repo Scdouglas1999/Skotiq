@@ -7,7 +7,7 @@
 // The counter-inputs below are strings the stack really emits.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/providers/sequence/run_stop_classification.dart';
+import 'package:skotiq_core/src/models/sequence/run_stop_classification.dart';
 
 void main() {
   group('isSequenceCancelledNotice', () {

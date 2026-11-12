@@ -13,7 +13,8 @@ import '../sequence_stats_provider.dart'
     show CompletedImagingRun, SequenceRunStats, SequenceTerminalRunResult;
 import 'last_ended_run.dart' show LastEndedRun;
 import 'node_exposure_tally.dart' show NodeExposureTally;
-import 'run_stop_classification.dart' show SequenceStopDecision;
+import '../../models/sequence/run_stop_classification.dart'
+    show SequenceStopDecision;
 import 'sequence_selection.dart' show currentSequenceProvider;
 
 const Object _keep = Object();

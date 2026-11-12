@@ -38,7 +38,7 @@ import '../settings_provider.dart';
 // Session-lifecycle hooks: optical-train baseline capture,
 // post-session diagnostics summary, NotificationRouter active-sequence
 // tracking, USB disconnect aggregation.
-import 'run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import 'sequence_validation.dart' as validation;
 import 'sequence_executor/eta_smoothing.dart';
 import 'sequence_executor/run_finalization.dart';

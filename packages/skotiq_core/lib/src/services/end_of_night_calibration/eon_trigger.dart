@@ -7,7 +7,7 @@ import '../../providers/backend_provider.dart';
 import '../../providers/equipment_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/sequence/sequence_executor.dart';
-import '../../providers/sequence/run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import '../../providers/sequence/sequence_progress.dart';
 import '../../providers/sequence/sequence_selection.dart';
 import '../../models/sequence/sequence_models.dart'

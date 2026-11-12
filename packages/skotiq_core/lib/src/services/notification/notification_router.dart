@@ -27,7 +27,7 @@ import 'dart:developer' as developer;
 
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
-import '../../providers/sequence/run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import 'event_classifier.dart';
 import 'notification_presentation.dart';
 import 'notification_signature.dart';

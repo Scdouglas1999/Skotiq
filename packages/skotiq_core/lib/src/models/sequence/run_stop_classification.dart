@@ -26,7 +26,7 @@
 /// (`executor/preflight.rs`), "focuser move was canceled by the driver",
 /// "slew canceled by the mount (limit switch)" — leaving the operator with NO
 /// error report at all. Those messages are the pinned counter-inputs of
-/// `test/providers/sequence/run_stop_classification_test.dart`.
+/// `test/models/sequence/run_stop_classification_test.dart`.
 ///
 /// The notice is a fixed string the executor writes verbatim, so recognising it
 /// exactly (trimmed, case-insensitive, both spellings) is both sufficient and

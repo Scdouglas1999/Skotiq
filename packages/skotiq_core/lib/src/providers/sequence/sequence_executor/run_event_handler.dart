@@ -31,7 +31,7 @@ import '../../sequence_stats_provider.dart';
 import '../../session_provider.dart';
 import '../exposure_progress_vocabulary.dart';
 import '../log_rate_limiter.dart';
-import '../run_stop_classification.dart';
+import '../../../models/sequence/run_stop_classification.dart';
 import '../sequencer_defaults.dart';
 import '../sequencer_run_event.dart';
 import '../target_end_when_notice.dart';

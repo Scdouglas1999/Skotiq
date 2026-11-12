@@ -4,7 +4,7 @@ import '../../../models/backend/sequencer_status.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/last_ended_run.dart';
 import '../../sequence/run_record.dart';
-import '../../sequence/run_stop_classification.dart';
+import '../../../models/sequence/run_stop_classification.dart';
 import '../../sequence/sequence_progress.dart';
 import '../../sequence/sequence_selection.dart';
 import '../../sequence_stats_provider.dart';
