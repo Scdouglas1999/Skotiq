@@ -58,7 +58,12 @@ class _TimeControlPanelState extends ConsumerState<TimeControlPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final timeState = ref.watch(observationTimeProvider);
+    // A panel on a hidden tab (TickerMode off) does not follow the 1 Hz clock:
+    // each tick would rebuild it, and every rebuild costs a frame nobody sees.
+    // It reads the time afresh when the tab is shown again.
+    final timeState = TickerMode.valuesOf(context).enabled
+        ? ref.watch(observationTimeProvider)
+        : ref.read(observationTimeProvider);
     final twilight = ref.watch(twilightTimesProvider);
 
     final bgColor = widget.backgroundColor ?? context.skotiqColors.surface;
