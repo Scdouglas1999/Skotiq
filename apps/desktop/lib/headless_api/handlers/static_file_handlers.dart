@@ -28,7 +28,7 @@ library;
 
 import 'dart:io';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 

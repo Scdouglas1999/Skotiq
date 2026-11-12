@@ -1,16 +1,11 @@
 import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        DeviceConnectionState,
-        SequenceExecutionState,
-        appVersionProvider,
-        cameraStateProvider,
-        mountStateProvider,
-        resolveSkotiqDataDirectory,
-        sequenceExecutionStateProvider,
-        sequencerBackendProvider;
+import 'package:skotiq_core/models.dart'
+    show DeviceConnectionState, SequenceExecutionState;
+import 'package:skotiq_core/providers.dart'
+    show appVersionProvider, cameraStateProvider, mountStateProvider, sequenceExecutionStateProvider, sequencerBackendProvider;
+import 'package:skotiq_core/utils.dart' show resolveSkotiqDataDirectory;
 import 'package:skotiq_updater/skotiq_updater.dart';
 
 // The updater package knows nothing about the rig. This file is where the app

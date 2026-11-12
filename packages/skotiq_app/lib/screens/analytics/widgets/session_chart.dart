@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart' show DbCapturedImage;
+import 'package:skotiq_core/database.dart' show DbCapturedImage;
 
 import 'adaptive_chart_container.dart';
 

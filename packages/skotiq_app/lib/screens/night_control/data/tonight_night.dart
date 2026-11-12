@@ -6,7 +6,7 @@
 // chosen clock, so no two surfaces can disagree by a time zone.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../services/observing_site.dart';
 

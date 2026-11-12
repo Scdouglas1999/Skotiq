@@ -16,7 +16,7 @@ import 'dart:io';
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Records whether the save dialog was reached, and with what.
 class _RecordingFileSelector extends FileSelectorPlatform {

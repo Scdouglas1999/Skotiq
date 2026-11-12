@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/dialogs/import_summary_dialog.dart';
-import 'package:skotiq_core/src/models/import/canonical_sequence_node.dart';
-import 'package:skotiq_core/src/models/import/import_result.dart';
-import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 ImportResult _fakeResult({

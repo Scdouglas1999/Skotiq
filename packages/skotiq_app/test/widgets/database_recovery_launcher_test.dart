@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/widgets/database_recovery_launcher.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 /// The quarantined file is gone, so nothing about it can be verified.

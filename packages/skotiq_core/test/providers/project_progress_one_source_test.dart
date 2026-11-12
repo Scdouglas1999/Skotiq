@@ -1,14 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        IntegrationGoal,
-        ProjectProgress,
-        allDbImagesProvider,
-        allDbTargetsProvider,
-        allSessionsProvider,
-        integrationGoalsStreamProvider,
-        projectProgressListProvider;
+import 'package:skotiq_core/models.dart' show IntegrationGoal;
+import 'package:skotiq_core/providers.dart'
+    show allDbImagesProvider, allDbTargetsProvider, allSessionsProvider, integrationGoalsStreamProvider, projectProgressListProvider;
+import 'package:skotiq_core/services.dart' show ProjectProgress;
 import 'package:skotiq_core/src/database/database.dart' as db;
 
 db.DbTarget _target(int id, String name) => db.DbTarget(

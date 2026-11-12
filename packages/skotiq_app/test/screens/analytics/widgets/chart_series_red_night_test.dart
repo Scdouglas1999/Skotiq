@@ -16,7 +16,10 @@ import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_app/screens/analytics/widgets/period_analysis_panel.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_timeline_scrubber.dart';
 import 'package:skotiq_app/screens/analytics/widgets/session_chart.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Fraction of the emitted channel energy carried by red.

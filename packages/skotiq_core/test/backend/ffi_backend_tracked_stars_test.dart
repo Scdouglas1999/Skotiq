@@ -3,7 +3,7 @@
 // stars come with the native status itself (`GuiderStatus.trackedStars`).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

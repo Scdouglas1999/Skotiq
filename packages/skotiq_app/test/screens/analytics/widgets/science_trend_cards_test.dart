@@ -8,9 +8,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_trend_cards.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as drift
-    show DbCapturedImage;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/database.dart' as drift show DbCapturedImage;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 const _baseTs = '2025-01-01T20:00:00.000Z';

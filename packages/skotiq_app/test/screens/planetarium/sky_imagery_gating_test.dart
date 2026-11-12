@@ -18,12 +18,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/planetarium/sky_imagery/planetarium_sky_imagery_layer.dart';
 import 'package:skotiq_app/screens/planetarium/widgets/full_screen_sky_view.dart';
 import 'package:skotiq_app/screens/planetarium/sky_imagery/planetarium_sky_imagery_providers.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        HipsFrame,
-        HipsProperties,
-        HipsTileFormat,
-        framingHipsPropertiesProvider;
+import 'package:skotiq_core/models.dart'
+    show HipsFrame, HipsProperties, HipsTileFormat;
+import 'package:skotiq_core/providers.dart' show framingHipsPropertiesProvider;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

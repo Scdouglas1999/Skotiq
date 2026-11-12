@@ -6,7 +6,7 @@
 // operator picked is kept.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   test('a quality trigger on a node still at Retry notifies', () {

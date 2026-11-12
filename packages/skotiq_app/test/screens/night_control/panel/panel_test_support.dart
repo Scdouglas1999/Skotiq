@@ -26,7 +26,8 @@ import 'package:skotiq_app/screens/night_control/panel/focus/focus_panel_vm.dart
 import 'package:skotiq_app/screens/night_control/panel/night_right_panel.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/after_run_section.dart';
 import 'package:skotiq_app/screens/night_control/panel/panel_ops.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';

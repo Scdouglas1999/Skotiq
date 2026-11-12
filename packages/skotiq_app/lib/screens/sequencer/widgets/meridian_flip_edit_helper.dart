@@ -23,7 +23,7 @@
 // `copyWith` — a plain field-replace — and decide for themselves whether to
 // touch `useGlobalDefaults`.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Applies a user edit from the meridian-flip properties panel to [current].
 ///

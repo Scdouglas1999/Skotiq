@@ -52,7 +52,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
 
 /// Registers this device's push token (APNs on iOS, FCM on Android) with a
 /// paired desktop server so the server can deliver off-LAN critical alerts.

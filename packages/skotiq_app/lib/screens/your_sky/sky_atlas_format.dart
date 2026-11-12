@@ -3,7 +3,7 @@
 
 import 'dart:math' as math;
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
 
 String formatCenter(double raDeg, double decDeg) =>
     '${CoordinateFormat.raCompactFromDegrees(raDeg)} · ${CoordinateFormat.decCompact(decDeg)}';

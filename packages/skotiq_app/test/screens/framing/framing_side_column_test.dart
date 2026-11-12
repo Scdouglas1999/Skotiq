@@ -11,7 +11,9 @@ import 'package:skotiq_app/screens/framing/framing_screen.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_panel_parts.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
 import 'package:skotiq_app/tours/tour_target.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';

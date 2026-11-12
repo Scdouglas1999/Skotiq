@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show TutorialProgressDao, tutorialProgressDaoProvider;
+import 'package:skotiq_core/database.dart' show TutorialProgressDao;
+import 'package:skotiq_core/providers.dart' show tutorialProgressDaoProvider;
 
 import 'tour.dart';
 

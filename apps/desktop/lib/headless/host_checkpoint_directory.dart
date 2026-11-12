@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Resolve and create the directory this host uses for sequencer crash-recovery
 /// checkpoints.

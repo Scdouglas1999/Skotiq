@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/services.dart';
 
 /// These tests pin the unit contract for every local-fallback solve parser:
 /// `PlateSolveResult.ra` is in DEGREES, matching the dominant FFI/network

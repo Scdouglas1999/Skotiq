@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
 import '../fakes/fake_network_client.dart';
 
 Map<String, dynamic> tile(int image, int row, double value) => {

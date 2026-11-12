@@ -7,7 +7,8 @@ import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/screens/darkroom/calibration/calibration_library_panel.dart';
 import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/widgets/calibration_redirect.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}

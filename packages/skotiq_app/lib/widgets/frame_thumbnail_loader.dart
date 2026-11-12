@@ -7,12 +7,11 @@ import '../utils/image_decode_size.dart';
 import 'red_night_filter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        DbCapturedImage,
-        imagingBackendProvider,
-        isRemoteModeProvider,
-        loggingServiceProvider, userFacingError;
+import 'package:skotiq_core/database.dart' show DbCapturedImage;
+import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/providers.dart'
+    show imagingBackendProvider, isRemoteModeProvider;
+import 'package:skotiq_core/services.dart' show loggingServiceProvider;
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors, SkotiqMark;
 
 /// Result of asking the backend (and then the local disk) for a frame's

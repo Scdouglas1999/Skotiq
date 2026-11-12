@@ -5,9 +5,8 @@
 // versions before anyone noticed.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as drift
-    show DbCapturedImage;
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/database.dart' as drift show DbCapturedImage;
 
 drift.DbCapturedImage _frame({
   int id = 1,

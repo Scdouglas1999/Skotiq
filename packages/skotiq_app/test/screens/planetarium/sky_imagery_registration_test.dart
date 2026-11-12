@@ -28,20 +28,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/planetarium/sky_imagery/planetarium_sky_geometry.dart';
 import 'package:skotiq_app/screens/planetarium/sky_imagery/planetarium_sky_imagery_providers.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        FramingTarget,
-        HealpixNested,
-        HipsFrame,
-        HipsProperties,
-        HipsTileFormat,
-        HipsTileId;
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_cache.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_selection.dart';
+import 'package:skotiq_core/models.dart'
+    show FramingTarget, HipsFrame, HipsProperties, HipsTileFormat, HipsTileId;
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 

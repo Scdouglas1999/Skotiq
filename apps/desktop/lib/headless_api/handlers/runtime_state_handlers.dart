@@ -7,7 +7,8 @@ import 'package:skotiq_app/screens/night_control/data/session/night_history_sync
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provider.dart';
 import 'package:skotiq_app/services/manual_capture_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../night_event_log.dart';
 import '../request_context.dart';

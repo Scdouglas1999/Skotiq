@@ -18,7 +18,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/models/command_action_result.dart';
 import 'package:skotiq_app/services/sequence_action_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
 /// A [SequenceExecutor] stand-in that only records the playback calls the

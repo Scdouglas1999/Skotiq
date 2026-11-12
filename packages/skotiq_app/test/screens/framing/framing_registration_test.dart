@@ -44,13 +44,8 @@ import 'package:skotiq_app/screens/framing/framing_screen.dart';
 import 'package:skotiq_app/screens/framing/painters/framing_background_painters.dart';
 import 'package:skotiq_app/screens/framing/painters/framing_painters.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_canvas.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// FramingPlateScale is the C1 single-source-of-truth astrometric scale. It is
-// intentionally not surfaced through the public barrel (it is an app->core
-// src-model shared with the framing painters), so it is imported directly
-// here, matching the convention used by the painters themselves.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/pump_app_screen.dart';
 

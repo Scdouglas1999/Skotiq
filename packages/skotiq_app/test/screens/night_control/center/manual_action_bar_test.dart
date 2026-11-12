@@ -4,14 +4,10 @@ import 'package:flutter/material.dart';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        LinkedManualAction,
-        PolarAlignPhase,
-        PolarAlignmentState,
-        PolarAlignmentStateNotifier,
-        linkedManualActionProvider,
-        polarAlignmentStateProvider;
+import 'package:skotiq_core/models.dart'
+    show PolarAlignPhase, PolarAlignmentState;
+import 'package:skotiq_core/providers.dart'
+    show LinkedManualAction, PolarAlignmentStateNotifier, linkedManualActionProvider, polarAlignmentStateProvider;
 import 'package:skotiq_app/screens/night_control/center/manual_action_bar.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 

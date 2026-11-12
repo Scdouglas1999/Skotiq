@@ -73,14 +73,6 @@ export 'src/services/scheduler/scheduler_engine.dart';
 export 'src/services/scheduler/integration_goal_service.dart';
 export 'src/services/scheduler/target_constraint_service.dart';
 export 'src/services/scheduler/scheduler_queue_service.dart';
-// Two HorizonProfile classes exist in the codebase:
-//   * models/site/site_horizon_profile.dart::HorizonProfile  - legacy 8-point
-//     compass profile stored as JSON in app_settings.horizon_profile_json
-//   * services/scheduler/horizon_profile.dart::HorizonProfile  - newer
-//     samples-based profile persisted in the horizon_profiles table
-// The legacy one is still referenced by target_suggestion_service.dart via a
-// `show` import; we hide it from the barrel so the scheduler's profile is the
-// canonical public class.
 export 'src/services/scheduler/horizon_profile.dart';
 export 'src/services/scheduler/horizon_profile_store.dart';
 // The single rejection-reason ladder shared by the engine's decision record
@@ -302,3 +294,10 @@ export 'src/services/disk_space_guard.dart';
 export 'src/services/safe_rig_service.dart';
 export 'src/services/safety_config_service.dart';
 export 'src/services/smart_night/camera_capture_defaults.dart';
+export 'src/services/hips/hips_tile_loader.dart';
+export 'src/services/hips/hips_tile_selection.dart';
+export 'src/services/hips/hips_tile_cache.dart';
+export 'src/services/stacking_engine_seam.dart';
+export 'src/services/hips/hips_tile_fetcher.dart';
+export 'src/services/science/narrator/narrator_detectors.dart';
+export 'src/services/hardware_presets/hardware_presets_service.dart';

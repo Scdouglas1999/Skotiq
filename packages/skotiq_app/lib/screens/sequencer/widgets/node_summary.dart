@@ -41,7 +41,8 @@
 // renderer to paint.
 import 'package:flutter/widgets.dart' show IconData;
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 import '../../../utils/count_label.dart';
 
 /// The kind of property an [EditableFragment] edits inline.

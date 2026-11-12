@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Elapsed time that only moves when the watcher waits, so a five-minute
 /// home runs in microseconds and every step is deterministic.

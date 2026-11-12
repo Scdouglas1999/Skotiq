@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart' show ObjectType;
+import 'package:skotiq_core/models.dart' show ObjectType;
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
 
 /// Hues for catalog object types in annotation UI.

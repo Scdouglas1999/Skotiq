@@ -1,11 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        FrameGradingMode,
-        FrameQualityAssessment,
-        FrameQualityAssessmentService,
-        FrameQualityDisposition,
-        FrameQualityLevel;
+import 'package:skotiq_core/services.dart'
+    show FrameGradingMode, FrameQualityAssessment, FrameQualityAssessmentService, FrameQualityDisposition, FrameQualityLevel;
 import 'package:skotiq_core/src/database/database.dart' show DbCapturedImage;
 
 DbCapturedImage _image({

@@ -7,7 +7,8 @@
 // session's: nothing older survives an app restart.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_run_phase_provider.dart';

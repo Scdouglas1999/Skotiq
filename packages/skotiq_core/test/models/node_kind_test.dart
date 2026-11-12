@@ -1,7 +1,7 @@
 // The node-type table every codec, the diff, the palette and the tree read.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 import '../services/node_codec_goldens/node_fixtures.dart';
 

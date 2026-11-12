@@ -7,16 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        AdaptiveExposureEvent,
-        AdaptiveExposureReason,
-        AdaptiveSwapRuntimeState,
-        AdaptiveSwapSnapshot,
-        LiveBroadcast,
-        LiveBroadcastReach,
-        SchedulerScoreEntry,
-        userFacingError;
+import 'package:skotiq_core/backend.dart' show SchedulerScoreEntry;
+import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/models.dart'
+    show AdaptiveExposureEvent, AdaptiveExposureReason, AdaptiveSwapRuntimeState, AdaptiveSwapSnapshot;
+import 'package:skotiq_core/providers.dart'
+    show LiveBroadcast, LiveBroadcastReach;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';

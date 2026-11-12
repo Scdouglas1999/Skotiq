@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 enum NetworkStatus { connected, disconnected, reconnecting }

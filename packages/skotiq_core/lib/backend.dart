@@ -30,3 +30,4 @@ export 'src/backend/bridge_error_message.dart';
 export 'src/backend/device_connect_exception.dart';
 export 'src/backend/network_backend/host_data/remote_host_records.dart'
     show fetchAllRemoteSequenceRuns;
+export 'src/backend/bridge_event_mapper.dart';

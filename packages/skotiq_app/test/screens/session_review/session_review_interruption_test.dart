@@ -27,7 +27,8 @@ import 'package:skotiq_app/screens/session_review/narrative_view.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
 import 'package:skotiq_app/screens/session_review/widgets/session_interruption_banner.dart';
 import 'package:skotiq_app/screens/session_review/workbench_view.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';

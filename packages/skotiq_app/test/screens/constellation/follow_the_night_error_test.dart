@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/constellation/constellation_screen.dart';
 import 'package:skotiq_app/screens/constellation/constellation_ui_providers.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
 

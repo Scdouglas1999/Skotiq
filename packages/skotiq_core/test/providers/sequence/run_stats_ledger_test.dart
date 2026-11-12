@@ -5,7 +5,9 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_executor/run_stats_ledger.dart';
 
 class _MockRunsDao extends Mock implements SequenceRunsDao {}

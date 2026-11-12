@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
 import 'package:skotiq_app/screens/session_review/widgets/sub_cull_rail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _ReviewController extends Mock implements SessionReviewController {

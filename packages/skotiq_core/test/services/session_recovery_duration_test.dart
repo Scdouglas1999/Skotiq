@@ -2,7 +2,7 @@
 // the day before (reverify RV-07): its length ran to now, not to its last
 // frame.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('an unclosed session lasts until its last frame', () {

@@ -3,7 +3,8 @@
 // keeps the name and coordinates and leaves the rest out.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations, airmassForTrueAltitude;
 

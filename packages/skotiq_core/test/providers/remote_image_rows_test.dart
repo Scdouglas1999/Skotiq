@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
 db.DbCapturedImage _row(int id, {int sessionId = 7, String? path}) {

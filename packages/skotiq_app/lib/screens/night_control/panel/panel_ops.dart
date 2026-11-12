@@ -5,7 +5,9 @@
 // Every method throws on failure; the tab shows the error. Nothing here
 // parks the mount or stops a run: there is no such method.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 abstract interface class NightPanelOps {
   /// Cooler on at [targetTemp] °C.

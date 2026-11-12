@@ -189,3 +189,5 @@ export 'src/providers/narrator_provider.dart';
 export 'src/providers/sky_atlas_provider.dart';
 export 'src/providers/constellation_provider.dart';
 export 'src/providers/transient_detections_provider.dart';
+export 'src/providers/hardware_presets_provider.dart';
+export 'src/providers/plugin_enablement_provider.dart';

@@ -5,7 +5,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_app/utils/plan_tonight_sequencer_helper.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   test('the preamble comes out of a fill-to-dawn window', () {

@@ -7,7 +7,9 @@
 // camera state carries a default setpoint even when nobody set one.
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_header_provider.dart';

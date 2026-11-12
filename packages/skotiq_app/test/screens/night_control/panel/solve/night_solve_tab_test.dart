@@ -12,7 +12,9 @@ import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.d
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/solve/solve_sections.dart';
 import 'package:skotiq_app/screens/night_control/panel/solve/night_solve_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../scope_panel_test_support.dart';
 

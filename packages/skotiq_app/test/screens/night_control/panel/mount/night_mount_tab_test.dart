@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/panel/mount/night_mount_tab.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../../harness/harness.dart';
 import '../scope_panel_test_support.dart';

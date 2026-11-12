@@ -9,7 +9,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show AppScreen;
+import 'package:skotiq_core/models.dart' show AppScreen;
 
 import '../localization/skotiq_localizations.dart';
 import '../screens/analytics/analytics_route.dart';

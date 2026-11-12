@@ -6,7 +6,8 @@
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/services/notification/event_classifier.dart';
 
 final _t0 = DateTime(2026, 10, 6, 1, 30);

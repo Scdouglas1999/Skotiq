@@ -11,7 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/imaging_naming_pattern.dart';
 import 'package:skotiq_app/screens/settings/widgets/imaging_settings.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 import '../../harness/harness.dart';

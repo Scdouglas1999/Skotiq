@@ -2,7 +2,7 @@
 // title row, the body that scrolls (or not) the way the layout asks, the
 // dense button, a label/value row and the view-model to kit mappings.
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';

@@ -123,7 +123,7 @@ export 'src/models/import/import_result.dart';
 // FramingMosaicPanel (grid-based: columns/rows/overlapPercent). The
 // service-layer MosaicConfig / MosaicPanel in mosaic_service.dart
 // (geometry-flavored: centerRa/panelWidthArcmin/...) live under their
-// canonical names and are now safe to re-export from the barrel.
+// canonical names.
 export 'src/models/framing_models.dart';
 export 'src/models/sequence/validation/structural_rules.dart';
 export 'src/models/sequence/validation/validation_issue.dart';
@@ -133,9 +133,6 @@ export 'src/models/sequence/terminal_run_result.dart';
 export 'src/models/sequence/run_stop_classification.dart';
 export 'src/models/site/bortle_scale.dart';
 export 'src/models/site/location_settings.dart';
-// Hide the legacy settings HorizonProfile so the scheduler's samples-based
-// HorizonProfile (services/scheduler/horizon_profile.dart) wins at the barrel.
-// Direct importers of site_horizon_profile.dart still see it.
 export 'src/models/site/site_horizon_profile.dart';
 export 'src/models/equipment_profile_model.dart';
 export 'src/models/sequencer/host_scheduled_start.dart';
@@ -178,3 +175,7 @@ export 'src/models/calibration/calibration_library_models.dart';
 // matcher-folding remote-library seam.
 export 'src/models/calibration/shared_calibration_models.dart';
 export 'src/models/backend/backend_types.dart';
+export 'src/models/framing_plate_scale.dart';
+export 'src/models/troubleshooter/connection_diagnostic.dart';
+export 'src/models/framing_hips_projection.dart';
+export 'src/models/framing_guide_star.dart';

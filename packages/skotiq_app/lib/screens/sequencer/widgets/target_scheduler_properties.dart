@@ -15,7 +15,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 // `TargetScore` exists in both packages — alias the planetarium import so
 // the preview row can refer to the planetarium variant explicitly without
 // shadowing the core scheduling decision type.

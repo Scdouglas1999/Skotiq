@@ -1,8 +1,8 @@
 import 'dart:developer' as developer;
 import 'dart:io';
 
-import 'package:skotiq_core/skotiq_core.dart'
-    show ExportTarget, chooseExportTarget, userFacingError, failureText;
+import 'package:skotiq_core/errors.dart' show userFacingError, failureText;
+import 'package:skotiq_core/utils.dart' show ExportTarget, chooseExportTarget;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';

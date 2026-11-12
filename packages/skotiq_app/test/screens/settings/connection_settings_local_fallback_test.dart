@@ -13,7 +13,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/connection_settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 

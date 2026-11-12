@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/src/services/science/filter_transparency.dart';
 
 /// Per-frame zero points of the 2026-10-24 and 2026-10-25 NGC 891 nights

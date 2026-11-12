@@ -11,7 +11,12 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show catalogStateProvider, objectSearchProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';

@@ -43,12 +43,9 @@
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The resident-snapshot type lives in skotiq_core's src services layer and
-// is intentionally not surfaced through the public barrel, matching the framing
-// tile layer's import convention.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 

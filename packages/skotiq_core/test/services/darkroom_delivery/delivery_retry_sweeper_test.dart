@@ -16,10 +16,9 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/daos/delivery_journal_dao.dart';
-import 'package:skotiq_core/src/database/daos/delivery_targets_dao.dart';
-import 'package:skotiq_core/src/database/database.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 /// A delivery service whose sweep is counted and can be held open.

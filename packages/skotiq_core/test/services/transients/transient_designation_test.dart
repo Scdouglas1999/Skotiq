@@ -8,7 +8,8 @@
 // share one name.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 TransientDetectionRow _at(double raDeg, double decDeg) {
   return TransientDetectionRow(

@@ -11,7 +11,8 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart' show TextStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqTypography;
 
 import '../darkroom_previews.dart' show darkroomDraftPreviewRevisionProvider;

@@ -18,15 +18,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The pure guide-star finder + the shared framing projection live in
-// skotiq_core's models layer and are intentionally not surfaced through the
-// public barrel (app->core src-model types, the same convention the framing
-// painters / canvas use for FramingPlateScale).
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_guide_star.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_hips_projection.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';

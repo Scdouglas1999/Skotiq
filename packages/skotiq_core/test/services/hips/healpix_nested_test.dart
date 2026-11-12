@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Tests for the pure-Dart HEALPix NESTED math that backs the HiPS framing
 /// tile layer.

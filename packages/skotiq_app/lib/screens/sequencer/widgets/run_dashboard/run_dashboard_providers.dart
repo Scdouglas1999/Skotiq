@@ -2,7 +2,12 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 // The typed bridge event union (`SkotiqEvent` / `EventCategory` /
 // `EventSeverity`) collides by name with the wire/JSON event model that the
 // unprefixed barrel above keeps canonical, so the typed surface is imported
@@ -11,7 +16,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 // `isCriticalEvent` — are reachable unprefixed off the barrel, but we keep them
 // behind the prefix here so every typed-event reference in this file reads from
 // one place.)
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// The active target during execution.
@@ -1053,7 +1058,7 @@ const Duration _audibleAlertCooldown = Duration(seconds: 5);
 /// `EventCategory` enum that [PushNotificationService] expects on its
 /// synthetic-injection API.
 /// Why two enums: the typed event category is generated from FRB (surfaced
-/// through the `skotiq_core_events` seam); `skotiq_core` also has its
+/// through `bridge_events.dart`); `skotiq_core` also has its
 /// own wire/JSON copy used by services (`PushNotification.category` is the
 /// unprefixed core enum).
 EventCategory _bridgeCategoryToCore(sk_events.EventCategory cat) {

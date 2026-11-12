@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A parameter value in the PHD2 Brain

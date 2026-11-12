@@ -4,7 +4,8 @@
 // every 30 s) now reads it again.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   test('the host plate solver is read again on refresh', () async {

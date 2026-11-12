@@ -5,7 +5,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/mosaic/mosaic_project_controller.dart';
 import 'package:skotiq_app/screens/mosaic/mosaic_project_screen.dart';
 import 'package:skotiq_app/screens/mosaic/mosaic_projects_list_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 

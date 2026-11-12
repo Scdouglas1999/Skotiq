@@ -22,14 +22,8 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/hips/hips_properties.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/hips/hips_tile_id.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_fetcher.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../fixtures/hips/fixture_field.dart' as fixture;
 

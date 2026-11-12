@@ -33,9 +33,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/integrations_settings.dart';
 import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 // ignore: implementation_imports
 import 'package:skotiq_plugins/src/plugin_registration.dart';

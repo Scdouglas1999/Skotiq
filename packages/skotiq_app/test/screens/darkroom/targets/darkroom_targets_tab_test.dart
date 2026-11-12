@@ -13,7 +13,10 @@ import 'package:skotiq_app/screens/darkroom/targets/framing_check.dart';
 import 'package:skotiq_app/screens/darkroom/targets/tile_crop.dart';
 import 'package:skotiq_app/screens/session_review/widgets/sub_cull_rail.dart'
     show subThumbnailProvider;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_backend.dart';

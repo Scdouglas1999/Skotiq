@@ -14,7 +14,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/mosaic_wizard_dialog/mosaic_project_creation_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 class _MockService extends Mock implements MosaicProjectService {}
 

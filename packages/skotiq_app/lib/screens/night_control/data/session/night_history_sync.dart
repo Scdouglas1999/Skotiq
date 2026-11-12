@@ -9,7 +9,9 @@
 // connected and keeps its own live events from then on.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../panel/solve/recent_solves_provider.dart';
 import 'guide_series_provider.dart';

@@ -1,7 +1,7 @@
 // Science — SciencePhotometry validation + serialization tests.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/src/models/sequence/validation/rules/science_photometry_rules.dart';
 
 Sequence _sequenceWith(SciencePhotometryNode node) {

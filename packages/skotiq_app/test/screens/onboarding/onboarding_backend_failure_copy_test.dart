@@ -12,7 +12,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/onboarding/steps/device_picker_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/filter_wheel_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 const _rawAlpacaError =
     'Alpaca server connection failed: SkotiqError.connectionFailed('

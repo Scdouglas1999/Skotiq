@@ -7,8 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show DeviceType, VCurvePoint, focuserStateProvider;
+import 'package:skotiq_core/models.dart' show DeviceType, VCurvePoint;
+import 'package:skotiq_core/providers.dart' show focuserStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';

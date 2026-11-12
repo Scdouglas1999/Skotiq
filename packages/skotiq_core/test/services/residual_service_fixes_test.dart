@@ -7,7 +7,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart' show SkotiqBackend;
+import 'package:skotiq_core/backend.dart' show SkotiqBackend;
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/equipment_profiles_dao.dart';
 import 'package:skotiq_core/src/database/daos/sequence_checkpoints_dao.dart';

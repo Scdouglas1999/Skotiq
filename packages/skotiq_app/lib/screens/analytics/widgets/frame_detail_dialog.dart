@@ -4,14 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        DbCapturedImage,
-        FramePhotometricCalibrationRow,
-        FrameQualityAssessment,
-        imagingRecordsRepositoryProvider,
-        isRemoteModeProvider,
-        userFacingError;
+import 'package:skotiq_core/database.dart'
+    show DbCapturedImage, FramePhotometricCalibrationRow;
+import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/providers.dart' show isRemoteModeProvider;
+import 'package:skotiq_core/services.dart'
+    show FrameQualityAssessment, imagingRecordsRepositoryProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/filter_label.dart';

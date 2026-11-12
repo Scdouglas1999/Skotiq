@@ -10,7 +10,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/collaborative_sky/collab_mosaic_detail_screen.dart';
 import 'package:skotiq_app/screens/collaborative_sky/collaborative_sky_providers.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A host-local backend: the CTA branch under test is only reachable when the
 /// device can own a mosaic project (a NetworkBackend/DisconnectedBackend takes

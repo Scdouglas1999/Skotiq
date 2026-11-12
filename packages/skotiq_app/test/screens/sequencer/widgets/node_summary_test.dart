@@ -16,7 +16,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_summary.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Matcher: the summary contains an [EditableFragment] of [kind] showing
 /// [value]. Matches on the semantic identity (kind + display value) and is

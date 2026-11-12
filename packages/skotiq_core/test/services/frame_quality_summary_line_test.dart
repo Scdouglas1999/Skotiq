@@ -9,7 +9,7 @@
 // which is that score minus review penalties. They must be nameable apart.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart'
+import 'package:skotiq_core/services.dart'
     show FrameQualityAssessmentService, FrameQualityLevel;
 import 'package:skotiq_core/src/database/database.dart' show DbCapturedImage;
 

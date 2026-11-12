@@ -6,7 +6,7 @@
 // while the node's own row read "60 frames".
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 Sequence _photometryUnderTarget({int count = 60, double exposureSecs = 60}) {
   final target = TargetHeaderNode(

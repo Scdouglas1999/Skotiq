@@ -10,7 +10,9 @@
 // plan's exposure steps, loops included.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';

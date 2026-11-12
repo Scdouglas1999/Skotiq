@@ -13,7 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/sequence_fold_model.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/delete_node_confirmation.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/fold_group_actions.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;

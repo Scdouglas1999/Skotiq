@@ -1,15 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-// FramingPlateScale is the C1 single-source-of-truth astrometric scale shared by
-// every framing painter and the gesture hit-tester. It lives in skotiq_core's
-// models layer and is not surfaced through the public barrel, so it is imported
-// directly here, matching the established app->core src-model convention used by
-// the sibling background painters in this same folder.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
 // FramingMosaicConfig / FramingMosaicPanel are exported from the public barrel.
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Equipment FOV rectangle drawn at the canvas center when the preview FOV is

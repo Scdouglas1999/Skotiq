@@ -19,7 +19,10 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A [PostSessionSeam] whose progress stream is empty and whose other members
 /// throw — the seeded controller never invokes them.

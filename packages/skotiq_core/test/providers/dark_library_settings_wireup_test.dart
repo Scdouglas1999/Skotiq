@@ -3,13 +3,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        BackendNotifier,
-        DarkGroupKey,
-        NetworkBackend,
-        SkotiqBackend,
-        backendProvider;
+import 'package:skotiq_core/backend.dart' show NetworkBackend, SkotiqBackend;
+import 'package:skotiq_core/database.dart' show DarkGroupKey;
+import 'package:skotiq_core/providers.dart'
+    show BackendNotifier, backendProvider;
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/dark_library_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';

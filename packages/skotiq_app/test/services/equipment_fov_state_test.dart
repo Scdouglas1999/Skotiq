@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/services/equipment_fov_binding.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 /// The planetarium FOV overlay is fed exclusively from the active profile's

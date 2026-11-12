@@ -9,8 +9,8 @@
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/src/database/database.dart';
-import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// Build a fresh in-memory `SkotiqDatabase` for a single widget test.
 ///

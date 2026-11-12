@@ -6,7 +6,7 @@
 // transition envelope, and the legacy prose-only {error} bodies.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   group('ServerError.tryFromJson', () {

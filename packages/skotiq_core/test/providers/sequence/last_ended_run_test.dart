@@ -2,7 +2,8 @@
 // record is what keeps the night's results on Tonight (qa-pair QP-22).
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   test(

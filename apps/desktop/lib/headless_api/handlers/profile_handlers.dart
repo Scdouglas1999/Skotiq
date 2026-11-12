@@ -1,12 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/database_entities.dart' as settings_models;
-// `SkotiqEvent` / `EventCategory` / `EventSeverity` /
-// `settingsChangedEventType` are re-exported through
-// `skotiq_backend.dart` → `backend_types.dart` → `event_types.dart`,
-// so the public barrel below is enough.
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart' as settings_models;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../admin_only_settings.dart';

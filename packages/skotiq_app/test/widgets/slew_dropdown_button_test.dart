@@ -6,7 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/models/command_action_result.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/harness.dart';

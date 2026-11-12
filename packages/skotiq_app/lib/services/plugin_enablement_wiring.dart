@@ -21,7 +21,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart'
+import 'package:skotiq_core/providers.dart'
     show settingsPluginEnablementStoreProvider;
 import 'package:skotiq_plugins/src/plugin_registration.dart'
     show pluginEnablementStoreProvider;

@@ -17,7 +17,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 const int _blockSize = FitsHeaderWriter.blockSize;
 const int _cardSize = FitsHeaderWriter.cardSize;

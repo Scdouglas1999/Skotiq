@@ -2,7 +2,7 @@
 // later plain launch exposed the LAN server (qa-pair QP-01). It now turns the
 // server on for the run only.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_desktop/desktop_app_bootstrap.dart';
 
 void main() {

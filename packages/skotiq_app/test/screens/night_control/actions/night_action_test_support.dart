@@ -11,7 +11,10 @@ import 'package:skotiq_app/screens/night_control/actions/run_pause_guard.dart';
 import 'package:skotiq_app/screens/night_control/actions/solve_and_sync.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart'
     show NightSolverStatus, nightSolverStatusProvider;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../harness/mock_backend.dart';
 import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;

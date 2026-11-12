@@ -16,7 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/planetarium/planetarium_screen.dart';
 import 'package:skotiq_app/screens/planetarium/widgets/search_header.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

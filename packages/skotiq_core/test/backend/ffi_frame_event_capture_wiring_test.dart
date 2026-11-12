@@ -20,7 +20,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
 
 /// One populated capture payload, reused by both arms so the accepted and
 /// rejected paths are held to the same bar.

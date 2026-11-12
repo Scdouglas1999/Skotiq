@@ -13,7 +13,9 @@ import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_sections.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_tab.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/run_sections.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../fixtures/night_fixtures.dart';

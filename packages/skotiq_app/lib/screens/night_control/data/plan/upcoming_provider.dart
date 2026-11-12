@@ -9,7 +9,8 @@
 // altitude limit, the moon setting, the plan's estimated end and dawn.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../session/session_events_provider.dart';
 import '../tonight_night.dart';

@@ -7,7 +7,8 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/narrative_view.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 
 DbCapturedImage _sub(int id,
         {required double hfr, double? qualityScore, int starCount = 400}) =>

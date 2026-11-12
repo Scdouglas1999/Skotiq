@@ -3,8 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/widgets/end_of_night_calibration_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as db;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/database.dart' as db;
 
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';

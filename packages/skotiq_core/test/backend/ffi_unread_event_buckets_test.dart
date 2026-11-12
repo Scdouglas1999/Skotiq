@@ -15,7 +15,7 @@
 // ignore_for_file: camel_case_types
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
 
 class SafetyEvent_CloudSensorFault {}
 

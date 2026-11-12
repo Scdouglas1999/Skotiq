@@ -3,7 +3,7 @@
 // exercise the 1 November 2026 fall-back; in a zone without daylight saving
 // the assertions still hold.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 
 void main() {
   test('a time later today stays today', () {

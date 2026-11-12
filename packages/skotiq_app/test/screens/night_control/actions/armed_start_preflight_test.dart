@@ -7,7 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/models/command_action_result.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../data/plan/plan_test_support.dart' show TwoTargetPlan;
 import 'night_action_test_support.dart';

@@ -6,7 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/constellation/constellation_contribute_sheet.dart';
 import 'package:skotiq_app/screens/constellation/constellation_ui_providers.dart'
     as ui;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A [ConstellationService] that records the exact license, attribution, privacy

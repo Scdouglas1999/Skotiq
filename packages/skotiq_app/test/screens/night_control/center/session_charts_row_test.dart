@@ -10,7 +10,8 @@ import 'package:skotiq_app/screens/night_control/data/session/session_series_pro
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
 import 'package:skotiq_app/utils/guide_distance.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../golden/surface_golden_harness.dart';

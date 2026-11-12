@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/first_light/first_light_format.dart';
-import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
+import 'package:skotiq_core/errors.dart' show userFacingError;
 
 void main() {
   group('describeFirstLightError', () {

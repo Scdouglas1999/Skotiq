@@ -28,8 +28,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/healpix_nested.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../fixtures/hips/fixture_field.dart' as fx;
 import 'support/hips_fixture_render.dart';

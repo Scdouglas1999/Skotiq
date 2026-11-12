@@ -9,7 +9,7 @@ import 'package:skotiq_app/screens/night_control/left/night_left_column.dart';
 import 'package:skotiq_app/screens/night_control/left/steps_section.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/night_control_layout.dart';
-import 'package:skotiq_core/skotiq_core.dart' show selectedNodeIdProvider;
+import 'package:skotiq_core/providers.dart' show selectedNodeIdProvider;
 
 import '../fixtures/night_fixtures.dart';
 import 'night_widget_test_support.dart';

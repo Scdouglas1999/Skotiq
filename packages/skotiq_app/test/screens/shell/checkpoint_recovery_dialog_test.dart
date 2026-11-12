@@ -23,14 +23,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        BackendErrorCategory,
-        CheckpointInfo,
-        NetworkBackend,
-        SequencerBackend,
-        SkotiqError;
-import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
+import 'package:skotiq_core/backend.dart' show NetworkBackend, SequencerBackend;
+import 'package:skotiq_core/models.dart'
+    show BackendErrorCategory, CheckpointInfo, SkotiqError;
+import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockHost extends Mock implements NetworkBackend {}
