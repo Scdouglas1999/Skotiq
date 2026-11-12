@@ -105,7 +105,7 @@ void main() {
           [hybrid],
           [_currentRow(), _currentRow()],
           [_currentRow(frameType: 'science')],
-          [_currentRow(fileFormat: 'raw')],
+          [_currentRow(fileFormat: 'bmp')],
         ];
 
         for (final rows in cases) {

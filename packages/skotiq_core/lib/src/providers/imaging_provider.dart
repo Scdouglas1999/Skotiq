@@ -762,21 +762,8 @@ FrameType _frameTypeFromDbString(String str) {
   }
 }
 
-ImageFileFormat _imageFormatFromDbString(String str) {
-  switch (str.toLowerCase()) {
-    case 'xisf':
-      return ImageFileFormat.xisf;
-    case 'tiff':
-      return ImageFileFormat.tiff;
-    case 'png':
-      return ImageFileFormat.png;
-    case 'jpeg':
-    case 'jpg':
-      return ImageFileFormat.jpeg;
-    default:
-      return ImageFileFormat.fits;
-  }
-}
+ImageFileFormat _imageFormatFromDbString(String str) =>
+    ImageFileFormat.fromRecord(str) ?? ImageFileFormat.fits;
 
 class TemperaturePoint {
   final double temperature;

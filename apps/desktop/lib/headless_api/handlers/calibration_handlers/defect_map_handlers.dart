@@ -443,7 +443,8 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
     });
   }
 
-  /// Enumerate dark-frame files (FITS/XISF) directly under [directoryPath].
+  /// Enumerate dark-frame files (any frame format) directly under
+  /// [directoryPath].
   /// Non-recursive: callers point at the directory that holds the darks.
   Future<List<String>> _enumerateDarkFrames(String directoryPath) async {
     final directory = Directory(directoryPath);
@@ -455,12 +456,9 @@ extension CalibrationDefectMapHandlers on CalibrationHandlers {
         details: {'darkFramesDirectory': directoryPath},
       );
     }
-    const darkExtensions = {'.fits', '.fit', '.fts', '.xisf'};
     final paths = <String>[];
     await for (final entity in directory.list(followLinks: false)) {
-      if (entity is! File) continue;
-      final ext = p.extension(entity.path).toLowerCase();
-      if (darkExtensions.contains(ext)) {
+      if (entity is File && FrameFiles.isFrame(entity.path)) {
         paths.add(entity.path);
       }
     }

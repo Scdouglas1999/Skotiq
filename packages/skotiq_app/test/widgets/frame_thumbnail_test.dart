@@ -97,9 +97,11 @@ void main() {
         '/frames/light.fit',
         '/frames/light.fts',
         '/frames/light.xisf',
+        '/frames/IMG_0001.CR3',
+        '/frames/DSCF0001.RAF',
       ]) {
         expect(isDisplayableImagePath(path), isFalse, reason: path);
-        expect(isFitsLikePath(path), isTrue, reason: path);
+        expect(FrameFiles.isFrame(path), isTrue, reason: path);
       }
     });
 
@@ -107,11 +109,10 @@ void main() {
       // These are exactly the paths the two rules disagreed on, and the reason
       // one surface drew a broken-image glyph where another drew a placeholder.
       for (final path in [
-        '/frames/light.cr2',
         '/frames/light.ser',
         '/frames/light'
       ]) {
-        expect(isFitsLikePath(path), isFalse, reason: path);
+        expect(FrameFiles.isFrame(path), isFalse, reason: path);
         expect(isDisplayableImagePath(path), isFalse, reason: path);
       }
     });

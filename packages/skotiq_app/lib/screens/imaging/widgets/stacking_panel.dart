@@ -29,7 +29,7 @@ typedef StackingReferencePicker = Future<XFile?> Function();
 Future<XFile?> _pickStackingReference() {
   const typeGroup = XTypeGroup(
     label: 'Image files',
-    extensions: ['fits', 'fit', 'fts', 'xisf', 'tif', 'tiff', 'png'],
+    extensions: [...FrameFiles.all, 'tif', 'tiff', 'png'],
   );
   return openFile(acceptedTypeGroups: [typeGroup]);
 }

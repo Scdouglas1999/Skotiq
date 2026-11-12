@@ -1084,24 +1084,9 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
     }
   }
 
-  ImageFileFormat _parseImageFormat(String str) {
-    switch (str.toLowerCase()) {
-      case 'fits':
-      case 'fit':
-        return ImageFileFormat.fits;
-      case 'xisf':
-        return ImageFileFormat.xisf;
-      case 'tiff':
-        return ImageFileFormat.tiff;
-      case 'png':
-        return ImageFileFormat.png;
-      case 'jpeg':
-      case 'jpg':
-        return ImageFileFormat.jpeg;
-      default:
-        throw FormatException('Unknown captured-image file format: $str');
-    }
-  }
+  ImageFileFormat _parseImageFormat(String str) =>
+      ImageFileFormat.fromRecord(str) ??
+      (throw FormatException('Unknown captured-image file format: $str'));
 
   @override
   Future<void> startDeviceHeartbeat({
