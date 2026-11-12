@@ -123,8 +123,19 @@ void main() {
     // A client in another zone read the host's local time, sent without an
     // offset, as its own local time.
     test('altitude names its instant in UTC with a Z', () async {
+      final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      final scoped = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(database)],
+      );
+      addTearDown(() async {
+        scoped.dispose();
+        await database.close();
+      });
+      await database.settingsDao.write(AppSettingDefs.latitude, 40.0);
+      await database.settingsDao.write(AppSettingDefs.longitude, -74.0);
+
       final response = await translateHandlerErrors(
-        handlers.handleCalculateAltitude(
+        SchedulerHandlers(scoped).handleCalculateAltitude(
           Request(
             'GET',
             Uri.parse(
