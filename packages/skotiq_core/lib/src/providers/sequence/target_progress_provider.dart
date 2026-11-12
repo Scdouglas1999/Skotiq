@@ -139,7 +139,10 @@ final targetExecutionProgressProvider =
               // Stopped part way: the frames it took are on disk. Its progress
               // percent is not a count (the budget report after each burst
               // resets it to 0), the per-node tally is.
-              final taken = (tally[node.id]?.captured ?? 0).clamp(0, node.count);
+              final taken = (tally[node.id]?.captured ?? 0).clamp(
+                0,
+                node.count,
+              );
               completedFrames += taken;
               completedIntegrationSecs += node.durationSecs * taken;
             } else if (status == NodeStatus.running) {

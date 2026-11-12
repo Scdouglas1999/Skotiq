@@ -29,6 +29,7 @@ import '../sequence_provider.dart'
     show
         currentSequenceProvider,
         runRecordProvider,
+        RunRecordNotifier,
         sequenceExecutionStateProvider,
         sequenceProgressProvider;
 import '../sequence_stats_provider.dart';
@@ -1403,6 +1404,7 @@ class SequenceExecutor {
     // Dart allows cancelling the subscription from within its own handler.
     final subscription = _nativeEventSubscription;
     _nativeEventSubscription = null;
+    _releaseEventFold();
     if (subscription != null) {
       try {
         await subscription.cancel();
@@ -2198,6 +2200,21 @@ class SequenceExecutor {
       onError: (e) =>
           _logger.error('Event stream error: $e', source: 'SequenceExecutor'),
     );
+    // From here this executor folds the run's events onto the record, and the
+    // always-on pump leaves them to it.
+    final run = _ref.read(runRecordProvider.notifier);
+    run.claimEventFold();
+    _foldClaim = run;
+  }
+
+  /// The record notifier while this executor folds the run's events onto it.
+  /// Held so [dispose], which may not read providers, can hand the fold back.
+  RunRecordNotifier? _foldClaim;
+
+  void _releaseEventFold() {
+    final claim = _foldClaim;
+    _foldClaim = null;
+    if (claim != null && claim.mounted) claim.releaseEventFold();
   }
 
   @visibleForTesting
@@ -2223,6 +2240,7 @@ class SequenceExecutor {
     _timers.dispose();
     _nativeEventSubscription?.cancel();
     _nativeEventSubscription = null;
+    _releaseEventFold();
     _runtimeConfig.dispose();
   }
 }

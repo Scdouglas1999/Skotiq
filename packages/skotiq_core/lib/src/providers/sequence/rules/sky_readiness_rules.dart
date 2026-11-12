@@ -1,4 +1,3 @@
-
 import '../../../models/equipment/equipment_models.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/scheduler/scheduler_status.dart' show SchedulerConfig;

@@ -16,8 +16,7 @@ const String kFilterNameMismatchCode = 'filter_name_mismatch';
 /// Mirrors `normalize_filter_name` in `bridge/src/filter_matching.rs`, which
 /// is how a Change Filter step finds its slot at run time.
 String canonicalFilterName(String name) {
-  final normalized =
-      name.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+  final normalized = name.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
   return switch (normalized) {
     'LUMINANCE' || 'LUM' || 'CLEAR' => 'L',
     'RED' => 'R',

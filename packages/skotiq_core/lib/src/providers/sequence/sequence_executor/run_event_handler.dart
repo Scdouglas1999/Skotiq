@@ -21,7 +21,7 @@ import '../../plugin_node_dispatcher.dart';
 import '../../replay_debug_provider.dart';
 import '../../sequence_provider.dart'
     show
-        recordRunEventStopEvidence,
+        foldRunEvent,
         runRecordProvider,
         RunRecordNotifier,
         sequenceExecutionStateProvider,
@@ -31,7 +31,6 @@ import '../../sequence_stats_provider.dart';
 import '../../session_provider.dart';
 import '../exposure_progress_vocabulary.dart';
 import '../log_rate_limiter.dart';
-import '../node_exposure_tally.dart';
 import '../run_stop_classification.dart';
 import '../sequencer_defaults.dart';
 import '../sequencer_run_event.dart';
@@ -125,18 +124,15 @@ class RunEventHandler {
       return;
     }
 
-    applyRunEventToNodeExposureTally(
-      _ref.read(runRecordProvider.notifier),
-      event,
-    );
-    // Authorship rows precede the cause-neutral cancel notice, so they are
-    // folded as they arrive.
-    recordRunEventStopEvidence(_ref.read, event);
-
+    // The record's own fold first; what follows adds what only the executor
+    // knows and words the progress message for the run view.
     final progressNotifier = _ref.read(runRecordProvider.notifier);
+    foldRunEvent(progressNotifier, event);
     switch (event) {
       case NodeStarted():
-        _onNodeStarted(event, progressNotifier);
+        // Frame indices restart at 1 for every node, so a verdict an aborted
+        // burst never completed must not survive into this node's frame 1.
+        _frames.clearVerdicts();
       case NodeCompleted():
         _onNodeCompleted(event, progressNotifier);
       case ExposureStarted():
@@ -181,9 +177,6 @@ class RunEventHandler {
       case TriggerFired():
         _onTriggerFired(event, progressNotifier);
       case RunStarted():
-        // A new run answers for itself: the previous run's stop cause must not
-        // be read as this one's.
-        _ref.read(runRecordProvider.notifier).setStopEvidence(null);
         _targetSkippedAtEntry = false;
         _setExecutionState(SequenceExecutionState.running);
       case RunPaused():
@@ -234,21 +227,6 @@ class RunEventHandler {
       case DitherPerformed() || RunCancelled() || UnrecognizedSequencerEvent():
         break;
     }
-  }
-
-  void _onNodeStarted(NodeStarted event, RunRecordNotifier progressNotifier) {
-    final nodeId = event.nodeId;
-    if (nodeId != null) {
-      progressNotifier.updateProgress(
-        currentNodeId: nodeId,
-        currentNodeName: event.nodeType,
-        currentNodeStatus: NodeStatus.running,
-      );
-      progressNotifier.updateNodeStatus(nodeId, NodeStatus.running);
-    }
-    // Frame indices restart at 1 for every node, so a verdict an aborted burst
-    // never completed must not survive into this node's frame 1.
-    _frames.clearVerdicts();
   }
 
   void _onNodeCompleted(
@@ -335,12 +313,6 @@ class RunEventHandler {
       _eta.recordFrame(durationSecs + defaults.frameDownloadOverheadSecs);
     }
     progressNotifier.updateProgress(completedExposures: frame);
-    // Keyed on the originating event: the DeviceService pump sees the same
-    // event, and only one of the two may add its shutter time.
-    progressNotifier.recordCompletedFrameIntegration(
-      eventKey: '${event.timestamp}:$frame',
-      durationSecs: durationSecs,
-    );
     final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
     if (nodeId != null) {
       progressNotifier.updateNodeProgress(

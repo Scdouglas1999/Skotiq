@@ -152,10 +152,7 @@ void main() {
     test('an unknown integration total is null, never zero', () async {
       final progress = container.read(runRecordProvider.notifier);
       progress.setTotals(12);
-      progress.recordCompletedFrameIntegration(
-        eventKey: 'frame-1',
-        durationSecs: 2.0,
-      );
+      progress.addCompletedIntegration(2.0);
 
       final response = await translateHandlerErrors(
         handlers.handleSnapshot(

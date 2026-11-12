@@ -114,122 +114,109 @@ SequenceStopDecision? runEventStopEvidence(SequencerRunEvent event) {
 
 typedef SequenceProviderReader = T Function<T>(ProviderListenable<T> provider);
 
-/// Fold one event's authorship into [sequenceStopEvidenceProvider].
+/// The always-on pump's entry for a backend sequencer event.
 ///
-/// An event that names nobody leaves the last named author standing: the
-/// cancel notice arrives after the row that named the cause.
-void recordSequenceStopEvidence(
-  SequenceProviderReader read,
-  SkotiqEvent event,
-) {
-  final typed = SequencerRunEvent.fromSkotiqEvent(event);
-  if (typed != null) recordRunEventStopEvidence(read, typed);
-}
-
-/// [recordSequenceStopEvidence] for an already-decoded event.
-void recordRunEventStopEvidence(
-  SequenceProviderReader read,
-  SequencerRunEvent event,
-) {
-  final decision = runEventStopEvidence(event);
-  if (decision == null) return;
-  read(runRecordProvider.notifier).setStopEvidence(decision);
-}
-
-/// True when a local [SequenceExecutor] owns the running sequence, and is
-/// therefore the sole authority on run lifecycle state.
-///
-/// The executor opens the `sequence_runs` row before the native run starts, so
-/// a run id means a Dart-side run transaction is live. The executor publishes
-/// `finalizing` on a terminal and settles only after durable cleanup, so this
-/// pump (which sees every event first) must not publish a settled terminal
-/// state for such a run. With no local run (the headless `load -> start` path)
-/// this pump is the only writer of lifecycle state.
-bool _localExecutorOwnsRun(SequenceProviderReader read) =>
-    read(runRecordProvider).runId != null;
-
-/// Apply a backend sequencer event to the sequence state providers.
-///
-/// This keeps sequencer-state ownership inside the sequence provider layer
-/// instead of having hardware/device services write those providers directly.
+/// The event is folded onto the run record here unless the executor attached
+/// to the run is folding its events itself (it adds what only it knows: stats,
+/// frames, the finalization). The camera card learns of a sequence exposure
+/// here either way.
 void applySequencerEventToSequenceProviders(
   SequenceProviderReader read,
   SkotiqEvent raw,
 ) {
   final event = SequencerRunEvent.fromSkotiqEvent(raw);
   if (event == null) return;
-  final progressNotifier = read(runRecordProvider.notifier);
-  final executorOwnsRun = _localExecutorOwnsRun(read);
+  final run = read(runRecordProvider.notifier);
+  if (!run.eventFoldClaimed) foldRunEvent(run, event);
 
-  // This pump is the only tally writer on a headless host; the tally's writes
-  // are monotonic per node, so the executor folding the same event is a no-op.
-  applyRunEventToNodeExposureTally(progressNotifier, event);
-  recordRunEventStopEvidence(read, event);
+  // A sequence exposes in Rust and surfaces only through events. Leaving the
+  // exposing path by any terminal or error must clear the flag: an aborted
+  // exposure never sends ExposureCompleted.
+  switch (event) {
+    case ExposureStarted():
+      read(cameraStateProvider.notifier).setExposing(true);
+    case ExposureCompleted() || RunTerminalEvent() || SequencerError():
+      read(cameraStateProvider.notifier).setExposing(false);
+    default:
+      break;
+  }
+}
 
-  void setState(SequenceExecutionState state) =>
-      progressNotifier.setLifecycle(state);
+/// Fold one sequencer event onto the run record: progress, per-step status and
+/// tally, stop authorship, and the lifecycle when no local executor owns it.
+///
+/// Called once per event, by `RunEventHandler` for a run the executor is
+/// attached to and by [applySequencerEventToSequenceProviders] otherwise.
+///
+/// A local executor that owns the run (it opened the `sequence_runs` row, so
+/// the record has a run id) is the authority on its lifecycle: it publishes
+/// `finalizing` on a terminal and settles only after durable cleanup, so a
+/// settled state is not written from here for such a run.
+void foldRunEvent(RunRecordNotifier run, SequencerRunEvent event) {
+  final executorOwnsRun = run.record.runId != null;
+
+  applyRunEventToNodeExposureTally(run, event);
+  // Authorship rows precede the cause-neutral cancel notice, so they are
+  // folded as they arrive; an event that names nobody leaves the last named
+  // author standing.
+  final stopEvidence = runEventStopEvidence(event);
+  if (stopEvidence != null) run.setStopEvidence(stopEvidence);
 
   switch (event) {
     case RunStarted():
       final sequenceName = event.sequenceName ?? 'Unknown';
       // A new run answers for itself: the previous run's stop cause must not
       // be read as this one's.
-      progressNotifier.setStopEvidence(null);
-      if (executorOwnsRun) {
-        progressNotifier.updateProgress(
-          message: 'Started sequence: $sequenceName',
-        );
-        break;
+      run.setStopEvidence(null);
+      if (!executorOwnsRun) {
+        // With no executor, nothing else clears the previous run's accounting;
+        // integration seconds would otherwise span every run.
+        run.resetProgress();
+        run.setLifecycle(SequenceExecutionState.running);
       }
-      // With no executor, nothing else clears the previous run's accounting;
-      // integration seconds accumulate and would otherwise span every run.
-      progressNotifier.resetProgress();
-      progressNotifier.setLifecycle(SequenceExecutionState.running);
-      progressNotifier.updateProgress(
-        message: 'Started sequence: $sequenceName',
-      );
+      run.updateProgress(message: 'Started sequence: $sequenceName');
 
     case RunPaused():
-      if (!executorOwnsRun) setState(SequenceExecutionState.paused);
+      if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.paused);
 
     case RunResumed():
-      if (!executorOwnsRun) setState(SequenceExecutionState.running);
+      if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.running);
 
     case RunStopped():
-      if (!executorOwnsRun) setState(SequenceExecutionState.idle);
+      if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.idle);
 
     case RunCompleted():
-      if (!executorOwnsRun) setState(SequenceExecutionState.completed);
+      if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.completed);
 
     case RunFailed():
       final error = event.error ?? 'Unknown error';
-      progressNotifier.updateProgress(message: 'Sequence failed: $error');
-      if (!executorOwnsRun) setState(SequenceExecutionState.failed);
+      run.updateProgress(message: 'Sequence failed: $error');
+      if (!executorOwnsRun) run.setLifecycle(SequenceExecutionState.failed);
 
     case NodeStarted():
       final nodeId = event.nodeId ?? '';
-      progressNotifier.updateProgress(
+      run.updateProgress(
         currentNodeId: nodeId,
         currentNodeName: event.nodeType ?? '',
         currentNodeStatus: NodeStatus.running,
       );
-      progressNotifier.updateNodeStatus(nodeId, NodeStatus.running);
+      run.updateNodeStatus(nodeId, NodeStatus.running);
 
     case NodeCompleted(:final nodeId?, :final nodeStatus?)
         when nodeId.isNotEmpty:
       // A missing status leaves the node alone: claiming a step failed because
       // its verdict could not be read would be confidently wrong.
-      progressNotifier.updateNodeStatus(nodeId, nodeStatus);
+      run.updateNodeStatus(nodeId, nodeStatus);
 
     case ExposureCountProgress():
-      progressNotifier.updateProgress(completedExposures: event.current ?? 0);
-      progressNotifier.setTotals(event.total ?? 0);
+      run.updateProgress(completedExposures: event.current ?? 0);
+      run.setTotals(event.total ?? 0);
 
     case TargetChanged():
-      progressNotifier.updateProgress(currentTarget: event.targetName ?? '');
+      run.updateProgress(currentTarget: event.targetName ?? '');
 
     case TargetCompleted():
-      progressNotifier.updateProgress(
+      run.updateProgress(
         message: 'Completed target: ${event.targetName ?? ''}',
       );
 
@@ -237,55 +224,37 @@ void applySequencerEventToSequenceProviders(
       final frame = event.frame ?? 0;
       final total = event.total ?? 0;
       final durationSecs = event.durationSecs ?? 0.0;
-      progressNotifier.updateProgress(
+      run.updateProgress(
         currentFilter: filter,
         message:
             'Exposure $frame/$total - ${durationSecs}s'
             '${filter != null ? " ($filter)" : ""}',
       );
-      // A sequence exposes in Rust and surfaces only through events, so the
-      // camera card learns it is exposing here.
-      read(cameraStateProvider.notifier).setExposing(true);
 
     case ExposureCompleted():
-      final durationSecs = event.durationSecs ?? 0.0;
-      // The ABSOLUTE frame index, as the executor writes it: both subscribers
-      // can be live for one run, and only an absolute write is idempotent.
-      final absoluteFrame =
-          event.frame ?? read(sequenceProgressProvider).completedExposures + 1;
-      progressNotifier.updateProgress(completedExposures: absoluteFrame);
-      progressNotifier.recordCompletedFrameIntegration(
-        eventKey: '${event.timestamp}:$absoluteFrame',
-        durationSecs: durationSecs,
+      run.updateProgress(
+        completedExposures:
+            event.frame ?? run.record.progress.completedExposures + 1,
       );
-      read(cameraStateProvider.notifier).setExposing(false);
+      run.addCompletedIntegration(event.durationSecs ?? 0.0);
 
     case SequencerError():
       final message = event.message ?? 'Unknown error';
-      // The executor reads the same notice the same way; both are live for one
-      // run on a desktop host. The cause comes from the authorship rows, never
-      // from the cause-neutral cancel notice.
+      // Every cancellation path emits the same notice, so it is a stop whose
+      // cause comes from the authorship rows, never an error.
       if (isSequenceCancelledNotice(message)) {
-        final stopped = sequenceStoppedMessage(
-          read(sequenceStopEvidenceProvider),
-        );
+        final stopped = sequenceStoppedMessage(run.record.stopEvidence);
         developer.log(
-          '[$kStopClassificationLogTag] sequence_progress pump: cancellation '
-          'notice treated as a stop, not an error ($stopped)',
+          '[$kStopClassificationLogTag] run event fold: cancellation notice '
+          'treated as a stop, not an error ($stopped)',
           name: 'SequenceProgress',
         );
-        progressNotifier.updateProgress(message: stopped);
+        run.updateProgress(message: stopped);
         break;
       }
-      progressNotifier.updateProgress(message: 'Error: $message');
+      run.updateProgress(message: 'Error: $message');
 
     default:
       break;
-  }
-
-  // Leaving the exposing path by any terminal or error must clear the camera
-  // card's exposing flag: an aborted exposure never sends ExposureCompleted.
-  if (event is RunTerminalEvent || event is SequencerError) {
-    read(cameraStateProvider.notifier).setExposing(false);
   }
 }

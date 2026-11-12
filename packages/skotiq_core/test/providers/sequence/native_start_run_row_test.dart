@@ -212,8 +212,7 @@ void main() {
       await startNativeRun(container, executor, name: name);
       for (var frame = 1; frame <= 3; frame++) {
         clock += 1000;
-        applySequencerEventToSequenceProviders(
-          container.read,
+        eventController.add(
           bridge_event.SkotiqEvent(
             timestamp: clock,
             severity: bridge_event.EventSeverity.info,
@@ -222,6 +221,7 @@ void main() {
             data: {'frame': frame, 'total': 3, 'duration_secs': 4.0},
           ),
         );
+        await pumpEvents();
       }
       eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();

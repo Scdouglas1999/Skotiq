@@ -155,6 +155,20 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
 
   final Ref? _ref;
 
+  /// The record as it stands, for the writers that fold onto it.
+  RunRecord get record => state;
+
+  bool _eventFoldClaimed = false;
+
+  /// Whether the executor attached to the run is folding its events. Each
+  /// sequencer event is folded onto the record once: by the executor's handler
+  /// while it holds this claim, by the always-on pump otherwise.
+  bool get eventFoldClaimed => _eventFoldClaimed;
+
+  void claimEventFold() => _eventFoldClaimed = true;
+
+  void releaseEventFold() => _eventFoldClaimed = false;
+
   /// Seed the record in a test.
   @visibleForTesting
   void seed(RunRecord Function(RunRecord record) change) =>
@@ -324,17 +338,8 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
     );
   }
 
-  String? _lastIntegrationEventKey;
-
-  /// Add one completed frame's shutter time to the run's integration total,
-  /// once per event: [eventKey] names the event, so a second subscriber
-  /// handling the same one adds nothing.
-  void recordCompletedFrameIntegration({
-    required String eventKey,
-    required double durationSecs,
-  }) {
-    if (_lastIntegrationEventKey == eventKey) return;
-    _lastIntegrationEventKey = eventKey;
+  /// Add one completed frame's shutter time to the run's integration total.
+  void addCompletedIntegration(double durationSecs) {
     _setProgress(
       state.progress.copyWith(
         completedIntegrationSecs:
@@ -345,10 +350,7 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
 
   /// Clear the run's progress. The lifecycle is left alone; `progress.state`
   /// reads idle until the next lifecycle write.
-  void resetProgress() {
-    _lastIntegrationEventKey = null;
-    _setProgress(const SequenceProgress());
-  }
+  void resetProgress() => _setProgress(const SequenceProgress());
 
   void _setProgress(SequenceProgress progress) =>
       state = state.copyWith(progress: progress);
