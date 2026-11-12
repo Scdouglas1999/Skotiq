@@ -59,7 +59,7 @@ mixin _NetworkBackendRemoteDatabasePluginOperations
     final response = await _post(
       'notes-journal',
       {
-        'timestamp': timestamp.toIso8601String(),
+        'timestamp': timestamp.toWireTime(),
         'objectName': objectName,
         'ra': ra,
         'dec': dec,

@@ -35,9 +35,9 @@ extension _SequencerLifecycle on SequencerHandlers {
     final Map<String, dynamic>? runVitals = liveStats == null
         ? null
         : {
-            'startTime': liveStats.startTime.toIso8601String(),
+            'startTime': liveStats.startTime.toWireTime(),
             if (liveStats.endTime != null)
-              'endTime': liveStats.endTime!.toIso8601String(),
+              'endTime': liveStats.endTime!.toWireTime(),
             'framesCaptured': liveStats.framesCaptured,
             'framesRejected': liveStats.framesRejected,
             'integrationSecs': liveStats.integrationSecs,

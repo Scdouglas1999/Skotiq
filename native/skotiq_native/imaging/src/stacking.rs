@@ -171,6 +171,10 @@ pub fn debayer_cfa_to_rgb(
     ))
 }
 
+/// How a refusal of a frame taken through another filter begins. The host's
+/// API tells this refusal from an alignment failure by these words.
+pub const OTHER_FILTER_REFUSAL: &str = "Frame of another filter not stacked";
+
 #[derive(Debug, Clone, Default)]
 pub struct StackingStats {
     /// Total frames added (including rejected)
@@ -185,6 +189,14 @@ pub struct StackingStats {
     pub avg_alignment_residual: f64,
     /// Total pixels rejected by sigma clipping across all frames
     pub total_sigma_rejected_pixels: u64,
+    /// Frames left out because they were taken through another filter than
+    /// the reference. They are not attempts: nothing was aligned.
+    pub other_filter_frames: u32,
+    /// The filter of the most recent such frame; `None` for a frame taken
+    /// through no filter.
+    pub last_other_filter: Option<String>,
+    /// The filter the stack is of (see [`LiveStacker::filter`]).
+    pub filter: Option<String>,
 }
 
 /// A 2D affine transform: [cos(t)*sx, -sin(t)*sy, tx; sin(t)*sx, cos(t)*sy, ty]
@@ -259,6 +271,27 @@ pub struct LiveStacker {
 
     /// Centroid of reference stars for transform computation
     ref_centroid: (f64, f64),
+
+    /// The reference frame's filter. A stack is of one filter: a frame whose
+    /// header names another is left out (see [`LiveStacker::filter`]).
+    filter: Option<String>,
+}
+
+/// Whether two `FILTER` values name the same filter.
+fn same_filter(a: Option<&str>, b: Option<&str>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => a.trim().eq_ignore_ascii_case(b.trim()),
+        _ => false,
+    }
+}
+
+/// A filter as a sentence names it.
+fn filter_phrase(filter: Option<&str>) -> String {
+    match filter {
+        Some(name) => format!("through {name}"),
+        None => "with no filter".to_string(),
+    }
 }
 
 impl LiveStacker {
@@ -354,6 +387,7 @@ impl LiveStacker {
             stats: StackingStats::default(),
             provenance: StackProvenance::default(),
             ref_centroid,
+            filter: reference_provenance.filter.clone(),
         };
 
         stacker.stats.total_frames_attempted = 1;
@@ -371,15 +405,40 @@ impl LiveStacker {
     /// 3. Compute affine transform (translation + rotation) from matched pairs
     /// 4. Apply transform to align frame pixels to reference
     /// 5. Accumulate aligned pixels with optional sigma-clipping rejection
+    ///
+    /// A frame handed over without a header says nothing about its filter, so
+    /// it is not judged on it.
     pub fn add_frame(&mut self, frame: &ImageData) -> Result<ImageData, String> {
-        self.add_frame_with_provenance(frame, &FrameProvenance::unknown())
+        self.stack_frame(frame, &FrameProvenance::unknown())
     }
 
     /// Add a frame that arrived with a header of its own. Only frames that are
     /// actually stacked fold into the master's provenance — a frame rejected
     /// for alignment contributes no pixels, so it must contribute no
     /// integration time either.
+    ///
+    /// A stack is of one filter, the reference's. A frame whose header names
+    /// another is left out before anything is aligned, counted in
+    /// [`StackingStats::other_filter_frames`] and not as an attempt.
     pub fn add_frame_with_provenance(
+        &mut self,
+        frame: &ImageData,
+        provenance: &FrameProvenance,
+    ) -> Result<ImageData, String> {
+        if !same_filter(provenance.filter.as_deref(), self.filter.as_deref()) {
+            self.stats.other_filter_frames += 1;
+            self.stats.last_other_filter = provenance.filter.clone();
+            return Err(format!(
+                "{OTHER_FILTER_REFUSAL}: the frame was taken {} and this live stack is of frames \
+                 taken {}.",
+                filter_phrase(provenance.filter.as_deref()),
+                filter_phrase(self.filter.as_deref()),
+            ));
+        }
+        self.stack_frame(frame, provenance)
+    }
+
+    fn stack_frame(
         &mut self,
         frame: &ImageData,
         provenance: &FrameProvenance,
@@ -637,8 +696,17 @@ impl LiveStacker {
         self.stats.stacked_frame_count
     }
 
+    /// The filter every frame of this stack was taken through (the
+    /// reference's `FILTER`); `None` when the reference named none.
+    pub fn filter(&self) -> Option<&str> {
+        self.filter.as_deref()
+    }
+
     pub fn get_stats(&self) -> StackingStats {
-        self.stats.clone()
+        StackingStats {
+            filter: self.filter.clone(),
+            ..self.stats.clone()
+        }
     }
 
     /// The provenance of the frames actually in the stack, for the FITS master.
@@ -2562,6 +2630,56 @@ mod tests {
 
     /// Translate a star field by a (whole-pixel) offset so the mono and RGB
     /// "second frame" share an identical geometric shift.
+    /// A live stack is of one filter. A frame taken through another is left
+    /// out and counted on its own; it is not an attempt and not an alignment
+    /// failure, and the stack carries on with frames of its own filter.
+    #[test]
+    fn a_frame_of_another_filter_is_left_out_of_the_stack() {
+        let field = osc_test_field();
+        let reference = make_test_image(512, 512, &field);
+        let shifted = make_test_image(512, 512, &shift_field(&field, 3.0, 2.0));
+        let through = |filter: Option<&str>| FrameProvenance {
+            exposure_secs: Some(60.0),
+            date_obs: None,
+            filter: filter.map(str::to_string),
+        };
+
+        let mut stacker =
+            LiveStacker::new_with_provenance(&reference, osc_test_config(), &through(Some("L")))
+                .expect("reference accepted");
+        assert_eq!(stacker.filter(), Some("L"));
+
+        let refusal = stacker
+            .add_frame_with_provenance(&shifted, &through(Some("R")))
+            .expect_err("an R frame does not enter an L stack");
+        assert_eq!(
+            refusal,
+            "Frame of another filter not stacked: the frame was taken through R and this live \
+             stack is of frames taken through L."
+        );
+        let refusal = stacker
+            .add_frame_with_provenance(&shifted, &through(None))
+            .expect_err("an unfiltered frame does not enter an L stack");
+        assert!(refusal.contains("taken with no filter"), "{refusal}");
+
+        let stats = stacker.get_stats();
+        assert_eq!(stats.stacked_frame_count, 1);
+        assert_eq!(stats.total_frames_attempted, 1);
+        assert_eq!(stats.rejected_alignment_failures, 0);
+        assert_eq!(stats.other_filter_frames, 2);
+        assert_eq!(stats.last_other_filter, None);
+        assert_eq!(stats.filter.as_deref(), Some("L"));
+        assert_eq!(stacker.provenance().total_integration_secs(), 60.0);
+
+        stacker
+            .add_frame_with_provenance(&shifted, &through(Some(" l ")))
+            .expect("the same filter, however it is spelled, stacks");
+        stacker
+            .add_frame(&shifted)
+            .expect("a frame without a header is not judged on its filter");
+        assert_eq!(stacker.get_stats().stacked_frame_count, 3);
+    }
+
     fn shift_field(field: &[(f64, f64, f64)], dx: f64, dy: f64) -> Vec<(f64, f64, f64)> {
         field.iter().map(|&(x, y, b)| (x + dx, y + dy, b)).collect()
     }
@@ -2642,6 +2760,7 @@ mod tests {
             &FrameProvenance {
                 exposure_secs: Some(90.0),
                 date_obs: Some("2026-08-14T03:22:30".to_string()),
+                filter: None,
             },
         )
         .expect("reference accepted");
@@ -2652,6 +2771,7 @@ mod tests {
                 &FrameProvenance {
                     exposure_secs: Some(90.0),
                     date_obs: Some("2026-08-14T03:21:00".to_string()),
+                    filter: None,
                 },
             )
             .expect("shifted frame stacked");
@@ -2661,6 +2781,7 @@ mod tests {
                 &FrameProvenance {
                     exposure_secs: Some(90.0),
                     date_obs: Some("2026-08-14T03:19:30".to_string()),
+                    filter: None,
                 },
             )
             .expect_err("a starless frame cannot align");
@@ -2842,6 +2963,7 @@ mod tests {
             stats: StackingStats::default(),
             provenance: StackProvenance::default(),
             ref_centroid: (0.0, 0.0),
+            filter: None,
         };
 
         // Three clean frames (counts → 3 per slot) of value 1000 with tiny

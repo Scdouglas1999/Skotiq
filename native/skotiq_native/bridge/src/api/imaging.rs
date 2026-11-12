@@ -2262,6 +2262,12 @@ pub struct ApiLiveStackingStats {
     pub avg_matched_pairs: f64,
     pub avg_alignment_residual: f64,
     pub total_sigma_rejected_pixels: u64,
+    /// Frames left out for being taken through another filter than the stack's.
+    pub other_filter_frames: u32,
+    /// The filter of the most recent such frame.
+    pub last_other_filter: Option<String>,
+    /// The filter the stack is of; `None` when its reference named none.
+    pub filter: Option<String>,
 }
 
 /// Result from adding a frame to the live stack
@@ -2306,6 +2312,9 @@ pub(crate) fn convert_stats(
         avg_matched_pairs: stats.avg_matched_pairs,
         avg_alignment_residual: stats.avg_alignment_residual,
         total_sigma_rejected_pixels: stats.total_sigma_rejected_pixels,
+        other_filter_frames: stats.other_filter_frames,
+        last_other_filter: stats.last_other_filter,
+        filter: stats.filter,
     }
 }
 

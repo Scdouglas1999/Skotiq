@@ -4,6 +4,8 @@
 /// surfacing later as a null or a wrong number.
 library;
 
+import 'wire_time.dart';
+
 int requiredInt(
   Map<String, dynamic> json,
   String key,
@@ -76,11 +78,34 @@ List<String> requiredStringList(
 }
 
 DateTime requiredDate(Map<String, dynamic> json, String key, String context) {
-  final parsed = DateTime.tryParse(requiredString(json, key, context));
+  final parsed = tryParseWireTime(requiredString(json, key, context));
   if (parsed == null) {
     throw FormatException('$context.$key is not a valid timestamp');
   }
   return parsed;
+}
+
+/// The instant a row carries twice: as a wire time under [key] and as epoch
+/// milliseconds under [msKey]. The milliseconds are the instant. The wire
+/// time must name the same one, except from a host that sent its local time
+/// with no offset: that string names the instant only in the host's own time
+/// zone, so it is not held against the milliseconds.
+DateTime requiredInstant(
+  Map<String, dynamic> json,
+  String key,
+  String msKey,
+  String context,
+) {
+  final raw = requiredString(json, key, context);
+  final parsed = DateTime.tryParse(raw);
+  if (parsed == null) {
+    throw FormatException('$context.$key is not a valid timestamp');
+  }
+  final ms = requiredInt(json, msKey, context, min: 1);
+  if (parsed.isUtc && parsed.millisecondsSinceEpoch != ms) {
+    throw FormatException('$context $key and $msKey disagree');
+  }
+  return DateTime.fromMillisecondsSinceEpoch(ms);
 }
 
 DateTime? optionalDate(Map<String, dynamic> json, String key, String context) {

@@ -555,7 +555,9 @@ final class StepWhenProgress extends StepWhen {
   int get hashCode => Object.hash(done, total);
 }
 
-enum PlanStepStatus { done, active, pending, failed, skipped }
+/// [skipped] is a step the run passed over; [stopped] is one the operator's
+/// Stop ended part way, which ran and may have taken frames.
+enum PlanStepStatus { done, active, pending, failed, skipped, stopped }
 
 /// One row of the Steps list. The tree is flattened; [depth] is the nesting
 /// below the root, for an optional indent.

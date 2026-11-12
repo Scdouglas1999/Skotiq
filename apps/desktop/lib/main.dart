@@ -371,17 +371,20 @@ void main(List<String> args) async {
   // when the operator's quit was accepted so a normal exit is never reported as
   // a silent death.
   ShellExit.register(lastGasp.recordCleanExit);
-  if (Platform.isLinux) {
-    // An accepted close ends the process here, as the signal path above and
-    // the headless daemon do. GTK's window teardown shuts the Dart VM down
-    // with the stores' native finalizers still pending, and sqlite3_finalize
-    // then crashes the process on every quit (a core dump each time, and a
-    // restart that races a dying process).
-    ShellExit.registerEnd(() async {
-      await lastGasp.handOffDarkroomWork();
-      exit(0);
-    });
-  }
+  // An accepted close ends the process here, as the signal path above and
+  // the headless daemon do, on every desktop platform and in one order: the
+  // clean-exit record, the restart if one was asked for, the Darkroom
+  // hand-back, then exit. The window teardown instead shuts the Dart VM down
+  // with the stores' native finalizers still pending: under GTK
+  // sqlite3_finalize then crashed the process on every quit (a core dump each
+  // time, and a restart that raced a dying process). The Windows runner's
+  // engine teardown after window_manager's WM_QUIT and AppKit's terminate
+  // after the last window closes shut the VM down the same way, and neither
+  // waits for the hand-back.
+  ShellExit.registerEnd(() async {
+    await lastGasp.handOffDarkroomWork();
+    exit(0);
+  });
 
   // The window is prepared while the host start-up's core steps run, so
   // neither waits for the other. It is NOT shown yet: showing a

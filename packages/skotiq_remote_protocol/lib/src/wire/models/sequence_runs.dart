@@ -3,6 +3,7 @@
 library;
 
 import '../json_fields.dart';
+import '../wire_time.dart';
 
 /// One row of `GET /api/sequence-runs`.
 class RemoteSequenceRun {
@@ -48,8 +49,8 @@ class RemoteSequenceRun {
     'id': id,
     'sequenceId': sequenceId,
     'sequenceName': sequenceName,
-    'startedAt': startedAt.toIso8601String(),
-    'endedAt': endedAt?.toIso8601String(),
+    'startedAt': startedAt.toWireTime(),
+    'endedAt': endedAt?.toWireTime(),
     'status': status,
     'statsJson': statsJson,
   };
@@ -117,8 +118,8 @@ class RemoteSequenceRunDetail {
     'id': id,
     'sequenceId': sequenceId,
     'sequenceName': sequenceName,
-    'startedAt': startedAt.toIso8601String(),
-    'endedAt': endedAt?.toIso8601String(),
+    'startedAt': startedAt.toWireTime(),
+    'endedAt': endedAt?.toWireTime(),
     'status': status,
     'statsJson': statsJson,
     'frameCount': frameCount,
@@ -179,13 +180,13 @@ class RemoteReplayEvent {
 
   factory RemoteReplayEvent.fromJson(Map<String, dynamic> json) {
     const context = 'replay event';
-    final timestamp = requiredDate(json, 'timestamp', context);
-    final timestampMs = requiredInt(json, 'timestampMs', context, min: 1);
-    if (timestamp.millisecondsSinceEpoch != timestampMs) {
-      throw const FormatException(
-        'replay event timestamp and timestampMs disagree',
-      );
-    }
+    final timestamp = requiredInstant(
+      json,
+      'timestamp',
+      'timestampMs',
+      context,
+    );
+    final timestampMs = timestamp.millisecondsSinceEpoch;
     final rawFields = json['fields'];
     Map<String, dynamic>? fields;
     if (rawFields != null) {
@@ -222,7 +223,7 @@ class RemoteReplayEvent {
   final Map<String, dynamic>? fields;
 
   Map<String, dynamic> toJson() => {
-    'timestamp': timestamp.toUtc().toIso8601String(),
+    'timestamp': timestamp.toWireTime(),
     'timestampMs': timestampMs,
     'severity': severity,
     if (source != null) 'source': source,
@@ -354,13 +355,13 @@ class RemoteReplayFrame {
 
   factory RemoteReplayFrame.fromJson(Map<String, dynamic> json) {
     const context = 'replay frame';
-    final capturedAt = requiredDate(json, 'capturedAt', context);
-    final capturedAtMs = requiredInt(json, 'capturedAtMs', context, min: 1);
-    if (capturedAt.millisecondsSinceEpoch != capturedAtMs) {
-      throw const FormatException(
-        'replay frame capturedAt and capturedAtMs disagree',
-      );
-    }
+    final capturedAt = requiredInstant(
+      json,
+      'capturedAt',
+      'capturedAtMs',
+      context,
+    );
+    final capturedAtMs = capturedAt.millisecondsSinceEpoch;
     final frameType = requiredString(json, 'frameType', context);
     const validFrameTypes = {
       'light',
@@ -457,7 +458,7 @@ class RemoteReplayFrame {
     'id': id,
     'fileName': fileName,
     'filePath': filePath,
-    'capturedAt': capturedAt.toIso8601String(),
+    'capturedAt': capturedAt.toWireTime(),
     'capturedAtMs': capturedAtMs,
     'frameType': frameType,
     'exposureDuration': exposureDuration,

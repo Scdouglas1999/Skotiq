@@ -295,14 +295,13 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
   });
 });
 
-/// True for the run's Warning about a quality problem it carries on through.
-/// The notification router announces that problem from its decision row and
-/// Tonight lists it with the run's warnings; a toast here made one problem
-/// three notices with the same words.
+/// True for the run's Warning about a happening it carried on through, which
+/// the notification router announces from the decision row
+/// ([isContinuedHappeningWarning]).
 bool _isAnnouncedRunWarning(core.SkotiqEvent event, String message) =>
     event.category == core.EventCategory.sequencer &&
     event.severity == core.EventSeverity.warning &&
-    message.trimRight().endsWith(kQualityProblemContinuesNote);
+    isContinuedHappeningWarning(message);
 
 /// The sentence a backend event carries, or null when it carries none.
 String? _eventMessage(core.SkotiqEvent event) {

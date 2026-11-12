@@ -9061,6 +9061,9 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingStats {
         let mut var_avgMatchedPairs = <f64>::sse_decode(deserializer);
         let mut var_avgAlignmentResidual = <f64>::sse_decode(deserializer);
         let mut var_totalSigmaRejectedPixels = <u64>::sse_decode(deserializer);
+        let mut var_otherFilterFrames = <u32>::sse_decode(deserializer);
+        let mut var_lastOtherFilter = <Option<String>>::sse_decode(deserializer);
+        let mut var_filter = <Option<String>>::sse_decode(deserializer);
         return crate::api::imaging::ApiLiveStackingStats {
             stacked_frame_count: var_stackedFrameCount,
             total_frames_attempted: var_totalFramesAttempted,
@@ -9068,6 +9071,9 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingStats {
             avg_matched_pairs: var_avgMatchedPairs,
             avg_alignment_residual: var_avgAlignmentResidual,
             total_sigma_rejected_pixels: var_totalSigmaRejectedPixels,
+            other_filter_frames: var_otherFilterFrames,
+            last_other_filter: var_lastOtherFilter,
+            filter: var_filter,
         };
     }
 }
@@ -14203,6 +14209,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingStats
             self.total_sigma_rejected_pixels
                 .into_into_dart()
                 .into_dart(),
+            self.other_filter_frames.into_into_dart().into_dart(),
+            self.last_other_filter.into_into_dart().into_dart(),
+            self.filter.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -18594,6 +18603,9 @@ impl SseEncode for crate::api::imaging::ApiLiveStackingStats {
         <f64>::sse_encode(self.avg_matched_pairs, serializer);
         <f64>::sse_encode(self.avg_alignment_residual, serializer);
         <u64>::sse_encode(self.total_sigma_rejected_pixels, serializer);
+        <u32>::sse_encode(self.other_filter_frames, serializer);
+        <Option<String>>::sse_encode(self.last_other_filter, serializer);
+        <Option<String>>::sse_encode(self.filter, serializer);
     }
 }
 
@@ -22584,6 +22596,9 @@ mod io {
                 avg_matched_pairs: self.avg_matched_pairs.cst_decode(),
                 avg_alignment_residual: self.avg_alignment_residual.cst_decode(),
                 total_sigma_rejected_pixels: self.total_sigma_rejected_pixels.cst_decode(),
+                other_filter_frames: self.other_filter_frames.cst_decode(),
+                last_other_filter: self.last_other_filter.cst_decode(),
+                filter: self.filter.cst_decode(),
             }
         }
     }
@@ -26252,6 +26267,9 @@ mod io {
                 avg_matched_pairs: Default::default(),
                 avg_alignment_residual: Default::default(),
                 total_sigma_rejected_pixels: Default::default(),
+                other_filter_frames: Default::default(),
+                last_other_filter: core::ptr::null_mut(),
+                filter: core::ptr::null_mut(),
             }
         }
     }
@@ -32470,6 +32488,9 @@ mod io {
         avg_matched_pairs: f64,
         avg_alignment_residual: f64,
         total_sigma_rejected_pixels: u64,
+        other_filter_frames: u32,
+        last_other_filter: *mut wire_cst_list_prim_u_8_strict,
+        filter: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

@@ -3,6 +3,7 @@
 library;
 
 import '../json_fields.dart';
+import '../wire_time.dart';
 
 /// One saved sequence in `GET /api/sequence-management/summaries`.
 class RemoteSequenceSummary {
@@ -82,12 +83,12 @@ class RemoteSequenceSummary {
     'exposureCount': exposureCount,
     'totalIntegrationSecs': totalIntegrationSecs,
     'primaryTargetName': primaryTargetName,
-    'lastRunAt': lastRunAt?.toIso8601String(),
+    'lastRunAt': lastRunAt?.toWireTime(),
     'runCount': runCount,
     'tags': tags,
     'isFavorite': isFavorite,
-    'createdAt': createdAt.toIso8601String(),
-    'modifiedAt': modifiedAt.toIso8601String(),
+    'createdAt': createdAt.toWireTime(),
+    'modifiedAt': modifiedAt.toWireTime(),
   };
 }
 
@@ -119,7 +120,7 @@ class RemoteSequenceVersionSummary {
     'id': id,
     'sequenceId': sequenceId,
     'label': label,
-    'createdAt': createdAt.toIso8601String(),
+    'createdAt': createdAt.toWireTime(),
   };
 }
 
@@ -152,6 +153,6 @@ class RemoteSequenceVersion extends RemoteSequenceVersionSummary {
     'sequenceId': sequenceId,
     'snapshotJson': snapshotJson,
     'label': label,
-    'createdAt': createdAt.toIso8601String(),
+    'createdAt': createdAt.toWireTime(),
   };
 }

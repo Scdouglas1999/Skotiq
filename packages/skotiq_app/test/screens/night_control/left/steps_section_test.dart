@@ -105,6 +105,26 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a stopped step and a skipped step read as what they are', (
+    tester,
+  ) async {
+    final harness = NightHarness(
+      board: NightFixtures.running(),
+      steps: const <PlanStepVm>[
+        PlanStepVm(nodeId: 'a', label: 'L 40 × 3 s', status: PlanStepStatus.stopped),
+        PlanStepVm(nodeId: 'b', label: 'R 1 × 2 s', status: PlanStepStatus.skipped),
+      ],
+    );
+    await harness.pump(
+      tester,
+      const SizedBox(width: 272, child: NightStepsSection()),
+      size: const Size(272, 758),
+    );
+    expect(find.bySemanticsLabel('L 40 × 3 s, stopped'), findsOneWidget);
+    expect(find.bySemanticsLabel('R 1 × 2 s, skipped'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('recorded, running and planned times', (tester) async {
     final harness = NightHarness(board: NightFixtures.running());
     await harness.pump(

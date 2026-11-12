@@ -2,6 +2,8 @@
 /// RMS samples and polar alignment runs (`DbReadApi`).
 library;
 
+import '../wire_time.dart';
+
 /// One row of `GET /api/notes-journal`, which serves the observation log.
 class RemoteNotesJournalEntry {
   const RemoteNotesJournalEntry({
@@ -27,7 +29,7 @@ class RemoteNotesJournalEntry {
   factory RemoteNotesJournalEntry.fromJson(Map<String, dynamic> json) {
     return RemoteNotesJournalEntry(
       id: (json['id'] as num).toInt(),
-      timestamp: DateTime.parse(json['timestamp'] as String),
+      timestamp: parseWireTime(json['timestamp'] as String),
       objectName: json['objectName'] as String? ?? '',
       objectType: json['objectType'] as String?,
       catalogId: json['catalogId'] as String?,
@@ -68,7 +70,7 @@ class RemoteNotesJournalEntry {
 
   Map<String, dynamic> toJson() => {
     'id': id,
-    'timestamp': timestamp.toUtc().toIso8601String(),
+    'timestamp': timestamp.toWireTime(),
     'objectName': objectName,
     'objectType': objectType,
     'catalogId': catalogId,
@@ -109,7 +111,7 @@ class RemoteGuideRmsHistoryEntry {
       totalRmsArcsec: (json['totalRmsArcsec'] as num?)?.toDouble() ?? 0.0,
       sampleCount: (json['sampleCount'] as num?)?.toInt() ?? 0,
       exposureSeconds: (json['exposureSeconds'] as num?)?.toDouble(),
-      recordedAt: DateTime.parse(json['recordedAt'] as String),
+      recordedAt: parseWireTime(json['recordedAt'] as String),
     );
   }
 
@@ -130,7 +132,7 @@ class RemoteGuideRmsHistoryEntry {
     'totalRmsArcsec': totalRmsArcsec,
     'sampleCount': sampleCount,
     'exposureSeconds': exposureSeconds,
-    'recordedAt': recordedAt.toIso8601String(),
+    'recordedAt': recordedAt.toWireTime(),
   };
 
   // Hosts up to 8.2.0 sent the stored text id ("113"); later hosts send the
@@ -170,8 +172,8 @@ class RemotePolarAlignmentHistoryEntry {
       finalAzimuthError: (json['finalAzimuthError'] as num?)?.toDouble(),
       finalAltitudeError: (json['finalAltitudeError'] as num?)?.toDouble(),
       finalTotalError: (json['finalTotalError'] as num?)?.toDouble(),
-      startedAt: DateTime.parse(json['startedAt'] as String),
-      completedAt: DateTime.parse(json['completedAt'] as String),
+      startedAt: parseWireTime(json['startedAt'] as String),
+      completedAt: parseWireTime(json['completedAt'] as String),
       autoCompleted: json['autoCompleted'] as bool? ?? false,
       isNorth: json['isNorth'] as bool? ?? true,
       configJson: json['configJson'] as String?,
@@ -201,8 +203,8 @@ class RemotePolarAlignmentHistoryEntry {
     'finalAzimuthError': finalAzimuthError,
     'finalAltitudeError': finalAltitudeError,
     'finalTotalError': finalTotalError,
-    'startedAt': startedAt.toIso8601String(),
-    'completedAt': completedAt.toIso8601String(),
+    'startedAt': startedAt.toWireTime(),
+    'completedAt': completedAt.toWireTime(),
     'autoCompleted': autoCompleted,
     'isNorth': isNorth,
     'configJson': configJson,

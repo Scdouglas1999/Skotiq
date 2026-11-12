@@ -6,11 +6,14 @@
 // toasted that Warning as well ("Sequence Warning"), so one problem read as
 // three notices with the same words.
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/src/services/notification/event_classifier.dart'
+    show kContinuedHappeningWarningSentences;
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
@@ -69,6 +72,61 @@ void main() {
           'the router announces it from the decision row and the run '
           'warnings banner lists it',
     );
+  });
+
+  for (final (name, message) in [
+    (
+      'an autofocus that did not converge',
+      "Autofocus trigger 'Refocus every 30 min' did not converge (no V-curve "
+          'minimum). The focuser was returned to position 25000 and imaging '
+          'continues on the last-good focus.',
+    ),
+    (
+      'an autofocus that could not return the focuser',
+      'Post-flip autofocus did not converge (too few stars) and the focuser '
+          'could NOT be returned to its pre-autofocus position — it is at '
+          'position 24800. Imaging continues, but check focus before trusting '
+          'these frames.',
+    ),
+    (
+      'a streak of rejected frames',
+      'Image grading: 3 frames in a row rejected (notify limit 3), most '
+          'recently frame 12/40 at alt 45.2°, az 120.0°: HFR 4.10 over 3.50. '
+          'The run continues and every frame is kept; rejects are in the '
+          'Reject folder. Accepted so far: 9, rejected: 3.',
+    ),
+  ]) {
+    test('$name is not toasted a second time', () async {
+      final (container, controller) = await _bridge();
+      addTearDown(container.dispose);
+      addTearDown(controller.close);
+
+      controller.add(_sequencerWarning(message));
+      await pumpEventQueue();
+
+      expect(
+        container.read(uiNotificationProvider),
+        isEmpty,
+        reason: 'the router announces it from the decision row',
+      );
+    });
+  }
+
+  test('every sentence the bridge knows a continued happening by is in the '
+      'native sequencer, word for word', () {
+    // Rust string literals continue across lines with a trailing backslash,
+    // which drops the newline and the next line's indent.
+    String source(String path) => File(
+      '../../native/skotiq_native/sequencer/src/$path',
+    ).readAsStringSync().replaceAll(RegExp(r'\\\n\s*'), '');
+    final native = [
+      source('executor/mod.rs'),
+      source('instructions/grading.rs'),
+    ].join();
+
+    for (final sentence in kContinuedHappeningWarningSentences) {
+      expect(native, contains(sentence));
+    }
   });
 
   test('another run warning still reaches the operator', () async {

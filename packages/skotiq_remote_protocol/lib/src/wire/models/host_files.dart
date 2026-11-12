@@ -3,6 +3,8 @@
 /// (`GET /api/logs`).
 library;
 
+import '../wire_time.dart';
+
 /// One folder: its display [name] and the host [path] to send back.
 class RemoteDirectoryEntry {
   final String name;
@@ -103,7 +105,7 @@ class RemoteLogFileInfo {
       name: json['name'] is String ? json['name'] as String : '',
       sizeBytes: json['sizeBytes'] is int ? json['sizeBytes'] as int : 0,
       modifiedAt: json['modifiedAt'] is String
-          ? DateTime.tryParse(json['modifiedAt'] as String)
+          ? tryParseWireTime(json['modifiedAt'] as String)
           : null,
       isCurrent: json['isCurrent'] == true,
     );
@@ -112,7 +114,7 @@ class RemoteLogFileInfo {
   Map<String, dynamic> toJson() => {
     'name': name,
     'sizeBytes': sizeBytes,
-    'modifiedAt': modifiedAt?.toUtc().toIso8601String(),
+    'modifiedAt': modifiedAt?.toWireTime(),
     'isCurrent': isCurrent,
   };
 }

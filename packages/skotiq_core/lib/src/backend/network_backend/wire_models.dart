@@ -96,7 +96,7 @@ class RemoteVersionInfo {
   factory RemoteVersionInfo.fromJson(Map<String, dynamic> json) {
     DateTime? parse(Object? raw) {
       if (raw is! String) return null;
-      return DateTime.tryParse(raw);
+      return tryParseWireTime(raw);
     }
 
     final rawUpdateServerUrl = json['updateServerUrl'];
@@ -194,7 +194,7 @@ class RemoteUpdateStatus {
   factory RemoteUpdateStatus.fromJson(Map<String, dynamic> json) {
     DateTime? parse(Object? raw) {
       if (raw is! String) return null;
-      return DateTime.tryParse(raw);
+      return tryParseWireTime(raw);
     }
 
     final state = json['state'];
@@ -306,7 +306,7 @@ class RemoteStagedUpdate {
     }
     DateTime? parse(Object? raw) {
       if (raw is! String) return null;
-      return DateTime.tryParse(raw);
+      return tryParseWireTime(raw);
     }
 
     return RemoteStagedUpdate(
@@ -533,5 +533,5 @@ class RemoteCatalogVerifyResult {
 
 DateTime? _parseDateField(Object? raw) {
   if (raw is! String) return null;
-  return DateTime.tryParse(raw);
+  return tryParseWireTime(raw);
 }

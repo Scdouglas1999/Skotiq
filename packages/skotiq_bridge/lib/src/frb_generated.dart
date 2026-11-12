@@ -13071,8 +13071,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiLiveStackingStats dco_decode_api_live_stacking_stats(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return ApiLiveStackingStats(
       stackedFrameCount: dco_decode_u_32(arr[0]),
       totalFramesAttempted: dco_decode_u_32(arr[1]),
@@ -13080,6 +13080,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       avgMatchedPairs: dco_decode_f_64(arr[3]),
       avgAlignmentResidual: dco_decode_f_64(arr[4]),
       totalSigmaRejectedPixels: dco_decode_u_64(arr[5]),
+      otherFilterFrames: dco_decode_u_32(arr[6]),
+      lastOtherFilter: dco_decode_opt_String(arr[7]),
+      filter: dco_decode_opt_String(arr[8]),
     );
   }
 
@@ -17020,6 +17023,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_avgMatchedPairs = sse_decode_f_64(deserializer);
     var var_avgAlignmentResidual = sse_decode_f_64(deserializer);
     var var_totalSigmaRejectedPixels = sse_decode_u_64(deserializer);
+    var var_otherFilterFrames = sse_decode_u_32(deserializer);
+    var var_lastOtherFilter = sse_decode_opt_String(deserializer);
+    var var_filter = sse_decode_opt_String(deserializer);
     return ApiLiveStackingStats(
       stackedFrameCount: var_stackedFrameCount,
       totalFramesAttempted: var_totalFramesAttempted,
@@ -17027,6 +17033,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       avgMatchedPairs: var_avgMatchedPairs,
       avgAlignmentResidual: var_avgAlignmentResidual,
       totalSigmaRejectedPixels: var_totalSigmaRejectedPixels,
+      otherFilterFrames: var_otherFilterFrames,
+      lastOtherFilter: var_lastOtherFilter,
+      filter: var_filter,
     );
   }
 
@@ -22314,6 +22323,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.avgMatchedPairs, serializer);
     sse_encode_f_64(self.avgAlignmentResidual, serializer);
     sse_encode_u_64(self.totalSigmaRejectedPixels, serializer);
+    sse_encode_u_32(self.otherFilterFrames, serializer);
+    sse_encode_opt_String(self.lastOtherFilter, serializer);
+    sse_encode_opt_String(self.filter, serializer);
   }
 
   @protected

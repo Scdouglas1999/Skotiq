@@ -693,7 +693,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                         const SizedBox(width: 6),
                         Text(
                           isRunning
-                              ? 'Stacking'
+                              ? stats.filter == null
+                                  ? 'Stacking'
+                                  : 'Stacking ${stats.filter}'
                               : isError
                                   ? 'Error'
                                   : 'Idle',
@@ -773,6 +775,18 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
             ),
           ),
           const SizedBox(height: 20),
+
+          if (isRunning && stats.otherFilterNote != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
+              child: SkotiqBanner(
+                title: stats.otherFilterFrames == 1
+                    ? '1 frame left out'
+                    : '${stats.otherFilterFrames} frames left out',
+                message: stats.otherFilterNote!,
+                tone: BannerTone.info,
+              ),
+            ),
 
           SkotiqPanel(
             head: PanelHead(label: 'Statistics'),

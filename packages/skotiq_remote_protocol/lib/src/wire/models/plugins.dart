@@ -1,6 +1,8 @@
 /// The plugins a host reports (`PluginApi`).
 library;
 
+import '../wire_time.dart';
+
 /// One row of `GET /api/plugins`, and the `manifest` of the enable and
 /// disable answers.
 ///
@@ -40,7 +42,7 @@ class RemotePluginManifest {
       sha256: json['sha256'] as String?,
       sizeBytes: (json['sizeBytes'] as num?)?.toInt(),
       installedAt: switch (json['installedAt']) {
-        final String raw => DateTime.tryParse(raw),
+        final String raw => tryParseWireTime(raw),
         _ => null,
       },
       installedFilename: json['installedFilename'] as String?,
@@ -86,7 +88,7 @@ class RemotePluginManifest {
     'signatureValid': signatureValid,
     'sha256': sha256,
     'sizeBytes': sizeBytes,
-    'installedAt': installedAt?.toIso8601String(),
+    'installedAt': installedAt?.toWireTime(),
     'installedFilename': installedFilename,
     'loadError': loadError,
     'source': source,

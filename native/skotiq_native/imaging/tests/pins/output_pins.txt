@@ -107,7 +107,7 @@ difference/match bc653c61ca3047dc
 difference/planes 7110edf27989f981
 difference/residual aefdd15cf14a7f60
 display/f32.display_u8 203b392f0a6ac5f2
-display/f32.stf 865fb7a8a0ffdf0b
+display/f32.stf b4352a95d02a5442
 display/rgb.auto_stretch.linked 55d41feed033440b
 display/rgb.auto_stretch.unlinked 8bab0cf7da147c82
 display/rgb.display_u8 9afd6dc4aeff20d3
@@ -262,11 +262,11 @@ live_stack/mono.add0 f4563c76102c6470
 live_stack/mono.add1 8b6237523b031f0f
 live_stack/mono.add2 a646c1ef5be1e2b5
 live_stack/mono.stack bf02db60e2272a70
-live_stack/mono.stats ca4ef947f9f9dbb5
+live_stack/mono.stats 1d2ff207896a90e9
 live_stack/rgb.add0 690d64ccc712a1a5
 live_stack/rgb.add1 8b6237523b031f0f
 live_stack/rgb.stack 86a8e7ebf1677edb
-live_stack/rgb.stats e02d7fc81e08448b
+live_stack/rgb.stats 01ec91b7dcf90787
 mosaic/coverage 0f144f30ff5036f5
 mosaic/master 05632cea313a938d
 mosaic/wcs_stats 62042729d272320d

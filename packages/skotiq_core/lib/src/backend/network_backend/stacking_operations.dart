@@ -208,7 +208,7 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     }
     final createdAtRaw = json['createdAt'];
     final createdAt = createdAtRaw is String
-        ? DateTime.tryParse(createdAtRaw)
+        ? tryParseWireTime(createdAtRaw)
         : null;
     if (createdAt == null) {
       throw FormatException(
@@ -284,9 +284,10 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     return Map<String, dynamic>.from(value);
   }
 
-  /// Require and decode the full six-field stats object under `stats`. Counts
-  /// must be integral and non-negative; averages must be finite and
-  /// non-negative. No field is defaulted — a partial stats object throws.
+  /// Require and decode the stats object under `stats`. Counts must be
+  /// integral and non-negative; averages must be finite and non-negative. Of
+  /// the six counters and averages none is defaulted: a partial stats object
+  /// throws. The filter fields are newer than the endpoint and optional.
   LiveStackingStats _requireStackingStats(
     Map<String, dynamic> json,
     String endpoint,
@@ -327,8 +328,19 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
         endpoint,
         min: 0,
       ),
+      // A host from before stacks were kept to one filter sends none of
+      // these.
+      filter: _optionalFilterName(stats['filter']),
+      otherFilterFrames: switch (stats['otherFilterFrames']) {
+        final int count when count > 0 => count,
+        _ => 0,
+      },
+      lastOtherFilter: _optionalFilterName(stats['lastOtherFilter']),
     );
   }
+
+  String? _optionalFilterName(Object? value) =>
+      value is String && value.trim().isNotEmpty ? value : null;
 
   /// Require the stacked result's `channels`, accepting only the two documented
   /// counts.

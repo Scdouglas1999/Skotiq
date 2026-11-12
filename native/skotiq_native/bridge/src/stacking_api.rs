@@ -66,6 +66,12 @@ pub struct LiveStackingStatsApi {
     pub avg_matched_pairs: f64,
     pub avg_alignment_residual: f64,
     pub total_sigma_rejected_pixels: u64,
+    /// Frames left out for being taken through another filter than the stack's.
+    pub other_filter_frames: u32,
+    /// The filter of the most recent such frame.
+    pub last_other_filter: Option<String>,
+    /// The filter the stack is of; `None` when its reference named none.
+    pub filter: Option<String>,
 }
 
 impl From<StackingStats> for LiveStackingStatsApi {
@@ -77,6 +83,9 @@ impl From<StackingStats> for LiveStackingStatsApi {
             avg_matched_pairs: s.avg_matched_pairs,
             avg_alignment_residual: s.avg_alignment_residual,
             total_sigma_rejected_pixels: s.total_sigma_rejected_pixels,
+            other_filter_frames: s.other_filter_frames,
+            last_other_filter: s.last_other_filter,
+            filter: s.filter,
         }
     }
 }
@@ -1090,6 +1099,49 @@ mod tests {
             Some("2026-08-14T03:22:30.000")
         );
         assert_eq!(header.get_int("NFRAMES"), Some(2));
+
+        let _ = stacking_stop();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The file path is how every capture reaches the live stack (a snapshot,
+    /// a sequence frame, the host's own feed), so the frame's `FILTER` header
+    /// is what keeps a frame of another filter out of it.
+    #[test]
+    fn a_frame_file_of_another_filter_does_not_enter_the_stack() {
+        let _g = singleton_guard();
+        let _ = stacking_stop();
+
+        let dir = std::env::temp_dir().join("sk-bridge-stack-filter");
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let write = |name: &str, filter: &str| {
+            let path = dir.join(name);
+            let image = ImageData::from_u16(IMG_W, IMG_H, 1, &make_star_plane(IMG_W, IMG_H));
+            let mut header = skotiq_imaging::FitsHeader::new();
+            header.set_float("EXPTIME", 60.0);
+            header.set_string("FILTER", filter);
+            skotiq_imaging::write_fits(&path, &image, &header).expect("light frame written");
+            path.to_string_lossy().to_string()
+        };
+        let reference = write("l1.fits", "L");
+        let same = write("l2.fits", "L");
+        let other = write("r1.fits", "R");
+
+        let started = stacking_start(reference, base_config().clone()).expect("stack started");
+        assert_eq!(started.filter.as_deref(), Some("L"));
+        stacking_add_frame(same).expect("an L frame stacks");
+
+        let refusal = stacking_add_frame(other).expect_err("an R frame is left out");
+        assert!(
+            refusal.starts_with(skotiq_imaging::stacking::OTHER_FILTER_REFUSAL),
+            "unexpected refusal: {refusal}"
+        );
+        let stats = stacking_get_stats().expect("stats");
+        assert_eq!(stats.stacked_frame_count, 2);
+        assert_eq!(stats.total_frames_attempted, 2);
+        assert_eq!(stats.rejected_alignment_failures, 0);
+        assert_eq!(stats.other_filter_frames, 1);
+        assert_eq!(stats.last_other_filter.as_deref(), Some("R"));
 
         let _ = stacking_stop();
         let _ = std::fs::remove_dir_all(&dir);
