@@ -101,10 +101,7 @@ async fn fake_telescope(
 async fn read_request(socket: &mut tokio::net::TcpStream) -> String {
     let mut bytes = Vec::new();
     let mut chunk = [0_u8; 4096];
-    loop {
-        let Ok(read) = socket.read(&mut chunk).await else {
-            break;
-        };
+    while let Ok(read) = socket.read(&mut chunk).await {
         if read == 0 {
             break;
         }

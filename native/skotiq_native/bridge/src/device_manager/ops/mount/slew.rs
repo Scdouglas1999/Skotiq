@@ -119,7 +119,7 @@ impl DeviceManager {
         // above this layer shows up offline instead of first on the rig.
         // See `device_manager::epoch` for the direction policy.
         let (ra, dec) = {
-            let (mount_ra, mount_dec) = frame.from_j2000(ra, dec);
+            let (mount_ra, mount_dec) = frame.j2000_to_mount(ra, dec);
             tracing::debug!(
                 "mount_slew: J2000 ({:.5}h, {:.4}°) -> {} ({:.5}h, {:.4}°)",
                 ra,

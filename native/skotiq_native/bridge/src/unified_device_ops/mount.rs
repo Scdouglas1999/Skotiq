@@ -73,7 +73,7 @@ impl MountOps for UnifiedDeviceOps {
             // unchanged and let the caller's own error path say the mount is
             // missing, rather than inventing a precessed position for it.
             None => (ra_hours, dec_degrees),
-            Some(frame) => frame.from_j2000(ra_hours, dec_degrees),
+            Some(frame) => frame.j2000_to_mount(ra_hours, dec_degrees),
         })
     }
 
@@ -87,7 +87,7 @@ impl MountOps for UnifiedDeviceOps {
             .mount_frame(mount_id)
             .await
             .ok_or_else(|| format!("mount {mount_id} is not registered"))?;
-        Ok(frame.to_j2000(ra_hours, dec_degrees))
+        Ok(frame.mount_to_j2000(ra_hours, dec_degrees))
     }
 
     async fn mount_sync(

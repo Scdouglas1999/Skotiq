@@ -56,7 +56,7 @@ impl DeviceManager {
             .mount_frame(device_id)
             .await
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?
-            .from_j2000(ra, dec);
+            .j2000_to_mount(ra, dec);
 
         match info.driver_type {
             DriverType::Ascom => {

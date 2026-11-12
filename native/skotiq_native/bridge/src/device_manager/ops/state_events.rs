@@ -150,7 +150,7 @@ impl DeviceManager {
         let Some(frame) = self.mount_frame(mount_id).await else {
             return;
         };
-        let target = frame.from_j2000(ra_hours, dec_degrees);
+        let target = frame.j2000_to_mount(ra_hours, dec_degrees);
         let app_state: SharedAppState = self.app_state.clone();
         let mount_id = mount_id.to_string();
         // The watch outlives this call, so it reads through the process-wide

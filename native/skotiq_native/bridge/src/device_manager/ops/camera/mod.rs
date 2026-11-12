@@ -477,7 +477,7 @@ mod sim_sky_wiring_tests {
             // The simulated mount keeps coordinates of date; point it at the
             // J2000 field the way a slew would.
             let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
-                .from_j2000(ra_hours, dec_deg);
+                .j2000_to_mount(ra_hours, dec_deg);
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
             mount.status.right_ascension = mount_ra;
@@ -594,7 +594,7 @@ mod sim_sky_wiring_tests {
             // The simulated mount keeps coordinates of date; point it at the
             // J2000 field the way a slew would.
             let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
-                .from_j2000(ra_hours, dec_deg);
+                .j2000_to_mount(ra_hours, dec_deg);
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
             mount.status.right_ascension = mount_ra;

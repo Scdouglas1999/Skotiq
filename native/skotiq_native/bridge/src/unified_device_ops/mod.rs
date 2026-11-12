@@ -227,7 +227,7 @@ impl UnifiedDeviceOps {
                 // read as J2000, so they get the mount's position in J2000.
                 let (ra_hours, dec_degrees) = match get_device_manager().mount_frame(&mount_id).await
                 {
-                    Some(frame) => frame.to_j2000(ra_hours, dec_degrees),
+                    Some(frame) => frame.mount_to_j2000(ra_hours, dec_degrees),
                     None => return None,
                 };
                 Some(MountPointing {

@@ -255,7 +255,7 @@ impl MountFrame {
     }
 
     /// J2000 coordinates expressed in this frame.
-    pub fn from_j2000(self, ra_hours: f64, dec_deg: f64) -> (f64, f64) {
+    pub fn j2000_to_mount(self, ra_hours: f64, dec_deg: f64) -> (f64, f64) {
         match self {
             Self::OfDate => j2000_to_jnow(ra_hours, dec_deg),
             Self::Equinox(jd) if jd == J2000_JD => (ra_hours, dec_deg),
@@ -264,7 +264,7 @@ impl MountFrame {
     }
 
     /// Coordinates in this frame expressed in J2000.
-    pub fn to_j2000(self, ra_hours: f64, dec_deg: f64) -> (f64, f64) {
+    pub fn mount_to_j2000(self, ra_hours: f64, dec_deg: f64) -> (f64, f64) {
         match self {
             Self::OfDate => jnow_to_j2000(ra_hours, dec_deg),
             Self::Equinox(jd) if jd == J2000_JD => (ra_hours, dec_deg),
@@ -385,13 +385,13 @@ mod tests {
         assert_eq!(MountFrame::from_equatorial_system(0), None);
         assert_eq!(MountFrame::from_equatorial_system(7), None);
 
-        assert_eq!(MountFrame::J2000.from_j2000(22.7892, 58.1324), (22.7892, 58.1324));
-        assert_eq!(MountFrame::J2000.to_j2000(22.7892, 58.1324), (22.7892, 58.1324));
+        assert_eq!(MountFrame::J2000.j2000_to_mount(22.7892, 58.1324), (22.7892, 58.1324));
+        assert_eq!(MountFrame::J2000.mount_to_j2000(22.7892, 58.1324), (22.7892, 58.1324));
 
         let j2050 = MountFrame::from_equatorial_system(3).expect("J2050");
-        let (ra, dec) = j2050.from_j2000(22.7892, 58.1324);
+        let (ra, dec) = j2050.j2000_to_mount(22.7892, 58.1324);
         assert!((ra - 22.7892).abs() > 0.02, "50 years of precession moves RA");
-        let (ra_back, dec_back) = j2050.to_j2000(ra, dec);
+        let (ra_back, dec_back) = j2050.mount_to_j2000(ra, dec);
         assert!((ra_back - 22.7892).abs() < 1e-9 && (dec_back - 58.1324).abs() < 1e-9);
     }
 
