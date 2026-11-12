@@ -50,6 +50,7 @@ part 'editor_parts/_branch_bar.dart';
 part 'editor_parts/_compare.dart';
 part 'editor_parts/_export_sheet.dart';
 part 'editor_parts/_histogram.dart';
+part 'editor_parts/_channel_mix.dart';
 
 class DarkroomEditor extends ConsumerStatefulWidget {
   /// What the route asked to open. Never empty: the Edit tab shows its image
@@ -432,6 +433,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
             state: state,
             onToggle: _controller.toggleStep,
             onParamChanged: _controller.setParam,
+            onParamsChanged: _controller.setParams,
             onRemove: _controller.removeStep,
             onReorder: _controller.reorderStep,
             onInsert: _controller.insertStep,
