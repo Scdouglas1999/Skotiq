@@ -19,6 +19,7 @@ mod discovery;
 mod ffi;
 mod filter_wheel;
 mod focuser;
+mod readout;
 mod sdk;
 
 pub use camera::*;
@@ -26,6 +27,7 @@ pub use discovery::*;
 use ffi::*;
 pub use filter_wheel::*;
 pub use focuser::*;
+use readout::*;
 use sdk::*;
 
 #[cfg(test)]
