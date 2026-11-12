@@ -212,6 +212,7 @@ export 'src/providers/capture_file_format_sync.dart';
 export 'src/providers/imaging_provider.dart';
 export 'src/providers/imaging_viewer_state_provider.dart';
 export 'src/providers/sequence_provider.dart';
+export 'src/services/sequence_rollup.dart';
 export 'src/models/sequence/validation/structural_rules.dart';
 export 'src/models/sequence/validation/validation_issue.dart';
 export 'src/models/sequence/sequence_editor_exceptions.dart';
