@@ -81,9 +81,7 @@
 
 ## switch.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.is_connected [http 400]
 > GET /api/v1/switch/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -111,9 +109,7 @@
 
 ## switch.name [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.name [http 400]
 > GET /api/v1/switch/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -141,9 +137,7 @@
 
 ## switch.description [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.description [http 400]
 > GET /api/v1/switch/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -171,9 +165,7 @@
 
 ## switch.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.driver_version [http 400]
 > GET /api/v1/switch/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -201,9 +193,7 @@
 
 ## switch.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.driver_info [http 400]
 > GET /api/v1/switch/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -231,9 +221,7 @@
 
 ## switch.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.interface_version [http 400]
 > GET /api/v1/switch/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -261,9 +249,7 @@
 
 ## switch.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.supported_actions [http 400]
 > GET /api/v1/switch/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -291,9 +277,7 @@
 
 ## switch.max_switch [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.max_switch [http 400]
 > GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
@@ -337,9 +321,7 @@
 
 ## switch.max_switch [ascom 0x40C without Value]
 > GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## switch.max_switch [ascom 0x500]
 > GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
@@ -363,9 +345,7 @@
 
 ## switch.max_switch [wrong value type]
 > GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/switch/#/maxswitch query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## switch.get_switch [ok]
 > GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
@@ -377,9 +357,7 @@
 
 ## switch.get_switch [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.get_switch [http 400]
 > GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
@@ -423,9 +401,7 @@
 
 ## switch.get_switch [ascom 0x40C without Value]
 > GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## switch.get_switch [ascom 0x500]
 > GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
@@ -449,9 +425,7 @@
 
 ## switch.get_switch [wrong value type]
 > GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/getswitch query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
+= Err(Parse error: invalid type: map, expected a boolean)
 
 ## switch.set_switch(true) [ok]
 > PUT /api/v1/switch/#/setswitch query[] form[ClientID=<id>&ClientTransactionID=0&Id=3&State=true]
@@ -571,9 +545,7 @@
 
 ## switch.get_switch_name [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.get_switch_name [http 400]
 > GET /api/v1/switch/#/getswitchname query[ClientID=<id>&ClientTransactionID=0&Id=3]
@@ -629,9 +601,7 @@
 
 ## switch.get_switch_description [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.get_switch_description [http 400]
 > GET /api/v1/switch/#/getswitchdescription query[ClientID=<id>&ClientTransactionID=0&Id=3]
@@ -659,9 +629,7 @@
 
 ## switch.get_switch_value [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.get_switch_value [http 400]
 > GET /api/v1/switch/#/getswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
@@ -745,9 +713,7 @@
 
 ## switch.min_switch_value [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.min_switch_value [http 400]
 > GET /api/v1/switch/#/minswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
@@ -775,9 +741,7 @@
 
 ## switch.max_switch_value [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.max_switch_value [http 400]
 > GET /api/v1/switch/#/maxswitchvalue query[ClientID=<id>&ClientTransactionID=0&Id=3]
@@ -805,9 +769,7 @@
 
 ## switch.can_write [ascom 0x4FF without Value]
 > GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=0&Id=3]
-> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=1&Id=3]
-> GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=2&Id=3]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## switch.can_write [http 400]
 > GET /api/v1/switch/#/canwrite query[ClientID=<id>&ClientTransactionID=0&Id=3]

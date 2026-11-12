@@ -81,9 +81,7 @@
 
 ## telescope.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.is_connected [http 400]
 > GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -159,9 +157,7 @@
 
 ## telescope.name [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.name [http 400]
 > GET /api/v1/telescope/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -189,9 +185,7 @@
 
 ## telescope.description [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.description [http 400]
 > GET /api/v1/telescope/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -219,9 +213,7 @@
 
 ## telescope.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.driver_version [http 400]
 > GET /api/v1/telescope/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -249,9 +241,7 @@
 
 ## telescope.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.driver_info [http 400]
 > GET /api/v1/telescope/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -279,9 +269,7 @@
 
 ## telescope.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.interface_version [http 400]
 > GET /api/v1/telescope/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -309,9 +297,7 @@
 
 ## telescope.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.supported_actions [http 400]
 > GET /api/v1/telescope/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -339,9 +325,7 @@
 
 ## telescope.alignment_mode [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/alignmentmode query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/alignmentmode query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/alignmentmode query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.alignment_mode [http 400]
 > GET /api/v1/telescope/#/alignmentmode query[ClientID=<id>&ClientTransactionID=0]
@@ -369,9 +353,7 @@
 
 ## telescope.aperture_area [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/aperturearea query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/aperturearea query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/aperturearea query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.aperture_area [http 400]
 > GET /api/v1/telescope/#/aperturearea query[ClientID=<id>&ClientTransactionID=0]
@@ -399,9 +381,7 @@
 
 ## telescope.aperture_diameter [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/aperturediameter query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/aperturediameter query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/aperturediameter query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.aperture_diameter [http 400]
 > GET /api/v1/telescope/#/aperturediameter query[ClientID=<id>&ClientTransactionID=0]
@@ -429,9 +409,7 @@
 
 ## telescope.focal_length [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/focallength query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/focallength query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/focallength query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.focal_length [http 400]
 > GET /api/v1/telescope/#/focallength query[ClientID=<id>&ClientTransactionID=0]
@@ -459,9 +437,7 @@
 
 ## telescope.equatorial_system [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/equatorialsystem query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/equatorialsystem query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/equatorialsystem query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.equatorial_system [http 400]
 > GET /api/v1/telescope/#/equatorialsystem query[ClientID=<id>&ClientTransactionID=0]
@@ -489,9 +465,7 @@
 
 ## telescope.right_ascension [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.right_ascension [http 400]
 > GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=0]
@@ -535,9 +509,7 @@
 
 ## telescope.right_ascension [ascom 0x40C without Value]
 > GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## telescope.right_ascension [ascom 0x500]
 > GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=0]
@@ -561,9 +533,7 @@
 
 ## telescope.right_ascension [wrong value type]
 > GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected f64)
 
 ## telescope.declination [ok]
 > GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=0]
@@ -575,9 +545,7 @@
 
 ## telescope.declination [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.declination [http 400]
 > GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=0]
@@ -605,9 +573,7 @@
 
 ## telescope.altitude [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.altitude [http 400]
 > GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=0]
@@ -635,9 +601,7 @@
 
 ## telescope.azimuth [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.azimuth [http 400]
 > GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=0]
@@ -665,9 +629,7 @@
 
 ## telescope.sidereal_time [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.sidereal_time [http 400]
 > GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=0]
@@ -695,9 +657,7 @@
 
 ## telescope.utc_date [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/utcdate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/utcdate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/utcdate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.utc_date [http 400]
 > GET /api/v1/telescope/#/utcdate query[ClientID=<id>&ClientTransactionID=0]
@@ -725,9 +685,7 @@
 
 ## telescope.target_right_ascension [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/targetrightascension query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/targetrightascension query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/targetrightascension query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.target_right_ascension [http 400]
 > GET /api/v1/telescope/#/targetrightascension query[ClientID=<id>&ClientTransactionID=0]
@@ -783,9 +741,7 @@
 
 ## telescope.target_declination [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/targetdeclination query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/targetdeclination query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/targetdeclination query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.target_declination [http 400]
 > GET /api/v1/telescope/#/targetdeclination query[ClientID=<id>&ClientTransactionID=0]
@@ -841,9 +797,7 @@
 
 ## telescope.slewing [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.slewing [http 400]
 > GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=0]
@@ -871,9 +825,7 @@
 
 ## telescope.tracking [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.tracking [http 400]
 > GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=0]
@@ -1009,9 +961,7 @@
 
 ## telescope.tracking_rate [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.tracking_rate [http 400]
 > GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=0]
@@ -1067,9 +1017,7 @@
 
 ## telescope.at_home [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.at_home [http 400]
 > GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=0]
@@ -1097,9 +1045,7 @@
 
 ## telescope.at_park [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.at_park [http 400]
 > GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=0]
@@ -1127,9 +1073,7 @@
 
 ## telescope.side_of_pier [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.side_of_pier [http 400]
 > GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=0]
@@ -1173,9 +1117,7 @@
 
 ## telescope.side_of_pier [ascom 0x40C without Value]
 > GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## telescope.side_of_pier [ascom 0x500]
 > GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=0]
@@ -1199,9 +1141,7 @@
 
 ## telescope.side_of_pier [wrong value type]
 > GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## telescope.set_side_of_pier(west) [ok]
 > PUT /api/v1/telescope/#/sideofpier query[] form[ClientID=<id>&ClientTransactionID=0&SideOfPier=1]
@@ -1269,9 +1209,7 @@
 
 ## telescope.site_latitude [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/sitelatitude query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/sitelatitude query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/sitelatitude query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.site_latitude [http 400]
 > GET /api/v1/telescope/#/sitelatitude query[ClientID=<id>&ClientTransactionID=0]
@@ -1327,9 +1265,7 @@
 
 ## telescope.site_longitude [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/sitelongitude query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/sitelongitude query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/sitelongitude query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.site_longitude [http 400]
 > GET /api/v1/telescope/#/sitelongitude query[ClientID=<id>&ClientTransactionID=0]
@@ -1385,9 +1321,7 @@
 
 ## telescope.site_elevation [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/siteelevation query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/siteelevation query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/siteelevation query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.site_elevation [http 400]
 > GET /api/v1/telescope/#/siteelevation query[ClientID=<id>&ClientTransactionID=0]
@@ -1443,9 +1377,7 @@
 
 ## telescope.can_find_home [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canfindhome query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canfindhome query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_find_home [http 400]
 > GET /api/v1/telescope/#/canfindhome query[ClientID=<id>&ClientTransactionID=0]
@@ -1473,9 +1405,7 @@
 
 ## telescope.can_park [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canpark query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canpark query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canpark query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_park [http 400]
 > GET /api/v1/telescope/#/canpark query[ClientID=<id>&ClientTransactionID=0]
@@ -1503,9 +1433,7 @@
 
 ## telescope.can_unpark [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canunpark query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canunpark query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canunpark query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_unpark [http 400]
 > GET /api/v1/telescope/#/canunpark query[ClientID=<id>&ClientTransactionID=0]
@@ -1533,9 +1461,7 @@
 
 ## telescope.can_set_park [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/cansetpark query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/cansetpark query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/cansetpark query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_set_park [http 400]
 > GET /api/v1/telescope/#/cansetpark query[ClientID=<id>&ClientTransactionID=0]
@@ -1563,9 +1489,7 @@
 
 ## telescope.can_slew [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canslew query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canslew query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canslew query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_slew [http 400]
 > GET /api/v1/telescope/#/canslew query[ClientID=<id>&ClientTransactionID=0]
@@ -1593,9 +1517,7 @@
 
 ## telescope.can_slew_async [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canslewasync query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canslewasync query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canslewasync query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_slew_async [http 400]
 > GET /api/v1/telescope/#/canslewasync query[ClientID=<id>&ClientTransactionID=0]
@@ -1623,9 +1545,7 @@
 
 ## telescope.can_slew_alt_az [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canslewaltaz query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canslewaltaz query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canslewaltaz query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_slew_alt_az [http 400]
 > GET /api/v1/telescope/#/canslewaltaz query[ClientID=<id>&ClientTransactionID=0]
@@ -1653,9 +1573,7 @@
 
 ## telescope.can_slew_alt_az_async [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canslewaltazasync query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canslewaltazasync query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canslewaltazasync query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_slew_alt_az_async [http 400]
 > GET /api/v1/telescope/#/canslewaltazasync query[ClientID=<id>&ClientTransactionID=0]
@@ -1683,9 +1601,7 @@
 
 ## telescope.can_sync [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/cansync query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/cansync query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/cansync query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_sync [http 400]
 > GET /api/v1/telescope/#/cansync query[ClientID=<id>&ClientTransactionID=0]
@@ -1713,9 +1629,7 @@
 
 ## telescope.can_sync_alt_az [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/cansyncaltaz query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/cansyncaltaz query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/cansyncaltaz query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_sync_alt_az [http 400]
 > GET /api/v1/telescope/#/cansyncaltaz query[ClientID=<id>&ClientTransactionID=0]
@@ -1743,9 +1657,7 @@
 
 ## telescope.can_set_tracking [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/cansettracking query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/cansettracking query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/cansettracking query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_set_tracking [http 400]
 > GET /api/v1/telescope/#/cansettracking query[ClientID=<id>&ClientTransactionID=0]
@@ -1773,9 +1685,7 @@
 
 ## telescope.can_pulse_guide [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canpulseguide query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canpulseguide query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_pulse_guide [http 400]
 > GET /api/v1/telescope/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
@@ -1803,9 +1713,7 @@
 
 ## telescope.can_set_guide_rates [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/cansetguiderates query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/cansetguiderates query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/cansetguiderates query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_set_guide_rates [http 400]
 > GET /api/v1/telescope/#/cansetguiderates query[ClientID=<id>&ClientTransactionID=0]
@@ -1833,9 +1741,7 @@
 
 ## telescope.can_set_right_ascension_rate [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/cansetrightascensionrate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/cansetrightascensionrate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/cansetrightascensionrate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_set_right_ascension_rate [http 400]
 > GET /api/v1/telescope/#/cansetrightascensionrate query[ClientID=<id>&ClientTransactionID=0]
@@ -1863,9 +1769,7 @@
 
 ## telescope.tracking_rates [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/trackingrates query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/trackingrates query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/trackingrates query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.tracking_rates [http 400]
 > GET /api/v1/telescope/#/trackingrates query[ClientID=<id>&ClientTransactionID=0]
@@ -1893,9 +1797,7 @@
 
 ## telescope.axis_rates [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/axisrates query[Axis=1&ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/axisrates query[Axis=1&ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/axisrates query[Axis=1&ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.axis_rates [http 400]
 > GET /api/v1/telescope/#/axisrates query[Axis=1&ClientID=<id>&ClientTransactionID=0]
@@ -1923,9 +1825,7 @@
 
 ## telescope.axis_rates_for_axis [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/axisrates query[Axis=0&ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/axisrates query[Axis=0&ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/axisrates query[Axis=0&ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.axis_rates_for_axis [http 400]
 > GET /api/v1/telescope/#/axisrates query[Axis=0&ClientID=<id>&ClientTransactionID=0]
@@ -1953,9 +1853,7 @@
 
 ## telescope.can_set_declination_rate [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/cansetdeclinationrate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/cansetdeclinationrate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/cansetdeclinationrate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_set_declination_rate [http 400]
 > GET /api/v1/telescope/#/cansetdeclinationrate query[ClientID=<id>&ClientTransactionID=0]
@@ -1983,9 +1881,7 @@
 
 ## telescope.can_move_axis [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.can_move_axis [http 400]
 > GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=0]
@@ -2029,9 +1925,7 @@
 
 ## telescope.can_move_axis [ascom 0x40C without Value]
 > GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## telescope.can_move_axis [ascom 0x500]
 > GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=0]
@@ -2055,9 +1949,7 @@
 
 ## telescope.can_move_axis [wrong value type]
 > GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/canmoveaxis query[Axis=1&ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected a boolean at line 1 column 91)
+= Err(Parse error: invalid type: map, expected a boolean)
 
 ## telescope.guide_rate_right_ascension [ok]
 > GET /api/v1/telescope/#/guideraterightascension query[ClientID=<id>&ClientTransactionID=0]
@@ -2069,9 +1961,7 @@
 
 ## telescope.guide_rate_right_ascension [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/guideraterightascension query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/guideraterightascension query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/guideraterightascension query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.guide_rate_right_ascension [http 400]
 > GET /api/v1/telescope/#/guideraterightascension query[ClientID=<id>&ClientTransactionID=0]
@@ -2127,9 +2017,7 @@
 
 ## telescope.guide_rate_declination [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/guideratedeclination query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/guideratedeclination query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/guideratedeclination query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.guide_rate_declination [http 400]
 > GET /api/v1/telescope/#/guideratedeclination query[ClientID=<id>&ClientTransactionID=0]
@@ -2185,9 +2073,7 @@
 
 ## telescope.is_pulse_guiding [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/telescope/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/telescope/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.is_pulse_guiding [http 400]
 > GET /api/v1/telescope/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
@@ -3059,9 +2945,7 @@
 
 ## telescope.destination_side_of_pier [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/destinationsideofpier query[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
-> GET /api/v1/telescope/#/destinationsideofpier query[ClientID=<id>&ClientTransactionID=1&Declination=-12.25&RightAscension=5.5]
-> GET /api/v1/telescope/#/destinationsideofpier query[ClientID=<id>&ClientTransactionID=2&Declination=-12.25&RightAscension=5.5]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.destination_side_of_pier [http 400]
 > GET /api/v1/telescope/#/destinationsideofpier query[ClientID=<id>&ClientTransactionID=0&Declination=-12.25&RightAscension=5.5]
@@ -3111,42 +2995,18 @@
 
 ## telescope.get_status [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.get_status [http 400]
 > GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -3275,45 +3135,19 @@
 
 ## telescope.get_capabilities [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canpark query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/canpark query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansetguiderates query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansetguiderates query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/cansetguiderates query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/cansetpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansetpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansetpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansettracking query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansettracking query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/cansettracking query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/canslew query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canslew query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canslew query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canslewaltaz query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canslewaltaz query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/canslewaltaz query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/canslewaltazasync query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canslewaltazasync query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canslewaltazasync query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canslewasync query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canslewasync query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/canslewasync query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/cansync query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansync query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansync query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansyncaltaz query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/cansyncaltaz query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/cansyncaltaz query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/canunpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canunpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/canunpark query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.get_capabilities [http 400]
 > GET /api/v1/telescope/#/canfindhome query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -3429,15 +3263,9 @@
 
 ## telescope.get_site_info [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/siteelevation query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/siteelevation query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/siteelevation query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/sitelatitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/sitelatitude query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/sitelatitude query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/sitelongitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/sitelongitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/sitelongitude query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.get_site_info [http 400]
 > GET /api/v1/telescope/#/siteelevation query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -3485,18 +3313,10 @@
 
 ## telescope.get_optics_info [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/alignmentmode query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/alignmentmode query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/alignmentmode query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/aperturearea query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/aperturearea query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/aperturearea query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/aperturediameter query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/aperturediameter query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/aperturediameter query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/focallength query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/focallength query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/focallength query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.get_optics_info [http 400]
 > GET /api/v1/telescope/#/alignmentmode query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -3577,57 +3397,23 @@
 
 ## telescope.get_full_status [ascom 0x4FF without Value]
 > GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/athome query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/atpark query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/azimuth query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/declination query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/guideratedeclination query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/guideratedeclination query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/guideratedeclination query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/guideraterightascension query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/guideraterightascension query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/guideraterightascension query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/rightascension query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/sideofpier query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/siderealtime query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/slewing query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/targetdeclination query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/targetdeclination query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/targetdeclination query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/targetrightascension query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/targetrightascension query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/targetrightascension query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/tracking query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/telescope/#/trackingrate query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## telescope.get_full_status [http 400]
 > GET /api/v1/telescope/#/altitude query[ClientID=<id>&ClientTransactionID=<txn>]
