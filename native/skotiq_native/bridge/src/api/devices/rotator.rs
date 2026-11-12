@@ -59,14 +59,8 @@ pub async fn api_rotator_move_to(device_id: String, angle: f64) -> Result<(), Sk
 
 /// Move rotator relative
 pub async fn api_rotator_move_relative(device_id: String, delta: f64) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    let current = mgr
-        .rotator_get_position(&device_id)
-        .await
-        .map_err(SkotiqError::from)?;
-    let target = (current + delta) % 360.0;
-    let target = if target < 0.0 { target + 360.0 } else { target };
-    mgr.rotator_move_absolute(&device_id, target)
+    get_device_manager()
+        .rotator_move_relative(&device_id, delta)
         .await
         .map_err(SkotiqError::from)
 }

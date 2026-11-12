@@ -82,7 +82,8 @@ pub(crate) fn context_altitude_pointing(
 /// a replug, so stamping it into an archival keyword would label frames with
 /// something that means a different camera tomorrow.
 pub(crate) async fn connected_camera_label(camera_id: &str) -> Option<String> {
-    api_get_connected_devices()
+    get_device_manager()
+        .get_connected_device_infos()
         .await
         .into_iter()
         .find(|d| d.id == camera_id && d.device_type == DeviceType::Camera)

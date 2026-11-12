@@ -168,7 +168,8 @@ impl CameraOps for UnifiedDeviceOps {
         // What the camera says of itself: where it clips, and whether it has
         // gain and offset controls. Best-effort by design: a driver that cannot
         // answer its own status must not cost us the frame.
-        let camera_status = match get_camera_status(camera_id.to_string()).await {
+        let camera_status = match get_device_manager()
+            .camera_get_status(camera_id).await {
             Ok(status) => Some(status),
             Err(e) => {
                 tracing::debug!(
@@ -331,13 +332,15 @@ impl CameraOps for UnifiedDeviceOps {
         );
 
         // `DeviceManager::camera_set_cooler` publishes the cooling event.
-        set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
+        get_device_manager()
+            .camera_set_cooler(camera_id, enabled, Some(target_temp))
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
     }
 
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
@@ -347,7 +350,8 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
@@ -357,14 +361,16 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
         Ok(status.cooler_on)
     }
 
     async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
         Ok(status
@@ -373,7 +379,8 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
-        let status = get_camera_status(camera_id.to_string())
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 

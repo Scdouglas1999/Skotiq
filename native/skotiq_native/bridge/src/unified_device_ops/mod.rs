@@ -55,7 +55,6 @@
 //!   lives.
 
 use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
-use crate::api::*;
 use crate::device::DeviceType;
 use crate::device_manager::get_device_manager;
 use crate::dispatch::DeviceOpError;

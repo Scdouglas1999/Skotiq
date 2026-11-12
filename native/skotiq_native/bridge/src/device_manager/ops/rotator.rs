@@ -10,6 +10,18 @@ use crate::event::EquipmentEvent;
 impl DeviceManager {
     // Rotator commands publish their state change (see `state_events`).
 
+    /// Move the rotator by `delta` degrees from its current sky angle, wrapped
+    /// into 0..360.
+    pub async fn rotator_move_relative(
+        &self,
+        device_id: &str,
+        delta: f64,
+    ) -> Result<(), DeviceOpError> {
+        let current = self.rotator_get_position(device_id).await?;
+        self.rotator_move_absolute(device_id, (current + delta).rem_euclid(360.0))
+            .await
+    }
+
     /// Move rotator to absolute sky position (degrees) and wait until it is
     /// at rest, publishing `RotatorMoveStarted` and then
     /// `RotatorMoveCompleted` with the angle read back (the target when it
