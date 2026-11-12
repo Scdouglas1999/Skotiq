@@ -49,6 +49,12 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     Duration pollInterval,
   });
 
+  /// Implemented by [_NetworkBackendRemoteOperations].
+  Map<String, dynamic> finishedJobResult(
+    RemoteJob job, {
+    required String operation,
+  });
+
   @override
   Future<PlateSolveResult> plateSolve({
     required String imagePath,
@@ -64,18 +70,23 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       if (fovDegrees != null) 'fov': fovDegrees,
       if (timeoutSeconds != null) 'timeoutSeconds': timeoutSeconds,
     });
-    final timeout = Duration(seconds: (timeoutSeconds ?? 300) + 30);
-    // A solve that found nothing ends its job `failed`, with the result the
-    // solver gave (and its reason) as the failure's details. That is an
-    // answer for the caller, not a broken request.
-    final unsolved = await _unsolvedPlateSolve(start, timeout);
-    final response =
-        unsolved ??
-        await awaitJobResultOrLegacy(
-          start,
-          operation: 'plate solve',
-          timeout: timeout,
-        );
+    final jobId = start['jobId'] as String?;
+    final Map<String, dynamic> response;
+    if (jobId == null || jobId.isEmpty) {
+      // A host that solved before answering sent the result itself.
+      response = start;
+    } else {
+      final job = await awaitJobCompletion(
+        jobId,
+        timeout: Duration(seconds: (timeoutSeconds ?? 300) + 30),
+      );
+      // A solve that found nothing ends its job `failed`, with the result
+      // the solver gave (and its reason) as the failure's details. That is
+      // an answer for the caller, not a broken request.
+      response =
+          _unsolvedPlateSolve(job) ??
+          finishedJobResult(job, operation: 'plate solve');
+    }
 
     // CD matrix + SIP distortion terms are enriched by the master
     // (`ImagingHandlers._plateSolveJson`). Tolerate their absence so an older
@@ -118,13 +129,7 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
 
   /// The solver's own result for a plate-solve job that ended `failed`
   /// because no solution was found, or null for any other outcome.
-  Future<Map<String, dynamic>?> _unsolvedPlateSolve(
-    Map<String, dynamic> start,
-    Duration timeout,
-  ) async {
-    final jobId = start['jobId'] as String?;
-    if (jobId == null || jobId.isEmpty) return null;
-    final job = await awaitJobCompletion(jobId, timeout: timeout);
+  static Map<String, dynamic>? _unsolvedPlateSolve(RemoteJob job) {
     final error = job.error;
     if (job.state != 'failed' || error?['code'] != 'plate_solve_failed') {
       return null;
