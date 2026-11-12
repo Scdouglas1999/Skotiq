@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
+import 'package:skotiq_core/src/services/sequence_rollup.dart';
 import 'package:skotiq_core/src/services/pre_session_simulator.dart';
 import 'package:skotiq_core/src/services/sequence_time_estimator.dart';
 import '../../harness/in_memory_database.dart';

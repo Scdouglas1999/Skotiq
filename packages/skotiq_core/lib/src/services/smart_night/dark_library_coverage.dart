@@ -1,6 +1,6 @@
 import '../../database/daos/flat_history_dao.dart';
 import '../../models/calibration/dark_library_match_tolerances.dart';
-import '../../providers/profiles_provider.dart' show EquipmentProfileModel;
+import '../../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import '../dark_library_coverage_service.dart';
 import '../dark_library_service.dart';
 import '../session_optimizer_service.dart' show SmartNightExposureContext;

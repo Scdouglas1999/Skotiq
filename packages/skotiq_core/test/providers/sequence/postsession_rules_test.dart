@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/providers/preflight_providers.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/postsession_rules.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 import 'package:skotiq_core/src/services/optical_train_diagnostics_service.dart';
 
 OpticalTrainBaseline _baseline(double tilt, double coll) {

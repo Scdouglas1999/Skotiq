@@ -9,7 +9,7 @@ import '../backend_provider.dart';
 import '../equipment/camera_state_provider.dart';
 import 'node_exposure_tally.dart';
 import 'run_record.dart';
-import 'run_stop_classification.dart';
+import '../../models/sequence/run_stop_classification.dart';
 import 'sequencer_run_event.dart';
 
 /// Where the run stands.

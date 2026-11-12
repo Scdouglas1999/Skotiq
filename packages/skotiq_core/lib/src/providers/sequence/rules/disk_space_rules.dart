@@ -2,6 +2,7 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../../services/disk_space_guard.dart';
 import '../../disk_space_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// Queries free space on the capture directory and compares against the
 /// projected sequence size (frame count × frame size derived from camera

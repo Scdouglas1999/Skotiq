@@ -4,6 +4,7 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../plate_solver_provider.dart';
 import '../../profiles_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// A sequence that centres on its target cannot run without a plate solver.
 ///

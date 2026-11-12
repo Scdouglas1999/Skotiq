@@ -6,6 +6,7 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../scheduler_provider.dart' show schedulerStatusProvider;
 import '../sequence_editor.dart' show activePlanOwnerProvider;
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// Pre-flight rule: Unattended Autopilot is armed while a run is started by
 /// hand.

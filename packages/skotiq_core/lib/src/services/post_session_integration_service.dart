@@ -9,6 +9,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
 
 import '../backend/roles/host_data/calibration_library.dart';
 import '../database/daos/integrated_masters_dao.dart';
+import '../providers/database_provider.dart';
 import '../database/database.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_curve.dart';

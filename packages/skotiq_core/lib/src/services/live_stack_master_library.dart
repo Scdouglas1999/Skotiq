@@ -14,6 +14,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../database/daos/integrated_masters_dao.dart';
+import '../providers/database_provider.dart';
 import '../models/imaging/integrated_master.dart';
 import 'calibration/fits_header_reader.dart';
 import 'darkroom_build_service.dart' show DarkroomHeaderReader;

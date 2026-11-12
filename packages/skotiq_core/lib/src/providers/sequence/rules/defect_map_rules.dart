@@ -5,6 +5,7 @@ import '../../../providers/defect_map_provider.dart';
 import '../../../providers/equipment_provider.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// Defect-map validation rules.
 ///

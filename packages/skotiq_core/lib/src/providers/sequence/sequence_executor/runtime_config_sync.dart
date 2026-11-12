@@ -21,6 +21,7 @@ import '../../flat_wizard_provider.dart' show skyBrightnessTrackerProvider;
 import '../../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
 import '../../meridian_flip_provider.dart';
 import '../../profiles_provider.dart';
+import '../../../models/equipment_profile_model.dart';
 import '../../replay_debug_provider.dart';
 import '../../session_handoff_provider.dart'
     show

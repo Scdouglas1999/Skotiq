@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../models/backend/event_types.dart';
 
 /// What a linked imaging host is running: the plan this client puts in its
 /// editor, its run (to stop it) and its recent events.

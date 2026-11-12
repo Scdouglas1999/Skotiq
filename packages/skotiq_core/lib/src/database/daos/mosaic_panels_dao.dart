@@ -1,8 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/imaging/mosaic_project.dart';
-import '../../providers/database_provider.dart';
 import '../database.dart';
 
 part 'mosaic_panels_dao.g.dart';
@@ -205,7 +203,3 @@ class MosaicPanelsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 }
-
-final mosaicPanelsDaoProvider = Provider<MosaicPanelsDao>((ref) {
-  return MosaicPanelsDao(ref.watch(databaseProvider));
-});

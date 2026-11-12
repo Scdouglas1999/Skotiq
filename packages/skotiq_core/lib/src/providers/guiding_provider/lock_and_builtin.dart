@@ -86,9 +86,6 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
   }
 }
 
-/// The device ID used by the built-in multi-star guider.
-const String builtinGuiderDeviceId = 'native:builtin_guider:multi_star';
-
 /// Provider that exposes whether the currently connected guider is the built-in
 /// guider (as opposed to PHD2 or another external guider).
 final isBuiltinGuiderProvider = Provider<bool>((ref) {

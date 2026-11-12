@@ -4,8 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/providers/framing_image_cache_provider.dart';
-import 'package:skotiq_core/src/providers/framing_provider.dart'
-    show SurveySource;
+import 'package:skotiq_core/src/models/framing_models.dart' show SurveySource;
 import 'package:skotiq_core/src/services/framing_image_cache_service.dart';
 import '../harness/in_memory_database.dart';
 

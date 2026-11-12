@@ -1,10 +1,8 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/calibration/calibration_library_models.dart';
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
@@ -190,7 +188,3 @@ class CalibrationTagsDao extends DatabaseAccessor<SkotiqDatabase>
     return const [];
   }
 }
-
-final calibrationTagsDaoProvider = Provider<CalibrationTagsDao>((ref) {
-  return CalibrationTagsDao(ref.watch(databaseProvider));
-});

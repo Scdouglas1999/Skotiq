@@ -33,6 +33,7 @@ import 'package:skotiq_core/src/providers/notification_router_provider.dart';
 import 'package:skotiq_core/src/providers/planning_provider.dart';
 import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/replay_debug_provider.dart';
 import 'package:skotiq_core/src/providers/science_provider.dart';
 import 'package:skotiq_core/src/services/calibration_service.dart'

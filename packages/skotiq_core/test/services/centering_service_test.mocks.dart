@@ -7,11 +7,11 @@ import 'dart:async' as _i7;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart' as _i3;
+import 'package:skotiq_core/src/models/equipment_profile_model.dart' as _i12;
 import 'package:skotiq_core/src/models/focuser_backlash_calibration.dart'
     as _i5;
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart' as _i2;
 import 'package:skotiq_core/src/models/plate_solver.dart' as _i4;
-import 'package:skotiq_core/src/providers/profiles_provider.dart' as _i12;
 import 'package:skotiq_core/src/services/camera_warmup_controller.dart' as _i10;
 import 'package:skotiq_core/src/services/device_exceptions.dart' as _i11;
 import 'package:skotiq_core/src/services/device_service.dart' as _i9;
@@ -415,6 +415,14 @@ class MockDeviceService extends _i1.Mock implements _i9.DeviceService {
           as _i3.SkotiqBackend);
 
   @override
+  bool hasOwnConnectOf(String? deviceId) =>
+      (super.noSuchMethod(
+            Invocation.method(#hasOwnConnectOf, [deviceId]),
+            returnValue: false,
+          )
+          as bool);
+
+  @override
   _i7.Future<void> quiesce({Duration? timeout}) =>
       (super.noSuchMethod(
             Invocation.method(#quiesce, [], {#timeout: timeout}),
@@ -681,6 +689,15 @@ class MockDeviceService extends _i1.Mock implements _i9.DeviceService {
           as _i7.Future<
             ({int connected, List<_i11.DeviceConnectProgress> failures})
           >);
+
+  @override
+  _i7.Future<void> retryConnect(_i3.DeviceType? type) =>
+      (super.noSuchMethod(
+            Invocation.method(#retryConnect, [type]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
 
   @override
   _i7.Future<({int disconnected, List<String> failures})> disconnectAll() =>

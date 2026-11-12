@@ -191,6 +191,11 @@ Copy a converted role: `backend/roles/host_data/observing_lists_store.dart` (loc
 
 - Dependency direction as in section 1; no `package:<other>/src/` imports (import the package's
   library, export the name there if needed).
+- Inside `skotiq_core`, `backend/`, `database/`, `models/` and `services/` do not import
+  `providers/` or the core barrel. A plain value (data class, enum, result type, pure function of
+  values) lives in `models/` or the domain folder that owns it, never in a provider file. A service
+  that needs a Riverpod `Ref` has a `coreLayers` entry in
+  `tools/production/architecture_rules_baseline.json` saying what it reads.
 - No `is`/`as NetworkBackend|FfiBackend|DisconnectedBackend` outside the backend files.
 - Per-type facts live on the tables (`NodeKind`, `NodeType`, `deviceSlots`, `Family`, the settings
   table, the route enums). A switch per type elsewhere is allowed only where the compiler's
@@ -231,7 +236,7 @@ commit instead of hiding it.
 | --- | --- |
 | Any Dart | `dart analyze <changed paths>` (no new issues); `flutter test --concurrency=4` in each changed package (`dart test` in `skotiq_astro`) |
 | Any Rust | in `native/skotiq_native`: `cargo test --release -p <crate>`, `cargo clippy --release -p <crate> --all-targets`; for code Windows uses: `cargo check --release --target x86_64-pc-windows-gnu --workspace --all-targets` |
-| Structure | `melos run audit:architecture` (the first three rules in section 4: dependency direction and `src/` imports, backend class tests, per-node-type dispatch; it says where a change goes when it fails) and `audit:bridge-boundary` |
+| Structure | `melos run audit:architecture` (the first four rules in section 4: dependency direction and `src/` imports, core layers below providers, backend class tests, per-node-type dispatch; it says where a change goes when it fails) and `audit:bridge-boundary` |
 | Moved or renamed code | `melos run audit:behavioral:sync` and `audit:placeholders:sync`, then the plain gates `audit:behavioral`, `audit:placeholders`, `audit:fail-closed` |
 | Nodes | node codec goldens (3.1) and `cargo test --release -p skotiq_sequencer` |
 | Settings | `test/settings/` in `skotiq_core` (generated table, base compatibility) |

@@ -25,7 +25,7 @@ import 'package:skotiq_core/src/models/framing_plate_scale.dart';
 import 'package:skotiq_core/src/models/hips/hips_properties.dart';
 import 'package:skotiq_core/src/models/hips/hips_survey_registry.dart';
 import 'package:skotiq_core/src/models/hips/hips_tile_id.dart';
-import 'package:skotiq_core/src/providers/framing_provider.dart'
+import 'package:skotiq_core/src/models/framing_models.dart'
     show FramingTarget, SurveySource;
 import 'package:skotiq_core/src/services/hips/healpix_nested.dart';
 import 'package:skotiq_core/src/services/hips/hips_tile_selection.dart';

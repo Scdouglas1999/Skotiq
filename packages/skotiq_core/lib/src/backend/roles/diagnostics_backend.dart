@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import '../../models/backend/backend_types.dart';
-import '../../providers/settings_provider.dart' show LocationSettings;
+import '../../models/site/location_settings.dart' show LocationSettings;
 
 /// Cross-cutting backend concerns that every implementation must answer.
 ///
