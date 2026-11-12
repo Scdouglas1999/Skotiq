@@ -38,6 +38,10 @@ struct DocMount {
     code: &'static str,
     baud: u32,
     equatorial: bool,
+    /// v2.5 "Mount Motion" and "Position": `:MP1#`, `:MP0#`, `:SPA`, `:SPH`
+    /// "only available to CEM60 series, CEM40 series, iEQ45 Pro EQ and AA
+    /// mode, and iEQ30 Pro".
+    parks: bool,
     ra_hours: f64,
     dec_deg: f64,
     alt_deg: f64,
@@ -75,6 +79,8 @@ impl DocMount {
             code,
             baud,
             equatorial,
+            parks: language == Language::V3
+                || !["0010", "0011", "0025", "0026", "5010", "5035"].contains(&code),
             ra_hours: 3.25,
             dec_deg: -12.5,
             alt_deg: 41.5,
@@ -147,6 +153,14 @@ impl DocMount {
         let v3 = self.language == Language::V3;
         let one = || Some("1".to_string());
         match command {
+            _ if !self.parks
+                && [":MP1#", ":MP0#", ":SPA", ":SPH"]
+                    .iter()
+                    .any(|park| command.starts_with(park)) =>
+            {
+                self.unanswered.push(command.to_string());
+                return None;
+            }
             ":MountInfo#" => return Some(self.code.to_string()),
             ":FW1#" => return Some("210105210105#".into()),
             ":FW2#" => return Some("210105210105#".into()),
@@ -530,6 +544,49 @@ async fn gotos_and_syncs_send_the_target_in_each_languages_units() {
             "{:?}",
             state.lock().unwrap().unanswered
         );
+    }
+}
+
+#[tokio::test]
+async fn v25_mounts_without_the_park_commands_say_so_at_once() {
+    for code in ["0010", "0011", "0025", "0026", "5010", "5035"] {
+        let (fake, state) = spawn(DocMount::new(Language::V25, code, 9600, code != "5035"));
+        let mut mount = connected(&fake, &state).await;
+        assert!(!mount.can_set_park(), "{code}");
+        let started = std::time::Instant::now();
+        assert!(
+            matches!(mount.park().await, Err(DriverError::NotSupported)),
+            "{code}"
+        );
+        assert!(
+            matches!(mount.unpark().await, Err(DriverError::NotSupported)),
+            "{code}"
+        );
+        assert!(
+            matches!(mount.set_park().await, Err(DriverError::NotSupported)),
+            "{code}"
+        );
+        assert!(
+            matches!(mount.is_parked().await, Err(DriverError::NotSupported)),
+            "{code}"
+        );
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(1),
+            "{code}"
+        );
+        assert!(
+            state.lock().unwrap().unanswered.is_empty(),
+            "{code}: {:?}",
+            state.lock().unwrap().unanswered
+        );
+    }
+    for code in ["0030", "0040", "0043", "0045", "0046", "0060"] {
+        let (fake, state) = spawn(DocMount::new(Language::V25, code, 9600, code != "0046"));
+        let mut mount = connected(&fake, &state).await;
+        assert!(mount.can_set_park(), "{code}");
+        mount.park().await.expect(code);
+        assert!(mount.is_parked().await.expect(code), "{code}");
+        mount.unpark().await.expect(code);
     }
 }
 

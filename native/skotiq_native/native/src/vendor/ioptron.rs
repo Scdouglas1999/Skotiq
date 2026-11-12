@@ -649,6 +649,15 @@ fn is_alt_az(model: &str) -> bool {
         || (model.starts_with("HAZ") && !model.ends_with(" EQ"))
 }
 
+/// v2.5 gives `:MP1#`, `:MP0#`, `:SPA` and `:SPH` only to the CEM60, CEM40,
+/// iEQ45 Pro and iEQ30 Pro (INDI adds the GEM45, which came after the
+/// document). These are the v2.5 models it leaves out; v3.10 has no such limit.
+const V25_CODES_WITHOUT_PARK: &[&str] = &["0010", "0011", "0025", "0026", "5010", "5035"];
+
+fn parks(dialect: Dialect, code: &str) -> bool {
+    dialect == Dialect::V3 || !V25_CODES_WITHOUT_PARK.contains(&code)
+}
+
 /// Four digits, the whole of a `:MountInfo#` reply.
 fn model_code(reply: &str) -> Option<&str> {
     (reply.len() == MODEL_CODE_LENGTH && reply.bytes().all(|b| b.is_ascii_digit())).then_some(reply)
@@ -740,6 +749,7 @@ fn read_model_code(io: &mut Exchange<'_>) -> Result<String, DriverError> {
 struct Session {
     dialect: Dialect,
     alt_az: bool,
+    parks: bool,
 }
 
 pub struct IOptronMount {
@@ -770,6 +780,16 @@ impl IOptronMount {
             baud_rate: baud_rate.unwrap_or(IOPTRON_BAUD_RATE),
             link: SerialLink::new(),
             session: Mutex::new(None),
+        }
+    }
+
+    /// The session of a mount that has the park commands.
+    fn parking_session(&self) -> Result<Session, DriverError> {
+        let session = self.session()?;
+        if session.parks {
+            Ok(session)
+        } else {
+            Err(DriverError::NotSupported)
         }
     }
 
@@ -967,6 +987,7 @@ impl DeviceDriver for IOptronMount {
         *self.session.lock().unwrap_or_else(|e| e.into_inner()) = Some(Session {
             dialect,
             alt_az: is_alt_az(&model),
+            parks: parks(dialect, &code),
         });
         Ok(())
     }
@@ -1041,7 +1062,7 @@ impl MountDriver for IOptronMount {
     }
 
     async fn park(&mut self) -> Result<(), DriverError> {
-        self.session()?;
+        self.parking_session()?;
 
         tracing::info!("Parking mount");
         self.command_ok(commands::PARK, "park")
@@ -1062,11 +1083,11 @@ impl MountDriver for IOptronMount {
     }
 
     fn can_set_park(&self) -> bool {
-        true
+        self.session().map_or(true, |session| session.parks)
     }
 
     async fn set_park(&mut self) -> Result<(), DriverError> {
-        self.session()?;
+        self.parking_session()?;
 
         let (altitude, azimuth) = parse_alt_az(&self.query(commands::GET_ALT_AZ)?)?;
         if altitude < 0.0 {
@@ -1095,7 +1116,7 @@ impl MountDriver for IOptronMount {
     }
 
     async fn unpark(&mut self) -> Result<(), DriverError> {
-        self.session()?;
+        self.parking_session()?;
 
         tracing::info!("Unparking mount");
         self.command_ok(commands::UNPARK, "unpark")
@@ -1106,6 +1127,7 @@ impl MountDriver for IOptronMount {
     }
 
     async fn is_parked(&self) -> Result<bool, DriverError> {
+        self.parking_session()?;
         Ok(self.status()?.system == SystemStatus::Parked)
     }
 
