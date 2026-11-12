@@ -339,7 +339,7 @@ impl RigDriver for IndiWheel {
     }
 
     async fn heartbeat(&self) -> Result<bool, String> {
-        Ok(self.wheel.is_connected().await)
+        self.wheel.check().await.map_err(|e| e.to_string())
     }
 }
 

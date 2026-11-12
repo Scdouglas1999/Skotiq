@@ -61,16 +61,17 @@ impl DeviceHandle {
     /// One liveness probe; see [`RigDriver::heartbeat`] for the three answers.
     pub(crate) async fn heartbeat(&self, device_id: &str) -> Result<bool, String> {
         match self.link() {
-            Link::Accessory(driver) => Ok(match driver.heartbeat().await {
+            Link::Accessory(driver) => match driver.heartbeat().await {
                 Ok(()) => {
                     tracing::trace!("{} heartbeat: healthy", device_id);
-                    true
+                    Ok(true)
                 }
-                Err(e) => {
-                    tracing::debug!("{} heartbeat failed: {}", device_id, e);
-                    false
+                Err(DriverError::NotConnected | DriverError::Disconnected) => {
+                    tracing::debug!("{} heartbeat: not connected", device_id);
+                    Ok(false)
                 }
-            }),
+                Err(e) => Err(e.to_string()),
+            },
             Link::Rig(driver) => driver.heartbeat().await,
         }
     }

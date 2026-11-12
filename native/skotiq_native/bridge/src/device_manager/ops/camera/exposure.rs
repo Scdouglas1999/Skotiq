@@ -1,4 +1,5 @@
 use super::*;
+use skotiq_indi::names as indi;
 
 impl DeviceManager {
     // Camera control
@@ -244,7 +245,12 @@ impl DeviceManager {
                         // these, so warn but continue.
                         if let Some(g) = gain {
                             if let Err(e) = locked_client
-                                .set_number(&device_name, "CCD_CONTROLS", "Gain", g as f64)
+                                .set_number(
+                                    &device_name,
+                                    indi::CCD_CONTROLS,
+                                    indi::CONTROLS_GAIN,
+                                    g as f64,
+                                )
                                 .await
                             {
                                 tracing::warn!(
@@ -255,7 +261,12 @@ impl DeviceManager {
                         }
                         if let Some(o) = offset {
                             if let Err(e) = locked_client
-                                .set_number(&device_name, "CCD_CONTROLS", "Offset", o as f64)
+                                .set_number(
+                                    &device_name,
+                                    indi::CCD_CONTROLS,
+                                    indi::CONTROLS_OFFSET,
+                                    o as f64,
+                                )
                                 .await
                             {
                                 tracing::warn!(
@@ -266,7 +277,12 @@ impl DeviceManager {
                         }
                         // Set binning - propagate errors since binning is typically supported
                         locked_client
-                            .set_number(&device_name, "CCD_BINNING", "HOR_BIN", bin_x as f64)
+                            .set_number(
+                                &device_name,
+                                indi::CCD_BINNING,
+                                indi::HOR_BIN,
+                                bin_x as f64,
+                            )
                             .await
                             .map_err(|e| {
                                 DeviceOpError::hardware(
@@ -275,7 +291,12 @@ impl DeviceManager {
                                 )
                             })?;
                         locked_client
-                            .set_number(&device_name, "CCD_BINNING", "VER_BIN", bin_y as f64)
+                            .set_number(
+                                &device_name,
+                                indi::CCD_BINNING,
+                                indi::VER_BIN,
+                                bin_y as f64,
+                            )
                             .await
                             .map_err(|e| {
                                 DeviceOpError::hardware(
@@ -293,7 +314,7 @@ impl DeviceManager {
                                 )
                             } else {
                                 let sensor_width = locked_client
-                                    .get_number(&device_name, "CCD_INFO", "CCD_MAX_X")
+                                    .get_number(&device_name, indi::CCD_INFO, indi::CCD_MAX_X)
                                     .await
                                     .filter(|value| value.is_finite() && *value > 0.0)
                                     .ok_or_else(|| {
@@ -303,7 +324,7 @@ impl DeviceManager {
                                     )
                                     })?;
                                 let sensor_height = locked_client
-                                    .get_number(&device_name, "CCD_INFO", "CCD_MAX_Y")
+                                    .get_number(&device_name, indi::CCD_INFO, indi::CCD_MAX_Y)
                                     .await
                                     .filter(|value| value.is_finite() && *value > 0.0)
                                     .ok_or_else(|| {
@@ -322,12 +343,12 @@ impl DeviceManager {
                         locked_client
                             .set_numbers(
                                 &device_name,
-                                "CCD_FRAME",
+                                indi::CCD_FRAME,
                                 &[
                                     ("X", frame_x),
                                     ("Y", frame_y),
-                                    ("WIDTH", frame_width),
-                                    ("HEIGHT", frame_height),
+                                    (indi::WIDTH, frame_width),
+                                    (indi::HEIGHT, frame_height),
                                 ],
                             )
                             .await
@@ -340,8 +361,8 @@ impl DeviceManager {
                         return locked_client
                             .set_number(
                                 &device_name,
-                                "CCD_EXPOSURE",
-                                "CCD_EXPOSURE_VALUE",
+                                indi::CCD_EXPOSURE,
+                                indi::CCD_EXPOSURE_VALUE,
                                 duration,
                             )
                             .await
@@ -477,13 +498,13 @@ impl DeviceManager {
                         let locked_client = client.read().await;
                         // Check if exposure value is 0 (complete) - get_number returns Option
                         if let Some(value) = locked_client
-                            .get_number(&device_name, "CCD_EXPOSURE", "CCD_EXPOSURE_VALUE")
+                            .get_number(&device_name, indi::CCD_EXPOSURE, indi::CCD_EXPOSURE_VALUE)
                             .await
                         {
                             return Ok(value <= 0.0);
                         }
                         if locked_client
-                            .is_property_busy(&device_name, "CCD_EXPOSURE")
+                            .is_property_busy(&device_name, indi::CCD_EXPOSURE)
                             .await
                         {
                             return Ok(false);
@@ -571,7 +592,7 @@ impl DeviceManager {
                     if let Some(client) = clients.get(&server_key) {
                         let mut locked_client = client.write().await;
                         return locked_client
-                            .set_switch(&device_name, "CCD_ABORT_EXPOSURE", "ABORT", true)
+                            .set_switch(&device_name, indi::CCD_ABORT_EXPOSURE, indi::ABORT, true)
                             .await
                             .map_err(DeviceOpError::from);
                     }

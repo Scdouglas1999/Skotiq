@@ -201,15 +201,11 @@ pub(crate) async fn query_indi_serials_for_server(
     serials
 }
 
-/// Auto-discover INDI servers on localhost
-pub async fn api_discover_indi_localhost() -> Result<Vec<DeviceInfo>, SkotiqError> {
-    use skotiq_indi::discover_localhost;
-
-    tracing::debug!("Auto-discovering INDI servers on localhost...");
-
+/// Every device on `servers` as Skotiq lists it, with the serial numbers the
+/// devices publish.
+async fn indi_server_devices(servers: Vec<skotiq_indi::IndiServer>) -> Vec<DeviceInfo> {
     let mut all_devices = Vec::new();
-
-    if let Some(server) = discover_localhost().await {
+    for server in servers {
         tracing::debug!(
             "Found INDI server at {}:{} with {} devices",
             server.host,
@@ -222,126 +218,37 @@ pub async fn api_discover_indi_localhost() -> Result<Vec<DeviceInfo>, SkotiqErro
             .map(|d| d.name.clone())
             .collect::<Vec<_>>();
         let serials = query_indi_serials_for_server(&server.host, server.port, &device_names).await;
-
         for device in server.devices {
-            let Some(kind) = device.device_type else {
-                continue;
-            };
-            let device_type = DeviceType::from(kind);
-
-            let device_id = format!("indi:{}:{}:{}", server.host, server.port, device.name);
             let serial_number = serials.get(&device.name).cloned();
-            let unique_id = serial_number.clone();
-
-            all_devices.push(DeviceInfo {
-                id: device_id,
-                name: device.name.clone(),
-                device_type,
-                driver_type: DriverType::Indi,
-                description: format!("INDI device at {}:{}", server.host, server.port),
-                driver_version: "INDI".to_string(),
+            all_devices.push(crate::dispatch::indi::indi_device_info(
+                &server.host,
+                server.port,
+                device,
                 serial_number,
-                unique_id,
-                display_name: device.name.clone(),
-            });
+            ));
         }
     }
+    all_devices
+}
 
-    tracing::debug!("Found {} INDI devices on localhost", all_devices.len());
-    Ok(all_devices)
+/// Auto-discover INDI servers on localhost
+pub async fn api_discover_indi_localhost() -> Result<Vec<DeviceInfo>, SkotiqError> {
+    let servers = skotiq_indi::discover_localhost()
+        .await
+        .into_iter()
+        .collect();
+    Ok(indi_server_devices(servers).await)
 }
 
 /// Auto-discover INDI servers on common hostnames (localhost, raspberrypi, stellarmate, etc.)
 pub async fn api_discover_indi_common_hosts() -> Result<Vec<DeviceInfo>, SkotiqError> {
-    use skotiq_indi::discover_common_hosts;
-
-    tracing::debug!("Auto-discovering INDI servers on common hosts...");
-
-    let mut all_devices = Vec::new();
-    let servers = discover_common_hosts().await;
-
-    tracing::debug!("Found {} INDI servers on common hosts", servers.len());
-
-    for server in servers {
-        let device_names = server
-            .devices
-            .iter()
-            .map(|d| d.name.clone())
-            .collect::<Vec<_>>();
-        let serials = query_indi_serials_for_server(&server.host, server.port, &device_names).await;
-        for device in server.devices {
-            let Some(kind) = device.device_type else {
-                continue;
-            };
-            let device_type = DeviceType::from(kind);
-
-            let device_id = format!("indi:{}:{}:{}", server.host, server.port, device.name);
-            let serial_number = serials.get(&device.name).cloned();
-            let unique_id = serial_number.clone();
-
-            all_devices.push(DeviceInfo {
-                id: device_id,
-                name: device.name.clone(),
-                device_type,
-                driver_type: DriverType::Indi,
-                description: format!("INDI device at {}:{}", server.host, server.port),
-                driver_version: "INDI".to_string(),
-                serial_number,
-                unique_id,
-                display_name: device.name.clone(),
-            });
-        }
-    }
-
-    tracing::debug!("Found {} INDI devices total", all_devices.len());
-    Ok(all_devices)
+    Ok(indi_server_devices(skotiq_indi::discover_common_hosts().await).await)
 }
 
 /// Auto-discover INDI servers on the local network (scans subnet)
 pub async fn api_discover_indi_network() -> Result<Vec<DeviceInfo>, SkotiqError> {
-    use skotiq_indi::discover_local_network;
-    use std::time::Duration;
-
-    tracing::debug!("Scanning local network for INDI servers...");
-
-    let mut all_devices = Vec::new();
-    let servers = discover_local_network(Duration::from_millis(200)).await;
-
-    tracing::debug!("Found {} INDI servers on local network", servers.len());
-
-    for server in servers {
-        let device_names = server
-            .devices
-            .iter()
-            .map(|d| d.name.clone())
-            .collect::<Vec<_>>();
-        let serials = query_indi_serials_for_server(&server.host, server.port, &device_names).await;
-        for device in server.devices {
-            let Some(kind) = device.device_type else {
-                continue;
-            };
-            let device_type = DeviceType::from(kind);
-
-            let device_id = format!("indi:{}:{}:{}", server.host, server.port, device.name);
-            let serial_number = serials.get(&device.name).cloned();
-            let unique_id = serial_number.clone();
-
-            all_devices.push(DeviceInfo {
-                id: device_id,
-                name: device.name.clone(),
-                device_type,
-                driver_type: DriverType::Indi,
-                description: format!("INDI device at {}:{}", server.host, server.port),
-                driver_version: "INDI".to_string(),
-                serial_number,
-                unique_id,
-                display_name: device.name.clone(),
-            });
-        }
-    }
-
-    tracing::debug!("Found {} INDI devices on network", all_devices.len());
-    Ok(all_devices)
+    let servers = skotiq_indi::discover_local_network(Duration::from_millis(200)).await;
+    Ok(indi_server_devices(servers).await)
 }
 
 /// Returns the list of driver backends that can supply devices of the given

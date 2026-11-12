@@ -1,0 +1,105 @@
+<defSwitchVector device="Pegasus NYX-101" name="CONNECTION" label="Connection" group="Main Control" state="Idle" perm="rw" rule="OneOfMany" timeout="60" timestamp="2026-11-12T14:10:42">
+    <defSwitch name="CONNECT" label="Connect">
+Off
+    </defSwitch>
+    <defSwitch name="DISCONNECT" label="Disconnect">
+On
+    </defSwitch>
+</defSwitchVector>
+<defTextVector device="Pegasus NYX-101" name="DRIVER_INFO" label="Driver Info" group="Connection" state="Idle" perm="ro" timeout="60" timestamp="2026-11-12T14:10:42">
+    <defText name="DRIVER_NAME" label="Name">
+Pegasus NYX-101
+    </defText>
+    <defText name="DRIVER_EXEC" label="Exec">
+indi_lx200_pegasus_nyx101
+    </defText>
+    <defText name="DRIVER_VERSION" label="Version">
+2.2
+    </defText>
+    <defText name="DRIVER_INTERFACE" label="Interface">
+5
+    </defText>
+</defTextVector>
+<defNumberVector device="Pegasus NYX-101" name="POLLING_PERIOD" label="Polling" group="Options" state="Ok" perm="rw" timeout="0" timestamp="2026-11-12T14:10:42">
+    <defNumber name="PERIOD_MS" label="Period (ms)" format="%.f" min="10" max="600000" step="1000">
+1000
+    </defNumber>
+</defNumberVector>
+<defSwitchVector device="Pegasus NYX-101" name="DEBUG" label="Debug" group="Options" state="Ok" perm="rw" rule="OneOfMany" timeout="0" timestamp="2026-11-12T14:10:42">
+    <defSwitch name="ENABLE" label="Enable">
+Off
+    </defSwitch>
+    <defSwitch name="DISABLE" label="Disable">
+On
+    </defSwitch>
+</defSwitchVector>
+<defSwitchVector device="Pegasus NYX-101" name="SIMULATION" label="Simulation" group="Options" state="Idle" perm="rw" rule="OneOfMany" timeout="0" timestamp="2026-11-12T14:10:42">
+    <defSwitch name="ENABLE" label="Enable">
+Off
+    </defSwitch>
+    <defSwitch name="DISABLE" label="Disable">
+On
+    </defSwitch>
+</defSwitchVector>
+<defSwitchVector device="Pegasus NYX-101" name="CONFIG_PROCESS" label="Configuration" group="Options" state="Idle" perm="rw" rule="AtMostOne" timeout="0" timestamp="2026-11-12T14:10:42">
+    <defSwitch name="CONFIG_LOAD" label="Load">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_SAVE" label="Save">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_DEFAULT" label="Default">
+Off
+    </defSwitch>
+    <defSwitch name="CONFIG_PURGE" label="Purge">
+Off
+    </defSwitch>
+</defSwitchVector>
+<defSwitchVector device="Pegasus NYX-101" name="CONNECTION_MODE" label="Connection Mode" group="Connection" state="Idle" perm="rw" rule="OneOfMany" timeout="60" timestamp="2026-11-12T14:10:42">
+    <defSwitch name="CONNECTION_SERIAL" label="Serial">
+Off
+    </defSwitch>
+    <defSwitch name="CONNECTION_TCP" label="Network">
+On
+    </defSwitch>
+</defSwitchVector>
+<defTextVector device="Pegasus NYX-101" name="DEVICE_ADDRESS" label="Server" group="Connection" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:10:42">
+    <defText name="ADDRESS" label="Address">
+192.168.1.33
+    </defText>
+    <defText name="PORT" label="Port">
+9999
+    </defText>
+</defTextVector>
+<defSwitchVector device="Pegasus NYX-101" name="CONNECTION_TYPE" label="Connection Type" group="Connection" state="Idle" perm="rw" rule="OneOfMany" timeout="60" timestamp="2026-11-12T14:10:42">
+    <defSwitch name="TCP" label="TCP">
+On
+    </defSwitch>
+    <defSwitch name="UDP" label="UDP">
+Off
+    </defSwitch>
+</defSwitchVector>
+<defSwitchVector device="Pegasus NYX-101" name="DEVICE_LAN_SEARCH" label="LAN Search" group="Connection" state="Idle" perm="rw" rule="OneOfMany" timeout="60" timestamp="2026-11-12T14:10:42">
+    <defSwitch name="INDI_ENABLED" label="Enabled">
+Off
+    </defSwitch>
+    <defSwitch name="INDI_DISABLED" label="Disabled">
+On
+    </defSwitch>
+</defSwitchVector>
+<defTextVector device="Pegasus NYX-101" name="ACTIVE_DEVICES" label="Snoop devices" group="Options" state="Idle" perm="rw" timeout="60" timestamp="2026-11-12T14:10:42">
+    <defText name="ACTIVE_GPS" label="GPS">
+GPS Simulator
+    </defText>
+    <defText name="ACTIVE_DOME" label="DOME">
+Dome Simulator
+    </defText>
+</defTextVector>
+<defSwitchVector device="Pegasus NYX-101" name="DOME_POLICY" label="Dome Policy" group="Options" state="Idle" perm="rw" rule="OneOfMany" timeout="60" timestamp="2026-11-12T14:10:42">
+    <defSwitch name="DOME_IGNORED" label="Dome ignored">
+On
+    </defSwitch>
+    <defSwitch name="DOME_LOCKS" label="Dome locks">
+Off
+    </defSwitch>
+</defSwitchVector>

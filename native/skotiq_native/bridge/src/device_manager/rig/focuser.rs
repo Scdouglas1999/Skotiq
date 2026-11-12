@@ -14,6 +14,7 @@ use crate::timeout_ops::{focuser_move_with_timeout, with_timeout_str, Timeouts};
 use async_trait::async_trait;
 use skotiq_alpaca::AlpacaFocuser;
 use skotiq_device::{DriverError, FocuserDriver};
+use skotiq_indi::names as indi;
 use skotiq_indi::IndiFocuser;
 use tracing::warn;
 
@@ -450,7 +451,7 @@ impl RigDriver for IndiFocuserHandle {
     }
 
     async fn heartbeat(&self) -> Result<bool, String> {
-        Ok(self.focuser.is_connected().await)
+        self.focuser.check().await.map_err(|e| e.to_string())
     }
 }
 
@@ -517,7 +518,7 @@ impl Focuser for IndiFocuserHandle {
             .client
             .read()
             .await
-            .get_property_state(self.device_name(), "ABS_FOCUS_POSITION")
+            .get_property_state(self.device_name(), indi::ABS_FOCUS_POSITION)
             .await
             .is_some())
     }
@@ -532,7 +533,7 @@ impl Focuser for IndiFocuserHandle {
                     .client
                     .read()
                     .await
-                    .has_property(self.device_name(), "FOCUS_TEMPERATURE")
+                    .has_property(self.device_name(), indi::FOCUS_TEMPERATURE)
                     .await;
                 if has_sensor {
                     return Err(DeviceOpError::driver(format!(
@@ -550,7 +551,7 @@ impl Focuser for IndiFocuserHandle {
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError> {
         let client = self.client.read().await;
         let max_position = match client
-            .get_number(self.device_name(), "FOCUS_MAX", "FOCUS_MAX_VALUE")
+            .get_number(self.device_name(), indi::FOCUS_MAX, indi::FOCUS_MAX_VALUE)
             .await
         {
             // Why: INDI wire f64 -> i32 step count.
@@ -564,7 +565,7 @@ impl Focuser for IndiFocuserHandle {
             }
         };
         let step_size = match client
-            .get_number(self.device_name(), "FOCUS_STEP", "FOCUS_STEP_VALUE")
+            .get_number(self.device_name(), indi::FOCUS_STEP, indi::FOCUS_STEP_VALUE)
             .await
         {
             Some(s) => s,
