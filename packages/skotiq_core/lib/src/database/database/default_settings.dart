@@ -4,31 +4,10 @@ part of '../database.dart';
 /// missing when it is opened.
 final Map<String, String> _defaultSettings = {
   ...appSettingsInstallRows(),
-  'science.advanced_mode.enabled': 'false',
-  'science.overlay.enabled': 'true',
-  'science.feature.photometry': 'true',
-  'science.feature.photometric_calibration': 'true',
-  'science.feature.transparency': 'true',
-  'science.feature.psf_map': 'true',
-  'science.feature.astrometric_residuals': 'true',
-  'science.feature.moving_objects': 'false',
-  'science.feature.narrowband_ratios': 'false',
-  'science.feature.frame_quality_maps': 'true',
-  'science.feature.surface3d': 'true',
-  // Your Sky: fold every accepted, solved light into the personal sky atlas.
-  // Off until the user turns it on: it keeps gigabytes of tiles on disk.
-  'science.feature.sky_atlas': 'false',
-  'science.retention.manual_purge_only': 'true',
-  'science.photometry.differential_active': 'false',
-  'science.photometry.target_anchor': '',
-  'science.photometry.comparison_anchors': '[]',
-  'science.overlay.opacity': '0.35',
-  'science.overlay.live_grid_rows': '12',
-  'science.overlay.live_grid_cols': '16',
-  'science.overlay.analysis_grid_rows': '24',
-  'science.overlay.analysis_grid_cols': '32',
+  ...storeSettingsInstallRows(),
+  // Read once by the calibration settings, which carry it into
+  // `calibration.auto_calibrate`.
   'dark_library.auto_subtract': 'false',
-  'dark_library.temp_tolerance': '2.0',
   // Predictive autofocus defaults. See migration v31 + PredictiveAfService.
   'predictive_af.enabled': 'true',
   'predictive_af.min_samples_for_trust': '8',
@@ -36,12 +15,9 @@ final Map<String, String> _defaultSettings = {
   'predictive_af.low_confidence_threshold': '0.5',
   'predictive_af.drift_threshold_steps': '200',
   'predictive_af.drift_runs_before_warn': '5',
-  // v40 Multi-Night & Forecast Planning: the currently-selected planning
-  // project. Stored out-of-band in app_settings (rather than a column on
-  // `projects`) so the active selection survives even when no projects exist.
-  // Empty string = no active project; otherwise the stringified projects.id.
-  // Seeded via INSERT ... ON CONFLICT DO NOTHING by _ensureDefaultSettings().
-  'planning.active_project_id': '',
+  // The active planning project; empty means none. The row exists from the
+  // first open so the selection has somewhere to live before any project does.
+  StoreSettings.activePlanningProject.prefix: '',
 };
 
 /// Keys that were seeded by an earlier build and no longer have an owner.
@@ -75,8 +51,9 @@ const Set<String> _retiredSettingKeys = {
 };
 
 /// Set once a profile has been through the rule that made Your Sky opt-in.
-const String skyAtlasOptInMigratedKey = 'science.sky_atlas.opt_in_migrated';
+final String skyAtlasOptInMigratedKey =
+    StoreSettings.scienceSkyAtlasOptInMigrated.key;
 
 /// "pending" while the one-time "Your sky is now off" notice is owed to the
 /// user; "shown" once they have answered it.
-const String skyAtlasOffNoticeKey = 'science.sky_atlas.off_notice';
+final String skyAtlasOffNoticeKey = StoreSettings.scienceSkyAtlasOffNotice.key;

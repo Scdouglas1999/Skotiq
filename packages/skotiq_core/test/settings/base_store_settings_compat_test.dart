@@ -854,9 +854,11 @@ void main() {
 /// What these settings now read from text no build writes, where that
 /// differs from the base build. A declared setting reads it by its kind's one
 /// rule instead of each feature's own idiom:
-///   * a bool is on for `true` in any case and off for any other text (the
-///     base read `TRUE` as off where it tested `== 'true'`, and empty or
-///     unreadable text as on where it tested `!= 'false'`);
+///   * a bool is on for `true` and off for `false` in any case (the base read
+///     `TRUE` as off where it tested `== 'true'`, and `FALSE` as on where it
+///     tested `!= 'false'`). Any other text reads as off, except for the
+///     switches whose base reader took anything but `false` as on (tutorials,
+///     frame watch): those read it as on, as before;
 ///   * an empty row of a JSON document or an optional text means nothing is
 ///     saved (the base kept an empty filter name, and failed on an empty push
 ///     notification document).
@@ -865,7 +867,7 @@ const Map<String, Object?> _changedOnPurpose = {
     'reads': {'upper case': true},
   },
   'tutorials enabled': {
-    'reads': {'upper case off': false, 'empty': false},
+    'reads': {'upper case off': false},
   },
   'sequencer defaults': {
     'reads': {
@@ -874,11 +876,7 @@ const Map<String, Object?> _changedOnPurpose = {
   },
   'frame watch': {
     'reads': {
-      'unreadable values': {
-        'recenterEnabled': false,
-        'obstructionDetection': false,
-      },
-      'empty': {'recenterEnabled': false, 'obstructionDetection': false},
+      'unreadable values': {'obstructionDetection': false},
     },
   },
   'push notifications': {

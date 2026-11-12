@@ -23,12 +23,11 @@ import 'equipment_provider.dart'
         focuserStateProvider,
         mountStateProvider;
 import 'sequence_provider.dart' show sequenceExecutionStateProvider;
+import '../settings/store_settings.dart';
 import 'settings_provider.dart' show appSettingsProvider;
 import 'ui_notification_provider.dart' show uiNotificationProvider;
 
 /// Key used to store global meridian flip settings in app_settings table
-const _kMeridianFlipSettingsKey = 'meridian_flip_settings';
-
 /// Initial-load health for [globalMeridianFlipSettingsProvider].
 ///
 /// The settings provider holds a plain [MeridianFlipSettings] state shape
@@ -50,7 +49,7 @@ Map<String, dynamic> _documentToStore(
   required String? stored,
 }) {
   Map<String, dynamic> row = const {};
-  if (stored != null && stored.isNotEmpty) {
+  if (stored != null) {
     try {
       row = jsonDecode(stored) as Map<String, dynamic>;
     } on Object {
@@ -161,14 +160,11 @@ class GlobalMeridianFlipSettingsNotifier
         loaded = await remote.getMeridianFlipSettings();
       } else {
         final db = _database!;
-        final setting =
-            await (db.select(db.appSettings)
-                  ..where((t) => t.key.equals(_kMeridianFlipSettingsKey)))
-                .getSingleOrNull();
-        loaded = setting == null || setting.value.isEmpty
+        final stored = await db.settingsDao.read(StoreSettings.meridianFlip);
+        loaded = stored == null
             ? const MeridianFlipSettings()
             : MeridianFlipSettings.fromJson(
-                jsonDecode(setting.value) as Map<String, dynamic>,
+                jsonDecode(stored) as Map<String, dynamic>,
               );
       }
       if (!mounted) return;
@@ -210,14 +206,12 @@ class GlobalMeridianFlipSettingsNotifier
           // insertOnConflictUpdate targets the integer primary key. Use the
           // canonical DAO upsert so the second and subsequent edits update the
           // existing key instead of failing with UNIQUE(app_settings.key).
-          await db.settingsDao.setSetting(
-            _kMeridianFlipSettingsKey,
+          await db.settingsDao.write(
+            StoreSettings.meridianFlip,
             jsonEncode(
               _documentToStore(
                 settings,
-                stored: await db.settingsDao.getSetting(
-                  _kMeridianFlipSettingsKey,
-                ),
+                stored: await db.settingsDao.read(StoreSettings.meridianFlip),
               ),
             ),
           );

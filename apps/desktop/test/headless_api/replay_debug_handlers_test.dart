@@ -117,14 +117,14 @@ void main() {
         expect(updatedBody['status'], 'ok');
         expect(updatedBody['enabled'], isFalse);
         expect(
-          await database.settingsDao.getSetting(replayDebugEnabledKey),
+          await database.settingsDao.getSetting('replay_debug.enabled'),
           'false',
         );
         verify(
           () => backend.sequencerSetDecisionLoggingEnabled(false),
         ).called(1);
 
-        await database.settingsDao.setSetting(replayDebugEnabledKey, 'broken');
+        await database.settingsDao.setSetting('replay_debug.enabled', 'broken');
         final corrupt = await translateHandlerErrors(
           handlers.handleGetSettings(
             get('/api/sequencer/replay-debug/settings'),
@@ -145,7 +145,7 @@ void main() {
         45,
       );
       expect(
-        await database.settingsDao.getSetting(replayDebugRetentionDaysKey),
+        await database.settingsDao.getSetting('replay_debug.retention_days'),
         '45',
       );
 

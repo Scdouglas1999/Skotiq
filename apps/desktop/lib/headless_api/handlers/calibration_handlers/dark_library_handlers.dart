@@ -1,23 +1,10 @@
 part of '../calibration_handlers.dart';
 
 extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
-  Future<Map<String, dynamic>> _calibrationSettingsJson() async {
-    final stored = await container.read(settingsDaoProvider).getAllSettings();
-
-    String? pathSetting(String key) {
-      final value = stored[key]?.trim();
-      return value == null || value.isEmpty ? null : value;
-    }
-
-    return {
-      'autoCalibrate': stored['calibration.auto_calibrate'] == 'true',
-      'masterFlatPath': pathSetting('calibration.master_flat_path'),
-      'masterBiasPath': pathSetting('calibration.master_bias_path'),
-      'autoDarkFromLibrary':
-          stored['calibration.auto_dark_from_library'] != 'false',
-      'manualDarkPath': pathSetting('calibration.manual_dark_path'),
-    };
-  }
+  Future<Map<String, dynamic>> _calibrationSettingsJson() async =>
+      CalibrationSettings.fromRows(
+        await container.read(settingsDaoProvider).getAllSettings(),
+      ).toRemoteJson();
 
   Future<Response> handleGetCalibrationSettings(Request request) async {
     return jsonOk(await _calibrationSettingsJson());
@@ -29,26 +16,27 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     final updates = <String, String>{};
 
     if (payload.containsKey('autoCalibrate')) {
-      updates['calibration.auto_calibrate'] = requireBool(
-        payload,
-        'autoCalibrate',
-      ).toString();
+      updates.addAll(
+        StoreSettings.calibrationAutoCalibrate.toRows(
+          requireBool(payload, 'autoCalibrate'),
+        ),
+      );
     }
     if (payload.containsKey('autoDarkFromLibrary')) {
-      updates['calibration.auto_dark_from_library'] = requireBool(
-        payload,
-        'autoDarkFromLibrary',
-      ).toString();
+      updates.addAll(
+        StoreSettings.calibrationAutoDarkFromLibrary.toRows(
+          requireBool(payload, 'autoDarkFromLibrary'),
+        ),
+      );
     }
     for (final entry in const {
-      'masterFlatPath': 'calibration.master_flat_path',
-      'masterBiasPath': 'calibration.master_bias_path',
-      'manualDarkPath': 'calibration.manual_dark_path',
+      'masterFlatPath': StoreSettings.calibrationMasterFlatPath,
+      'masterBiasPath': StoreSettings.calibrationMasterBiasPath,
+      'manualDarkPath': StoreSettings.calibrationManualDarkPath,
     }.entries) {
       if (payload.containsKey(entry.key)) {
-        updates[entry.value] = _validatedCalibrationFilePath(
-          payload,
-          entry.key,
+        updates.addAll(
+          entry.value.toRows(_validatedCalibrationFilePath(payload, entry.key)),
         );
       }
     }
@@ -114,17 +102,10 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
     return value;
   }
 
-  Future<Map<String, dynamic>> _darkSettingsJson() async {
-    final stored = await container.read(settingsDaoProvider).getAllSettings();
-    final temperature = double.tryParse(
-      stored[darkLibraryTempToleranceKey] ?? '',
-    );
-    return {
-      'autoCalibrate': stored['calibration.auto_calibrate'] == 'true',
-      'temperatureTolerance':
-          temperature ?? DarkLibraryMatchTolerances.defaults.temperatureC,
-    };
-  }
+  Future<Map<String, dynamic>> _darkSettingsJson() async =>
+      DarkLibrarySettingsSnapshot.fromRows(
+        await container.read(settingsDaoProvider).getAllSettings(),
+      ).toJson();
 
   Future<Response> handleGetDarkSettings(Request request) async {
     return jsonOk(await _darkSettingsJson());
@@ -147,12 +128,12 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
         message: 'At least one dark-library setting is required',
       );
     }
-    await container.read(settingsDaoProvider).setSettings({
+    await container.read(settingsDaoProvider).writeAll([
       if (autoCalibrate != null)
-        'calibration.auto_calibrate': autoCalibrate.toString(),
+        StoreSettings.calibrationAutoCalibrate.to(autoCalibrate),
       if (temperature != null)
-        darkLibraryTempToleranceKey: temperature.toString(),
-    });
+        StoreSettings.darkTemperatureTolerance.to(temperature),
+    ]);
     return jsonOk(await _darkSettingsJson());
   }
 

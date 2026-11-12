@@ -33,6 +33,7 @@ abstract final class StoreSettings {
     'tutorialsEnabled',
     'tutorials_enabled',
     true,
+    unreadableIsFallback: true,
     sync: SettingSync.thisComputer,
   );
 
@@ -387,6 +388,7 @@ abstract final class StoreSettings {
     'frameWatchRecenter',
     'frame_watch_recenter_enabled',
     true,
+    unreadableIsFallback: true,
     sync: SettingSync.hostStore,
   );
 
@@ -401,6 +403,7 @@ abstract final class StoreSettings {
     'frameWatchObstructionDetection',
     'frame_watch_obstruction_detection',
     true,
+    unreadableIsFallback: true,
     sync: SettingSync.hostStore,
   );
 
@@ -470,6 +473,502 @@ abstract final class StoreSettings {
     sync: SettingSync.hostStore,
   );
 
+  // Calibration.
+
+  /// Lights are calibrated as they are captured.
+  static const calibrationAutoCalibrate = BoolSetting(
+    'calibrationAutoCalibrate',
+    'calibration.auto_calibrate',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// The dark for a light is picked from the dark library.
+  static const calibrationAutoDarkFromLibrary = BoolSetting(
+    'calibrationAutoDarkFromLibrary',
+    'calibration.auto_dark_from_library',
+    true,
+    unreadableIsFallback: true,
+    sync: SettingSync.hostStore,
+  );
+  static const calibrationMasterFlatPath = OptionalTextSetting(
+    'calibrationMasterFlatPath',
+    'calibration.master_flat_path',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+  static const calibrationMasterBiasPath = OptionalTextSetting(
+    'calibrationMasterBiasPath',
+    'calibration.master_bias_path',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+  static const calibrationManualDarkPath = OptionalTextSetting(
+    'calibrationManualDarkPath',
+    'calibration.manual_dark_path',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// Seconds a dark's exposure may differ from the light's and still match.
+  static const darkExposureTolerance = DoubleSetting(
+    'darkExposureTolerance',
+    'dark_library.exposure_tolerance',
+    0.5,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Degrees Celsius a dark's sensor temperature may differ from the light's
+  /// and still match. An install starts at 2.
+  static const darkTemperatureTolerance = DoubleSetting(
+    'darkTemperatureTolerance',
+    'dark_library.temp_tolerance',
+    1.0,
+    seed: '2.0',
+    sync: SettingSync.hostStore,
+  );
+
+  /// Frames are corrected with the defect map as they are captured.
+  static const defectMapAutoApply = BoolSetting(
+    'defectMapAutoApply',
+    'defectMap.autoApply',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// A `DefectMapMethod.wireValue`.
+  static const defectMapMethod = TextSetting(
+    'defectMapMethod',
+    'defectMap.method',
+    'median',
+    sync: SettingSync.hostStore,
+  );
+
+  /// Pixels across the neighborhood a defect is replaced from.
+  static const defectMapKernelDiameter = IntSetting(
+    'defectMapKernelDiameter',
+    'defectMap.kernelDiameter',
+    3,
+    sync: SettingSync.hostStore,
+  );
+
+  /// The uncorrected frame is kept beside the corrected one.
+  static const defectMapSaveOriginal = BoolSetting(
+    'defectMapSaveOriginal',
+    'defectMap.saveOriginal',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// The flat folder, target, tolerance and frame count last used.
+  static const flatWizard = OptionalTextSetting(
+    'flatWizard',
+    'flat_wizard_global_settings',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// The fields of the meridian flip settings that differ from their defaults.
+  static const meridianFlip = OptionalTextSetting(
+    'meridianFlip',
+    'meridian_flip_settings',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  static const polarAlignment = OptionalTextSetting(
+    'polarAlignment',
+    'polar_alignment_config',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  // The decision log a run keeps for replay.
+
+  static const replayDebugEnabled = BoolSetting(
+    'replayDebugEnabled',
+    'replay_debug.enabled',
+    true,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Days a decision is kept. Never off, or the log grows without bound.
+  static const replayDebugRetentionDays = IntSetting(
+    'replayDebugRetentionDays',
+    'replay_debug.retention_days',
+    90,
+    inputMin: 1,
+    inputMax: 3650,
+    sync: SettingSync.hostStore,
+  );
+
+  // Notifications.
+
+  /// Which transports each kind of notification goes to.
+  static const notificationRouting = OptionalTextSetting(
+    'notificationRouting',
+    'notification_routing_matrix',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// The Discord and Pushover settings from before notification routing
+  /// were carried into it.
+  static const legacyNotificationCredentialsCarried = BoolSetting(
+    'legacyNotificationCredentialsCarried',
+    'notification_legacy_credentials_carried_v1',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  // Science.
+
+  static const scienceAdvancedMode = BoolSetting(
+    'scienceAdvancedMode',
+    'science.advanced_mode.enabled',
+    false,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceOverlay = BoolSetting(
+    'scienceOverlay',
+    'science.overlay.enabled',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const sciencePhotometry = BoolSetting(
+    'sciencePhotometry',
+    'science.feature.photometry',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const sciencePhotometricCalibration = BoolSetting(
+    'sciencePhotometricCalibration',
+    'science.feature.photometric_calibration',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceTransparency = BoolSetting(
+    'scienceTransparency',
+    'science.feature.transparency',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const sciencePsfMap = BoolSetting(
+    'sciencePsfMap',
+    'science.feature.psf_map',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceAstrometricResiduals = BoolSetting(
+    'scienceAstrometricResiduals',
+    'science.feature.astrometric_residuals',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceMovingObjects = BoolSetting(
+    'scienceMovingObjects',
+    'science.feature.moving_objects',
+    false,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceNarrowbandRatios = BoolSetting(
+    'scienceNarrowbandRatios',
+    'science.feature.narrowband_ratios',
+    false,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceFrameQualityMaps = BoolSetting(
+    'scienceFrameQualityMaps',
+    'science.feature.frame_quality_maps',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceSurface3d = BoolSetting(
+    'scienceSurface3d',
+    'science.feature.surface3d',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Solved lights fold into the Your Sky atlas. Off until the operator turns
+  /// it on: the atlas keeps gigabytes of tiles on disk.
+  static const scienceSkyAtlas = BoolSetting(
+    'scienceSkyAtlas',
+    'science.feature.sky_atlas',
+    false,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+
+  /// Largest size, in GB, the atlas may reach before new frames stop being
+  /// added to it. 0 means no limit.
+  static const scienceSkyAtlasLimitGb = IntSetting(
+    'scienceSkyAtlasLimitGb',
+    'science.sky_atlas.limit_gb',
+    defaultSkyAtlasLimitGb,
+    inputMin: 0,
+    sync: SettingSync.hostStore,
+  );
+
+  /// This database has been through the rule that made Your Sky opt-in.
+  static const scienceSkyAtlasOptInMigrated = BoolSetting(
+    'scienceSkyAtlasOptInMigrated',
+    'science.sky_atlas.opt_in_migrated',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// `pending` while the one-time "Your Sky is now off" notice is owed,
+  /// `shown` once it is answered.
+  static const scienceSkyAtlasOffNotice = OptionalTextSetting(
+    'scienceSkyAtlasOffNotice',
+    'science.sky_atlas.off_notice',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+  static const scienceManualPurgeOnly = BoolSetting(
+    'scienceManualPurgeOnly',
+    'science.retention.manual_purge_only',
+    true,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+
+  /// The photometric and atmospheric measurements are written into the
+  /// captured FITS header.
+  static const scienceFitsHeaderWriteback = BoolSetting(
+    'scienceFitsHeaderWriteback',
+    'science.writeback.fits_header_enabled',
+    true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceMpcObservatoryCode = TextSetting(
+    'scienceMpcObservatoryCode',
+    'science.mpc.observatory_code',
+    '',
+    sync: SettingSync.hostStore,
+  );
+  static const scienceAavsoObserverCode = TextSetting(
+    'scienceAavsoObserverCode',
+    'science.aavso.observer_code',
+    '',
+    sync: SettingSync.hostStore,
+  );
+  static const scienceObserverName = TextSetting(
+    'scienceObserverName',
+    'science.observer.name',
+    '',
+    sync: SettingSync.hostStore,
+  );
+  static const scienceMpcAstrometricCatalog = TextSetting(
+    'scienceMpcAstrometricCatalog',
+    'science.mpc.ast_cat',
+    '',
+    sync: SettingSync.hostStore,
+  );
+  static const scienceTnsBotId = IntSetting(
+    'scienceTnsBotId',
+    'science.tns.bot_id',
+    0,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceTnsBotName = TextSetting(
+    'scienceTnsBotName',
+    'science.tns.bot_name',
+    '',
+    sync: SettingSync.hostStore,
+  );
+  static const scienceTnsReportingGroupId = IntSetting(
+    'scienceTnsReportingGroupId',
+    'science.tns.group_id',
+    0,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceTnsDataSourceId = IntSetting(
+    'scienceTnsDataSourceId',
+    'science.tns.source_id',
+    0,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceTnsReporterName = TextSetting(
+    'scienceTnsReporterName',
+    'science.tns.reporter',
+    '',
+    sync: SettingSync.hostStore,
+  );
+  static const scienceTnsUseSandbox = BoolSetting(
+    'scienceTnsUseSandbox',
+    'science.tns.use_sandbox',
+    false,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceAutoFrameGrading = BoolSetting(
+    'scienceAutoFrameGrading',
+    'science.grading.auto_enabled',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// The frame grading rules. Not set: the conservative defaults.
+  static const scienceFrameGradeRules = OptionalTextSetting(
+    'scienceFrameGradeRules',
+    'science.grading.rules_json',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+  static const scienceGuideCollapsed = BoolSetting(
+    'scienceGuideCollapsed',
+    'science.guide.collapsed',
+    false,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceOverlayOpacity = DoubleSetting(
+    'scienceOverlayOpacity',
+    'science.overlay.opacity',
+    0.35,
+    min: 0.05,
+    max: 0.95,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceLiveGridRows = IntSetting(
+    'scienceLiveGridRows',
+    'science.overlay.live_grid_rows',
+    12,
+    min: 4,
+    max: 64,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceLiveGridCols = IntSetting(
+    'scienceLiveGridCols',
+    'science.overlay.live_grid_cols',
+    16,
+    min: 4,
+    max: 64,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceAnalysisGridRows = IntSetting(
+    'scienceAnalysisGridRows',
+    'science.overlay.analysis_grid_rows',
+    24,
+    min: 4,
+    max: 96,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceAnalysisGridCols = IntSetting(
+    'scienceAnalysisGridCols',
+    'science.overlay.analysis_grid_cols',
+    32,
+    min: 4,
+    max: 96,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+  static const scienceDifferentialPhotometry = BoolSetting(
+    'scienceDifferentialPhotometry',
+    'science.photometry.differential_active',
+    false,
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+
+  /// The differential photometry target, as a JSON object. Empty: none.
+  static const sciencePhotometryTarget = TextSetting(
+    'sciencePhotometryTarget',
+    'science.photometry.target_anchor',
+    '',
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+
+  /// The comparison stars, as a JSON list.
+  static const sciencePhotometryComparisons = TextSetting(
+    'sciencePhotometryComparisons',
+    'science.photometry.comparison_anchors',
+    '[]',
+    seeded: true,
+    sync: SettingSync.hostStore,
+  );
+
+  // Transient alerts.
+
+  /// Names of the alert sources that are watched, as a JSON list.
+  static const transientAlertSources = OptionalTextSetting(
+    'transientAlertSources',
+    'transient_alert_enabled_sources',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// Names of the transient types that are watched, as a JSON list.
+  static const transientAlertTypes = OptionalTextSetting(
+    'transientAlertTypes',
+    'transient_alert_types_to_monitor',
+    unsetText: '',
+    sync: SettingSync.hostStore,
+  );
+
+  /// Alerts fainter than this magnitude are not shown.
+  static const transientAlertMagnitudeThreshold = DoubleSetting(
+    'transientAlertMagnitudeThreshold',
+    'transient_alert_magnitude_threshold',
+    15.0,
+    sync: SettingSync.hostStore,
+  );
+  static const transientAlertNotifyOnNew = BoolSetting(
+    'transientAlertNotifyOnNew',
+    'transient_alert_notify_on_new',
+    true,
+    unreadableIsFallback: true,
+    sync: SettingSync.hostStore,
+  );
+  static const transientAlertAutoQueueBright = BoolSetting(
+    'transientAlertAutoQueueBright',
+    'transient_alert_auto_queue_bright',
+    false,
+    unreadableIsFallback: true,
+    sync: SettingSync.hostStore,
+  );
+  static const transientAlertAutoQueueMagnitude = DoubleSetting(
+    'transientAlertAutoQueueMagnitude',
+    'transient_alert_auto_queue_magnitude',
+    10.0,
+    sync: SettingSync.hostStore,
+  );
+
+  /// What each alert was marked as (acknowledged, queued, dismissed), by
+  /// alert id.
+  static const transientAlertStates = SettingFamily(
+    'transient_alert_state_',
+    sync: SettingSync.hostStore,
+  );
+
+  /// The capture settings last used with each equipment profile.
+  static const captureSettings = SettingFamily(
+    'imaging_capture_settings_profile_',
+    sync: SettingSync.hostStore,
+  );
+
+  /// The per-filter flat choices, by profile, camera and filter wheel.
+  static const flatWizardFilters = SettingFamily(
+    'flat_wizard_filters.v1.',
+    sync: SettingSync.hostStore,
+  );
+
   static const List<Setting<Object?>> all = [
     glanceMode,
     tutorialsEnabled,
@@ -518,6 +1017,68 @@ abstract final class StoreSettings {
     frameWatchDriftLimit,
     frameWatchObstructionDetection,
     learnedHorizonPoints,
+    calibrationAutoCalibrate,
+    calibrationAutoDarkFromLibrary,
+    calibrationMasterFlatPath,
+    calibrationMasterBiasPath,
+    calibrationManualDarkPath,
+    darkExposureTolerance,
+    darkTemperatureTolerance,
+    defectMapAutoApply,
+    defectMapMethod,
+    defectMapKernelDiameter,
+    defectMapSaveOriginal,
+    flatWizard,
+    meridianFlip,
+    polarAlignment,
+    replayDebugEnabled,
+    replayDebugRetentionDays,
+    notificationRouting,
+    legacyNotificationCredentialsCarried,
+    scienceAdvancedMode,
+    scienceOverlay,
+    sciencePhotometry,
+    sciencePhotometricCalibration,
+    scienceTransparency,
+    sciencePsfMap,
+    scienceAstrometricResiduals,
+    scienceMovingObjects,
+    scienceNarrowbandRatios,
+    scienceFrameQualityMaps,
+    scienceSurface3d,
+    scienceSkyAtlas,
+    scienceSkyAtlasLimitGb,
+    scienceSkyAtlasOptInMigrated,
+    scienceSkyAtlasOffNotice,
+    scienceManualPurgeOnly,
+    scienceFitsHeaderWriteback,
+    scienceMpcObservatoryCode,
+    scienceAavsoObserverCode,
+    scienceObserverName,
+    scienceMpcAstrometricCatalog,
+    scienceTnsBotId,
+    scienceTnsBotName,
+    scienceTnsReportingGroupId,
+    scienceTnsDataSourceId,
+    scienceTnsReporterName,
+    scienceTnsUseSandbox,
+    scienceAutoFrameGrading,
+    scienceFrameGradeRules,
+    scienceGuideCollapsed,
+    scienceOverlayOpacity,
+    scienceLiveGridRows,
+    scienceLiveGridCols,
+    scienceAnalysisGridRows,
+    scienceAnalysisGridCols,
+    scienceDifferentialPhotometry,
+    sciencePhotometryTarget,
+    sciencePhotometryComparisons,
+    transientAlertSources,
+    transientAlertTypes,
+    transientAlertMagnitudeThreshold,
+    transientAlertNotifyOnNew,
+    transientAlertAutoQueueBright,
+    transientAlertAutoQueueMagnitude,
     homeAssistantDiscovery,
     pushNotifications,
     schedulerConfig,
@@ -584,7 +1145,15 @@ abstract final class StoreSettings {
     mosaicUpload,
     assistant,
     activePlanningProject,
+    transientAlertStates,
+    captureSettings,
+    flatWizardFilters,
   ];
 }
 
 String _trimmed(String value) => value.trim();
+
+/// The Your Sky atlas size limit, in GB, until the operator picks one. With
+/// compressed tiles this is several hundred hours of a typical field mix;
+/// reaching it only stops new folds, it never deletes tiles.
+const int defaultSkyAtlasLimitGb = 25;

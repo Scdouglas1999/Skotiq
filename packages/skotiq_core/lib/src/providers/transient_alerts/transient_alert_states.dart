@@ -1,7 +1,6 @@
 part of '../transient_alert_provider.dart';
 
-/// Storage key prefix for alert states in the database
-const String _alertStateKeyPrefix = 'transient_alert_state_';
+const _alertStates = StoreSettings.transientAlertStates;
 
 /// Notifier for tracking user actions on transient alerts.
 ///
@@ -59,8 +58,8 @@ class TransientAlertStatesNotifier
       } else {
         final allSettings = await _settingsDao.getAllSettings();
         for (final entry in allSettings.entries) {
-          if (entry.key.startsWith(_alertStateKeyPrefix)) {
-            final alertId = entry.key.substring(_alertStateKeyPrefix.length);
+          if (_alertStates.holds(entry.key)) {
+            final alertId = entry.key.substring(_alertStates.prefix.length);
             final stateValue = TransientAlertState.values.firstWhere(
               (s) => s.name == entry.value,
               orElse: () => TransientAlertState.newAlert,
@@ -118,10 +117,7 @@ class TransientAlertStatesNotifier
       if (remote != null) {
         await remote.updateTransientState(alertId, alertState.name);
       } else {
-        await _settingsDao.setSetting(
-          '$_alertStateKeyPrefix$alertId',
-          alertState.name,
-        );
+        await _settingsDao.write(_alertStates.row(alertId), alertState.name);
       }
     } catch (e) {
       _logger.error(
@@ -172,7 +168,7 @@ class TransientAlertStatesNotifier
         } else {
           final allSettings = await _settingsDao.getAllSettings();
           for (final key in allSettings.keys) {
-            if (key.startsWith(_alertStateKeyPrefix)) {
+            if (_alertStates.holds(key)) {
               await _settingsDao.deleteSetting(key);
             }
           }

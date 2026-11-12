@@ -14,6 +14,8 @@ import '../providers/backend_provider.dart';
 import '../providers/dark_library_provider.dart';
 import '../services/dark_library_service.dart';
 import '../services/logging_service.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
 import '../utils/host_paths.dart';
 import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
@@ -84,6 +86,26 @@ class CalibrationSettings {
       loadError: loadError == _sentinel ? this.loadError : loadError,
     );
   }
+
+  /// What the stored [rows] hold.
+  factory CalibrationSettings.fromRows(Map<String, String> rows) =>
+      CalibrationSettings(
+        autoCalibrate: StoreSettings.calibrationAutoCalibrate.valueIn(rows),
+        masterFlatPath: StoreSettings.calibrationMasterFlatPath.valueIn(rows),
+        masterBiasPath: StoreSettings.calibrationMasterBiasPath.valueIn(rows),
+        autoDarkFromLibrary: StoreSettings.calibrationAutoDarkFromLibrary
+            .valueIn(rows),
+        manualDarkPath: StoreSettings.calibrationManualDarkPath.valueIn(rows),
+      );
+
+  /// The snapshot `GET /api/calibration/settings` returns.
+  Map<String, dynamic> toRemoteJson() => {
+    'autoCalibrate': autoCalibrate,
+    'masterFlatPath': masterFlatPath,
+    'masterBiasPath': masterBiasPath,
+    'autoDarkFromLibrary': autoDarkFromLibrary,
+    'manualDarkPath': manualDarkPath,
+  };
 
   /// Strictly decode the complete host snapshot returned by
   /// `GET /api/calibration/settings`.
@@ -456,27 +478,16 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     // dark-library UI and the imaging pipeline. A value left in the legacy
     // `dark_library.auto_subtract` key is lifted forward when the
     // authoritative key is unset, then deleted, so the lift runs once.
-    var autoCalibrate = settings['calibration.auto_calibrate'] == 'true';
+    var loaded = CalibrationSettings.fromRows(settings);
     final legacyDarkLibrary = settings['dark_library.auto_subtract'];
-    final hasCalibrationKey = settings.containsKey(
-      'calibration.auto_calibrate',
-    );
-    if (!hasCalibrationKey && legacyDarkLibrary != null) {
-      autoCalibrate = legacyDarkLibrary == 'true';
+    if (!settings.containsKey(StoreSettings.calibrationAutoCalibrate.key) &&
+        legacyDarkLibrary != null) {
+      loaded = loaded.copyWith(autoCalibrate: legacyDarkLibrary == 'true');
       // Persist the migrated value into the canonical store; clear the
       // legacy key so subsequent loads don't re-trigger the migration.
-      unawaited(_migrateLegacyAutoSubtract(autoCalibrate));
+      unawaited(_migrateLegacyAutoSubtract(loaded.autoCalibrate));
     }
-    state = CalibrationSettings(
-      autoCalibrate: autoCalibrate,
-      masterFlatPath: _nonEmpty(settings['calibration.master_flat_path']),
-      masterBiasPath: _nonEmpty(settings['calibration.master_bias_path']),
-      autoDarkFromLibrary:
-          settings['calibration.auto_dark_from_library'] != 'false',
-      manualDarkPath: _nonEmpty(settings['calibration.manual_dark_path']),
-      isLoading: false,
-      loadError: null,
-    );
+    state = loaded;
   }
 
   Future<void> _loadRemote({required bool showLoading}) async {
@@ -512,14 +523,8 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
 
   Future<void> _migrateLegacyAutoSubtract(bool value) async {
     final dao = _ref.read(settingsDaoProvider);
-    await dao.setSetting('calibration.auto_calibrate', value.toString());
+    await dao.write(StoreSettings.calibrationAutoCalibrate, value);
     await dao.deleteSetting('dark_library.auto_subtract');
-  }
-
-  /// Returns the string if non-null and non-empty, otherwise null.
-  static String? _nonEmpty(String? value) {
-    if (value == null || value.isEmpty) return null;
-    return value;
   }
 
   Future<void> setAutoCalibrate(bool enabled) async {
@@ -531,7 +536,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(autoCalibrate: enabled);
     state = next;
-    await _saveSetting('calibration.auto_calibrate', enabled.toString());
+    await _save(StoreSettings.calibrationAutoCalibrate, enabled);
   }
 
   Future<void> setMasterFlatPath(String? path) async {
@@ -543,7 +548,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(masterFlatPath: path);
     state = next;
-    await _saveSetting('calibration.master_flat_path', path ?? '');
+    await _save(StoreSettings.calibrationMasterFlatPath, path);
   }
 
   Future<void> setMasterBiasPath(String? path) async {
@@ -555,7 +560,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(masterBiasPath: path);
     state = next;
-    await _saveSetting('calibration.master_bias_path', path ?? '');
+    await _save(StoreSettings.calibrationMasterBiasPath, path);
   }
 
   Future<void> setAutoDarkFromLibrary(bool enabled) async {
@@ -567,10 +572,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(autoDarkFromLibrary: enabled);
     state = next;
-    await _saveSetting(
-      'calibration.auto_dark_from_library',
-      enabled.toString(),
-    );
+    await _save(StoreSettings.calibrationAutoDarkFromLibrary, enabled);
   }
 
   Future<void> setManualDarkPath(String? path) async {
@@ -582,7 +584,7 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     }
     final next = state.copyWith(manualDarkPath: path);
     state = next;
-    await _saveSetting('calibration.manual_dark_path', path ?? '');
+    await _save(StoreSettings.calibrationManualDarkPath, path);
   }
 
   Future<void> _saveRemote(
@@ -602,8 +604,6 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     state = applyPatch(state).copyWith(isLoading: false, loadError: null);
   }
 
-  Future<void> _saveSetting(String key, String value) async {
-    final dao = _ref.read(settingsDaoProvider);
-    await dao.setSetting(key, value);
-  }
+  Future<void> _save<T>(Setting<T> setting, T value) =>
+      _ref.read(settingsDaoProvider).write(setting, value);
 }

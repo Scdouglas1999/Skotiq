@@ -8,32 +8,25 @@ import 'package:path/path.dart' as p;
 import '../../database/daos/sky_atlas_dao.dart';
 import '../../database/database.dart';
 import '../../database/tables/sky_atlas_tables.dart' show skyAtlasHealpixOrder;
+import '../../settings/store_settings.dart';
 import '../logging_service.dart';
 import '../wcs/gnomonic_projection.dart';
 import 'sky_atlas_models.dart';
 import 'sky_atlas_seam.dart';
 import '../../utils/skotiq_data_directory.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+
+export '../../settings/store_settings.dart' show defaultSkyAtlasLimitGb;
+
 part 'sky_atlas_service/atlas_models.dart';
 part 'sky_atlas_service/internals.dart';
 
-/// App setting that turns the Your Sky atlas fold (and so First Light) on or
-/// off; anything but `false` means on.
-const String skyAtlasSettingKey = 'science.feature.sky_atlas';
-
-/// Setting holding the atlas size limit in GB ("0" = no limit).
-const String skyAtlasLimitSettingKey = 'science.sky_atlas.limit_gb';
-
-/// Size limit applied until the user picks one. With compressed tiles this is
-/// several hundred hours of a typical field mix; reaching it only stops new
-/// folds, it never deletes tiles.
-const int defaultSkyAtlasLimitGb = 25;
-
-/// The stored limit in GB; unset or unreadable means [defaultSkyAtlasLimitGb].
+/// The stored atlas size limit in GB; unset, unreadable or negative means
+/// [defaultSkyAtlasLimitGb], and 0 means no limit.
 int parseSkyAtlasLimitGb(String? raw) {
-  final parsed = int.tryParse(raw?.trim() ?? '');
-  if (parsed == null || parsed < 0) return defaultSkyAtlasLimitGb;
-  return parsed;
+  const setting = StoreSettings.scienceSkyAtlasLimitGb;
+  final gb = setting.decode(raw?.trim(), setting.fallback);
+  return gb < 0 ? setting.fallback : gb;
 }
 
 /// Orchestrates Pillar A ("Your Sky") — the personal sky atlas.

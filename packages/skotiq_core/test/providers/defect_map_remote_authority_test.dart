@@ -145,7 +145,7 @@ void main() {
       () => backend.updateDefectMapSettings(any()),
     ).thenAnswer((_) async => const {'status': 'updated'});
     final localBefore = await database.settingsDao.getSetting(
-      DefectMapSettingsKeys.method,
+      'defectMap.method',
     );
     final container = ProviderContainer(
       overrides: [
@@ -171,7 +171,7 @@ void main() {
       () => backend.updateDefectMapSettings({'method': 'gaussian'}),
     ).called(1);
     expect(
-      await database.settingsDao.getSetting(DefectMapSettingsKeys.method),
+      await database.settingsDao.getSetting('defectMap.method'),
       localBefore,
     );
   });

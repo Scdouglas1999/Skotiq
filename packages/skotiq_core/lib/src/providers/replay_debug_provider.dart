@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/remote_host.dart';
 import '../models/replay_decision.dart';
 import '../services/replay_debug_service.dart';
+import '../settings/store_settings.dart';
 import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
@@ -25,62 +26,32 @@ import 'database_provider.dart';
 /// `SequenceExecutor._handleSequencerEvent` and only runs on the host, so
 /// the write side of that path stays local-only.
 
-/// Replay Debug — settings keys persisted in `app_settings`.
-const String replayDebugEnabledKey = 'replay_debug.enabled';
-const String replayDebugRetentionDaysKey = 'replay_debug.retention_days';
+/// Days a decision is kept when the operator has not chosen.
+final int replayDebugDefaultRetentionDays =
+    StoreSettings.replayDebugRetentionDays.fallback;
 
-/// Default retention window when the setting is unset on first install.
-const int replayDebugDefaultRetentionDays = 90;
-
-/// Strict decoder for the persisted `replay_debug.enabled` value.
+/// Whether decisions are logged, as [stored] holds it.
 ///
-/// An unset value (no row) is the legitimate default (`true`). A stored
-/// value must be exactly `true`/`false` (case-insensitive, surrounding
-/// whitespace tolerated); anything else is corruption and throws
-/// [FormatException] so the read surfaces as an AsyncError instead of
-/// coercing an unreadable value to `true`.
-bool parseReplayEnabledSetting(String? stored) {
-  if (stored == null) return true;
-  switch (stored.trim().toLowerCase()) {
-    case 'true':
-      return true;
-    case 'false':
-      return false;
-    default:
-      throw FormatException(
-        'replay_debug.enabled is corrupt: "$stored" (expected true/false)',
-      );
-  }
-}
+/// No row, or an empty one, is the default (on). Text that is neither `true`
+/// nor `false` is corruption and throws [FormatException], so the read
+/// surfaces as an error instead of reading as on.
+bool parseReplayEnabledSetting(String? stored) =>
+    StoreSettings.replayDebugEnabled.decodeStrict(stored);
 
-/// Strict decoder for the persisted `replay_debug.retention_days` value.
+/// Days a decision is kept, as [stored] holds it.
 ///
-/// An unset value is the legitimate default (90). A stored value must parse
-/// to an integer inside `1..3650`; anything else (non-numeric or out of
-/// band) is corruption and throws [FormatException] rather than silently
-/// coercing to the default.
+/// No row, or an empty one, is the default. Text that is not a whole number,
+/// or a number of days no build stores, is corruption and throws
+/// [FormatException] rather than reading as the default.
 int parseReplayRetentionSetting(String? stored) {
-  if (stored == null) return replayDebugDefaultRetentionDays;
-  final parsed = int.tryParse(stored.trim());
-  if (parsed == null) {
+  const setting = StoreSettings.replayDebugRetentionDays;
+  final days = setting.decodeStrict(stored);
+  if (days != setting.clean(days)) {
     throw FormatException(
-      'replay_debug.retention_days is corrupt: "$stored" (expected an integer)',
+      '${setting.key} out of range '
+      '${setting.inputMin}..${setting.inputMax}: $days',
     );
   }
-  if (parsed < 1 || parsed > 3650) {
-    throw FormatException(
-      'replay_debug.retention_days out of range 1..3650: $parsed',
-    );
-  }
-  return parsed;
-}
-
-/// Clamp a requested retention value into the persisted band. The minimum is
-/// 1 day — retention can't be disabled entirely or the table grows unbounded;
-/// the upper clamp (3650 = ~10 years) is the "keep everything" ceiling.
-int _clampRetentionDays(int days) {
-  if (days < 1) return 1;
-  if (days > 3650) return 3650;
   return days;
 }
 
@@ -208,7 +179,9 @@ final replayDebugEnabledProvider = FutureProvider<bool>((ref) async {
     return settings.enabled;
   }
   final dao = ref.watch(settingsDaoProvider);
-  return parseReplayEnabledSetting(await dao.getSetting(replayDebugEnabledKey));
+  return parseReplayEnabledSetting(
+    await dao.getSetting(StoreSettings.replayDebugEnabled.key),
+  );
 });
 
 /// Replay Debug — retention window in days. Local strict parse
@@ -221,7 +194,7 @@ final replayDebugRetentionDaysProvider = FutureProvider<int>((ref) async {
   }
   final dao = ref.watch(settingsDaoProvider);
   return parseReplayRetentionSetting(
-    await dao.getSetting(replayDebugRetentionDaysKey),
+    await dao.getSetting(StoreSettings.replayDebugRetentionDays.key),
   );
 });
 
@@ -282,23 +255,20 @@ class ReplayDebugSettingsController {
     }
     final previous = currentAsync.requireValue;
     final dao = _ref.read(settingsDaoProvider);
-    final previousRaw = await dao.getSetting(replayDebugEnabledKey);
+    const setting = StoreSettings.replayDebugEnabled;
+    final previousRows = await dao.readRows([setting]);
     if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       throw StateError('Replay settings authority changed before the update.');
     }
 
     // 1) Persist the new value.
-    await dao.setSetting(replayDebugEnabledKey, value.toString());
+    await dao.write(setting, value);
 
     // Authority may have swapped while awaiting the write. If the DAO or the
     // backend changed, do not push runtime to a now-different executor.
     if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       try {
-        if (previousRaw == null) {
-          await dao.deleteSetting(replayDebugEnabledKey);
-        } else {
-          await dao.setSetting(replayDebugEnabledKey, previousRaw);
-        }
+        await dao.restore(setting, previousRows);
       } catch (e) {
         _logFailedReplayRollback('the decision-logging flag', e);
       }
@@ -311,11 +281,7 @@ class ReplayDebugSettingsController {
       await backend.sequencerSetDecisionLoggingEnabled(value);
     } catch (error, stack) {
       try {
-        if (previousRaw == null) {
-          await dao.deleteSetting(replayDebugEnabledKey);
-        } else {
-          await dao.setSetting(replayDebugEnabledKey, previousRaw);
-        }
+        await dao.restore(setting, previousRows);
       } catch (e) {
         _logFailedReplayRollback(
           'the decision-logging flag after the executor rejected it',
@@ -328,11 +294,7 @@ class ReplayDebugSettingsController {
     if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       try {
         await backend.sequencerSetDecisionLoggingEnabled(previous);
-        if (previousRaw == null) {
-          await dao.deleteSetting(replayDebugEnabledKey);
-        } else {
-          await dao.setSetting(replayDebugEnabledKey, previousRaw);
-        }
+        await dao.restore(setting, previousRows);
       } catch (e) {
         _logFailedReplayRollback(
           'the decision-logging flag and its executor mirror',
@@ -349,7 +311,7 @@ class ReplayDebugSettingsController {
   /// authority. If that authority swaps while the database write is pending,
   /// the old raw value is restored before the operation reports failure.
   Future<void> setRetentionDays(int days) => _serialize(() async {
-    final clamped = _clampRetentionDays(days);
+    final clamped = StoreSettings.replayDebugRetentionDays.clean(days);
     final host = _ref.backendScope();
     final backend = host.value;
     final remote = backend.remoteHost?.replayDebug;
@@ -373,18 +335,15 @@ class ReplayDebugSettingsController {
       );
     }
     final dao = _ref.read(settingsDaoProvider);
-    final previousRaw = await dao.getSetting(replayDebugRetentionDaysKey);
+    const setting = StoreSettings.replayDebugRetentionDays;
+    final previousRows = await dao.readRows([setting]);
     if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       throw StateError('Replay settings authority changed before the update.');
     }
-    await dao.setSetting(replayDebugRetentionDaysKey, clamped.toString());
+    await dao.write(setting, clamped);
     if (!identical(_ref.read(settingsDaoProvider), dao) || host.isStale) {
       try {
-        if (previousRaw == null) {
-          await dao.deleteSetting(replayDebugRetentionDaysKey);
-        } else {
-          await dao.setSetting(replayDebugRetentionDaysKey, previousRaw);
-        }
+        await dao.restore(setting, previousRows);
       } catch (e) {
         _logFailedReplayRollback('the decision-log retention window', e);
       }

@@ -127,9 +127,17 @@ sealed class Setting<T> {
   /// The rows that store [value].
   Map<String, String> toRows(T value) => {key: encode(value)};
 
+  /// The value held in [rows], or [fallback] when they hold none.
+  T valueIn(Map<String, String> rows) => fromRows(rows, fallback);
+
   T decode(String? raw, T orElse);
 
   String encode(T value);
+
+  /// The value [raw] holds, for a feature that stops rather than run on a row
+  /// it cannot read: no row, or an empty one, reads as [fallback], and text
+  /// that is not a value of this setting throws [FormatException].
+  T decodeStrict(String? raw) => decode(raw, fallback);
 
   Object? toJson(T value) => value;
 
@@ -168,6 +176,7 @@ final class BoolSetting extends Setting<bool> {
     super.field,
     super.key,
     super.fallback, {
+    this.unreadableIsFallback = false,
     super.sync,
     super.wireKey,
     super.clientKeepsOwn,
@@ -177,9 +186,30 @@ final class BoolSetting extends Setting<bool> {
     super.adminOnly,
   });
 
+  /// Text that is neither `true` nor `false` reads as the value given when
+  /// nothing is stored, instead of as off. Set for the switches whose own
+  /// readers, before they were declared here, took anything but `false` as on.
+  final bool unreadableIsFallback;
+
   @override
-  bool decode(String? raw, bool orElse) =>
-      raw == null ? orElse : raw.toLowerCase() == 'true';
+  bool decode(String? raw, bool orElse) {
+    if (raw == null) return orElse;
+    if (!unreadableIsFallback) return raw.toLowerCase() == 'true';
+    return _named(raw) ?? orElse;
+  }
+
+  @override
+  bool decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return fallback;
+    return _named(raw) ??
+        (throw FormatException('$key is "$raw", expected true or false'));
+  }
+
+  static bool? _named(String raw) => switch (raw.trim().toLowerCase()) {
+    'true' => true,
+    'false' => false,
+    _ => null,
+  };
 
   @override
   String encode(bool value) => value.toString();
@@ -271,6 +301,15 @@ final class IntSetting extends Setting<int> {
       _bound(raw == null ? orElse : int.tryParse(raw) ?? orElse);
 
   @override
+  int decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return _bound(fallback);
+    return _bound(
+      int.tryParse(raw.trim()) ??
+          (throw FormatException('$key is "$raw", expected a whole number')),
+    );
+  }
+
+  @override
   String encode(int value) => value.toString();
 
   @override
@@ -326,7 +365,21 @@ final class DoubleSetting extends Setting<double> {
 
   @override
   double decode(String? raw, double orElse) =>
-      _bound(raw == null ? orElse : double.tryParse(raw) ?? orElse);
+      _bound(raw == null ? orElse : _finite(raw) ?? orElse);
+
+  @override
+  double decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return _bound(fallback);
+    return _bound(
+      _finite(raw.trim()) ??
+          (throw FormatException('$key is "$raw", expected a number')),
+    );
+  }
+
+  static double? _finite(String raw) {
+    final value = double.tryParse(raw);
+    return value != null && value.isFinite ? value : null;
+  }
 
   @override
   String encode(double value) => value.toString();
@@ -738,4 +791,12 @@ final class SettingFamily {
   final AdminOnly? adminOnly;
 
   bool holds(String key) => key.startsWith(prefix);
+
+  /// The row of this family for [id], holding text or a document.
+  OptionalTextSetting row(String id) => OptionalTextSetting(
+    '$prefix$id',
+    '$prefix$id',
+    unsetText: '',
+    sync: sync,
+  );
 }

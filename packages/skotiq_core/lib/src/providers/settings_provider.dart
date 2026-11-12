@@ -229,11 +229,18 @@ class LocationSettings {
   }
 }
 
-/// Auto connect equipment setting
+/// Whether the equipment connects when the app starts.
+///
+/// Hardware moves only on a stored choice: a database with no row for it
+/// connects nothing, although the setting itself is on when nothing is
+/// stored and a new install is given that row.
 class AutoConnectSettingsNotifier extends AsyncNotifier<bool> {
   @override
-  Future<bool> build() =>
-      ref.read(settingsDaoProvider).read(AppSettingDefs.autoConnectEquipment);
+  Future<bool> build() async {
+    final setting = AppSettingDefs.autoConnectEquipment;
+    final rows = await ref.read(settingsDaoProvider).readRows([setting]);
+    return setting.fromRows(rows, false);
+  }
 }
 
 final autoConnectSettingsProvider =

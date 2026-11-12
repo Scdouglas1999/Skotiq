@@ -531,4 +531,21 @@ extension StoredSettings on SettingsDao {
       await deleteSetting(key);
     }
   }
+
+  /// Put [setting]'s rows back as [rows], read earlier with [readRows], held
+  /// them: a row that was not stored then is removed. For undoing a write
+  /// whose other half failed, without reinterpreting what was stored.
+  Future<void> restore(
+    Setting<Object?> setting,
+    Map<String, String> rows,
+  ) async {
+    for (final key in setting.keys) {
+      final value = rows[key];
+      if (value == null) {
+        await deleteSetting(key);
+      } else {
+        await setSetting(key, value);
+      }
+    }
+  }
 }
