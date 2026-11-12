@@ -3,6 +3,9 @@
 // frames as "Lum" and fails the pre-flight's name check. Matching renames the
 // plan's filters to the wheel's own names.
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -35,6 +38,36 @@ void main() {
     expect(matchingFilterName('r', wheel), 'R');
     expect(matchingFilterName('Clear', ['Clear', 'L']), 'Clear');
     expect(matchingFilterName('UV', wheel), isNull);
+  });
+
+  // The native wheel picks the slot at run time with `find_filter_match`
+  // (`bridge/src/filter_matching.rs`), whose own test reads the same file.
+  test('the matcher gives the slot the native wheel gives', () {
+    final fixture =
+        jsonDecode(
+              File(
+                'test/fixtures/filter_matching_cases.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    final cases = (fixture['cases'] as List).cast<Map<String, dynamic>>();
+    expect(cases, isNotEmpty);
+    for (final c in cases) {
+      final names = (c['names'] as List).cast<String>();
+      final requested = c['requested'] as String;
+      expect(
+        matchingFilterIndex(requested, names),
+        c['index'],
+        reason: '"$requested" in $names',
+      );
+    }
+  });
+
+  test('a snippet filter lands on the profile slot the run would use', () {
+    expect(matchingFilterIndex('Luminance', ['Lum', 'R']), 0);
+    expect(matchingFilterIndex('Ha', ['L', 'Ha 7nm']), 1);
+    expect(matchingFilterIndex('Nitrogen', ['L', 'NII']), 1);
+    expect(matchingFilterIndex('Nitrogen', ['L', 'Ha']), isNull);
   });
 
   test('a renamed filter drops the wheel slot of its old name', () {
