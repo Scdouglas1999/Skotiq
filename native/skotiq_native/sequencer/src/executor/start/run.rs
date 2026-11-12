@@ -746,6 +746,8 @@ impl Run {
         // after the root is done.
         let mut verdict = terminal_verdict_message(result, &self.plan.root_display_name);
         if let Some(note) = guider_left_running {
+            // Also told in the run's log, where a client reads how the run ended.
+            self.control.warning(note.clone());
             verdict = format!("{verdict}. {note}");
         }
         let terminal = state.store(final_state, |progress| {

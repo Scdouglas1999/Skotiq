@@ -284,15 +284,23 @@ async fn a_stopped_run_stops_the_guiding_it_started() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_stopped_run_leaves_guiding_it_did_not_start_and_says_so() {
     let ops = Arc::new(ScriptedDeviceOps::new());
-    let mut executor = start_night(
-        super::SequenceExecutor::new(),
-        ops.clone(),
-        guided_plan(false),
-    )
-    .await;
+    let executor = super::SequenceExecutor::new();
+    let mut events = executor.subscribe();
+    let mut executor = start_night(executor, ops.clone(), guided_plan(false)).await;
     wait_for_step(&executor, "imaging").await;
 
     executor.stop().await.expect("the run stops");
+    let mut warned = false;
+    loop {
+        match events.try_recv() {
+            Ok(super::ExecutorEvent::Warning { message }) => {
+                warned |= message.contains("started outside this run");
+            }
+            Ok(_) | Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => {}
+            Err(_) => break,
+        }
+    }
+    assert!(warned, "the run's log says the guider is still guiding");
 
     let calls = ops.calls();
     assert!(!calls.iter().any(|c| c == "guider_stop"), "calls={calls:?}");
