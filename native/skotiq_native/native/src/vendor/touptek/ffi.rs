@@ -13,7 +13,6 @@ pub(crate) const OGMACAM_FLAG_MONO: u64 = 0x00000010;
 pub(crate) const OGMACAM_FLAG_TEC: u64 = 0x00000080;
 pub(crate) const OGMACAM_FLAG_TEC_ONOFF: u64 = 0x00020000;
 pub(crate) const OGMACAM_FLAG_ST4: u64 = 0x00000200;
-pub(crate) const OGMACAM_FLAG_ROI_HARDWARE: u64 = 0x00000008;
 pub(crate) const OGMACAM_FLAG_BINSKIP_SUPPORTED: u64 = 0x00000020;
 pub(crate) const OGMACAM_FLAG_GETTEMPERATURE: u64 = 0x00000400;
 pub(crate) const OGMACAM_FLAG_FAN: u64 = 0x00010000;
@@ -65,6 +64,8 @@ pub(crate) const OGMACAM_OPTION_HEAT: c_uint = 0x37;
 pub(crate) const OGMACAM_OPTION_FLUSH: c_uint = 0x3d;
 /// [RO] cooler set-point range in 0.1 C: minimum in the low 16 bits, maximum in the high.
 pub(crate) const OGMACAM_OPTION_TECTARGET_RANGE: c_uint = 0x6d;
+/// [RW] what Trigger(0) does to the frame being exposed: 0 = drops it, 1 = outputs it.
+pub(crate) const OGMACAM_OPTION_TRIGGER_CANCEL_MODE: c_uint = 0x75;
 /// [RW] where the unused bits of a 10..14-bit sample go: 0 = high bits (the sample keeps
 /// its own value), 1 = low bits (the sample is scaled up to 16 bits).
 pub(crate) const OGMACAM_OPTION_ZERO_PADDING: c_uint = 0x78;
@@ -80,6 +81,8 @@ pub(crate) const OGMACAM_E_NOTIMPL: i32 = 0x8000_4001_u32 as i32;
 // Pull-mode event codes delivered to the StartPullModeWithCallback callback.
 // A software-triggered frame arrives as EVENT_IMAGE (live image), pulled with bStill = 0.
 pub(crate) const OGMACAM_EVENT_IMAGE: c_uint = 0x0004;
+/// The triggered frame failed (bad frame data or a timeout); no image follows.
+pub(crate) const OGMACAM_EVENT_TRIGGERFAIL: c_uint = 0x0007;
 pub(crate) const OGMACAM_EVENT_ERROR: c_uint = 0x0080;
 pub(crate) const OGMACAM_EVENT_DISCONNECTED: c_uint = 0x0081;
 pub(crate) const OGMACAM_EVENT_NOFRAMETIMEOUT: c_uint = 0x0082;
@@ -235,7 +238,8 @@ pub(crate) type OgmacamStartPullModeWithCallback = unsafe extern "system" fn(
 pub(crate) type OgmacamTrigger = unsafe extern "system" fn(h: HOgmacam, n_number: c_ushort) -> i32;
 
 // SDK metadata
-pub(crate) type OgmacamVersion = unsafe extern "system" fn() -> *const c_char;
+/// UTF-16 on Windows (`const wchar_t*`), a narrow string elsewhere.
+pub(crate) type OgmacamVersion = unsafe extern "system" fn() -> *const OgmacamChar;
 
 /// Heap-stable state shared with the SDK's pull-mode event callback.
 ///
@@ -247,7 +251,8 @@ pub(crate) type OgmacamVersion = unsafe extern "system" fn() -> *const c_char;
 pub(crate) struct TouptekEventState {
     /// Set true on EVENT_IMAGE — a software-triggered frame is ready to pull.
     pub(crate) image_ready: AtomicBool,
-    /// The EVENT_ERROR or EVENT_NOFRAMETIMEOUT code that ended this exposure, 0 if none.
+    /// The EVENT_ERROR, EVENT_TRIGGERFAIL or EVENT_NOFRAMETIMEOUT code that ended this
+    /// exposure, 0 if none.
     pub(crate) fault: AtomicU32,
     /// Set on EVENT_DISCONNECTED and never cleared: the handle is dead until reconnect.
     pub(crate) disconnected: AtomicBool,
@@ -287,7 +292,7 @@ pub(crate) unsafe extern "system" fn touptek_event_callback(n_event: c_uint, ctx
     let state = unsafe { &*(ctx as *const TouptekEventState) };
     match n_event {
         OGMACAM_EVENT_IMAGE => state.image_ready.store(true, Ordering::SeqCst),
-        OGMACAM_EVENT_ERROR | OGMACAM_EVENT_NOFRAMETIMEOUT => {
+        OGMACAM_EVENT_ERROR | OGMACAM_EVENT_TRIGGERFAIL | OGMACAM_EVENT_NOFRAMETIMEOUT => {
             state.fault.store(n_event, Ordering::SeqCst);
         }
         OGMACAM_EVENT_DISCONNECTED => state.disconnected.store(true, Ordering::SeqCst),

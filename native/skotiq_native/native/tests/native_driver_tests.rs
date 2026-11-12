@@ -2525,7 +2525,10 @@ fn sensor_value(x:u32,y:u32,seq:u32)->u32{100+(y*80+x)%800+seq}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_Open(id:*const c_void)->*mut c_void{if id.is_null(){return std::ptr::null_mut();} let p=id as *const Ch; let mut text=String::new(); let mut i=0; while *p.add(i)!=0{text.push(*p.add(i) as u8 as char); i+=1;} let Some(index)=IDS.iter().position(|known|*known==text) else {return std::ptr::null_mut()}; ACTIVE.store(index,Ordering::SeqCst); let (w,h)=full(index); *ROI.lock().unwrap()=[0,0,w,h]; BIN.store(1,Ordering::SeqCst); QUEUE.lock().unwrap().clear(); let mut o=[0;256]; o[0x17]=1; o[0x2e]=100; if index==0{o[0x08]=1; o[0x0f]=0; o[0x07]=1; o[0x37]=2; o[0x21]=80;} o[0x23]=if cfg!(windows)||std::env::var("SK_TOUPTEK_UPSIDE_DOWN").is_ok(){1}else{0}; *OPTIONS.lock().unwrap()=o; (index+1) as *mut c_void}
 #[no_mangle] pub extern "C" fn Ogmacam_Close(_h:*mut c_void){let mut s=STREAM.lock().unwrap(); s.2=false; s.1+=1;}
 #[no_mangle] pub extern "C" fn Ogmacam_Stop(_h:*mut c_void)->c_int{let mut s=STREAM.lock().unwrap(); s.2=false; s.1+=1; 0}
-#[no_mangle] pub extern "C" fn Ogmacam_Version()->*const c_char{b"fake-ogma-1.0\0".as_ptr() as *const c_char}
+// Version() returns const wchar_t* on Windows (toupcam.h), char* elsewhere.
+#[cfg(windows)] static VERSION:[u16;14]=[102,97,107,101,45,111,103,109,97,45,49,46,48,0];
+#[cfg(not(windows))] static VERSION:&[u8]=b"fake-ogma-1.0\0";
+#[no_mangle] pub extern "C" fn Ogmacam_Version()->*const Ch{VERSION.as_ptr() as *const Ch}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_ExpTimeRange(_h:*mut c_void,min:*mut c_uint,max:*mut c_uint,def:*mut c_uint)->c_int{if !min.is_null(){*min=10;} if !max.is_null(){*max=3_600_000_000;} if !def.is_null(){*def=1000;} 0}
 #[no_mangle] pub extern "C" fn Ogmacam_put_ExpoTime(_h:*mut c_void,us:c_uint)->c_int{if !(10..=3_600_000_000).contains(&us){return E_INVALIDARG;} EXPO_US.store(us,Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn Ogmacam_put_Speed(_h:*mut c_void,speed:c_ushort)->c_int{if speed>1{return E_INVALIDARG;} 0}
