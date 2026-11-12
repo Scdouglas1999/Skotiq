@@ -3,14 +3,14 @@
 use super::*;
 
 pub struct FliCamera {
+    /// The address from the device id (see `open_device`).
     pub(crate) device_path: String,
     pub(crate) core: CameraCore,
     pub(crate) handle: FliDev,
-    // Visible area (where actual image is)
-    pub(crate) visible_ul_x: i32,
-    pub(crate) visible_ul_y: i32,
-    pub(crate) visible_lr_x: i32,
-    pub(crate) visible_lr_y: i32,
+    pub(crate) serial: Option<String>,
+    pub(crate) visible: VisibleArea,
+    /// The rectangle last given to FLISetImageArea; a download reads this.
+    pub(crate) image_area: ImageArea,
 }
 
 impl std::fmt::Debug for FliCamera {
@@ -34,11 +34,147 @@ impl FliCamera {
                 -10.0,
             ),
             handle: FLI_INVALID_DEVICE,
-            visible_ul_x: 0,
-            visible_ul_y: 0,
-            visible_lr_x: 0,
-            visible_lr_y: 0,
+            serial: None,
+            visible: VisibleArea::default(),
+            image_area: ImageArea::default(),
         }
+    }
+
+    /// The camera's geometry and modes, read once the handle is open. Any
+    /// error leaves the handle for the caller to close.
+    fn configure(&mut self, sdk: &FliSdk) -> Result<(), DriverError> {
+        if let Some(model) = read_model(sdk, self.handle) {
+            self.core.name = model;
+        }
+        self.serial = read_serial(sdk, self.handle);
+
+        let mut pixel_x: c_double = 0.0;
+        let mut pixel_y: c_double = 0.0;
+        // SAFETY: self.handle is open; both out-pointers are valid stack pointers.
+        let result = unsafe { (sdk.get_pixel_size)(self.handle, &mut pixel_x, &mut pixel_y) };
+        check_fli_error(result, "get pixel size")?;
+        // A zero pitch zeroes the plate scale everywhere downstream.
+        let pixel_x = pixel_size_microns(pixel_x)?;
+        let pixel_y = pixel_size_microns(pixel_y)?;
+
+        let mut ul_x: c_long = 0;
+        let mut ul_y: c_long = 0;
+        let mut lr_x: c_long = 0;
+        let mut lr_y: c_long = 0;
+        // SAFETY: self.handle is open; all four out-pointers are valid stack pointers.
+        let result = unsafe {
+            (sdk.get_visible_area)(self.handle, &mut ul_x, &mut ul_y, &mut lr_x, &mut lr_y)
+        };
+        check_fli_error(result, "get visible area")?;
+        self.visible = VisibleArea::from_corners(ul_x, ul_y, lr_x, lr_y)?;
+
+        // Select 16-bit mode before publishing the sensor's bit depth. If this write
+        // fails the camera stays in 8-bit while the app advertises a 65535 full scale,
+        // so every subsequent frame would be scaled, stretched and written to FITS
+        // against a ceiling 256x too large. A device that reached us and refused is
+        // therefore fatal to the connect.
+        //
+        // A device with no bit-depth control at all is the other case, and it is not
+        // that one: libfli answers a command a model does not implement with a
+        // not-supported errno, and an FLI body with no selectable depth is 16-bit —
+        // the mode being asked for. Refusing those made 16-bit-only bodies impossible
+        // to connect, where they had imaged for years. Every USB body is one
+        // (libfli-camera-usb.c answers -EINVAL for MaxCam, IMG and ProLine alike).
+        // SAFETY: self.handle is open; FLI_MODE_16BIT is a pass-by-value constant.
+        let result = unsafe { (sdk.set_bit_depth)(self.handle, FLI_MODE_16BIT) };
+        match fli_capability_answer(result) {
+            FliCapabilityAnswer::Done => {}
+            FliCapabilityAnswer::NotSupported(code) => {
+                tracing::debug!(
+                    "FLI camera '{}' has no selectable bit depth (FLISetBitDepth returned {}); it reads out 16-bit, the mode being selected",
+                    self.core.name,
+                    code
+                );
+            }
+            FliCapabilityAnswer::Failed(code) => check_fli_error(code, "set 16-bit mode")?,
+        }
+
+        // libfli has no cooler-presence flag, so the temperature channel is the only
+        // evidence available. It is one-directional: a body that cannot report a CCD
+        // temperature has no regulation to offer, but a body that can may still be
+        // uncooled, because libfli answers FLIGetTemperature on those too.
+        let mut probe_temp: c_double = 0.0;
+        // SAFETY: self.handle is open; `&mut probe_temp` is a valid stack out-pointer.
+        let temp_result = unsafe { (sdk.get_temperature)(self.handle, &mut probe_temp) };
+        let can_cool = temp_result == 0;
+        if !can_cool {
+            tracing::warn!(
+                "FLI camera '{}' did not report a CCD temperature ({}); reporting no cooling",
+                self.core.name,
+                fli_error_text(temp_result)
+            );
+        }
+
+        // `bit_depth`/`max_adu` describe the 16-bit mode confirmed above. libfli
+        // reports no colour-filter-array information and delivers frames with no
+        // Bayer metadata, so frames are published as mono; a one-shot-colour FLI
+        // body is therefore not debayered.
+        self.core.sensor_info = SensorInfo {
+            width: self.visible.width,
+            height: self.visible.height,
+            pixel_size_x: pixel_x,
+            pixel_size_y: pixel_y,
+            max_adu: 65535,
+            bit_depth: 16,
+            color: false,
+            bayer_pattern: None,
+        };
+
+        // libfli publishes no per-model capability table, so only the API's own
+        // documented limits and the probe above are asserted here: binning 1..=16
+        // (libfli.c FLISetHBin/FLISetVBin), and gain and offset have no SDK
+        // control at all.
+        self.core.capabilities = CameraCapabilities {
+            can_cool,
+            can_set_gain: false,
+            can_set_offset: false,
+            can_set_binning: true,
+            can_subframe: true,
+            has_shutter: true,
+            has_guider_port: false,
+            max_bin_x: FLI_MAX_BIN,
+            max_bin_y: FLI_MAX_BIN,
+            supports_readout_modes: false,
+        };
+
+        self.core.bin_x = 1;
+        self.core.bin_y = 1;
+        self.core.subframe = None;
+        self.write_binning(sdk, 1, 1)?;
+        self.write_image_area(sdk, image_area(self.visible, None, 1, 1)?)
+    }
+
+    pub(crate) fn write_binning(
+        &self,
+        sdk: &FliSdk,
+        bin_x: i32,
+        bin_y: i32,
+    ) -> Result<(), DriverError> {
+        // SAFETY: self.handle is open; the bins were checked to 1..=16 by image_area.
+        let result = unsafe { (sdk.set_hbin)(self.handle, bin_x as c_long) };
+        check_fli_error(result, "set horizontal binning")?;
+        // SAFETY: as above.
+        let result = unsafe { (sdk.set_vbin)(self.handle, bin_y as c_long) };
+        check_fli_error(result, "set vertical binning")
+    }
+
+    pub(crate) fn write_image_area(
+        &mut self,
+        sdk: &FliSdk,
+        area: ImageArea,
+    ) -> Result<(), DriverError> {
+        // SAFETY: self.handle is open; the corners come from image_area, inside the visible area.
+        let result = unsafe {
+            (sdk.set_image_area)(self.handle, area.ul_x, area.ul_y, area.lr_x, area.lr_y)
+        };
+        check_fli_error(result, "set image area")?;
+        self.image_area = area;
+        Ok(())
     }
 }
 
@@ -56,6 +192,10 @@ impl DeviceDriver for FliCamera {
         Vendor::Fli
     }
 
+    fn serial_number(&self) -> Option<String> {
+        self.serial.clone()
+    }
+
     fn is_connected(&self) -> bool {
         self.core.connected
     }
@@ -66,196 +206,9 @@ impl DeviceDriver for FliCamera {
         }
 
         let sdk = FliSdk::lock().await?;
-
-        let path_cstr = CString::new(self.device_path.clone()).map_err(|_| {
-            tracing::error!(
-                "FLI camera device path contains null bytes: '{}'",
-                self.device_path
-            );
-            DriverError::SdkError(format!(
-                "Invalid device path '{}' contains null bytes",
-                self.device_path
-            ))
-        })?;
-        let domain = FLIDOMAIN_USB | FLIDEVICE_CAMERA;
-
-        // SAFETY: `self.handle` is a valid pointer into Self (caller holds &mut self); path_cstr is a NUL-terminated CString that outlives the call.
-        let result = unsafe { (sdk.open)(&mut self.handle, path_cstr.as_ptr(), domain) };
-        if result != 0 {
-            tracing::error!(
-                "FLI Open() failed for camera at '{}'. Error code: {}. Check USB connection and driver.",
-                self.device_path, result
-            );
-            return Err(DriverError::SdkError(format!(
-                "Failed to open FLI camera at '{}'. SDK error: {}. Ensure camera is connected and not in use.",
-                self.device_path, result
-            )));
-        }
-
-        let mut model_buf = [0 as c_char; 128];
-        // SAFETY: self.handle was just successfully opened above; model_buf is a 128-byte stack array with truthful length passed to SDK.
-        if unsafe { (sdk.get_model)(self.handle, model_buf.as_mut_ptr(), model_buf.len()) } == 0 {
-            // SAFETY: model_buf is 128 bytes; FLI SDK guarantees NUL-termination on success.
-            self.core.name = unsafe { CStr::from_ptr(model_buf.as_ptr()) }
-                .to_string_lossy()
-                .to_string();
-        }
-
-        // Get pixel size. A zeroed pixel size zeroes the plate scale everywhere
-        // downstream, so a failed read must abort the connect, not pass 0.0 along.
-        let mut pixel_x: c_double = 0.0;
-        let mut pixel_y: c_double = 0.0;
-        // SAFETY: self.handle was successfully opened above; both out-pointers are valid stack pointers.
-        let result = unsafe { (sdk.get_pixel_size)(self.handle, &mut pixel_x, &mut pixel_y) };
-        if let Err(error) = check_fli_error(result, "get pixel size") {
-            close_fli_handle(&sdk, &mut self.handle);
-            return Err(error);
-        }
-
-        // Get visible area (the actual image area)
-        let mut ul_x: c_long = 0;
-        let mut ul_y: c_long = 0;
-        let mut lr_x: c_long = 0;
-        let mut lr_y: c_long = 0;
-        // SAFETY: self.handle is open; all four out-pointers are valid stack pointers.
-        let result = unsafe {
-            (sdk.get_visible_area)(self.handle, &mut ul_x, &mut ul_y, &mut lr_x, &mut lr_y)
-        };
-        if let Err(error) = check_fli_error(result, "get visible area") {
-            close_fli_handle(&sdk, &mut self.handle);
-            return Err(error);
-        }
-
-        // Why: FLIGetVisibleArea returns c_long (i32 on Windows MSVC LLP64, i64 on most
-        // *nix LP64). FLI hardware tops out around 8192x8192 pixels so the values are
-        // tiny. We use a helper to validate fit in i32 on platforms where c_long is wider
-        // (no-op clamp on Windows where c_long == i32).
-        // Why: lr >= ul is guaranteed by FLI's visible-area contract (lower-right is
-        // strictly bottom-right of upper-left). Subtract first, then convert via try_into
-        // to fail closed if the SDK ever returns an inverted rectangle.
-        let visible_area: Result<(i32, i32, i32, i32, u32, u32), DriverError> = (|| {
-            let visible_ul_x = fli_c_long_to_i32(ul_x, "ul_x")?;
-            let visible_ul_y = fli_c_long_to_i32(ul_y, "ul_y")?;
-            let visible_lr_x = fli_c_long_to_i32(lr_x, "lr_x")?;
-            let visible_lr_y = fli_c_long_to_i32(lr_y, "lr_y")?;
-            let raw_width = lr_x - ul_x;
-            let raw_height = lr_y - ul_y;
-            let width = u32::try_from(raw_width).map_err(|_| {
-                DriverError::SdkError(format!(
-                    "FLI visible-area width is negative or > u32::MAX: {}",
-                    raw_width
-                ))
-            })?;
-            let height = u32::try_from(raw_height).map_err(|_| {
-                DriverError::SdkError(format!(
-                    "FLI visible-area height is negative or > u32::MAX: {}",
-                    raw_height
-                ))
-            })?;
-            Ok((
-                visible_ul_x,
-                visible_ul_y,
-                visible_lr_x,
-                visible_lr_y,
-                width,
-                height,
-            ))
-        })();
-        let (visible_ul_x, visible_ul_y, visible_lr_x, visible_lr_y, width, height) =
-            match visible_area {
-                Ok(area) => area,
-                Err(error) => {
-                    close_fli_handle(&sdk, &mut self.handle);
-                    return Err(error);
-                }
-            };
-        self.visible_ul_x = visible_ul_x;
-        self.visible_ul_y = visible_ul_y;
-        self.visible_lr_x = visible_lr_x;
-        self.visible_lr_y = visible_lr_y;
-
-        // Select 16-bit mode before publishing the sensor's bit depth. If this write
-        // fails the camera stays in 8-bit while the app advertises a 65535 full scale,
-        // so every subsequent frame would be scaled, stretched and written to FITS
-        // against a ceiling 256x too large. A device that reached us and refused is
-        // therefore fatal to the connect.
-        //
-        // A device with no bit-depth control at all is the other case, and it is not
-        // that one: libfli answers a command a model does not implement with a
-        // not-supported errno, and an FLI body with no selectable depth is 16-bit —
-        // the mode being asked for. Refusing those made 16-bit-only bodies impossible
-        // to connect, where they had imaged for years.
-        // SAFETY: self.handle is open; FLI_MODE_16BIT is a pass-by-value constant.
-        let result = unsafe { (sdk.set_bit_depth)(self.handle, FLI_MODE_16BIT) };
-        match fli_capability_answer(result) {
-            FliCapabilityAnswer::Done => {}
-            FliCapabilityAnswer::NotSupported(code) => {
-                tracing::warn!(
-                    "FLI camera '{}' has no selectable bit depth (FLISetBitDepth returned {}); treating it as 16-bit only, which is the mode being selected",
-                    self.core.name,
-                    code
-                );
-            }
-            FliCapabilityAnswer::Failed(code) => {
-                if let Err(error) = check_fli_error(code, "set 16-bit mode") {
-                    close_fli_handle(&sdk, &mut self.handle);
-                    return Err(error);
-                }
-            }
-        }
-
-        // libfli has no cooler-presence flag, so the temperature channel is the only
-        // evidence available. It is one-directional: a body that cannot report a CCD
-        // temperature has no regulation to offer, but a body that can may still be
-        // uncooled, because libfli answers FLIGetTemperature on those too.
-        let mut probe_temp: c_double = 0.0;
-        // SAFETY: self.handle is open; `&mut probe_temp` is a valid stack out-pointer.
-        let temp_result = unsafe { (sdk.get_temperature)(self.handle, &mut probe_temp) };
-        let can_cool = temp_result == 0;
-        if !can_cool {
-            tracing::warn!(
-                "FLI camera '{}' did not report a CCD temperature (error code {}); reporting no cooling",
-                self.core.name,
-                temp_result
-            );
-        }
-
-        // Set sensor info. `bit_depth`/`max_adu` describe the 16-bit mode confirmed
-        // above. libfli reports no colour-filter-array information and delivers frames
-        // with no Bayer metadata, so frames are published as mono; a one-shot-colour
-        // FLI body is therefore not debayered.
-        self.core.sensor_info = SensorInfo {
-            width,
-            height,
-            pixel_size_x: pixel_x,
-            pixel_size_y: pixel_y,
-            max_adu: 65535,
-            bit_depth: 16,
-            color: false,
-            bayer_pattern: None,
-        };
-
-        // Set capabilities. libfli publishes no per-model capability table, so only
-        // the API's own documented limits and the probe above are asserted here:
-        // FLISetHBin/FLISetVBin accept 1..=16 (libfli.c:696, :857), and gain and
-        // offset have no SDK control at all.
-        self.core.capabilities = CameraCapabilities {
-            can_cool,
-            can_set_gain: false,
-            can_set_offset: false,
-            can_set_binning: true,
-            can_subframe: true,
-            has_shutter: true,
-            has_guider_port: false,
-            max_bin_x: 16,
-            max_bin_y: 16,
-            supports_readout_modes: false,
-        };
-
-        // Set full frame
-        // SAFETY: self.handle is open; ul_x/ul_y/lr_x/lr_y came from the SDK-reported visible area above so they are valid sensor coordinates.
-        let result = unsafe { (sdk.set_image_area)(self.handle, ul_x, ul_y, lr_x, lr_y) };
-        if let Err(error) = check_fli_error(result, "set image area") {
+        let (handle, filename) = open_device(&sdk, &self.device_path, FliDeviceType::Camera)?;
+        self.handle = handle;
+        if let Err(error) = self.configure(&sdk) {
             close_fli_handle(&sdk, &mut self.handle);
             return Err(error);
         }
@@ -264,10 +217,14 @@ impl DeviceDriver for FliCamera {
         self.core.state = CameraState::Idle;
 
         tracing::info!(
-            "Connected to FLI camera: {} ({}x{})",
+            "Connected to FLI camera {} at '{}' ({}x{}, {} x {} um pixels, serial {:?})",
             self.core.name,
+            filename,
             self.core.sensor_info.width,
-            self.core.sensor_info.height
+            self.core.sensor_info.height,
+            self.core.sensor_info.pixel_size_x,
+            self.core.sensor_info.pixel_size_y,
+            self.serial
         );
 
         Ok(())
