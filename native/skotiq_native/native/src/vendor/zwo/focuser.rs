@@ -206,7 +206,26 @@ impl DeviceDriver for ZwoFocuser {
         // Hold the EAF SDK lock for the connect sequence
         let sdk = sdk.lock().await;
 
-        // SAFETY: focuser_id comes from discover_focusers() via EAFGetID() so it's a valid SDK-issued identifier.
+        // A saved profile connects by id before any device search; EAFGetNum
+        // "should be the first API to be called" (EAF_focuser.h) and fills the
+        // id table EAFOpen looks in, as for the EFW.
+        // SAFETY: EAFGetNum takes no arguments; the lock guard keeps every other
+        // task out of the EAF SDK while it re-scans.
+        let num_focusers = unsafe { (sdk.get_num)() };
+        // SAFETY: index is bounded by EAFGetNum and `listed` is a valid output
+        // pointer.
+        let listed = |index, listed: &mut c_int| unsafe { (sdk.get_id)(index, listed) };
+        if !id_is_listed(num_focusers, listed, self.focuser_id) {
+            let reported = num_focusers.max(0);
+            return Err(DriverError::DeviceNotFound(format!(
+                "ZWO EAF ID {} is not present (SDK reported {} focuser{})",
+                self.focuser_id,
+                reported,
+                if reported == 1 { "" } else { "s" }
+            )));
+        }
+
+        // SAFETY: focuser_id was matched against the SDK-issued IDs immediately above.
         let result = unsafe { (sdk.open)(self.focuser_id) };
         check_eaf_error(result)?;
 
@@ -251,17 +270,7 @@ impl DeviceDriver for ZwoFocuser {
         let mut sn: EAFSerialNumber = unsafe { std::mem::zeroed() };
         // SAFETY: `sn` is a valid stack pointer; focuser_id is open.
         let serial_number = if unsafe { (sdk.get_serial_number)(self.focuser_id, &mut sn) } == 0 {
-            let sn_bytes: [u8; 8] = sn.id;
-            let sn_str = sn_bytes
-                .iter()
-                .take_while(|&&b| b != 0)
-                .map(|&b| format!("{:02X}", b))
-                .collect::<String>();
-            if sn_str.is_empty() {
-                None
-            } else {
-                Some(sn_str)
-            }
+            accessory_serial(sn.id)
         } else {
             None
         };
@@ -292,11 +301,31 @@ impl DeviceDriver for ZwoFocuser {
             );
         }
 
+        // The focuser's own limits and compensation, which Skotiq reads but does
+        // not set: EAFGetProperty's MaxStep is the travel Skotiq allows, while
+        // INDI and NINA use EAFGetMaxStep; a non-zero backlash is applied by the
+        // focuser on top of any Skotiq applies.
+        let mut user_max_step: c_int = -1;
+        let mut backlash: c_int = -1;
+        let mut reversed = false;
+        // SAFETY: valid stack out-pointers; focuser_id is open.
+        let reads = unsafe {
+            [
+                (sdk.get_max_step)(self.focuser_id, &mut user_max_step),
+                (sdk.get_backlash)(self.focuser_id, &mut backlash),
+                (sdk.get_reverse)(self.focuser_id, &mut reversed),
+            ]
+        };
         tracing::info!(
-            "Connected to ZWO EAF: {} (max step: {}, step size: {:?} um)",
+            "Connected to ZWO EAF: {} (max step: {}, step size: {:?} um; focuser max step {}, \
+             backlash {}, reversed {}, read results {:?})",
             self.name,
             self.max_position,
-            self.step_size_um
+            self.step_size_um,
+            user_max_step,
+            backlash,
+            reversed,
+            reads
         );
         Ok(())
     }
@@ -314,8 +343,9 @@ impl DeviceDriver for ZwoFocuser {
         let sdk = EafSdk::lock().await?;
         // SAFETY: focuser_id is valid because self.connected is true (only set after successful connect()).
         let result = unsafe { (sdk.close)(self.focuser_id) };
-        check_eaf_error(result)?;
 
+        // Forgotten even when the close fails: a focuser unplugged while
+        // connected cannot be closed, and the one plugged in next may get its id.
         self.connected = false;
 
         // Remove from the connected-EAF registry so that subsequent discovery
@@ -326,6 +356,7 @@ impl DeviceDriver for ZwoFocuser {
             let mut reg = connected_eaf().lock().unwrap_or_else(|e| e.into_inner());
             reg.remove(&self.focuser_id);
         }
+        check_eaf_error(result)?;
 
         tracing::info!("Disconnected from ZWO EAF");
         Ok(())
@@ -588,29 +619,14 @@ pub async fn discover_focusers() -> Result<Vec<ZwoFocuserDiscoveryInfo>, DriverE
                 let _ = unsafe { (sdk.close)(id) };
                 continue;
             }
-            // SAFETY: ASI SDK guarantees `info.name` is NUL-terminated within the 64-byte array.
-            let name = unsafe {
-                CStr::from_ptr(info.name.as_ptr())
-                    .to_string_lossy()
-                    .to_string()
-            };
+            let name = safe_cstr_to_string(info.name.as_ptr(), 64);
 
             // Try to get serial number (must be done before close)
             // SAFETY: EAFSerialNumber is `#[repr(C)]` POD (just `id: [u8; 8]`); zeroed is valid.
             let mut sn: EAFSerialNumber = unsafe { std::mem::zeroed() };
             // SAFETY: `sn` is a valid stack pointer; `id` is open.
             let serial_number = if unsafe { (sdk.get_serial_number)(id, &mut sn) } == 0 {
-                let sn_bytes: [u8; 8] = sn.id;
-                let sn_str = sn_bytes
-                    .iter()
-                    .take_while(|&&b| b != 0)
-                    .map(|&b| format!("{:02X}", b))
-                    .collect::<String>();
-                if sn_str.is_empty() {
-                    None
-                } else {
-                    Some(sn_str)
-                }
+                accessory_serial(sn.id)
             } else {
                 None
             };

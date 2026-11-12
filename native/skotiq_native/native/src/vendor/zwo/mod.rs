@@ -108,3 +108,24 @@ static CONNECTED_EFW: OnceLock<Mutex<HashMap<i32, ConnectedEfwEntry>>> = OnceLoc
 fn connected_efw() -> &'static Mutex<HashMap<i32, ConnectedEfwEntry>> {
     CONNECTED_EFW.get_or_init(|| Mutex::new(HashMap::new()))
 }
+
+/// Whether `id` is among the devices an EAF or EFW SDK lists. `count` is the
+/// SDK's `*GetNum`, which also refreshes the SDK's id table: `*Open` answers
+/// INVALID_ID for an id the table does not hold yet.
+fn id_is_listed(count: c_int, get_id: impl Fn(c_int, &mut c_int) -> c_int, id: c_int) -> bool {
+    (0..count).any(|index| {
+        let mut listed: c_int = -1;
+        get_id(index, &mut listed) == 0 && listed == id
+    })
+}
+
+/// An EAF or EFW serial number as Skotiq has always shown it: the bytes in hex
+/// up to the first zero byte; `None` when the first byte is zero.
+fn accessory_serial(id: [c_uchar; 8]) -> Option<String> {
+    let serial: String = id
+        .iter()
+        .take_while(|&&b| b != 0)
+        .map(|&b| format!("{:02X}", b))
+        .collect();
+    (!serial.is_empty()).then_some(serial)
+}
