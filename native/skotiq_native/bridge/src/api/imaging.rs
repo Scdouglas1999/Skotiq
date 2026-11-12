@@ -2174,7 +2174,7 @@ pub fn api_calibrate_image_file(
     bias_path: Option<String>,
     output_path: String,
 ) -> Result<(), SkotiqError> {
-    use skotiq_imaging::{calibration, read_image, write_fits, FitsHeader, ImageFormat};
+    use skotiq_imaging::read_image;
     use std::path::Path;
 
     let light_result = read_image(Path::new(&light_path)).map_err(|e| {
@@ -2215,21 +2215,22 @@ pub fn api_calibrate_image_file(
     )
     .map_err(|e| SkotiqError::ImageError(format!("Calibration failed: {}", e)))?;
 
-    // Save calibrated image, preserving original format
+    // A raster name gets a raster; any other name the frame format it names,
+    // carrying the light's header with its card order and comments.
     let out = Path::new(&output_path);
-    let ext = out.extension().and_then(|e| e.to_str()).unwrap_or("fits");
-    let out_format = ImageFormat::from_extension(ext).unwrap_or(ImageFormat::Fits);
-
-    match out_format {
-        ImageFormat::Fits | ImageFormat::Xisf => {
-            // Carry over header from original light, add calibration note.
-            // set_value_token, not set_string: the read path flattened each
-            // value to header text, and re-quoting it would ship
-            // EXPTIME = '120.0' — a string card no stacker reads as a number.
-            let mut header = FitsHeader::new();
-            for (key, value) in &light_result.header {
-                header.set_value_token(key, value);
-            }
+    match image::ImageFormat::from_path(out) {
+        Ok(image::ImageFormat::Tiff) => {
+            skotiq_imaging::write_tiff(out, &calibrated).map_err(|e| {
+                SkotiqError::ImageError(format!("Failed to write calibrated TIFF: {}", e))
+            })?;
+        }
+        Ok(image::ImageFormat::Png) => {
+            skotiq_imaging::write_png(out, &calibrated).map_err(|e| {
+                SkotiqError::ImageError(format!("Failed to write calibrated PNG: {}", e))
+            })?;
+        }
+        _ => {
+            let mut header = light_result.header;
             header.set_string("CALSTAT", "calibrated by Skotiq");
             for (card, path) in [
                 ("DARKFILE", &dark_path),
@@ -2242,23 +2243,6 @@ pub fn api_calibrate_image_file(
             }
             skotiq_imaging::write_frame(out, &calibrated, &header).map_err(|e| {
                 SkotiqError::ImageError(format!("Failed to write the calibrated frame: {e}"))
-            })?;
-        }
-        ImageFormat::Tiff => {
-            skotiq_imaging::write_tiff(out, &calibrated).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated TIFF: {}", e))
-            })?;
-        }
-        ImageFormat::Png => {
-            skotiq_imaging::write_png(out, &calibrated).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated PNG: {}", e))
-            })?;
-        }
-        _ => {
-            // Default to FITS for unsupported output formats
-            let header = FitsHeader::new();
-            write_fits(out, &calibrated, &header).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated file: {:?}", e))
             })?;
         }
     }

@@ -295,7 +295,7 @@ pub fn stacking_start(
 
     // The reference frame's own EXPTIME/DATE-OBS start the master's
     // integration: its pixels are in the stack, so its exposure is too.
-    let reference_provenance = FrameProvenance::from_header_map(&read_result.header);
+    let reference_provenance = FrameProvenance::from_header(&read_result.header);
 
     // Build the reference frame the stacker actually sees: debayered RGB for a
     // colour session, the raw frame for mono.
@@ -411,7 +411,7 @@ pub fn stacking_add_frame(image_path: String) -> Result<LiveStackingAddFrameResu
     // for a colour session, the raw frame for mono. Mixing layouts would trip
     // the stacker's channel-count guard, which is exactly the loud failure we
     // want if a frame's geometry disagrees with the session.
-    let provenance = FrameProvenance::from_header_map(&read_result.header);
+    let provenance = FrameProvenance::from_header(&read_result.header);
     let frame_image = match session.color {
         Some(ingest) => debayer_cfa_to_rgb(&read_result.image, ingest.pattern, ingest.algorithm)
             .map_err(|e| format!("Failed to debayer frame: {}", e))?,

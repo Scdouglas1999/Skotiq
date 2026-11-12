@@ -8,9 +8,38 @@
 //! [`FrameCodec`]; supporting another format is one more codec in [`CODECS`].
 
 use crate::xisf::{self, XisfError, XisfWriteOptions};
-use crate::{FitsError, FitsHeader, ImageData, ImageFormat};
+use crate::{FitsError, FitsHeader, ImageData, Maker};
 use std::io::Read;
 use std::path::Path;
+
+/// The kinds of file the app reads as frames.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageFormat {
+    Fits,
+    Xisf,
+    /// A camera maker's raw file: CR2, CR3, NEF, ARW, RAF, PEF, DNG, ORF, RW2
+    /// and the others LibRaw reads.
+    CameraRaw,
+}
+
+impl ImageFormat {
+    /// The format's name in a sentence.
+    pub fn name(self) -> &'static str {
+        match self {
+            ImageFormat::Fits => "FITS",
+            ImageFormat::Xisf => "XISF",
+            ImageFormat::CameraRaw => "camera raw",
+        }
+    }
+
+    fn codec(self) -> &'static dyn FrameCodec {
+        match self {
+            ImageFormat::Fits => &FitsFrames,
+            ImageFormat::Xisf => &XisfFrames,
+            ImageFormat::CameraRaw => &RawFrames,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum FrameIoError {
@@ -35,11 +64,9 @@ impl std::fmt::Display for FrameIoError {
                 f,
                 "{name} is not an image Skotiq can open (it reads FITS, XISF and camera raw files)"
             ),
-            FrameIoError::WriteUnsupported(format) => write!(
-                f,
-                "Skotiq cannot save {} files",
-                format.extension().to_uppercase()
-            ),
+            FrameIoError::WriteUnsupported(format) => {
+                write!(f, "Skotiq cannot save {} files", format.name())
+            }
         }
     }
 }
@@ -82,7 +109,7 @@ pub trait FrameCodec: Sync {
     /// File extensions, lower case, without the dot. The first is the one new
     /// files get.
     fn extensions(&self) -> &'static [&'static str];
-    /// Whether a file starting with `head` (up to 512 bytes) is this format.
+    /// Whether a file starting with `head` (up to [`HEAD_BYTES`]) is this format.
     fn probe(&self, head: &[u8]) -> bool;
     /// The metadata alone, without decoding pixels.
     fn read_header(&self, path: &Path) -> Result<FitsHeader, FrameIoError>;
@@ -228,7 +255,7 @@ struct RawFrames;
 
 impl FrameCodec for RawFrames {
     fn format(&self) -> ImageFormat {
-        ImageFormat::GenericRAW
+        ImageFormat::CameraRaw
     }
     fn extensions(&self) -> &'static [&'static str] {
         &[
@@ -237,7 +264,7 @@ impl FrameCodec for RawFrames {
         ]
     }
     fn probe(&self, head: &[u8]) -> bool {
-        ImageFormat::from_magic_bytes(head).is_some_and(|f| f.is_raw())
+        camera_raw_extension(head).is_some()
     }
     fn read_header(&self, path: &Path) -> Result<FitsHeader, FrameIoError> {
         Ok(crate::read_raw_header(path)?)
@@ -248,8 +275,51 @@ impl FrameCodec for RawFrames {
     }
 }
 
+/// The extension a camera raw file whose first bytes are `head` is named
+/// with, from its container's signature. `None` when the bytes are no camera
+/// raw file: a JPEG, a plain TIFF, or a TIFF-based raw whose maker mark lies
+/// beyond `head`.
+pub fn camera_raw_extension(head: &[u8]) -> Option<&'static str> {
+    const PREFIXES: &[(&[u8], &str)] = &[
+        (b"FUJIFILMCCD-RAW", "raf"),
+        // Olympus and OM System: TIFF with their own magic numbers.
+        (b"IIRO", "orf"),
+        (b"IIRS", "orf"),
+        (b"MMOR", "orf"),
+        // Panasonic and Leica: TIFF with magic number 0x55.
+        (b"IIU\0", "rw2"),
+        (b"\0MRM", "mrw"),
+        (b"II\x1a\0\0\0HEAPCCDR", "crw"),
+    ];
+    if let Some((_, extension)) = PREFIXES.iter().find(|(prefix, _)| head.starts_with(prefix)) {
+        return Some(extension);
+    }
+    // ISO base media with Canon's brand.
+    if head.get(4..12) == Some(b"ftypcrx ".as_slice()) {
+        return Some("cr3");
+    }
+    if head.starts_with(b"II*\0") && head.get(8..10) == Some(b"CR".as_slice()) {
+        return Some("cr2");
+    }
+    // The other makers write classic TIFF, told from a plain one by its first
+    // directory: a DNG version, or the maker's name.
+    match crate::raw_exif::tiff_raw_make(head)? {
+        None => Some("dng"),
+        Some(make) => match Maker::from_make(&make) {
+            Maker::Nikon => Some("nef"),
+            Maker::Sony => Some("arw"),
+            Maker::Pentax => Some("pef"),
+            _ => None,
+        },
+    }
+}
+
 /// The formats, in the order their probes are asked.
 static CODECS: &[&dyn FrameCodec] = &[&FitsFrames, &XisfFrames, &RawFrames];
+
+/// How much of a file the probes see: enough for a TIFF-based raw's first
+/// directory and the maker name it points at.
+const HEAD_BYTES: usize = 4096;
 
 fn extension_of(path: &Path) -> String {
     path.extension()
@@ -269,7 +339,7 @@ fn codec_by_extension(path: &Path) -> Option<&'static dyn FrameCodec> {
 /// The codec for an existing file: its first bytes decide, its extension
 /// when they are not a known signature.
 fn codec_for_file(path: &Path) -> Result<&'static dyn FrameCodec, FrameIoError> {
-    let mut head = [0u8; 512];
+    let mut head = [0u8; HEAD_BYTES];
     let mut file = std::fs::File::open(path)?;
     let mut n = 0;
     while n < head.len() {
@@ -294,12 +364,7 @@ fn display_name(path: &Path) -> String {
 
 /// The format of an existing file.
 pub fn frame_format(path: &Path) -> Result<ImageFormat, FrameIoError> {
-    let codec = codec_for_file(path)?;
-    // The raw codec covers several camera formats; name the specific one.
-    if codec.format() == ImageFormat::GenericRAW {
-        return Ok(ImageFormat::from_extension(&extension_of(path)).unwrap_or(ImageFormat::GenericRAW));
-    }
-    Ok(codec.format())
+    Ok(codec_for_file(path)?.format())
 }
 
 /// Whether a path names a file the app opens as a frame, by its extension.
@@ -314,11 +379,7 @@ pub fn frame_extensions() -> Vec<&'static str> {
 
 /// The extension a new file of `format` gets.
 pub fn frame_extension(format: ImageFormat) -> &'static str {
-    CODECS
-        .iter()
-        .find(|c| c.format() == format)
-        .map(|c| c.extensions()[0])
-        .unwrap_or_else(|| format.extension())
+    format.codec().extensions()[0]
 }
 
 pub fn read_frame(path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
@@ -361,11 +422,7 @@ pub fn write_frame_as(
     header: &FitsHeader,
     options: &FrameWriteOptions,
 ) -> Result<(), FrameIoError> {
-    CODECS
-        .iter()
-        .find(|c| c.format() == format)
-        .ok_or(FrameIoError::WriteUnsupported(format))?
-        .write(path, image, header, options)
+    format.codec().write(path, image, header, options)
 }
 
 /// Edit a file's metadata in place; its pixels are not touched.
@@ -380,6 +437,41 @@ pub fn rewrite_frame_header(
 /// everything else it holds.
 pub fn write_wcs_into_frame(path: &Path, wcs: &crate::WcsInfo) -> Result<(), FrameIoError> {
     rewrite_frame_header(path, |header| crate::add_wcs_headers(header, wcs))
+}
+
+/// A frame in another format written out as FITS, for readers that take only
+/// FITS (an external plate solver, a band-by-band reader). The copy is removed
+/// when this is dropped.
+#[derive(Debug)]
+pub struct FitsCopy {
+    path: std::path::PathBuf,
+}
+
+static COPY_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+impl FitsCopy {
+    /// Decode `frame` and write it as FITS, with its header, into `dir`.
+    pub fn new(frame: &Path, dir: &Path) -> Result<Self, FrameIoError> {
+        let (image, header) = read_frame(frame)?;
+        let path = dir.join(format!(
+            ".skotiq-fits-copy-{}-{}.fits",
+            std::process::id(),
+            COPY_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        let copy = FitsCopy { path };
+        crate::write_fits(&copy.path, &image, &header)?;
+        Ok(copy)
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for FitsCopy {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
 }
 
 /// Write through a sibling file and move it into place, so no reader sees a
@@ -398,4 +490,32 @@ fn replace_file(
         let _ = std::fs::remove_file(&staged);
         FrameIoError::Io(e)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::PixelType;
+
+    /// A header read tells a frame's size without decoding it, the same way
+    /// in every format.
+    #[test]
+    fn every_format_reports_the_image_size_in_its_header() {
+        let dir = std::env::temp_dir().join(format!("sk-frame-size-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for extension in ["fits", "xisf"] {
+            for channels in [1, 3] {
+                let path = dir.join(format!("frame-{channels}.{extension}"));
+                let image = ImageData::new(7, 5, channels, PixelType::U16);
+                write_frame(&path, &image, &FitsHeader::new()).unwrap();
+                let header = read_frame_header(&path).unwrap();
+                let size = |key: &str| header.get_int(key);
+                assert_eq!(size("NAXIS"), Some(if channels > 1 { 3 } else { 2 }), "{extension}");
+                assert_eq!(size("NAXIS1"), Some(7), "{extension}");
+                assert_eq!(size("NAXIS2"), Some(5), "{extension}");
+                assert_eq!(size("NAXIS3"), (channels > 1).then_some(3), "{extension}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

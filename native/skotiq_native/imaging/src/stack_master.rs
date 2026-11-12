@@ -17,7 +17,6 @@
 //! in [`crate::master_accumulation`], an unknown per-frame exposure contributes
 //! nothing rather than a guess.
 
-use std::collections::HashMap;
 use std::path::Path;
 
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
@@ -49,26 +48,24 @@ impl FrameProvenance {
         Self::default()
     }
 
-    /// Read the keywords out of the flattened header
-    /// [`crate::read_image`] returns. A keyword that is absent, blank or
-    /// unparseable stays `None` so it contributes nothing to the master.
-    pub fn from_header_map(header: &HashMap<String, String>) -> Self {
+    /// Read the keywords out of a frame's header. A keyword that is absent,
+    /// blank or not a positive exposure stays `None` so it contributes nothing
+    /// to the master.
+    pub fn from_header(header: &FitsHeader) -> Self {
+        let text = |key: &str| {
+            header
+                .get(key)
+                .map(|v| v.to_header_string().trim().to_string())
+                .filter(|v| !v.is_empty())
+        };
         let exposure_secs = header
-            .get("EXPTIME")
-            .and_then(|v| v.trim().parse::<f64>().ok())
+            .get_float("EXPTIME")
+            .or_else(|| text("EXPTIME").and_then(|v| v.parse::<f64>().ok()))
             .filter(|v| v.is_finite() && *v > 0.0);
-        let date_obs = header
-            .get("DATE-OBS")
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty());
-        let filter = header
-            .get("FILTER")
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty());
         Self {
             exposure_secs,
-            date_obs,
-            filter,
+            date_obs: text("DATE-OBS"),
+            filter: text("FILTER"),
         }
     }
 }

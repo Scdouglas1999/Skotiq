@@ -12,7 +12,8 @@
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use skotiq_imaging::{
-    frame_extensions, frame_format, is_frame_path, read_frame, read_frame_header, read_image,
+    camera_raw_extension, frame_extensions, frame_format, is_frame_path, read_frame,
+    read_frame_header, read_image,
     read_raw_file, rewrite_frame_header, write_frame, BayerColor, ColorFilterArray, ImageFormat,
     TemperatureSource,
 };
@@ -192,7 +193,14 @@ fn check_synthetic(letters: &str, width: usize, height: usize) {
     }
 
     // The seam: format, header-only and full read agree.
-    assert_eq!(frame_format(&path).unwrap(), ImageFormat::AdobeDNG);
+    assert_eq!(frame_format(&path).unwrap(), ImageFormat::CameraRaw);
+    let bytes = std::fs::read(&path).unwrap();
+    assert_eq!(camera_raw_extension(&bytes), Some("dng"));
+    // The content decides, whatever the file is called.
+    let unnamed = scratch.0.join("frame.download");
+    std::fs::copy(&path, &unnamed).unwrap();
+    assert_eq!(frame_format(&unnamed).unwrap(), ImageFormat::CameraRaw);
+    assert_eq!(read_frame(&unnamed).unwrap().0.as_u16().unwrap(), frame.data);
     let (image, header) = read_frame(&path).unwrap();
     assert_eq!((image.width, image.height, image.channels), (width as u32, height as u32, 1));
     assert_eq!(image.as_u16().unwrap(), frame.data);
@@ -204,7 +212,9 @@ fn check_synthetic(letters: &str, width: usize, height: usize) {
     assert_eq!(header.get_string("DATE-OBS"), Some(CAPTURED_UTC));
     let only_header = read_frame_header(&path).unwrap();
     assert_eq!(only_header.get_string("BAYERPAT"), Some(letters));
+    assert_eq!(only_header.get_int("NAXIS"), Some(2));
     assert_eq!(only_header.get_int("NAXIS1"), Some(width as i64));
+    assert_eq!(only_header.get_int("NAXIS2"), Some(height as i64));
 
     // read_image, what the Darkroom and live stack call, sees the mosaic and
     // its filter, so the frame debayers like an astronomy camera's.
@@ -233,6 +243,73 @@ fn a_bayer_dng_reads_as_its_linear_mosaic() {
 #[test]
 fn an_xtrans_dng_reads_as_its_linear_mosaic() {
     check_synthetic(XTRANS, 36, 24);
+}
+
+/// The first bytes of each maker's container, as the cameras write them; a
+/// gPhoto2 download is told from a JPEG by these alone.
+#[test]
+fn every_maker_signature_is_recognized_from_its_first_bytes() {
+    let tiff_with_make = |order: &[u8], make: &[u8]| {
+        let little = order == b"II";
+        let u16b = |v: u16| if little { v.to_le_bytes() } else { v.to_be_bytes() };
+        let u32b = |v: u32| if little { v.to_le_bytes() } else { v.to_be_bytes() };
+        let mut head = order.to_vec();
+        head.extend(u16b(42));
+        head.extend(u32b(8));
+        head.extend(u16b(1));
+        head.extend(u16b(0x010f));
+        head.extend(u16b(2));
+        head.extend(u32b(make.len() as u32));
+        head.extend(u32b(26));
+        head.extend(u32b(0));
+        head.extend(make);
+        head
+    };
+    let cases: Vec<(Vec<u8>, &str)> = vec![
+        (b"II*\0\x10\0\0\0CR\x02\0".to_vec(), "cr2"),
+        (b"\0\0\0\x18ftypcrx \0\0\0\x01".to_vec(), "cr3"),
+        (b"FUJIFILMCCD-RAW 0201FF383501".to_vec(), "raf"),
+        (b"IIRO\x08\0\0\0".to_vec(), "orf"),
+        (b"IIRS\x08\0\0\0".to_vec(), "orf"),
+        (b"MMOR\0\0\0\x08".to_vec(), "orf"),
+        (b"IIU\0\x18\0\0\0".to_vec(), "rw2"),
+        (tiff_with_make(b"MM", b"NIKON CORPORATION\0"), "nef"),
+        (tiff_with_make(b"II", b"SONY\0"), "arw"),
+        (tiff_with_make(b"MM", b"PENTAX             \0"), "pef"),
+    ];
+    for (head, extension) in &cases {
+        assert_eq!(camera_raw_extension(head), Some(*extension), "{extension}");
+    }
+    // A JPEG, a TIFF no camera marked, and too few bytes are no raw file.
+    assert_eq!(camera_raw_extension(&[0xFF, 0xD8, 0xFF, 0xE1, 0, 0x10, b'E', b'x']), None);
+    assert_eq!(camera_raw_extension(&tiff_with_make(b"II", b"\0")), None);
+    assert_eq!(camera_raw_extension(b"II"), None);
+}
+
+/// Darks taken as camera raw files build a master like any other frames.
+#[test]
+fn camera_raw_darks_build_a_master() {
+    use skotiq_imaging::calibration_master_stream::{
+        build_streamed_master, StreamedMasterConfig, StreamedMasterKind,
+    };
+    let scratch = Scratch::new("darks");
+    let (width, height) = (32, 24);
+    let paths: Vec<PathBuf> = (0..3)
+        .map(|i| {
+            let path = scratch.0.join(format!("IMG_000{i}.DNG"));
+            write_dng(&path, width, height, "RGGB");
+            path
+        })
+        .collect();
+    let out = scratch.0.join("master_dark.fits");
+    let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+    let result = build_streamed_master(&paths, &out, &config).expect("raw darks build");
+    assert_eq!((result.width, result.height), (width as u32, height as u32));
+    let (master, header) = read_frame(&out).unwrap();
+    let frame = read_raw_file(&paths[0]).unwrap();
+    assert_eq!(master.as_u16().unwrap(), frame.data);
+    assert_eq!(header.get_string("BAYERPAT"), Some("RGGB"));
+    assert_eq!(header.get_string("INSTRUME"), Some("Skotiq Synthetic"));
 }
 
 #[test]
@@ -277,6 +354,11 @@ fn public_samples_match_independent_readers() {
         assert_eq!(sha256(&bytes), entry["file_sha256"], "{name} is not the sample file");
         let want = &entry["independent"];
 
+        let extension = name.rsplit('.').next().unwrap();
+        let signature = camera_raw_extension(&bytes[..4096]);
+        if signature != Some(extension) {
+            failures.push(format!("{name}: signature: {signature:?}"));
+        }
         let frame = read_raw_file(&path).unwrap_or_else(|e| panic!("{name}: {e}"));
         let mosaic: Vec<u8> = frame.data.iter().flat_map(|v| v.to_le_bytes()).collect();
         let mut check = |what: &str, ok: bool, detail: String| {
@@ -306,10 +388,14 @@ fn public_samples_match_independent_readers() {
         if let Some(lens) = &meta.lens {
             check("lens", want["lens"] == lens.as_str(), lens.clone());
         }
-        // With a recorded UTC offset the time is exact; without one it is the
-        // camera clock read in this computer's zone.
+        // With a recorded UTC offset (EXIF, else a Nikon maker note's zone,
+        // both as ExifTool reads them) the time is exact; without one it is
+        // the camera clock read in this computer's zone.
         let wall = want["date_time_original"].as_str().unwrap();
-        let (got, expected) = match want["offset_time_original"].as_str() {
+        let offset = want["offset_time_original"]
+            .as_str()
+            .or_else(|| want["maker_note_offset"].as_str());
+        let (got, expected) = match offset {
             Some(offset) => (
                 meta.captured_at.map(|t| t.to_rfc3339()),
                 chrono::DateTime::parse_from_rfc3339(&format!("{wall}{offset}"))
@@ -325,8 +411,10 @@ fn public_samples_match_independent_readers() {
         };
         check("time", got.is_some() && got == expected, format!("{got:?}, expected {expected:?}"));
         let temperature = meta.temperature;
+        // Olympus records its sensor in a tag LibRaw reads, Pentax in a
+        // maker-note block Skotiq reads itself.
         let expected_source = if !want["exif_sensor_temperature"].is_null()
-            && meta.maker() == skotiq_imaging::Maker::Olympus
+            && matches!(meta.maker(), skotiq_imaging::Maker::Olympus | skotiq_imaging::Maker::Pentax)
         {
             Some((TemperatureSource::Sensor, &want["exif_sensor_temperature"]))
         } else if !want["exif_camera_temperature"].is_null()
@@ -338,7 +426,7 @@ fn public_samples_match_independent_readers() {
         };
         let ok = match (temperature, expected_source) {
             (Some(t), Some((source, value))) => {
-                t.source == source && near(Some(t.celsius as f64), value, 0.0)
+                t.source == source && near(Some(t.celsius as f64), value, 1e-6)
             }
             (None, None) => true,
             _ => false,

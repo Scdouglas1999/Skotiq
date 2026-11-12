@@ -1106,17 +1106,20 @@ impl GPhoto2Camera {
         camera_file: skotiq_device::CameraFile,
     ) -> Result<ImageData, DriverError> {
         let raw_bytes = camera_file.bytes.as_slice();
-        // Detect the RAW format from magic bytes. If it is NOT a recognised
-        // RAW (i.e. the body handed us a JPEG because it is in JPEG-only mode),
-        // fail with an actionable message instead of feeding JPEG to LibRaw's
-        // RAW decoder and emitting an opaque "failed to decode" every frame.
-        let Some(extension) = skotiq_imaging::raw_format_extension(raw_bytes) else {
-            return Err(DriverError::SdkError(
-                "gPhoto2: the camera returned a non-RAW file (it appears to be JPEG). \
-                 Set the camera's image quality to RAW (or RAW+JPEG) — astro capture \
-                 requires the linear RAW sensor data."
-                    .to_string(),
-            ));
+        // A body set to JPEG (or anything else that is no raw file) gets an
+        // actionable message instead of LibRaw's opaque decode failure on
+        // every frame.
+        let Some(extension) = skotiq_imaging::camera_raw_extension(raw_bytes) else {
+            let what = if raw_bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                "it appears to be JPEG"
+            } else {
+                "Skotiq does not recognize its format"
+            };
+            return Err(DriverError::SdkError(format!(
+                "gPhoto2: the camera returned a file that is not a raw image ({what}). \
+                 Set the camera's image quality to RAW (or RAW+JPEG): astro capture \
+                 needs the linear raw sensor data."
+            )));
         };
 
         let frame = skotiq_imaging::read_raw_bytes(raw_bytes).map_err(|e| {

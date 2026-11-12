@@ -788,37 +788,16 @@ pub(crate) fn build_astap_args(
     args
 }
 
-/// A FITS copy of a frame in another format, for solvers that read FITS
-/// (astrometry.net reads only FITS; ASTAP reads only uncompressed XISF and no
-/// camera raw file), removed when dropped.
-struct SolverCopy {
-    path: PathBuf,
-}
-
-impl SolverCopy {
-    /// `None` when the file is FITS (or no frame the app reads) and is
-    /// solved as it is.
-    fn of(image_path: &Path) -> Result<Option<Self>, String> {
-        match crate::frame_format(image_path) {
-            Ok(crate::ImageFormat::Fits) | Err(_) => return Ok(None),
-            Ok(_) => {}
-        }
-        let (image, header) = crate::read_frame(image_path).map_err(|e| e.to_string())?;
-        let path = std::env::temp_dir().join(format!(
-            "skotiq-solve-copy-{}-{}.fits",
-            std::process::id(),
-            SCRATCH_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        ));
-        crate::write_fits(&path, &image, &header).map_err(|e| {
-            format!("could not prepare the frame for the solver: {e}")
-        })?;
-        Ok(Some(Self { path }))
-    }
-}
-
-impl Drop for SolverCopy {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
+/// A frame that is not FITS (an XISF, a camera raw file) reaches the solvers
+/// as a FITS copy: astrometry.net reads only FITS, ASTAP only uncompressed
+/// XISF and no camera raw file. `None` when the frame is FITS (or no frame
+/// the app reads) and is solved as it is.
+fn solver_copy(image_path: &Path) -> Result<Option<crate::FitsCopy>, String> {
+    match crate::frame_format(image_path) {
+        Ok(crate::ImageFormat::Fits) | Err(_) => Ok(None),
+        Ok(_) => crate::FitsCopy::new(image_path, &std::env::temp_dir())
+            .map(Some)
+            .map_err(|e| format!("could not prepare the frame for the solver: {e}")),
     }
 }
 
@@ -1075,7 +1054,7 @@ impl AstapSolver {
 
         // A frame that is not FITS (an XISF, a camera raw file) is solved
         // from a FITS copy with the same pixels and cards.
-        let converted = match SolverCopy::of(image_path) {
+        let converted = match solver_copy(image_path) {
             Ok(converted) => converted,
             Err(error) => {
                 return PlateSolveResult {
@@ -1086,7 +1065,7 @@ impl AstapSolver {
                 }
             }
         };
-        let image_path = converted.as_ref().map_or(image_path, |copy| copy.path.as_path());
+        let image_path = converted.as_ref().map_or(image_path, |copy| copy.path());
 
         // ASTAP writes `.ini` / `.wcs` against the base name of the file it is
         // given, so it is given a link inside a directory we own instead of
@@ -1989,7 +1968,7 @@ fn solve_with_astrometry(
     // .solved, .new, .wcs) into `--dir`, named after the input frame. Give it
     // a directory we own so none of it lands beside the operator's capture.
     // See `SolveScratch`.
-    let converted = match SolverCopy::of(image_path) {
+    let converted = match solver_copy(image_path) {
         Ok(converted) => converted,
         Err(error) => {
             return PlateSolveResult {
@@ -2000,7 +1979,7 @@ fn solve_with_astrometry(
             }
         }
     };
-    let image_path = converted.as_ref().map_or(image_path, |copy| copy.path.as_path());
+    let image_path = converted.as_ref().map_or(image_path, |copy| copy.path());
     let scratch = SolveScratch::new(image_path);
     let output_dir = scratch.work_dir().to_path_buf();
     let image_path = scratch.input();
@@ -2139,17 +2118,17 @@ mod tests {
             },
         };
         crate::write_frame_with(&xisf, &image, &header, &options).unwrap();
-        let copy = super::SolverCopy::of(&xisf).unwrap().expect("an XISF frame is copied");
-        let (copied, copied_header) = crate::read_fits(&copy.path).unwrap();
+        let copy = super::solver_copy(&xisf).unwrap().expect("an XISF frame is copied");
+        let (copied, copied_header) = crate::read_fits(copy.path()).unwrap();
         assert_eq!(copied.as_u16().unwrap(), samples);
         assert_eq!(copied_header.get_string("OBJECT"), Some("M31"));
-        let copy_path = copy.path.clone();
+        let copy_path = copy.path().to_path_buf();
         drop(copy);
         assert!(!copy_path.exists());
 
         let fits = dir.join("light.fits");
         crate::write_fits(&fits, &image, &header).unwrap();
-        assert!(super::SolverCopy::of(&fits).unwrap().is_none());
+        assert!(super::solver_copy(&fits).unwrap().is_none());
         let _ = std::fs::remove_dir_all(dir);
     }
 

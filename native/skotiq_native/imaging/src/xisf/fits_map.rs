@@ -106,6 +106,12 @@ const PROJECTIONS: [(&str, &str); 7] = [
 /// The app's metadata for an image read from a unit.
 pub(crate) fn header_from_image(image: &XisfImageHeader) -> FitsHeader {
     let mut header = FitsHeader::new();
+    let dimension = |n: u64| u32::try_from(n).unwrap_or(u32::MAX);
+    header.set_image_size(
+        dimension(image.width()),
+        dimension(image.height()),
+        dimension(image.channels),
+    );
     for keyword in &image.fits_keywords {
         let name = keyword.name.trim().to_ascii_uppercase();
         match name.as_str() {
