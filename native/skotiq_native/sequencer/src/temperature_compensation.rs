@@ -416,8 +416,9 @@ const ARRIVAL_TOLERANCE_STEPS: i32 = 2;
 /// out of a run: the reference (temperature, position) stays fixed while it
 /// works, so rounding is never thrown away, and the focuser moves only once
 /// the correction owed reaches the smallest move. A move it did not make (an
-/// autofocus, a filter offset, a jog) is the new focus to hold, so it takes a
-/// new reference instead of undoing it.
+/// autofocus, a jog) is the new focus to hold, so it takes a new reference
+/// instead of undoing it. A filter's focus offset is not a new focus: the
+/// reference moves with it (see [`Self::shifted_by`]).
 #[derive(Debug, Clone)]
 pub struct FocusCompensation {
     settings: FocusCompensationSettings,
@@ -498,6 +499,15 @@ impl FocusCompensation {
             owed,
             degrees_since_reference,
         }
+    }
+
+    /// A filter's focus offset moved the focuser `steps`. The reference moves
+    /// with it, so the correction owed for the temperature so far is kept.
+    pub fn shifted_by(&mut self, steps: i32) {
+        if let Some(reference) = self.reference.as_mut() {
+            reference.position += steps;
+        }
+        self.expected_position += steps;
     }
 
     /// The focuser reached `target`; the reference stays where it is.
@@ -832,7 +842,7 @@ mod tests {
         );
     }
 
-    /// An autofocus or a filter offset set a new focus: hold that one.
+    /// An autofocus or a jog set a new focus: hold that one.
     #[test]
     fn a_move_it_did_not_make_is_the_new_reference_not_drift_to_undo() {
         let mut compensation = rig_compensation();
@@ -848,6 +858,33 @@ mod tests {
         let _ = compensation.step(8.6, 25_400);
         compensation.moved_to(25_405);
         assert_eq!(compensation.step(8.6, 25_407), CompensationStep::Hold);
+    }
+
+    /// An LRGB plan changes filter every few frames, and each change moves
+    /// the focuser by the filters' offset. Over a 2 °C cooling the focuser
+    /// still ends 25 steps out of where the reference filter started.
+    #[test]
+    fn filter_offsets_between_frames_do_not_drop_the_correction_owed() {
+        let mut state = crate::triggers::TriggerState::new();
+        state.latches.focus_compensation = Some(rig_compensation());
+        let offsets = [0, 30, -12, 18];
+        let mut position = 25_000;
+        for frame in 0..=40 {
+            if frame % 2 == 0 {
+                let offset = offsets[(frame / 2) % offsets.len()];
+                position += offset - state.latches.last_applied_filter_offset;
+                state.set_last_applied_filter_offset(offset);
+            }
+            let temperature = 10.0 - frame as f64 * 0.05;
+            let compensation = state.latches.focus_compensation.as_mut().unwrap();
+            if let CompensationStep::Move { target, .. } = compensation.step(temperature, position)
+            {
+                position = target;
+                compensation.moved_to(target);
+            }
+        }
+
+        assert_eq!(position - state.latches.last_applied_filter_offset, 25_025);
     }
 
     #[test]
