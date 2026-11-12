@@ -300,7 +300,10 @@ impl CameraDriver for PlayerOneCamera {
         };
         let buffer_size = calculate_buffer_size_i32(width, height, bytes_per_pixel)?;
 
+        // A pooled buffer is at least `buffer_size` long, often a whole size bucket
+        // longer; the frame is exactly `buffer_size` bytes.
         let mut pooled_buffer = global_u8_pool().get_buffer(buffer_size);
+        pooled_buffer.resize(buffer_size);
 
         // Get image data with 30 second timeout
         // SAFETY: the connection was checked at entry; `pooled_buffer` was sized via calculate_buffer_size_i32(width, height, bytes_per_pixel) which uses the SDK-reported dimensions from POAGetImageSize and matches the configured POAImgFormat — we pass the same length as buffer_len so the SDK cannot overrun; pool returns a non-null buffer.
