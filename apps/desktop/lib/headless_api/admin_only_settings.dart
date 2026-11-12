@@ -27,8 +27,12 @@ import 'validation.dart';
       ),
       AdminOnly.administration => (
         code: 'admin_setting',
-        one: 'is part of how the imaging computer is backed up and reached',
-        many: 'are part of how the imaging computer is backed up and reached',
+        one:
+            "belongs to the imaging computer's backups, download source or "
+            'remote access',
+        many:
+            "belong to the imaging computer's backups, download source or "
+            'remote access',
       ),
     };
 

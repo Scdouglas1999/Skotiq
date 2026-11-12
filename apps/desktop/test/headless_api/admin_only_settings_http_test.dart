@@ -305,6 +305,10 @@ void main() {
       final (status, error) = await call('control-token', 'POST', path, body);
       expect(status, HttpStatus.forbidden, reason: '$body');
       expect(error['code'], code, reason: '$body');
+      expect(
+        error['message'],
+        contains('only a link with admin access can change'),
+      );
       expect(jsonEncode(error), isNot(contains('webhooks/1/secret')));
 
       // A view link is turned away by its scope before the setting is looked
