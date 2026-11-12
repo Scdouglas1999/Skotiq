@@ -29,7 +29,7 @@ impl AscomSafetyMonitorWrapper {
             let mut safety_monitor = match AscomSafetyMonitor::new(&prog_id_clone) {
                 Ok(safety_monitor) => safety_monitor,
                 Err(error) => {
-                    return Err(format!("Failed to create ASCOM safety monitor: {}", error).into());
+                    return Err(format!("Failed to create ASCOM safety monitor: {}", error));
                 }
             };
 

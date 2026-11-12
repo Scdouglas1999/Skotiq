@@ -66,7 +66,7 @@ impl AscomDomeWrapper {
             let mut dome = match AscomDome::new(&prog_id_clone) {
                 Ok(d) => d,
                 Err(e) => {
-                    return Err(format!("Failed to create ASCOM dome: {}", e).into());
+                    return Err(format!("Failed to create ASCOM dome: {}", e));
                 }
             };
 

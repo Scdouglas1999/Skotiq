@@ -268,35 +268,35 @@ impl PlayerOneCamera {
 
         // Bin first: it resets the ROI to the binned full frame (PlayerOneCamera.h,
         // POASetImageBin). The size goes before the start so the ROI always fits.
-        // SAFETY: the camera is open; all three calls take the id and ints by value.
         check_poa_error(
+            // SAFETY: the camera is open; this call and the two below take the id and ints by value.
             unsafe { (sdk.set_image_bin)(self.camera_id, bin) },
             "SetImageBin",
         )?;
-        // SAFETY: as above.
         check_poa_error(
+            // SAFETY: as above.
             unsafe { (sdk.set_image_size)(self.camera_id, wanted.width, wanted.height) },
             "SetImageSize",
         )?;
-        // SAFETY: as above.
         check_poa_error(
+            // SAFETY: as above.
             unsafe { (sdk.set_image_start_pos)(self.camera_id, wanted.x, wanted.y) },
             "SetImageStartPos",
         )?;
 
         let (mut applied_bin, mut x, mut y, mut width, mut height) = (0, 0, 0, 0, 0);
-        // SAFETY: the camera is open; every out-pointer is a valid stack c_int.
         check_poa_error(
+            // SAFETY: the camera is open; every out-pointer is a valid stack c_int.
             unsafe { (sdk.get_image_bin)(self.camera_id, &mut applied_bin) },
             "GetImageBin",
         )?;
-        // SAFETY: as above.
         check_poa_error(
+            // SAFETY: as above.
             unsafe { (sdk.get_image_start_pos)(self.camera_id, &mut x, &mut y) },
             "GetImageStartPos",
         )?;
-        // SAFETY: as above.
         check_poa_error(
+            // SAFETY: as above.
             unsafe { (sdk.get_image_size)(self.camera_id, &mut width, &mut height) },
             "GetImageSize",
         )?;
@@ -513,8 +513,8 @@ impl PlayerOneCamera {
             return Ok(Vec::new());
         };
         let mut count: c_int = 0;
-        // SAFETY: the camera is open; `&mut count` is a valid out-pointer.
         check_poa_error(
+            // SAFETY: the camera is open; `&mut count` is a valid out-pointer.
             unsafe { get_count(self.camera_id, &mut count) },
             "GetSensorModeCount",
         )?;
@@ -522,8 +522,8 @@ impl PlayerOneCamera {
         for index in 0..count {
             // SAFETY: POASensorModeInfo is two char arrays; zeroed is a valid out buffer.
             let mut info: POASensorModeInfo = unsafe { std::mem::zeroed() };
-            // SAFETY: the camera is open; `index` is in [0, count); `&mut info` is a valid out-pointer.
             check_poa_error(
+                // SAFETY: the camera is open; `index` is in [0, count); `&mut info` is a valid out-pointer.
                 unsafe { get_info(self.camera_id, index, &mut info) },
                 "GetSensorModeInfo",
             )?;

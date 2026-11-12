@@ -59,7 +59,7 @@ impl AscomSwitchWrapper {
             let mut switch = match AscomSwitch::new(&prog_id_clone) {
                 Ok(s) => s,
                 Err(e) => {
-                    return Err(format!("Failed to create ASCOM switch: {}", e).into());
+                    return Err(format!("Failed to create ASCOM switch: {}", e));
                 }
             };
 

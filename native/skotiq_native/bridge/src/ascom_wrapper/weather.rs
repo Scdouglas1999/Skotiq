@@ -45,7 +45,7 @@ impl AscomObservingConditionsWrapper {
                     return Err(format!(
                         "Failed to create ASCOM observing conditions device: {}",
                         error
-                    ).into());
+                    ));
                 }
             };
 

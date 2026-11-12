@@ -206,9 +206,9 @@ impl FilterWheelDriver for FliFilterWheel {
                 let result = unsafe {
                     (sdk.get_filter_name)(self.handle, i as c_long, buf.as_mut_ptr(), buf.len())
                 };
-                // SAFETY: libfli clears the buffer before filling it, so it is NUL-terminated.
                 let name = (result == 0)
                     .then(|| {
+                        // SAFETY: libfli clears the buffer before filling it, so it is NUL-terminated.
                         unsafe { CStr::from_ptr(buf.as_ptr()) }
                             .to_string_lossy()
                             .trim()

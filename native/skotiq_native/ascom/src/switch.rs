@@ -117,7 +117,7 @@ mod excepinfo_tests {
 
     #[test]
     fn a_refused_switch_write_says_why() {
-        let mut sw = refusing_switch();
+        let sw = refusing_switch();
 
         for (label, err) in [
             ("SetSwitch", sw.set_switch(3, true).unwrap_err().to_string()),

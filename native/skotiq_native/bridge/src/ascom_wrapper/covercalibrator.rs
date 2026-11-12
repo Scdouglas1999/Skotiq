@@ -57,7 +57,7 @@ impl AscomCoverCalibratorWrapper {
             let mut cover_cal = match AscomCoverCalibrator::new(&prog_id_clone) {
                 Ok(cc) => cc,
                 Err(e) => {
-                    return Err(format!("Failed to create ASCOM cover calibrator: {}", e).into());
+                    return Err(format!("Failed to create ASCOM cover calibrator: {}", e));
                 }
             };
 

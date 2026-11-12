@@ -46,7 +46,7 @@ mod excepinfo_tests {
             },
             false,
         );
-        let mut panel = CoverCalibrator { device };
+        let panel = CoverCalibrator { device };
 
         let err = panel.calibrator_on(5000).unwrap_err().to_string();
 
