@@ -220,7 +220,7 @@ async fn run_center(keep: &[&str]) -> CenterRun {
     std::fs::create_dir_all(&solver_dir).unwrap();
     let astap = solver_dir.join("astap");
     std::fs::write(&astap, b"").unwrap();
-    skotiq_imaging::set_solver_preference(astap.to_str(), None, None, None);
+    skotiq_platesolve::set_solver_preference(astap.to_str(), None, None, None);
 
     let ops = Arc::new(CenterContentionOps::new());
     let mut executor = SequenceExecutor::new();

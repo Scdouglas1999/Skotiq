@@ -623,8 +623,8 @@ async fn scan_native_for_type_with(
             display_name: "Built-in Multi-Star Guider".to_string(),
         });
 
-        let is_running = skotiq_imaging::is_phd2_running();
-        let is_installed = skotiq_imaging::is_phd2_installed();
+        let is_running = skotiq_phd2::is_phd2_running();
+        let is_installed = skotiq_phd2::is_phd2_installed();
         if is_running || is_installed {
             tracing::debug!(
                 "Found PHD2 Guiding (Running: {}, Installed: {})",

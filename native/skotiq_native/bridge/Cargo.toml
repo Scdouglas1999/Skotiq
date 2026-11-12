@@ -41,6 +41,8 @@ parking_lot = "0.12"
 # Internal crates
 skotiq_sequencer = { path = "../sequencer" }
 skotiq_imaging = { path = "../imaging" }
+skotiq_phd2 = { path = "../phd2" }
+skotiq_platesolve = { path = "../platesolve" }
 skotiq_alpaca = { path = "../alpaca" }
 skotiq_native = { path = "../native" }
 skotiq_indi = { path = "../indi" }

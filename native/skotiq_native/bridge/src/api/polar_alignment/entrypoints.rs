@@ -119,7 +119,7 @@ pub async fn api_start_all_sky_polar_alignment(
 
     // Fail loudly if the plate solver isn't installed — the all-sky
     // algorithm is plate-solve-only by design.
-    if !skotiq_imaging::is_solver_available() {
+    if !skotiq_platesolve::is_solver_available() {
         return Err(SkotiqError::OperationFailed(
             "Plate solver required — install ASTAP and re-run all-sky polar alignment".to_string(),
         ));

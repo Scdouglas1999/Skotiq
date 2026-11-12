@@ -10,7 +10,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 /// The golden headers and the expected parses live in
 /// `test_fixtures/wcs_conformance/` at the repo root and are read by BOTH this
 /// suite and
-/// `native/skotiq_native/imaging/src/platesolve_wcs_conformance_tests.rs`.
+/// `native/skotiq_native/platesolve/src/wcs_conformance_tests.rs`.
 /// The two `.wcs` parsers drift apart easily: a Rust side that card-splits a
 /// terminator-free FITS header while the Dart side splits on newlines reports
 /// every successful ASTAP solve as a failure and takes the run with it. This

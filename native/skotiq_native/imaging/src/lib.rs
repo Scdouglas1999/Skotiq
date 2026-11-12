@@ -6,9 +6,6 @@
 //! - Image debayering for color cameras
 //! - Image statistics and star detection
 //! - Auto-stretch algorithms
-//! - Camera control abstraction
-//! - Plate solving via ASTAP
-//! - PHD2 guiding integration
 //! - Buffer pooling for efficient image capture
 
 pub mod background_extraction; // NEW: DBE/ABE-style background gradient extraction
@@ -36,8 +33,6 @@ pub mod mosaic_stitch; // NEW: WCS-driven panel mosaic stitching
 pub mod normalization; // NEW: Light-frame normalization to a reference (batch integration)
 mod numeric;
 pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
-mod phd2;
-mod platesolve;
 mod frame_io;
 mod raw;
 mod raw_exif;
@@ -77,8 +72,6 @@ pub use master_accumulation::*; // NEW: Export accumulating-master types
 pub use mosaic_stitch::*; // NEW: Export mosaic-stitching types
 pub use normalization::*; // NEW: Export normalization types
 pub use optimizer::*; // NEW: Export integration-optimizer types
-pub use phd2::*;
-pub use platesolve::*;
 pub use frame_io::*;
 pub use raw::*;
 /// The color-composite stages, under the name the bridge imports them by.
