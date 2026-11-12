@@ -252,8 +252,8 @@ pub async fn execute_exposure_with_renderer(
     };
 
     let mut completed_exposures = 0u32;
-    // Warn once per burst when dithers are skipped for lack of a guider.
-    let mut dither_skipped_warned = false;
+    // Say once per burst that its dithers are skipped.
+    let mut dither_skip_noted = false;
     let mut hfr_values = Vec::new();
 
     // Image Grading: local bindings for the per-frame grading state.
@@ -1043,116 +1043,23 @@ pub async fn execute_exposure_with_renderer(
         // `frame < config.count` skips the dither after the final frame:
         // dithering after the last exposure of a burst leaves the mount
         // off-target for the next instruction (and wastes time).
-        if let Some(dither_every) = config.dither_every {
-            // `is_light_frame`: never dither a calibration burst — the serializer
-            // inherits the global dither-every default onto every exposure node,
-            // so darks/flats would otherwise pulse the mount between frames.
-            if is_light_frame
-                && dither_every > 0
-                && frame % dither_every == 0
-                && frame < config.count
-                && !skip_dither_while_unguided(ctx, &mut dither_skipped_warned).await
+        // `is_light_frame`: never dither a calibration burst — the serializer
+        // inherits the global dither-every default onto every exposure node,
+        // so darks/flats would otherwise pulse the mount between frames.
+        let dither_due = config.dither_every.is_some_and(|every| {
+            is_light_frame && every > 0 && frame % every == 0 && frame < config.count
+        });
+        if dither_due {
+            if let Err(stop) = dither_in_burst(
+                ctx,
+                config,
+                frame,
+                completed_exposures,
+                &mut dither_skip_noted,
+            )
+            .await
             {
-                tracing::info!("Dithering...");
-                // Dual-rig — guard the burst dither so a piggybacking secondary
-                // camera is clear before the mount pulses (no-op single-rig).
-                let dither_result = dither_guarded(ctx, || {
-                    ctx.run.device_ops.guider_dither(
-                        config.dither_pixels,
-                        config.dither_settle_pixels,
-                        config.dither_settle_time,
-                        config.dither_settle_timeout,
-                        config.dither_ra_only,
-                    )
-                })
-                .await;
-                if dither_result.is_ok() {
-                    // A dither that settled ends a failure streak, as the
-                    // standalone Dither node counts it. It also restarts the
-                    // Dither Interval trigger's count: left unmarked, the
-                    // trigger counted the whole burst as undithered and
-                    // dithered again the moment the burst ended.
-                    if let Some(trigger_state) = &ctx.run.trigger_state {
-                        let mut state = trigger_state.write().await;
-                        state.latches.consecutive_dither_failures = 0;
-                        state.mark_dither_performed_in_burst(completed_exposures);
-                    }
-                    announce_dither_performed(ctx);
-                }
-                if let Err(e) = dither_result {
-                    // An UNGUIDED rig cannot dither, and that is a
-                    // CONFIGURATION state — not a guiding failure. No star was
-                    // lost, no walking-noise problem is being masked, and no
-                    // recovery/guiding trigger can help, so killing an
-                    // otherwise-healthy burst over it is wrong.
-                    //
-                    // It bites by default: the serializer inherits the GLOBAL
-                    // dither-every onto every exposure node (see the
-                    // `is_light_frame` note above), so a plain light burst on a
-                    // rig with no guider schedules a dither it can never perform.
-                    // Reproduced on the desktop build with the simulator camera:
-                    // an 8-frame burst died after frame 3 with "Dither failed
-                    // after frame 3/8: No active guider configured", losing the
-                    // remaining 5 frames and the unattended night with them.
-                    //
-                    // Skip loudly, once per burst, and keep imaging. Every other
-                    // dither/settle failure keeps the fail-closed abort below.
-                    if e == crate::device_ops::DeviceError::NO_GUIDER {
-                        if !dither_skipped_warned {
-                            dither_skipped_warned = true;
-                            tracing::warn!(
-                                "Dither requested after frame {}/{} but no guider is \
-                                 configured — skipping dithers for the rest of this \
-                                 burst. Frames will be UNDITHERED (walking noise); \
-                                 connect a guider or set dither-every to 0 to \
-                                 silence this.",
-                                frame,
-                                config.count
-                            );
-                        }
-                    } else if ctx.stops_on_quality_problems().await {
-                        // The operator asked for quality problems to stop the
-                        // run: fail the burst as this used to by default.
-                        let error_message = format!(
-                            "Dither failed after frame {}/{}: {}",
-                            frame, config.count, e
-                        );
-                        tracing::error!("{}", error_message);
-                        if let Some(event_tx) = &ctx.run.event_tx {
-                            let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
-                                message: error_message.clone(),
-                            });
-                        }
-                        return InstructionResult::failure(error_message);
-                    } else {
-                        // A dither that does not settle costs some stacking
-                        // quality, not the frames, and the standalone Dither node
-                        // already carries on through it. Failing the burst here
-                        // ended the run (owner decision 2026-10-06: only a risk
-                        // to the hardware stops a run by itself). The operator is
-                        // told once per streak — a lost guide star is the guide
-                        // star triggers' business, not this burst's.
-                        let streak = match &ctx.run.trigger_state {
-                            Some(trigger_state) => {
-                                let mut state = trigger_state.write().await;
-                                state.latches.consecutive_dither_failures =
-                                    state.latches.consecutive_dither_failures.saturating_add(1);
-                                state.latches.consecutive_dither_failures
-                            }
-                            None => 1,
-                        };
-                        let problem = format!(
-                            "Dither failed after frame {}/{}: {}. The frames are unaffected, \
-                             but they are not dithered until a dither settles again.",
-                            frame, config.count, e
-                        );
-                        if streak == 1 {
-                            ctx.notify_quality_problem_continuing("Exposure burst", &problem);
-                        } else {
-                            tracing::warn!("{} ({} in a row)", problem, streak);
-                        }
-                    }
-                }
+                return stop;
             }
         }
     }
@@ -1476,20 +1383,102 @@ async fn watch_star_shape(
     }
 }
 
-/// Whether a burst skips its dither because the run is imaging unguided (the
-/// guide-star recovery ran out). Logged once per burst; the operator was told
-/// when guiding was given up.
-async fn skip_dither_while_unguided(ctx: &InstructionContext, warned: &mut bool) -> bool {
-    if !ctx.imaging_unguided().await {
-        return false;
+/// The dither a burst's dither-every asks for after `frame`, under
+/// [`DitherCounts::OnlyWhenSettled`]. `Err` ends the burst: only when the
+/// operator asked quality problems to stop the run.
+async fn dither_in_burst(
+    ctx: &InstructionContext,
+    config: &ExposureConfig,
+    frame: u32,
+    frames_into_burst: u32,
+    skip_noted: &mut bool,
+) -> Result<(), InstructionResult> {
+    tracing::info!("Dithering...");
+    let dither = crate::DitherConfig {
+        pixels: config.dither_pixels,
+        settle_pixels: config.dither_settle_pixels,
+        settle_time: config.dither_settle_time,
+        settle_timeout: config.dither_settle_timeout,
+        ra_only: config.dither_ra_only,
+        ..crate::DitherConfig::default()
+    };
+    match dither_once(ctx, &dither, DitherCounts::OnlyWhenSettled).await {
+        DitherOutcome::Dithered => {
+            // Restarts the Dither Interval trigger's count: left unmarked,
+            // the trigger counted the whole burst as undithered and dithered
+            // again the moment the burst ended.
+            if let Some(trigger_state) = &ctx.run.trigger_state {
+                trigger_state
+                    .write()
+                    .await
+                    .mark_dither_performed_in_burst(frames_into_burst);
+            }
+        }
+        DitherOutcome::Skipped(DitherSkip::Unguided) => {
+            if !std::mem::replace(skip_noted, true) {
+                tracing::info!(
+                    "Dithers skipped for the rest of this burst: the run is imaging unguided \
+                     since the guide star was lost"
+                );
+            }
+        }
+        DitherOutcome::Skipped(DitherSkip::GuiderHeld(why)) => {
+            tracing::info!(
+                "Dither after frame {}/{} skipped: {why}",
+                frame,
+                config.count
+            );
+        }
+        // A burst dithers at random, so there is no grid center.
+        DitherOutcome::Skipped(DitherSkip::GridCenter) => {}
+        // An UNGUIDED rig cannot dither, and that is a configuration state,
+        // not a guiding failure: no recovery or guiding trigger can help, so
+        // ending an otherwise healthy burst over it is wrong. It bites by
+        // default: the serializer inherits the global dither-every onto every
+        // exposure node, so a light burst on a rig with no guider schedules
+        // dithers it can never perform (reproduced with the simulator camera:
+        // an 8-frame burst died after frame 3 with "Dither failed after frame
+        // 3/8: No active guider configured").
+        DitherOutcome::Failed { error, .. } if error == DeviceError::NO_GUIDER => {
+            if !std::mem::replace(skip_noted, true) {
+                tracing::warn!(
+                    "Dither requested after frame {}/{} but no guider is configured — skipping \
+                     dithers for the rest of this burst. Frames will be UNDITHERED (walking \
+                     noise); connect a guider or set dither-every to 0 to silence this.",
+                    frame,
+                    config.count
+                );
+            }
+        }
+        DitherOutcome::Failed { error, streak } => {
+            if ctx.stops_on_quality_problems().await {
+                let error_message =
+                    format!("Dither failed after frame {}/{}: {}", frame, config.count, error);
+                tracing::error!("{}", error_message);
+                if let Some(event_tx) = &ctx.run.event_tx {
+                    let _ = event_tx.send(crate::executor::ExecutorEvent::Error {
+                        message: error_message.clone(),
+                    });
+                }
+                return Err(InstructionResult::failure(error_message));
+            }
+            // A dither that does not settle costs some stacking quality, not
+            // the frames (owner decision 2026-10-06: only a risk to the
+            // hardware stops a run by itself). The operator is told once per
+            // streak; a lost guide star is the guide-star triggers' business.
+            let problem = format!(
+                "Dither failed after frame {}/{}: {}. The frames are unaffected, but they are \
+                 not dithered until a dither settles again.",
+                frame, config.count, error
+            );
+            if streak == 1 {
+                ctx.notify_quality_problem_continuing("Exposure burst", &problem);
+            } else {
+                tracing::warn!("{} ({} in a row)", problem, streak);
+            }
+        }
     }
-    if !std::mem::replace(warned, true) {
-        tracing::info!(
-            "Dithers skipped for the rest of this burst: the run is imaging unguided since \
-             the guide star was lost"
-        );
-    }
-    true
+    Ok(())
 }
 
 /// Seconds a whole-burst filter change is expected to take, including the focus

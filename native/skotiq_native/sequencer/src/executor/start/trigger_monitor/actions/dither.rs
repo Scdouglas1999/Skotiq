@@ -2,9 +2,7 @@
 
 use super::*;
 
-/// Dither once and move the cadence anchor when it ran, or when the rig has
-/// no guider to dither with (otherwise the interval stays due and re-fires on
-/// every frame).
+/// Dither once; [`crate::instructions::execute_dither`] restarts the cadence.
 pub(in super::super) async fn run(
     trigger_name: &str,
     trigger_config: &crate::DitherConfig,
@@ -20,23 +18,11 @@ pub(in super::super) async fn run(
     );
     let dither_ctx = rig.instruction_context(rig.target().await, run);
     let result = crate::instructions::execute_dither(&config, &dither_ctx, None).await;
-    match classify_dither_result(result.status, result.message.as_deref()) {
-        DitherTriggerOutcome::Performed => {
-            rig.trigger_state.write().await.mark_dither_performed();
-        }
-        DitherTriggerOutcome::SkippedNoGuider => {
-            rig.trigger_state.write().await.mark_dither_performed();
-            tracing::debug!(
-                "[DITHER] Trigger '{}' skipped - no guider configured",
-                trigger_name
-            );
-        }
-        DitherTriggerOutcome::Failed => {
-            tracing::warn!(
-                "[DITHER] Trigger-initiated dither failed: {:?}",
-                result.message
-            );
-        }
+    if result.status != NodeStatus::Success {
+        tracing::warn!(
+            "[DITHER] Trigger-initiated dither failed: {:?}",
+            result.message
+        );
     }
     ActionFlow::Finished
 }
