@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 pub(crate) struct VendorCamera {
     device_id: String,
-    driver: Exclusive<Box<dyn CameraDriver + Send + Sync>>,
+    driver: Arc<Exclusive<Box<dyn CameraDriver + Send + Sync>>>,
     aborts: ExposureAborts,
     /// The driver's way to give up a frame read in flight, when it has one.
     give_up: Option<Arc<dyn ExposureAbort>>,
@@ -26,7 +26,7 @@ impl VendorCamera {
         Self {
             device_id: device_id.to_string(),
             give_up: driver.exposure_abort(),
-            driver: Exclusive::new(driver),
+            driver: Arc::new(Exclusive::new(driver)),
             aborts: ExposureAborts::new(),
         }
     }
@@ -116,9 +116,17 @@ impl Camera for VendorCamera {
     }
 
     async fn read_frame(&self) -> Result<ImageData, DeviceOpError> {
-        let mut driver = self.driver.write().await;
-        let camera = &mut *driver;
-        camera.download_image().await.map_err(DeviceOpError::from)
+        let driver = Arc::clone(&self.driver);
+        let read = tokio::spawn(async move {
+            let mut driver = driver.write().await;
+            driver.download_image().await.map_err(DeviceOpError::from)
+        });
+        read.await.unwrap_or_else(|stopped| {
+            Err(DeviceOpError::hardware(
+                Some(self.device_id.clone()),
+                format!("The frame read stopped: {stopped}"),
+            ))
+        })
     }
 
     async fn capture_preview(&self) -> Result<Vec<u8>, DeviceOpError> {

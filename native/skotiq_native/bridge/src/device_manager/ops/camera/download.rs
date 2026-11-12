@@ -4,7 +4,7 @@ impl DeviceManager {
     pub async fn camera_download_image(&self, device_id: &str) -> Result<ImageData, DeviceOpError> {
         let camera = self.camera(device_id).await?;
 
-        rig::camera::download(camera, device_id).await
+        rig::camera::download(camera.as_ref(), device_id).await
     }
 
     /// Capture a live-view / preview JPEG frame when the connected driver supports it.

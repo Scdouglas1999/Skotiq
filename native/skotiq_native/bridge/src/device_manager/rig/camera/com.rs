@@ -15,7 +15,7 @@ use skotiq_device::{CameraDriver, DeviceDriver, DriverError, ExposureParams, Ima
 
 pub(crate) struct ComCamera {
     device_id: String,
-    camera: Exclusive<AscomCameraWrapper>,
+    camera: std::sync::Arc<Exclusive<AscomCameraWrapper>>,
     aborts: ExposureAborts,
 }
 
@@ -23,7 +23,7 @@ impl ComCamera {
     pub(crate) fn new(device_id: &str, camera: AscomCameraWrapper) -> Self {
         Self {
             device_id: device_id.to_string(),
-            camera: Exclusive::new(camera),
+            camera: std::sync::Arc::new(Exclusive::new(camera)),
             aborts: ExposureAborts::new(),
         }
     }
@@ -112,18 +112,26 @@ impl Camera for ComCamera {
     }
 
     async fn read_frame(&self) -> Result<ImageData, DeviceOpError> {
-        let device_id = self.device_id.as_str();
-        let camera = &self.camera;
-        let mut camera = camera.write().await;
-        camera.download_image().await.map_err(|e| {
-            DeviceOpError::caused_by(
-                Some(device_id.to_string()),
-                format!(
-                    "Failed to download image from ASCOM camera {}: {}",
-                    device_id, e
-                ),
-                e,
-            )
+        let device_id = self.device_id.clone();
+        let camera = std::sync::Arc::clone(&self.camera);
+        let read = tokio::spawn(async move {
+            let mut camera = camera.write().await;
+            camera.download_image().await.map_err(|e| {
+                DeviceOpError::caused_by(
+                    Some(device_id.clone()),
+                    format!(
+                        "Failed to download image from ASCOM camera {}: {}",
+                        device_id, e
+                    ),
+                    e,
+                )
+            })
+        });
+        read.await.unwrap_or_else(|stopped| {
+            Err(DeviceOpError::hardware(
+                Some(self.device_id.clone()),
+                format!("The frame read stopped: {stopped}"),
+            ))
         })
     }
 

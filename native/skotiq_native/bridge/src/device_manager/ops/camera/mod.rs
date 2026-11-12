@@ -336,6 +336,56 @@ mod sim_camera_tests {
         );
     }
 
+    /// An abort while the frame is being read answers the download at once,
+    /// and the read that was given up is not left behind to take the next
+    /// exposure's frame.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn an_abort_during_the_download_leaves_the_next_exposure_its_frame() {
+        use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+        let _serialized = sim_singleton_test_lock().lock().await;
+        let device_id = "sim_camera_abort_in_download";
+        attach_sim_camera(device_id).await;
+        let mgr = get_device_manager();
+        sim_faults::arm(
+            "camera.download",
+            FaultSpec::new(Trigger::Times(1), Effect::Delay(600)),
+        );
+
+        mgr.camera_start_exposure(device_id, 0.05, None, None, 1, 1, FrameType::Light)
+            .await
+            .unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let slow = tokio::spawn(async move {
+            get_device_manager()
+                .camera_download_image("sim_camera_abort_in_download")
+                .await
+                .map(|_| ())
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let asked = std::time::Instant::now();
+        mgr.camera_abort_exposure(device_id).await.unwrap();
+        let answer = slow.await.unwrap();
+        sim_faults::clear("camera.download");
+        assert!(
+            asked.elapsed() < std::time::Duration::from_millis(300),
+            "the download waited {:?} after the abort",
+            asked.elapsed()
+        );
+        let error = answer
+            .expect_err("an aborted exposure has no frame")
+            .to_string();
+        assert!(error.contains("aborted"), "{error}");
+
+        mgr.camera_start_exposure(device_id, 0.05, None, None, 1, 1, FrameType::Light)
+            .await
+            .unwrap();
+        // Past the moment the abandoned read would have woken.
+        tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+        mgr.camera_download_image(device_id)
+            .await
+            .expect("the next exposure's frame is still there to read");
+    }
+
     /// Downloading without having started anything is a caller bug, not an
     /// invitation to synthesize a frame out of the last request's parameters.
     #[tokio::test]

@@ -4,6 +4,7 @@ use skotiq_device::{
     ExposureParams, ImageMetadata, ReadoutMode, SensorInfo, VendorFeatures,
 };
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -221,7 +222,10 @@ fn calls(calls: &Calls) -> Vec<&'static str> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_abort_answers_the_download_while_the_frame_is_still_being_read() {
     let (camera, seen) = vendor_camera(Duration::from_millis(1500), false);
-    let downloading = tokio::spawn(download(camera.clone(), "native:test:slow"));
+    let downloading = tokio::spawn({
+        let camera = camera.clone();
+        async move { download(camera.as_ref(), "native:test:slow").await }
+    });
     tokio::time::sleep(Duration::from_millis(150)).await;
 
     let asked = Instant::now();
@@ -253,7 +257,10 @@ async fn an_abort_answers_the_download_while_the_frame_is_still_being_read() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_read_that_can_be_given_up_ends_at_the_abort() {
     let (camera, seen) = vendor_camera(Duration::from_secs(20), true);
-    let downloading = tokio::spawn(download(camera.clone(), "native:test:slow"));
+    let downloading = tokio::spawn({
+        let camera = camera.clone();
+        async move { download(camera.as_ref(), "native:test:slow").await }
+    });
     tokio::time::sleep(Duration::from_millis(150)).await;
 
     let asked = Instant::now();
@@ -281,7 +288,7 @@ async fn a_read_that_can_be_given_up_ends_at_the_abort() {
 async fn a_download_after_an_abort_reads_its_frame() {
     let (camera, _) = vendor_camera(Duration::from_millis(20), false);
     abort(camera.as_ref()).await.expect("abort");
-    let frame = download(camera.clone(), "native:test:slow")
+    let frame = download(camera.as_ref(), "native:test:slow")
         .await
         .expect("frame");
     assert_eq!(frame.data, [1, 2]);
@@ -294,7 +301,10 @@ async fn a_download_after_an_abort_reads_its_frame() {
 async fn a_second_camera_works_while_the_first_reads_its_frame() {
     let (imaging, _) = vendor_camera(Duration::from_millis(1500), false);
     let (guide, guide_seen) = vendor_camera(Duration::from_millis(20), false);
-    let downloading = tokio::spawn(download(imaging.clone(), "native:test:slow"));
+    let downloading = tokio::spawn({
+        let camera = imaging.clone();
+        async move { download(camera.as_ref(), "native:test:slow").await }
+    });
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let started = Instant::now();
@@ -303,7 +313,7 @@ async fn a_second_camera_works_while_the_first_reads_its_frame() {
         .await
         .expect("guide exposure");
     guide.status().await.expect("guide status");
-    download(guide.clone(), "native:test:guide")
+    download(guide.as_ref(), "native:test:guide")
         .await
         .expect("guide frame");
     assert!(
@@ -330,7 +340,10 @@ async fn a_second_camera_works_while_the_first_reads_its_frame() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_disconnect_during_a_frame_read_closes_the_camera_after_it() {
     let (camera, seen) = vendor_camera(Duration::from_millis(400), false);
-    let downloading = tokio::spawn(download(camera.clone(), "native:test:slow"));
+    let downloading = tokio::spawn({
+        let camera = camera.clone();
+        async move { download(camera.as_ref(), "native:test:slow").await }
+    });
     tokio::time::sleep(Duration::from_millis(100)).await;
     camera.disconnect().await.expect("disconnect");
     assert_eq!(calls(&seen), ["download_image", "frame read", "disconnect"]);

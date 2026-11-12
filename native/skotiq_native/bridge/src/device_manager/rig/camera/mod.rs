@@ -9,11 +9,13 @@
 //!
 //! [`abort`] first releases a [`download`] in flight, which answers its
 //! caller that the exposure was aborted without waiting for the frame, and
-//! then sends the camera its stop command. The frame read itself is never
-//! cut short from outside: it runs to the end of the driver call it is in,
-//! on its own task, and what it read is dropped. A vendor driver that can
-//! give the read up early says so with
-//! [`skotiq_device::CameraDriver::exposure_abort`].
+//! then sends the camera its stop command. A vendor or COM frame read is
+//! never cut short from outside: it runs to the end of the driver call it is
+//! in, on its own task and under the device lock, so the stop command and
+//! the next exposure follow it in order, and what it read is dropped. A
+//! vendor driver that can give the read up early says so with
+//! [`skotiq_device::CameraDriver::exposure_abort`]. The other protocols'
+//! reads only wait for the camera and are simply dropped.
 //!
 //! # Two cameras at once
 //!
@@ -44,7 +46,6 @@ use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_device::{ImageData, SubFrame};
-use std::sync::Arc;
 
 #[async_trait]
 pub(crate) trait Camera: RigDriver {
@@ -69,7 +70,11 @@ pub(crate) trait Camera: RigDriver {
     /// The camera's stop command. Callers use [`abort`].
     async fn stop_exposure(&self) -> Result<(), DeviceOpError>;
 
-    /// Reads the finished frame off the camera. Callers use [`download`].
+    /// Reads the finished frame off the camera. Callers use [`download`],
+    /// which drops this call part way when the exposure is aborted: nothing
+    /// is then left waiting for a frame that the next exposure would hand
+    /// it. An implementation whose driver call has to run to its end (a
+    /// vendor SDK read, a COM call) runs it on a task of its own.
     async fn read_frame(&self) -> Result<ImageData, DeviceOpError>;
 
     /// A live-view frame as JPEG bytes.
@@ -131,24 +136,17 @@ impl ExposureAborts {
 /// The finished frame, or an error at once when the exposure is aborted
 /// while the frame is being read.
 pub(crate) async fn download(
-    camera: Arc<dyn Camera>,
+    camera: &dyn Camera,
     device_id: &str,
 ) -> Result<ImageData, DeviceOpError> {
     let aborted = camera.aborts().next();
-    let reader = Arc::clone(&camera);
-    let read = tokio::spawn(async move { reader.read_frame().await });
     tokio::select! {
         biased;
         () = aborted => Err(DeviceOpError::invalid_state(
             device_id,
             "The exposure was aborted before its frame was read",
         )),
-        frame = read => frame.unwrap_or_else(|stopped| {
-            Err(DeviceOpError::hardware(
-                Some(device_id.to_string()),
-                format!("The frame read stopped: {stopped}"),
-            ))
-        }),
+        frame = camera.read_frame() => frame,
     }
 }
 
