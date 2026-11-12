@@ -33,20 +33,19 @@ pub async fn api_sequencer_set_devices(
     filterwheel_id: Option<String>,
     rotator_id: Option<String>,
     filter_names: Option<Vec<String>>,
-    filter_focus_offsets: Option<std::collections::HashMap<String, i32>>,
 ) -> Result<(), SkotiqError> {
     tracing::info!(
-        "Setting sequencer devices: camera={:?}, mount={:?}, focuser={:?}, filterwheel={:?}, rotator={:?}, filter_names={:?}, filter_focus_offsets={:?}",
-        camera_id, mount_id, focuser_id, filterwheel_id, rotator_id, filter_names, filter_focus_offsets
+        "Setting sequencer devices: camera={:?}, mount={:?}, focuser={:?}, filterwheel={:?}, rotator={:?}, filter_names={:?}",
+        camera_id, mount_id, focuser_id, filterwheel_id, rotator_id, filter_names
     );
     let filterwheel_for_names = filterwheel_id.clone();
-    {
-        let mut executor = get_sequence_executor().write().await;
-        executor.set_devices(camera_id, mount_id, focuser_id, filterwheel_id, rotator_id);
-        if let Some(offsets) = filter_focus_offsets {
-            executor.set_filter_focus_offsets(offsets).await;
-        }
-    }
+    get_sequence_executor().write().await.set_devices(
+        camera_id,
+        mount_id,
+        focuser_id,
+        filterwheel_id,
+        rotator_id,
+    );
 
     if let Some(names) = filter_names {
         if names.is_empty() {
@@ -77,59 +76,6 @@ pub async fn api_sequencer_set_devices(
     Ok(())
 }
 
-/// Set the safety fail mode for the sequencer.
-/// This determines behavior when safety devices fail or are unavailable:
-/// - "fail_closed": Treat unavailable safety data as unsafe
-/// - "fail_open": Treat unavailable safety data as safe
-/// - "warn_only": Preserve the previous safety state and emit a warning event
-pub async fn api_sequencer_set_safety_fail_mode(mode: String) -> Result<(), SkotiqError> {
-    use skotiq_sequencer::SafetyFailMode;
-
-    let mode_lower = mode.to_lowercase();
-    let fail_mode = match mode_lower.as_str() {
-        "fail_closed" | "failclosed" => SafetyFailMode::FailClosed,
-        "fail_open" | "failopen" => SafetyFailMode::FailOpen,
-        "warn_only" | "warnonly" => SafetyFailMode::WarnOnly,
-        _ => {
-            return Err(SkotiqError::InvalidParameter(format!(
-                "Invalid safety fail mode: '{}'. Must be 'fail_closed', 'fail_open', or 'warn_only'.",
-                mode
-            )));
-        }
-    };
-
-    tracing::info!("Setting sequencer safety fail mode: {:?}", fail_mode);
-    let mut executor = get_sequence_executor().write().await;
-    executor.set_safety_fail_mode(fail_mode).await;
-
-    Ok(())
-}
-
-/// Set the safety/humidity polling interval for the sequencer.
-/// Must be between 5 seconds and 3600 seconds. The executor applies the
-/// update live without restarting the current sequence.
-pub async fn api_sequencer_set_safety_check_interval_seconds(
-    seconds: u32,
-) -> Result<(), SkotiqError> {
-    if !(5..=3600).contains(&seconds) {
-        return Err(SkotiqError::InvalidParameter(format!(
-            "Invalid safety check interval: {}. Must be between 5 and 3600 seconds.",
-            seconds
-        )));
-    }
-
-    tracing::info!(
-        "Setting sequencer safety check interval: {} seconds",
-        seconds
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor
-        .set_safety_check_interval_secs(u64::from(seconds))
-        .await;
-
-    Ok(())
-}
-
 /// Set the save path for sequencer images.
 /// This is the base directory where captured images will be saved.
 /// If not set (or set to None), images will NOT be saved to disk.
@@ -143,100 +89,19 @@ pub async fn api_sequencer_set_save_path(path: Option<String>) -> Result<(), Sko
     Ok(())
 }
 
-// Sequencer runtime settings propagation
-//
-// Every operator setting below is one field of `skotiq_sequencer::RunConfig`.
-// The single-setting entries exist because the app pushes them one at a time;
-// each is a read-modify-apply of that one value in the executor.
-
-/// Replace the operator's sequencer settings in one call: every section of
-/// `config` that differs from the current settings takes effect and is
-/// announced once. Not on the FFI surface yet; the app still pushes the
-/// single settings below.
-#[allow(dead_code)]
-pub(crate) async fn apply_run_config(config: skotiq_sequencer::RunConfig) {
-    let executor = get_sequence_executor().read().await;
-    executor.apply_run_config(config).await;
-}
-
-/// Update dither configuration at runtime while a sequence is running or paused.
-/// The updated values are stored on the executor and will be used by subsequent
-/// trigger-initiated dithers and checkpoint resumes.
-pub async fn api_sequencer_update_dither_config(
-    pixels: f64,
-    settle_pixels: f64,
-    settle_time: f64,
-    settle_timeout: f64,
-    ra_only: bool,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        "Updating sequencer dither config: pixels={}, settle_pixels={}, settle_time={}, settle_timeout={}, ra_only={}",
-        pixels, settle_pixels, settle_time, settle_timeout, ra_only
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor
-        .update_dither_config(pixels, settle_pixels, settle_time, settle_timeout, ra_only)
-        .await;
-    Ok(())
-}
-
-/// Push the operator's meridian-flip settings onto the standard
-/// `meridian_flip` trigger.
-///
-/// `config_json` is a serialised `MeridianFlipConfig` — the SAME shape the Dart
-/// side already builds for a `MeridianFlipNode`, so there is exactly one
-/// wire format for meridian settings and one place to keep in sync.
-///
-/// Why JSON rather than a typed FRB struct: `MeridianFlipConfig` has 21 fields
-/// including a `Vec<f64>` retry ladder and two enums, and every one of them is
-/// already covered by the serde contract the sequence JSON uses. Mirroring it
-/// as an FRB struct would duplicate that contract and give it two places to
-/// drift.
-///
-/// Without this call the trigger keeps `MeridianFlipConfig::default()` for the
-/// whole run and the user's Settings → Meridian Flip panel is inert on the
-/// trigger path.
-pub async fn api_sequencer_update_meridian_flip_config(
-    config_json: String,
-) -> Result<(), SkotiqError> {
-    let config: skotiq_sequencer::MeridianFlipConfig =
-        serde_json::from_str(&config_json).map_err(|e| {
-            SkotiqError::InvalidParameter(format!("Invalid meridian-flip config JSON: {}", e))
-        })?;
-    if config.max_retries > 0 && config.retry_delays_secs.is_empty() {
-        return Err(SkotiqError::InvalidParameter(
-            "meridian-flip config sets max_retries > 0 but no retry delays; the flip \
-             would refuse to retry"
-                .to_string(),
-        ));
-    }
-    tracing::info!(
-        "[API] Updating meridian-flip trigger config from user settings (auto_center={}, \
-         minutes_past={:.1}, max_retries={})",
-        config.auto_center,
-        config.minutes_past_meridian,
-        config.max_retries
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_meridian_flip_config(config).await;
-    Ok(())
-}
-
-/// Update observer location at runtime while a sequence is running or paused.
-/// Updates the executor's stored latitude/longitude so altitude-based triggers
-/// use the correct location on their next evaluation.
-pub async fn api_sequencer_update_location(
-    latitude: Option<f64>,
-    longitude: Option<f64>,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        "Updating sequencer location: lat={:?}, lon={:?}",
-        latitude,
-        longitude
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_location(latitude, longitude).await;
-    Ok(())
+/// Replace the operator's sequencer settings: `config_json` is a whole
+/// `skotiq_sequencer::RunConfig` as JSON, built by the app from its settings.
+/// Each section that differs from the current settings takes effect and is
+/// announced once; a value the executor refuses changes nothing and the error
+/// says why. Never waits on the executor: the settings have their own lock.
+pub async fn api_sequencer_apply_run_config(config_json: String) -> Result<(), SkotiqError> {
+    let config: skotiq_sequencer::RunConfig = serde_json::from_str(&config_json).map_err(|e| {
+        SkotiqError::InvalidParameter(format!("The sequencer settings could not be read: {e}"))
+    })?;
+    skotiq_sequencer::executor_handle()
+        .apply_run_config(config)
+        .await
+        .map_err(SkotiqError::InvalidParameter)
 }
 
 /// stage per-target / per-filter carry-over integration so the
@@ -260,203 +125,6 @@ pub async fn api_sequencer_update_pending_integration_carry_over(
     );
     let mut executor = get_sequence_executor().write().await;
     executor.update_pending_integration_carry_over(carry_over);
-    Ok(())
-}
-
-/// Update filter focus offsets at runtime while a sequence is running or paused.
-/// Updates the executor's stored offsets so subsequent filter changes apply
-/// the correct focus compensation.
-pub async fn api_sequencer_update_filter_offsets(
-    offsets: std::collections::HashMap<String, i32>,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        "Updating sequencer filter focus offsets: {} entries",
-        offsets.len()
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_filter_offsets(offsets).await;
-    Ok(())
-}
-
-/// update the autofocus-interval trigger cadence at runtime.
-/// The default in `default_autofocus_interval_frames()` is 25 frames; this
-/// is wrong for both very-short (5 s) and very-long (5 min) subs, so the UI
-/// must let the user override it. `every_n_frames == 0` is rejected because
-/// the trigger evaluator disables the periodic AF when the cadence is zero,
-/// which would silently turn AF off.
-pub async fn api_sequencer_update_autofocus_interval(
-    every_n_frames: u32,
-) -> Result<(), SkotiqError> {
-    if every_n_frames == 0 {
-        return Err(SkotiqError::InvalidParameter(
-            "autofocus_interval_frames must be > 0. Pass a positive frame cadence; \
-             use the trigger 'enabled' toggle in the trigger list to disable periodic AF."
-                .to_string(),
-        ));
-    }
-    tracing::info!(
-        "Updating sequencer autofocus-interval cadence: every {} frames",
-        every_n_frames
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_autofocus_interval(every_n_frames).await;
-    Ok(())
-}
-
-/// Push the operator's autofocus settings so trigger-fired refocus uses them.
-///
-/// A sequence without an Autofocus node — which is exactly the sequence whose
-/// interval trigger fires unattended — otherwise refocuses on library defaults,
-/// ignoring the operator's step size, exposure, backlash, failure tolerance and
-/// failure action. An Autofocus node still wins at `start()`: a node is a
-/// per-sequence decision, this is the global one.
-///
-/// Takes the same JSON shape the sequence's Autofocus node carries, so the
-/// Dart side has exactly one serializer to keep correct.
-pub async fn api_sequencer_update_autofocus_config(config_json: String) -> Result<(), SkotiqError> {
-    let config: skotiq_sequencer::AutofocusConfig =
-        serde_json::from_str(&config_json).map_err(|e| {
-            SkotiqError::InvalidParameter(format!(
-                "autofocus config JSON could not be parsed: {e}. Trigger-fired refocus would \
-                 have silently fallen back to library defaults."
-            ))
-        })?;
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_autofocus_config(config).await;
-    Ok(())
-}
-
-/// update the global default image-grading thresholds at runtime.
-///
-/// All fields are optional; when `enabled` is `false` an `ImageQualityCheck`
-/// is NOT constructed (grading disabled globally — per-node `quality_check`
-/// on TakeExposure still wins). The Dart `enableImageGrading` toggle on
-/// app settings drives this directly.
-///
-/// A star-count floor also arms the star-count drop check at
-/// [`skotiq_sequencer::quality::DEFAULT_STAR_COUNT_DROP_PERCENT`]: both grade
-/// the same count, and the drop is the one that scales to the field.
-pub async fn api_sequencer_update_default_quality_check(
-    hfr_threshold: Option<f64>,
-    hfr_baseline_percent: Option<f64>,
-    eccentricity_threshold: Option<f64>,
-    star_count_min: Option<u32>,
-    max_consecutive_rejects: u32,
-    enabled: bool,
-) -> Result<(), SkotiqError> {
-    use skotiq_sequencer::quality::ImageQualityCheck;
-    let check = if enabled {
-        Some(ImageQualityCheck {
-            hfr_threshold,
-            hfr_baseline_percent,
-            eccentricity_threshold,
-            star_count_min,
-            star_count_drop_percent: star_count_min
-                .map(|_| skotiq_sequencer::quality::DEFAULT_STAR_COUNT_DROP_PERCENT),
-            max_consecutive_rejects,
-        })
-    } else {
-        None
-    };
-    tracing::info!(
-        "Updating sequencer default_quality_check: enabled={}, hfr={:?}, hfr_baseline={:?}, ecc={:?}, stars={:?}, max_rejects={}",
-        enabled,
-        hfr_threshold,
-        hfr_baseline_percent,
-        eccentricity_threshold,
-        star_count_min,
-        max_consecutive_rejects,
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_default_quality_check(check).await;
-    Ok(())
-}
-
-/// What a frame from a camera that delivers its own file (a DSLR's raw file)
-/// is saved as: `converted` (FITS, the default), `camera` (the camera's file
-/// as delivered) or `both`. Read by every save, a run's and a manual
-/// capture's.
-pub async fn api_sequencer_set_camera_file_saving(saving: String) -> Result<(), SkotiqError> {
-    let saving = skotiq_sequencer::CameraFileSaving::from_setting(&saving).ok_or_else(|| {
-        SkotiqError::InvalidParameter(format!(
-            "unknown camera-file saving '{saving}' (expected converted, camera or both)"
-        ))
-    })?;
-    tracing::info!("Updating camera-file saving: {:?}", saving);
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_camera_file_saving(saving).await;
-    Ok(())
-}
-
-/// The saving choice every save reads.
-pub(crate) async fn camera_file_saving() -> skotiq_sequencer::CameraFileSaving {
-    get_sequence_executor().read().await.run_config().camera_file_saving
-}
-
-/// update the reject-folder override at runtime. Empty string =>
-/// None (i.e. fall back to `<save_path>/Reject/`).
-pub async fn api_sequencer_update_reject_folder_path(
-    path: Option<String>,
-) -> Result<(), SkotiqError> {
-    // Normalise empty / whitespace-only to None so the user can clear the
-    // override by deleting the text field without us treating "" as a
-    // path-relative-to-cwd.
-    let normalised = path.and_then(|p| {
-        let trimmed = p.trim().to_string();
-        if trimmed.is_empty() {
-            None
-        } else {
-            Some(trimmed)
-        }
-    });
-    tracing::info!("Updating sequencer reject_folder_path: {:?}", normalised);
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_reject_folder_path(normalised).await;
-    Ok(())
-}
-
-/// Push observer / equipment identification to the executor so the next FITS
-/// save stamps real keywords (OBSERVER, TELESCOP, FOCALLEN, APTDIA, INSTRUME,
-/// SITEELEV). Every field is optional so a headless / no-profile run omits the
-/// keyword instead of emitting a sentinel.
-pub async fn api_sequencer_update_observer_profile(
-    observer_name: Option<String>,
-    site_elevation_m: Option<f64>,
-    camera_make: Option<String>,
-    camera_model: Option<String>,
-    telescope_name: Option<String>,
-    telescope_focal_length_mm: Option<f64>,
-    telescope_aperture_mm: Option<f64>,
-) -> Result<(), SkotiqError> {
-    use skotiq_sequencer::ObserverProfile;
-    let trim_opt = |s: Option<String>| -> Option<String> {
-        s.and_then(|v| {
-            let t = v.trim().to_string();
-            if t.is_empty() {
-                None
-            } else {
-                Some(t)
-            }
-        })
-    };
-    let profile = ObserverProfile {
-        observer_name: trim_opt(observer_name),
-        site_elevation_m,
-        camera_make: trim_opt(camera_make),
-        camera_model: trim_opt(camera_model),
-        telescope_name: trim_opt(telescope_name),
-        telescope_focal_length_mm,
-        telescope_aperture_mm,
-    };
-    tracing::info!(
-        "Updating sequencer observer_profile: observer={:?}, telescope={:?}, camera_make={:?}, camera_model={:?}",
-        profile.observer_name,
-        profile.telescope_name,
-        profile.camera_make,
-        profile.camera_model,
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_observer_profile(profile).await;
     Ok(())
 }
 
@@ -566,19 +234,6 @@ pub async fn api_sequencer_set_weather_operator_clear(
     Ok(())
 }
 
-/// How long the sky must read safe, without a break, before a run held for
-/// weather images again: the operator's "required safe duration".
-pub async fn api_sequencer_set_weather_resume_after_safe_secs(
-    seconds: u32,
-) -> Result<(), SkotiqError> {
-    tracing::debug!("[API] weather resume after safe: {} s", seconds);
-    let executor = get_sequence_executor().read().await;
-    executor
-        .set_weather_resume_after_safe_secs(u64::from(seconds))
-        .await;
-    Ok(())
-}
-
 /// JSON-serialised cloud-motion snapshot for the run
 /// dashboard. Returns `Ok(None)` when no data has been pushed yet.
 pub async fn api_sequencer_get_cloud_motion_json() -> Result<Option<String>, SkotiqError> {
@@ -616,97 +271,6 @@ pub async fn api_sequencer_update_sky_brightness(mag: Option<f64>) -> Result<(),
     Ok(())
 }
 
-/// Push the global default sky-brightness adaptive-exposure config to the
-/// executor. Per-node `ExposureConfig.adaptive_exposure` still wins; this
-/// is the runtime fallback applied to TakeExposure nodes that have no
-/// own block.
-///
-/// Pass `enabled = false` to disable the feature globally. The per-filter
-/// maps are flattened into parallel arrays because FRB cannot bridge
-/// `HashMap<String, T>` directly — Dart serialises its own filter map to
-/// the (`*_filters`, `*_values`) pair shape.
-#[allow(clippy::too_many_arguments)]
-pub async fn api_sequencer_update_default_adaptive_exposure(
-    enabled: bool,
-    target_snr: f64,
-    reference_sky_brightness_mag: f64,
-    min_exposure_secs: f64,
-    max_exposure_secs: f64,
-    per_filter_enabled_keys: Vec<String>,
-    per_filter_enabled_values: Vec<bool>,
-    per_filter_min_keys: Vec<String>,
-    per_filter_min_values: Vec<f64>,
-    per_filter_max_keys: Vec<String>,
-    per_filter_max_values: Vec<f64>,
-) -> Result<(), SkotiqError> {
-    use skotiq_sequencer::scheduling::AdaptiveExposureConfig;
-
-    if per_filter_enabled_keys.len() != per_filter_enabled_values.len() {
-        return Err(SkotiqError::InvalidParameter(
-            "per_filter_enabled_keys and per_filter_enabled_values lengths differ".to_string(),
-        ));
-    }
-    if per_filter_min_keys.len() != per_filter_min_values.len() {
-        return Err(SkotiqError::InvalidParameter(
-            "per_filter_min_keys and per_filter_min_values lengths differ".to_string(),
-        ));
-    }
-    if per_filter_max_keys.len() != per_filter_max_values.len() {
-        return Err(SkotiqError::InvalidParameter(
-            "per_filter_max_keys and per_filter_max_values lengths differ".to_string(),
-        ));
-    }
-
-    let per_filter_enabled = per_filter_enabled_keys
-        .into_iter()
-        .zip(per_filter_enabled_values)
-        .collect::<std::collections::HashMap<_, _>>();
-    let per_filter_min_secs = per_filter_min_keys
-        .into_iter()
-        .zip(per_filter_min_values)
-        .collect::<std::collections::HashMap<_, _>>();
-    let per_filter_max_secs = per_filter_max_keys
-        .into_iter()
-        .zip(per_filter_max_values)
-        .collect::<std::collections::HashMap<_, _>>();
-
-    let config = AdaptiveExposureConfig {
-        enabled,
-        target_snr,
-        reference_sky_brightness_mag,
-        min_exposure_secs,
-        max_exposure_secs,
-        per_filter_enabled,
-        per_filter_min_secs,
-        per_filter_max_secs,
-    };
-    tracing::info!(
-        "[API] update_default_adaptive_exposure: enabled={}, ref={} mag/arcsec², min={}s, max={}s, per_filter_enabled={}, per_filter_min={}, per_filter_max={}",
-        enabled,
-        reference_sky_brightness_mag,
-        min_exposure_secs,
-        max_exposure_secs,
-        config.per_filter_enabled.len(),
-        config.per_filter_min_secs.len(),
-        config.per_filter_max_secs.len(),
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor
-        .update_default_adaptive_exposure(Some(config))
-        .await;
-    Ok(())
-}
-
-/// disable the global default adaptive-exposure config
-/// (push `None`). Convenience entry-point so the Dart side doesn't have
-/// to pass a sentinel struct just to disable.
-pub async fn api_sequencer_clear_default_adaptive_exposure() -> Result<(), SkotiqError> {
-    tracing::info!("[API] clear_default_adaptive_exposure: disabling global default");
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_default_adaptive_exposure(None).await;
-    Ok(())
-}
-
 // Recovery mode — FRB-exposed control surface
 //
 // added these to `bridge/src/sequencer_api.rs` but that module
@@ -714,23 +278,6 @@ pub async fn api_sequencer_clear_default_adaptive_exposure() -> Result<(), Skoti
 // `flutter_rust_bridge.yaml > rust_input`). The functions never crossed the
 // FRB boundary, so the Dart side fell back to `dynamic` dispatch with
 // `NoSuchMethodError` placeholders. Re-homing them here closes that gap.
-
-/// User-tunable recovery defaults pushed from the Settings > Recovery Mode
-/// page. Field-for-field mirror of
-/// `skotiq_sequencer::recovery::RecoveryRuntimeConfig` so the FRB wire
-/// shape stays stable across regen cycles.
-#[derive(Debug, Clone)]
-pub struct RecoveryConfigUpdate {
-    pub retry_interval_secs: f64,
-    pub max_duration_secs: f64,
-    pub stop_tracking_during_recovery: bool,
-    pub abort_on_meridian: bool,
-    pub audible_alert_when_entered: bool,
-    /// Off by default. See
-    /// `RecoveryRuntimeConfig::park_and_close_when_recovery_gives_up` for why
-    /// this is an explicit operator decision and never an inference.
-    pub park_and_close_when_recovery_gives_up: bool,
-}
 
 /// Operator pressed "Try Now" on the Run Dashboard banner — punch through
 /// the wait timer and force the next recovery attempt immediately. No-op
@@ -754,51 +301,6 @@ pub async fn api_sequencer_recovery_abort() -> Result<(), SkotiqError> {
         .recovery_abort()
         .await
         .map_err(SkotiqError::OperationFailed)
-}
-
-/// Push updated recovery defaults into the executor's runtime config. The
-/// next recovery entry uses these values; an in-flight loop continues with
-/// the values that were live when it entered.
-///
-/// Validation here matches the gate the Rust sequencer applies internally:
-/// both `retry_interval_secs` and `max_duration_secs` must be > 0. We
-/// surface a structured InvalidParameter error so the Dart settings page
-/// can render a precise validation message instead of "unknown error".
-pub async fn api_sequencer_update_recovery_config(
-    update: RecoveryConfigUpdate,
-) -> Result<(), SkotiqError> {
-    if update.retry_interval_secs <= 0.0 {
-        return Err(SkotiqError::InvalidParameter(format!(
-            "retry_interval_secs must be > 0 (was {})",
-            update.retry_interval_secs
-        )));
-    }
-    if update.max_duration_secs <= 0.0 {
-        return Err(SkotiqError::InvalidParameter(format!(
-            "max_duration_secs must be > 0 (was {})",
-            update.max_duration_secs
-        )));
-    }
-    tracing::info!(
-        "[API] Recovery: update config interval={:.0}s, max_duration={:.0}s, stop_track={}, abort_meridian={}, audible={}, park_and_close_on_give_up={}",
-        update.retry_interval_secs,
-        update.max_duration_secs,
-        update.stop_tracking_during_recovery,
-        update.abort_on_meridian,
-        update.audible_alert_when_entered,
-        update.park_and_close_when_recovery_gives_up,
-    );
-    let config = skotiq_sequencer::recovery::RecoveryRuntimeConfig {
-        retry_interval_secs: update.retry_interval_secs,
-        max_duration_secs: update.max_duration_secs,
-        stop_tracking_during_recovery: update.stop_tracking_during_recovery,
-        abort_on_meridian: update.abort_on_meridian,
-        audible_alert_when_entered: update.audible_alert_when_entered,
-        park_and_close_when_recovery_gives_up: update.park_and_close_when_recovery_gives_up,
-    };
-    let mut executor = get_sequence_executor().write().await;
-    executor.update_recovery_config(config).await;
-    Ok(())
 }
 
 /// JSON-serialised snapshot of the current in-flight `RecoveryContext`.
@@ -845,20 +347,6 @@ pub async fn api_sequencer_set_active_sequence_run_id(
 ) -> Result<(), SkotiqError> {
     let executor = get_sequence_executor().read().await;
     executor.set_active_sequence_run_id(sequence_run_id);
-    Ok(())
-}
-
-/// Replay Debug — runtime toggle for decision emission. When
-/// `enabled = false`, the executor short-circuits all decision sends
-/// (no channel publish, no allocation) so power users who don't want
-/// the replay log can opt out. Defaults to ON.
-pub async fn api_sequencer_set_decision_logging_enabled(enabled: bool) -> Result<(), SkotiqError> {
-    let executor = get_sequence_executor().read().await;
-    executor.set_decision_logging_enabled(enabled).await;
-    tracing::info!(
-        "[REPLAY_DEBUG] decision logging {} (runtime toggle)",
-        if enabled { "ENABLED" } else { "DISABLED" }
-    );
     Ok(())
 }
 
@@ -925,81 +413,59 @@ pub async fn api_sequencer_get_adaptive_swap_json() -> Result<Option<String>, Sk
     Ok(executor.current_adaptive_swap_json().await)
 }
 
-/// Set whether quality problems the sequencer judges stop the run: the
-/// operator's "Stop the run for quality problems" setting, off by default.
-/// Off, guiding RMS over the Guiding Failure limit, a Center or DriftLimit
-/// recenter that cannot solve or converge, a StartGuiding calibration or RMS
-/// check, a dither that does not settle and the post-flip recenter and
-/// guiding checks notify the operator and the run keeps imaging. On, each of
-/// them stops the run as it used to. Takes effect on a running sequence at
-/// its next decision.
-pub async fn api_sequencer_set_stop_on_quality_problems(
-    stop_on_quality_problems: bool,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        "Setting sequencer quality policy: stop on quality problems={}",
-        stop_on_quality_problems
-    );
-    let executor = get_sequence_executor().read().await;
-    executor
-        .set_stop_on_quality_problems(stop_on_quality_problems)
-        .await;
-    Ok(())
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Set whether the standard weather and dawn triggers may park the mount and
-/// close the cover and dome: the operator's "Park on unsafe weather" and
-/// "Park before dawn" settings. Both default to parking. With one off, the
-/// trigger still stops the run exposing (weather) or ends it (dawn), without
-/// moving or closing anything. Takes effect on a running sequence at once.
-pub async fn api_sequencer_set_park_policy(
-    park_on_unsafe_weather: bool,
-    park_before_dawn: bool,
-) -> Result<(), SkotiqError> {
-    tracing::info!(
-        "Setting sequencer park policy: park on unsafe weather={}, park before dawn={}",
-        park_on_unsafe_weather,
-        park_before_dawn
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor
-        .set_park_policy(skotiq_sequencer::ParkPolicy {
-            park_on_unsafe_weather,
-            park_before_dawn,
-        })
-        .await;
-    Ok(())
-}
+    /// A start holds the executor through its preflight. Status reads and the
+    /// settings push answer meanwhile (the mount guard's run check reads the
+    /// same run state, without a lock at all).
+    #[tokio::test]
+    async fn status_and_settings_never_wait_on_the_executor() {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        let held = get_sequence_executor().write().await;
+        let answer = std::time::Duration::from_secs(2);
 
-/// Set how many times the sequencer retries a failed camera exposure and a
-/// failed filter-wheel move before the failure counts: the operator's "Camera
-/// retries" and "Filter wheel retries" settings, 3 each by default, 0 for a
-/// single attempt. Only faults that can clear are retried (a failed download,
-/// a timeout, a driver error); Stop, a device that reports itself not
-/// connected and a refused request are not. Takes effect on the next attempt
-/// of a running sequence.
-pub async fn api_sequencer_set_device_retries(
-    camera_retries: u32,
-    filter_wheel_retries: u32,
-) -> Result<(), SkotiqError> {
-    let max = skotiq_sequencer::MAX_DEVICE_RETRIES;
-    if camera_retries > max || filter_wheel_retries > max {
-        return Err(SkotiqError::InvalidParameter(format!(
-            "Retry counts must be 0 to {max} (camera {camera_retries}, \
-             filter wheel {filter_wheel_retries})"
-        )));
+        tokio::time::timeout(answer, api_sequencer_get_state())
+            .await
+            .expect("the status is read while the executor is held");
+        let config = skotiq_sequencer::executor_handle().run_config();
+        tokio::time::timeout(
+            answer,
+            api_sequencer_apply_run_config(serde_json::to_string(&config).unwrap()),
+        )
+        .await
+        .expect("the settings push does not wait on the executor")
+        .expect("the settings apply");
+        drop(held);
     }
-    tracing::info!(
-        "Setting sequencer device retries: camera={}, filter wheel={}",
-        camera_retries,
-        filter_wheel_retries
-    );
-    let mut executor = get_sequence_executor().write().await;
-    executor
-        .set_device_retry_policy(skotiq_sequencer::DeviceRetryPolicy {
-            camera_retries,
-            filter_wheel_retries,
-        })
+
+    #[tokio::test]
+    async fn a_run_config_the_executor_refuses_changes_nothing_and_says_why() {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        let before = skotiq_sequencer::executor_handle().run_config();
+
+        let refused = api_sequencer_apply_run_config(
+            r#"{"autofocus_interval_frames": 0, "dither": {"pixels": 9.0,
+                "settle_pixels": 1.0, "settle_time": 5.0, "settle_timeout": 60.0,
+                "ra_only": false}}"#
+                .to_string(),
+        )
         .await;
-    Ok(())
+        match refused {
+            Err(SkotiqError::InvalidParameter(reason)) => {
+                assert!(reason.contains("autofocus interval"), "{reason}")
+            }
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+        assert!(matches!(
+            api_sequencer_apply_run_config("not json".to_string()).await,
+            Err(SkotiqError::InvalidParameter(_))
+        ));
+        assert_eq!(skotiq_sequencer::executor_handle().run_config(), before);
+    }
 }

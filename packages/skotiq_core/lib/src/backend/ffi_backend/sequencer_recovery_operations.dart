@@ -105,7 +105,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
     String? filterwheelId,
     String? rotatorId,
     List<String>? filterNames,
-    Map<String, int>? filterFocusOffsets,
   }) async {
     await _native(
       'sequencerSetDevices',
@@ -116,62 +115,15 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
         filterwheelId: filterwheelId,
         rotatorId: rotatorId,
         filterNames: filterNames,
-        filterFocusOffsets: filterFocusOffsets,
       ),
     );
   }
 
   @override
-  Future<void> sequencerSetSafetyFailMode(String mode) async {
+  Future<void> sequencerApplyRunConfig(String runConfigJson) async {
     await _native(
-      'sequencerSetSafetyFailMode',
-      () => bridge.apiSequencerSetSafetyFailMode(mode: mode),
-    );
-  }
-
-  @override
-  Future<void> sequencerSetStopOnQualityProblems(bool stop) async {
-    await _native(
-      'sequencerSetStopOnQualityProblems',
-      () => bridge.apiSequencerSetStopOnQualityProblems(
-        stopOnQualityProblems: stop,
-      ),
-    );
-  }
-
-  @override
-  Future<void> sequencerSetParkPolicy({
-    required bool parkOnUnsafeWeather,
-    required bool parkBeforeDawn,
-  }) async {
-    await _native(
-      'sequencerSetParkPolicy',
-      () => bridge.apiSequencerSetParkPolicy(
-        parkOnUnsafeWeather: parkOnUnsafeWeather,
-        parkBeforeDawn: parkBeforeDawn,
-      ),
-    );
-  }
-
-  @override
-  Future<void> sequencerSetDeviceRetries({
-    required int cameraRetries,
-    required int filterWheelRetries,
-  }) async {
-    await _native(
-      'sequencerSetDeviceRetries',
-      () => bridge.apiSequencerSetDeviceRetries(
-        cameraRetries: cameraRetries,
-        filterWheelRetries: filterWheelRetries,
-      ),
-    );
-  }
-
-  @override
-  Future<void> sequencerSetSafetyCheckIntervalSeconds(int seconds) async {
-    await _native(
-      'sequencerSetSafetyCheckIntervalSeconds',
-      () => bridge.apiSequencerSetSafetyCheckIntervalSeconds(seconds: seconds),
+      'sequencerApplyRunConfig',
+      () => bridge.apiSequencerApplyRunConfig(configJson: runConfigJson),
     );
   }
 
@@ -194,64 +146,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> sequencerSetDecisionLoggingEnabled(bool enabled) async {
-    await _native(
-      'sequencerSetDecisionLoggingEnabled',
-      () => bridge.apiSequencerSetDecisionLoggingEnabled(enabled: enabled),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateDitherConfig({
-    required double pixels,
-    required double settlePixels,
-    required double settleTime,
-    required double settleTimeout,
-    required bool raOnly,
-  }) async {
-    await _native(
-      'sequencerUpdateDitherConfig',
-      () => bridge.apiSequencerUpdateDitherConfig(
-        pixels: pixels,
-        settlePixels: settlePixels,
-        settleTime: settleTime,
-        settleTimeout: settleTimeout,
-        raOnly: raOnly,
-      ),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateMeridianFlipConfig(String configJson) async {
-    await _native(
-      'sequencerUpdateMeridianFlipConfig',
-      () => bridge.apiSequencerUpdateMeridianFlipConfig(configJson: configJson),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateLocation({
-    required double latitude,
-    required double longitude,
-  }) async {
-    await _native(
-      'sequencerUpdateLocation',
-      () => bridge.apiSequencerUpdateLocation(
-        latitude: latitude,
-        longitude: longitude,
-      ),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateFilterOffsets(Map<String, int> offsets) async {
-    await _native(
-      'sequencerUpdateFilterOffsets',
-      () => bridge.apiSequencerUpdateFilterOffsets(offsets: offsets),
-    );
-  }
-
-  @override
   Future<void> sequencerUpdatePendingIntegrationCarryOver(
     Map<String, Map<String, double>> carryOver,
   ) async {
@@ -261,97 +155,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
       'sequencerUpdatePendingIntegrationCarryOver',
       () => bridge.apiSequencerUpdatePendingIntegrationCarryOver(
         carryOver: carryOver,
-      ),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateAutofocusInterval(int everyNFrames) async {
-    // Pushes the cadence into the live executor's
-    // standard `AutofocusInterval` trigger via the new FRB binding.
-    // The bridge rejects 0; pass >= 1.
-    await _native(
-      'sequencerUpdateAutofocusInterval',
-      () => bridge.apiSequencerUpdateAutofocusInterval(
-        everyNFrames: everyNFrames,
-      ),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateAutofocusConfig(String configJson) async {
-    await _native(
-      'sequencerUpdateAutofocusConfig',
-      () => bridge.apiSequencerUpdateAutofocusConfig(configJson: configJson),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateDefaultQualityCheck({
-    double? hfrThreshold,
-    double? hfrBaselinePercent,
-    double? eccentricityThreshold,
-    int? starCountMin,
-    required int maxConsecutiveRejects,
-    required bool enabled,
-  }) async {
-    // Pushes the global image-grading thresholds into the
-    // executor's RuntimeConfig.default_quality_check so the next
-    // exposure honours the user's choices. Disabled => None pushed.
-    await _native(
-      'sequencerUpdateDefaultQualityCheck',
-      () => bridge.apiSequencerUpdateDefaultQualityCheck(
-        hfrThreshold: hfrThreshold,
-        hfrBaselinePercent: hfrBaselinePercent,
-        eccentricityThreshold: eccentricityThreshold,
-        starCountMin: starCountMin,
-        maxConsecutiveRejects: maxConsecutiveRejects,
-        enabled: enabled,
-      ),
-    );
-  }
-
-  @override
-  Future<void> sequencerSetCameraFileSaving(String saving) async {
-    await _native(
-      'sequencerSetCameraFileSaving',
-      () => bridge.apiSequencerSetCameraFileSaving(saving: saving),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateRejectFolderPath(String? path) async {
-    // Pushes the reject-folder override into the executor.
-    // Empty / null => fall back to <save_path>/Reject/.
-    await _native(
-      'sequencerUpdateRejectFolderPath',
-      () => bridge.apiSequencerUpdateRejectFolderPath(path: path),
-    );
-  }
-
-  @override
-  Future<void> sequencerUpdateObserverProfile({
-    String? observerName,
-    double? siteElevationM,
-    String? cameraMake,
-    String? cameraModel,
-    String? telescopeName,
-    double? telescopeFocalLengthMm,
-    double? telescopeApertureMm,
-  }) async {
-    // Pushes observer / equipment identification into the
-    // executor so the next FITS save stamps OBSERVER, TELESCOP, FOCALLEN,
-    // APTDIA, INSTRUME, SITEELEV with real values.
-    await _native(
-      'sequencerUpdateObserverProfile',
-      () => bridge.apiSequencerUpdateObserverProfile(
-        observerName: observerName,
-        siteElevationM: siteElevationM,
-        cameraMake: cameraMake,
-        cameraModel: cameraModel,
-        telescopeName: telescopeName,
-        telescopeFocalLengthMm: telescopeFocalLengthMm,
-        telescopeApertureMm: telescopeApertureMm,
       ),
     );
   }
@@ -403,11 +206,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> sequencerSetWeatherResumeAfterSafeSecs(int seconds) async {
-    await bridge.apiSequencerSetWeatherResumeAfterSafeSecs(seconds: seconds);
-  }
-
-  @override
   Future<String?> sequencerGetCloudMotionJson() async {
     // JSON-serialised cloud-motion snapshot for the run
     // dashboard. Returns null until the first push has been received.
@@ -445,40 +243,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
     await bridge.apiSequencerUpdateSkyBrightness(mag: mag);
   }
 
-  @override
-  Future<void> sequencerUpdateDefaultAdaptiveExposure({
-    required bool enabled,
-    required double targetSnr,
-    required double referenceSkyBrightnessMag,
-    required double minExposureSecs,
-    required double maxExposureSecs,
-    required Map<String, bool> perFilterEnabled,
-    required Map<String, double> perFilterMinSecs,
-    required Map<String, double> perFilterMaxSecs,
-  }) async {
-    // Push the global default adaptive exposure config.
-    // FRB cannot bridge `Map<String, T>` directly, so we flatten to
-    // parallel (keys, values) lists matching the Rust API.
-    await bridge.apiSequencerUpdateDefaultAdaptiveExposure(
-      enabled: enabled,
-      targetSnr: targetSnr,
-      referenceSkyBrightnessMag: referenceSkyBrightnessMag,
-      minExposureSecs: minExposureSecs,
-      maxExposureSecs: maxExposureSecs,
-      perFilterEnabledKeys: perFilterEnabled.keys.toList(),
-      perFilterEnabledValues: perFilterEnabled.values.toList(),
-      perFilterMinKeys: perFilterMinSecs.keys.toList(),
-      perFilterMinValues: perFilterMinSecs.values.toList(),
-      perFilterMaxKeys: perFilterMaxSecs.keys.toList(),
-      perFilterMaxValues: perFilterMaxSecs.values.toList(),
-    );
-  }
-
-  @override
-  Future<void> sequencerClearDefaultAdaptiveExposure() async {
-    await bridge.apiSequencerClearDefaultAdaptiveExposure();
-  }
-
   // Recovery mode
   //
   // The Rust bridge exposes:
@@ -499,27 +263,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   @override
   Future<void> recoveryAbort() async {
     await bridge.apiSequencerRecoveryAbort();
-  }
-
-  @override
-  Future<void> updateRecoveryConfig({
-    required double retryIntervalSecs,
-    required double maxDurationSecs,
-    required bool stopTrackingDuringRecovery,
-    required bool abortOnMeridian,
-    required bool audibleAlertWhenEntered,
-    required bool parkAndCloseWhenRecoveryGivesUp,
-  }) async {
-    await bridge.apiSequencerUpdateRecoveryConfig(
-      update: bridge.RecoveryConfigUpdate(
-        retryIntervalSecs: retryIntervalSecs,
-        maxDurationSecs: maxDurationSecs,
-        stopTrackingDuringRecovery: stopTrackingDuringRecovery,
-        abortOnMeridian: abortOnMeridian,
-        audibleAlertWhenEntered: audibleAlertWhenEntered,
-        parkAndCloseWhenRecoveryGivesUp: parkAndCloseWhenRecoveryGivesUp,
-      ),
-    );
   }
 
   @override

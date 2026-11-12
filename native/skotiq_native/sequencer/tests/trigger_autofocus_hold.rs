@@ -282,15 +282,19 @@ impl Run {
         // stopped for the sweep (the owner's setting); the failure action and
         // the HFR tolerance stay at their shipped defaults.
         executor
-            .update_autofocus_config(AutofocusConfig {
-                disable_guiding_during_af: true,
-                number_of_attempts: 1,
-                steps_out: 2,
-                exposure_duration,
-                focuser_settle_time_ms: 0,
-                ..AutofocusConfig::default()
+            .handle()
+            .update_run_config(|config| {
+                config.autofocus = Some(AutofocusConfig {
+                    disable_guiding_during_af: true,
+                    number_of_attempts: 1,
+                    steps_out: 2,
+                    exposure_duration,
+                    focuser_settle_time_ms: 0,
+                    ..AutofocusConfig::default()
+                })
             })
-            .await;
+            .await
+            .unwrap();
         let mut sequence = SequenceDefinition::new("Trigger autofocus".to_string());
         sequence.nodes.push(NodeDefinition {
             id: "wait".to_string(),

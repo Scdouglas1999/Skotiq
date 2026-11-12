@@ -1787,7 +1787,14 @@ async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
     drop(rx);
     executor.command_tx = Some(tx);
 
-    executor.update_location(Some(39.97), Some(-75.36)).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(39.97);
+            config.longitude = Some(-75.36);
+        })
+        .await
+        .unwrap();
 
     let manager = executor.trigger_manager.read().await;
     let state = manager.state();

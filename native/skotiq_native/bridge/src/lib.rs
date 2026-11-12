@@ -58,7 +58,6 @@ mod ascom_sensor_type;
 #[cfg(windows)]
 mod ascom_wrapper;
 mod builtin_guider;
-mod capture_file_format;
 mod depthlock_service;
 mod device;
 mod device_capabilities;

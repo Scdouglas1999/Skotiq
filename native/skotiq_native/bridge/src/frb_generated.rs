@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -971320646;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 99863083;
 
 // Section: executor
 
@@ -5195,6 +5195,34 @@ fn wire__crate__api__imaging__api_sequencer_apply_defect_map_impl(
         },
     )
 }
+fn wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    config_json: impl CstDecode<String>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_sequencer_apply_run_config",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_config_json = config_json.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::sequencer::runtime_config::api_sequencer_apply_run_config(
+                                api_config_json,
+                            )
+                            .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
 fn wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -5214,15 +5242,6 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint_impl(
             }
         },
     )
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_clear_default_adaptive_exposure", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {  move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_clear_default_adaptive_exposure().await?;   Ok(output_ok)
-                    })().await)
-                } })
 }
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_get_adaptive_swap_json_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
@@ -5589,16 +5608,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequenc
                     })().await)
                 } })
 }
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    saving: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_camera_file_saving", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_saving = saving.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_camera_file_saving(api_saving).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
 fn wire__crate__api__sequencer__lifecycle__api_sequencer_set_checkpoint_dir_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     path: impl CstDecode<String>,
@@ -5627,27 +5636,6 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_set_checkpoint_dir_impl
         },
     )
 }
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    enabled: impl CstDecode<bool>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_decision_logging_enabled", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_enabled = enabled.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_decision_logging_enabled(api_enabled).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    camera_retries: impl CstDecode<u32>,
-    filter_wheel_retries: impl CstDecode<u32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_device_retries", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_camera_retries = camera_retries.cst_decode();let api_filter_wheel_retries = filter_wheel_retries.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_device_retries(api_camera_retries, api_filter_wheel_retries).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     camera_id: impl CstDecode<Option<String>>,
@@ -5656,7 +5644,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices_impl(
     filterwheel_id: impl CstDecode<Option<String>>,
     rotator_id: impl CstDecode<Option<String>>,
     filter_names: impl CstDecode<Option<Vec<String>>>,
-    filter_focus_offsets: impl CstDecode<Option<std::collections::HashMap<String, i32>>>,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -5671,7 +5658,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices_impl(
             let api_filterwheel_id = filterwheel_id.cst_decode();
             let api_rotator_id = rotator_id.cst_decode();
             let api_filter_names = filter_names.cst_decode();
-            let api_filter_focus_offsets = filter_focus_offsets.cst_decode();
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
@@ -5683,7 +5669,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices_impl(
                                 api_filterwheel_id,
                                 api_rotator_id,
                                 api_filter_names,
-                                api_filter_focus_offsets,
                             )
                             .await?;
                         Ok(output_ok)
@@ -5693,57 +5678,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices_impl(
             }
         },
     )
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    park_on_unsafe_weather: impl CstDecode<bool>,
-    park_before_dawn: impl CstDecode<bool>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_sequencer_set_park_policy",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_park_on_unsafe_weather = park_on_unsafe_weather.cst_decode();
-            let api_park_before_dawn = park_before_dawn.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::sequencer::runtime_config::api_sequencer_set_park_policy(
-                                api_park_on_unsafe_weather,
-                                api_park_before_dawn,
-                            )
-                            .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    seconds: impl CstDecode<u32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_safety_check_interval_seconds", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_seconds = seconds.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_safety_check_interval_seconds(api_seconds).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    mode: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_safety_fail_mode", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_mode = mode.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_safety_fail_mode(api_mode).await?;   Ok(output_ok)
-                    })().await)
-                } })
 }
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_save_path_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
@@ -5783,16 +5717,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_simulation_mod
                     })().await)
                 } })
 }
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    stop_on_quality_problems: impl CstDecode<bool>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_stop_on_quality_problems", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_stop_on_quality_problems = stop_on_quality_problems.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_stop_on_quality_problems(api_stop_on_quality_problems).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     duration_secs: impl CstDecode<u32>,
@@ -5801,16 +5725,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operat
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_weather_operator_clear", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_duration_secs = duration_secs.cst_decode();let api_reason = reason.cst_decode(); move |context| async move {
                     transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
                          let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_weather_operator_clear(api_duration_secs, api_reason).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    seconds: impl CstDecode<u32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_set_weather_resume_after_safe_secs", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_seconds = seconds.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_set_weather_resume_after_safe_secs(api_seconds).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -5938,26 +5852,6 @@ fn wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events_imp
         },
     )
 }
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    config_json: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_autofocus_config", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_config_json = config_json.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_autofocus_config(api_config_json).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    every_n_frames: impl CstDecode<u32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_autofocus_interval", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_every_n_frames = every_n_frames.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_autofocus_interval(api_every_n_frames).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_cloud_motion_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     current_cover_percent: impl CstDecode<Option<f64>>,
@@ -5992,122 +5886,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_conditions_
                     })().await)
                 } })
 }
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    enabled: impl CstDecode<bool>,
-    target_snr: impl CstDecode<f64>,
-    reference_sky_brightness_mag: impl CstDecode<f64>,
-    min_exposure_secs: impl CstDecode<f64>,
-    max_exposure_secs: impl CstDecode<f64>,
-    per_filter_enabled_keys: impl CstDecode<Vec<String>>,
-    per_filter_enabled_values: impl CstDecode<Vec<bool>>,
-    per_filter_min_keys: impl CstDecode<Vec<String>>,
-    per_filter_min_values: impl CstDecode<Vec<f64>>,
-    per_filter_max_keys: impl CstDecode<Vec<String>>,
-    per_filter_max_values: impl CstDecode<Vec<f64>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_default_adaptive_exposure", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_enabled = enabled.cst_decode();let api_target_snr = target_snr.cst_decode();let api_reference_sky_brightness_mag = reference_sky_brightness_mag.cst_decode();let api_min_exposure_secs = min_exposure_secs.cst_decode();let api_max_exposure_secs = max_exposure_secs.cst_decode();let api_per_filter_enabled_keys = per_filter_enabled_keys.cst_decode();let api_per_filter_enabled_values = per_filter_enabled_values.cst_decode();let api_per_filter_min_keys = per_filter_min_keys.cst_decode();let api_per_filter_min_values = per_filter_min_values.cst_decode();let api_per_filter_max_keys = per_filter_max_keys.cst_decode();let api_per_filter_max_values = per_filter_max_values.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_default_adaptive_exposure(api_enabled, api_target_snr, api_reference_sky_brightness_mag, api_min_exposure_secs, api_max_exposure_secs, api_per_filter_enabled_keys, api_per_filter_enabled_values, api_per_filter_min_keys, api_per_filter_min_values, api_per_filter_max_keys, api_per_filter_max_values).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    hfr_threshold: impl CstDecode<Option<f64>>,
-    hfr_baseline_percent: impl CstDecode<Option<f64>>,
-    eccentricity_threshold: impl CstDecode<Option<f64>>,
-    star_count_min: impl CstDecode<Option<u32>>,
-    max_consecutive_rejects: impl CstDecode<u32>,
-    enabled: impl CstDecode<bool>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_default_quality_check", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_hfr_threshold = hfr_threshold.cst_decode();let api_hfr_baseline_percent = hfr_baseline_percent.cst_decode();let api_eccentricity_threshold = eccentricity_threshold.cst_decode();let api_star_count_min = star_count_min.cst_decode();let api_max_consecutive_rejects = max_consecutive_rejects.cst_decode();let api_enabled = enabled.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_default_quality_check(api_hfr_threshold, api_hfr_baseline_percent, api_eccentricity_threshold, api_star_count_min, api_max_consecutive_rejects, api_enabled).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    pixels: impl CstDecode<f64>,
-    settle_pixels: impl CstDecode<f64>,
-    settle_time: impl CstDecode<f64>,
-    settle_timeout: impl CstDecode<f64>,
-    ra_only: impl CstDecode<bool>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_dither_config", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_pixels = pixels.cst_decode();let api_settle_pixels = settle_pixels.cst_decode();let api_settle_time = settle_time.cst_decode();let api_settle_timeout = settle_timeout.cst_decode();let api_ra_only = ra_only.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_dither_config(api_pixels, api_settle_pixels, api_settle_time, api_settle_timeout, api_ra_only).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    offsets: impl CstDecode<std::collections::HashMap<String, i32>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_filter_offsets", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_offsets = offsets.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_filter_offsets(api_offsets).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_location_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    latitude: impl CstDecode<Option<f64>>,
-    longitude: impl CstDecode<Option<f64>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_sequencer_update_location",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_latitude = latitude.cst_decode();
-            let api_longitude = longitude.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::sequencer::runtime_config::api_sequencer_update_location(
-                                api_latitude,
-                                api_longitude,
-                            )
-                            .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    config_json: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_meridian_flip_config", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_config_json = config_json.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_meridian_flip_config(api_config_json).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    observer_name: impl CstDecode<Option<String>>,
-    site_elevation_m: impl CstDecode<Option<f64>>,
-    camera_make: impl CstDecode<Option<String>>,
-    camera_model: impl CstDecode<Option<String>>,
-    telescope_name: impl CstDecode<Option<String>>,
-    telescope_focal_length_mm: impl CstDecode<Option<f64>>,
-    telescope_aperture_mm: impl CstDecode<Option<f64>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_observer_profile", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_observer_name = observer_name.cst_decode();let api_site_elevation_m = site_elevation_m.cst_decode();let api_camera_make = camera_make.cst_decode();let api_camera_model = camera_model.cst_decode();let api_telescope_name = telescope_name.cst_decode();let api_telescope_focal_length_mm = telescope_focal_length_mm.cst_decode();let api_telescope_aperture_mm = telescope_aperture_mm.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_observer_profile(api_observer_name, api_site_elevation_m, api_camera_make, api_camera_model, api_telescope_name, api_telescope_focal_length_mm, api_telescope_aperture_mm).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_pending_integration_carry_over_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     carry_over: impl CstDecode<
@@ -6117,26 +5895,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_pending_int
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_pending_integration_carry_over", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_carry_over = carry_over.cst_decode(); move |context| async move {
                     transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
                          let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_pending_integration_carry_over(api_carry_over).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    update: impl CstDecode<crate::api::sequencer::runtime_config::RecoveryConfigUpdate>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_recovery_config", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_update = update.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_recovery_config(api_update).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    path: impl CstDecode<Option<String>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_sequencer_update_reject_folder_path", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_path = path.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_reject_folder_path(api_path).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -6160,35 +5918,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_ver
                          let output_ok = crate::api::sequencer::runtime_config::api_sequencer_update_weather_verdict(api_unsafe_override, api_advisory).await?;   Ok(output_ok)
                     })().await)
                 } })
-}
-fn wire__crate__api__imaging__api_set_capture_file_format_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    format: impl CstDecode<String>,
-    xisf_compression: impl CstDecode<String>,
-    xisf_checksums: impl CstDecode<bool>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_set_capture_file_format",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_format = format.cst_decode();
-            let api_xisf_compression = xisf_compression.cst_decode();
-            let api_xisf_checksums = xisf_checksums.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                    let output_ok = crate::api::imaging::api_set_capture_file_format(
-                        api_format,
-                        api_xisf_compression,
-                        api_xisf_checksums,
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
 }
 fn wire__crate__api__storage__api_set_location_impl(
     location: impl CstDecode<Option<crate::storage::ObserverLocation>>,
@@ -7923,14 +7652,6 @@ impl SseDecode for std::collections::HashMap<String, crate::device::FieldAvailab
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <Vec<(String, crate::device::FieldAvailability)>>::sse_decode(deserializer);
-        return inner.into_iter().collect();
-    }
-}
-
-impl SseDecode for std::collections::HashMap<String, i32> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <Vec<(String, i32)>>::sse_decode(deserializer);
         return inner.into_iter().collect();
     }
 }
@@ -10270,18 +9991,6 @@ impl SseDecode for Vec<crate::api::depthlock::ApiDepthGoal> {
     }
 }
 
-impl SseDecode for Vec<bool> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = vec![];
-        for idx_ in 0..len_ {
-            ans_.push(<bool>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
 impl SseDecode for Vec<crate::api::imaging::DetectedStarInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10483,18 +10192,6 @@ impl SseDecode for Vec<(String, crate::device::FieldAvailability)> {
             ans_.push(<(String, crate::device::FieldAvailability)>::sse_decode(
                 deserializer,
             ));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<(String, i32)> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = vec![];
-        for idx_ in 0..len_ {
-            ans_.push(<(String, i32)>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -10871,19 +10568,6 @@ impl SseDecode for crate::storage::ObserverLocation {
             longitude: var_longitude,
             elevation: var_elevation,
         };
-    }
-}
-
-impl SseDecode for Option<std::collections::HashMap<String, i32>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        if (<bool>::sse_decode(deserializer)) {
-            return Some(<std::collections::HashMap<String, i32>>::sse_decode(
-                deserializer,
-            ));
-        } else {
-            return None;
-        }
     }
 }
 
@@ -11547,15 +11231,6 @@ impl SseDecode for (String, crate::device::FieldAvailability) {
     }
 }
 
-impl SseDecode for (String, i32) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_field0 = <String>::sse_decode(deserializer);
-        let mut var_field1 = <i32>::sse_decode(deserializer);
-        return (var_field0, var_field1);
-    }
-}
-
 impl SseDecode for (String, std::collections::HashMap<String, f64>) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11571,26 +11246,6 @@ impl SseDecode for (String, u32) {
         let mut var_field0 = <String>::sse_decode(deserializer);
         let mut var_field1 = <u32>::sse_decode(deserializer);
         return (var_field0, var_field1);
-    }
-}
-
-impl SseDecode for crate::api::sequencer::runtime_config::RecoveryConfigUpdate {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_retryIntervalSecs = <f64>::sse_decode(deserializer);
-        let mut var_maxDurationSecs = <f64>::sse_decode(deserializer);
-        let mut var_stopTrackingDuringRecovery = <bool>::sse_decode(deserializer);
-        let mut var_abortOnMeridian = <bool>::sse_decode(deserializer);
-        let mut var_audibleAlertWhenEntered = <bool>::sse_decode(deserializer);
-        let mut var_parkAndCloseWhenRecoveryGivesUp = <bool>::sse_decode(deserializer);
-        return crate::api::sequencer::runtime_config::RecoveryConfigUpdate {
-            retry_interval_secs: var_retryIntervalSecs,
-            max_duration_secs: var_maxDurationSecs,
-            stop_tracking_during_recovery: var_stopTrackingDuringRecovery,
-            abort_on_meridian: var_abortOnMeridian,
-            audible_alert_when_entered: var_audibleAlertWhenEntered,
-            park_and_close_when_recovery_gives_up: var_parkAndCloseWhenRecoveryGivesUp,
-        };
     }
 }
 
@@ -16054,35 +15709,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::QuirkInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::sequencer::runtime_config::RecoveryConfigUpdate {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.retry_interval_secs.into_into_dart().into_dart(),
-            self.max_duration_secs.into_into_dart().into_dart(),
-            self.stop_tracking_during_recovery
-                .into_into_dart()
-                .into_dart(),
-            self.abort_on_meridian.into_into_dart().into_dart(),
-            self.audible_alert_when_entered.into_into_dart().into_dart(),
-            self.park_and_close_when_recovery_gives_up
-                .into_into_dart()
-                .into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::sequencer::runtime_config::RecoveryConfigUpdate
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::sequencer::runtime_config::RecoveryConfigUpdate>
-    for crate::api::sequencer::runtime_config::RecoveryConfigUpdate
-{
-    fn into_into_dart(self) -> crate::api::sequencer::runtime_config::RecoveryConfigUpdate {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::device_capabilities::types::RotatorCapabilities {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -17720,13 +17346,6 @@ impl SseEncode for std::collections::HashMap<String, crate::device::FieldAvailab
             self.into_iter().collect(),
             serializer,
         );
-    }
-}
-
-impl SseEncode for std::collections::HashMap<String, i32> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Vec<(String, i32)>>::sse_encode(self.into_iter().collect(), serializer);
     }
 }
 
@@ -19469,16 +19088,6 @@ impl SseEncode for Vec<crate::api::depthlock::ApiDepthGoal> {
     }
 }
 
-impl SseEncode for Vec<bool> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <bool>::sse_encode(item, serializer);
-        }
-    }
-}
-
 impl SseEncode for Vec<crate::api::imaging::DetectedStarInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -19635,16 +19244,6 @@ impl SseEncode for Vec<(String, crate::device::FieldAvailability)> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <(String, crate::device::FieldAvailability)>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<(String, i32)> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <(String, i32)>::sse_encode(item, serializer);
         }
     }
 }
@@ -19886,16 +19485,6 @@ impl SseEncode for crate::storage::ObserverLocation {
         <f64>::sse_encode(self.latitude, serializer);
         <f64>::sse_encode(self.longitude, serializer);
         <f64>::sse_encode(self.elevation, serializer);
-    }
-}
-
-impl SseEncode for Option<std::collections::HashMap<String, i32>> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.is_some(), serializer);
-        if let Some(value) = self {
-            <std::collections::HashMap<String, i32>>::sse_encode(value, serializer);
-        }
     }
 }
 
@@ -20401,14 +19990,6 @@ impl SseEncode for (String, crate::device::FieldAvailability) {
     }
 }
 
-impl SseEncode for (String, i32) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.0, serializer);
-        <i32>::sse_encode(self.1, serializer);
-    }
-}
-
 impl SseEncode for (String, std::collections::HashMap<String, f64>) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20422,18 +20003,6 @@ impl SseEncode for (String, u32) {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.0, serializer);
         <u32>::sse_encode(self.1, serializer);
-    }
-}
-
-impl SseEncode for crate::api::sequencer::runtime_config::RecoveryConfigUpdate {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <f64>::sse_encode(self.retry_interval_secs, serializer);
-        <f64>::sse_encode(self.max_duration_secs, serializer);
-        <bool>::sse_encode(self.stop_tracking_during_recovery, serializer);
-        <bool>::sse_encode(self.abort_on_meridian, serializer);
-        <bool>::sse_encode(self.audible_alert_when_entered, serializer);
-        <bool>::sse_encode(self.park_and_close_when_recovery_gives_up, serializer);
     }
 }
 
@@ -21737,13 +21306,6 @@ mod io {
             vec.into_iter().collect()
         }
     }
-    impl CstDecode<std::collections::HashMap<String, i32>> for *mut wire_cst_list_record_string_i_32 {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> std::collections::HashMap<String, i32> {
-            let vec: Vec<(String, i32)> = self.cst_decode();
-            vec.into_iter().collect()
-        }
-    }
     impl CstDecode<std::collections::HashMap<String, u32>> for *mut wire_cst_list_record_string_u_32 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> std::collections::HashMap<String, u32> {
@@ -22435,18 +21997,6 @@ mod io {
         fn cst_decode(self) -> (f64, f64) {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<(f64, f64)>::cst_decode(*wrap).into()
-        }
-    }
-    impl CstDecode<crate::api::sequencer::runtime_config::RecoveryConfigUpdate>
-        for *mut wire_cst_recovery_config_update
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sequencer::runtime_config::RecoveryConfigUpdate {
-            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
-            CstDecode::<crate::api::sequencer::runtime_config::RecoveryConfigUpdate>::cst_decode(
-                *wrap,
-            )
-            .into()
         }
     }
     impl CstDecode<crate::device_capabilities::types::RotatorCapabilities>
@@ -23687,16 +23237,6 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
-    impl CstDecode<Vec<bool>> for *mut wire_cst_list_bool {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<bool> {
-            let vec = unsafe {
-                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
-                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
-            };
-            vec.into_iter().map(CstDecode::cst_decode).collect()
-        }
-    }
     impl CstDecode<Vec<crate::api::imaging::DetectedStarInfo>>
         for *mut wire_cst_list_detected_star_info
     {
@@ -23769,15 +23309,6 @@ mod io {
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
             };
             vec.into_iter().map(CstDecode::cst_decode).collect()
-        }
-    }
-    impl CstDecode<Vec<f64>> for *mut wire_cst_list_prim_f_64_loose {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<f64> {
-            unsafe {
-                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
-                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
-            }
         }
     }
     impl CstDecode<Vec<f64>> for *mut wire_cst_list_prim_f_64_strict {
@@ -23889,16 +23420,6 @@ mod io {
     {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<(String, crate::device::FieldAvailability)> {
-            let vec = unsafe {
-                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
-                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
-            };
-            vec.into_iter().map(CstDecode::cst_decode).collect()
-        }
-    }
-    impl CstDecode<Vec<(String, i32)>> for *mut wire_cst_list_record_string_i_32 {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> Vec<(String, i32)> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -24365,12 +23886,6 @@ mod io {
             (self.field0.cst_decode(), self.field1.cst_decode())
         }
     }
-    impl CstDecode<(String, i32)> for wire_cst_record_string_i_32 {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> (String, i32) {
-            (self.field0.cst_decode(), self.field1.cst_decode())
-        }
-    }
     impl CstDecode<(String, std::collections::HashMap<String, f64>)>
         for wire_cst_record_string_map_string_f_64_none
     {
@@ -24383,23 +23898,6 @@ mod io {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> (String, u32) {
             (self.field0.cst_decode(), self.field1.cst_decode())
-        }
-    }
-    impl CstDecode<crate::api::sequencer::runtime_config::RecoveryConfigUpdate>
-        for wire_cst_recovery_config_update
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::sequencer::runtime_config::RecoveryConfigUpdate {
-            crate::api::sequencer::runtime_config::RecoveryConfigUpdate {
-                retry_interval_secs: self.retry_interval_secs.cst_decode(),
-                max_duration_secs: self.max_duration_secs.cst_decode(),
-                stop_tracking_during_recovery: self.stop_tracking_during_recovery.cst_decode(),
-                abort_on_meridian: self.abort_on_meridian.cst_decode(),
-                audible_alert_when_entered: self.audible_alert_when_entered.cst_decode(),
-                park_and_close_when_recovery_gives_up: self
-                    .park_and_close_when_recovery_gives_up
-                    .cst_decode(),
-            }
         }
     }
     impl CstDecode<crate::device_capabilities::types::RotatorCapabilities>
@@ -27024,19 +26522,6 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
-    impl NewWithNullPtr for wire_cst_record_string_i_32 {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                field0: core::ptr::null_mut(),
-                field1: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_record_string_i_32 {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
     impl NewWithNullPtr for wire_cst_record_string_map_string_f_64_none {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -27059,23 +26544,6 @@ mod io {
         }
     }
     impl Default for wire_cst_record_string_u_32 {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_recovery_config_update {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                retry_interval_secs: Default::default(),
-                max_duration_secs: Default::default(),
-                stop_tracking_during_recovery: Default::default(),
-                abort_on_meridian: Default::default(),
-                audible_alert_when_entered: Default::default(),
-                park_and_close_when_recovery_gives_up: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_recovery_config_update {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -29499,17 +28967,21 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config(
+        port_: i64,
+        config_json: *mut wire_cst_list_prim_u_8_strict,
+    ) {
+        wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config_impl(
+            port_,
+            config_json,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint(
         port_: i64,
     ) {
         wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure(
-        port_: i64,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -29660,44 +29132,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(
-        port_: i64,
-        saving: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving_impl(
-            port_, saving,
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_sequencer_set_checkpoint_dir(
         port_: i64,
         path: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__sequencer__lifecycle__api_sequencer_set_checkpoint_dir_impl(port_, path)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled(
-        port_: i64,
-        enabled: bool,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled_impl(
-            port_, enabled,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries(
-        port_: i64,
-        camera_retries: u32,
-        filter_wheel_retries: u32,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries_impl(
-            port_,
-            camera_retries,
-            filter_wheel_retries,
-        )
     }
 
     #[unsafe(no_mangle)]
@@ -29709,7 +29148,6 @@ mod io {
         filterwheel_id: *mut wire_cst_list_prim_u_8_strict,
         rotator_id: *mut wire_cst_list_prim_u_8_strict,
         filter_names: *mut wire_cst_list_String,
-        filter_focus_offsets: *mut wire_cst_list_record_string_i_32,
     ) {
         wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices_impl(
             port_,
@@ -29719,38 +29157,6 @@ mod io {
             filterwheel_id,
             rotator_id,
             filter_names,
-            filter_focus_offsets,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(
-        port_: i64,
-        park_on_unsafe_weather: bool,
-        park_before_dawn: bool,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy_impl(
-            port_,
-            park_on_unsafe_weather,
-            park_before_dawn,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds(
-        port_: i64,
-        seconds: u32,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds_impl(port_, seconds)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode(
-        port_: i64,
-        mode: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode_impl(
-            port_, mode,
         )
     }
 
@@ -29773,17 +29179,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(
-        port_: i64,
-        stop_on_quality_problems: bool,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems_impl(
-            port_,
-            stop_on_quality_problems,
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear(
         port_: i64,
         duration_secs: u32,
@@ -29794,14 +29189,6 @@ mod io {
             duration_secs,
             reason,
         )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(
-        port_: i64,
-        seconds: u32,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs_impl(port_, seconds)
     }
 
     #[unsafe(no_mangle)]
@@ -29839,28 +29226,6 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config(
-        port_: i64,
-        config_json: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config_impl(
-            port_,
-            config_json,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval(
-        port_: i64,
-        every_n_frames: u32,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval_impl(
-            port_,
-            every_n_frames,
-        )
     }
 
     #[unsafe(no_mangle)]
@@ -29914,144 +29279,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure(
-        port_: i64,
-        enabled: bool,
-        target_snr: f64,
-        reference_sky_brightness_mag: f64,
-        min_exposure_secs: f64,
-        max_exposure_secs: f64,
-        per_filter_enabled_keys: *mut wire_cst_list_String,
-        per_filter_enabled_values: *mut wire_cst_list_bool,
-        per_filter_min_keys: *mut wire_cst_list_String,
-        per_filter_min_values: *mut wire_cst_list_prim_f_64_loose,
-        per_filter_max_keys: *mut wire_cst_list_String,
-        per_filter_max_values: *mut wire_cst_list_prim_f_64_loose,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure_impl(port_, enabled, target_snr, reference_sky_brightness_mag, min_exposure_secs, max_exposure_secs, per_filter_enabled_keys, per_filter_enabled_values, per_filter_min_keys, per_filter_min_values, per_filter_max_keys, per_filter_max_values)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check(
-        port_: i64,
-        hfr_threshold: *mut f64,
-        hfr_baseline_percent: *mut f64,
-        eccentricity_threshold: *mut f64,
-        star_count_min: *mut u32,
-        max_consecutive_rejects: u32,
-        enabled: bool,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check_impl(
-            port_,
-            hfr_threshold,
-            hfr_baseline_percent,
-            eccentricity_threshold,
-            star_count_min,
-            max_consecutive_rejects,
-            enabled,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config(
-        port_: i64,
-        pixels: f64,
-        settle_pixels: f64,
-        settle_time: f64,
-        settle_timeout: f64,
-        ra_only: bool,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config_impl(
-            port_,
-            pixels,
-            settle_pixels,
-            settle_time,
-            settle_timeout,
-            ra_only,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets(
-        port_: i64,
-        offsets: *mut wire_cst_list_record_string_i_32,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets_impl(
-            port_, offsets,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_location(
-        port_: i64,
-        latitude: *mut f64,
-        longitude: *mut f64,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_location_impl(
-            port_, latitude, longitude,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config(
-        port_: i64,
-        config_json: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config_impl(
-            port_,
-            config_json,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile(
-        port_: i64,
-        observer_name: *mut wire_cst_list_prim_u_8_strict,
-        site_elevation_m: *mut f64,
-        camera_make: *mut wire_cst_list_prim_u_8_strict,
-        camera_model: *mut wire_cst_list_prim_u_8_strict,
-        telescope_name: *mut wire_cst_list_prim_u_8_strict,
-        telescope_focal_length_mm: *mut f64,
-        telescope_aperture_mm: *mut f64,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile_impl(
-            port_,
-            observer_name,
-            site_elevation_m,
-            camera_make,
-            camera_model,
-            telescope_name,
-            telescope_focal_length_mm,
-            telescope_aperture_mm,
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_pending_integration_carry_over(
         port_: i64,
         carry_over: *mut wire_cst_list_record_string_map_string_f_64_none,
     ) {
         wire__crate__api__sequencer__runtime_config__api_sequencer_update_pending_integration_carry_over_impl(port_, carry_over)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config(
-        port_: i64,
-        update: *mut wire_cst_recovery_config_update,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config_impl(
-            port_, update,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path(
-        port_: i64,
-        path: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path_impl(
-            port_, path,
-        )
     }
 
     #[unsafe(no_mangle)]
@@ -30074,21 +29306,6 @@ mod io {
             port_,
             unsafe_override,
             advisory,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_set_capture_file_format(
-        port_: i64,
-        format: *mut wire_cst_list_prim_u_8_strict,
-        xisf_compression: *mut wire_cst_list_prim_u_8_strict,
-        xisf_checksums: bool,
-    ) {
-        wire__crate__api__imaging__api_set_capture_file_format_impl(
-            port_,
-            format,
-            xisf_compression,
-            xisf_checksums,
         )
     }
 
@@ -30959,14 +30176,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_recovery_config_update(
-    ) -> *mut wire_cst_recovery_config_update {
-        flutter_rust_bridge::for_generated::new_leak_box_ptr(
-            wire_cst_recovery_config_update::new_with_null_ptr(),
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_rotator_capabilities(
     ) -> *mut wire_cst_rotator_capabilities {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -31118,15 +30327,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_bool(len: i32) -> *mut wire_cst_list_bool {
-        let wrap = wire_cst_list_bool {
-            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(Default::default(), len),
-            len,
-        };
-        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_detected_star_info(
         len: i32,
     ) -> *mut wire_cst_list_detected_star_info {
@@ -31219,17 +30419,6 @@ mod io {
             len,
         };
         flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_prim_f_64_loose(
-        len: i32,
-    ) -> *mut wire_cst_list_prim_f_64_loose {
-        let ans = wire_cst_list_prim_f_64_loose {
-            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(Default::default(), len),
-            len,
-        };
-        flutter_rust_bridge::for_generated::new_leak_box_ptr(ans)
     }
 
     #[unsafe(no_mangle)]
@@ -31369,20 +30558,6 @@ mod io {
         let wrap = wire_cst_list_record_string_field_availability {
             ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
                 <wire_cst_record_string_field_availability>::new_with_null_ptr(),
-                len,
-            ),
-            len,
-        };
-        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_record_string_i_32(
-        len: i32,
-    ) -> *mut wire_cst_list_record_string_i_32 {
-        let wrap = wire_cst_list_record_string_i_32 {
-            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(
-                <wire_cst_record_string_i_32>::new_with_null_ptr(),
                 len,
             ),
             len,
@@ -32768,12 +31943,6 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
-    pub struct wire_cst_list_bool {
-        ptr: *mut bool,
-        len: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
     pub struct wire_cst_list_detected_star_info {
         ptr: *mut wire_cst_detected_star_info,
         len: i32,
@@ -32812,12 +31981,6 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_mount_guard_status {
         ptr: *mut wire_cst_mount_guard_status,
-        len: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_list_prim_f_64_loose {
-        ptr: *mut f64,
         len: i32,
     }
     #[repr(C)]
@@ -32890,12 +32053,6 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_record_string_field_availability {
         ptr: *mut wire_cst_record_string_field_availability,
-        len: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_list_record_string_i_32 {
-        ptr: *mut wire_cst_record_string_i_32,
         len: i32,
     }
     #[repr(C)]
@@ -33241,12 +32398,6 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
-    pub struct wire_cst_record_string_i_32 {
-        field0: *mut wire_cst_list_prim_u_8_strict,
-        field1: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
     pub struct wire_cst_record_string_map_string_f_64_none {
         field0: *mut wire_cst_list_prim_u_8_strict,
         field1: *mut wire_cst_list_record_string_f_64,
@@ -33256,16 +32407,6 @@ mod io {
     pub struct wire_cst_record_string_u_32 {
         field0: *mut wire_cst_list_prim_u_8_strict,
         field1: u32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_recovery_config_update {
-        retry_interval_secs: f64,
-        max_duration_secs: f64,
-        stop_tracking_during_recovery: bool,
-        abort_on_meridian: bool,
-        audible_alert_when_entered: bool,
-        park_and_close_when_recovery_gives_up: bool,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

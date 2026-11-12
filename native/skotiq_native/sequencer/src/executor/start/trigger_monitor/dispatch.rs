@@ -562,11 +562,14 @@ mod tests {
             mount_id: Some("mount".into()),
             focuser_id: Some("focuser".into()),
             save_path: Some(std::path::PathBuf::from("/captures")),
+            ..RunRig::default()
+        };
+        run.config = crate::executor::RunConfigStore::new(crate::executor::RunConfig {
             latitude: Some(45.0),
             longitude: Some(-122.0),
             filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
-            ..RunRig::default()
-        };
+            ..crate::executor::RunConfig::default()
+        });
         let (dispatcher, context) = dispatcher_for(&run).await;
 
         let ctx = dispatcher.rig.instruction_context(
@@ -604,6 +607,33 @@ mod tests {
         assert_eq!(ctx.run.rig.save_path, run.rig.save_path);
         assert_eq!(ctx.run.rig.latitude, Some(45.0));
         assert_eq!(ctx.run.rig.filter_focus_offsets.get("Ha"), Some(&42));
+
+        // The operator edits the offsets and the site during the run: the next
+        // trigger action (a refocus, a dither, a recenter) takes them, the one
+        // already running keeps what it started with.
+        run.config
+            .update(&run.triggers, &run.control.state, |config| {
+                config.filter_focus_offsets = HashMap::from([("Ha".to_string(), 120)]);
+                config.latitude = Some(46.0);
+            })
+            .await
+            .expect("the settings apply");
+        let next = dispatcher.rig.instruction_context(
+            TargetSnapshot {
+                name: Some("M31".into()),
+                ra_hours: Some(0.71),
+                dec_degrees: Some(41.27),
+                filter: Some("Ha".into()),
+            },
+            &dispatcher.run,
+        );
+        assert_eq!(next.run.rig.filter_focus_offsets.get("Ha"), Some(&120));
+        assert_eq!(next.run.rig.latitude, Some(46.0));
+        assert_eq!(ctx.run.rig.filter_focus_offsets.get("Ha"), Some(&42));
+        assert_eq!(
+            next.run.identity.session_id, ctx.run.identity.session_id,
+            "a settings change is not a new session"
+        );
     }
 
     /// A dispatcher over the scripted rig, with a target west of the pier

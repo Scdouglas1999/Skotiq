@@ -179,21 +179,13 @@ pub fn set_config(config: GuardConfig) {
     with_registry(|r| r.config = Some(config));
 }
 
-/// Whether a run is active, cached so a read that finds the executor busy
-/// answers with the last value it saw.
-static RUN_ACTIVE: AtomicBool = AtomicBool::new(false);
-
-pub(crate) async fn run_is_active() -> bool {
-    if let Ok(executor) = skotiq_sequencer::get_executor().try_read() {
-        let active = matches!(
-            executor.get_state().await,
-            skotiq_sequencer::ExecutorState::Running
-                | skotiq_sequencer::ExecutorState::Paused
-                | skotiq_sequencer::ExecutorState::Recovering
-        );
-        RUN_ACTIVE.store(active, Ordering::Relaxed);
-    }
-    RUN_ACTIVE.load(Ordering::Relaxed)
+pub(crate) fn run_is_active() -> bool {
+    matches!(
+        skotiq_sequencer::executor_handle().state(),
+        skotiq_sequencer::ExecutorState::Running
+            | skotiq_sequencer::ExecutorState::Paused
+            | skotiq_sequencer::ExecutorState::Recovering
+    )
 }
 
 /// Declination of the home pose for the configured site.
@@ -246,7 +238,7 @@ pub(crate) async fn observe_status<E>(device_id: &str, result: &Result<MountStat
     if !cfg.enabled {
         return;
     }
-    let run_active = run_is_active().await;
+    let run_active = run_is_active();
     let home_dec = home_dec_deg();
     let t = now();
     let findings = with_registry(|r| {
@@ -349,7 +341,7 @@ pub(crate) async fn check_sync(
     }
     let reason = LostReason::SolveDisagrees { degrees };
     let message = reason.describe();
-    let run_active = run_is_active().await;
+    let run_active = run_is_active();
     response::handle_finding(
         device_id.to_string(),
         Finding::PositionLost(reason),
@@ -406,7 +398,7 @@ async fn sampler_round() {
     if !config().enabled {
         return;
     }
-    let interval = if run_is_active().await {
+    let interval = if run_is_active() {
         RUN_SAMPLE_INTERVAL
     } else {
         IDLE_SAMPLE_INTERVAL

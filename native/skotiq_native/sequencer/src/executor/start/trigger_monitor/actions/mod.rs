@@ -60,7 +60,7 @@ impl Rig {
             target_name: target.name,
             current_filter: target.filter,
             ..crate::instructions::InstructionContext::new(
-                self.shared.clone(),
+                self.shared.for_step(),
                 run.is_cancelled.clone(),
             )
         }

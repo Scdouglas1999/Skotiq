@@ -37,27 +37,6 @@ extension _SequencerConfig on SequencerHandlers {
     _logInfo('[API] POST /api/sequencer/devices');
     final payload = await readJsonObject(request);
 
-    // Why: filterFocusOffsets has dynamic-typed JSON object keys; validate
-    // each value is numeric since requireList can't express map<string,int>
-    // and we want a precise per-key error path instead of a ClassCastException.
-    Map<String, int>? filterFocusOffsets;
-    final rawOffsets = payload['filterFocusOffsets'];
-    if (rawOffsets != null) {
-      if (rawOffsets is! Map) {
-        throw BadRequestError(field: 'filterFocusOffsets', expected: 'object');
-      }
-      filterFocusOffsets = <String, int>{};
-      rawOffsets.forEach((key, value) {
-        if (value is! num) {
-          throw BadRequestError(
-            field: 'filterFocusOffsets.$key',
-            expected: 'integer',
-          );
-        }
-        filterFocusOffsets![key.toString()] = value.toInt();
-      });
-    }
-
     final cameraId = optionalString(payload, 'cameraId');
     final mountId = optionalString(payload, 'mountId');
     final focuserId = optionalString(payload, 'focuserId');
@@ -72,7 +51,6 @@ extension _SequencerConfig on SequencerHandlers {
       filterwheelId: filterwheelId,
       rotatorId: rotatorId,
       filterNames: optionalList<String>(payload, 'filterNames'),
-      filterFocusOffsets: filterFocusOffsets,
     );
 
     // Remember the assignment. `POST /api/sequencer/start` rebuilds the
@@ -86,82 +64,6 @@ extension _SequencerConfig on SequencerHandlers {
     _explicitlyAssignedDeviceIds[DeviceType.focuser] = focuserId;
     _explicitlyAssignedDeviceIds[DeviceType.filterWheel] = filterwheelId;
     _explicitlyAssignedDeviceIds[DeviceType.rotator] = rotatorId;
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerSetSafetyFailMode(Request request) async {
-    _logInfo('[API] POST /api/sequencer/safety-fail-mode');
-    final payload = await readJsonObject(request);
-    final mode = requireString(payload, 'mode');
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSetSafetyFailMode(mode);
-    return jsonOk({'status': 'ok'});
-  }
-
-  /// POST /api/sequencer/park-policy: whether the executor's standard weather
-  /// and dawn triggers may park the mount and close the cover and dome.
-  Future<Response> _handleSequencerSetParkPolicy(Request request) async {
-    _logInfo('[API] POST /api/sequencer/park-policy');
-    final payload = await readJsonObject(request);
-    final parkOnUnsafeWeather = requireBool(payload, 'parkOnUnsafeWeather');
-    final parkBeforeDawn = requireBool(payload, 'parkBeforeDawn');
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSetParkPolicy(
-      parkOnUnsafeWeather: parkOnUnsafeWeather,
-      parkBeforeDawn: parkBeforeDawn,
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  /// POST /api/sequencer/device-retries: how many times the executor retries a
-  /// failed camera exposure and a failed filter-wheel move.
-  Future<Response> _handleSequencerSetDeviceRetries(Request request) async {
-    _logInfo('[API] POST /api/sequencer/device-retries');
-    final payload = await readJsonObject(request);
-    final cameraRetries = requireInt(
-      payload,
-      'cameraRetries',
-      min: 0,
-      max: kMaxDeviceRetries,
-    );
-    final filterWheelRetries = requireInt(
-      payload,
-      'filterWheelRetries',
-      min: 0,
-      max: kMaxDeviceRetries,
-    );
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSetDeviceRetries(
-      cameraRetries: cameraRetries,
-      filterWheelRetries: filterWheelRetries,
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  /// POST /api/sequencer/quality-policy: whether quality problems the
-  /// executor judges (guiding RMS, centering, settling) stop the run.
-  Future<Response> _handleSequencerSetQualityPolicy(Request request) async {
-    _logInfo('[API] POST /api/sequencer/quality-policy');
-    final payload = await readJsonObject(request);
-    final stop = requireBool(payload, 'stopOnQualityProblems');
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSetStopOnQualityProblems(stop);
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerSetSafetyCheckInterval(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/safety-check-interval');
-    final payload = await readJsonObject(request);
-    final seconds = requireInt(payload, 'seconds', min: 5, max: 3600);
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSetSafetyCheckIntervalSeconds(seconds);
     return jsonOk({'status': 'ok'});
   }
 
@@ -246,85 +148,6 @@ extension _SequencerConfig on SequencerHandlers {
     return jsonOk({'status': 'ok'});
   }
 
-  Future<Response> _handleSequencerSetDecisionLoggingEnabled(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/decision-logging-enabled');
-    final payload = await readJsonObject(request);
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerSetDecisionLoggingEnabled(
-      requireBool(payload, 'enabled'),
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerUpdateDitherConfig(Request request) async {
-    _logInfo('[API] POST /api/sequencer/update-dither-config');
-    final payload = await readJsonObject(request);
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateDitherConfig(
-      pixels: requireDouble(payload, 'pixels'),
-      settlePixels: requireDouble(payload, 'settlePixels'),
-      settleTime: requireDouble(payload, 'settleTime'),
-      settleTimeout: requireDouble(payload, 'settleTimeout'),
-      raOnly: optionalBool(payload, 'raOnly') ?? false,
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  /// POST /api/sequencer/update-meridian-flip-config.
-  ///
-  /// Lets a paired controller push the operator's meridian-flip settings onto
-  /// the master's `meridian_flip` trigger, which otherwise runs on Rust
-  /// defaults for the whole night regardless of the Settings panel.
-  Future<Response> _handleSequencerUpdateMeridianFlipConfig(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/update-meridian-flip-config');
-    final payload = await readJsonObject(request);
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateMeridianFlipConfig(
-      requireString(payload, 'configJson'),
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerUpdateLocation(Request request) async {
-    _logInfo('[API] POST /api/sequencer/update-location');
-    final payload = await readJsonObject(request);
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateLocation(
-      latitude: requireDouble(payload, 'latitude'),
-      longitude: requireDouble(payload, 'longitude'),
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerUpdateFilterOffsets(Request request) async {
-    _logInfo('[API] POST /api/sequencer/update-filter-offsets');
-    final payload = await readJsonObject(request);
-    final rawOffsets = payload['offsets'];
-    // Why: same as set-devices — Dart's Map<String,int> can't be expressed
-    // through requireList; we validate per-entry to give callers a precise
-    // error path rather than a generic ClassCastException.
-    final offsets = <String, int>{};
-    if (rawOffsets != null) {
-      if (rawOffsets is! Map) {
-        throw BadRequestError(field: 'offsets', expected: 'object');
-      }
-      rawOffsets.forEach((key, value) {
-        if (value is! num) {
-          throw BadRequestError(field: 'offsets.$key', expected: 'integer');
-        }
-        offsets[key.toString()] = value.toInt();
-      });
-    }
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateFilterOffsets(offsets);
-    return jsonOk({'status': 'ok'});
-  }
-
   Future<Response> _handleSequencerUpdatePendingIntegrationCarryOver(
     Request request,
   ) async {
@@ -337,106 +160,6 @@ extension _SequencerConfig on SequencerHandlers {
     return jsonOk({'status': 'ok'});
   }
 
-  /// Push the live autofocus cadence into the running executor.
-  ///
-  /// Why: the Settings UI's autofocus-cadence field calls this through
-  /// `backend.sequencerUpdateAutofocusInterval`; the standard AutofocusInterval
-  /// trigger reads its target frame count from `RuntimeConfig` and the running
-  /// sequencer must be told to re-evaluate without restarting. Values < 1 are
-  /// rejected as a structured 400 (the Rust bridge enforces the same gate).
-  Future<Response> _handleSequencerUpdateAutofocusInterval(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/update-autofocus-interval');
-    final payload = await readJsonObject(request);
-    final everyNFrames = requireInt(payload, 'everyNFrames', min: 1);
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateAutofocusInterval(everyNFrames);
-    return jsonOk({'status': 'ok', 'everyNFrames': everyNFrames});
-  }
-
-  /// Push the operator's autofocus tuning so trigger-fired refocus uses it
-  /// instead of library defaults when the sequence carries no Autofocus node.
-  /// The body is the same JSON shape an Autofocus node carries, so the remote
-  /// client and the local FFI path share one serializer.
-  Future<Response> _handleSequencerUpdateAutofocusConfig(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/update-autofocus-config');
-    final payload = await readJsonObject(request);
-    final configJson = requireString(payload, 'configJson');
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateAutofocusConfig(configJson);
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerUpdateDefaultQualityCheck(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/update-default-quality-check');
-    final payload = await readJsonObject(request);
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateDefaultQualityCheck(
-      hfrThreshold: optionalDouble(payload, 'hfrThreshold'),
-      hfrBaselinePercent: optionalDouble(payload, 'hfrBaselinePercent'),
-      eccentricityThreshold: optionalDouble(payload, 'eccentricityThreshold'),
-      starCountMin: optionalInt(payload, 'starCountMin', min: 0),
-      maxConsecutiveRejects: requireInt(
-        payload,
-        'maxConsecutiveRejects',
-        min: 1,
-      ),
-      enabled: requireBool(payload, 'enabled'),
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerUpdateRejectFolderPath(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/update-reject-folder-path');
-    final payload = await readJsonObject(request);
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateRejectFolderPath(
-      optionalString(payload, 'path'),
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerUpdateObserverProfile(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/update-observer-profile');
-    final payload = await readJsonObject(request);
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateObserverProfile(
-      observerName: optionalString(payload, 'observerName'),
-      siteElevationM: optionalDouble(payload, 'siteElevationM'),
-      cameraMake: optionalString(payload, 'cameraMake'),
-      cameraModel: optionalString(payload, 'cameraModel'),
-      telescopeName: optionalString(payload, 'telescopeName'),
-      telescopeFocalLengthMm: optionalDouble(payload, 'telescopeFocalLengthMm'),
-      telescopeApertureMm: optionalDouble(payload, 'telescopeApertureMm'),
-    );
-    // Echo which fields were understood, so a key the endpoint dropped — say
-    // `focalLengthMm` for `telescopeFocalLengthMm` — is visible in the reply
-    // instead of in a later FITS header missing FOCALLEN. See [fieldReport].
-    return jsonOk({
-      'status': 'ok',
-      ...fieldReport(payload, const {
-        'observerName',
-        'siteElevationM',
-        'cameraMake',
-        'cameraModel',
-        'telescopeName',
-        'telescopeFocalLengthMm',
-        'telescopeApertureMm',
-      }),
-    });
-  }
-
   Future<Response> _handleSequencerUpdateSkyBrightness(Request request) async {
     _logInfo('[API] POST /api/sequencer/update-sky-brightness');
     final payload = await readJsonObject(request);
@@ -444,37 +167,6 @@ extension _SequencerConfig on SequencerHandlers {
     await backend.sequencerUpdateSkyBrightness(
       mag: optionalDouble(payload, 'mag'),
     );
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerUpdateDefaultAdaptiveExposure(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/update-default-adaptive-exposure');
-    final payload = await readJsonObject(request);
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerUpdateDefaultAdaptiveExposure(
-      enabled: requireBool(payload, 'enabled'),
-      targetSnr: requireDouble(payload, 'targetSnr', min: 0),
-      referenceSkyBrightnessMag: requireDouble(
-        payload,
-        'referenceSkyBrightnessMag',
-      ),
-      minExposureSecs: requireDouble(payload, 'minExposureSecs', min: 0),
-      maxExposureSecs: requireDouble(payload, 'maxExposureSecs', min: 0),
-      perFilterEnabled: optionalStringBoolMap(payload, 'perFilterEnabled'),
-      perFilterMinSecs: optionalStringDoubleMap(payload, 'perFilterMinSecs'),
-      perFilterMaxSecs: optionalStringDoubleMap(payload, 'perFilterMaxSecs'),
-    );
-    return jsonOk({'status': 'ok'});
-  }
-
-  Future<Response> _handleSequencerClearDefaultAdaptiveExposure(
-    Request request,
-  ) async {
-    _logInfo('[API] POST /api/sequencer/clear-default-adaptive-exposure');
-    final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerClearDefaultAdaptiveExposure();
     return jsonOk({'status': 'ok'});
   }
 }

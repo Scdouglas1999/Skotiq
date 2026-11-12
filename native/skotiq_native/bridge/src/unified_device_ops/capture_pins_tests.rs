@@ -532,8 +532,21 @@ async fn frame_path_stage_times() {
             let _ = super::frame_store::measure_light_frame(&bytes, None);
             record("  the same, stars not stored", t.elapsed().as_secs_f64());
 
-            for (format, ext) in [("FITS", "fits"), ("XISF", "xisf")] {
-                crate::capture_file_format::set(format, "zstd+sh", true).unwrap();
+            for (format, ext) in [
+                (skotiq_sequencer::ArchiveFormat::Fits, "fits"),
+                (skotiq_sequencer::ArchiveFormat::Xisf, "xisf"),
+            ] {
+                skotiq_sequencer::executor_handle()
+                    .update_run_config(|config| {
+                        config.frame_format = skotiq_sequencer::FrameFormat {
+                            format,
+                            xisf_compression: skotiq_imaging::XisfCompression::from_name("zstd+sh")
+                                .unwrap(),
+                            xisf_checksums: true,
+                        }
+                    })
+                    .await
+                    .expect("the frame format applies");
                 let path = dir.join(format!("{label}_{run}.{ext}"));
                 let t = std::time::Instant::now();
                 ops.save_fits(&image, path.to_str().unwrap(), &skotiq_sequencer::scheduling::FrameContext::default())
@@ -549,7 +562,10 @@ async fn frame_path_stage_times() {
                 let _ = skotiq_imaging::read_frame(&path).expect("read back");
                 record(if ext == "fits" { "read FITS" } else { "read XISF" }, t.elapsed().as_secs_f64());
             }
-            crate::capture_file_format::set("FITS", "zstd+sh", true).unwrap();
+            skotiq_sequencer::executor_handle()
+                .update_run_config(|config| config.frame_format = skotiq_sequencer::FrameFormat::default())
+                .await
+                .expect("the frame format applies");
 
             let t = std::time::Instant::now();
             let last = crate::api::api_get_last_image(device_id.clone()).await.expect("last image");

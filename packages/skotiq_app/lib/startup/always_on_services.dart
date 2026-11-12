@@ -60,11 +60,12 @@ class AlwaysOnService {
 /// holds when the container is disposed.
 final List<AlwaysOnService> alwaysOnServices = [
   AlwaysOnService(
-    'camera-file setting',
-    cameraFileSavingSyncProvider,
+    'run configuration',
+    runConfigSyncProvider,
     _hosts,
-    'a DSLR or mirrorless frame saved by hand or by a sequence keeps the '
-        'camera raw file the Imaging settings ask for',
+    'the sequencer, and frames saved by hand, follow the settings: the file '
+        'format and camera raw file, dither, autofocus, park, retries, '
+        'grading, recovery and the rest a run reads',
   ),
   // Notifications and alerts.
   AlwaysOnService(
@@ -117,13 +118,6 @@ final List<AlwaysOnService> alwaysOnServices = [
     mountGuardSettingsSyncProvider,
     _hosts,
     "the native guard following the operator's solve-sync-resume choice",
-  ),
-
-  AlwaysOnService(
-    'capture file format',
-    captureFileFormatSyncProvider,
-    _hosts,
-    'captured frames saved in the format chosen in Settings > Imaging',
   ),
 
   AlwaysOnService(

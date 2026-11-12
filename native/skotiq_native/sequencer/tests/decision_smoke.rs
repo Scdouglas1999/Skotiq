@@ -30,7 +30,11 @@ async fn executor_emit_decision_round_trips_through_channel() {
 async fn disabling_logging_short_circuits_emit() {
     let executor = SequenceExecutor::new();
     let _rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.decision_logging_enabled = false)
+        .await
+        .unwrap();
     let sent = executor.emit_decision(DecisionEvent::new(
         DecisionCategory::SystemEvent,
         "should be dropped",
@@ -127,7 +131,11 @@ async fn stop_origin_selects_the_decision_category() {
     // Operator (None) origin -> ManualIntervention, even with logging OFF.
     let mut executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.decision_logging_enabled = false)
+        .await
+        .unwrap();
     let _ = executor.stop().await;
     let received = rx.recv().await.expect("operator stop decision delivered");
     assert_eq!(received.category, DecisionCategory::ManualIntervention);
@@ -136,7 +144,11 @@ async fn stop_origin_selects_the_decision_category() {
     // Rollback origin -> gated SystemEvent; silenced when logging is off.
     let mut executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.decision_logging_enabled = false)
+        .await
+        .unwrap();
     let _ = executor
         .stop_with_origin(skotiq_sequencer::StopOrigin::from_wire(Some("rollback")))
         .await;

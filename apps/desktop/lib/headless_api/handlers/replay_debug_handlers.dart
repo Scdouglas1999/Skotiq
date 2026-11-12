@@ -117,52 +117,16 @@ class ReplayDebugHandlers implements RouteSource {
 
   /// POST /api/sequencer/replay-debug/settings/enabled  { enabled: bool }
   ///
-  /// Persists the host `replay_debug.enabled` setting AND mirrors the flag
-  /// into the host executor as one authority-preserving operation. If the
-  /// executor update fails the persisted value is rolled back so the DB and
-  /// runtime can never silently disagree (a failure returns non-2xx, never a
-  /// false success).
+  /// Persists the host `replay_debug.enabled` setting; the host's run
+  /// configuration follows it to the executor.
   Future<Response> handleSetEnabled(Request request) async {
     _logInfo('[API] POST /api/sequencer/replay-debug/settings/enabled');
     final payload = await readJsonObject(request);
     final enabled = requireBool(payload, 'enabled');
-    final dao = container.read(settingsDaoProvider);
-    final backend = container.read(sequencerBackendProvider);
-
-    // Snapshot the prior row (may be absent) so a rollback restores exactly
-    // what was there — not a re-normalized guess.
-    const setting = StoreSettings.replayDebugEnabled;
-    final priorRows = await dao.readRows([setting]);
-
-    // 1) Persist the new value.
-    await dao.write(setting, enabled);
-
-    // 2) Mirror into the executor; roll the persist back on failure.
-    try {
-      await backend.sequencerSetDecisionLoggingEnabled(enabled);
-    } catch (error, stack) {
-      try {
-        await dao.restore(setting, priorRows);
-      } catch (rollbackError) {
-        // Rollback itself failed; the surfaced failure below is still the
-        // primary error the caller must see, but the stranded persisted flag
-        // is a diagnosable condition — record it rather than swallowing.
-        _logger.warning(
-          'Replay-debug rollback failed after sequencer rejection; the '
-          'persisted enabled flag may be stale: $rollbackError',
-          source: 'ReplayDebugHandlers',
-        );
-      }
-      throw HandlerFailure(
-        code: 'replay_set_enabled_failed',
-        message:
-            'Could not apply decision logging to the sequencer; the persisted '
-            'setting was rolled back.',
-        statusCode: 500,
-        cause: error,
-        stackTrace: stack,
-      );
-    }
+    await container
+        .read(settingsDaoProvider)
+        .write(StoreSettings.replayDebugEnabled, enabled);
+    container.invalidate(replayDebugEnabledProvider);
     return jsonOk({'status': 'ok', 'enabled': enabled});
   }
 

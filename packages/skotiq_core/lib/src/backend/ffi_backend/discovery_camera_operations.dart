@@ -339,19 +339,6 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }
 
   @override
-  Future<void> setCaptureFileFormat({
-    required String format,
-    required String xisfCompression,
-    required bool xisfChecksums,
-  }) async {
-    await bridge.apiSetCaptureFileFormat(
-      format: format,
-      xisfCompression: xisfCompression,
-      xisfChecksums: xisfChecksums,
-    );
-  }
-
-  @override
   Future<void> updateFrameCards(
     String filePath,
     List<FitsKeywordWrite> cards,
