@@ -279,6 +279,81 @@ async fn lx200_generic_session() {
     .await;
 }
 
+/// Targets the firmware reads by position, in whatever precision the mount
+/// was found in: a declination under ten degrees and a negative one under
+/// one degree.
+async fn targets_session(fake: &FakeMount, mount: &mut dyn MountDriver) {
+    let _ = step!(fake, "connect", mount.connect().await);
+    let _ = step!(fake, "get_coordinates", mount.get_coordinates().await);
+    let _ = step!(fake, "get_alt_az", mount.get_alt_az().await);
+    let _ = step!(
+        fake,
+        "slew_to_coordinates(5.5, 5.0)",
+        mount.slew_to_coordinates(5.5, 5.0).await
+    );
+    let _ = step!(
+        fake,
+        "sync_to_coordinates(5.5123, -0.5)",
+        mount.sync_to_coordinates(5.5123, -0.5).await
+    );
+    let _ = step!(
+        fake,
+        "slew_to_coordinates(5.5123, -20.2512)",
+        mount.slew_to_coordinates(5.5123, -20.2512).await
+    );
+    let _ = step!(fake, "disconnect", mount.disconnect().await);
+}
+
+async fn lx200_targets(name: &str, flavor: Lx200Flavor, mount_type: Lx200MountType) {
+    let _park_state = isolate_park_state().await;
+    let fake = FakeMount::spawn(b'#', fakes::lx200(flavor, None, Arc::default()));
+    let mut mount = Lx200Mount::new(fake.path.clone(), mount_type, None);
+    targets_session(&fake, &mut mount).await;
+    check_transcript(name, &fake.lines());
+}
+
+#[tokio::test]
+async fn lx200_meade_targets() {
+    lx200_targets(
+        "lx200_meade_targets",
+        Lx200Flavor::Meade,
+        Lx200MountType::Meade,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn lx200_onstep_targets() {
+    lx200_targets(
+        "lx200_onstep_targets",
+        Lx200Flavor::OnStep,
+        Lx200MountType::OnStep,
+    )
+    .await;
+}
+
+/// The mount starts in low precision and is switched to high precision.
+#[tokio::test]
+async fn lx200_meade_low_precision_targets() {
+    lx200_targets(
+        "lx200_meade_low_precision_targets",
+        Lx200Flavor::MeadeLowPrecision,
+        Lx200MountType::Meade,
+    )
+    .await;
+}
+
+/// The mount stays in low precision, so targets go out in low precision.
+#[tokio::test]
+async fn lx200_meade_low_precision_only_targets() {
+    lx200_targets(
+        "lx200_meade_low_precision_only_targets",
+        Lx200Flavor::MeadeLowPrecisionOnly,
+        Lx200MountType::Meade,
+    )
+    .await;
+}
+
 // Connections that do not go the easy way
 
 #[tokio::test]

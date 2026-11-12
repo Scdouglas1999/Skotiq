@@ -177,13 +177,20 @@ pub(super) fn ioptron(answer_baud: Option<u32>, knobs: Arc<Knobs>) -> Responder 
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Lx200Flavor {
-    /// Classic Meade firmware.
+    /// Meade firmware in high precision: `sDD*MM'SS` with an apostrophe
+    /// before the arc seconds, an unsigned westward longitude.
     Meade,
-    /// OnStep answering exactly what the driver reads.
+    /// Meade firmware that starts in low precision (`HH:MM.T`, `sDD*MM`)
+    /// and switches to high precision on `:U#`.
+    MeadeLowPrecision,
+    /// Meade-protocol firmware that stays in low precision whatever it is
+    /// told.
+    MeadeLowPrecisionOnly,
+    /// OnStep as its command reference documents it: `1`/`0` in answer to
+    /// park, unpark and tracking on/off.
     OnStep,
-    /// OnStep the way the Pegasus NYX-101 speaks it: CRLF after every
-    /// `#`-terminated reply, a `1` in answer to park, unpark and tracking
-    /// on/off, and `+04:00` for the UTC offset.
+    /// OnStep the way the Pegasus NYX-101 speaks it: as OnStep, plus CRLF
+    /// after every `#`-terminated reply and `+04:00` for the UTC offset.
     Nyx,
     Losmandy,
     TenMicron,
@@ -192,9 +199,41 @@ pub(super) enum Lx200Flavor {
     CoordinatesOnly,
 }
 
+/// Whether a goto or sync target is in the shape this firmware reads: two
+/// digit degrees always, and on Meade firmware the precision it is set to.
+fn target_shape_accepted(command: &str, onstep: bool, high_precision: bool) -> bool {
+    let shape = |text: &str, high: &str, low: &str| {
+        let fits = |pattern: &str| {
+            text.len() == pattern.len()
+                && text.chars().zip(pattern.chars()).all(|(c, p)| match p {
+                    'd' => c.is_ascii_digit(),
+                    's' => c == '+' || c == '-',
+                    other => c == other,
+                })
+        };
+        if onstep {
+            fits(high) || fits(low)
+        } else if high_precision {
+            fits(high)
+        } else {
+            fits(low)
+        }
+    };
+    let body = command.trim_end_matches('#');
+    if let Some(ra) = body.strip_prefix(":Sr") {
+        shape(ra, "dd:dd:dd", "dd:dd.d")
+    } else if let Some(dec) = body.strip_prefix(":Sd") {
+        shape(dec, "sdd*dd:dd", "sdd*dd")
+    } else {
+        true
+    }
+}
+
 pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Knobs>) -> Responder {
     use Lx200Flavor::*;
     let onstep = matches!(flavor, OnStep | Nyx);
+    let meade = matches!(flavor, Meade | MeadeLowPrecision | MeadeLowPrecisionOnly);
+    let mut high_precision = !matches!(flavor, MeadeLowPrecision | MeadeLowPrecisionOnly);
     let mut tracking = true;
     let mut slew_polls_left = 0u32;
     let mut parked = false;
@@ -205,15 +244,34 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
             return Vec::new();
         }
         let command = text(command);
-        let nyx_ack = if flavor == Nyx { "1" } else { "" };
+        let onstep_ack = if onstep { "1" } else { "" };
+        // Meade high precision puts an apostrophe before the arc seconds.
+        let dms = |degrees: &str, minutes: &str, seconds: &str| {
+            if !high_precision {
+                format!("{degrees}*{minutes}#")
+            } else if meade {
+                format!("{degrees}*{minutes}'{seconds}#")
+            } else {
+                format!("{degrees}*{minutes}:{seconds}#")
+            }
+        };
 
         let reply: String = match command.as_str() {
-            ":GR#" => "05:30:00#".into(),
-            ":GD#" => "+20*00:00#".into(),
+            ":GR#" if high_precision => "05:30:00#".into(),
+            ":GR#" => "05:30.0#".into(),
+            ":GD#" => dms("+20", "00", "00"),
             _ if flavor == CoordinatesOnly => String::new(),
+
+            ":U#" => {
+                if flavor != MeadeLowPrecisionOnly {
+                    high_precision = !high_precision;
+                }
+                String::new()
+            }
 
             ":GVP#" => match flavor {
                 Meade => "LX200 Classic#",
+                MeadeLowPrecision | MeadeLowPrecisionOnly => "Autostar#",
                 OnStep => "On-Step#",
                 Nyx => "NYX-101#",
                 Losmandy => "Losmandy Gemini#",
@@ -225,14 +283,16 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
             ":GVD#" => "Oct 10 2010#".into(),
             ":GVT#" => "12:34:56#".into(),
 
-            ":GA#" => "+45*30:00#".into(),
-            ":GZ#" => "180*15:00#".into(),
+            ":GA#" => dms("+45", "30", "00"),
+            ":GZ#" => dms("180", "15", "00"),
             ":GS#" => "03:15:42#".into(),
 
             ":MS#" => {
                 if knobs.refuse_goto.load(Ordering::SeqCst) {
                     match flavor {
-                        Meade => "1Object Below Horizon #",
+                        Meade | MeadeLowPrecision | MeadeLowPrecisionOnly => {
+                            "1Object Below Horizon #"
+                        }
                         // OnStep sends the bare status digit.
                         OnStep | Nyx => "6",
                         _ => "2Below limit#",
@@ -253,13 +313,11 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
                     "#".into()
                 }
             }
-            ":CM#" => {
-                if onstep {
-                    "N/A#".into()
-                } else {
-                    " M31 EX GAL MAG 3.5 SZ178.0'#".into()
-                }
-            }
+            ":CM#" => match flavor {
+                OnStep | Nyx => "N/A#".into(),
+                TenMicron => "Coordinates     matched        #".into(),
+                _ => " M31 EX GAL MAG 3.5 SZ178.0'#".into(),
+            },
 
             ":GU#" if onstep => {
                 let slewing = slew_polls_left > 0;
@@ -272,7 +330,7 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
                     if home { "H" } else { "" },
                 )
             }
-            ":GW#" if flavor == Meade => {
+            ":GW#" if meade => {
                 if parked {
                     "PN0#".into()
                 } else {
@@ -282,28 +340,54 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
 
             ":hP#" => {
                 parked = true;
-                nyx_ack.into()
+                tracking = false;
+                onstep_ack.into()
             }
-            ":hR#" | ":PO#" => {
+            ":hR#" if onstep => {
                 parked = false;
-                nyx_ack.into()
+                onstep_ack.into()
+            }
+            ":PO#" if matches!(flavor, TenMicron | Generic) || meade => {
+                parked = false;
+                String::new()
+            }
+            ":hW#" if flavor == Losmandy => {
+                parked = false;
+                tracking = true;
+                String::new()
             }
             ":Te#" if onstep => {
                 tracking = true;
-                nyx_ack.into()
+                onstep_ack.into()
             }
             ":Td#" if onstep => {
                 tracking = false;
-                nyx_ack.into()
+                onstep_ack.into()
             }
-            ":hF#" if onstep => {
+            ":AP#" if flavor == TenMicron => {
+                tracking = true;
+                String::new()
+            }
+            ":AL#" if flavor == TenMicron => {
+                tracking = false;
+                String::new()
+            }
+            ":pS#" if flavor == TenMicron => "West#".into(),
+            // Goes home.
+            ":hC#" if onstep => {
                 home = true;
                 slew_polls_left = 1;
+                String::new()
+            }
+            // Declares the mount at home where it stands; nothing moves.
+            ":hF#" if onstep => {
+                home = true;
                 String::new()
             }
             ":hQ#" if onstep => "1".into(),
 
             ":Gt#" => "+40*00#".into(),
+            ":Gg#" if meade => "075*23#".into(),
             ":Gg#" => "+075*23#".into(),
             ":GL#" => "22:30:00#".into(),
             ":GC#" => "09/08/26#".into(),
@@ -316,14 +400,25 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
             }
 
             other if other.starts_with(":SC") => {
-                if flavor == Meade {
+                if meade {
                     "1Updating Planetary Data#                              #".into()
                 } else {
                     "1".into()
                 }
             }
+            other if other.starts_with(":Sr") || other.starts_with(":Sd") => {
+                if target_shape_accepted(other, onstep, high_precision) {
+                    "1".into()
+                } else {
+                    "0".into()
+                }
+            }
+            // The Meade command set has no sign on the longitude.
+            other if other.starts_with(":Sg") && meade && other[3..].starts_with(['+', '-']) => {
+                "0".into()
+            }
             other
-                if [":Sr", ":Sd", ":St", ":Sg", ":SG", ":SL"]
+                if [":St", ":Sg", ":SG", ":SL"]
                     .iter()
                     .any(|prefix| other.starts_with(prefix)) =>
             {
