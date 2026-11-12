@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1336701731;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1651683829;
 
 // Section: executor
 
@@ -5193,45 +5193,6 @@ fn wire__crate__api__imaging__api_run_focuser_backlash_calibration_impl(
                             api_device_id,
                             api_camera_id,
                             api_config_json,
-                        )
-                        .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__imaging__api_save_fits_file_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    file_path: impl CstDecode<String>,
-    width: impl CstDecode<u32>,
-    height: impl CstDecode<u32>,
-    data: impl CstDecode<Vec<u16>>,
-    header_data: impl CstDecode<crate::api::imaging::FitsWriteHeader>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_save_fits_file",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_file_path = file_path.cst_decode();
-            let api_width = width.cst_decode();
-            let api_height = height.cst_decode();
-            let api_data = data.cst_decode();
-            let api_header_data = header_data.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::imaging::api_save_fits_file(
-                            api_file_path,
-                            api_width,
-                            api_height,
-                            api_data,
-                            api_header_data,
                         )
                         .await?;
                         Ok(output_ok)
@@ -10411,51 +10372,45 @@ impl SseDecode for crate::api::imaging::FitsWriteHeader {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_objectName = <Option<String>>::sse_decode(deserializer);
         let mut var_exposureTime = <f64>::sse_decode(deserializer);
-        let mut var_captureTimestamp = <String>::sse_decode(deserializer);
         let mut var_frameType = <String>::sse_decode(deserializer);
         let mut var_filter = <Option<String>>::sse_decode(deserializer);
         let mut var_gain = <Option<i32>>::sse_decode(deserializer);
         let mut var_offset = <Option<i32>>::sse_decode(deserializer);
-        let mut var_ccdTemp = <Option<f64>>::sse_decode(deserializer);
-        let mut var_ra = <Option<f64>>::sse_decode(deserializer);
-        let mut var_dec = <Option<f64>>::sse_decode(deserializer);
-        let mut var_altitude = <Option<f64>>::sse_decode(deserializer);
+        let mut var_binX = <i32>::sse_decode(deserializer);
+        let mut var_binY = <i32>::sse_decode(deserializer);
         let mut var_telescope = <Option<String>>::sse_decode(deserializer);
         let mut var_instrument = <Option<String>>::sse_decode(deserializer);
         let mut var_observer = <Option<String>>::sse_decode(deserializer);
-        let mut var_binX = <i32>::sse_decode(deserializer);
-        let mut var_binY = <i32>::sse_decode(deserializer);
         let mut var_focalLength = <Option<f64>>::sse_decode(deserializer);
         let mut var_aperture = <Option<f64>>::sse_decode(deserializer);
-        let mut var_pixelSizeX = <Option<f64>>::sse_decode(deserializer);
-        let mut var_pixelSizeY = <Option<f64>>::sse_decode(deserializer);
         let mut var_siteLatitude = <Option<f64>>::sse_decode(deserializer);
         let mut var_siteLongitude = <Option<f64>>::sse_decode(deserializer);
         let mut var_siteElevation = <Option<f64>>::sse_decode(deserializer);
+        let mut var_mountId = <Option<String>>::sse_decode(deserializer);
+        let mut var_focuserId = <Option<String>>::sse_decode(deserializer);
+        let mut var_filterWheelId = <Option<String>>::sse_decode(deserializer);
+        let mut var_rotatorId = <Option<String>>::sse_decode(deserializer);
         return crate::api::imaging::FitsWriteHeader {
             object_name: var_objectName,
             exposure_time: var_exposureTime,
-            capture_timestamp: var_captureTimestamp,
             frame_type: var_frameType,
             filter: var_filter,
             gain: var_gain,
             offset: var_offset,
-            ccd_temp: var_ccdTemp,
-            ra: var_ra,
-            dec: var_dec,
-            altitude: var_altitude,
+            bin_x: var_binX,
+            bin_y: var_binY,
             telescope: var_telescope,
             instrument: var_instrument,
             observer: var_observer,
-            bin_x: var_binX,
-            bin_y: var_binY,
             focal_length: var_focalLength,
             aperture: var_aperture,
-            pixel_size_x: var_pixelSizeX,
-            pixel_size_y: var_pixelSizeY,
             site_latitude: var_siteLatitude,
             site_longitude: var_siteLongitude,
             site_elevation: var_siteElevation,
+            mount_id: var_mountId,
+            focuser_id: var_focuserId,
+            filter_wheel_id: var_filterWheelId,
+            rotator_id: var_rotatorId,
         };
     }
 }
@@ -15567,27 +15522,24 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::FitsWriteHeader {
         [
             self.object_name.into_into_dart().into_dart(),
             self.exposure_time.into_into_dart().into_dart(),
-            self.capture_timestamp.into_into_dart().into_dart(),
             self.frame_type.into_into_dart().into_dart(),
             self.filter.into_into_dart().into_dart(),
             self.gain.into_into_dart().into_dart(),
             self.offset.into_into_dart().into_dart(),
-            self.ccd_temp.into_into_dart().into_dart(),
-            self.ra.into_into_dart().into_dart(),
-            self.dec.into_into_dart().into_dart(),
-            self.altitude.into_into_dart().into_dart(),
+            self.bin_x.into_into_dart().into_dart(),
+            self.bin_y.into_into_dart().into_dart(),
             self.telescope.into_into_dart().into_dart(),
             self.instrument.into_into_dart().into_dart(),
             self.observer.into_into_dart().into_dart(),
-            self.bin_x.into_into_dart().into_dart(),
-            self.bin_y.into_into_dart().into_dart(),
             self.focal_length.into_into_dart().into_dart(),
             self.aperture.into_into_dart().into_dart(),
-            self.pixel_size_x.into_into_dart().into_dart(),
-            self.pixel_size_y.into_into_dart().into_dart(),
             self.site_latitude.into_into_dart().into_dart(),
             self.site_longitude.into_into_dart().into_dart(),
             self.site_elevation.into_into_dart().into_dart(),
+            self.mount_id.into_into_dart().into_dart(),
+            self.focuser_id.into_into_dart().into_dart(),
+            self.filter_wheel_id.into_into_dart().into_dart(),
+            self.rotator_id.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -19635,27 +19587,24 @@ impl SseEncode for crate::api::imaging::FitsWriteHeader {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Option<String>>::sse_encode(self.object_name, serializer);
         <f64>::sse_encode(self.exposure_time, serializer);
-        <String>::sse_encode(self.capture_timestamp, serializer);
         <String>::sse_encode(self.frame_type, serializer);
         <Option<String>>::sse_encode(self.filter, serializer);
         <Option<i32>>::sse_encode(self.gain, serializer);
         <Option<i32>>::sse_encode(self.offset, serializer);
-        <Option<f64>>::sse_encode(self.ccd_temp, serializer);
-        <Option<f64>>::sse_encode(self.ra, serializer);
-        <Option<f64>>::sse_encode(self.dec, serializer);
-        <Option<f64>>::sse_encode(self.altitude, serializer);
+        <i32>::sse_encode(self.bin_x, serializer);
+        <i32>::sse_encode(self.bin_y, serializer);
         <Option<String>>::sse_encode(self.telescope, serializer);
         <Option<String>>::sse_encode(self.instrument, serializer);
         <Option<String>>::sse_encode(self.observer, serializer);
-        <i32>::sse_encode(self.bin_x, serializer);
-        <i32>::sse_encode(self.bin_y, serializer);
         <Option<f64>>::sse_encode(self.focal_length, serializer);
         <Option<f64>>::sse_encode(self.aperture, serializer);
-        <Option<f64>>::sse_encode(self.pixel_size_x, serializer);
-        <Option<f64>>::sse_encode(self.pixel_size_y, serializer);
         <Option<f64>>::sse_encode(self.site_latitude, serializer);
         <Option<f64>>::sse_encode(self.site_longitude, serializer);
         <Option<f64>>::sse_encode(self.site_elevation, serializer);
+        <Option<String>>::sse_encode(self.mount_id, serializer);
+        <Option<String>>::sse_encode(self.focuser_id, serializer);
+        <Option<String>>::sse_encode(self.filter_wheel_id, serializer);
+        <Option<String>>::sse_encode(self.rotator_id, serializer);
     }
 }
 
@@ -23882,27 +23831,24 @@ mod io {
             crate::api::imaging::FitsWriteHeader {
                 object_name: self.object_name.cst_decode(),
                 exposure_time: self.exposure_time.cst_decode(),
-                capture_timestamp: self.capture_timestamp.cst_decode(),
                 frame_type: self.frame_type.cst_decode(),
                 filter: self.filter.cst_decode(),
                 gain: self.gain.cst_decode(),
                 offset: self.offset.cst_decode(),
-                ccd_temp: self.ccd_temp.cst_decode(),
-                ra: self.ra.cst_decode(),
-                dec: self.dec.cst_decode(),
-                altitude: self.altitude.cst_decode(),
+                bin_x: self.bin_x.cst_decode(),
+                bin_y: self.bin_y.cst_decode(),
                 telescope: self.telescope.cst_decode(),
                 instrument: self.instrument.cst_decode(),
                 observer: self.observer.cst_decode(),
-                bin_x: self.bin_x.cst_decode(),
-                bin_y: self.bin_y.cst_decode(),
                 focal_length: self.focal_length.cst_decode(),
                 aperture: self.aperture.cst_decode(),
-                pixel_size_x: self.pixel_size_x.cst_decode(),
-                pixel_size_y: self.pixel_size_y.cst_decode(),
                 site_latitude: self.site_latitude.cst_decode(),
                 site_longitude: self.site_longitude.cst_decode(),
                 site_elevation: self.site_elevation.cst_decode(),
+                mount_id: self.mount_id.cst_decode(),
+                focuser_id: self.focuser_id.cst_decode(),
+                filter_wheel_id: self.filter_wheel_id.cst_decode(),
+                rotator_id: self.rotator_id.cst_decode(),
             }
         }
     }
@@ -26822,27 +26768,24 @@ mod io {
             Self {
                 object_name: core::ptr::null_mut(),
                 exposure_time: Default::default(),
-                capture_timestamp: core::ptr::null_mut(),
                 frame_type: core::ptr::null_mut(),
                 filter: core::ptr::null_mut(),
                 gain: core::ptr::null_mut(),
                 offset: core::ptr::null_mut(),
-                ccd_temp: core::ptr::null_mut(),
-                ra: core::ptr::null_mut(),
-                dec: core::ptr::null_mut(),
-                altitude: core::ptr::null_mut(),
+                bin_x: Default::default(),
+                bin_y: Default::default(),
                 telescope: core::ptr::null_mut(),
                 instrument: core::ptr::null_mut(),
                 observer: core::ptr::null_mut(),
-                bin_x: Default::default(),
-                bin_y: Default::default(),
                 focal_length: core::ptr::null_mut(),
                 aperture: core::ptr::null_mut(),
-                pixel_size_x: core::ptr::null_mut(),
-                pixel_size_y: core::ptr::null_mut(),
                 site_latitude: core::ptr::null_mut(),
                 site_longitude: core::ptr::null_mut(),
                 site_elevation: core::ptr::null_mut(),
+                mount_id: core::ptr::null_mut(),
+                focuser_id: core::ptr::null_mut(),
+                filter_wheel_id: core::ptr::null_mut(),
+                rotator_id: core::ptr::null_mut(),
             }
         }
     }
@@ -30066,25 +30009,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_file(
-        port_: i64,
-        file_path: *mut wire_cst_list_prim_u_8_strict,
-        width: u32,
-        height: u32,
-        data: *mut wire_cst_list_prim_u_16_loose,
-        header_data: *mut wire_cst_fits_write_header,
-    ) {
-        wire__crate__api__imaging__api_save_fits_file_impl(
-            port_,
-            file_path,
-            width,
-            height,
-            data,
-            header_data,
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_from_last_capture(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
@@ -33243,27 +33167,24 @@ mod io {
     pub struct wire_cst_fits_write_header {
         object_name: *mut wire_cst_list_prim_u_8_strict,
         exposure_time: f64,
-        capture_timestamp: *mut wire_cst_list_prim_u_8_strict,
         frame_type: *mut wire_cst_list_prim_u_8_strict,
         filter: *mut wire_cst_list_prim_u_8_strict,
         gain: *mut i32,
         offset: *mut i32,
-        ccd_temp: *mut f64,
-        ra: *mut f64,
-        dec: *mut f64,
-        altitude: *mut f64,
+        bin_x: i32,
+        bin_y: i32,
         telescope: *mut wire_cst_list_prim_u_8_strict,
         instrument: *mut wire_cst_list_prim_u_8_strict,
         observer: *mut wire_cst_list_prim_u_8_strict,
-        bin_x: i32,
-        bin_y: i32,
         focal_length: *mut f64,
         aperture: *mut f64,
-        pixel_size_x: *mut f64,
-        pixel_size_y: *mut f64,
         site_latitude: *mut f64,
         site_longitude: *mut f64,
         site_elevation: *mut f64,
+        mount_id: *mut wire_cst_list_prim_u_8_strict,
+        focuser_id: *mut wire_cst_list_prim_u_8_strict,
+        filter_wheel_id: *mut wire_cst_list_prim_u_8_strict,
+        rotator_id: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

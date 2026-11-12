@@ -389,23 +389,33 @@ class FitsReadResult {
 
 ### FitsWriteHeader
 
-Header data for writing FITS files.
+What the caller of a manual capture knows about the frame it saves. The host
+reads everything a device can report (pointing, pier side, focuser, rotator,
+temperatures, guiding, pixel size, the camera's own exposure record) when it
+writes the file, as it does for a sequence's frame.
 
 ```dart
 class FitsWriteHeader {
   final String? objectName;
-  final double exposureTime;
-  final String? filter;
-  final int? gain;
+  final double exposureTime;      // commanded, seconds
+  final String frameType;         // IMAGETYP, FrameType.imageType
+  final String? filter;           // null records what the wheel reports
+  final int? gain;                // commanded, used when the camera reports none
   final int? offset;
-  final double? ccdTemp;
-  final double? ra;
-  final double? dec;
-  final String? telescope;
-  final String? instrument;
-  final String? observer;
   final int binX;
   final int binY;
+  final String? telescope;
+  final String? instrument;       // profile camera name; null records the driver's
+  final String? observer;
+  final double? focalLength;      // mm
+  final double? aperture;         // mm
+  final double? siteLatitude;     // degrees
+  final double? siteLongitude;
+  final double? siteElevation;    // meters
+  final String? mountId;          // the rig's devices; null leaves their cards out
+  final String? focuserId;
+  final String? filterWheelId;
+  final String? rotatorId;
 }
 ```
 

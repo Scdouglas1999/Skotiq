@@ -4874,24 +4874,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.object_name = cst_encode_opt_String(apiObj.objectName);
     wireObj.exposure_time = cst_encode_f_64(apiObj.exposureTime);
-    wireObj.capture_timestamp = cst_encode_String(apiObj.captureTimestamp);
     wireObj.frame_type = cst_encode_String(apiObj.frameType);
     wireObj.filter = cst_encode_opt_String(apiObj.filter);
     wireObj.gain = cst_encode_opt_box_autoadd_i_32(apiObj.gain);
     wireObj.offset = cst_encode_opt_box_autoadd_i_32(apiObj.offset);
-    wireObj.ccd_temp = cst_encode_opt_box_autoadd_f_64(apiObj.ccdTemp);
-    wireObj.ra = cst_encode_opt_box_autoadd_f_64(apiObj.ra);
-    wireObj.dec = cst_encode_opt_box_autoadd_f_64(apiObj.dec);
-    wireObj.altitude = cst_encode_opt_box_autoadd_f_64(apiObj.altitude);
+    wireObj.bin_x = cst_encode_i_32(apiObj.binX);
+    wireObj.bin_y = cst_encode_i_32(apiObj.binY);
     wireObj.telescope = cst_encode_opt_String(apiObj.telescope);
     wireObj.instrument = cst_encode_opt_String(apiObj.instrument);
     wireObj.observer = cst_encode_opt_String(apiObj.observer);
-    wireObj.bin_x = cst_encode_i_32(apiObj.binX);
-    wireObj.bin_y = cst_encode_i_32(apiObj.binY);
     wireObj.focal_length = cst_encode_opt_box_autoadd_f_64(apiObj.focalLength);
     wireObj.aperture = cst_encode_opt_box_autoadd_f_64(apiObj.aperture);
-    wireObj.pixel_size_x = cst_encode_opt_box_autoadd_f_64(apiObj.pixelSizeX);
-    wireObj.pixel_size_y = cst_encode_opt_box_autoadd_f_64(apiObj.pixelSizeY);
     wireObj.site_latitude = cst_encode_opt_box_autoadd_f_64(
       apiObj.siteLatitude,
     );
@@ -4901,6 +4894,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.site_elevation = cst_encode_opt_box_autoadd_f_64(
       apiObj.siteElevation,
     );
+    wireObj.mount_id = cst_encode_opt_String(apiObj.mountId);
+    wireObj.focuser_id = cst_encode_opt_String(apiObj.focuserId);
+    wireObj.filter_wheel_id = cst_encode_opt_String(apiObj.filterWheelId);
+    wireObj.rotator_id = cst_encode_opt_String(apiObj.rotatorId);
   }
 
   @protected
@@ -14074,50 +14071,6 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__imaging__api_save_fits_file(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
-    int width,
-    int height,
-    ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
-    ffi.Pointer<wire_cst_fits_write_header> header_data,
-  ) {
-    return _wire__crate__api__imaging__api_save_fits_file(
-      port_,
-      file_path,
-      width,
-      height,
-      data,
-      header_data,
-    );
-  }
-
-  late final _wire__crate__api__imaging__api_save_fits_filePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint32,
-            ffi.Uint32,
-            ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-            ffi.Pointer<wire_cst_fits_write_header>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_file');
-  late final _wire__crate__api__imaging__api_save_fits_file =
-      _wire__crate__api__imaging__api_save_fits_filePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-              ffi.Pointer<wire_cst_fits_write_header>,
-            )
-          >();
-
   void wire__crate__api__imaging__api_save_fits_from_last_capture(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
@@ -19360,8 +19313,6 @@ final class wire_cst_fits_write_header extends ffi.Struct {
   @ffi.Double()
   external double exposure_time;
 
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> capture_timestamp;
-
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> frame_type;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter;
@@ -19370,13 +19321,11 @@ final class wire_cst_fits_write_header extends ffi.Struct {
 
   external ffi.Pointer<ffi.Int32> offset;
 
-  external ffi.Pointer<ffi.Double> ccd_temp;
+  @ffi.Int32()
+  external int bin_x;
 
-  external ffi.Pointer<ffi.Double> ra;
-
-  external ffi.Pointer<ffi.Double> dec;
-
-  external ffi.Pointer<ffi.Double> altitude;
+  @ffi.Int32()
+  external int bin_y;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> telescope;
 
@@ -19384,25 +19333,23 @@ final class wire_cst_fits_write_header extends ffi.Struct {
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> observer;
 
-  @ffi.Int32()
-  external int bin_x;
-
-  @ffi.Int32()
-  external int bin_y;
-
   external ffi.Pointer<ffi.Double> focal_length;
 
   external ffi.Pointer<ffi.Double> aperture;
-
-  external ffi.Pointer<ffi.Double> pixel_size_x;
-
-  external ffi.Pointer<ffi.Double> pixel_size_y;
 
   external ffi.Pointer<ffi.Double> site_latitude;
 
   external ffi.Pointer<ffi.Double> site_longitude;
 
   external ffi.Pointer<ffi.Double> site_elevation;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> mount_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> focuser_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_wheel_id;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rotator_id;
 }
 
 final class wire_cst_equipment_profile extends ffi.Struct {

@@ -9,8 +9,8 @@ import 'package:path/path.dart' as path;
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_exception.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
-import 'package:skotiq_core/src/models/equipment_profile.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
+import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
@@ -576,12 +576,12 @@ void main() {
     );
 
     test(
-      'backend switch while loading remote profile prevents retired FITS save',
+      'a backend switch while the profiles load prevents the retired FITS save',
       () async {
         final remoteBackend = _MockNetworkBackend();
         final remoteEvents = StreamController<SkotiqEvent>.broadcast();
         addTearDown(remoteEvents.close);
-        final activeProfile = Completer<EquipmentProfile?>();
+        final profiles = Completer<EquipmentProfilesState>();
         _stubHostRoots(remoteBackend);
 
         when(
@@ -615,9 +615,6 @@ void main() {
           () => remoteBackend.cameraGetLastImage(any()),
         ).thenAnswer((_) async => makeCapturedImageResult());
         when(
-          remoteBackend.getActiveProfile,
-        ).thenAnswer((_) => activeProfile.future);
-        when(
           () => remoteBackend.cameraAbortExposure(any()),
         ).thenAnswer((_) async {});
         when(
@@ -650,6 +647,9 @@ void main() {
             scienceProcessingServiceProvider.overrideWith(
               (ref) => _NoOpScienceProcessingService(ref),
             ),
+            equipmentProfilesProvider.overrideWith(
+              () => _PendingProfiles(profiles.future),
+            ),
           ],
         );
         addTearDown(remoteContainer.dispose);
@@ -663,12 +663,17 @@ void main() {
                 offset: 10,
               ),
             );
-        await untilCalled(remoteBackend.getActiveProfile);
+        // The capture has its frame and is waiting on the profiles for the
+        // header when the host changes.
+        await untilCalled(() => remoteBackend.cameraGetLastImage(any()));
+        await pumpEventQueue();
 
         final replacementBackend = MockBackend();
         remoteBackendNotifier.replaceBackend(replacementBackend);
-        activeProfile.complete(
-          const EquipmentProfile(id: 'old', name: 'Old Host Profile'),
+        profiles.complete(
+          const EquipmentProfilesState(
+            activeProfile: EquipmentProfileModel(name: 'Old Host Profile'),
+          ),
         );
 
         expect(await capture, isNull);
@@ -725,15 +730,6 @@ void main() {
       when(
         () => remoteBackend.cameraGetLastImage(any()),
       ).thenAnswer((_) async => makeCapturedImageResult());
-      when(remoteBackend.getActiveProfile).thenAnswer(
-        (_) async => const EquipmentProfile(
-          id: 'host-profile',
-          name: 'Remote Rig',
-          telescopeName: 'Remote RC10',
-          focalLength: 2000,
-          aperture: 250,
-        ),
-      );
       when(
         () => remoteBackend.saveFitsFromLastCapture(
           deviceId: any(named: 'deviceId'),
@@ -759,6 +755,21 @@ void main() {
           ),
           scienceProcessingServiceProvider.overrideWith(
             (ref) => _NoOpScienceProcessingService(ref),
+          ),
+          // What the profiles provider holds when linked: the host's profile.
+          equipmentProfilesProvider.overrideWith(
+            () => _PendingProfiles(
+              Future.value(
+                const EquipmentProfilesState(
+                  activeProfile: EquipmentProfileModel(
+                    name: 'Remote Rig',
+                    telescopeName: 'Remote RC10',
+                    focalLength: 2000,
+                    aperture: 250,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       );
@@ -3210,4 +3221,14 @@ void main() {
       expect(subs[r'$TIME'], '23-59-59');
     });
   });
+}
+
+/// Profiles that finish loading when [loaded] does.
+class _PendingProfiles extends EquipmentProfilesNotifier {
+  _PendingProfiles(this.loaded);
+
+  final Future<EquipmentProfilesState> loaded;
+
+  @override
+  Future<EquipmentProfilesState> build() => loaded;
 }

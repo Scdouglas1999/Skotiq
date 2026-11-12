@@ -309,23 +309,12 @@ Future<void> apiSaveRgbaJpegFile({
   quality: quality,
 );
 
-/// Save image data to FITS file
-Future<void> apiSaveFitsFile({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required FitsWriteHeader headerData,
-}) => RustLib.instance.api.crateApiImagingApiSaveFitsFile(
-  filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  headerData: headerData,
-);
-
 /// Save the device's last captured frame as FITS, without moving its pixels
 /// across the FFI boundary.
+///
+/// The header is the one a sequence's frame gets, less the cards that tie a
+/// frame to a run: the rig is read by `skotiq_sequencer::sample_frame_context`
+/// and the file is written by the same `save_fits`.
 ///
 /// Returns an error if no image has been captured yet for the specified device.
 Future<void> apiSaveFitsFromLastCapture({
@@ -1221,85 +1210,88 @@ class FitsReadResult {
           bayerPattern == other.bayerPattern;
 }
 
-/// What the Imaging screen knows about a manual capture when it saves it.
-/// The header is built by `crate::frame_header`, the same builder every
-/// sequenced frame goes through; RA is in hours.
+/// What the caller of a manual capture knows about the frame it saves: what
+/// it was told to take, who and where the observer is, and which devices make
+/// up the rig. Everything the devices know (pointing, pier side, focuser,
+/// rotator, temperatures, guiding, the camera's own exposure record) is read
+/// from them when the frame is saved, as it is for a sequence's frame.
 class FitsWriteHeader {
   final String? objectName;
+
+  /// Seconds the exposure was commanded for.
   final double exposureTime;
-  final String captureTimestamp;
   final String frameType;
+
+  /// The filter the capture was set to; `None` records the one the wheel
+  /// reports.
   final String? filter;
+
+  /// Commanded, for a camera that does not report its own.
   final int? gain;
   final int? offset;
-  final double? ccdTemp;
-  final double? ra;
-  final double? dec;
-  final double? altitude;
-  final String? telescope;
-  final String? instrument;
-  final String? observer;
   final int binX;
   final int binY;
+  final String? telescope;
+
+  /// The camera as the equipment profile names it; the driver's model name
+  /// when `None`.
+  final String? instrument;
+  final String? observer;
   final double? focalLength;
   final double? aperture;
-  final double? pixelSizeX;
-  final double? pixelSizeY;
   final double? siteLatitude;
   final double? siteLongitude;
   final double? siteElevation;
+  final String? mountId;
+  final String? focuserId;
+  final String? filterWheelId;
+  final String? rotatorId;
 
   const FitsWriteHeader({
     this.objectName,
     required this.exposureTime,
-    required this.captureTimestamp,
     required this.frameType,
     this.filter,
     this.gain,
     this.offset,
-    this.ccdTemp,
-    this.ra,
-    this.dec,
-    this.altitude,
+    required this.binX,
+    required this.binY,
     this.telescope,
     this.instrument,
     this.observer,
-    required this.binX,
-    required this.binY,
     this.focalLength,
     this.aperture,
-    this.pixelSizeX,
-    this.pixelSizeY,
     this.siteLatitude,
     this.siteLongitude,
     this.siteElevation,
+    this.mountId,
+    this.focuserId,
+    this.filterWheelId,
+    this.rotatorId,
   });
 
   @override
   int get hashCode =>
       objectName.hashCode ^
       exposureTime.hashCode ^
-      captureTimestamp.hashCode ^
       frameType.hashCode ^
       filter.hashCode ^
       gain.hashCode ^
       offset.hashCode ^
-      ccdTemp.hashCode ^
-      ra.hashCode ^
-      dec.hashCode ^
-      altitude.hashCode ^
+      binX.hashCode ^
+      binY.hashCode ^
       telescope.hashCode ^
       instrument.hashCode ^
       observer.hashCode ^
-      binX.hashCode ^
-      binY.hashCode ^
       focalLength.hashCode ^
       aperture.hashCode ^
-      pixelSizeX.hashCode ^
-      pixelSizeY.hashCode ^
       siteLatitude.hashCode ^
       siteLongitude.hashCode ^
-      siteElevation.hashCode;
+      siteElevation.hashCode ^
+      mountId.hashCode ^
+      focuserId.hashCode ^
+      filterWheelId.hashCode ^
+      rotatorId.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -1308,27 +1300,24 @@ class FitsWriteHeader {
           runtimeType == other.runtimeType &&
           objectName == other.objectName &&
           exposureTime == other.exposureTime &&
-          captureTimestamp == other.captureTimestamp &&
           frameType == other.frameType &&
           filter == other.filter &&
           gain == other.gain &&
           offset == other.offset &&
-          ccdTemp == other.ccdTemp &&
-          ra == other.ra &&
-          dec == other.dec &&
-          altitude == other.altitude &&
+          binX == other.binX &&
+          binY == other.binY &&
           telescope == other.telescope &&
           instrument == other.instrument &&
           observer == other.observer &&
-          binX == other.binX &&
-          binY == other.binY &&
           focalLength == other.focalLength &&
           aperture == other.aperture &&
-          pixelSizeX == other.pixelSizeX &&
-          pixelSizeY == other.pixelSizeY &&
           siteLatitude == other.siteLatitude &&
           siteLongitude == other.siteLongitude &&
-          siteElevation == other.siteElevation;
+          siteElevation == other.siteElevation &&
+          mountId == other.mountId &&
+          focuserId == other.focuserId &&
+          filterWheelId == other.filterWheelId &&
+          rotatorId == other.rotatorId;
 }
 
 /// A single focus data point (position and HFR)

@@ -36,6 +36,7 @@ import '../providers/thumbnail_sidecar_provider.dart';
 import '../utils/host_paths.dart';
 import '../utils/utc_timestamp.dart';
 import 'calibration_service.dart';
+import 'frame_identity.dart';
 import 'notification_service.dart';
 import 'logging_service.dart';
 import 'science/science_processing_service.dart';

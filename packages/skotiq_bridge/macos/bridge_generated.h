@@ -230,27 +230,24 @@ typedef struct wire_cst_autofocus_config_api {
 typedef struct wire_cst_fits_write_header {
   struct wire_cst_list_prim_u_8_strict *object_name;
   double exposure_time;
-  struct wire_cst_list_prim_u_8_strict *capture_timestamp;
   struct wire_cst_list_prim_u_8_strict *frame_type;
   struct wire_cst_list_prim_u_8_strict *filter;
   int32_t *gain;
   int32_t *offset;
-  double *ccd_temp;
-  double *ra;
-  double *dec;
-  double *altitude;
+  int32_t bin_x;
+  int32_t bin_y;
   struct wire_cst_list_prim_u_8_strict *telescope;
   struct wire_cst_list_prim_u_8_strict *instrument;
   struct wire_cst_list_prim_u_8_strict *observer;
-  int32_t bin_x;
-  int32_t bin_y;
   double *focal_length;
   double *aperture;
-  double *pixel_size_x;
-  double *pixel_size_y;
   double *site_latitude;
   double *site_longitude;
   double *site_elevation;
+  struct wire_cst_list_prim_u_8_strict *mount_id;
+  struct wire_cst_list_prim_u_8_strict *focuser_id;
+  struct wire_cst_list_prim_u_8_strict *filter_wheel_id;
+  struct wire_cst_list_prim_u_8_strict *rotator_id;
 } wire_cst_fits_write_header;
 
 typedef struct wire_cst_equipment_profile {
@@ -3190,13 +3187,6 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_focuser_backlash_ca
                                                                                           struct wire_cst_list_prim_u_8_strict *camera_id,
                                                                                           struct wire_cst_list_prim_u_8_strict *config_json);
 
-void frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_file(int64_t port_,
-                                                                        struct wire_cst_list_prim_u_8_strict *file_path,
-                                                                        uint32_t width,
-                                                                        uint32_t height,
-                                                                        struct wire_cst_list_prim_u_16_loose *data,
-                                                                        struct wire_cst_fits_write_header *header_data);
-
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_from_last_capture(int64_t port_,
                                                                                      struct wire_cst_list_prim_u_8_strict *device_id,
                                                                                      struct wire_cst_list_prim_u_8_strict *file_path,
@@ -4140,7 +4130,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_xisf_file);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_autofocus);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_focuser_backlash_calibration);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_file);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_from_last_capture);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_png_file);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_rgba_jpeg_file);
