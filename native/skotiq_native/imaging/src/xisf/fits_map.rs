@@ -229,9 +229,13 @@ pub(crate) fn header_from_image(image: &XisfImageHeader) -> FitsHeader {
     }
     if header.get("BAYERPAT").is_none() {
         if let Some(cfa) = &image.color_filter_array {
-            if cfa.width == 2 && cfa.height == 2 && crate::BayerPattern::from_str(&cfa.pattern).is_some()
-            {
-                header.set_string("BAYERPAT", &cfa.pattern);
+            // A 2×2 Bayer or 6×6 X-Trans cell; any other mosaic has no
+            // spelling the app's demosaic reads.
+            if let Some(filter) = crate::ColorFilterArray::parse(&cfa.pattern) {
+                let side = filter.cell_size() as u32;
+                if cfa.width == side && cfa.height == side {
+                    header.set_string("BAYERPAT", &filter.letters());
+                }
             }
         }
     }
@@ -307,14 +311,18 @@ pub(crate) fn apply_header(image: &mut XisfImageHeader, old: &FitsHeader, new: &
         image.image_type = None;
     }
 
-    match crate::read_bayer_geometry(new) {
-        Some(geometry) if image.channels == 1 => {
-            let pattern = format!("{:?}", geometry.effective);
+    match crate::read_color_filter_array(new) {
+        Some(filter) if image.channels == 1 => {
+            let pattern = filter.letters();
+            let side = filter.cell_size() as u32;
             image.color_filter_array = Some(ColorFilterArray {
-                name: Some(format!("{pattern} Bayer Filter")),
+                name: Some(match filter {
+                    crate::ColorFilterArray::Bayer(_) => format!("{pattern} Bayer Filter"),
+                    crate::ColorFilterArray::XTrans(_) => "X-Trans Filter".to_string(),
+                }),
                 pattern,
-                width: 2,
-                height: 2,
+                width: side,
+                height: side,
             });
         }
         _ if old.get("BAYERPAT").is_some() => image.color_filter_array = None,
