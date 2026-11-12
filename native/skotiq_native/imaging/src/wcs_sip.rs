@@ -171,9 +171,12 @@ impl SipWcs {
     ///
     /// * `CRVAL1/2` are required.
     /// * `CRPIX1/2` default to the image centre, `(NAXIS + 1) / 2`.
-    /// * The linear part is the `CD` matrix when `CD1_1` and `CD2_2` are
-    ///   present (a missing off-diagonal term is zero), otherwise
-    ///   `CDELT1/2` rotated by `CROTA2` (zero when absent).
+    /// * The linear part is read as wcslib reads it (WCS Papers I and II):
+    ///   a `PC` matrix scaled by `CDELT` when any `PCi_j` card is present,
+    ///   otherwise the `CD` matrix when any `CDi_j` card is, otherwise
+    ///   `CDELT` rotated by `CROTA2`. Absent cards take the standard defaults
+    ///   (`PC` the identity, `CD` terms zero, `CDELT` one, `CROTA2` zero). A
+    ///   header with none of `PC`, `CD` or `CDELT` carries no WCS.
     /// * SIP polynomials are read when their `*_ORDER` cards are present.
     ///
     /// The result is what the header says, not a judgment of it: a caller that
@@ -188,21 +191,7 @@ impl SipWcs {
         let crpix2 = header
             .get_float("CRPIX2")
             .unwrap_or_else(|| centre("NAXIS2"));
-
-        let [cd1_1, cd1_2, cd2_1, cd2_2] =
-            match (header.get_float("CD1_1"), header.get_float("CD2_2")) {
-                (Some(cd1_1), Some(cd2_2)) => [
-                    cd1_1,
-                    header.get_float("CD1_2").unwrap_or(0.0),
-                    header.get_float("CD2_1").unwrap_or(0.0),
-                    cd2_2,
-                ],
-                _ => cd_from_cdelt(
-                    header.get_float("CDELT1")?,
-                    header.get_float("CDELT2")?,
-                    header.get_float("CROTA2").unwrap_or(0.0),
-                ),
-            };
+        let [cd1_1, cd1_2, cd2_1, cd2_2] = linear_part(header)?;
 
         let order = |key: &str| header.get_int(key).unwrap_or(0).max(0) as u32;
         let (a_order, b_order) = (order("A_ORDER"), order("B_ORDER"));
@@ -547,11 +536,35 @@ impl From<&WcsInfo> for SipWcs {
     }
 }
 
-/// The CD matrix `[cd1_1, cd1_2, cd2_1, cd2_2]` of the older
-/// `CDELT1/2` + `CROTA2` (degrees) convention.
-pub fn cd_from_cdelt(cdelt1: f64, cdelt2: f64, crota2_deg: f64) -> [f64; 4] {
-    let (sin, cos) = crota2_deg.to_radians().sin_cos();
-    [cdelt1 * cos, -cdelt2 * sin, cdelt1 * sin, cdelt2 * cos]
+/// The CD matrix `[cd1_1, cd1_2, cd2_1, cd2_2]` of the header's linear
+/// transformation, in the precedence and with the defaults of
+/// [`SipWcs::from_header`].
+fn linear_part(header: &FitsHeader) -> Option<[f64; 4]> {
+    let cards = |keys: [&str; 4]| keys.map(|key| header.get_float(key));
+    let pc = cards(["PC1_1", "PC1_2", "PC2_1", "PC2_2"]);
+    let cd = cards(["CD1_1", "CD1_2", "CD2_1", "CD2_2"]);
+    let cdelt = [header.get_float("CDELT1"), header.get_float("CDELT2")];
+    let [cdelt1, cdelt2] = cdelt.map(|v| v.unwrap_or(1.0));
+    if pc.iter().any(Option::is_some) {
+        let [pc1_1, pc1_2, pc2_1, pc2_2] = [
+            pc[0].unwrap_or(1.0),
+            pc[1].unwrap_or(0.0),
+            pc[2].unwrap_or(0.0),
+            pc[3].unwrap_or(1.0),
+        ];
+        Some([cdelt1 * pc1_1, cdelt1 * pc1_2, cdelt2 * pc2_1, cdelt2 * pc2_2])
+    } else if cd.iter().any(Option::is_some) {
+        Some(cd.map(|v| v.unwrap_or(0.0)))
+    } else if cdelt.iter().any(Option::is_some) {
+        let (sin, cos) = header
+            .get_float("CROTA2")
+            .unwrap_or(0.0)
+            .to_radians()
+            .sin_cos();
+        Some([cdelt1 * cos, -cdelt2 * sin, cdelt1 * sin, cdelt2 * cos])
+    } else {
+        None
+    }
 }
 
 /// SIP coefficients for one polynomial, packed row-major as `i*(order+1)+j`.
