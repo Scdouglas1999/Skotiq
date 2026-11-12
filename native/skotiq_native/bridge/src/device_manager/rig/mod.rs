@@ -28,6 +28,7 @@
 //! polling holds its own reference to the closed driver and ends when the
 //! driver answers that it is not connected (see [`closed`]).
 
+pub(crate) mod ascom;
 pub(crate) mod filter_wheel;
 pub(crate) mod focuser;
 
