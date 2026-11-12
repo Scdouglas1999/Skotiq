@@ -42,6 +42,13 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     required Duration timeout,
   });
 
+  /// Implemented by [_NetworkBackendRemoteOperations].
+  Future<RemoteJob> awaitJobCompletion(
+    String jobId, {
+    Duration timeout,
+    Duration pollInterval,
+  });
+
   @override
   Future<PlateSolveResult> plateSolve({
     required String imagePath,
@@ -57,11 +64,18 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       if (fovDegrees != null) 'fov': fovDegrees,
       if (timeoutSeconds != null) 'timeoutSeconds': timeoutSeconds,
     });
-    final response = await awaitJobResultOrLegacy(
-      start,
-      operation: 'plate solve',
-      timeout: Duration(seconds: (timeoutSeconds ?? 300) + 30),
-    );
+    final timeout = Duration(seconds: (timeoutSeconds ?? 300) + 30);
+    // A solve that found nothing ends its job `failed`, with the result the
+    // solver gave (and its reason) as the failure's details. That is an
+    // answer for the caller, not a broken request.
+    final unsolved = await _unsolvedPlateSolve(start, timeout);
+    final response =
+        unsolved ??
+        await awaitJobResultOrLegacy(
+          start,
+          operation: 'plate solve',
+          timeout: timeout,
+        );
 
     // CD matrix + SIP distortion terms are enriched by the master
     // (`ImagingHandlers._plateSolveJson`). Tolerate their absence so an older
@@ -100,6 +114,23 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       sipApCoeffs: sipCoeffs('sipApCoeffs'),
       sipBpCoeffs: sipCoeffs('sipBpCoeffs'),
     );
+  }
+
+  /// The solver's own result for a plate-solve job that ended `failed`
+  /// because no solution was found, or null for any other outcome.
+  Future<Map<String, dynamic>?> _unsolvedPlateSolve(
+    Map<String, dynamic> start,
+    Duration timeout,
+  ) async {
+    final jobId = start['jobId'] as String?;
+    if (jobId == null || jobId.isEmpty) return null;
+    final job = await awaitJobCompletion(jobId, timeout: timeout);
+    final error = job.error;
+    if (job.state != 'failed' || error?['code'] != 'plate_solve_failed') {
+      return null;
+    }
+    final details = error?['details'];
+    return details is Map ? Map<String, dynamic>.from(details) : null;
   }
 
   // Plate solver setup
