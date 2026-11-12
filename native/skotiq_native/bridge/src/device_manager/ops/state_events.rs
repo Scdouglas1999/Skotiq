@@ -133,6 +133,48 @@ impl DeviceManager {
             .map(|d| d.info.driver_type)
     }
 
+    /// Tell the operator, once per camera per run, that a connected camera
+    /// does not report its pixel size. Only native drivers are asked: they
+    /// know the pitch when the connect returns, while an INDI camera's may
+    /// still be on its way.
+    pub(crate) async fn publish_unknown_pixel_size_notice(&self, device_id: &str) {
+        let Some(info) = self
+            .devices
+            .read()
+            .await
+            .get(device_id)
+            .map(|d| d.info.clone())
+        else {
+            return;
+        };
+        if info.driver_type != DriverType::Native {
+            return;
+        }
+        let Ok(status) = self.camera_get_status(device_id).await else {
+            return;
+        };
+        let Some(message) =
+            unknown_pixel_size_notice(&info.shown_name(), status.pixel_size_x, status.pixel_size_y)
+        else {
+            return;
+        };
+        let first = self
+            .pixel_size_notices
+            .lock()
+            .expect("pixel-size notices mutex")
+            .insert(device_id.to_string());
+        if first {
+            self.app_state.publish_equipment_event(
+                EquipmentEvent::Error {
+                    device_type: DeviceType::Camera.as_str().to_string(),
+                    device_id: device_id.to_string(),
+                    message,
+                },
+                EventSeverity::Warning,
+            );
+        }
+    }
+
     /// Publish `MountSlewCompleted` once a commanded slew has actually
     /// arrived, watched in the background so the caller is not held up. A
     /// slew that stops short, is aborted or times out publishes nothing: the
@@ -209,6 +251,20 @@ impl DeviceManager {
             }
         });
     }
+}
+
+/// What the operator is told about a camera with no pixel size, or `None`
+/// when it has one. 0.0 is the unknown pitch (see `ops::camera`): such frames
+/// carry no XPIXSZ/YPIXSZ and the solver gets no scale hint.
+fn unknown_pixel_size_notice(camera: &str, pixel_x: f64, pixel_y: f64) -> Option<String> {
+    if pixel_x > 0.0 && pixel_y > 0.0 {
+        return None;
+    }
+    Some(format!(
+        "{camera} does not report its pixel size, so its frames are saved without one and \
+         plate solving runs without a pixel-scale hint. For planning and framing, enter the \
+         pixel size from the camera's datasheet in its sensor values on the Plan screen."
+    ))
 }
 
 #[cfg(test)]
