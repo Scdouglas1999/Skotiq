@@ -632,7 +632,13 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         },
       );
     } else if (sequencerEvent is bridge.SequencerEvent_Error) {
-      return ('Error', {'message': sequencerEvent.message});
+      return (
+        'Error',
+        {
+          'message': sequencerEvent.message,
+          kSequencerErrorKindKey: sequencerEvent.kind.wireName,
+        },
+      );
     } else if (sequencerEvent is bridge.SequencerEvent_MeridianFlipOutcome) {
       return (
         'MeridianFlipOutcome',

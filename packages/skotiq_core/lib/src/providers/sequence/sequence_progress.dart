@@ -437,7 +437,9 @@ void applySequencerEventToSequenceProviders(
         progressNotifier.updateProgress(message: stopped);
         break;
       }
-      progressNotifier.updateProgress(message: 'Error: $message');
+      progressNotifier.updateProgress(
+        message: event.isAdvisory ? message : 'Error: $message',
+      );
 
     default:
       break;
@@ -445,7 +447,8 @@ void applySequencerEventToSequenceProviders(
 
   // Leaving the exposing path by any terminal or error must clear the camera
   // card's exposing flag: an aborted exposure never sends ExposureCompleted.
-  if (event is RunTerminalEvent || event is SequencerError) {
+  if (event is RunTerminalEvent ||
+      (event is SequencerError && !event.isAdvisory)) {
     read(cameraStateProvider.notifier).setExposing(false);
   }
 }

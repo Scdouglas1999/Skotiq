@@ -1151,6 +1151,7 @@ typedef struct wire_cst_SequencerEvent_ExposureCompleted {
 
 typedef struct wire_cst_SequencerEvent_Error {
   struct wire_cst_list_prim_u_8_strict *message;
+  int32_t kind;
 } wire_cst_SequencerEvent_Error;
 
 typedef struct wire_cst_SequencerEvent_MeridianFlipOutcome {

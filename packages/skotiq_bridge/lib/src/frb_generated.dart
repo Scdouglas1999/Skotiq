@@ -15784,6 +15784,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerErrorKind dco_decode_sequencer_error_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SequencerErrorKind.values[raw as int];
+  }
+
+  @protected
   SequencerEvent dco_decode_sequencer_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -15840,7 +15846,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           durationSecs: dco_decode_f_64(raw[3]),
         );
       case 13:
-        return SequencerEvent_Error(message: dco_decode_String(raw[1]));
+        return SequencerEvent_Error(
+          message: dco_decode_String(raw[1]),
+          kind: dco_decode_sequencer_error_kind(raw[2]),
+        );
       case 14:
         return SequencerEvent_MeridianFlipOutcome(
           outcome: dco_decode_String(raw[1]),
@@ -20733,6 +20742,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerErrorKind sse_decode_sequencer_error_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SequencerErrorKind.values[inner];
+  }
+
+  @protected
   SequencerEvent sse_decode_sequencer_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -20805,7 +20823,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 13:
         var var_message = sse_decode_String(deserializer);
-        return SequencerEvent_Error(message: var_message);
+        var var_kind = sse_decode_sequencer_error_kind(deserializer);
+        return SequencerEvent_Error(message: var_message, kind: var_kind);
       case 14:
         var var_outcome = sse_decode_String(deserializer);
         var var_targetName = sse_decode_String(deserializer);
@@ -21925,6 +21944,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   int cst_encode_pier_side(PierSide raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
+  int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -25393,6 +25418,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sequencer_error_kind(
+    SequencerErrorKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_sequencer_event(
     SequencerEvent self,
     SseSerializer serializer,
@@ -25464,9 +25498,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_32(frame, serializer);
         sse_encode_u_32(total, serializer);
         sse_encode_f_64(durationSecs, serializer);
-      case SequencerEvent_Error(message: final message):
+      case SequencerEvent_Error(message: final message, kind: final kind):
         sse_encode_i_32(13, serializer);
         sse_encode_String(message, serializer);
+        sse_encode_sequencer_error_kind(kind, serializer);
       case SequencerEvent_MeridianFlipOutcome(
         outcome: final outcome,
         targetName: final targetName,

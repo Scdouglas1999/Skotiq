@@ -389,6 +389,7 @@ export 'src/providers/async_scope.dart';
 // isCriticalEvent, skotiqEventDisplayTitle/Detail) flows through unprefixed.
 export 'src/backend/bridge_events.dart'
     hide SkotiqEvent, EventCategory, EventSeverity;
+export 'src/backend/sequencer_error_kind.dart';
 // Per-frame capture truth carried on FrameAccepted/FrameRejected. Exported so
 // the surfaces that persist or assert on a sequenced frame read the event's
 // key names from one place rather than re-spelling them.

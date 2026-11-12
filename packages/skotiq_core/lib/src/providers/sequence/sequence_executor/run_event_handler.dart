@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../backend/bridge_events.dart'
-    show depthGoalCompletedDetail, triggerActionText;
+    show SequencerErrorKind, depthGoalCompletedDetail, triggerActionText;
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/replay_decision.dart' show DecisionCategory;
 import '../../../models/sequence/instruction_progress_detail.dart';
@@ -361,8 +361,8 @@ class RunEventHandler {
     SequenceProgressNotifier progressNotifier,
   ) {
     final message = event.message ?? 'Unknown error';
-    // An advisory shares the Error payload; it is a warning on the run, never
-    // a fault on a node.
+    // A note, or a problem the run carried on through, shares the Error
+    // payload; it is a warning on the run, never a fault on a node.
     if (event.isAdvisory) {
       _warn(message);
       progressNotifier.updateProgress(message: message);
@@ -394,7 +394,10 @@ class RunEventHandler {
     if (nodeId != null) {
       progressNotifier.updateNodeProgress(nodeId, 0.0, 'Error: $message');
     }
-    _escalateRunningToRecovering();
+    // A run held for the operator is paused, which its own event says.
+    if (event.kind != SequencerErrorKind.runHeld) {
+      _escalateRunningToRecovering();
+    }
   }
 
   /// A mid-run fault is not terminal (recovery may still salvage the run), but

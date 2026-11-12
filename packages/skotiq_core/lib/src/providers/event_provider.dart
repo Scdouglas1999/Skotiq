@@ -2,8 +2,14 @@ import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
-    show apiEventStream, SkotiqEvent, EventCategory, EventSeverity;
+    show
+        apiEventStream,
+        SkotiqEvent,
+        EventCategory,
+        EventSeverity,
+        SequencerErrorKind;
 import '../backend/bridge_event_mapper.dart';
+import '../backend/sequencer_error_kind.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
@@ -240,6 +246,14 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
         return;
       }
 
+      // A failed step is told by the run's end, whose notice carries this
+      // reason, or by recovery's own notices when recovery saves the run.
+      if (event.category == core.EventCategory.sequencer &&
+          event.eventType == 'Error' &&
+          sequencerErrorKindOf(event) == SequencerErrorKind.stepFailed) {
+        return;
+      }
+
       // Error/critical equipment Error events are already surfaced by
       // DeviceService._handleDeviceError via errorService (60 s per-message
       // dedupe + a device-aware title) whenever a DeviceService is listening
@@ -331,6 +345,22 @@ String _eventTitle(core.SkotiqEvent event) {
 
   if (deviceType != null && deviceType.isNotEmpty) {
     return '$deviceType Error';
+  }
+  // The sequencer's error payload says what it means for the run.
+  if (event.category == core.EventCategory.sequencer &&
+      event.eventType == 'Error') {
+    switch (sequencerErrorKindOf(event)) {
+      case SequencerErrorKind.runHeld:
+        return 'Sequence paused';
+      case SequencerErrorKind.standalone:
+        return event.severity == core.EventSeverity.warning
+            ? 'Warning'
+            : 'Operation failed';
+      case SequencerErrorKind.advisory:
+      case SequencerErrorKind.stepProblem:
+      case SequencerErrorKind.stepFailed:
+        break;
+    }
   }
   return '$categoryLabel ${event.severity == core.EventSeverity.warning ? "Warning" : "Error"}';
 }

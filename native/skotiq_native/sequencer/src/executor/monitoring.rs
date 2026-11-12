@@ -740,7 +740,7 @@ pub(super) async fn restore_tracking_after_recovery(
                  is parked. Un-park it before resuming imaging.",
                 context_label, mount_id
             );
-            let _ = event_tx.send(ExecutorEvent::Error {
+            let _ = event_tx.send(ExecutorEvent::StepProblem {
                 message: message.clone(),
             });
             return Some(message);
@@ -781,7 +781,7 @@ pub(super) async fn restore_tracking_after_recovery(
                 "Recovery {} but tracking could not be re-enabled on {}: {} — resumed frames may trail until tracking is restored.",
                 context_label, mount_id, e
             );
-            let _ = event_tx.send(ExecutorEvent::Error {
+            let _ = event_tx.send(ExecutorEvent::StepProblem {
                 message: message.clone(),
             });
             Some(message)
@@ -978,7 +978,7 @@ pub(super) async fn apply_recovery_escalation(
         *s.current_recovery.write() = None;
         // Surface the reason as a critical-event banner so the operator (and any
         // push channel) sees why the run stopped.
-        let _ = event_tx.send(ExecutorEvent::Error {
+        let _ = event_tx.send(ExecutorEvent::RunHeld {
             message: pause_message,
         });
         paused.announce();

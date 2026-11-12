@@ -303,6 +303,9 @@ pub enum ExecutorEvent {
     /// The frame watch measured a saved light frame or confirmed an
     /// obstruction; see [`crate::frame_watch::FrameWatchEvent`].
     FrameWatch(Box<crate::frame_watch::FrameWatchEvent>),
+    /// A fault that fails its step or is ending the run. The run's own end
+    /// is `SequenceFailed`; a problem the run survives is `StepProblem` and a
+    /// pause for the operator is `RunHeld`.
     Error {
         message: String,
     },
@@ -319,11 +322,23 @@ pub enum ExecutorEvent {
     /// section in the Session Report of a run that finished `Completed` with
     /// 3/3 frames accepted and 0 rejected.
     ///
-    /// The bridge maps this to `EventSeverity::Warning` on the existing
-    /// `SequencerEvent::Error` payload, so no wire format changes; Dart routes
-    /// on the severity into the run's `warningMessages`, which the Session
+    /// The bridge publishes this as a `SequencerEvent::Error` of kind
+    /// `Advisory`; Dart lists it with the run's warnings, which the Session
     /// Report already renders under "Warnings".
     Warning {
+        message: String,
+    },
+    /// One step had a problem and the run carries on: a check that could not
+    /// be made, a recovery step that did not take, a trigger action that was
+    /// skipped. The operator is told as a warning; nothing about the run's
+    /// outcome follows from it, and it is never the reason a later failure
+    /// reports.
+    StepProblem {
+        message: String,
+    },
+    /// The run is paused for the operator, and this is why. The pause itself
+    /// is announced by the state turning `Paused`.
+    RunHeld {
         message: String,
     },
     /// A meridian flip finished — successfully, degraded (it needed retries),

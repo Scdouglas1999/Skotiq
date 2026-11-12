@@ -68,10 +68,15 @@ async fn evaluate_safety_condition(
                         previous_safe
                     );
                     if let Some(tx) = &context.run.event_tx {
-                        let _ = tx.send(ExecutorEvent::Error {
+                        let last_known = match previous_safe {
+                            Some(true) => "safe",
+                            Some(false) => "unsafe",
+                            None => "not known, so taken as unsafe",
+                        };
+                        let _ = tx.send(ExecutorEvent::StepProblem {
                             message: format!(
-                                "{} check failed (target safety_id={:?}): {}. WarnOnly mode preserves the previous safety state ({:?}).",
-                                label, safety_id, e, previous_safe
+                                "{label} could not be checked: {e}. The step went by the \
+                                 last known state ({last_known})."
                             ),
                         });
                     }

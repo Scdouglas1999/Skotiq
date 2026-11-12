@@ -1108,7 +1108,12 @@ bool _routerClassifierAlreadyPushes(sk_events.SkotiqEvent event) {
         _ => false,
       },
     sk_events.EventPayload_Sequencer(field0: final v) => switch (v) {
-        sk_events.SequencerEvent_Error() => true,
+        // A failed step is pushed by the router as the run's failure, when
+        // the run does fail. A pause for the operator and a hand-started
+        // operation's error have no router notice that carries the reason,
+        // so this bridge pages them.
+        sk_events.SequencerEvent_Error(kind: final kind) =>
+          kind == sk_events.SequencerErrorKind.stepFailed,
         // Told once per failed run by the router, with its reason.
         sk_events.SequencerEvent_Failed() => true,
         sk_events.SequencerEvent_Stopped() => true,
