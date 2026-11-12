@@ -1676,7 +1676,7 @@ mod fake_sdk_contract {
         let shim_dir = build_single_fake_sdk(
             "moravian",
             "moravian_fake.rs",
-            "gXusb.dll",
+            "gxccd.dll",
             MORAVIAN_FAKE_SDK,
         );
         let old_path = env::var("PATH").unwrap_or_default();
@@ -2161,34 +2161,50 @@ fn write_cstr(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for i
 
     const TOUPTEK_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
-use std::ffi::{c_char,c_int,c_uint,c_void};
-use std::sync::atomic::{AtomicI32,AtomicUsize,Ordering};
+use std::ffi::{c_char,c_int,c_uint,c_ushort,c_void};
+use std::sync::atomic::{AtomicI32,AtomicU32,AtomicUsize,Ordering};
+use std::sync::Mutex;
+#[cfg(windows)] type Ch=u16;
+#[cfg(not(windows))] type Ch=c_char;
 #[repr(C)] struct OgmacamResolution{width:c_uint,height:c_uint}
 #[repr(C)] struct OgmacamModelV2{name:*const c_char,flag:u64,maxspeed:c_uint,preview:c_uint,still:c_uint,maxfanspeed:c_uint,ioctrol:c_uint,xpixsz:f32,ypixsz:f32,res:[OgmacamResolution;16]}
-#[repr(C)] struct OgmacamDeviceV2{displayname:[u16;64],id:[u16;64],model:*const OgmacamModelV2}
+#[repr(C)] struct OgmacamDeviceV2{displayname:[Ch;64],id:[Ch;64],model:*const OgmacamModelV2}
 #[repr(C)] struct OgmacamFrameInfoV3{width:c_uint,height:c_uint,flag:c_uint,seq:c_uint}
-static ACTIVE_INDEX:AtomicUsize=AtomicUsize::new(0); static WIDTH:AtomicI32=AtomicI32::new(80); static HEIGHT:AtomicI32=AtomicI32::new(60); static GAIN:AtomicI32=AtomicI32::new(100); static TEMP:AtomicI32=AtomicI32::new(-80);
-fn wide(text:&str)->[u16;64]{let mut out=[0u16;64]; for (i,ch) in text.encode_utf16().take(63).enumerate(){out[i]=ch;} out}
+type Callback=unsafe extern "C" fn(c_uint,*mut c_void);
+const IDS:[&str;2]=["OGMA-COOLED-0001","OGMA-GUIDE-0002"];
+static ACTIVE:AtomicUsize=AtomicUsize::new(0); static ROI_W:AtomicU32=AtomicU32::new(0); static ROI_H:AtomicU32=AtomicU32::new(0); static BIN:AtomicI32=AtomicI32::new(1);
+static GAIN:AtomicI32=AtomicI32::new(100); static TEMP:AtomicI32=AtomicI32::new(-80); static EXPO_US:AtomicU32=AtomicU32::new(0);
+static OPTIONS:Mutex<[c_int;64]>=Mutex::new([0;64]);
+// One lock for the callback context and the trigger generation: Stop/Close take it, so no
+// callback runs after they return, as the real SDK promises.
+static STREAM:Mutex<(usize,u64,bool)>=Mutex::new((0,0,false));
+fn full(index:usize)->(u32,u32){if index==0{(80,60)}else{(40,30)}}
+fn chars(text:&str)->[Ch;64]{let mut out=[0 as Ch;64]; for (i,ch) in text.bytes().take(63).enumerate(){out[i]=ch as Ch;} out}
 // SAFETY: OgmacamResolution is repr(C) POD; an all-zero value is a valid bit pattern.
-fn model(index:usize)->*const OgmacamModelV2{let mut res:[OgmacamResolution;16]=unsafe{std::mem::zeroed()}; res[0]=if index==0{OgmacamResolution{width:80,height:60}}else{OgmacamResolution{width:40,height:30}}; let flags=if index==0{0x80|0x20000|0x200|0x08|0x20}else{0x10|0x20}; let name=if index==0{b"OGMA AP26CC\0".as_ptr()}else{b"OGMA GP2000M\0".as_ptr()}; Box::into_raw(Box::new(OgmacamModelV2{name:name as *const c_char,flag:flags,maxspeed:1,preview:1,still:1,maxfanspeed:0,ioctrol:0,xpixsz:3.76,ypixsz:3.76,res}))}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_EnumV2(devs:*mut OgmacamDeviceV2)->c_uint{if devs.is_null(){return 2;} *devs.add(0)=OgmacamDeviceV2{displayname:wide("OGMA AP26CC"),id:wide("OGMA-COOLED-0001"),model:model(0)}; *devs.add(1)=OgmacamDeviceV2{displayname:wide("OGMA GP2000M"),id:wide("OGMA-GUIDE-0002"),model:model(1)}; 2}
-#[no_mangle] pub extern "C" fn Ogmacam_OpenByIndex(index:c_uint)->*mut c_void{if index>1{return std::ptr::null_mut();} ACTIVE_INDEX.store(index as usize,Ordering::SeqCst); if index==0{WIDTH.store(80,Ordering::SeqCst); HEIGHT.store(60,Ordering::SeqCst);}else{WIDTH.store(40,Ordering::SeqCst); HEIGHT.store(30,Ordering::SeqCst);} (index as usize + 1) as *mut c_void}
-#[no_mangle] pub extern "C" fn Ogmacam_Close(_h:*mut c_void){}
-#[no_mangle] pub extern "C" fn Ogmacam_Stop(_h:*mut c_void)->c_int{0}
+fn model(index:usize)->*const OgmacamModelV2{let mut res:[OgmacamResolution;16]=unsafe{std::mem::zeroed()}; let (w,h)=full(index); res[0]=OgmacamResolution{width:w,height:h}; let flags:u64=if index==0{0x80|0x20000|0x200|0x08|0x20|0x10000|0x0000008000000000}else{0x10|0x20}; let name=if index==0{b"OGMA AP26CC\0".as_ptr()}else{b"OGMA GP2000M\0".as_ptr()}; Box::into_raw(Box::new(OgmacamModelV2{name:name as *const c_char,flag:flags,maxspeed:1,preview:1,still:1,maxfanspeed:if index==0{3}else{0},ioctrol:0,xpixsz:3.76,ypixsz:3.76,res}))}
+fn final_size()->(u32,u32){let bin=BIN.load(Ordering::SeqCst).max(1) as u32; (ROI_W.load(Ordering::SeqCst)/bin,ROI_H.load(Ordering::SeqCst)/bin)}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_EnumV2(devs:*mut OgmacamDeviceV2)->c_uint{if devs.is_null(){return 0;} *devs.add(0)=OgmacamDeviceV2{displayname:chars("OGMA AP26CC"),id:chars(IDS[0]),model:model(0)}; *devs.add(1)=OgmacamDeviceV2{displayname:chars("OGMA GP2000M"),id:chars(IDS[1]),model:model(1)}; 2}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_Open(id:*const c_void)->*mut c_void{if id.is_null(){return std::ptr::null_mut();} let p=id as *const Ch; let mut text=String::new(); let mut i=0; while *p.add(i)!=0{text.push(*p.add(i) as u8 as char); i+=1;} let Some(index)=IDS.iter().position(|known|*known==text) else {return std::ptr::null_mut()}; ACTIVE.store(index,Ordering::SeqCst); let (w,h)=full(index); ROI_W.store(w,Ordering::SeqCst); ROI_H.store(h,Ordering::SeqCst); BIN.store(1,Ordering::SeqCst); *OPTIONS.lock().unwrap()=[0;64]; (index+1) as *mut c_void}
+#[no_mangle] pub extern "C" fn Ogmacam_Close(_h:*mut c_void){let mut s=STREAM.lock().unwrap(); s.2=false; s.1+=1;}
+#[no_mangle] pub extern "C" fn Ogmacam_Stop(_h:*mut c_void)->c_int{let mut s=STREAM.lock().unwrap(); s.2=false; s.1+=1; 0}
 #[no_mangle] pub extern "C" fn Ogmacam_Version()->*const c_char{b"fake-ogma-1.0\0".as_ptr() as *const c_char}
-#[no_mangle] pub extern "C" fn Ogmacam_Snap(_h:*mut c_void,_res:c_uint)->c_int{0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_ExpoTime(_h:*mut c_void,_us:c_uint)->c_int{0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_ExpoTime(_h:*mut c_void,us:c_uint)->c_int{EXPO_US.store(us,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_ExpoAGain(_h:*mut c_void,gain:*mut u16)->c_int{if gain.is_null(){return -1;} *gain=GAIN.load(Ordering::SeqCst) as u16; 0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_ExpoAGain(_h:*mut c_void,gain:u16)->c_int{GAIN.store(gain as i32,Ordering::SeqCst);0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_ExpoAGain(_h:*mut c_void,gain:u16)->c_int{GAIN.store(gain.clamp(100,5000) as i32,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_ExpoAGainRange(_h:*mut c_void,min:*mut u16,max:*mut u16,def:*mut u16)->c_int{if !min.is_null(){*min=100;} if !max.is_null(){*max=5000;} if !def.is_null(){*def=150;} 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Temperature(_h:*mut c_void,temp:*mut i16)->c_int{if !temp.is_null(){*temp=TEMP.load(Ordering::SeqCst) as i16;} 0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_Temperature(_h:*mut c_void,temp:i16)->c_int{TEMP.store(temp as i32,Ordering::SeqCst);0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_Option(_h:*mut c_void,_opt:c_uint,_value:c_int)->c_int{0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_Temperature(_h:*mut c_void,temp:i16)->c_int{TEMP.store(temp as i32,Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_Option(_h:*mut c_void,opt:c_uint,value:c_int)->c_int{if opt as usize>=64{return -1;} if opt==0x17{if value<1||value>4{return -2;} BIN.store(value,Ordering::SeqCst);} OPTIONS.lock().unwrap()[opt as usize]=value; 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Option(_h:*mut c_void,opt:c_uint,value:*mut c_int)->c_int{if value.is_null()||opt as usize>=64{return -1;} let stored=OPTIONS.lock().unwrap()[opt as usize]; *value=match opt{0x2e=>100,0x37=>2,0x07=>1,_=>stored}; 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_RawFormat(_h:*mut c_void,fourcc:*mut c_uint,bits:*mut c_uint)->c_int{if !fourcc.is_null(){*fourcc=u32::from_le_bytes(*b"RGGB") as c_uint;} if !bits.is_null(){*bits=12;} 0}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Size(_h:*mut c_void,width:*mut c_int,height:*mut c_int)->c_int{if !width.is_null(){*width=WIDTH.load(Ordering::SeqCst);} if !height.is_null(){*height=HEIGHT.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_Roi(_h:*mut c_void,_x:c_uint,_y:c_uint,width:c_uint,height:c_uint)->c_int{if width>0&&height>0{WIDTH.store(width as i32,Ordering::SeqCst); HEIGHT.store(height as i32,Ordering::SeqCst);} 0}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_SerialNumber(_h:*mut c_void,buf:*mut c_char)->c_int{if buf.is_null(){return -1;} let text=if ACTIVE_INDEX.load(Ordering::SeqCst)==0{b"OGMA-COOLED-0001\0".as_slice()}else{b"OGMA-GUIDE-0002\0".as_slice()}; for i in 0..text.len(){*buf.add(i)=text[i] as c_char;} 0}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_PullImageV3(_h:*mut c_void,buf:*mut c_void,_still:c_int,bits:c_int,_row:c_uint,info:*mut OgmacamFrameInfoV3)->c_int{if std::env::var("SK_TOUPTEK_PULL_ERROR").is_ok(){return -7;} if buf.is_null(){return -1;} let w=WIDTH.load(Ordering::SeqCst) as usize; let h=HEIGHT.load(Ordering::SeqCst) as usize; if !info.is_null(){(*info).width=w as c_uint; (*info).height=h as c_uint; (*info).flag=0; (*info).seq=1;} let out=buf as *mut u8; let bytes=if bits==16{2}else{1}; for i in 0..(w*h){let v=3000u16.wrapping_add(i as u16); if bytes==2{*out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;}else{*out.add(i)=v as u8;}} 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Size(_h:*mut c_void,width:*mut c_int,height:*mut c_int)->c_int{let (w,h)=full(ACTIVE.load(Ordering::SeqCst)); if !width.is_null(){*width=w as c_int;} if !height.is_null(){*height=h as c_int;} 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_FinalSize(_h:*mut c_void,width:*mut c_int,height:*mut c_int)->c_int{let (w,h)=final_size(); if !width.is_null(){*width=w as c_int;} if !height.is_null(){*height=h as c_int;} 0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_Roi(_h:*mut c_void,x:c_uint,y:c_uint,width:c_uint,height:c_uint)->c_int{let (fw,fh)=full(ACTIVE.load(Ordering::SeqCst)); if width==0||height==0||x+width>fw||y+height>fh{return -3;} ROI_W.store(width,Ordering::SeqCst); ROI_H.store(height,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_SerialNumber(_h:*mut c_void,buf:*mut c_char)->c_int{if buf.is_null(){return -1;} let text=IDS[ACTIVE.load(Ordering::SeqCst)].as_bytes(); for i in 0..text.len(){*buf.add(i)=text[i] as c_char;} *buf.add(text.len())=0; 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_StartPullModeWithCallback(_h:*mut c_void,callback:Callback,ctx:*mut c_void)->c_int{let mut s=STREAM.lock().unwrap(); s.0=ctx as usize; s.2=true; CALLBACK.store(callback as usize,Ordering::SeqCst); 0}
+static CALLBACK:AtomicUsize=AtomicUsize::new(0);
+#[no_mangle] pub extern "C" fn Ogmacam_Trigger(_h:*mut c_void,number:c_ushort)->c_int{let generation={let mut s=STREAM.lock().unwrap(); if !s.2{return -1;} s.1+=1; s.1}; if number==0{return 0;} let wait=std::time::Duration::from_micros(EXPO_US.load(Ordering::SeqCst) as u64); std::thread::spawn(move||{std::thread::sleep(wait); let s=STREAM.lock().unwrap(); if s.2&&s.1==generation{let event=if std::env::var("SK_TOUPTEK_PULL_ERROR").is_ok(){0x80}else{0x04}; let callback:Callback=unsafe{std::mem::transmute(CALLBACK.load(Ordering::SeqCst))}; unsafe{callback(event,s.0 as *mut c_void)};}}); 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_PullImageV3(_h:*mut c_void,buf:*mut c_void,_still:c_int,_bits:c_int,_row:c_int,info:*mut OgmacamFrameInfoV3)->c_int{if buf.is_null(){return -1;} let (w,h)=final_size(); let (w,h)=(w as usize,h as usize); if !info.is_null(){(*info).width=w as c_uint; (*info).height=h as c_uint; (*info).flag=0; (*info).seq=1;} let out=buf as *mut u8; for i in 0..(w*h){let v=3000u16.wrapping_add((i as u16).wrapping_mul(3)); *out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;} 0}
 "#;
 
     const FLI_FAKE_SDK: &str = r#"
@@ -2240,31 +2256,29 @@ fn kind_from_path(path:*const c_char)->c_long{unsafe{if path.is_null(){return FL
 
     const MORAVIAN_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
-use std::ffi::{c_char,c_float,c_int,c_uint,c_void};
-use std::sync::atomic::{AtomicU32,Ordering};
-type Cardinal=c_uint; type Integer=c_int; type Boolean=u8; type Real=c_float; type PCCamera=*mut c_void; type EnumerateCallback=unsafe extern "C" fn(Cardinal);
-static CURRENT_ID:AtomicU32=AtomicU32::new(1); static BIN:AtomicU32=AtomicU32::new(1);
-unsafe fn put(buf:*mut c_char,len:Cardinal,text:&[u8])->Boolean{if buf.is_null(){return 0;} for i in 0..(len as usize){*buf.add(i)=0;} for i in 0..text.len().min(len.saturating_sub(1) as usize){*buf.add(i)=text[i] as c_char;} 1}
-#[no_mangle] pub unsafe extern "C" fn Enumerate(cb:EnumerateCallback){cb(1); cb(2);}
-#[no_mangle] pub extern "C" fn Initialize(id:Cardinal)->PCCamera{if id==1||id==2{CURRENT_ID.store(id,Ordering::SeqCst); id as usize as PCCamera}else{std::ptr::null_mut()}}
-#[no_mangle] pub extern "C" fn Release(_camera:PCCamera){}
-#[no_mangle] pub unsafe extern "C" fn GetBooleanParameter(_camera:PCCamera,index:Cardinal,value:*mut Boolean)->Boolean{if value.is_null(){return 0;} let id=CURRENT_ID.load(Ordering::SeqCst); *value=match index{1=>1,3=>if id==1{1}else{0},4=>if id==1{1}else{0},7=>1,13=>1,128=>if id==2{1}else{0},_=>0}; 1}
-#[no_mangle] pub unsafe extern "C" fn GetIntegerParameter(_camera:PCCamera,index:Cardinal,value:*mut Cardinal)->Boolean{if value.is_null(){return 0;} let id=CURRENT_ID.load(Ordering::SeqCst); *value=match index{1=>if id==1{72}else{48},2=>if id==1{54}else{32},3=>376,4=>376,5=>if id==1{4}else{2},6=>if id==1{4}else{2},7=>2,_=>0}; 1}
-#[no_mangle] pub unsafe extern "C" fn GetStringParameter(_camera:PCCamera,index:Cardinal,len:Cardinal,buf:*mut c_char)->Boolean{let id=CURRENT_ID.load(Ordering::SeqCst); match index{0=>if id==1{put(buf,len,b"Moravian C3-61000 Pro\0")}else{put(buf,len,b"Moravian G1-1600\0")},2=>if id==1{put(buf,len,b"MOR-COOLED-0001\0")}else{put(buf,len,b"MOR-COLOR-0002\0")},_=>put(buf,len,b"\0")}}
-#[no_mangle] pub unsafe extern "C" fn GetValue(_camera:PCCamera,index:Cardinal,value:*mut Real)->Boolean{if value.is_null(){return 0;} *value=match index{0=>-9.5,11=>41.0,_=>0.0}; 1}
-#[no_mangle] pub extern "C" fn SetTemperature(_camera:PCCamera,_temp:Real)->Boolean{1}
-#[no_mangle] pub extern "C" fn SetBinning(_camera:PCCamera,x:Cardinal,y:Cardinal)->Boolean{if x==0||x!=y{return 0;} BIN.store(x,Ordering::SeqCst); 1}
-#[no_mangle] pub extern "C" fn SetGain(_camera:PCCamera,_gain:Cardinal)->Boolean{1}
-#[no_mangle] pub extern "C" fn SetReadMode(_camera:PCCamera,_mode:Cardinal)->Boolean{1}
-#[no_mangle] pub extern "C" fn SetFilter(_camera:PCCamera,_filter:Cardinal)->Boolean{1}
-#[no_mangle] pub unsafe extern "C" fn EnumerateReadModes(_camera:PCCamera,index:Cardinal,len:Cardinal,desc:*mut c_char)->Boolean{match index{0=>put(desc,len,b"Normal\0"),1=>put(desc,len,b"Low noise\0"),_=>0}}
-#[no_mangle] pub extern "C" fn ClearSensor(_camera:PCCamera)->Boolean{1}
-#[no_mangle] pub extern "C" fn Open(_camera:PCCamera)->Boolean{1}
-#[no_mangle] pub extern "C" fn Close(_camera:PCCamera)->Boolean{1}
-#[no_mangle] pub extern "C" fn BeginExposure(_camera:PCCamera,_use_shutter:Boolean)->Boolean{if std::env::var("SK_MORAVIAN_BEGIN_ERROR").is_ok(){0}else{1}}
-#[no_mangle] pub extern "C" fn EndExposure(_camera:PCCamera,_use_shutter:Boolean,_abort:Boolean)->Boolean{1}
-#[no_mangle] pub unsafe extern "C" fn GetImage16b(_camera:PCCamera,_x:Integer,_y:Integer,w:Integer,d:Integer,buffer_len:Cardinal,buffer:*mut c_void)->Boolean{if buffer.is_null()||w<=0||d<=0{return 0;} let pixels=(buffer_len as usize/2).min((w*d) as usize); let out=buffer as *mut u16; for i in 0..pixels{*out.add(i)=9000u16.wrapping_add(i as u16);} 1}
-#[no_mangle] pub unsafe extern "C" fn AdjustSubFrame(_camera:PCCamera,_x:*mut Integer,_y:*mut Integer,_w:*mut Integer,_d:*mut Integer)->Boolean{1}
+use std::ffi::{c_char,c_double,c_float,c_int,c_void};
+use std::sync::atomic::{AtomicI32,Ordering};
+type GxBool=u8; type PCCamera=*mut c_void; type EnumCallback=unsafe extern "C" fn(c_int);
+static TARGET_1:AtomicI32=AtomicI32::new(0); static READ_MODE:AtomicI32=AtomicI32::new(0);
+fn id_of(camera:PCCamera)->usize{camera as usize}
+unsafe fn put(buf:*mut c_char,size:usize,text:&[u8])->c_int{if buf.is_null()||size==0{return -1;} for i in 0..size{*buf.add(i)=0;} for i in 0..text.len().min(size-1){*buf.add(i)=text[i] as c_char;} 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_enumerate_usb(callback:EnumCallback){callback(1); callback(2);}
+#[no_mangle] pub extern "C" fn gxccd_initialize_usb(camera_id:c_int)->PCCamera{if camera_id==1||camera_id==2{camera_id as usize as PCCamera}else{std::ptr::null_mut()}}
+#[no_mangle] pub extern "C" fn gxccd_release(_camera:PCCamera){}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_boolean_parameter(camera:PCCamera,index:c_int,value:*mut GxBool)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{1=>1,3=>cooled as GxBool,4=>cooled as GxBool,7=>1,13=>cooled as GxBool,128=>(!cooled) as GxBool,129|130=>0,131=>0,132=>(!cooled) as GxBool,_=>0}; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_integer_parameter(camera:PCCamera,index:c_int,value:*mut c_int)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{1=>if cooled{72}else{48},2=>if cooled{54}else{32},3|4=>3760,5|6=>if cooled{4}else{2},7=>2,17=>if cooled{65535}else{4095},_=>return -1}; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_string_parameter(camera:PCCamera,index:c_int,buf:*mut c_char,size:usize)->c_int{let cooled=id_of(camera)==1; match index{0=>put(buf,size,if cooled{b"Moravian C3-61000 Pro"}else{b"Moravian G1-1600"}),2=>put(buf,size,if cooled{b"MOR-COOLED-0001"}else{b"MOR-COLOR-0002"}),_=>-1}}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_value(camera:PCCamera,index:c_int,value:*mut c_float)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{0=>-9.5,11=>if cooled{41.0}else{return -1},_=>return -1}; 0}
+#[no_mangle] pub extern "C" fn gxccd_set_temperature(camera:PCCamera,temp:c_float)->c_int{if id_of(camera)!=1{return -1;} TARGET_1.store(temp as i32,Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn gxccd_set_binning(camera:PCCamera,x:c_int,y:c_int)->c_int{let max=if id_of(camera)==1{4}else{2}; if x<1||y<1||x>max||y>max{-1}else{0}}
+#[no_mangle] pub extern "C" fn gxccd_set_gain(camera:PCCamera,_gain:u16)->c_int{if id_of(camera)==1{0}else{-1}}
+#[no_mangle] pub extern "C" fn gxccd_set_read_mode(_camera:PCCamera,mode:c_int)->c_int{if mode<0||mode>1{return -1;} READ_MODE.store(mode,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_enumerate_read_modes(_camera:PCCamera,index:c_int,buf:*mut c_char,size:usize)->c_int{match index{0=>put(buf,size,b"Normal"),1=>put(buf,size,b"Low noise"),_=>-1}}
+#[no_mangle] pub extern "C" fn gxccd_start_exposure(_camera:PCCamera,exp_time:c_double,_use_shutter:GxBool,x:c_int,y:c_int,w:c_int,h:c_int)->c_int{if exp_time<0.0||x<0||y<0||w<=0||h<=0||std::env::var("SK_MORAVIAN_BEGIN_ERROR").is_ok(){-1}else{0}}
+#[no_mangle] pub extern "C" fn gxccd_abort_exposure(_camera:PCCamera,_download:GxBool)->c_int{0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_image_ready(_camera:PCCamera,ready:*mut GxBool)->c_int{if ready.is_null(){return -1;} *ready=1; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_read_image(_camera:PCCamera,buf:*mut c_void,size:usize)->c_int{if buf.is_null(){return -1;} let out=buf as *mut u8; for i in 0..(size/2){let v=9000u16.wrapping_add((i as u16).wrapping_mul(7)); *out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;} 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_last_error(_camera:PCCamera,buf:*mut c_char,size:usize){put(buf,size,b"fake gxccd error");}
 "#;
 
     const FUJIFILM_FAKE_SDK: &str = r#"
