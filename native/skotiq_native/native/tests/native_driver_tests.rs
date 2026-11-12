@@ -2081,7 +2081,7 @@ unsafe fn write_cstr(buf:*mut c_char,text:&[u8]){for i in 0..256{*buf.add(i)=0;}
 #![allow(non_snake_case)]
 use std::ffi::{c_char,c_float,c_int,c_void};
 use std::sync::atomic::{AtomicI32,Ordering};
-static GAIN:AtomicI32=AtomicI32::new(0); static OFFSET:AtomicI32=AtomicI32::new(0); static BIN_X:AtomicI32=AtomicI32::new(1); static BIN_Y:AtomicI32=AtomicI32::new(1); static SETPOINT:AtomicI32=AtomicI32::new(-1000); static FILTER_POS:AtomicI32=AtomicI32::new(0);
+static GAIN:AtomicI32=AtomicI32::new(0); static OFFSET:AtomicI32=AtomicI32::new(0); static BIN_X:AtomicI32=AtomicI32::new(1); static BIN_Y:AtomicI32=AtomicI32::new(1); static SETPOINT:AtomicI32=AtomicI32::new(-1000); static FILTER_POS:AtomicI32=AtomicI32::new(0); static COOLING_ON:AtomicI32=AtomicI32::new(0);
 static mut IMAGE:[u8;384]=[0;384];
 #[repr(C)] struct ArtemisProperties{protocol:c_int,pixels_x:c_int,pixels_y:c_int,pixel_microns_x:c_float,pixel_microns_y:c_float,ccd_flags:c_int,camera_flags:c_int,description:[c_char;40],manufacturer:[c_char;40]}
 // SAFETY: callers pass buffers of >=100 bytes per the fake SDK contract.
@@ -2110,9 +2110,9 @@ fn write_fixed(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for 
 #[no_mangle] pub unsafe extern "C" fn ArtemisGetImageData(_handle:*mut c_void,x:*mut c_int,y:*mut c_int,w:*mut c_int,h:*mut c_int,binx:*mut c_int,biny:*mut c_int)->c_int{if !x.is_null(){*x=0;} if !y.is_null(){*y=0;} if !w.is_null(){*w=16;} if !h.is_null(){*h=12;} if !binx.is_null(){*binx=BIN_X.load(Ordering::SeqCst);} if !biny.is_null(){*biny=BIN_Y.load(Ordering::SeqCst);} for i in 0..192{let v=2000u16.wrapping_add(i as u16); IMAGE[i*2]=(v&0xff) as u8; IMAGE[i*2+1]=(v>>8) as u8;} 0}
 // SAFETY: IMAGE is a static test buffer; tests are single-threaded over this fake SDK.
 #[no_mangle] pub extern "C" fn ArtemisImageBuffer(_handle:*mut c_void)->*mut c_void{unsafe{IMAGE.as_mut_ptr() as *mut c_void}}
-#[no_mangle] pub extern "C" fn ArtemisSetCooling(_handle:*mut c_void,setpoint:c_int)->c_int{SETPOINT.store(setpoint,Ordering::SeqCst);0}
-#[no_mangle] pub unsafe extern "C" fn ArtemisCoolingInfo(_handle:*mut c_void,flags:*mut c_int,level:*mut c_int,minlvl:*mut c_int,maxlvl:*mut c_int,setpoint:*mut c_int)->c_int{if !flags.is_null(){*flags=1;} if !level.is_null(){*level=35;} if !minlvl.is_null(){*minlvl=0;} if !maxlvl.is_null(){*maxlvl=100;} if !setpoint.is_null(){*setpoint=SETPOINT.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn ArtemisCoolerWarmUp(_handle:*mut c_void)->c_int{0}
+#[no_mangle] pub extern "C" fn ArtemisSetCooling(_handle:*mut c_void,setpoint:c_int)->c_int{SETPOINT.store(setpoint,Ordering::SeqCst); COOLING_ON.store(64,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn ArtemisCoolingInfo(_handle:*mut c_void,flags:*mut c_int,level:*mut c_int,minlvl:*mut c_int,maxlvl:*mut c_int,setpoint:*mut c_int)->c_int{if !flags.is_null(){*flags=1|16|COOLING_ON.load(Ordering::SeqCst);} if !level.is_null(){*level=35;} if !minlvl.is_null(){*minlvl=0;} if !maxlvl.is_null(){*maxlvl=100;} if !setpoint.is_null(){*setpoint=SETPOINT.load(Ordering::SeqCst);} 0}
+#[no_mangle] pub extern "C" fn ArtemisCoolerWarmUp(_handle:*mut c_void)->c_int{COOLING_ON.store(0,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn ArtemisTemperatureSensorInfo(_handle:*mut c_void,_sensor:c_int,temp:*mut c_int)->c_int{if !temp.is_null(){*temp=-950;} 0}
 #[no_mangle] pub extern "C" fn ArtemisSetGain(_handle:*mut c_void,_preview:c_int,gain:c_int,offset:c_int)->c_int{GAIN.store(gain,Ordering::SeqCst); OFFSET.store(offset,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn ArtemisGetGain(_handle:*mut c_void,_preview:c_int,gain:*mut c_int,offset:*mut c_int)->c_int{if !gain.is_null(){*gain=GAIN.load(Ordering::SeqCst);} if !offset.is_null(){*offset=OFFSET.load(Ordering::SeqCst);} 0}

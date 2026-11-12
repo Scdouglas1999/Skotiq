@@ -1,12 +1,26 @@
-//! `AtikCamera` state, inherent helpers and `DeviceDriver`.
+//! `AtikCamera` state, connect and disconnect.
 
 use super::*;
 
 pub struct AtikCamera {
     pub(crate) device_index: i32,
     pub(crate) serial_number: Option<String>,
-    pub(crate) handle: Mutex<SdkHandle<ArtemisHandle>>,
+    pub(crate) handle: SdkHandle<ArtemisHandle>,
     pub(crate) core: CameraCore,
+    pub(crate) facts: AtikFacts,
+    /// The mosaic cell at pixel (0, 0) of the exposure in progress or last
+    /// taken; it moves with an odd subframe origin.
+    pub(crate) frame_bayer: Option<BayerPattern>,
+}
+
+/// What a connected camera is and how it is driven, learned at connect.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct AtikFacts {
+    pub(crate) has_shutter: bool,
+    pub(crate) has_cooling: bool,
+    pub(crate) gain: GainControl,
+    /// The SDK's mosaic offset of a colour sensor, `None` for mono.
+    pub(crate) cfa_offset: Option<(i64, i64)>,
 }
 
 impl std::fmt::Debug for AtikCamera {
@@ -30,14 +44,336 @@ impl AtikCamera {
         Self {
             device_index,
             serial_number,
-            handle: Mutex::new(SdkHandle(std::ptr::null_mut())),
+            handle: SdkHandle(std::ptr::null_mut()),
             core: CameraCore::new(
                 format!("atik_{}", device_index),
                 format!("Atik Camera {}", device_index),
                 -10.0,
             ),
+            facts: AtikFacts::default(),
+            frame_bayer: None,
         }
     }
+
+    pub(crate) fn handle(&self) -> ArtemisHandle {
+        self.handle.0
+    }
+
+    fn label(&self) -> String {
+        match &self.serial_number {
+            Some(serial) => format!("Atik camera {serial}"),
+            None => format!("Atik camera at index {}", self.device_index),
+        }
+    }
+
+    /// Opens the camera and learns what it is. The caller holds the SDK lock.
+    pub(crate) fn open(&mut self, sdk: &AtikSdk) -> Result<(), DriverError> {
+        if self.core.connected {
+            return Ok(());
+        }
+        let (index, serial) =
+            camera_index_now(sdk, self.device_index, self.serial_number.as_deref())?;
+        // SAFETY: plain int argument; the result is null-checked below.
+        let handle = unsafe { (sdk.connect)(index) };
+        if handle.is_null() {
+            return Err(DriverError::SdkError(format!(
+                "{} could not be opened. Another program may be using it, or the Atik USB driver is not installed.",
+                self.label()
+            )));
+        }
+        self.device_index = index;
+        self.serial_number = serial;
+        match self.learn(sdk, handle) {
+            Ok(()) => {
+                self.handle = SdkHandle(handle);
+                self.core.connected = true;
+                self.core.state = CameraState::Idle;
+                Ok(())
+            }
+            Err(error) => {
+                // SAFETY: `handle` came from ArtemisConnect above and is released once.
+                unsafe { (sdk.disconnect)(handle) };
+                Err(error)
+            }
+        }
+    }
+
+    /// Reads the camera's properties and puts it into the state Skotiq
+    /// exposes with.
+    fn learn(&mut self, sdk: &AtikSdk, handle: ArtemisHandle) -> Result<(), DriverError> {
+        // SAFETY: the handle was just returned by ArtemisConnect.
+        if unsafe { (sdk.is_connected)(handle) } == 0 {
+            return Err(DriverError::SdkError(format!(
+                "{} did not stay connected after it was opened",
+                self.label()
+            )));
+        }
+
+        // SAFETY: ArtemisProperties is plain C data; all zeroes is a valid value.
+        let mut props: ArtemisProperties = unsafe { std::mem::zeroed() };
+        // SAFETY: `props` has the ARTEMISPROPERTIES layout the SDK fills.
+        let result = unsafe { (sdk.properties)(handle, &mut props) };
+        check_artemis_error(result, "read the camera properties")?;
+        let width = u32::try_from(props.pixels_x).map_err(|_| {
+            DriverError::SdkError(format!("Atik reported sensor width {}", props.pixels_x))
+        })?;
+        let height = u32::try_from(props.pixels_y).map_err(|_| {
+            DriverError::SdkError(format!("Atik reported sensor height {}", props.pixels_y))
+        })?;
+        if let Some(model) = c_text(&props.description) {
+            self.core.name = model;
+        }
+
+        let (mut max_bin_x, mut max_bin_y): (c_int, c_int) = (1, 1);
+        // SAFETY: both out-pointers are valid.
+        let result = unsafe { (sdk.get_max_bin)(handle, &mut max_bin_x, &mut max_bin_y) };
+        if result != ArtemisError::Ok as c_int {
+            tracing::warn!(
+                "Atik camera '{}': ArtemisGetMaxBin answered {:?}; binning is offered as 1x1 only",
+                self.core.name,
+                ArtemisError::from_i32(result)
+            );
+            (max_bin_x, max_bin_y) = (1, 1);
+        }
+
+        let cooling = cooling_info(sdk, handle);
+        let cooling_flags = cooling.map_or(0, |c| c.flags);
+        let has_cooling = cooling_flags & ARTEMIS_COOLING_INFO_HASCOOLING != 0;
+        let setpoint_control = cooling_flags & ARTEMIS_COOLING_INFO_SETPOINTCONTROL != 0;
+        if has_cooling && !setpoint_control {
+            tracing::info!(
+                "Atik camera '{}' has a cooler that cannot be given a set-point; its temperature and power are shown, but it cannot be switched or set from Skotiq",
+                self.core.name
+            );
+        }
+
+        let mut colour_type: c_int = ARTEMIS_COLOUR_UNKNOWN;
+        let (mut offset_x, mut offset_y, mut preview_x, mut preview_y): (
+            c_int,
+            c_int,
+            c_int,
+            c_int,
+        ) = (0, 0, 0, 0);
+        // SAFETY: all five out-pointers are valid.
+        let colour_result = unsafe {
+            (sdk.colour_properties)(
+                handle,
+                &mut colour_type,
+                &mut offset_x,
+                &mut offset_y,
+                &mut preview_x,
+                &mut preview_y,
+            )
+        };
+        // This answer decides whether every frame of the session carries a
+        // BAYERPAT card and is debayered; see `atik_colour_decision`.
+        let colour = match atik_colour_decision(ArtemisError::from_i32(colour_result), colour_type)
+        {
+            AtikColourDecision::Publish(colour) => Some(colour),
+            AtikColourDecision::ConnectAsMono(reason) => {
+                tracing::warn!(
+                    "Atik camera '{}': {}. Connecting as monochrome — frames will carry no BAYERPAT card and will not be debayered. If this is a colour camera, update the AtikCameras driver.",
+                    self.core.name,
+                    reason
+                );
+                None
+            }
+            AtikColourDecision::Refuse(reason) => {
+                return Err(DriverError::SdkError(format!(
+                    "Atik camera '{}': {reason}. Skotiq will not guess a colour filter array, \
+                     because debayering against the wrong one corrupts every frame of the session. \
+                     Update the AtikCameras driver or report this colour type.",
+                    self.core.name
+                )));
+            }
+        };
+        let cfa_offset = colour
+            .filter(|c| c.is_color())
+            .map(|_| (i64::from(offset_x), i64::from(offset_y)));
+
+        // A camera without an 8-bit mode answers the call with
+        // ARTEMIS_INVALID_PARAMETER and is 16-bit only.
+        if props.camera_flags & ARTEMIS_CAMERA_HAS_EIGHT_BIT_MODE != 0 {
+            // SAFETY: plain arguments.
+            let result = unsafe { (sdk.eight_bit_mode)(handle, false) };
+            check_artemis_error(result, "select 16-bit images")?;
+        }
+
+        let options = Options::of(sdk, handle);
+        let (bit_depth, max_adu) = match &options {
+            // The 12-bit CMOS cameras put their samples in the low 12 bits, or
+            // with pad data in the high 12 bits.
+            Some(options) if options.has(ID_PAD_DATA) => {
+                if options.read::<1>(ID_PAD_DATA)?[0] != 0 {
+                    (12, 0xFFF0)
+                } else {
+                    (12, 0x0FFF)
+                }
+            }
+            _ => (16, 0xFFFF),
+        };
+        if let Some(options) = options.as_ref().filter(|o| o.has(ID_EXPOSURE_SPEED)) {
+            if options.read_u16(ID_EXPOSURE_SPEED)? == EXPOSURE_SPEED_FAST {
+                options.write_u16(ID_EXPOSURE_SPEED, EXPOSURE_SPEED_POWER_SAVE)?;
+                tracing::info!(
+                    "Atik camera '{}' was in fast (streaming) exposure speed, which delivers no single frames; switched it to power save",
+                    self.core.name
+                );
+            }
+        }
+
+        let gain_control = gain::detect(sdk, handle)?;
+        let (gain, offset) = gain::effective(sdk, handle, gain_control)?;
+
+        let has_shutter = props.camera_flags & ARTEMIS_CAMERA_HAS_SHUTTER != 0;
+        self.core.capabilities = CameraCapabilities {
+            can_cool: has_cooling && setpoint_control,
+            can_set_gain: gain_control.is_settable(),
+            can_set_offset: gain_control.is_settable(),
+            can_set_binning: max_bin_x > 1 || max_bin_y > 1,
+            can_subframe: true,
+            has_shutter,
+            has_guider_port: props.camera_flags & ARTEMIS_CAMERA_HAS_GUIDE_PORT != 0,
+            max_bin_x,
+            max_bin_y,
+            supports_readout_modes: false,
+        };
+        self.core.sensor_info = SensorInfo {
+            width,
+            height,
+            pixel_size_x: f64::from(props.pixel_microns_x),
+            pixel_size_y: f64::from(props.pixel_microns_y),
+            max_adu,
+            bit_depth,
+            color: cfa_offset.is_some(),
+            bayer_pattern: cfa_offset.map(|(x, y)| rggb_cell_at(x, y)),
+        };
+        self.facts = AtikFacts {
+            has_shutter,
+            has_cooling,
+            gain: gain_control,
+            cfa_offset,
+        };
+        self.frame_bayer = self.core.sensor_info.bayer_pattern;
+        self.core.gain = gain;
+        self.core.offset = offset;
+        self.core.bin_x = 1;
+        self.core.bin_y = 1;
+        self.core.subframe = None;
+        if let Some(cooling) = cooling {
+            self.core.cooler.enabled = cooling.is_cooling();
+            if cooling.is_cooling() {
+                self.core.cooler.target_c = cooling.setpoint_c();
+            }
+        }
+
+        tracing::info!(
+            "Connected to Atik camera {} ({}x{}, firmware {}.{}, camera flags {:#x}, cooling flags {:#x}, gain control {:?}, colour offset {:?})",
+            self.core.name,
+            width,
+            height,
+            props.protocol >> 8,
+            props.protocol & 0xff,
+            props.camera_flags,
+            cooling_flags,
+            gain_control,
+            cfa_offset
+        );
+        Ok(())
+    }
+
+    /// Stops any exposure, starts the cooler's warm-up and releases the
+    /// camera. The caller holds the SDK lock.
+    pub(crate) fn close(&mut self, sdk: &AtikSdk) -> Result<(), DriverError> {
+        if !self.core.connected {
+            return Ok(());
+        }
+        let handle = self.handle();
+        // SAFETY: the handle is open; nothing to abort is not an error here.
+        let _ = unsafe { (sdk.abort_exposure)(handle) };
+
+        // Letting a cooled sensor warm up by itself can damage it (SDK guide
+        // 5.6), so the warm-up is started whenever the camera reports cooling.
+        let cooling_now = cooling_info(sdk, handle).is_some_and(|c| c.is_cooling());
+        if cooling_now || self.core.cooler.enabled {
+            // SAFETY: the handle is open.
+            let result = unsafe { (sdk.cooler_warm_up)(handle) };
+            if result != ArtemisError::Ok as c_int {
+                tracing::error!(
+                    "Atik ArtemisCoolerWarmUp failed for camera '{}' ({:?}); the sensor is being disconnected while still cooled",
+                    self.core.name,
+                    ArtemisError::from_i32(result)
+                );
+            }
+        }
+
+        // SAFETY: the handle came from ArtemisConnect and is released once.
+        if unsafe { (sdk.disconnect)(handle) } == 0 {
+            return Err(DriverError::SdkError(format!(
+                "the Atik SDK did not release camera '{}'; unplug it or restart Skotiq before connecting again",
+                self.core.name
+            )));
+        }
+        self.handle = SdkHandle(std::ptr::null_mut());
+        self.core.connected = false;
+        self.core.state = CameraState::Idle;
+        tracing::info!("Disconnected from Atik camera: {}", self.core.name);
+        Ok(())
+    }
+}
+
+/// ArtemisCoolingInfo's answer.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct CoolingInfo {
+    pub(crate) flags: c_int,
+    pub(crate) level: c_int,
+    pub(crate) min_level: c_int,
+    pub(crate) max_level: c_int,
+    pub(crate) setpoint: c_int,
+}
+
+impl CoolingInfo {
+    /// Cooling on and not warming up (INDI reads the flags the same way).
+    pub(crate) fn is_cooling(self) -> bool {
+        self.flags & ARTEMIS_COOLING_INFO_COOLINGON != 0
+            && self.flags & ARTEMIS_COOLING_INFO_WARMINGUP == 0
+    }
+
+    pub(crate) fn power_percent(self) -> Option<f64> {
+        (self.max_level > self.min_level).then(|| {
+            f64::from(self.level - self.min_level) / f64::from(self.max_level - self.min_level)
+                * 100.0
+        })
+    }
+
+    /// The set-point is reported in hundredths of a degree, as it is set
+    /// (NINA reads it the same way; the SDK guide says whole degrees).
+    pub(crate) fn setpoint_c(self) -> f64 {
+        f64::from(self.setpoint) / 100.0
+    }
+}
+
+pub(crate) fn cooling_info(sdk: &AtikSdk, handle: ArtemisHandle) -> Option<CoolingInfo> {
+    let (mut flags, mut level, mut min_level, mut max_level, mut setpoint) = (0, 0, 0, 0, 0);
+    // SAFETY: all five out-pointers are valid; the caller holds the lock and
+    // the handle is open.
+    let result = unsafe {
+        (sdk.cooling_info)(
+            handle,
+            &mut flags,
+            &mut level,
+            &mut min_level,
+            &mut max_level,
+            &mut setpoint,
+        )
+    };
+    (result == ArtemisError::Ok as c_int).then_some(CoolingInfo {
+        flags,
+        level,
+        min_level,
+        max_level,
+        setpoint,
+    })
 }
 
 #[async_trait]
@@ -54,6 +390,10 @@ impl DeviceDriver for AtikCamera {
         Vendor::Atik
     }
 
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
+    }
+
     fn is_connected(&self) -> bool {
         self.core.connected
     }
@@ -62,328 +402,15 @@ impl DeviceDriver for AtikCamera {
         if self.core.connected {
             return Ok(());
         }
-
         let sdk = AtikSdk::lock().await?;
-
-        let serial_number = self.serial_number.as_deref().ok_or_else(|| {
-            DriverError::DeviceNotFound(format!(
-                "No discovery serial recorded for Atik camera index {}",
-                self.device_index
-            ))
-        })?;
-        let device_index = camera_index_for_serial(&sdk, serial_number)?;
-
-        // SAFETY: device_index was
-        // resolved from the discovery-time serial against the current SDK enumeration.
-        // ArtemisConnect returns a handle that we null-check immediately below.
-        let handle = unsafe { (sdk.connect)(device_index) };
-        if handle.is_null() {
-            tracing::error!(
-                "Atik ArtemisConnect() returned NULL for camera serial {} at current index {}. Check USB connection.",
-                serial_number,
-                device_index
-            );
-            return Err(DriverError::SdkError(format!(
-                "Failed to connect to Atik camera serial {}. SDK returned NULL handle. Ensure camera is connected and not in use.",
-                serial_number
-            )));
-        }
-
-        // SAFETY: `handle` is the non-null pointer returned by ArtemisConnect
-        // above (null check passed); ArtemisIsConnected only reads the handle's internal flag.
-        if unsafe { (sdk.is_connected)(handle) } == 0 {
-            tracing::error!(
-                "Atik camera serial {} - ArtemisIsConnected() returned false after successful connect.",
-                serial_number
-            );
-            // SAFETY: handle was successfully opened above.
-            unsafe { (sdk.disconnect)(handle) };
-            return Err(DriverError::SdkError(format!(
-                "Atik camera connection verification failed for serial {}. Device may have disconnected.",
-                serial_number
-            )));
-        }
-
-        // SAFETY: ArtemisProperties is `#[repr(C)]` POD (only c_int / c_float / fixed-size char
-        // arrays); a zero-filled instance is a valid initial state that the SDK will overwrite.
-        let mut props: ArtemisProperties = unsafe { std::mem::zeroed() };
-        // SAFETY: `handle` was successfully opened and IsConnected verified;
-        // &mut props is a valid stack pointer to a #[repr(C)] struct of the size the SDK
-        // expects (matches AtikCameras.h ARTEMISPROPERTIES).
-        let result = unsafe { (sdk.properties)(handle, &mut props) };
-        if ArtemisError::from_i32(result) != ArtemisError::Ok {
-            // SAFETY: `handle` was successfully opened above. ArtemisDisconnect
-            // pairs with ArtemisConnect to release the handle on the error path.
-            unsafe { (sdk.disconnect)(handle) };
-            return Err(ArtemisError::from_i32(result).to_native_error("get properties"));
-        }
-
-        let mut max_bin_x: c_int = 1;
-        let mut max_bin_y: c_int = 1;
-        // SAFETY: handle is valid (IsConnected verified); both out-pointers
-        // are valid stack pointers to c_int.
-        let max_bin_result = unsafe { (sdk.get_max_bin)(handle, &mut max_bin_x, &mut max_bin_y) };
-        if ArtemisError::from_i32(max_bin_result) != ArtemisError::Ok {
-            // The locals keep their 1x1 seed, which publishes can_set_binning = false
-            // for the whole session. That is the safe direction, but it is a capability
-            // the camera may actually have — say why it went missing.
-            tracing::warn!(
-                "Atik ArtemisGetMaxBin failed ({:?}); binning is reported as unsupported (1x1) for this session",
-                ArtemisError::from_i32(max_bin_result)
-            );
-        }
-
-        let mut cooling_flags: c_int = 0;
-        let mut _level: c_int = 0;
-        let mut _minlvl: c_int = 0;
-        let mut _maxlvl: c_int = 0;
-        let mut _setpoint: c_int = 0;
-        // SAFETY: handle is valid (IsConnected verified); all five out-
-        // pointers are valid stack pointers to c_int.
-        let can_cool = unsafe {
-            (sdk.cooling_info)(
-                handle,
-                &mut cooling_flags,
-                &mut _level,
-                &mut _minlvl,
-                &mut _maxlvl,
-                &mut _setpoint,
-            ) == 0
-                && (cooling_flags & 1) != 0 // ARTEMIS_COOLING_INFO_HASCOOLING
-        };
-
-        self.core.capabilities = CameraCapabilities {
-            can_cool,
-            can_set_gain: true,
-            can_set_offset: true,
-            can_set_binning: max_bin_x > 1 || max_bin_y > 1,
-            can_subframe: true,
-            has_shutter: (props.camera_flags & ARTEMIS_CAMERA_HAS_SHUTTER) != 0,
-            has_guider_port: (props.camera_flags & ARTEMIS_CAMERA_HAS_GUIDE_PORT) != 0,
-            max_bin_x,
-            max_bin_y,
-            supports_readout_modes: false,
-        };
-
-        let mut colour_type: c_int = 0;
-        let mut _normal_offset_x: c_int = 0;
-        let mut _normal_offset_y: c_int = 0;
-        let mut _preview_offset_x: c_int = 0;
-        let mut _preview_offset_y: c_int = 0;
-        // SAFETY: handle is valid (IsConnected verified); all five out-
-        // pointers are valid stack pointers to c_int.
-        let colour_result = unsafe {
-            (sdk.colour_properties)(
-                handle,
-                &mut colour_type,
-                &mut _normal_offset_x,
-                &mut _normal_offset_y,
-                &mut _preview_offset_x,
-                &mut _preview_offset_y,
-            )
-        };
-        // This answer sets `SensorInfo.color` / `bayer_pattern` for the whole session,
-        // which decides whether every frame carries a BAYERPAT card and is ever
-        // debayered. A one-shot-colour sensor published as mono yields a night of
-        // undebayered mosaics under a header that says the camera is monochrome — and
-        // that used to happen silently, because a failed call left `colour_type` at its
-        // 0 seed and ARTEMISCOLOURTYPE 0 is ARTEMIS_COLOUR_UNKNOWN ("the colour cannot
-        // be determined", AtikDefs.h:56), NOT monochrome, which is 1.
-        //
-        // The three outcomes are separated in `atik_colour_decision`: a named CFA is
-        // published, a body whose driver has no colour property connects as mono with a
-        // warning, and a colour type this build cannot map is refused.
-        let colour = match atik_colour_decision(ArtemisError::from_i32(colour_result), colour_type)
-        {
-            AtikColourDecision::Publish(colour) => Some(colour),
-            AtikColourDecision::ConnectAsMono(reason) => {
-                tracing::warn!(
-                    "Atik camera '{}': {}. Connecting as monochrome — frames will carry no BAYERPAT card and will not be debayered. If this is a colour camera, update the AtikCameras driver.",
-                    self.core.device_id,
-                    reason
-                );
-                None
-            }
-            AtikColourDecision::Refuse(reason) => {
-                tracing::error!(
-                    "Atik camera '{}': {}; refusing to connect rather than guess the colour filter array",
-                    self.core.device_id,
-                    reason
-                );
-                // SAFETY: `handle` was successfully opened above.
-                // ArtemisDisconnect pairs with ArtemisConnect to release it.
-                unsafe { (sdk.disconnect)(handle) };
-                return Err(DriverError::SdkError(format!(
-                    "Atik camera '{}': {reason}. Skotiq will not guess a colour filter array, \
-                     because debayering against the wrong one corrupts every frame of the session. \
-                     Update the AtikCameras driver or report this colour type.",
-                    self.core.device_id
-                )));
-            }
-        };
-
-        let is_color = colour.is_some_and(|c| c.is_color());
-        let bayer_pattern = colour.and_then(|c| c.bayer_pattern());
-
-        // Why: `props.pixels_x` / `props.pixels_y` are `c_int` (i32) populated by ArtemisProperties.
-        // A negative value would be a malformed SDK response, not a real sensor; we surface
-        // it as an SdkError rather than silently re-interpreting the bit pattern via `as u32`.
-        let sensor_dimensions: Result<(u32, u32), DriverError> = (|| {
-            let width = u32::try_from(props.pixels_x).map_err(|_| {
-                DriverError::SdkError(format!(
-                    "Atik reported invalid sensor width: pixels_x={}",
-                    props.pixels_x
-                ))
-            })?;
-            let height = u32::try_from(props.pixels_y).map_err(|_| {
-                DriverError::SdkError(format!(
-                    "Atik reported invalid sensor height: pixels_y={}",
-                    props.pixels_y
-                ))
-            })?;
-            Ok((width, height))
-        })();
-        let (pixels_x_u32, pixels_y_u32) = match sensor_dimensions {
-            Ok(dimensions) => dimensions,
-            Err(error) => {
-                // SAFETY: handle was successfully opened above.
-                unsafe { (sdk.disconnect)(handle) };
-                return Err(error);
-            }
-        };
-        self.core.sensor_info = SensorInfo {
-            width: pixels_x_u32,
-            height: pixels_y_u32,
-            // Why: pixel_microns_{x,y} are c_float; widening f32 -> f64 is lossless.
-            pixel_size_x: props.pixel_microns_x as f64,
-            pixel_size_y: props.pixel_microns_y as f64,
-            max_adu: 65535,
-            bit_depth: 16,
-            color: is_color,
-            bayer_pattern,
-        };
-
-        // SAFETY: `props.description` is a 40-byte fixed array of c_char inside the SDK-filled
-        // ARTEMISPROPERTIES struct; ArtemisProperties guarantees NUL-termination within the
-        // array (vendor header documents description as a NUL-terminated C string).
-        let name = unsafe { CStr::from_ptr(props.description.as_ptr()) }
-            .to_string_lossy()
-            .trim()
-            .to_string();
-        if !name.is_empty() {
-            self.core.name = name;
-        }
-
-        // Set 16-bit mode. This is not optional: `sensor_info` above publishes
-        // bit_depth = 16 / max_adu = 65535, and download_image reads the SDK buffer as
-        // exactly `width * height * 2` little-endian bytes. A camera left in 8-bit mode
-        // holds half that many bytes, so a swallowed failure here would read past the
-        // SDK buffer and hand the pipeline garbage pixels under a 16-bit header.
-        // SAFETY: handle is valid (IsConnected verified); ArtemisEightBitMode
-        // takes a pass-by-value c_int (0 = 16-bit per AtikCameras.h).
-        let bit_mode_result = unsafe { (sdk.eight_bit_mode)(handle, 0) };
-        match ArtemisError::from_i32(bit_mode_result) {
-            ArtemisError::Ok => {}
-            // A camera that does not implement the call has no 8-bit mode to leave —
-            // it is 16-bit only, which is the mode we are asking for.
-            ArtemisError::NotImplemented => {
-                tracing::debug!(
-                    "Atik camera '{}' does not implement ArtemisEightBitMode; it is 16-bit only",
-                    self.core.name
-                );
-            }
-            other => {
-                tracing::error!(
-                    "Atik ArtemisEightBitMode(16-bit) failed for camera '{}' ({:?}); refusing to connect rather than decode a possibly 8-bit buffer as 16-bit",
-                    self.core.name,
-                    other
-                );
-                // SAFETY: `handle` was successfully opened above. ArtemisDisconnect
-                // pairs with ArtemisConnect to release the handle on the error path.
-                unsafe { (sdk.disconnect)(handle) };
-                return Err(other.to_native_error("select 16-bit output mode"));
-            }
-        }
-
-        let mut gain: c_int = 0;
-        let mut offset: c_int = 0;
-        // SAFETY: handle is valid; preview=0 is a valid mode constant; both
-        // out-pointers are valid stack pointers to c_int.
-        if unsafe { (sdk.get_gain)(handle, 0, &mut gain, &mut offset) } == 0 {
-            self.core.gain = gain;
-            self.core.offset = offset;
-        }
-
-        {
-            let mut stored_handle = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *stored_handle = SdkHandle(handle);
-        }
-        self.device_index = device_index;
-        self.core.connected = true;
-        self.core.state = CameraState::Idle;
-
-        tracing::info!(
-            "Connected to Atik camera: {} ({}x{})",
-            self.core.name,
-            self.core.sensor_info.width,
-            self.core.sensor_info.height
-        );
-
-        Ok(())
+        self.open(&sdk)
     }
 
     async fn disconnect(&mut self) -> Result<(), DriverError> {
         if !self.core.connected {
             return Ok(());
         }
-
         let sdk = AtikSdk::lock().await?;
-
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
-
-        // SAFETY: `handle` is valid because `self.core.connected` was true (only set
-        // after successful connect() above) and disconnect hasn't run yet.
-        let _ = unsafe { (sdk.abort_exposure)(handle) };
-
-        // Warm up cooler gracefully. If the camera refuses the warm-up it stays at its
-        // cold setpoint until power is removed — a thermal-shock risk the operator can
-        // only act on if we say it happened.
-        if self.core.cooler.enabled {
-            // SAFETY: handle is valid (connected=true); ArtemisCoolerWarmUp
-            // takes only the handle, no out-pointers.
-            let warm_up_result = unsafe { (sdk.cooler_warm_up)(handle) };
-            if ArtemisError::from_i32(warm_up_result) != ArtemisError::Ok {
-                tracing::error!(
-                    "Atik ArtemisCoolerWarmUp failed for camera '{}' ({:?}); the sensor is being disconnected while still cooled",
-                    self.core.name,
-                    ArtemisError::from_i32(warm_up_result)
-                );
-            }
-        }
-
-        // SAFETY: handle was successfully opened during connect(). ArtemisDisconnect
-        // pairs with ArtemisConnect to release the SDK-owned handle.
-        let result = unsafe { (sdk.disconnect)(handle) };
-        if result == 0 {
-            tracing::error!(
-                "Atik ArtemisDisconnect() failed for camera '{}'. Device may be in an inconsistent state.",
-                self.core.name
-            );
-            return Err(DriverError::SdkError(format!(
-                "Failed to disconnect from Atik camera '{}'. Device may need reconnection.",
-                self.core.name
-            )));
-        }
-
-        {
-            let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *h = SdkHandle(std::ptr::null_mut());
-        }
-        self.core.connected = false;
-        self.core.state = CameraState::Idle;
-
-        tracing::info!("Disconnected from Atik camera: {}", self.core.name);
-
-        Ok(())
+        self.close(&sdk)
     }
 }
