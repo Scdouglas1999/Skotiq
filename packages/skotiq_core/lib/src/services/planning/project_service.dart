@@ -226,7 +226,7 @@ class ProjectService {
   /// For each member target this loads its name/RA/dec from `targets` and its
   /// per-filter [integration goals][IntegrationGoalService.listForTarget], then
   /// derives each goal's accepted frames and seconds from `captured_images`
-  /// ([acceptedInGoalFilter], never a denormalized tally). The result assembles into
+  /// ([acceptedPerGoal], never a denormalized tally). The result assembles into
   /// [FilterProgressLine] / [ProjectTargetProgress] / [CampaignProgress].
   ///
   /// Throws [StateError] if [projectId] does not exist (fail-loud, matching
@@ -262,19 +262,17 @@ class ProjectService {
       final accepted = acceptedLightsByFilter(
         await _db.imagesDao.getImagesForTarget(targetId),
       );
-      final lines = <FilterProgressLine>[];
-      for (final goal in goals) {
-        final captured = acceptedInGoalFilter(accepted, goal.filter);
-        lines.add(
+      final done = acceptedPerGoal(accepted, goals);
+      final lines = [
+        for (final (i, goal) in goals.indexed)
           FilterProgressLine(
             filter: goal.filter,
             exposureSeconds: goal.exposureSeconds,
             goalFrames: goal.frameCount,
-            capturedFrames: captured.frames,
-            capturedSeconds: captured.seconds,
+            capturedFrames: done[i].frames,
+            capturedSeconds: done[i].seconds,
           ),
-        );
-      }
+      ];
       final goal = TargetGoal.of(
         accepted: accepted,
         goals: goals,
