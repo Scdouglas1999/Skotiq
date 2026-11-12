@@ -341,6 +341,10 @@ class DarkroomParamSpec {
   /// Accepted tokens for an `enum`; empty for every other kind.
   final List<String> allowed;
 
+  /// What the editor calls each of [allowed], in the same order; empty when
+  /// the registry names none.
+  final List<String> allowedLabels;
+
   /// The value the operation reads when the key is absent, or null when the
   /// parameter is required (or when its absence means something other than a
   /// value).
@@ -364,6 +368,7 @@ class DarkroomParamSpec {
     required this.max,
     required this.length,
     required this.allowed,
+    this.allowedLabels = const [],
     required this.defaultValue,
     required this.independent,
     required this.summary,

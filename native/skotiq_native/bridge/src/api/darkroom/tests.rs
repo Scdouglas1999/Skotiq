@@ -1401,6 +1401,38 @@ fn every_registered_operation_is_documented() {
     }
 }
 
+/// The Combination list offered every palette by its wire token (`sho`,
+/// `haLrgb`, `custom`); each choice carries the name the engine reports it by.
+#[test]
+fn the_combination_choices_are_every_palette_by_its_name() {
+    use skotiq_imaging::color_composite::Palette;
+    let palette = OP_DOCS
+        .iter()
+        .find(|doc| doc.id == "channel_combine")
+        .and_then(|doc| doc.params.iter().find(|p| p.name == "palette"))
+        .expect("channel_combine documents its palette");
+    let wires: Vec<&str> = palette.allowed.iter().map(|c| c.wire).collect();
+    assert_eq!(wires, Palette::WIRE);
+    for choice in palette.allowed {
+        assert_eq!(
+            choice.label,
+            Palette::from_wire(choice.wire).unwrap().display_name()
+        );
+    }
+    let ops = super::schema::ops_json().expect("the schema publishes");
+    let published = ops
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|op| op["id"] == "channel_combine")
+        .and_then(|op| op["params"].as_array())
+        .and_then(|params| params.iter().find(|p| p["name"] == "palette"))
+        .cloned()
+        .unwrap();
+    assert_eq!(published["allowedLabels"][4], "SHO (Hubble palette)");
+    assert_eq!(published["allowed"][4], "sho");
+}
+
 #[test]
 fn the_published_schema_matches_each_operations_own_validation() {
     let registry = OpRegistry::builtin().expect("the builtin registry must build");
@@ -1472,7 +1504,8 @@ fn the_published_schema_matches_each_operations_own_validation() {
                 }
             }
             if param.kind == ParamKind::Enumerated {
-                for token in param.allowed {
+                for choice in param.allowed {
+                    let token = choice.wire;
                     let mut probe = example.clone();
                     probe[param.name] = json!(token);
                     op.validate_params(&probe).unwrap_or_else(|error| {

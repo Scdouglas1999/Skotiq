@@ -226,7 +226,7 @@ impl ChannelMix {
 
 impl Palette {
     /// The wire token a recipe stores.
-    pub fn as_wire(&self) -> &'static str {
+    pub const fn as_wire(&self) -> &'static str {
         match self {
             Self::Lrgb => "lrgb",
             Self::Rgb => "rgb",
@@ -260,7 +260,7 @@ impl Palette {
     ];
 
     /// The name a report prints.
-    pub fn display_name(&self) -> &'static str {
+    pub const fn display_name(&self) -> &'static str {
         match self {
             Self::Lrgb => "LRGB",
             Self::Rgb => "RGB",
