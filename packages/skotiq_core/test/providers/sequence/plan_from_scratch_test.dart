@@ -61,6 +61,23 @@ void main() {
       expect(stepsOf('t'), ['Center', 'L block']);
     });
 
+    test('stays where it was added when one already leads the frames', () {
+      editor().createSequence();
+      add(TargetHeaderNode(
+          id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+      add(SlewNode(name: 'Slew'));
+      add(AutofocusNode(name: 'Focus'));
+      add(ExposureNode(name: 'L', durationSecs: 60, count: 10));
+      add(AutofocusNode(name: 'Refocus'));
+      add(ExposureNode(name: 'R', durationSecs: 60, count: 10));
+      add(SlewNode(name: 'Next panel'));
+
+      expect(
+        stepsOf('t'),
+        ['Slew', 'Focus', 'L', 'Refocus', 'R', 'Next panel'],
+      );
+    });
+
     test('stays where it was put when given a position', () {
       editor().createSequence();
       add(TargetHeaderNode(
