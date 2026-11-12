@@ -128,6 +128,7 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
   }
 
   Widget _buildCameraDefaultsSection(SkotiqColors colors, ThemeData theme) {
+    final sensitivity = _profileCameraSensitivity();
     return _SectionBlock(
       title: 'Camera defaults',
       icon: LucideIcons.settings2,
@@ -144,29 +145,39 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
         mainAxisSize: MainAxisSize.min,
         children: [
           _EditorRow(
-            label: 'Gain',
-            child: SkotiqTextField(
-              controller: _gainController,
-              hint: 'e.g., 100',
-              mono: true,
-              errorText: _fieldErrors[ProfileEditorField.gain],
-              onChanged: (_) => clearFieldError(ProfileEditorField.gain),
-              keyboardType: TextInputType.number,
+            label: sensitivity.label,
+            child: SensitivityField(
+              value: int.tryParse(_gainController.text.trim()),
+              sensitivity: sensitivity,
+              onChanged: (iso) => setState(() {
+                _gainController.text = '$iso';
+                clearFieldError(ProfileEditorField.gain);
+              }),
+              gainField: (_) => SkotiqTextField(
+                controller: _gainController,
+                hint: 'e.g., 100',
+                mono: true,
+                errorText: _fieldErrors[ProfileEditorField.gain],
+                onChanged: (_) => clearFieldError(ProfileEditorField.gain),
+                keyboardType: TextInputType.number,
+              ),
             ),
           ),
           const SizedBox(height: _rowGap),
-          _EditorRow(
-            label: 'Offset',
-            child: SkotiqTextField(
-              controller: _offsetController,
-              hint: 'e.g., 10',
-              mono: true,
-              errorText: _fieldErrors[ProfileEditorField.offset],
-              onChanged: (_) => clearFieldError(ProfileEditorField.offset),
-              keyboardType: TextInputType.number,
+          if (sensitivity.hasOffset) ...[
+            _EditorRow(
+              label: 'Offset',
+              child: SkotiqTextField(
+                controller: _offsetController,
+                hint: 'e.g., 10',
+                mono: true,
+                errorText: _fieldErrors[ProfileEditorField.offset],
+                onChanged: (_) => clearFieldError(ProfileEditorField.offset),
+                keyboardType: TextInputType.number,
+              ),
             ),
-          ),
-          const SizedBox(height: _rowGap),
+            const SizedBox(height: _rowGap),
+          ],
           _EditorRow(
             label: 'Binning',
             child: Align(
@@ -234,6 +245,18 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
         ],
       ),
     );
+  }
+
+  /// The sensitivity of this profile's camera when it is the one connected;
+  /// gain otherwise, since only a connected body says which ISO speeds it has.
+  ExposureSensitivity _profileCameraSensitivity() {
+    final cameraState = ref.watch(cameraStateProvider);
+    final connected =
+        cameraState.connectionState == DeviceConnectionState.connected &&
+            cameraState.deviceId == _cameraId;
+    return connected
+        ? ref.watch(cameraSensitivityProvider)
+        : const GainSensitivity();
   }
 
   /// Build the auto-detect button row.

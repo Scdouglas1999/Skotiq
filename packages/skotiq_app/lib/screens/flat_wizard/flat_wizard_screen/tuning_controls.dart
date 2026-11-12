@@ -90,19 +90,21 @@ class _CaptureConfigSummary extends ConsumerWidget {
     // default' stays: it is a real, distinct state — the camera WILL be
     // commanded, just not with a number this screen chose.
     const String driverDefault = 'driver default';
+    final sensitivity = config.sensitivity;
     final rows = <(String, String)>[
       (
-        'Gain',
+        sensitivity.label,
         config.canSetGain
             ? (config.gain?.toString() ?? driverDefault)
             : kReadoutUnknown,
       ),
-      (
-        'Offset',
-        config.canSetOffset
-            ? (config.offset?.toString() ?? driverDefault)
-            : kReadoutUnknown,
-      ),
+      if (sensitivity.hasOffset)
+        (
+          'Offset',
+          config.canSetOffset
+              ? (config.offset?.toString() ?? driverDefault)
+              : kReadoutUnknown,
+        ),
       ('Binning', '${config.binX}×${config.binY}'),
     ];
 
@@ -110,7 +112,7 @@ class _CaptureConfigSummary extends ConsumerWidget {
       if (config.canSetGain &&
           config.gain != null &&
           config.gain != lights.gain)
-        'gain ${config.gain} vs ${lights.gain}',
+        '${sensitivity.describe(config.gain!)} vs ${lights.gain}',
       if (config.canSetOffset &&
           config.offset != null &&
           config.offset != lights.offset)

@@ -6,6 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import '../../../utils/cooled_camera_guard.dart' show warmupOutcomeMessage;
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
+import '../../../widgets/sensitivity_field.dart';
 import 'panel_widgets.dart';
 
 class CameraPanel extends ConsumerStatefulWidget {
@@ -99,8 +100,9 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
     // If capabilities are unavailable, infer controls from live camera telemetry
     // to avoid blocking devices that omit explicit capability reporting.
     final canSetGain = capabilities?.canSetGain ?? (cameraState.gain != null);
-    final canSetOffset =
-        capabilities?.canSetOffset ?? (cameraState.offset != null);
+    final sensitivity = ExposureSensitivity.of(capabilities);
+    final canSetOffset = sensitivity.hasOffset &&
+        (capabilities?.canSetOffset ?? (cameraState.offset != null));
 
     final binningOptions = ref.watch(
       cameraBinningOptionsProvider(cameraState.deviceId ?? ''),
@@ -463,29 +465,53 @@ class _CameraPanelState extends ConsumerState<CameraPanel> {
 
         if (canSetGain || canSetOffset)
           PanelSection(
-            title: 'Gain / Offset',
+            title: sensitivity.hasOffset
+                ? '${sensitivity.label} / Offset'
+                : sensitivity.label,
             colors: widget.colors,
             child: Column(
               children: [
                 if (canSetGain)
-                  InputRowEditable(
-                    label:
-                        'Gain${capabilities?.gainMin != null ? ' (${capabilities!.gainMin}-${capabilities.gainMax})' : ''}',
-                    helpId: FieldHelpId.cameraGain,
-                    value: exposureSettings.gain.toString(),
-                    colors: widget.colors,
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null && parsed >= 0) {
-                        final clamped = capabilities?.gainMin != null
-                            ? parsed.clamp(
-                                capabilities!.gainMin!, capabilities.gainMax!)
-                            : parsed;
+                  SensitivityField(
+                    value: exposureSettings.gain,
+                    sensitivity: sensitivity,
+                    onChanged: (gain) =>
                         ref.read(manualExposureSettingsUpdaterProvider).update(
-                              exposureSettings.copyWith(gain: clamped),
+                              exposureSettings.copyWith(gain: gain),
+                            ),
+                    isoField: (context, iso) => DropdownRow(
+                      label: iso.label,
+                      value: '${iso.accept(exposureSettings.gain)}',
+                      items: [for (final s in iso.speeds) '$s'],
+                      colors: widget.colors,
+                      helpId: FieldHelpId.cameraGain,
+                      onChanged: (picked) {
+                        final speed = int.tryParse(picked ?? '');
+                        if (speed == null) return;
+                        ref.read(manualExposureSettingsUpdaterProvider).update(
+                              exposureSettings.copyWith(gain: speed),
                             );
-                      }
-                    },
+                      },
+                    ),
+                    gainField: (_) => InputRowEditable(
+                      label:
+                          'Gain${capabilities?.gainMin != null ? ' (${capabilities!.gainMin}-${capabilities.gainMax})' : ''}',
+                      helpId: FieldHelpId.cameraGain,
+                      value: exposureSettings.gain.toString(),
+                      colors: widget.colors,
+                      onChanged: (value) {
+                        final parsed = int.tryParse(value);
+                        if (parsed != null && parsed >= 0) {
+                          final clamped = capabilities?.gainMin != null
+                              ? parsed.clamp(
+                                  capabilities!.gainMin!, capabilities.gainMax!)
+                              : parsed;
+                          ref
+                              .read(manualExposureSettingsUpdaterProvider)
+                              .update(exposureSettings.copyWith(gain: clamped));
+                        }
+                      },
+                    ),
                   ),
                 if (canSetGain && canSetOffset) const SizedBox(height: 12),
                 if (canSetOffset)

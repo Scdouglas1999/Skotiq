@@ -11,6 +11,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/help/field_help_copy.dart';
 import '../../../widgets/help/field_help_label.dart';
 import '../../../widgets/remote_directory_picker_dialog.dart';
+import '../../../widgets/sensitivity_field.dart';
 import '../../../widgets/tutorial_keys/imaging_keys.dart';
 import '../../night_control/panel/camera/camera_panel_vm.dart'
     show NightCoolerState, nightCoolerState;
@@ -78,6 +79,7 @@ class CapturePanel extends ConsumerWidget {
     final sessionImages = ref.watch(recentSessionFramesProvider);
     final isRemoteMode = ref.watch(isRemoteModeProvider);
     final cameraState = ref.watch(cameraStateProvider);
+    final sensitivity = ref.watch(cameraSensitivityProvider);
     final hostSuffix = isRemoteMode ? ' (host)' : '';
 
     // The whole observing night (owner, 2026-11-08: "always the whole
@@ -224,39 +226,51 @@ class CapturePanel extends ConsumerWidget {
           ),
           const SizedBox(height: FormRow.rowGap),
           FormRow(
-            label: 'Gain / offset',
+            label: sensitivity.hasOffset
+                ? '${sensitivity.label} / offset'
+                : sensitivity.label,
             child: Row(
               children: [
                 Expanded(
-                  child: InlineNumberField(
+                  child: SensitivityField(
                     key: ImagingTutorialKeys.gainControl,
-                    value: exposureSettings.gain.toString(),
-                    semanticLabel: 'Gain',
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null && parsed >= 0) {
+                    value: exposureSettings.gain,
+                    sensitivity: sensitivity,
+                    onChanged: (gain) =>
                         ref.read(manualExposureSettingsUpdaterProvider).update(
-                              exposureSettings.copyWith(gain: parsed),
-                            );
-                      }
-                    },
+                              exposureSettings.copyWith(gain: gain),
+                            ),
+                    gainField: (_) => InlineNumberField(
+                      value: exposureSettings.gain.toString(),
+                      semanticLabel: 'Gain',
+                      onChanged: (value) {
+                        final parsed = int.tryParse(value);
+                        if (parsed != null && parsed >= 0) {
+                          ref
+                              .read(manualExposureSettingsUpdaterProvider)
+                              .update(exposureSettings.copyWith(gain: parsed));
+                        }
+                      },
+                    ),
                   ),
                 ),
-                const SizedBox(width: SkotiqTokens.spaceSm - 2),
-                Expanded(
-                  child: InlineNumberField(
-                    value: exposureSettings.offset.toString(),
-                    semanticLabel: 'Offset',
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null && parsed >= 0) {
-                        ref.read(manualExposureSettingsUpdaterProvider).update(
-                              exposureSettings.copyWith(offset: parsed),
-                            );
-                      }
-                    },
+                if (sensitivity.hasOffset) ...[
+                  const SizedBox(width: SkotiqTokens.spaceSm - 2),
+                  Expanded(
+                    child: InlineNumberField(
+                      value: exposureSettings.offset.toString(),
+                      semanticLabel: 'Offset',
+                      onChanged: (value) {
+                        final parsed = int.tryParse(value);
+                        if (parsed != null && parsed >= 0) {
+                          ref
+                              .read(manualExposureSettingsUpdaterProvider)
+                              .update(exposureSettings.copyWith(offset: parsed));
+                        }
+                      },
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

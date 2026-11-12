@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../services/flat_exposure_calculator.dart';
+import '../backend/device_capabilities.dart';
 import 'flat_wizard_settings.dart';
 
 /// The effective, capability-resolved capture configuration for a flat run.
@@ -51,6 +52,9 @@ class FlatCaptureConfig extends Equatable {
   final bool canSetGain;
   final bool canSetOffset;
 
+  /// What the camera's gain is: a gain number or one of a DSLR's ISO speeds.
+  final ExposureSensitivity sensitivity;
+
   /// Capability ranges (null when unknown).
   final int? gainMin;
   final int? gainMax;
@@ -86,6 +90,7 @@ class FlatCaptureConfig extends Equatable {
     this.binY = 1,
     this.canSetGain = false,
     this.canSetOffset = false,
+    this.sensitivity = const GainSensitivity(),
     this.gainMin,
     this.gainMax,
     this.offsetMin,
@@ -151,6 +156,7 @@ class FlatCaptureConfig extends Equatable {
     int? binY,
     bool? canSetGain,
     bool? canSetOffset,
+    ExposureSensitivity? sensitivity,
     int? gainMin,
     int? gainMax,
     int? offsetMin,
@@ -172,6 +178,7 @@ class FlatCaptureConfig extends Equatable {
       binY: binY ?? this.binY,
       canSetGain: canSetGain ?? this.canSetGain,
       canSetOffset: canSetOffset ?? this.canSetOffset,
+      sensitivity: sensitivity ?? this.sensitivity,
       gainMin: gainMin ?? this.gainMin,
       gainMax: gainMax ?? this.gainMax,
       offsetMin: offsetMin ?? this.offsetMin,
@@ -196,6 +203,7 @@ class FlatCaptureConfig extends Equatable {
     binY,
     canSetGain,
     canSetOffset,
+    sensitivity,
     gainMin,
     gainMax,
     offsetMin,

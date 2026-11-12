@@ -43,6 +43,10 @@
     filterWheelPositionsLoading: false,
     rotatorStatus: null,
     readoutModes: [],
+    // The connected camera's ISO speeds (DSLR or mirrorless), and the camera
+    // they were read for; empty for a gain camera.
+    cameraIsoSpeeds: [],
+    cameraIsoSpeedsDeviceId: null,
     selectedReadoutMode: null,
     lastAutofocusResult: null,
     lastImagePositionAngle: null,
@@ -1799,6 +1803,7 @@
       // These are best-effort — handlers log on failure rather than blocking
       // the panel render.
       maybeLoadCameraReadoutModes();
+      maybeLoadCameraSensitivity();
       maybeLoadFilterWheelPositions();
     } catch (e) {
       // Recorded, not only logged: the panel's stale line is drawn from this.
@@ -1964,6 +1969,76 @@
     } catch (e) {
       addLogEntry('error', describeApiError(e, 'Readout modes load'));
     }
+  }
+
+  // A DSLR or mirrorless camera's gain is one of its ISO speeds: the gain
+  // field becomes an ISO picker, and the offset row goes (such bodies have
+  // no offset control).
+  async function maybeLoadCameraSensitivity() {
+    const deviceId = state.cameraDeviceId;
+    if (state.cameraIsoSpeedsDeviceId === deviceId) return;
+    state.cameraIsoSpeedsDeviceId = deviceId;
+    state.cameraIsoSpeeds = [];
+    if (deviceId) {
+      try {
+        const caps = await api.cameraGetCapabilities(deviceId);
+        if (state.cameraDeviceId !== deviceId) return;
+        state.cameraIsoSpeeds = Array.isArray(caps && caps.isoSpeeds) ? caps.isoSpeeds : [];
+      } catch (e) {
+        state.cameraIsoSpeedsDeviceId = null;
+        addLogEntry('error', describeApiError(e, 'Camera capabilities load'));
+      }
+    }
+    renderCameraSensitivity();
+  }
+
+  function renderCameraSensitivity() {
+    const iso = state.cameraIsoSpeeds.length > 0;
+    const gainInput = document.getElementById('camera-gain');
+    const isoSelect = document.getElementById('camera-iso');
+    const label = document.getElementById('camera-gain-label');
+    const offsetRow = document.getElementById('camera-offset-row');
+    const apply = document.getElementById('btn-camera-apply-gain');
+    if (!gainInput || !isoSelect) return;
+    gainInput.hidden = iso;
+    isoSelect.hidden = !iso;
+    if (label) {
+      label.textContent = iso ? 'ISO' : 'Gain';
+      label.htmlFor = iso ? 'camera-iso' : 'camera-gain';
+    }
+    if (offsetRow) offsetRow.hidden = iso;
+    if (apply) apply.setAttribute('aria-label', iso ? 'Apply ISO to camera' : 'Apply gain to camera');
+    if (!iso) return;
+    const current = nearestIsoSpeed(parseInt(gainInput.value, 10));
+    clearElement(isoSelect);
+    for (const speed of state.cameraIsoSpeeds) {
+      const opt = document.createElement('option');
+      opt.value = String(speed);
+      opt.textContent = String(speed);
+      isoSelect.appendChild(opt);
+    }
+    isoSelect.value = String(current);
+  }
+
+  // The offered speed nearest to `value` by ratio, as the camera drivers
+  // choose; the lowest speed for a value that is not a number.
+  function nearestIsoSpeed(value) {
+    const speeds = state.cameraIsoSpeeds;
+    if (!Number.isFinite(value) || value < 1) return speeds[0];
+    let best = speeds[0];
+    for (const speed of speeds) {
+      if (Math.abs(Math.log(speed / value)) < Math.abs(Math.log(best / value))) best = speed;
+    }
+    return best;
+  }
+
+  // The gain the camera controls hold: the ISO picker's speed for a DSLR,
+  // the gain field otherwise.
+  function currentCameraGain() {
+    if (state.cameraIsoSpeeds.length > 0) {
+      return parseInt(document.getElementById('camera-iso').value, 10);
+    }
+    return parseInt(document.getElementById('camera-gain').value, 10);
   }
 
   async function maybeLoadFilterWheelPositions() {
@@ -2145,7 +2220,7 @@
     }
 
     const exposureTime = parseFloat(document.getElementById('exposure-time').value);
-    const gain = parseInt(document.getElementById('camera-gain').value, 10);
+    const gain = currentCameraGain();
     const binning = parseInt(document.getElementById('camera-binning').value, 10);
 
     if (isNaN(exposureTime) || exposureTime <= 0) {
@@ -2157,7 +2232,9 @@
     // the latest dashboard intent rather than relying on a separate
     // /api/camera/offset call (which still works, but a single round-trip
     // is friendlier on slow links).
-    const offsetRaw = document.getElementById('camera-offset');
+    const offsetRaw = state.cameraIsoSpeeds.length > 0
+      ? null
+      : document.getElementById('camera-offset');
     const offset = offsetRaw ? parseInt(offsetRaw.value, 10) : NaN;
     let subframe;
     try {
@@ -2773,6 +2850,11 @@
     if (gainInput && document.activeElement !== gainInput && status.gain != null) {
       gainInput.value = String(status.gain);
     }
+    const isoSelect = document.getElementById('camera-iso');
+    if (isoSelect && state.cameraIsoSpeeds.length > 0
+        && document.activeElement !== isoSelect && status.gain != null) {
+      isoSelect.value = String(nearestIsoSpeed(status.gain));
+    }
     if (offsetInput && document.activeElement !== offsetInput && status.offset != null) {
       offsetInput.value = String(status.offset);
     }
@@ -2795,14 +2877,15 @@
 
   async function handleCameraApplyGain() {
     if (!state.cameraDeviceId) return;
-    const v = parseInt(document.getElementById('camera-gain').value, 10);
+    const iso = state.cameraIsoSpeeds.length > 0;
+    const v = currentCameraGain();
     if (isNaN(v)) { showToast('Gain must be an integer', 'error'); return; }
     try {
       await api.cameraSetGain(state.cameraDeviceId, v);
-      addLogEntry('camera', 'Gain set to ' + v);
-      showToast('Gain applied');
+      addLogEntry('camera', (iso ? 'ISO set to ' : 'Gain set to ') + v);
+      showToast(iso ? 'ISO applied' : 'Gain applied');
     } catch (e) {
-      showToast('Set gain failed: ' + e.message, 'error');
+      showToast((iso ? 'Set ISO failed: ' : 'Set gain failed: ') + e.message, 'error');
     }
   }
 

@@ -626,6 +626,15 @@ class SkotiqApi {
     return this._post('/api/camera/cooling', { deviceId, enabled, targetTemp });
   }
 
+  // What the camera's sensitivity control takes: `isoSpeeds` lists a DSLR
+  // or mirrorless body's ISO speeds (the gain it takes is the ISO number);
+  // empty for a gain camera.
+  async cameraGetCapabilities(deviceId) {
+    return this._get(
+      '/api/equipment/camera/capabilities?deviceId=' + encodeURIComponent(deviceId || ''),
+    );
+  }
+
   async cameraSetGain(deviceId, gain) {
     return this._post('/api/camera/gain', { deviceId, gain });
   }

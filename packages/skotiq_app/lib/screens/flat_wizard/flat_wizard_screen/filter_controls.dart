@@ -52,6 +52,7 @@ class _FilterChecklist extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).extension<SkotiqColors>()!;
     final state = ref.watch(flatWizardProvider);
+    final sensitivity = ref.watch(flatCameraConfigProvider).sensitivity;
 
     if (state.filterSettings.isEmpty) {
       return const EmptyState.compact(
@@ -65,14 +66,20 @@ class _FilterChecklist extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-            'Set gain and offset to match each filter’s lights. Clear a field to inherit the camera defaults below.',
+            sensitivity.hasOffset
+                ? 'Set gain and offset to match each filter’s lights. Clear a field to inherit the camera defaults below.'
+                : 'Set the ISO to match each filter’s lights. Choose Default to inherit the camera default below.',
             style: SkotiqTypography.bodySm.copyWith(color: colors.textMuted)),
         const SizedBox(height: SkotiqTokens.spaceMd),
         LayoutBuilder(builder: (context, constraints) {
           if (constraints.maxWidth < 480) return const SizedBox.shrink();
           return Row(children: [
             const SizedBox(width: 110, child: Text('Filter')),
-            for (final label in ['Gain', 'Offset', 'Frames'])
+            for (final label in [
+              sensitivity.label,
+              if (sensitivity.hasOffset) 'Offset',
+              'Frames',
+            ])
               Expanded(
                   child: Text(label,
                       style: SkotiqTypography.caption
@@ -145,6 +152,40 @@ class _FilterSettingsRow extends ConsumerWidget {
       );
     }
 
+    // A filter's ISO, or Default to take the camera default.
+    Widget isoOverride(IsoSensitivity iso, int? value, int? inherited,
+        {bool showLabel = true}) {
+      const unset = '';
+      final defaultLabel =
+          inherited == null ? 'Default' : 'Default (${iso.describe(inherited)})';
+      return Semantics(
+        label: '${filter.filterName} ${iso.label}',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showLabel) ...[
+              Text(iso.label,
+                  style: SkotiqTypography.caption
+                      .copyWith(color: colors.textMuted)),
+              const SizedBox(height: SkotiqTokens.spaceXs),
+            ],
+            SkotiqDropdown(
+              key: ValueKey('flat-filter-iso-${filter.filterPosition}'),
+              value: value == null ? unset : '${iso.accept(value)}',
+              items: [unset, for (final s in iso.speeds) '$s'],
+              itemLabels: [defaultLabel, for (final s in iso.speeds) '$s'],
+              isExpanded: true,
+              dense: true,
+              onChanged: editable
+                  ? (picked) => update(current().copyWith(
+                      gainOverride: int.tryParse(picked ?? '')))
+                  : null,
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: SkotiqTokens.spaceSm),
       decoration: BoxDecoration(
@@ -157,23 +198,38 @@ class _FilterSettingsRow extends ConsumerWidget {
             Expanded(
                 child: Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: field('Gain', filter.gainOverride, config.gain,
-                        (v) => update(current().copyWith(gainOverride: v)),
-                        showLabel: !wide || !showToggle,
-                        supported:
-                            !config.capabilitiesKnown || config.canSetGain,
-                        min: config.gainMin,
-                        max: config.gainMax))),
-            Expanded(
-                child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: field('Offset', filter.offsetOverride, config.offset,
-                        (v) => update(current().copyWith(offsetOverride: v)),
-                        showLabel: !wide || !showToggle,
-                        supported:
-                            !config.capabilitiesKnown || config.canSetOffset,
-                        min: config.offsetMin,
-                        max: config.offsetMax))),
+                    child: SensitivityField(
+                        value: filter.gainOverride,
+                        sensitivity: config.sensitivity,
+                        onChanged: (v) =>
+                            update(current().copyWith(gainOverride: v)),
+                        isoField: (context, iso) => isoOverride(
+                            iso, filter.gainOverride, config.gain,
+                            showLabel: !wide || !showToggle),
+                        gainField: (_) => field(
+                            'Gain',
+                            filter.gainOverride,
+                            config.gain,
+                            (v) => update(current().copyWith(gainOverride: v)),
+                            showLabel: !wide || !showToggle,
+                            supported:
+                                !config.capabilitiesKnown || config.canSetGain,
+                            min: config.gainMin,
+                            max: config.gainMax)))),
+            if (config.sensitivity.hasOffset)
+              Expanded(
+                  child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: field(
+                          'Offset',
+                          filter.offsetOverride,
+                          config.offset,
+                          (v) => update(current().copyWith(offsetOverride: v)),
+                          showLabel: !wide || !showToggle,
+                          supported:
+                              !config.capabilitiesKnown || config.canSetOffset,
+                          min: config.offsetMin,
+                          max: config.offsetMax))),
             Expanded(
                 child: field(
                     'Frames',

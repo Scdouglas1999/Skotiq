@@ -174,6 +174,7 @@ class _QuickStartCheckerState extends ConsumerState<QuickStartChecker> {
             context: uiContext,
             builder: (dialogContext) => QuickStartDialog(
               quickStartContext: quickStartContext,
+              sensitivity: ref.read(cameraSensitivityProvider),
               onStartFresh: () {
                 Navigator.of(dialogContext).pop();
                 unawaited(_handleStartFresh(quickStartContext, host));

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../widgets/sensitivity_field.dart';
 import '../../../widgets/tutorial_keys/imaging_keys.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'imaging_view_prefs.dart';
@@ -246,11 +247,18 @@ class _ImagingCaptureBarState extends ConsumerState<ImagingCaptureBar> {
                   const SizedBox(width: SkotiqTokens.spaceSm),
                   SizedBox(
                     width: _fieldWidth,
-                    child: _GainField(
+                    child: SensitivityField(
                       value: exposureSettings.gain,
+                      labelled: true,
                       onChanged: (int gain) => ref
                           .read(manualExposureSettingsUpdaterProvider)
                           .update(exposureSettings.copyWith(gain: gain)),
+                      gainField: (_) => _GainField(
+                        value: exposureSettings.gain,
+                        onChanged: (int gain) => ref
+                            .read(manualExposureSettingsUpdaterProvider)
+                            .update(exposureSettings.copyWith(gain: gain)),
+                      ),
                     ),
                   ),
                   if (filterState.filterNames.isNotEmpty) ...<Widget>[
