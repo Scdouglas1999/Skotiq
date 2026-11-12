@@ -34,6 +34,7 @@ pub(crate) mod filter_wheel;
 pub(crate) mod focuser;
 pub(crate) mod mount;
 
+use crate::device_manager::identity::DeviceIdentity;
 use async_trait::async_trait;
 use skotiq_device::DriverError;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -47,6 +48,13 @@ pub(crate) trait RigDriver: Send + Sync {
     /// `Ok(false)`: it did not, or it says it is not connected. `Err`: the
     /// probe failed, with the sentence the user is shown.
     async fn heartbeat(&self) -> Result<bool, String>;
+
+    /// What the connected device says it is: its model, its serial number
+    /// and, for a camera, its sensor. `None` where the protocol gives the
+    /// driver nothing to say.
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        None
+    }
 }
 
 /// A driver that needs `&mut self` for commands (a vendor SDK driver, an ASCOM

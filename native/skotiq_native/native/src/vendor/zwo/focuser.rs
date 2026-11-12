@@ -173,6 +173,9 @@ pub struct ZwoFocuser {
     /// expose this value, so absent a quirks entry we cannot honestly answer
     /// `get_step_size`; tracking it here lets us fail loudly instead of guessing.
     pub(crate) step_size_um: Option<f64>,
+    /// `EAFGetSerialNumber` of the open focuser; `None` before connect and
+    /// for a unit that reports none.
+    pub(crate) serial_number: Option<String>,
 }
 
 impl ZwoFocuser {
@@ -184,6 +187,7 @@ impl ZwoFocuser {
             max_position: 0,
             name: format!("ZWO EAF {}", focuser_id),
             step_size_um: None,
+            serial_number: None,
         }
     }
 }
@@ -200,6 +204,10 @@ impl DeviceDriver for ZwoFocuser {
 
     fn vendor(&self) -> Vendor {
         Vendor::Zwo
+    }
+
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
     }
 
     fn is_connected(&self) -> bool {
@@ -283,6 +291,7 @@ impl DeviceDriver for ZwoFocuser {
         cleanup_guard.defuse();
 
         self.connected = true;
+        self.serial_number = serial_number.clone();
 
         // Populate the connected-EAF registry so that hot-plug discovery polls
         // can report this device from cache instead of calling EAFOpen/EAFClose

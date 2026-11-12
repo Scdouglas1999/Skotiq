@@ -66,6 +66,9 @@ pub struct PlayerOneFilterWheel {
     pub(crate) name: String,
     pub(crate) connected: bool,
     pub(crate) filter_count: i32,
+    /// `PWProperties.SN` of the open wheel; `None` before connect and for a
+    /// unit that reports none.
+    pub(crate) serial_number: Option<String>,
 }
 
 impl std::fmt::Debug for PlayerOneFilterWheel {
@@ -87,6 +90,7 @@ impl PlayerOneFilterWheel {
             name: format!("Player One PW {}", handle),
             connected: false,
             filter_count: 0,
+            serial_number: None,
         }
     }
 }
@@ -103,6 +107,10 @@ impl DeviceDriver for PlayerOneFilterWheel {
 
     fn vendor(&self) -> Vendor {
         Vendor::PlayerOne
+    }
+
+    fn serial_number(&self) -> Option<String> {
+        self.serial_number.clone()
     }
 
     fn is_connected(&self) -> bool {
@@ -146,6 +154,7 @@ impl DeviceDriver for PlayerOneFilterWheel {
 
         self.name = pw_cstr(&props.name);
         self.filter_count = props.position_count;
+        self.serial_number = Some(pw_cstr(&props.sn)).filter(|sn| !sn.is_empty());
         cleanup_guard.defuse();
         drop(sdk);
         self.connected = true;

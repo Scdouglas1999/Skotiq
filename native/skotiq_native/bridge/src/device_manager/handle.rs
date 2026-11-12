@@ -7,6 +7,7 @@
 use crate::device::{DeviceType, DriverType};
 use crate::device_capabilities::DeviceCapabilities;
 use crate::device_manager::accessory::{self, Dome, Rotator, SafetyMonitor, Weather};
+use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::ops::sim_gate;
 use crate::device_manager::rig::camera::Camera;
 use crate::device_manager::rig::filter_wheel::FilterWheel;
@@ -78,6 +79,14 @@ impl DeviceHandle {
                 Err(e) => Err(e.to_string()),
             },
             Link::Rig(driver) => driver.heartbeat().await,
+        }
+    }
+
+    /// What the connected device says it is, where its driver can say.
+    pub(crate) async fn identity(&self) -> Option<DeviceIdentity> {
+        match self.link() {
+            Link::Accessory(_) => None,
+            Link::Rig(driver) => driver.identity().await,
         }
     }
 

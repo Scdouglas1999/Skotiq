@@ -10,6 +10,8 @@ use super::{Exclusive, RigDriver};
 use crate::api::devices::simulation::get_sim_focuser;
 use crate::device_capabilities::FocuserCapabilities;
 use crate::device_manager::ops::{sim_faults, sim_gate};
+use crate::device_manager::identity::DeviceIdentity;
+use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{focuser_move_with_timeout, with_timeout_str, Timeouts};
@@ -83,6 +85,14 @@ impl RigDriver for VendorFocuser {
             .await
             .map(|_| true)
             .map_err(|e| format!("Native focuser liveness probe failed: {}", e))
+    }
+
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        let driver = self.driver.read().await;
+        Some(DeviceManager::identity_from_device(
+            &self.device_id,
+            driver.as_ref(),
+        ))
     }
 }
 

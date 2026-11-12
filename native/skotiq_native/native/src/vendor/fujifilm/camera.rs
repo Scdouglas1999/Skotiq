@@ -6,7 +6,11 @@ use super::*;
 pub struct FujifilmCamera {
     pub(crate) id: String,
     pub(crate) name: String,
-    pub(crate) serial_number: String,
+    /// What the open session is joined by: the serial number, or the product
+    /// name of a body that lists none.
+    pub(crate) address: String,
+    /// `XSDK_Detect`'s serial number for the body, when it lists one.
+    pub(crate) serial_number: Option<String>,
     pub(crate) model: FujifilmModel,
 
     /// The open SDK session on the body, shared with its lens focuser;
@@ -49,16 +53,17 @@ pub struct FujifilmCamera {
 
 impl FujifilmCamera {
     pub fn new(device_info: &FujifilmDeviceInfo) -> Self {
-        let serial = device_info
+        let address = device_info
             .serial_number
             .clone()
             .unwrap_or_else(|| device_info.name.clone());
         let (width, height, pixel_size, bit_depth) = device_info.model.sensor_specs();
 
         Self {
-            id: format!("native:fujifilm:{}", serial),
+            id: format!("native:fujifilm:{}", address),
             name: device_info.name.clone(),
-            serial_number: serial,
+            address,
+            serial_number: device_info.serial_number.clone(),
             model: device_info.model,
             session: None,
             firmware_version: String::new(),

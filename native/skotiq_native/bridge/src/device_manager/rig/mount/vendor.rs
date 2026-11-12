@@ -8,6 +8,7 @@
 use super::Mount;
 use crate::device::*;
 use crate::device_capabilities::{DeviceCapabilities, MountCapabilities};
+use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::{Exclusive, RigDriver};
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
@@ -62,6 +63,15 @@ impl RigDriver for VendorMount {
             .await
             .map(|_| true)
             .map_err(|e| format!("Native mount liveness probe failed: {}", e))
+    }
+
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        let driver = self.driver.read().await;
+        let mount = driver.as_ref()?;
+        Some(DeviceManager::identity_from_device(
+            &self.device_id,
+            mount.as_ref(),
+        ))
     }
 }
 
