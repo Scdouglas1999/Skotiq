@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -355,8 +357,91 @@ void main() {
       ];
       expect(locations, hasLength(greaterThan(12)));
       for (final location in locations) {
-        expect(AppRoute.of(location), isNotNull, reason: location);
+        expect(_unresolved(location), isNull, reason: location);
       }
     });
+
+    test('a link to no route, or with a word no tab answers to, is caught', () {
+      expect(_unresolved('/planner?tab=scheduler'), isNull);
+      expect(_unresolved('/framing'), isNull);
+      expect(_unresolved('/settings/plate-solving'), isNull);
+      expect(_unresolved('/planner/queue'), contains('no route'));
+      expect(_unresolved('/planner?tab=shedule'), contains('tab=shedule'));
+      expect(_unresolved('/settings?section=nope'), contains('section=nope'));
+      expect(_unresolved('/equipment?tab=cameras'), contains('tab=cameras'));
+      expect(_unresolved('/darkroom?tab=library'), contains('tab=library'));
+    });
+
+    // The lists above name the models known to carry a route. This reads the
+    // source so a route string added to core later is checked without anyone
+    // remembering to add it here.
+    test('every route string in core lands on a route', () {
+      final firstSegments = {
+        for (final route in AppRoute.values) route.path.split('/')[1],
+      };
+      final literal = RegExp(
+        "['\"](/(?:${firstSegments.map(RegExp.escape).join('|')})"
+        "(?:[/?][^'\"\\s]*)?)['\"]",
+      );
+      final coreLib = Directory('../skotiq_core/lib');
+      expect(coreLib.existsSync(), isTrue, reason: 'run from skotiq_app');
+      final found = <String>{};
+      for (final file in coreLib.listSync(recursive: true).whereType<File>()) {
+        if (!file.path.endsWith('.dart') || file.path.endsWith('.g.dart')) {
+          continue;
+        }
+        final source = file.readAsStringSync();
+        for (final match in literal.allMatches(source)) {
+          final location = match.group(1)!;
+          // An interpolated value stands for any id or name.
+          final sample = location.replaceAll(RegExp(r'\$\{[^}]*\}'), 'x');
+          found.add(sample);
+          expect(
+            _unresolved(sample),
+            isNull,
+            reason: '${file.path}: $location',
+          );
+        }
+      }
+      expect(found, hasLength(greaterThan(8)));
+      expect(found, contains('/settings?section=plate-solving'));
+    });
   });
+}
+
+/// What stops [location] from landing where it says, or null when it lands:
+/// its path must be a route of the table (following the table's redirects),
+/// and every tab, view or section word in its query must name one.
+String? _unresolved(String location) {
+  var uri = Uri.parse(location);
+  for (var hop = 0; hop < 5; hop++) {
+    final route = AppRoute.of(uri.toString());
+    if (route == null || !_isExactly(route, uri)) {
+      return 'no route at ${uri.path}';
+    }
+    for (final MapEntry(key: name, value: word)
+        in uri.queryParameters.entries) {
+      final names = route.queryChoices[name];
+      if (names == null) {
+        // Only the words that pick a tab are checked on routes that have
+        // none; ids and names are free text.
+        if (name == 'tab' || name == 'view' || name == 'section') {
+          return '$name=$word on ${route.path}, which reads no $name';
+        }
+      } else if (!names(word)) {
+        return '$name=$word is not a $name of ${route.path}';
+      }
+    }
+    final next = route.redirect(uri);
+    if (next == null) return null;
+    uri = Uri.parse(next);
+  }
+  return 'redirect loop at $location';
+}
+
+/// Whether [uri]'s path is [route]'s own path rather than something below it.
+bool _isExactly(AppRoute route, Uri uri) {
+  final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  final pattern = route.path.split('/').where((s) => s.isNotEmpty).toList();
+  return segments.length == pattern.length;
 }
