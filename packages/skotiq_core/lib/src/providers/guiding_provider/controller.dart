@@ -15,6 +15,39 @@ final phd2ControllerProvider = Provider<Phd2Controller>((ref) {
 /// in-flight positive command drains. That final stop is the ordering fence:
 /// even if the first stop reached the host before Start did, the terminal
 /// command observed by PHD2 is still Stop.
+/// The guider state an `AppState` string names (the guiding events and the
+/// guider status use the same words); null for one this build does not know.
+Phd2State? phd2StateFromAppState(String? appState) => switch (appState) {
+  'Stopped' => Phd2State.stopped,
+  'Selected' => Phd2State.selected,
+  'Calibrating' => Phd2State.calibrating,
+  'Guiding' => Phd2State.guiding,
+  'LostLock' => Phd2State.lostLock,
+  'Paused' => Phd2State.paused,
+  'Looping' => Phd2State.looping,
+  _ => null,
+};
+
+/// The guider state a guiding event leaves, or null for an event that says
+/// nothing about it (a guide step, a star statistic). An `AppState` this
+/// build does not know is [Phd2State.unknown], never stopped: that would
+/// offer Start over a guider that may be running.
+Phd2State? phd2StateAfterEvent(String eventType, Map<String, dynamic> data) =>
+    switch (eventType) {
+      'AppState' => switch (data['State']) {
+        final String name => phd2StateFromAppState(name) ?? Phd2State.unknown,
+        _ => null,
+      },
+      'GuidingStarted' || 'Resumed' || 'SettleDone' => Phd2State.guiding,
+      'GuidingStopped' => Phd2State.stopped,
+      'Paused' => Phd2State.paused,
+      'StarLost' => Phd2State.lostLock,
+      'Settling' => Phd2State.settling,
+      'LoopingExposures' => Phd2State.looping,
+      'Calibrating' => Phd2State.calibrating,
+      _ => null,
+    };
+
 class _GuidingCommandGate {
   bool _positiveInFlight = false;
   bool _stopInFlight = false;
@@ -291,6 +324,10 @@ class Phd2Controller {
         );
 
         final guiderNotifier = ref.read(guiderStateProvider.notifier);
+        final stateAfter = phd2StateAfterEvent(event.eventType, event.data);
+        if (stateAfter != null) {
+          ref.read(phd2StateProvider.notifier).state = stateAfter;
+        }
 
         switch (event.eventType) {
           case 'Connected':
@@ -302,7 +339,7 @@ class Phd2Controller {
             _handlePhd2LinkLost();
             return;
           case 'AppState':
-            _updateStateFromString(event.data['State']);
+            _afterAppState(event.data['State'], stateAfter);
             break;
           case 'GuideStep':
             _logger.debug(
@@ -327,40 +364,22 @@ class Phd2Controller {
             break;
           case 'GuidingStarted':
             ref.read(guidingStopReasonProvider.notifier).state = null;
-            ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             guiderNotifier.setGuiding(true);
             unawaited(_refreshPixelScale());
             break;
           case 'GuidingStopped':
             _resetStarLoss();
-            ref.read(phd2StateProvider.notifier).state = Phd2State.stopped;
             guiderNotifier.setGuiding(false);
             break;
-          case 'Paused':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.paused;
-            break;
           case 'Resumed':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             guiderNotifier.setGuiding(true);
             break;
           case 'StarLost':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.lostLock;
             _handleStarLost();
             break;
-          case 'Settling':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.settling;
-            break;
           case 'SettleDone':
-            // Settle complete - return to guiding state
             ref.read(guiderSettleTimeoutProvider.notifier).state = null;
-            ref.read(phd2StateProvider.notifier).state = Phd2State.guiding;
             _logger.info('Settle complete', source: 'PHD2');
-            break;
-          case 'LoopingExposures':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.looping;
-            break;
-          case 'Calibrating':
-            ref.read(phd2StateProvider.notifier).state = Phd2State.calibrating;
             break;
           case 'CalibrationComplete':
             _logger.info('Calibration complete', source: 'PHD2');
@@ -398,47 +417,17 @@ class Phd2Controller {
     );
   }
 
-  void _updateStateFromString(String? stateStr) {
-    if (stateStr == null) return;
-
-    Phd2State state;
-    switch (stateStr) {
-      case 'Stopped':
-        state = Phd2State.stopped;
-        break;
-      case 'Selected':
-        state = Phd2State.selected;
-        break;
-      case 'Calibrating':
-        state = Phd2State.calibrating;
-        break;
-      case 'Guiding':
-        state = Phd2State.guiding;
-        break;
-      case 'LostLock':
-        state = Phd2State.lostLock;
-        break;
-      case 'Paused':
-        state = Phd2State.paused;
-        break;
-      case 'Looping':
-        state = Phd2State.looping;
-        break;
-      default:
-        // An unrecognised AppState must NOT collapse to `stopped` — that would
-        // falsely enable Start over a process that may well be live. Surface it
-        // as `unknown` so the controls stay conservative (Stop, not Start).
-        _logger.warning(
-          'Unrecognized PHD2 AppState "$stateStr" — treating as unknown',
-          source: 'Phd2Controller',
-        );
-        state = Phd2State.unknown;
+  void _afterAppState(Object? name, Phd2State? state) {
+    if (state == null) return;
+    if (state == Phd2State.unknown) {
+      _logger.warning(
+        'Unrecognized PHD2 AppState "$name" — treating as unknown',
+        source: 'Phd2Controller',
+      );
     }
-
-    ref.read(phd2StateProvider.notifier).state = state;
-
-    final guiderNotifier = ref.read(guiderStateProvider.notifier);
-    guiderNotifier.setGuiding(state == Phd2State.guiding);
+    ref
+        .read(guiderStateProvider.notifier)
+        .setGuiding(state == Phd2State.guiding);
   }
 
   void _handleGuideStep(Map<String, dynamic> json) {
