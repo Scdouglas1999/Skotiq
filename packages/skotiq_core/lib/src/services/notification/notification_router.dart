@@ -88,6 +88,8 @@ class NotificationRouter {
   /// past what was told, so its next fault, hours later, is told again.
   String? _toldFailureReason;
 
+  final ConnectingDevices _connecting = ConnectingDevices();
+
   /// Per-category last fire time (for debouncing).
   final Map<NotificationCategory, DateTime> _lastFireTime = {};
 
@@ -529,6 +531,9 @@ class NotificationRouter {
   // Internal: event mapping
 
   void _onEvent(SkotiqEvent event) {
+    // Followed whether or not notifications are on, so turning them on
+    // mid-connect does not lose the thread.
+    final failedConnect = _connecting.isFailedConnect(event);
     if (!_matrix.enabled) return;
 
     // NotificationNode emits a sequencer event of type
@@ -606,6 +611,11 @@ class NotificationRouter {
         }.contains(event.eventType)) {
       _toldFailureReason = null;
     }
+
+    // A connect that did not succeed is not a lost device. Whoever asked
+    // for the connect is told why it failed; the device service tells the
+    // rest (see `_handleDeviceError`).
+    if (failedConnect) return;
 
     // Single source of truth for event -> category classification, shared
     // with PushNotificationService (see event_classifier.dart).

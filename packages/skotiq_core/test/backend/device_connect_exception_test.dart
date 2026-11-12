@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/backend/device_connect_exception.dart';
+import 'package:skotiq_core/src/errors/error_text.dart';
+import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/models/errors/server_error.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 
@@ -66,5 +70,28 @@ void main() {
       connectFailureReason(Exception('Mount driver refused')),
       'Mount driver refused',
     );
+  });
+
+  // A linked client whose connect request ran out of time showed
+  // "TimeoutException after 0:00:30.000000: Future not completed".
+  test('a connect that ran out of time is said in a sentence', () {
+    expect(
+      connectFailureReason(
+        TimeoutException('Future not completed', const Duration(seconds: 30)),
+      ),
+      'No answer after 30 s. It may still be connecting.',
+    );
+  });
+
+  // The slot of a device that did not connect showed "Failed to connect to
+  // sim_focuser_1 via native bridge: ..." once nothing else overwrote it.
+  test('a failed connect reads as its reason wherever errors are worded', () {
+    const error = DeviceConnectException(
+      'sim_focuser_1',
+      'SkotiqError.connectionFailed(...)',
+      reason: 'The hub lost power',
+    );
+    expect(userFacingError(error), 'The hub lost power');
+    expect(DeviceError.fromException(error).message, 'The hub lost power');
   });
 }

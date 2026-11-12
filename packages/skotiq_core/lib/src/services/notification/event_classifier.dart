@@ -60,6 +60,36 @@ const String kQualityProblemContinuesNote =
     'The run continues. To have problems like this stop the run instead, turn '
     'on Stop the run for quality problems in Settings > Sequencer.';
 
+/// The devices the native side has said it is connecting and has not yet
+/// reported connected.
+///
+/// The native side publishes the same `Error` event for a device that was
+/// lost and for a connect that did not succeed; only the events before it
+/// tell them apart (`Connecting`, then `Error`, is a failed connect). A
+/// device never seen connecting is treated as one that was connected, so a
+/// real loss is never taken for a failed connect.
+class ConnectingDevices {
+  final Set<String> _ids = <String>{};
+
+  /// Record [event], and answer whether it is the `Error` of a connect that
+  /// did not succeed (a first connect or a reconnect attempt).
+  bool isFailedConnect(SkotiqEvent event) {
+    if (event.category != EventCategory.equipment) return false;
+    final deviceId = event.data['device_id'];
+    if (deviceId is! String || deviceId.isEmpty) return false;
+    switch (event.eventType) {
+      case 'Connecting':
+        _ids.add(deviceId);
+      case 'Connected':
+      case 'Disconnected':
+        _ids.remove(deviceId);
+      case 'Error':
+        return _ids.contains(deviceId);
+    }
+    return false;
+  }
+}
+
 /// The result of classifying a single backend event: the semantic
 /// [NotificationCategory], the context key/value pairs the templates need,
 /// and the event's [EventSeverity] (carried through unchanged, except for a
