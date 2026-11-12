@@ -378,8 +378,8 @@ pub fn rewrite_frame_header(
 
 /// Write a plate solve's WCS into a frame file, keeping its pixels and
 /// everything else it holds.
-pub fn write_wcs_into_frame(path: &Path, wcs: &crate::WcsInfo) -> Result<(), FrameIoError> {
-    rewrite_frame_header(path, |header| crate::add_wcs_headers(header, wcs))
+pub fn write_wcs_into_frame(path: &Path, wcs: &crate::SipWcs) -> Result<(), FrameIoError> {
+    rewrite_frame_header(path, |header| wcs.write_to_header(header))
 }
 
 /// Write through a sibling file and move it into place, so no reader sees a

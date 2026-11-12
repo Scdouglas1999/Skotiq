@@ -158,43 +158,13 @@ impl PlateSolveOps for UnifiedDeviceOps {
     }
 }
 
-/// The WCS of a successful solve of a `width` x `height` frame: the solved
-/// centre at the frame's centre pixel, with the solver's own CD matrix when it
-/// reported one (it carries any skew and mirroring) and the scale and
-/// rotation otherwise. `None` for a failed or scaleless solve.
+/// The WCS of a successful solve of a `width` x `height` frame.
 pub(crate) fn solved_wcs(
     solved: &crate::api::plate_solve::PlateSolveResult,
     width: u32,
     height: u32,
-) -> Option<skotiq_imaging::WcsInfo> {
-    if !solved.success
-        || !solved.ra.is_finite()
-        || !solved.dec.is_finite()
-        || !solved.pixel_scale.is_finite()
-        || solved.pixel_scale <= 0.0
-        || width == 0
-        || height == 0
-    {
-        return None;
-    }
-    let mut wcs = skotiq_imaging::WcsInfo::from_plate_solve(
-        solved.ra,
-        solved.dec,
-        solved.rotation,
-        solved.pixel_scale,
-        width,
-        height,
-    );
-    let cd = [solved.cd1_1, solved.cd1_2, solved.cd2_1, solved.cd2_2];
-    if cd.iter().all(|v| v.is_finite())
-        && (solved.cd1_1 * solved.cd2_2 - solved.cd1_2 * solved.cd2_1) != 0.0
-    {
-        wcs.cd1_1 = solved.cd1_1;
-        wcs.cd1_2 = solved.cd1_2;
-        wcs.cd2_1 = solved.cd2_1;
-        wcs.cd2_2 = solved.cd2_2;
-    }
-    Some(wcs)
+) -> Option<skotiq_imaging::SipWcs> {
+    skotiq_imaging::SipWcs::from_plate_solve(&solved.into(), width, height)
 }
 
 #[cfg(test)]
@@ -239,6 +209,20 @@ mod solved_wcs_tests {
             (-3.9e-4, 1.0e-5, 1.1e-5, 4.0e-4)
         );
         assert!(solved_wcs(&solve(false), 1920, 1080).is_none());
+    }
+
+    /// The solver's SIP distortion is part of the frame's WCS.
+    #[test]
+    fn the_frame_wcs_keeps_the_solvers_distortion() {
+        let mut result = solve(true);
+        result.sip_a_order = 2;
+        result.sip_b_order = 2;
+        result.sip_a_coeffs = vec![0.0, 0.0, 5e-7, 0.0, -8e-7, 0.0, 1.2e-6, 0.0, 0.0];
+        result.sip_b_coeffs = vec![0.0, 0.0, -1.1e-6, 0.0, 9e-7, 0.0, -6e-7, 0.0, 0.0];
+        let wcs = solved_wcs(&result, 1920, 1080).expect("a solve has a WCS");
+        assert_eq!((wcs.a_order, wcs.b_order), (2, 2));
+        assert_eq!(wcs.a_coeffs, result.sip_a_coeffs);
+        assert_eq!(wcs.b_coeffs, result.sip_b_coeffs);
     }
 
     /// A solver that gave no CD matrix still gives a WCS, from its scale and

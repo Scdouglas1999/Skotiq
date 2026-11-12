@@ -622,6 +622,62 @@ pub struct PlateSolveResult {
     pub sip_bp_coeffs: Vec<f64>,
 }
 
+impl From<skotiq_imaging::PlateSolveResult> for PlateSolveResult {
+    fn from(r: skotiq_imaging::PlateSolveResult) -> Self {
+        Self {
+            success: r.success,
+            ra: r.ra,
+            dec: r.dec,
+            pixel_scale: r.pixel_scale,
+            rotation: r.rotation,
+            field_width: r.field_width,
+            field_height: r.field_height,
+            solve_time_secs: r.solve_time_secs,
+            error: r.error,
+            cd1_1: r.cd1_1,
+            cd1_2: r.cd1_2,
+            cd2_1: r.cd2_1,
+            cd2_2: r.cd2_2,
+            sip_a_order: r.a_order,
+            sip_b_order: r.b_order,
+            sip_a_coeffs: r.a_coeffs,
+            sip_b_coeffs: r.b_coeffs,
+            sip_ap_order: r.ap_order,
+            sip_bp_order: r.bp_order,
+            sip_ap_coeffs: r.ap_coeffs,
+            sip_bp_coeffs: r.bp_coeffs,
+        }
+    }
+}
+
+impl From<&PlateSolveResult> for skotiq_imaging::PlateSolveResult {
+    fn from(r: &PlateSolveResult) -> Self {
+        Self {
+            success: r.success,
+            ra: r.ra,
+            dec: r.dec,
+            pixel_scale: r.pixel_scale,
+            rotation: r.rotation,
+            field_width: r.field_width,
+            field_height: r.field_height,
+            solve_time_secs: r.solve_time_secs,
+            error: r.error.clone(),
+            cd1_1: r.cd1_1,
+            cd1_2: r.cd1_2,
+            cd2_1: r.cd2_1,
+            cd2_2: r.cd2_2,
+            a_order: r.sip_a_order,
+            b_order: r.sip_b_order,
+            a_coeffs: r.sip_a_coeffs.clone(),
+            b_coeffs: r.sip_b_coeffs.clone(),
+            ap_order: r.sip_ap_order,
+            bp_order: r.sip_bp_order,
+            ap_coeffs: r.sip_ap_coeffs.clone(),
+            bp_coeffs: r.sip_bp_coeffs.clone(),
+        }
+    }
+}
+
 /// Get the path to the installed plate solver
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_get_plate_solver_path() -> Option<String> {
@@ -773,29 +829,7 @@ async fn plate_solve_blind_inner(
     .await
     .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
 
-    Ok(PlateSolveResult {
-        success: result.success,
-        ra: result.ra,
-        dec: result.dec,
-        pixel_scale: result.pixel_scale,
-        rotation: result.rotation,
-        field_width: result.field_width,
-        field_height: result.field_height,
-        solve_time_secs: result.solve_time_secs,
-        error: result.error,
-        cd1_1: result.cd1_1,
-        cd1_2: result.cd1_2,
-        cd2_1: result.cd2_1,
-        cd2_2: result.cd2_2,
-        sip_a_order: result.a_order,
-        sip_b_order: result.b_order,
-        sip_a_coeffs: result.a_coeffs,
-        sip_b_coeffs: result.b_coeffs,
-        sip_ap_order: result.ap_order,
-        sip_bp_order: result.bp_order,
-        sip_ap_coeffs: result.ap_coeffs,
-        sip_bp_coeffs: result.bp_coeffs,
-    })
+    Ok(result.into())
 }
 
 /// Plate solve an image with hint coordinates
@@ -1158,29 +1192,7 @@ async fn plate_solve_near_inner(
     .await
     .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
 
-    Ok(PlateSolveResult {
-        success: result.success,
-        ra: result.ra,
-        dec: result.dec,
-        pixel_scale: result.pixel_scale,
-        rotation: result.rotation,
-        field_width: result.field_width,
-        field_height: result.field_height,
-        solve_time_secs: result.solve_time_secs,
-        error: result.error,
-        cd1_1: result.cd1_1,
-        cd1_2: result.cd1_2,
-        cd2_1: result.cd2_1,
-        cd2_2: result.cd2_2,
-        sip_a_order: result.a_order,
-        sip_b_order: result.b_order,
-        sip_a_coeffs: result.a_coeffs,
-        sip_b_coeffs: result.b_coeffs,
-        sip_ap_order: result.ap_order,
-        sip_bp_order: result.bp_order,
-        sip_ap_coeffs: result.ap_coeffs,
-        sip_bp_coeffs: result.bp_coeffs,
-    })
+    Ok(result.into())
 }
 
 // Plate solver UX (detection / verification / config)
