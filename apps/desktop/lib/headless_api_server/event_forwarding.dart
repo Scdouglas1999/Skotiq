@@ -34,6 +34,7 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
       return null;
     }
     _eventReplayBuffer.append(stamped);
+    _nightEventLog.append(stamped);
     _emitStampedEvent(stamped);
     return stamped;
   }

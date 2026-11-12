@@ -9,6 +9,7 @@ import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provi
 import 'package:skotiq_app/services/manual_capture_controller.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../night_event_log.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
@@ -35,66 +36,26 @@ class RuntimeStateHandlers implements RouteSource {
     RuntimeStateApi.stopManualLoop: handleStopManualLoop,
   };
 
-  RuntimeStateHandlers(this.container, {List<SkotiqEvent> Function()? retained})
-    : _retained = retained ?? (() => const <SkotiqEvent>[]);
+  RuntimeStateHandlers(this.container, {NightEventLog? nightEvents})
+    : _nightEvents = nightEvents ?? NightEventLog();
 
   final ProviderContainer container;
 
-  /// The events the server still holds for replay, oldest first.
-  final List<SkotiqEvent> Function() _retained;
-
-  /// Event types left out of the recent-events list: per-tick telemetry that
-  /// says nothing once it is old (and, for autofocus, carries star crops),
-  /// and the sync envelopes a client applies rather than logs.
-  static const Set<String> _telemetryTypes = {
-    'ExposureProgress',
-    'GuideStep',
-    'GuideStats',
-    'MountPositionChanged',
-    'CameraTemperatureChanged',
-    'FocuserPositionChanged',
-    'FilterWheelPositionChanged',
-    'InstructionProgress',
-    'InstructionProgressStructured',
-    'AutofocusProgress',
-    'Progress',
-    'ProgressUpdated',
-  };
+  final NightEventLog _nightEvents;
 
   /// GET /api/runtime/recent-events?limit=N — the newest N events of the
   /// night a client connecting now missed, oldest first, without per-tick
-  /// telemetry. A client seeds its event log with them so it opens on the
-  /// same log the host shows. A request without admin access gets credential
-  /// values hidden, as on the WebSocket.
+  /// telemetry (see [NightEventLog]). A client seeds its event log with them
+  /// so it opens on the same log the host shows. A request without admin
+  /// access gets credential values hidden, as on the WebSocket.
   Future<Response> handleRecentEvents(Request request) async {
     final adminAccess = requestHasAdminAccess(request);
     final requested = request.url.queryParameters['limit'];
     final parsed = requested == null ? null : int.tryParse(requested);
-    final limit = (parsed ?? 100).clamp(1, 200);
-    final kept = <SkotiqEvent>[];
-    for (final event in _retained()) {
-      if (isHostSyncEnvelope(event) ||
-          _telemetryTypes.contains(event.eventType)) {
-        continue;
-      }
-      // Integration progress is a line per phase in the host's log
-      // (registering, integrating, writing, done), but it reports each phase
-      // many times; only the newest report of a phase is kept, so the ticks
-      // cannot push the night's other events out of the list.
-      if (event.eventType == 'IntegrationProgress' &&
-          kept.isNotEmpty &&
-          kept.last.eventType == 'IntegrationProgress' &&
-          kept.last.data['phase'] == event.data['phase']) {
-        kept.removeLast();
-      }
-      kept.add(event);
-    }
-    final newest = kept.length > limit
-        ? kept.sublist(kept.length - limit)
-        : kept;
+    final limit = (parsed ?? 100).clamp(1, _nightEvents.capacity);
     return jsonOk({
       'events': [
-        for (final event in newest)
+        for (final event in _nightEvents.newest(limit))
           _jsonSafe(
             (adminAccess ? event : eventWithCredentialsHidden(event)).toJson(),
           ),
