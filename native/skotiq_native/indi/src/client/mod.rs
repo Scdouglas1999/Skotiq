@@ -13,9 +13,10 @@
 //! - Configurable timeouts for all operations
 
 use crate::error::{IndiError, IndiResult};
+use crate::protocol::names::*;
 use crate::{
-    IndiDevice, IndiPermission, IndiProperty, IndiPropertyState, IndiPropertyType, IndiSwitchRule,
-    IndiTimeoutConfig, IndiTimeoutError, INDI_DEFAULT_PORT,
+    IndiDevice, IndiDeviceDescription, IndiPermission, IndiProperty, IndiPropertyState,
+    IndiPropertyType, IndiSwitchRule, IndiTimeoutConfig, IndiTimeoutError, INDI_DEFAULT_PORT,
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use quick_xml::events::Event;
@@ -47,6 +48,19 @@ pub(crate) use xml::*;
 pub const DEFAULT_PROTOCOL_VERSION: &str = "1.7";
 
 const EVENT_CHANNEL_CAPACITY: usize = 1024;
+
+/// Whether a property update time read after a command is from a newer
+/// update than the one read before it.
+fn is_newer_update(before_ms: Option<u64>, after_ms: Option<u64>) -> bool {
+    match (before_ms, after_ms) {
+        (None, Some(_)) => true,
+        (Some(before), Some(after)) => after > before,
+        _ => false,
+    }
+}
+
+/// How long a driver gets to read a device back as connected or disconnected.
+const DEVICE_CONFIRM_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Number element limits (min, max, step)
 #[derive(Debug, Clone, Default)]
@@ -207,6 +221,14 @@ impl IndiClient {
             reader_task_config,
             jitter_rng,
         }
+    }
+
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    pub fn port(&self) -> u16 {
+        self.port
     }
 
     pub fn timeout_config(&self) -> &IndiTimeoutConfig {

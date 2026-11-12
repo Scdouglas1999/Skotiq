@@ -224,6 +224,10 @@ struct ScriptedDomeRotatorOps {
     /// The next this-many `filterwheel_set_position` calls are accepted and
     /// never carried out: a stalled wheel.
     filter_stalled_moves: AtomicU32,
+    /// Errors the next `focuser_move_to` calls fail with, one each.
+    focuser_move_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
+    /// When `Some`, `cover_calibrator_open_cover` fails with this error.
+    cover_open_error: Option<crate::device_ops::DeviceError>,
 }
 
 impl ScriptedDomeRotatorOps {
@@ -315,7 +319,24 @@ impl ScriptedDomeRotatorOps {
             camera_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_set_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_stalled_moves: AtomicU32::new(0),
+            focuser_move_failures: Mutex::new(std::collections::VecDeque::new()),
+            cover_open_error: None,
         }
+    }
+
+    /// Fail the next focuser moves with these errors, one each.
+    fn failing_focuser_moves(self, errors: &[crate::device_ops::DeviceError]) -> Self {
+        self.focuser_move_failures
+            .lock()
+            .unwrap()
+            .extend(errors.iter().cloned());
+        self
+    }
+
+    /// Fail every cover open with `error`.
+    fn failing_cover_open(mut self, error: crate::device_ops::DeviceError) -> Self {
+        self.cover_open_error = Some(error);
+        self
     }
 
     /// Fail the next exposures with these errors, one each.
@@ -871,6 +892,9 @@ impl CameraOps for ScriptedDomeRotatorOps {
 impl FocuserOps for ScriptedDomeRotatorOps {
     async fn focuser_move_to(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.focuser_moves.lock().unwrap().push(p);
+        if let Some(error) = self.focuser_move_failures.lock().unwrap().pop_front() {
+            return Err(error);
+        }
         if let Some((position, _)) = &self.focus_model {
             *position.lock().unwrap() = p;
         }
@@ -1070,6 +1094,9 @@ impl CoverCalibratorOps for ScriptedDomeRotatorOps {
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.cover_open_ids.lock().unwrap().push(id.to_string());
+        if let Some(error) = &self.cover_open_error {
+            return Err(error.clone());
+        }
         self.inner.cover_calibrator_open_cover(id).await
     }
     async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {
@@ -1135,22 +1162,21 @@ impl FrameStoreOps for ScriptedDomeRotatorOps {
         self.saved_frame_paths.lock().unwrap().push(f.to_string());
         self.inner.save_fits(d, f, ctx).await
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
         match self.scripted_frame_metrics {
-            Some((hfr, _, _)) => Ok(Some(hfr)),
-            None => self.inner.calculate_image_hfr(d).await,
-        }
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        match self.scripted_frame_metrics {
-            Some((hfr, stars, _)) => Ok((0..stars).map(|i| (i as f64, i as f64, hfr)).collect()),
-            None => self.inner.detect_stars_in_image(d).await,
-        }
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        match self.scripted_frame_metrics {
-            Some((_, _, eccentricity)) => Ok(Some(eccentricity)),
-            None => self.inner.measure_frame_eccentricity(d).await,
+            Some((hfr, stars, eccentricity)) => Ok(crate::device_ops::LightFrameMeasurement {
+                hfr: Some(hfr),
+                star_count: Some(stars as u32),
+                star_shape: Some(crate::device_ops::FrameStarShape {
+                    eccentricity,
+                    elongation: None,
+                }),
+                trail: None,
+            }),
+            None => self.inner.measure_light_frame(d).await,
         }
     }
 }

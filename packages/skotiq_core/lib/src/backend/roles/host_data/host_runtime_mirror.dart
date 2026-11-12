@@ -1,4 +1,5 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../models/backend/host_runtime_update.dart';
+import '../../../models/backend/image_result.dart';
 
 /// The runtime state a linked imaging host mirrors to its clients, and what a client reports back.
 ///

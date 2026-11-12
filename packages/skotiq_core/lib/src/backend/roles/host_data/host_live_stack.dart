@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../services/live_stacking_service.dart';
+import '../../network_backend.dart';
 
 /// The live stack a linked imaging host builds from the frames it captures.
 ///

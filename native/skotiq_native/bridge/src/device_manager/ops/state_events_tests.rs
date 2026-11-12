@@ -109,20 +109,11 @@ async fn every_filter_wheel_path_publishes_one_move() {
         .unwrap();
     assert_one_filter_move(&drain(&mut rx), 2, "DeviceManager");
 
-    sim::api_filterwheel_set_position(WHEEL.to_string(), 3)
+    crate::api::devices::filter_wheel::api_filterwheel_set_position(WHEEL.to_string(), 3)
         .await
         .unwrap();
     assert_one_filter_move(&drain(&mut rx), 3, "api_filterwheel_set_position");
-
-    crate::api::devices::filter_wheel::filter_wheel_set_position(WHEEL.to_string(), 4)
-        .await
-        .unwrap();
-    assert_one_filter_move(
-        &drain(&mut rx),
-        4,
-        "filter_wheel_set_position (was a sim_ bypass)",
-    );
-    assert_eq!(sim::get_sim_filterwheel().read().await.status.position, 4);
+    assert_eq!(sim::get_sim_filterwheel().read().await.status.position, 3);
 
     ops.filterwheel_set_position(WHEEL, 5).await.unwrap();
     assert_one_filter_move(&drain(&mut rx), 5, "UnifiedDeviceOps");
@@ -133,15 +124,10 @@ async fn every_filter_wheel_path_publishes_one_move() {
         .status
         .filter_names
         .clone();
-    sim::api_filterwheel_set_by_name(WHEEL.to_string(), names[0].clone())
+    ops.filterwheel_set_filter_by_name(WHEEL, &names[0])
         .await
         .unwrap();
-    assert_one_filter_move(&drain(&mut rx), 0, "api_filterwheel_set_by_name");
-
-    ops.filterwheel_set_filter_by_name(WHEEL, &names[1])
-        .await
-        .unwrap();
-    assert_one_filter_move(&drain(&mut rx), 1, "UnifiedDeviceOps by name");
+    assert_one_filter_move(&drain(&mut rx), 0, "UnifiedDeviceOps by name");
 }
 
 #[tokio::test]
@@ -254,16 +240,19 @@ async fn filter_names_publish_once() {
     renamed[0] = "Lum".to_string();
     let mut rx = get_state().event_bus.subscribe();
 
-    sim::api_filterwheel_set_filter_names(WHEEL.to_string(), renamed.clone())
-        .await
-        .unwrap();
+    crate::api::devices::filter_wheel::api_filterwheel_set_filter_names(
+        WHEEL.to_string(),
+        renamed.clone(),
+    )
+    .await
+    .unwrap();
 
     let values = property_values(&drain(&mut rx), WHEEL, property::FILTER_NAMES);
     assert_eq!(values.len(), 1, "{values:?}");
     let published: Vec<String> = serde_json::from_str(&values[0]).unwrap();
     assert_eq!(published, renamed);
 
-    sim::api_filterwheel_set_filter_names(WHEEL.to_string(), before)
+    crate::api::devices::filter_wheel::api_filterwheel_set_filter_names(WHEEL.to_string(), before)
         .await
         .unwrap();
 }
@@ -301,12 +290,12 @@ async fn every_focuser_path_publishes_one_move() {
         .unwrap();
     assert_one_focuser_move(&drain(&mut rx), 20_100, "DeviceManager");
 
-    sim::api_focuser_move_to(FOCUSER.to_string(), 20_200)
+    crate::api::devices::focuser::api_focuser_move_to(FOCUSER.to_string(), 20_200)
         .await
         .unwrap();
     assert_one_focuser_move(&drain(&mut rx), 20_200, "api_focuser_move_to");
 
-    sim::api_focuser_move_relative(FOCUSER.to_string(), 50)
+    crate::api::devices::focuser::api_focuser_move_relative(FOCUSER.to_string(), 50)
         .await
         .unwrap();
     assert_one_focuser_move(&drain(&mut rx), 20_250, "api_focuser_move_relative");
@@ -320,7 +309,9 @@ async fn every_focuser_path_publishes_one_move() {
     ops.focuser_move_to(FOCUSER, 20_300).await.unwrap();
     assert_one_focuser_move(&drain(&mut rx), 20_300, "UnifiedDeviceOps");
 
-    sim::api_focuser_halt(FOCUSER.to_string()).await.unwrap();
+    crate::api::devices::focuser::api_focuser_halt(FOCUSER.to_string())
+        .await
+        .unwrap();
     let events = drain(&mut rx);
     assert_eq!(
         count(&events, |e| matches!(
@@ -341,16 +332,17 @@ async fn camera_settings_publish_once_per_change() {
     attach(CAMERA, DeviceType::Camera).await;
     let mut rx = get_state().event_bus.subscribe();
 
-    sim::api_set_camera_gain(CAMERA.to_string(), 139)
+    crate::api::devices::camera::set_camera_gain(CAMERA.to_string(), 139)
         .await
         .unwrap();
-    crate::api::devices::filter_wheel::set_camera_gain(CAMERA.to_string(), 140)
+    crate::api::devices::camera::set_camera_gain(CAMERA.to_string(), 140)
         .await
         .unwrap();
-    sim::api_set_camera_offset(CAMERA.to_string(), 21)
+    crate::api::devices::camera::set_camera_offset(CAMERA.to_string(), 21)
         .await
         .unwrap();
-    crate::api::devices::camera::api_set_camera_binning(CAMERA.to_string(), 2, 2)
+    get_device_manager()
+        .camera_set_binning(CAMERA, 2, 2)
         .await
         .unwrap();
 
@@ -377,7 +369,8 @@ async fn camera_settings_publish_once_per_change() {
     let status = sim::get_sim_camera_for(CAMERA).read().await.status.clone();
     assert_eq!((status.bin_x, status.bin_y), (2, 2));
 
-    crate::api::devices::camera::api_set_camera_binning(CAMERA.to_string(), 1, 1)
+    get_device_manager()
+        .camera_set_binning(CAMERA, 1, 1)
         .await
         .unwrap();
 }
@@ -418,7 +411,7 @@ async fn every_cooler_path_publishes_once() {
         )
     };
 
-    sim::api_set_camera_cooler(CAMERA.to_string(), 1, Some(-10.0))
+    crate::api::devices::camera::set_camera_cooler(CAMERA.to_string(), 1, Some(-10.0))
         .await
         .unwrap();
     assert_eq!(
@@ -438,7 +431,7 @@ async fn every_cooler_path_publishes_once() {
     ops.camera_set_cooler(CAMERA, false, 0.0).await.unwrap();
     assert_eq!(warming(&drain(&mut rx)), 1, "UnifiedDeviceOps off");
 
-    sim::api_set_camera_cooler(CAMERA.to_string(), 0, None)
+    crate::api::devices::camera::set_camera_cooler(CAMERA.to_string(), 0, None)
         .await
         .unwrap();
     assert_eq!(warming(&drain(&mut rx)), 1, "api_set_camera_cooler off");
@@ -466,12 +459,12 @@ async fn every_rotator_path_publishes_once() {
     let mut rx = get_state().event_bus.subscribe();
     let ops = crate::unified_device_ops::create_unified_device_ops();
 
-    sim::api_rotator_move_to(ROTATOR.to_string(), 30.0)
+    crate::api::devices::rotator::api_rotator_move_to(ROTATOR.to_string(), 30.0)
         .await
         .unwrap();
     assert_one_rotator_move(&drain(&mut rx), 30.0, "api_rotator_move_to");
 
-    sim::api_rotator_move_relative(ROTATOR.to_string(), 10.0)
+    crate::api::devices::rotator::api_rotator_move_relative(ROTATOR.to_string(), 10.0)
         .await
         .unwrap();
     assert_one_rotator_move(&drain(&mut rx), 40.0, "api_rotator_move_relative");
@@ -479,10 +472,10 @@ async fn every_rotator_path_publishes_once() {
     ops.rotator_move_to(ROTATOR, 50.0).await.unwrap();
     assert_one_rotator_move(&drain(&mut rx), 50.0, "UnifiedDeviceOps");
 
-    sim::api_rotator_set_reverse(ROTATOR.to_string(), true)
+    crate::api::devices::rotator::api_rotator_set_reverse(ROTATOR.to_string(), true)
         .await
         .unwrap();
-    sim::api_rotator_set_reverse(ROTATOR.to_string(), false)
+    crate::api::devices::rotator::api_rotator_set_reverse(ROTATOR.to_string(), false)
         .await
         .unwrap();
     let events = drain(&mut rx);
@@ -514,7 +507,7 @@ async fn every_mount_path_publishes_once() {
         events.iter().filter(|e| pred(e)).count()
     };
 
-    sim::api_mount_set_tracking(MOUNT.to_string(), 0)
+    crate::api::devices::mount::api_mount_set_tracking(MOUNT.to_string(), 0)
         .await
         .unwrap();
     let events = drain(&mut rx);
@@ -527,7 +520,7 @@ async fn every_mount_path_publishes_once() {
         "{events:?}"
     );
 
-    crate::api::devices::mount::mount_set_tracking(MOUNT.to_string(), 1)
+    crate::api::devices::mount::api_mount_set_tracking(MOUNT.to_string(), 1)
         .await
         .unwrap();
     let events = drain(&mut rx);
@@ -540,7 +533,7 @@ async fn every_mount_path_publishes_once() {
         "{events:?}"
     );
 
-    sim::api_mount_slew_to_coordinates(MOUNT.to_string(), 5.5, 20.0)
+    crate::api::devices::mount::api_mount_slew_to_coordinates(MOUNT.to_string(), 5.5, 20.0)
         .await
         .unwrap();
     let events = drain(&mut rx);
@@ -568,7 +561,7 @@ async fn every_mount_path_publishes_once() {
     );
     stop_sim_slew().await;
 
-    sim::api_mount_sync_to_coordinates(MOUNT.to_string(), 6.5, 21.0)
+    crate::api::devices::mount::api_mount_sync_to_coordinates(MOUNT.to_string(), 6.5, 21.0)
         .await
         .unwrap();
     assert_eq!(
@@ -590,7 +583,9 @@ async fn every_mount_path_publishes_once() {
         "UnifiedDeviceOps park: {events:?}"
     );
 
-    sim::api_mount_unpark(MOUNT.to_string()).await.unwrap();
+    crate::api::devices::mount::api_mount_unpark(MOUNT.to_string())
+        .await
+        .unwrap();
     let events = drain(&mut rx);
     assert_eq!(
         one(&events, &|e| matches!(e, EquipmentEvent::MountUnparked)),
@@ -598,7 +593,9 @@ async fn every_mount_path_publishes_once() {
         "{events:?}"
     );
 
-    sim::api_mount_park(MOUNT.to_string()).await.unwrap();
+    crate::api::devices::mount::api_mount_park(MOUNT.to_string())
+        .await
+        .unwrap();
     let events = drain(&mut rx);
     assert_eq!(
         (

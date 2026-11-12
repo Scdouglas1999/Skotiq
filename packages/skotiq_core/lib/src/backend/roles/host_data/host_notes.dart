@@ -1,4 +1,5 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../models/notes/journal_note.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 
 /// The notes journal of a linked imaging host.
 ///

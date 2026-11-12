@@ -565,99 +565,49 @@ pub async fn execute_exposure_with_renderer(
 
         // Per-frame HFR feeds the HfrDegraded / FocusDrift triggers; computing
         // it here (rather than only on autofocus) gives the triggers real-time
-        // visibility into focus health between AF runs.
-        let measured_hfr = if !is_light_frame {
-            // Calibration frames have no stars; skip the detector entirely.
-            None
+        // visibility into focus health between AF runs. The star count feeds
+        // the grader's star_count_min floor, the shape its eccentricity gate
+        // (`None` is "unknown, don't reject") and the star-shape watch.
+        // Calibration frames have no stars; the detector is skipped for them.
+        let measurement = if !is_light_frame {
+            crate::device_ops::LightFrameMeasurement::default()
         } else {
-            match ctx.run.device_ops.calculate_image_hfr(&image_data).await {
-                Ok(Some(hfr)) => {
-                    tracing::info!("Frame {}/{} HFR: {:.2} pixels", frame, config.count, hfr);
-                    hfr_values.push(hfr);
-                    Some(hfr)
-                }
-                Ok(None) => {
-                    tracing::warn!(
-                        "Frame {}/{} - no stars detected for HFR calculation",
-                        frame,
-                        config.count
-                    );
-                    None
+            match ctx.run.device_ops.measure_light_frame(&image_data).await {
+                Ok(measurement) => {
+                    match measurement.hfr {
+                        Some(hfr) => {
+                            tracing::info!(
+                                "Frame {}/{} HFR: {:.2} pixels",
+                                frame,
+                                config.count,
+                                hfr
+                            );
+                            hfr_values.push(hfr);
+                        }
+                        None => tracing::warn!(
+                            "Frame {}/{} - no stars detected for HFR calculation",
+                            frame,
+                            config.count
+                        ),
+                    }
+                    measurement
                 }
                 Err(e) => {
                     tracing::warn!(
-                        "Frame {}/{} - HFR calculation failed: {}",
+                        "Frame {}/{} - star measurement failed: {}",
                         frame,
                         config.count,
                         e
                     );
-                    None
+                    crate::device_ops::LightFrameMeasurement::default()
                 }
             }
         };
-
-        // Image Grading: derive star count from the star detector so
-        // the grading check can apply the star_count_min floor.
-        let measured_star_count = if !is_light_frame {
-            None
-        } else {
-            match ctx.run.device_ops.detect_stars_in_image(&image_data).await {
-                Ok(stars) => Some(stars.len() as u32),
-                Err(e) => {
-                    tracing::debug!(
-                        "Frame {}/{} - star detection failed for grading: {}",
-                        frame,
-                        config.count,
-                        e
-                    );
-                    None
-                }
-            }
-        };
-
-        // Per-frame eccentricity (0.0 = round, →1.0 = trailed) from the star
-        // shape moments. `None` is honest absence — no stars, or too few
-        // reliable stars to form a stable median — which `grade_frame` treats
-        // as "unknown, don't reject". With stars present this is a real
-        // measurement, so a configured `eccentricity_threshold` now fires.
-        let measured_shape = if !is_light_frame {
-            None
-        } else {
-            match ctx
-                .run
-                .device_ops
-                .measure_frame_star_shape(&image_data)
-                .await
-            {
-                Ok(shape) => shape,
-                Err(e) => {
-                    tracing::debug!(
-                        "Frame {}/{} - eccentricity measurement failed for grading: {}",
-                        frame,
-                        config.count,
-                        e
-                    );
-                    None
-                }
-            }
-        };
+        let measured_hfr = measurement.hfr;
+        let measured_star_count = measurement.star_count;
+        let measured_shape = measurement.star_shape;
         let measured_eccentricity = measured_shape.map(|shape| shape.eccentricity);
-        let measured_trail = if !is_light_frame {
-            None
-        } else {
-            match ctx.run.device_ops.measure_frame_trail(&image_data).await {
-                Ok(trail) => trail,
-                Err(e) => {
-                    tracing::debug!(
-                        "Frame {}/{} - trail measurement failed for grading: {}",
-                        frame,
-                        config.count,
-                        e
-                    );
-                    None
-                }
-            }
-        };
+        let measured_trail = measurement.trail;
         let metrics = crate::quality::FrameMetrics {
             hfr: measured_hfr,
             eccentricity: measured_eccentricity,

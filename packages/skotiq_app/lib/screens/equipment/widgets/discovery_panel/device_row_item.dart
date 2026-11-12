@@ -22,7 +22,9 @@ class _DeviceRowItem extends ConsumerStatefulWidget {
 class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
   bool _isConnecting = false;
   bool _isAssigning = false;
-  int _assignGeneration = 0;
+
+  /// The assignment in progress; a newer one or a host change drops it.
+  late final _assignments = ref.backendScopes(alive: () => mounted);
 
   bool _isDeviceConnected() {
     final slot = readDeviceSlot(ref, widget.deviceType);
@@ -63,8 +65,6 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
 
   Future<void> _handleAssign(AssignAction action) async {
     if (_isAssigning) return;
-    final backendOwner = ref.read(backendProvider.notifier);
-    final authority = backendOwner.currentBackend;
     final profiles = ref.read(sortedProfilesProvider);
     if (action.profileId == AssignAction.newProfile) {
       await _assignToNewProfile(profiles);
@@ -82,7 +82,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       return;
     }
     final device = widget.device;
-    final generation = ++_assignGeneration;
+    final assignment = _assignments.beginLatest();
     setState(() => _isAssigning = true);
     try {
       final profileService = ref.read(profileServiceProvider);
@@ -91,11 +91,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
         action.deviceType: device.activeDeviceId,
       });
 
-      if (!mounted ||
-          generation != _assignGeneration ||
-          !backendOwner.isCurrentBackend(authority)) {
-        return;
-      }
+      if (!mounted || assignment.isStale) return;
 
       // Notify callback if provided - need to convert from UnifiedDevice to DeviceInfo
       if (widget.onAssignDevice != null) {
@@ -106,24 +102,18 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       context.showSuccessSnackBar(
           'Assigned ${device.displayName} to ${profile.name}');
     } catch (e) {
-      if (mounted &&
-          generation == _assignGeneration &&
-          backendOwner.isCurrentBackend(authority)) {
+      if (mounted && assignment.isCurrent) {
         context.showErrorSnackBar('Failed to assign device: ${userFacingError(e)}');
       }
     } finally {
-      if (mounted && generation == _assignGeneration) {
-        setState(() => _isAssigning = false);
-      }
+      if (assignment.isCurrent) setState(() => _isAssigning = false);
     }
   }
 
   /// Make a profile that starts with this device in it, and select it.
   Future<void> _assignToNewProfile(List<EquipmentProfileModel> profiles) async {
-    final backendOwner = ref.read(backendProvider.notifier);
-    final authority = backendOwner.currentBackend;
     final device = widget.device;
-    final generation = ++_assignGeneration;
+    final assignment = _assignments.beginLatest();
     setState(() => _isAssigning = true);
     try {
       final name = uniqueProfileName(
@@ -136,26 +126,18 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
       await ref.read(profileServiceProvider).updateProfileDevices(profileId, {
         widget.deviceType: device.activeDeviceId,
       });
-      if (!mounted ||
-          generation != _assignGeneration ||
-          !backendOwner.isCurrentBackend(authority)) {
-        return;
-      }
+      if (!mounted || assignment.isStale) return;
       ref.read(profileMutationEpochProvider.notifier).state++;
       ref.read(selectedEquipmentProfileIdProvider.notifier).state = profileId;
       context.showSuccessSnackBar(
         'Created profile "$name" with ${device.displayName}',
       );
     } catch (e) {
-      if (mounted &&
-          generation == _assignGeneration &&
-          backendOwner.isCurrentBackend(authority)) {
+      if (mounted && assignment.isCurrent) {
         context.showErrorSnackBar(failureText('Failed to create a profile', e));
       }
     } finally {
-      if (mounted && generation == _assignGeneration) {
-        setState(() => _isAssigning = false);
-      }
+      if (assignment.isCurrent) setState(() => _isAssigning = false);
     }
   }
 
@@ -224,7 +206,7 @@ class _DeviceRowItemState extends ConsumerState<_DeviceRowItem> {
   Widget build(BuildContext context) {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (previous == null || identical(previous, next)) return;
-      _assignGeneration++;
+      _assignments.cancelAll();
       if (_isAssigning) setState(() => _isAssigning = false);
     });
     final colors = SkotiqColors.of(context);

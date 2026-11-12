@@ -16,9 +16,9 @@ pub struct PlateSolveResult {
     /// camera attitude needs (see `polar_align::CameraAttitude`).
     pub up_position_angle_deg: f64,
     pub success: bool,
-    /// The solve's full WCS, when the solver gave one, for writing into the
-    /// solved frame's FITS header.
-    pub wcs: Option<skotiq_imaging::WcsInfo>,
+    /// The solve's full WCS, SIP distortion included, for writing into the
+    /// solved frame.
+    pub wcs: Option<skotiq_imaging::SipWcs>,
 }
 
 #[async_trait]

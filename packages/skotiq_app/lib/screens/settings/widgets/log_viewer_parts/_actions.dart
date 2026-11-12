@@ -175,10 +175,10 @@ extension _LogViewerActions on _LogViewerState {
     // Log tail — on a remote session the local ring buffer is
     // empty; the entries on-screen were fetched from the host. Export those
     // in-memory entries instead of the (empty) local buffer.
-    final backend = ref.read(backendProvider);
+    final host = ref.backendScope();
     final logs = List<LogEntry>.unmodifiable(_filteredLogs);
     final loggingService =
-        backend.remoteHost != null ? null : ref.read(loggingServiceProvider);
+        host.value.remoteHost != null ? null : ref.read(loggingServiceProvider);
 
     // A remote session has no local history to offer, so there is nothing to
     // choose between; locally the two scopes differ by three orders of
@@ -186,14 +186,12 @@ extension _LogViewerActions on _LogViewerState {
     var scope = LogExportScope.visible;
     if (loggingService != null) {
       final historyBytes = await _retainedLogBytes(loggingService);
-      if (!mounted || !identical(ref.read(backendProvider), backend)) return;
+      if (!mounted || host.isStale) return;
       final chosen = await _askExportScope(
         visibleEntries: logs.length,
         historyBytes: historyBytes,
       );
-      if (chosen == null ||
-          !mounted ||
-          !identical(ref.read(backendProvider), backend)) {
+      if (chosen == null || !mounted || host.isStale) {
         return;
       }
       scope = chosen;
@@ -204,9 +202,7 @@ extension _LogViewerActions on _LogViewerState {
     final target = await ref.read(logExportTargetPickerProvider)(
       'skotiq_logs_$timestamp.txt',
     );
-    if (target == null ||
-        !mounted ||
-        !identical(ref.read(backendProvider), backend)) {
+    if (target == null || !mounted || host.isStale) {
       return;
     }
 
@@ -218,12 +214,12 @@ extension _LogViewerActions on _LogViewerState {
         await loggingService!.exportLogs(target.path);
       } else {
         await File(target.path)
-            .writeAsString(_renderVisibleEntries(backend, logs));
+            .writeAsString(_renderVisibleEntries(host.value, logs));
       }
 
-      if (!mounted || !_isCurrentAction(token, backend)) return;
+      if (!mounted || !_isCurrentAction(token, host)) return;
       final writtenBytes = await File(target.path).length();
-      if (!mounted || !_isCurrentAction(token, backend)) return;
+      if (!mounted || !_isCurrentAction(token, host)) return;
       // On a phone/tablet the chosen path is the app's PRIVATE sandbox — a
       // path snackbar names a file the user can't reach in Files/Photos.
       // Share on mobile so it's retrievable; path (and size) on desktop.
@@ -235,7 +231,7 @@ extension _LogViewerActions on _LogViewerState {
             '(${ByteFormat.size(writtenBytes)})',
       );
     } catch (e) {
-      if (mounted && _isCurrentAction(token, backend)) {
+      if (mounted && _isCurrentAction(token, host)) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Export failed: ${userFacingError(e)}'),
@@ -257,8 +253,8 @@ extension _LogViewerActions on _LogViewerState {
   /// complete rolling file.
   Future<void> _downloadLogFile() async {
     if (_isActionBusy) return;
-    final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
+    final host = ref.backendScope();
+    final linkedHost = host.value.remoteHost;
     if (linkedHost == null) return;
     final token = Object();
     _actionToken = token;
@@ -268,7 +264,7 @@ extension _LogViewerActions on _LogViewerState {
       try {
         files = await linkedHost.logs.listServerLogFiles();
       } catch (e) {
-        if (mounted && _isCurrentAction(token, backend)) {
+        if (mounted && _isCurrentAction(token, host)) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Could not list the host’s log files: ${userFacingError(e)}'),
@@ -278,7 +274,7 @@ extension _LogViewerActions on _LogViewerState {
         }
         return;
       }
-      if (!mounted || !_isCurrentAction(token, backend)) return;
+      if (!mounted || !_isCurrentAction(token, host)) return;
       if (files.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('The host has no log files.')),
@@ -286,7 +282,7 @@ extension _LogViewerActions on _LogViewerState {
         return;
       }
       final selected = await _pickLogFile(files);
-      if (selected == null || !mounted || !_isCurrentAction(token, backend)) {
+      if (selected == null || !mounted || !_isCurrentAction(token, host)) {
         return;
       }
       final outcome = await downloadFileToDevice(
@@ -298,7 +294,7 @@ extension _LogViewerActions on _LogViewerState {
           onProgress: onProgress,
         ),
       );
-      if (!mounted || !_isCurrentAction(token, backend)) return;
+      if (!mounted || !_isCurrentAction(token, host)) return;
       switch (outcome.status) {
         case FileDownloadStatus.saved:
           ScaffoldMessenger.of(context).showSnackBar(
@@ -397,11 +393,11 @@ extension _LogViewerActions on _LogViewerState {
 
   Future<void> _confirmClearLogs() async {
     if (_isActionBusy) return;
-    final backend = ref.read(backendProvider);
+    final host = ref.backendScope();
     final token = Object();
     _actionToken = token;
     setState(() => _isClearing = true);
-    final message = backend.remoteHost != null
+    final message = host.value.remoteHost != null
         ? 'This permanently deletes the remote host’s server log files. '
             'This action cannot be undone.'
         : 'This permanently deletes old local log files. This action cannot '
@@ -461,7 +457,7 @@ extension _LogViewerActions on _LogViewerState {
         },
       );
       if (confirmed != true || !mounted) return;
-      if (!_isCurrentAction(token, backend)) {
+      if (!_isCurrentAction(token, host)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Clear canceled because the imaging host changed.'),
@@ -469,7 +465,7 @@ extension _LogViewerActions on _LogViewerState {
         );
         return;
       }
-      await _clearLogs(backend, token);
+      await _clearLogs(host, token);
     } finally {
       if (mounted && identical(_actionToken, token)) {
         _actionToken = null;
@@ -478,19 +474,22 @@ extension _LogViewerActions on _LogViewerState {
     }
   }
 
-  Future<void> _clearLogs(SkotiqBackend backend, Object token) async {
+  Future<void> _clearLogs(
+    AsyncScope<SkotiqBackend> host,
+    Object token,
+  ) async {
     // Log tail — Clear on a remote session must target the
     // server's log files; otherwise the operator presses Clear and sees
     // no change because we're clearing the local (already-empty) buffer.
     try {
-      if (backend.remoteHost case final linkedHost?) {
+      if (host.value.remoteHost case final linkedHost?) {
         await linkedHost.logs.clearServerLogs();
       } else {
         await ref.read(loggingServiceProvider).clearLogs();
       }
-      if (!mounted || !_isCurrentAction(token, backend)) return;
+      if (!mounted || !_isCurrentAction(token, host)) return;
       _refreshLogs();
-      if (backend.remoteHost != null) {
+      if (host.value.remoteHost != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Server log files cleared'),
@@ -506,7 +505,7 @@ extension _LogViewerActions on _LogViewerState {
         );
       }
     } catch (e) {
-      if (!mounted || !_isCurrentAction(token, backend)) return;
+      if (!mounted || !_isCurrentAction(token, host)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Clear failed: ${userFacingError(e)}'),

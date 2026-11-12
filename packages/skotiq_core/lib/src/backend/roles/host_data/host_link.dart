@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../network_backend.dart';
 
 import '../../network_backend.dart' show BackendConnectionState;
 

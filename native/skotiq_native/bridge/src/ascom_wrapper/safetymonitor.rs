@@ -1,5 +1,5 @@
-use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::dispatch::DeviceOpError;
+use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomSafetyMonitor;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -9,6 +9,7 @@ enum AscomSafetyMonitorCommand {
     Connect(oneshot::Sender<Result<(), DeviceOpError>>),
     Disconnect(oneshot::Sender<Result<(), DeviceOpError>>),
     IsSafe(oneshot::Sender<Result<bool, DeviceOpError>>),
+    DriverInfo(oneshot::Sender<Result<String, DeviceOpError>>),
 }
 
 pub struct AscomSafetyMonitorWrapper {
@@ -52,11 +53,13 @@ impl AscomSafetyMonitorWrapper {
                         let _ = reply.send(safety_monitor.connect().map_err(DeviceOpError::from));
                     }
                     AscomSafetyMonitorCommand::Disconnect(reply) => {
-                        let _ =
-                            reply.send(safety_monitor.disconnect().map_err(DeviceOpError::from));
+                        let _ = reply.send(safety_monitor.disconnect().map_err(DeviceOpError::from));
                     }
                     AscomSafetyMonitorCommand::IsSafe(reply) => {
                         let _ = reply.send(safety_monitor.is_safe().map_err(DeviceOpError::from));
+                    }
+                    AscomSafetyMonitorCommand::DriverInfo(reply) => {
+                        let _ = reply.send(safety_monitor.driver_info().map_err(DeviceOpError::from));
                     }
                 }
                 PumpOutcome::DidWork
@@ -76,8 +79,7 @@ impl AscomSafetyMonitorWrapper {
             .send(AscomSafetyMonitorCommand::Connect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result =
-            super::recv_with_timeout("Safety monitor", rx, Timeouts::connection(), "connect").await;
+        let result = super::recv_with_timeout("Safety monitor", rx, Timeouts::connection(), "connect").await;
         if result.is_ok() {
             self.connected.store(true, Ordering::SeqCst);
         }
@@ -90,9 +92,7 @@ impl AscomSafetyMonitorWrapper {
             .send(AscomSafetyMonitorCommand::Disconnect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result =
-            super::recv_with_timeout("Safety monitor", rx, Timeouts::connection(), "disconnect")
-                .await;
+        let result = super::recv_with_timeout("Safety monitor", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }
@@ -106,5 +106,14 @@ impl AscomSafetyMonitorWrapper {
             .await
             .map_err(|error| format!("Send error: {}", error))?;
         super::recv_with_timeout("Safety monitor", rx, Timeouts::property_read(), "is_safe").await
+    }
+
+    pub async fn driver_info(&self) -> Result<String, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomSafetyMonitorCommand::DriverInfo(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Safety monitor", rx, Timeouts::property_read(), "driver_info").await
     }
 }

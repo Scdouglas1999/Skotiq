@@ -1,5 +1,5 @@
-use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::dispatch::DeviceOpError;
+use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomObservingConditions;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,6 +20,9 @@ enum AscomWeatherCommand {
     RainRate(oneshot::Sender<Result<f64, DeviceOpError>>),
     /// The heartbeat's liveness read.
     GetInterfaceVersion(oneshot::Sender<Result<i32, DeviceOpError>>),
+    SkyBrightness(oneshot::Sender<Result<f64, DeviceOpError>>),
+    WindGust(oneshot::Sender<Result<f64, DeviceOpError>>),
+    StarFwhm(oneshot::Sender<Result<f64, DeviceOpError>>),
 }
 
 pub struct AscomObservingConditionsWrapper {
@@ -42,8 +45,7 @@ impl AscomObservingConditionsWrapper {
                     return Err(format!(
                         "Failed to create ASCOM observing conditions device: {}",
                         error
-                    )
-                    .into());
+                    ).into());
                 }
             };
 
@@ -100,8 +102,16 @@ impl AscomObservingConditionsWrapper {
                         let _ = reply.send(weather.rain_rate().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::GetInterfaceVersion(reply) => {
-                        let _ =
-                            reply.send(weather.interface_version().map_err(DeviceOpError::from));
+                        let _ = reply.send(weather.interface_version().map_err(DeviceOpError::from));
+                    }
+                    AscomWeatherCommand::SkyBrightness(reply) => {
+                        let _ = reply.send(weather.sky_brightness().map_err(DeviceOpError::from));
+                    }
+                    AscomWeatherCommand::WindGust(reply) => {
+                        let _ = reply.send(weather.wind_gust().map_err(DeviceOpError::from));
+                    }
+                    AscomWeatherCommand::StarFwhm(reply) => {
+                        let _ = reply.send(weather.star_fwhm().map_err(DeviceOpError::from));
                     }
                 }
                 PumpOutcome::DidWork
@@ -121,8 +131,7 @@ impl AscomObservingConditionsWrapper {
             .send(AscomWeatherCommand::Connect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result =
-            super::recv_with_timeout("Weather", rx, Timeouts::connection(), "connect").await;
+        let result = super::recv_with_timeout("Weather", rx, Timeouts::connection(), "connect").await;
         if result.is_ok() {
             self.connected.store(true, Ordering::SeqCst);
         }
@@ -135,8 +144,7 @@ impl AscomObservingConditionsWrapper {
             .send(AscomWeatherCommand::Disconnect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result =
-            super::recv_with_timeout("Weather", rx, Timeouts::connection(), "disconnect").await;
+        let result = super::recv_with_timeout("Weather", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }
@@ -213,13 +221,35 @@ impl AscomObservingConditionsWrapper {
             .send(AscomWeatherCommand::GetInterfaceVersion(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        super::recv_with_timeout(
-            "Weather",
-            rx,
-            Timeouts::property_read(),
-            "interface_version",
-        )
-        .await
+        super::recv_with_timeout("Weather", rx, Timeouts::property_read(), "interface_version").await
+    }
+
+    pub async fn sky_brightness(&self) -> Result<f64, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomWeatherCommand::SkyBrightness(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Weather", rx, Timeouts::property_read(), "sky_brightness").await
+    }
+
+    pub async fn wind_gust(&self) -> Result<f64, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomWeatherCommand::WindGust(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Weather", rx, Timeouts::property_read(), "wind_gust").await
+    }
+
+    /// Seeing, as the FWHM of a star in arc seconds.
+    pub async fn star_fwhm(&self) -> Result<f64, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomWeatherCommand::StarFwhm(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Weather", rx, Timeouts::property_read(), "star_fwhm").await
     }
 }
 

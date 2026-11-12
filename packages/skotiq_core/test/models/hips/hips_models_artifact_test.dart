@@ -4,8 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/hips/hips_properties.dart';
 import 'package:skotiq_core/src/models/hips/hips_survey_registry.dart';
 import 'package:skotiq_core/src/models/hips/hips_tile_id.dart';
-import 'package:skotiq_core/src/providers/framing_provider.dart'
-    show SurveySource;
+import 'package:skotiq_core/src/models/framing_models.dart' show SurveySource;
 
 /// Live CDS/P/DSS2/red `properties` document (captured verbatim from
 /// https://alasky.cds.unistra.fr/DSS/DSS2Merged/properties). Used as the

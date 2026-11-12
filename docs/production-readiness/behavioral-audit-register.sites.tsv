@@ -2655,6 +2655,14 @@ packages/skotiq_core/lib/src/models/equipment_profile.g.dart	_$EquipmentProfileF
 packages/skotiq_core/lib/src/models/equipment_profile.g.dart	_$EquipmentProfileFromJson	literal_null_coalesce	1	V0014	isDefault: json['isDefault'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/equipment_profile.g.dart	_$EquipmentProfileFromJson	literal_null_coalesce	1	V0014	sortOrder: (json['sortOrder'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/models/equipment_profile.g.dart	_$EquipmentProfileFromJson	literal_null_coalesce	1	V0014	telescopeAperture: (json['telescopeAperture'] as num?)?.toDouble() ?? 0.0,
+packages/skotiq_core/lib/src/models/equipment_profile_model.dart	toRemoteProfile	guessed_now_timestamp	1	V0379	updatedAt: updatedAt ?? DateTime.now(),
+packages/skotiq_core/lib/src/models/equipment_profile_model.dart	EquipmentProfileModel.fromDatabase	literal_null_coalesce	1	V0375	: (telescopeAperture ?? 0.0);
+packages/skotiq_core/lib/src/models/equipment_profile_model.dart	EquipmentProfileModel.fromDatabase	literal_null_coalesce	1	V0374	: (telescopeFocalLength ?? 0.0);
+packages/skotiq_core/lib/src/models/equipment_profile_model.dart	hasAssignedDevices	literal_null_coalesce	1	U2-07	(guideCameraId ?? '').isNotEmpty ||
+packages/skotiq_core/lib/src/models/equipment_profile_model.dart	hasAssignedDevices	literal_null_coalesce	1	U2-07	DeviceType.values.any((type) => (deviceIdFor(type) ?? '').isNotEmpty);
+packages/skotiq_core/lib/src/models/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0376	id: id?.toString() ?? '',
+packages/skotiq_core/lib/src/models/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0378	telescopeAperture: telescopeAperture ?? 0.0,
+packages/skotiq_core/lib/src/models/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0377	telescopeFocalLength: telescopeFocalLength ?? 0.0,
 packages/skotiq_core/lib/src/models/equipment_profile_remote_mapping.dart	remoteProfileToDbRow	guessed_now_timestamp	1	V0183	final writeStamp = now ?? DateTime.now().toUtc();
 packages/skotiq_core/lib/src/models/equipment_profile_remote_mapping.dart	dbProfileToRemote	literal_null_coalesce	1	V0183	telescopeAperture: row.telescopeAperture ?? 0.0,
 packages/skotiq_core/lib/src/models/equipment_profile_remote_mapping.dart	dbProfileToRemote	literal_null_coalesce	1	V0183	telescopeFocalLength: row.telescopeFocalLength ?? 0.0,
@@ -2880,6 +2888,12 @@ packages/skotiq_core/lib/src/models/settings/app_settings.g.dart	_$AppSettingsFr
 packages/skotiq_core/lib/src/models/settings/app_settings.g.dart	_$AppSettingsFromJson	literal_null_coalesce	1	U2-24	xisfChecksums: json['xisfChecksums'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/settings/app_settings.g.dart	_$AppSettingsFromJson	simulated_runtime_path	1	V0014	useSimulationMode: json['useSimulationMode'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/settings/app_settings.g.dart	_$AppSettingsToJson	simulated_runtime_path	1	V0014	'useSimulationMode': instance.useSimulationMode,
+packages/skotiq_core/lib/src/models/site/site_horizon_profile.dart	HorizonProfile.fromJson	empty_catch	1	V0023	} catch (_) {
+packages/skotiq_core/lib/src/models/site/site_horizon_profile.dart	_decodeProfileJson	empty_catch	1	V0023	} catch (_) {
+packages/skotiq_core/lib/src/models/site/site_horizon_profile.dart	_profileAltitudeAt	literal_null_coalesce	1	V0023	final alt1 = _altitudes[horizonDirections[segmentIndex]] ?? 0.0;
+packages/skotiq_core/lib/src/models/site/site_horizon_profile.dart	_profileAltitudeAt	literal_null_coalesce	1	V0023	final alt2 = _altitudes[horizonDirections[nextIndex]] ?? 0.0;
+packages/skotiq_core/lib/src/models/site/site_horizon_profile.dart	altitudeAt	literal_null_coalesce	1	V0023	double altitudeAt(String direction) => _altitudes[direction] ?? 0.0;
+packages/skotiq_core/lib/src/models/site/site_horizon_profile.dart	toJson	literal_null_coalesce	1	V0023	final val = _altitudes[dir] ?? 0.0;
 packages/skotiq_core/lib/src/models/troubleshooter/connection_diagnostic.dart	diagnoseConnectionFailure	literal_null_coalesce	1	V0121	final normalized = (rawError ?? '').toLowerCase();
 packages/skotiq_core/lib/src/models/weather/radar_frame.g.dart	_$RadarFrameFromJson	guessed_numeric_fallback	1	V0014	opacity: (json['opacity'] as num?)?.toDouble() ?? 1.0,
 packages/skotiq_core/lib/src/models/weather/radar_frame.g.dart	_$RadarFrameFromJson	literal_null_coalesce	1	V0014	isForecast: json['isForecast'] as bool? ?? false,
@@ -2910,7 +2924,6 @@ packages/skotiq_core/lib/src/providers/disk_space_provider.dart	projectCurrentSe
 packages/skotiq_core/lib/src/providers/equipment/device_capability_provider.dart	CoverCalibratorCapabilitySnapshot.fromJson	literal_null_coalesce	1	V0240	maxBrightness: (json['maxBrightness'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/providers/equipment/mount_state_provider.dart	disconnect	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/equipment/switch_state_provider.dart	SwitchStateNotifier	comment_best_effort	1	V0121	/// silently ignored because the UI cannot have rendered a row for a
-packages/skotiq_core/lib/src/providers/exoplanet_provider.dart	_parseExoplanet	literal_null_coalesce	1	V0019	discoveryYear: int.tryParse(row['disc_year']?.toString() ?? ''),
 packages/skotiq_core/lib/src/providers/filter_offset_provider.dart	adjustFilterOffset	literal_null_coalesce	1	V0019	final currentOffset = state.offsets[filterName] ?? 0;
 packages/skotiq_core/lib/src/providers/filter_offset_provider.dart	getOffset	literal_null_coalesce	1	V0019	return state.offsets[filterName] ?? 0;
 packages/skotiq_core/lib/src/providers/flat_wizard/flat_wizard_run.dart	runCapture	literal_null_coalesce	1	U2-19	? (ref.read(appSettingsProvider).valueOrNull?.imageOutputPath ?? '')
@@ -2936,7 +2949,6 @@ packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	_ha
 packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	_handleGuideStep	literal_null_coalesce	1	V0121	starMass: (json['StarMass'] ?? 0).toDouble(),
 packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	_onBackendEvent	literal_null_coalesce	1	V0121	final snr = (event.data['SNR'] ?? 0).toDouble();
 packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	_onBackendEvent	literal_null_coalesce	1	V0121	final starMass = (event.data['StarMass'] ?? 0).toDouble();
-packages/skotiq_core/lib/src/providers/home_assistant_provider.dart	HomeAssistantHostSettings.fromJson	literal_null_coalesce	1	V0242	json['brokerPasswordConfigured'] as bool? ?? false,
 packages/skotiq_core/lib/src/providers/hotplug_event_bridge_provider.dart	flushInvalidations	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/imaging_provider.dart	-	empty_catch	1	V0189	} catch (_) {
 packages/skotiq_core/lib/src/providers/imaging_provider.dart	update	empty_catch	1	V0189	} catch (_) {
@@ -2985,14 +2997,6 @@ packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart	_handleStat
 packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart	_handleStatusUpdate	literal_null_coalesce	1	V0019	final statusStr = data['status'] as String? ?? '';
 packages/skotiq_core/lib/src/providers/preflight_providers.dart	OpticalTrainBaseline.fromDiagnostics	guessed_now_timestamp	1	V0097	capturedAt: capturedAt ?? DateTime.now(),
 packages/skotiq_core/lib/src/providers/profile_activation_writethrough.dart	-	comment_best_effort	1	V0245	/// best-effort behaviour; true logs and rethrows. New activation call sites
-packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	toRemoteProfile	guessed_now_timestamp	1	V0379	updatedAt: updatedAt ?? DateTime.now(),
-packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	EquipmentProfileModel.fromDatabase	literal_null_coalesce	1	V0375	: (telescopeAperture ?? 0.0);
-packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	EquipmentProfileModel.fromDatabase	literal_null_coalesce	1	V0374	: (telescopeFocalLength ?? 0.0);
-packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	hasAssignedDevices	literal_null_coalesce	1	U2-07	(guideCameraId ?? '').isNotEmpty ||
-packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	hasAssignedDevices	literal_null_coalesce	1	U2-07	DeviceType.values.any((type) => (deviceIdFor(type) ?? '').isNotEmpty);
-packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0376	id: id?.toString() ?? '',
-packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0378	telescopeAperture: telescopeAperture ?? 0.0,
-packages/skotiq_core/lib/src/providers/profiles/equipment_profile_model.dart	toRemoteProfile	literal_null_coalesce	1	V0377	telescopeFocalLength: telescopeFocalLength ?? 0.0,
 packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	createProfile	literal_null_coalesce	1	U2-10	int.tryParse(remote.host.lastSavedProfileId ?? '') ??
 packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	duplicateProfile	literal_null_coalesce	1	U2-10	int.tryParse(remote.host.lastSavedProfileId ?? '') ??
 packages/skotiq_core/lib/src/providers/profiles/equipment_profiles_notifier.dart	updateProfile	literal_null_coalesce	1	U2-10	int.tryParse(remote.host.lastSavedProfileId ?? '') ??
@@ -3129,13 +3133,7 @@ packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	SequenceRunS
 packages/skotiq_core/lib/src/providers/session_optimizer_provider.dart	_cameraOverridesAreMalformed	empty_catch	1	V0100	} catch (_) {
 packages/skotiq_core/lib/src/providers/session_replay_provider.dart	fetchEvents	literal_null_coalesce	1	V0247	final total = advertisedTotal ?? 0;
 packages/skotiq_core/lib/src/providers/session_replay_provider.dart	fetchFrames	literal_null_coalesce	1	V0247	final total = advertisedTotal ?? 0;
-packages/skotiq_core/lib/src/providers/settings_provider.dart	HorizonProfile.fromJson	empty_catch	1	V0023	} catch (_) {
-packages/skotiq_core/lib/src/providers/settings_provider.dart	_decodeProfileJson	empty_catch	1	V0023	} catch (_) {
 packages/skotiq_core/lib/src/providers/settings_provider.dart	-	literal_null_coalesce	1	V0023	return settings?.effectiveHorizonDeg ?? 0.0;
-packages/skotiq_core/lib/src/providers/settings_provider.dart	_profileAltitudeAt	literal_null_coalesce	1	V0023	final alt1 = _altitudes[horizonDirections[segmentIndex]] ?? 0.0;
-packages/skotiq_core/lib/src/providers/settings_provider.dart	_profileAltitudeAt	literal_null_coalesce	1	V0023	final alt2 = _altitudes[horizonDirections[nextIndex]] ?? 0.0;
-packages/skotiq_core/lib/src/providers/settings_provider.dart	altitudeAt	literal_null_coalesce	1	V0023	double altitudeAt(String direction) => _altitudes[direction] ?? 0.0;
-packages/skotiq_core/lib/src/providers/settings_provider.dart	toJson	literal_null_coalesce	1	V0023	final val = _altitudes[dir] ?? 0.0;
 packages/skotiq_core/lib/src/providers/settings_sections/app_settings_notifier.dart	_writeRemoteSettings	empty_catch	1	V0222	} catch (_) {
 packages/skotiq_core/lib/src/providers/settings_sections/app_settings_notifier.dart	_trackPendingRemoteWrite	literal_null_coalesce	1	V0222	_pendingRemoteKeys[key] = (_pendingRemoteKeys[key] ?? 0) + 1;
 packages/skotiq_core/lib/src/providers/settings_sections/autofocus.dart	updateFocuserBacklashCalibrationSettings	literal_null_coalesce	1	V0814	final stored = _currentValueOrNull?.focuserBacklashCalibrationJson ?? '';
@@ -3233,6 +3231,7 @@ packages/skotiq_core/lib/src/services/camera_warmup_controller.dart	start	empty_
 packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_build	literal_null_coalesce	1	U2-20	(targetSecsBySession[id] ?? 0) + frame.exposureDuration;
 packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_build	literal_null_coalesce	1	V0102	meanEffectiveImagingFraction: simpleMean(efficiencyInputs) ?? 0.0,
 packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_build	literal_null_coalesce	1	U2-20	sessionIntegrationSecs: targetSecsBySession[s.id] ?? 0.0,
+packages/skotiq_core/lib/src/services/catalog_lookup/exoplanet_provider.dart	_parseExoplanet	literal_null_coalesce	1	V0019	discoveryYear: int.tryParse(row['disc_year']?.toString() ?? ''),
 packages/skotiq_core/lib/src/services/centering_service.dart	centerOnTarget	empty_catch	1	V0103	} catch (_) {
 packages/skotiq_core/lib/src/services/centering_service.dart	centerOnTarget	literal_null_coalesce	1	V0103	iterations: settledResult?.iterations ?? 0,
 packages/skotiq_core/lib/src/services/centering_service/centering_loop.dart	_centerOnTargetInternal	empty_catch	1	V0438	} catch (_) {
@@ -3441,6 +3440,7 @@ packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_co
 packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	_stop	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	_computeStates	literal_null_coalesce	1	V0121	states[HaEntityKeys.framesTonight] = (liveStats?.framesCaptured ?? 0)
 packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	isRunning	literal_null_coalesce	1	V0121	bool get isRunning => _client?.isConnected ?? false;
+packages/skotiq_core/lib/src/services/home_assistant/home_assistant_host_settings.dart	HomeAssistantHostSettings.fromJson	literal_null_coalesce	1	V0242	json['brokerPasswordConfigured'] as bool? ?? false,
 packages/skotiq_core/lib/src/services/imaging_records_repository.dart	-	literal_null_coalesce	1	V0102	aOrder: sip?.aOrder ?? 0,
 packages/skotiq_core/lib/src/services/imaging_records_repository.dart	-	literal_null_coalesce	1	V0102	apOrder: sip?.apOrder ?? 0,
 packages/skotiq_core/lib/src/services/imaging_records_repository.dart	-	literal_null_coalesce	1	V0102	bOrder: sip?.bOrder ?? 0,

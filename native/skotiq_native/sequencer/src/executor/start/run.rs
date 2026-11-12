@@ -298,7 +298,6 @@ pub(crate) struct Run {
     pub shared: ExecutorShared,
     pub device_ops: SharedDeviceOps,
     pub triggers: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     pub decisions: DecisionLog,
     pub recovery: RecoveryHandles,
     pub checkpoint: Option<Arc<CheckpointWriter>>,
@@ -320,16 +319,59 @@ pub(crate) struct RunSeed {
 }
 
 impl Run {
+    /// What every instruction of this run shares: the node tree's steps, the
+    /// trigger actions and the recovery driver's moves alike. Built once per
+    /// run, so all of them write to the same decision log, ask the same
+    /// recovery driver, wait at the same dither barrier and stamp frames with
+    /// the same session.
+    pub(super) async fn instruction_shared(
+        &self,
+        recovery_requests: mpsc::Sender<RecoveryCause>,
+    ) -> crate::instructions::RunShared {
+        let config = self.config.snapshot();
+        let slots = self.config.slots();
+        let profile = config.observer_profile;
+        let mut shared = crate::instructions::RunShared::new(self.device_ops.clone());
+        shared.rig = self.rig.clone();
+        shared.trigger_state = Some(self.triggers.read().await.state());
+        shared.event_tx = Some(self.control.state.events().clone());
+        shared.recovery_request_tx = Some(recovery_requests);
+        shared.decision_tx = Some(self.decisions.tx.clone());
+        shared.active_sequence_run_id = self.decisions.run_id.clone();
+        shared.identity = crate::instructions::FrameIdentity {
+            // One id per start, so `SK-SESID` names this run and no other.
+            session_id: uuid::Uuid::new_v4().to_string(),
+            observer_name: profile.observer_name,
+            site_elevation_m: profile.site_elevation_m,
+            camera_make: profile.camera_make,
+            camera_model: profile.camera_model,
+            telescope_name: profile.telescope_name,
+            telescope_focal_length_mm: profile.telescope_focal_length_mm,
+            telescope_aperture_mm: profile.telescope_aperture_mm,
+        };
+        shared.grading.default_quality_check = config.default_quality_check;
+        shared.grading.reject_folder_path = config.reject_folder_path;
+        shared.conditions.sky_brightness_mag = self.sky.sky_brightness_mag.clone();
+        shared.conditions.cloud_motion = self.sky.cloud_motion.clone();
+        shared.defect_map_apply = self.shared.defect_map_apply.clone();
+        shared.device_retry = slots.device_retry.clone();
+        // A secondary capture loop armed before this start shares its dither
+        // barrier with the run.
+        shared.dither_barrier = crate::dual_rig::active_barrier();
+        shared.camera_file_saving = config.camera_file_saving;
+        shared
+    }
+
     /// The node tree's context, wired to this run.
-    async fn build_context(
+    pub(super) async fn build_context(
         &self,
         started: std::time::Instant,
         recovery_requests: mpsc::Sender<RecoveryCause>,
     ) -> ExecutionContext {
         let config = self.config.snapshot();
         let slots = self.config.slots();
-        let mut context = ExecutionContext::new("root".to_string(), self.device_ops.clone())
-            .with_decision_sender(self.decisions.tx.clone(), self.decisions.run_id.clone());
+        let mut context = ExecutionContext::new("root".to_string(), self.device_ops.clone());
+        context.run = self.instruction_shared(recovery_requests).await;
 
         context.is_cancelled = self.control.is_cancelled.clone();
         context.is_paused = self.control.is_paused.clone();
@@ -338,45 +380,19 @@ impl Run {
         context.skip_to_next_target = self.skip_to_next_target.clone();
         context.skip_to_node = self.skip_to_node.clone();
         context.plugin_node_pending = self.plugin_node_pending.clone();
-        context.run.event_tx = Some(self.control.state.events().clone());
-        context.run.recovery_request_tx = Some(recovery_requests);
         context.recovery_generation = self.recovery.generation.clone();
-        context.run.trigger_state = Some(self.triggers.read().await.state());
         context.budget_registry = self.budget_registry.clone();
         context.smart_exposure_states = self.smart_exposure_states.clone();
         context.resume = self.resume.clone();
 
-        context.run.conditions.sky_brightness_mag = self.sky.sky_brightness_mag.clone();
-        context.run.conditions.cloud_motion = self.sky.cloud_motion.clone();
         context.current_transparency = self.sky.transparency.clone();
         context.transparency_backup_plan = self.sky.transparency_backup.clone();
         context.current_conditions_score = self.sky.conditions_score.clone();
         context.adaptive_swap_state = self.shared.adaptive_swap_state.clone();
-        context.run.defect_map_apply = self.shared.defect_map_apply.clone();
         context.depth_goal_ops = self.shared.depth_goal_ops.clone();
         context.default_adaptive_exposure = slots.default_adaptive_exposure.clone();
         context.safety_fail_mode = slots.safety_fail_mode.clone();
-        context.run.device_retry = slots.device_retry.clone();
-        // A secondary capture loop armed before this start shares its dither
-        // barrier with the run.
-        context.run.dither_barrier = crate::dual_rig::active_barrier();
-
-        context.run.rig = self.rig.clone();
-
-        // One id per start, so `SK-SESID` names this run and no other.
-        context.run.identity.session_id = uuid::Uuid::new_v4().to_string();
         context.max_sun_altitude_degrees = config.max_sun_altitude();
-        context.run.identity.observer_name = config.observer_profile.observer_name.clone();
-        context.run.identity.site_elevation_m = config.observer_profile.site_elevation_m;
-        context.run.identity.camera_make = config.observer_profile.camera_make.clone();
-        context.run.identity.camera_model = config.observer_profile.camera_model.clone();
-        context.run.identity.telescope_name = config.observer_profile.telescope_name.clone();
-        context.run.identity.telescope_focal_length_mm =
-            config.observer_profile.telescope_focal_length_mm;
-        context.run.identity.telescope_aperture_mm = config.observer_profile.telescope_aperture_mm;
-        context.run.grading.default_quality_check = config.default_quality_check.clone();
-        context.run.grading.reject_folder_path = config.reject_folder_path.clone();
-        context.run.camera_file_saving = config.camera_file_saving;
 
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),
@@ -484,7 +500,8 @@ impl Run {
         };
         let command_handler = run_command_handler(self.clone(), commands);
         let checkpoint_stream = run_checkpoint_stream(self.clone());
-        let recovery_driver = run_recovery_driver(self.clone(), recovery_rx);
+        let recovery_driver =
+            run_recovery_driver(self.clone(), side_context.run.clone(), recovery_rx);
 
         // A hung poll looks like a healthy monitor to the select below, so
         // the watchdog turns "stalled" into "exited", which fails closed.
@@ -538,7 +555,7 @@ impl Run {
                 monitor_finished = true;
                 // An unattended run depends on the monitor for weather,
                 // altitude and drift limits; without it nothing may expose.
-                if self.triggers_enabled && !is_cancelled.load(Ordering::Relaxed) {
+                if !is_cancelled.load(Ordering::Relaxed) {
                     tracing::error!(
                         "Safety monitoring (trigger monitor) exited unexpectedly! \
                          Cancelling sequence to prevent unmonitored execution."
@@ -602,8 +619,7 @@ impl Run {
 
         // The last science frame can still be queued or solving when its node
         // ends. Its assessment is finished first, with every action disabled.
-        if self.triggers_enabled
-            && !monitor_finished
+        if !monitor_finished
             && result == NodeStatus::Success
             && !is_cancelled.load(Ordering::Acquire)
         {
@@ -917,7 +933,6 @@ impl Run {
             },
             device_ops,
             triggers: Arc::new(RwLock::new(TriggerManager::new())),
-            triggers_enabled: true,
             decisions: DecisionLog {
                 tx: decisions,
                 run_id: Arc::default(),

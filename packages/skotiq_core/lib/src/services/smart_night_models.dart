@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import '../models/planning/target_suggestion.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';
-import '../providers/profiles_provider.dart' show EquipmentProfileModel;
+import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import 'dark_library_coverage_service.dart';
 import 'scheduler/horizon_profile.dart';
 import 'sequence_file_service.dart';

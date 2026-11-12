@@ -19,11 +19,12 @@
 //! it to the top-down orientation the rest of the pipeline expects, mirroring
 //! the reference driver (indi-mi/mi_ccd.cpp `mirror_image`, lines 609-627,657).
 
+use crate::camera_core::{CameraCore, Frame, SdkHandle};
 use crate::utils::CleanupGuard;
 use async_trait::async_trait;
 use skotiq_device::camera::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ImageMetadata, ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+    ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
 };
 use skotiq_device::Vendor;
 use skotiq_device::{CameraDriver, DeviceDriver, DriverError};

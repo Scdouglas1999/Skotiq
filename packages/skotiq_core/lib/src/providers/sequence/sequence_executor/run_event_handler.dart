@@ -14,6 +14,7 @@ import '../../../services/logging_service.dart';
 import '../../../utils/remote_path.dart';
 import '../../equipment_provider.dart';
 import '../../frame_watch_settings_provider.dart';
+import '../../../models/site/learned_obstruction.dart';
 import '../../settings_provider.dart' show appObserverLocationProvider;
 import '../../focuser_backlash_provider.dart'
     show focuserBacklashOfferSessionProvider;
@@ -31,7 +32,7 @@ import '../../sequence_stats_provider.dart';
 import '../../session_provider.dart';
 import '../exposure_progress_vocabulary.dart';
 import '../log_rate_limiter.dart';
-import '../run_stop_classification.dart';
+import '../../../models/sequence/run_stop_classification.dart';
 import '../sequencer_defaults.dart';
 import '../sequencer_run_event.dart';
 import '../target_end_when_notice.dart';

@@ -16,7 +16,7 @@
 
 use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
-use crate::protocol::{standard_properties::*, CcdFrameType};
+use crate::protocol::{names::*, CcdFrameType};
 
 /// Bayer / CFA pattern parsed from INDI `CCD_CFA`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,32 +50,13 @@ impl IndiCamera {
         }
     }
 
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
     pub async fn start_exposure(&self, duration_secs: f64) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
             .set_number(
                 &self.device_name,
                 CCD_EXPOSURE,
-                "CCD_EXPOSURE_VALUE",
+                CCD_EXPOSURE_VALUE,
                 duration_secs,
             )
             .await
@@ -84,7 +65,7 @@ impl IndiCamera {
     pub async fn abort_exposure(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            .set_switch(&self.device_name, CCD_ABORT_EXPOSURE, "ABORT", true)
+            .set_switch(&self.device_name, CCD_ABORT_EXPOSURE, ABORT, true)
             .await
     }
 
@@ -95,7 +76,7 @@ impl IndiCamera {
                 &self.device_name,
                 CCD_BINNING,
                 // Why: i32 binning values -> f64 (INDI wire format); lossless.
-                &[("HOR_BIN", f64::from(bin_x)), ("VER_BIN", f64::from(bin_y))],
+                &[(HOR_BIN, f64::from(bin_x)), (VER_BIN, f64::from(bin_y))],
             )
             .await
     }
@@ -116,10 +97,10 @@ impl IndiCamera {
     pub async fn try_get_binning(&self) -> Result<Option<(i32, i32)>, IndiError> {
         let client = self.client.read().await;
         let bin_x = client
-            .get_number(&self.device_name, CCD_BINNING, "HOR_BIN")
+            .get_number(&self.device_name, CCD_BINNING, HOR_BIN)
             .await;
         let bin_y = client
-            .get_number(&self.device_name, CCD_BINNING, "VER_BIN")
+            .get_number(&self.device_name, CCD_BINNING, VER_BIN)
             .await;
         match (bin_x, bin_y) {
             // Why: INDI wire format is f64; binning is small (1..16). f64 -> i32
@@ -164,8 +145,8 @@ impl IndiCamera {
                 &[
                     ("X", f64::from(x)),
                     ("Y", f64::from(y)),
-                    ("WIDTH", f64::from(width)),
-                    ("HEIGHT", f64::from(height)),
+                    (WIDTH, f64::from(width)),
+                    (HEIGHT, f64::from(height)),
                 ],
             )
             .await
@@ -186,11 +167,9 @@ impl IndiCamera {
         let client = self.client.read().await;
         let x = client.get_number(&self.device_name, CCD_FRAME, "X").await;
         let y = client.get_number(&self.device_name, CCD_FRAME, "Y").await;
-        let width = client
-            .get_number(&self.device_name, CCD_FRAME, "WIDTH")
-            .await;
+        let width = client.get_number(&self.device_name, CCD_FRAME, WIDTH).await;
         let height = client
-            .get_number(&self.device_name, CCD_FRAME, "HEIGHT")
+            .get_number(&self.device_name, CCD_FRAME, HEIGHT)
             .await;
         match (x, y, width, height) {
             // Why: INDI wire format is f64; ROI is bounded by sensor extent.
@@ -244,7 +223,7 @@ impl IndiCamera {
             .set_number(
                 &self.device_name,
                 CCD_TEMPERATURE,
-                "CCD_TEMPERATURE_VALUE",
+                CCD_TEMPERATURE_VALUE,
                 temp_celsius,
             )
             .await
@@ -253,7 +232,7 @@ impl IndiCamera {
     pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_TEMPERATURE, "CCD_TEMPERATURE_VALUE")
+            .get_number(&self.device_name, CCD_TEMPERATURE, CCD_TEMPERATURE_VALUE)
             .await
             .ok_or_else(|| IndiError::Unavailable("Temperature not available".to_string()))
     }
@@ -262,11 +241,11 @@ impl IndiCamera {
         let mut client = self.client.write().await;
         if enabled {
             client
-                .set_switch(&self.device_name, CCD_COOLER, "COOLER_ON", true)
+                .set_switch(&self.device_name, CCD_COOLER, COOLER_ON, true)
                 .await
         } else {
             client
-                .set_switch(&self.device_name, CCD_COOLER, "COOLER_OFF", true)
+                .set_switch(&self.device_name, CCD_COOLER, COOLER_OFF, true)
                 .await
         }
     }
@@ -274,7 +253,7 @@ impl IndiCamera {
     pub async fn is_cooler_on(&self) -> bool {
         let client = self.client.read().await;
         client
-            .get_switch(&self.device_name, CCD_COOLER, "COOLER_ON")
+            .get_switch(&self.device_name, CCD_COOLER, COOLER_ON)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false / Light.
             .unwrap_or(false)
@@ -284,14 +263,14 @@ impl IndiCamera {
         let mut client = self.client.write().await;
         client
             // Why: i32 gain -> f64 (INDI wire); lossless.
-            .set_number(&self.device_name, CCD_GAIN, "GAIN", f64::from(gain))
+            .set_number(&self.device_name, CCD_GAIN, GAIN, f64::from(gain))
             .await
     }
 
     pub async fn get_gain(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_GAIN, "GAIN")
+            .get_number(&self.device_name, CCD_GAIN, GAIN)
             .await
             // Why: INDI wire f64 -> i32. Gain is bounded by sensor (typically
             // 0..600); f64 -> i32 saturates per Rust 1.45 spec on driver bug.
@@ -303,14 +282,14 @@ impl IndiCamera {
         let mut client = self.client.write().await;
         client
             // Why: i32 offset -> f64 (INDI wire); lossless.
-            .set_number(&self.device_name, CCD_OFFSET, "OFFSET", f64::from(offset))
+            .set_number(&self.device_name, CCD_OFFSET, OFFSET, f64::from(offset))
             .await
     }
 
     pub async fn get_offset(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_OFFSET, "OFFSET")
+            .get_number(&self.device_name, CCD_OFFSET, OFFSET)
             .await
             // Why: INDI wire f64 -> i32; offset bounded by sensor (typically 0..255).
             // f64 -> i32 saturates per Rust 1.45 spec.
@@ -329,7 +308,7 @@ impl IndiCamera {
     pub async fn get_sensor_width(&self) -> Option<i32> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_INFO, "CCD_MAX_X")
+            .get_number(&self.device_name, CCD_INFO, CCD_MAX_X)
             .await
             // Why: INDI wire f64 -> i32 sensor width. Real sensors are <= 65k.
             // f64 -> i32 saturates per Rust 1.45 spec on driver-bug overflow.
@@ -340,7 +319,7 @@ impl IndiCamera {
     pub async fn get_sensor_height(&self) -> Option<i32> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_INFO, "CCD_MAX_Y")
+            .get_number(&self.device_name, CCD_INFO, CCD_MAX_Y)
             .await
             // Why: INDI wire f64 -> i32 sensor height. Same bounds as width.
             .map(|v| v as i32)
@@ -350,7 +329,7 @@ impl IndiCamera {
     pub async fn get_pixel_size_x(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_INFO, "CCD_PIXEL_SIZE_X")
+            .get_number(&self.device_name, CCD_INFO, CCD_PIXEL_SIZE_X)
             .await
     }
 
@@ -358,14 +337,14 @@ impl IndiCamera {
     pub async fn get_pixel_size_y(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_INFO, "CCD_PIXEL_SIZE_Y")
+            .get_number(&self.device_name, CCD_INFO, CCD_PIXEL_SIZE_Y)
             .await
     }
 
     pub async fn get_bits_per_pixel(&self) -> Option<i32> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_INFO, "CCD_BITSPERPIXEL")
+            .get_number(&self.device_name, CCD_INFO, CCD_BITSPERPIXEL)
             .await
             // Why: INDI wire f64 -> i32 bit depth (typically 8/10/12/14/16/32).
             // f64 -> i32 saturates per Rust 1.45 spec.
@@ -393,7 +372,7 @@ impl IndiCamera {
     pub async fn try_get_max_bin_x(&self) -> Result<Option<i32>, IndiError> {
         let client = self.client.read().await;
         Ok(client
-            .get_number(&self.device_name, CCD_INFO, "CCD_MAX_BIN_X")
+            .get_number(&self.device_name, CCD_INFO, CCD_MAX_BIN_X)
             .await
             // Why: INDI wire f64 -> i32 max bin (typically 1..16); saturates per Rust 1.45.
             .map(|v| v as i32))
@@ -404,7 +383,7 @@ impl IndiCamera {
     pub async fn try_get_max_bin_y(&self) -> Result<Option<i32>, IndiError> {
         let client = self.client.read().await;
         Ok(client
-            .get_number(&self.device_name, CCD_INFO, "CCD_MAX_BIN_Y")
+            .get_number(&self.device_name, CCD_INFO, CCD_MAX_BIN_Y)
             .await
             // Why: INDI wire f64 -> i32 max bin (typically 1..16); saturates per Rust 1.45.
             .map(|v| v as i32))
@@ -452,10 +431,10 @@ impl IndiCamera {
     pub async fn set_frame_type(&self, frame_type: CcdFrameType) -> IndiResult<()> {
         let mut client = self.client.write().await;
         let element = match frame_type {
-            CcdFrameType::Light => "FRAME_LIGHT",
-            CcdFrameType::Bias => "FRAME_BIAS",
-            CcdFrameType::Dark => "FRAME_DARK",
-            CcdFrameType::Flat => "FRAME_FLAT",
+            CcdFrameType::Light => FRAME_LIGHT,
+            CcdFrameType::Bias => FRAME_BIAS,
+            CcdFrameType::Dark => FRAME_DARK,
+            CcdFrameType::Flat => FRAME_FLAT,
         };
         client
             .set_switch_exclusive(&self.device_name, CCD_FRAME_TYPE, element)
@@ -466,13 +445,13 @@ impl IndiCamera {
     pub async fn get_gain_range(&self) -> Option<(i32, i32)> {
         let client = self.client.read().await;
         let limits = if let Some(limits) = client
-            .get_number_limits(&self.device_name, CCD_GAIN, "GAIN")
+            .get_number_limits(&self.device_name, CCD_GAIN, GAIN)
             .await
         {
             limits
         } else {
             client
-                .get_number_limits(&self.device_name, "CCD_CONTROLS", "Gain")
+                .get_number_limits(&self.device_name, CCD_CONTROLS, CONTROLS_GAIN)
                 .await?
         };
         Some((
@@ -485,17 +464,13 @@ impl IndiCamera {
     pub async fn get_max_adu(&self) -> Option<i32> {
         let client = self.client.read().await;
         if let Some(v) = client
-            .get_number(
-                &self.device_name,
-                CCD_MAX_PIXEL_VALUE,
-                "CCD_MAX_PIXEL_VALUE",
-            )
+            .get_number(&self.device_name, CCD_MAX_PIXEL_VALUE, CCD_MAX_PIXEL_VALUE)
             .await
         {
             return Some(v as i32);
         }
         client
-            .get_number(&self.device_name, CCD_INFO, "CCD_MAX_PIXEL")
+            .get_number(&self.device_name, CCD_INFO, CCD_MAX_PIXEL)
             .await
             .map(|v| v as i32)
     }
@@ -523,14 +498,14 @@ impl IndiCamera {
         let client = self.client.read().await;
         if client.has_property(&self.device_name, CCD_CFA).await {
             let pattern = client
-                .get_property_value(&self.device_name, CCD_CFA, "CFA_TYPE")
+                .get_property_value(&self.device_name, CCD_CFA, CFA_TYPE)
                 .await?;
             let offset_x = client
-                .get_number(&self.device_name, CCD_CFA, "CFA_OFFSET_X")
+                .get_number(&self.device_name, CCD_CFA, CFA_OFFSET_X)
                 .await
                 .map(|v| v as i32);
             let offset_y = client
-                .get_number(&self.device_name, CCD_CFA, "CFA_OFFSET_Y")
+                .get_number(&self.device_name, CCD_CFA, CFA_OFFSET_Y)
                 .await
                 .map(|v| v as i32);
             return Some(IndiBayerPattern {
@@ -540,7 +515,7 @@ impl IndiCamera {
             });
         }
         client
-            .get_property_value(&self.device_name, "CCD_BAYER_PATTERN", "BAYERPAT")
+            .get_property_value(&self.device_name, CCD_BAYER_PATTERN, BAYERPAT)
             .await
             .map(|pattern| IndiBayerPattern {
                 pattern,
@@ -555,10 +530,10 @@ impl IndiCamera {
         let property_name = if client.has_property(&self.device_name, CCD_READ_MODE).await {
             CCD_READ_MODE
         } else if client
-            .has_property(&self.device_name, "CCD_READOUT_MODE")
+            .has_property(&self.device_name, CCD_READOUT_MODE)
             .await
         {
-            "CCD_READOUT_MODE"
+            CCD_READOUT_MODE
         } else {
             return Vec::new();
         };
@@ -580,7 +555,7 @@ impl IndiCamera {
     /// Active readout mode element name, if any.
     pub async fn get_active_readout_mode(&self) -> Option<String> {
         let client = self.client.read().await;
-        for property in [CCD_READ_MODE, "CCD_READOUT_MODE"] {
+        for property in [CCD_READ_MODE, CCD_READOUT_MODE] {
             if !client.has_property(&self.device_name, property).await {
                 continue;
             }
@@ -605,7 +580,7 @@ impl IndiCamera {
         let property = if client.has_property(&self.device_name, CCD_READ_MODE).await {
             CCD_READ_MODE
         } else {
-            "CCD_READOUT_MODE"
+            CCD_READOUT_MODE
         };
         let mut client = self.client.write().await;
         client
@@ -616,21 +591,21 @@ impl IndiCamera {
     pub async fn get_frame_type(&self) -> CcdFrameType {
         let client = self.client.read().await;
         if client
-            .get_switch(&self.device_name, CCD_FRAME_TYPE, "FRAME_BIAS")
+            .get_switch(&self.device_name, CCD_FRAME_TYPE, FRAME_BIAS)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false / Light.
             .unwrap_or(false)
         {
             CcdFrameType::Bias
         } else if client
-            .get_switch(&self.device_name, CCD_FRAME_TYPE, "FRAME_DARK")
+            .get_switch(&self.device_name, CCD_FRAME_TYPE, FRAME_DARK)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false / Light.
             .unwrap_or(false)
         {
             CcdFrameType::Dark
         } else if client
-            .get_switch(&self.device_name, CCD_FRAME_TYPE, "FRAME_FLAT")
+            .get_switch(&self.device_name, CCD_FRAME_TYPE, FRAME_FLAT)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → status probe returns false / Light.
             .unwrap_or(false)
@@ -652,7 +627,7 @@ impl IndiCamera {
     pub async fn get_exposure_remaining(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_EXPOSURE, "CCD_EXPOSURE_VALUE")
+            .get_number(&self.device_name, CCD_EXPOSURE, CCD_EXPOSURE_VALUE)
             .await
     }
 
@@ -673,7 +648,7 @@ impl IndiCamera {
     pub async fn get_cooler_power(&self) -> Option<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_COOLER_POWER, "CCD_COOLER_VALUE")
+            .get_number(&self.device_name, CCD_COOLER_POWER, CCD_COOLER_VALUE)
             .await
     }
 
@@ -694,8 +669,8 @@ impl IndiCamera {
         // and clear any stale cached BLOB from a previous exposure.
         let mut rx = {
             let client = self.client.read().await;
-            client.clear_blob(&self.device_name, "CCD1", "CCD1").await;
-            client.clear_blob(&self.device_name, "CCD2", "CCD2").await;
+            client.clear_blob(&self.device_name, CCD1, CCD1).await;
+            client.clear_blob(&self.device_name, CCD2, CCD2).await;
             client.subscribe()
         };
 
@@ -722,7 +697,7 @@ impl IndiCamera {
                         ..
                     } = event
                     {
-                        if device == self.device_name && (element == "CCD1" || element == "CCD2") {
+                        if device == self.device_name && (element == CCD1 || element == CCD2) {
                             return Ok(data);
                         }
                     }
@@ -749,10 +724,10 @@ impl IndiCamera {
 
             let cached_blob = {
                 let client = self.client.read().await;
-                if let Some(data) = client.take_blob(&self.device_name, "CCD1", "CCD1").await {
+                if let Some(data) = client.take_blob(&self.device_name, CCD1, CCD1).await {
                     Some(data)
                 } else {
-                    client.take_blob(&self.device_name, "CCD2", "CCD2").await
+                    client.take_blob(&self.device_name, CCD2, CCD2).await
                 }
             };
             if let Some(data) = cached_blob {
@@ -790,6 +765,8 @@ where
         }
     }
 }
+
+indi_device!(IndiCamera);
 
 #[cfg(test)]
 mod tests {

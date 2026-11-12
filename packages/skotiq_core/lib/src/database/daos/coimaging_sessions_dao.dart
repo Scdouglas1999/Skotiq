@@ -1,7 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../tables/coimaging_sessions.dart';
 
@@ -154,7 +152,3 @@ class CoImagingSessionsDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 }
-
-final coImagingSessionsDaoProvider = Provider<CoImagingSessionsDao>((ref) {
-  return CoImagingSessionsDao(ref.watch(databaseProvider));
-});

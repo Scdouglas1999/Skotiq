@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/remote_host.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/sequence_stats_provider.dart';
+import '../../models/sequence/terminal_run_result.dart';
 import '../end_of_night_calibration/eon_providers.dart';
 import '../end_of_night_calibration/eon_service.dart';
 import '../end_of_night_calibration/eon_trigger.dart';

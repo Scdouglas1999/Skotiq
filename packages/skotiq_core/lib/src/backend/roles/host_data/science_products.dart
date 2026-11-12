@@ -49,7 +49,14 @@ abstract interface class ScienceProducts {
   Stream<List<ScienceFrameQualityMetricsRow>>
   watchFrameQualityMetricsForSession(int sessionId);
 
-  Stream<List<ScienceTileMetricRow>> watchTileMetricsForSession(int sessionId);
+  /// The tile metrics of one frame of a session, chosen by
+  /// `selectFrameScienceRows`: [capturedImageId]'s, else the frame measured
+  /// last. Every view shows one frame, and a session holds thousands of tile
+  /// rows per frame.
+  Stream<List<ScienceTileMetricRow>> watchFrameTileMetrics(
+    int sessionId, {
+    int? capturedImageId,
+  });
 
   Stream<List<AstrometryResidualVectorRow>> watchResidualsForSession(
     int sessionId,

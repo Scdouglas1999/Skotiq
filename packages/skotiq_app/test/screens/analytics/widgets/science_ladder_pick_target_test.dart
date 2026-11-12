@@ -127,8 +127,8 @@ Widget _tab({required bool populated}) {
           populated ? [_metrics()] : const <ScienceFrameQualityMetricsRow>[],
         ),
       ),
-      sessionTileMetricsProvider.overrideWith(
-        (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+      frameTileMetricsProvider.overrideWith(
+        (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
       ),
       dbSessionImagesProvider.overrideWith(
         (ref, id) => Stream.value([_frame()]),

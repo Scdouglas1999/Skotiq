@@ -4,7 +4,7 @@ import 'package:skotiq_core/src/models/imaging/imaging_models.dart'
 import 'package:skotiq_core/src/models/import/canonical_sequence_node.dart';
 import 'package:skotiq_core/src/models/import/import_result.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart'
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart'
     show ValidationCategory, ValidationSeverity;
 import 'package:skotiq_core/src/services/import/canonical_node_mapper.dart';
 

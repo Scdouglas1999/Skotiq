@@ -2,40 +2,21 @@
 
 use super::*;
 
-// Handle wrapper for thread safety
-
-pub(crate) struct HandleWrapper(pub(crate) HOgmacam);
-// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `TOUPTEK_SDK_LOCK.lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
-unsafe impl Send for HandleWrapper {}
-// Note: Sync is intentionally omitted. HandleWrapper contains a raw pointer
-// (*mut c_void) that is not safe to share via &-references across threads. The Mutex<HandleWrapper>
-// provides synchronized access, and Mutex<T> only requires T: Send (not Sync) to be Sync itself.
-
 pub struct TouptekCamera {
     pub(crate) device_index: usize,
-    pub(crate) device_id: String,
     /// Stable identifier returned in `OgmacamDeviceV2::id`. Unlike `device_index`, this
     /// remains bound to the same physical camera if SDK enumeration order changes.
     pub(crate) sdk_device_id: Option<String>,
-    pub(crate) name: String,
-    pub(crate) handle: Mutex<HandleWrapper>,
-    pub(crate) connected: bool,
-    pub(crate) capabilities: CameraCapabilities,
-    pub(crate) sensor_info: SensorInfo,
-    pub(crate) state: CameraState,
-    pub(crate) current_gain: i32,
+    /// `core.gain` starts at 100 (1x) and is replaced at connect by the camera's
+    /// default gain, or its live gain when it reports no range.
+    pub(crate) core: CameraCore,
+    /// The open camera; null while disconnected. Read and replaced only with
+    /// `TOUPTEK_SDK_LOCK` held.
+    pub(crate) handle: SdkHandle<HOgmacam>,
     /// Gain bounds as reported by `get_ExpoAGainRange` at connect, in the SDK's own
     /// percent-step units where 100 == 1x. `None` means the camera never reported a
     /// range, which callers must surface as unknown rather than substitute a default.
     pub(crate) gain_range: Option<(i32, i32)>,
-    pub(crate) current_offset: i32,
-    pub(crate) current_bin_x: i32,
-    pub(crate) current_bin_y: i32,
-    pub(crate) subframe: Option<SubFrame>,
-    pub(crate) cooler_on: bool,
-    pub(crate) target_temp: f64,
-    pub(crate) exposure_duration: f64,
-    pub(crate) exposure_started_at: Option<std::time::Instant>,
     pub(crate) model_flags: u64,
     /// Upper bound of the model's fan-speed scale; 0 when the model reports no fan.
     pub(crate) max_fan_speed: u32,
@@ -52,7 +33,7 @@ pub struct TouptekCamera {
 impl std::fmt::Debug for TouptekCamera {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TouptekCamera")
-            .field("name", &self.name)
+            .field("name", &self.core.name)
             .field("device_index", &self.device_index)
             .field("sdk_device_id", &self.sdk_device_id)
             .finish()
@@ -68,26 +49,18 @@ impl TouptekCamera {
             .get(&(brand.to_ascii_lowercase(), device_index))
             .cloned();
 
+        let mut core = CameraCore::new(
+            format!("touptek_{}", device_index),
+            format!("{} Camera {}", brand, device_index),
+            -10.0,
+        );
+        core.gain = 100;
         Self {
             device_index,
-            device_id: format!("touptek_{}", device_index),
             sdk_device_id,
-            name: format!("{} Camera {}", brand, device_index),
-            handle: Mutex::new(HandleWrapper(std::ptr::null_mut())),
-            connected: false,
-            capabilities: CameraCapabilities::default(),
-            sensor_info: SensorInfo::default(),
-            state: CameraState::Idle,
-            current_gain: 100,
+            core,
+            handle: SdkHandle(std::ptr::null_mut()),
             gain_range: None,
-            current_offset: 0,
-            current_bin_x: 1,
-            current_bin_y: 1,
-            subframe: None,
-            cooler_on: false,
-            target_temp: -10.0,
-            exposure_duration: 0.0,
-            exposure_started_at: None,
             model_flags: 0,
             max_fan_speed: 0,
             brand: brand.to_string(),
@@ -111,7 +84,7 @@ impl TouptekCamera {
             if result < 0 {
                 return Err(DriverError::SdkError(format!(
                     "Failed to read gain from Touptek camera '{}'. SDK error: {}",
-                    self.name, result
+                    self.core.name, result
                 )));
             }
             Ok(i32::from(gain))

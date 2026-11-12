@@ -10,6 +10,7 @@ import 'package:skotiq_core/src/services/scheduler/scheduler_engine.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/autopilot_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_editor.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 
 /// Publishes a fixed status, standing in for a live engine.
 class _FixedStatusNotifier extends SchedulerStatusNotifier {

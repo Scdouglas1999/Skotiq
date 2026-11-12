@@ -6,7 +6,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../database/database.dart';
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
-import '../providers/settings_provider.dart' show HorizonProfile;
+import '../models/site/site_horizon_profile.dart' show HorizonProfile;
 import 'logging_service.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.

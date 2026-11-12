@@ -52,6 +52,11 @@ reaches upward (see also `.github/CONTRIBUTING.md` → "Where to put new code"):
 - `skotiq_app` depends on `skotiq_core`.
 - `skotiq_core` is the only Dart package that depends on `skotiq_bridge`
   / talks to Rust.
+- Inside `skotiq_core`, `backend/`, `database/`, `models/` and `services/`
+  do not import `providers/` (or the core barrel, which re-exports it). Plain
+  values live in `models/`; the services that need a Riverpod `Ref` are listed
+  with their reason under `coreLayers` in
+  `tools/production/architecture_rules_baseline.json`.
 
 New UI for desktop only goes in `apps/desktop/lib/`; UI shared across platforms
 goes in `skotiq_app`; business logic and providers go in

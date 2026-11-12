@@ -39,29 +39,72 @@
 //! - Protocol version negotiation support (1.7, 1.8, 1.9)
 //! - Exponential backoff with jitter for reconnection
 
-/// The accessory lifecycle for an INDI device wrapper with `client` and
-/// `device_name` fields. The bridge checks INDI devices through the shared
-/// server connection rather than this heartbeat, because that check also
-/// recovers the connection.
+/// The connection half of an INDI device wrapper with `client` and
+/// `device_name` fields: every wrapper reaches its device on the server's
+/// shared connection the same way.
+macro_rules! indi_device {
+    ($device:ty) => {
+        impl $device {
+            pub fn device_name(&self) -> &str {
+                &self.device_name
+            }
+
+            /// The shared server connection this device is reached through.
+            pub fn client(&self) -> &std::sync::Arc<tokio::sync::RwLock<$crate::IndiClient>> {
+                &self.client
+            }
+
+            /// Connects the device and returns once the driver confirms it.
+            pub async fn connect(&self) -> $crate::IndiResult<()> {
+                self.client
+                    .write()
+                    .await
+                    .connect_and_confirm(&self.device_name)
+                    .await
+            }
+
+            /// Disconnects the device and returns once the driver confirms it.
+            pub async fn disconnect(&self) -> $crate::IndiResult<()> {
+                self.client
+                    .write()
+                    .await
+                    .disconnect_and_confirm(&self.device_name)
+                    .await
+            }
+
+            pub async fn is_connected(&self) -> bool {
+                self.client
+                    .read()
+                    .await
+                    .is_device_connected(&self.device_name)
+                    .await
+            }
+
+            /// One heartbeat; see `IndiClient::check_device`.
+            pub async fn check(&self) -> $crate::IndiResult<bool> {
+                self.client
+                    .write()
+                    .await
+                    .check_device(&self.device_name)
+                    .await
+            }
+        }
+    };
+}
+
+/// [`indi_device`] plus the accessory lifecycle trait.
 macro_rules! indi_accessory {
     ($device:ty) => {
+        indi_device!($device);
+
         #[async_trait::async_trait]
         impl skotiq_device::AccessoryDriver for $device {
             async fn disconnect(&self) -> Result<(), skotiq_device::DriverError> {
-                let mut client = self.client.write().await;
-                client.disconnect_device(&self.device_name).await?;
-                client
-                    .wait_until_device_disconnected(
-                        &self.device_name,
-                        std::time::Duration::from_secs(5),
-                    )
-                    .await?;
-                Ok(())
+                Ok(<$device>::disconnect(self).await?)
             }
 
             async fn heartbeat(&self) -> Result<(), skotiq_device::DriverError> {
-                let client = self.client.read().await;
-                if client.is_device_connected(&self.device_name).await {
+                if self.check().await? {
                     Ok(())
                 } else {
                     Err(skotiq_device::DriverError::NotConnected)
@@ -79,6 +122,7 @@ mod dome;
 mod error;
 mod filterwheel;
 mod focuser;
+mod kind;
 mod mount;
 mod protocol;
 mod rotator;
@@ -91,14 +135,15 @@ pub use client::*;
 pub use covercalibrator::{IndiCalibratorState, IndiCoverCalibrator, IndiCoverState};
 pub use discovery::{
     discover_common_hosts, discover_local_network, discover_localhost, discover_mdns,
-    discover_server, IndiDeviceInfo, IndiServer,
+    discover_server, list_devices, wait_for_definitions, IndiDeviceInfo, IndiServer,
 };
 pub use dome::{IndiDome, IndiShutterStatus};
 pub use error::{IndiError, IndiResult};
 pub use filterwheel::IndiFilterWheel;
 pub use focuser::IndiFocuser;
+pub use kind::IndiDeviceDescription;
 pub use mount::IndiMount;
-pub use protocol::{standard_properties, CcdFrameType, INDI_PROTOCOL_VERSION};
+pub use protocol::{names, CcdFrameType, INDI_PROTOCOL_VERSION};
 pub use rotator::IndiRotator;
 pub use safetymonitor::IndiSafetyMonitor;
 pub use switch_device::{IndiSwitchDevice, IndiSwitchInfo};
@@ -110,7 +155,6 @@ pub const INDI_DEFAULT_PORT: u16 = 7624;
 #[derive(Debug, Clone)]
 pub struct IndiDevice {
     pub name: String,
-    pub driver: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

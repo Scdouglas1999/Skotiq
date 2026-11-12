@@ -53,8 +53,8 @@
 //! (see `event.rs`); the FRB bindings carry the typed fields directly, so the
 //! Dart side maps the variant without decoding a hand-built JSON payload.
 
-use crate::api::{api_invalidate_discovery_cache, get_state};
-use crate::device::{ConnectionState, DeviceType, DriverType};
+use crate::api::{api_invalidate_discovery_cache, get_device_manager, get_state};
+use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::event::{EquipmentEvent, EventSeverity};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -296,15 +296,13 @@ async fn poll_once(suppress_events: bool) {
     // So (1) skip probing any (driver, device_type) bus that has a connected
     // device and carry its cached entries forward unchanged, and (2) never emit
     // a removal for a connected device id.
-    let connected = get_state().get_all_device_states().await;
+    let connected: Vec<DeviceInfo> = get_device_manager().get_connected_device_infos().await;
     let connected_keys: HashSet<(DriverType, String)> = connected
         .iter()
-        .filter(|d| d.connection_state == ConnectionState::Connected)
-        .map(|d| (d.driver_type, d.device_id.clone()))
+        .map(|d| (d.driver_type, d.id.clone()))
         .collect();
     let connected_types: HashSet<(DriverType, DeviceType)> = connected
         .iter()
-        .filter(|d| d.connection_state == ConnectionState::Connected)
         .map(|d| (d.driver_type, d.device_type))
         .collect();
 

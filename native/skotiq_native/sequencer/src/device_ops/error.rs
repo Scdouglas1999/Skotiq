@@ -113,19 +113,24 @@ impl DeviceError {
 
     /// The same failure, its words prefixed with `what` was being done.
     pub fn context(self, what: &str) -> Self {
-        let prefixed = |message: String| format!("{what}: {message}");
+        self.reworded(|message| format!("{what}: {message}"))
+    }
+
+    /// The same kind of failure in other words. A missing device keeps its
+    /// fixed sentence.
+    pub fn reworded(self, words: impl FnOnce(String) -> String) -> Self {
         match self {
             Self::NotConfigured { device } => Self::NotConfigured { device },
             Self::NotConnected { device, message } => Self::NotConnected {
                 device,
-                message: prefixed(message),
+                message: words(message),
             },
-            Self::Unsupported(message) => Self::Unsupported(prefixed(message)),
-            Self::Rejected(message) => Self::Rejected(prefixed(message)),
-            Self::Cancelled(message) => Self::Cancelled(prefixed(message)),
-            Self::Timeout(message) => Self::Timeout(prefixed(message)),
-            Self::InvalidFrame(message) => Self::InvalidFrame(prefixed(message)),
-            Self::Failed(message) => Self::Failed(prefixed(message)),
+            Self::Unsupported(message) => Self::Unsupported(words(message)),
+            Self::Rejected(message) => Self::Rejected(words(message)),
+            Self::Cancelled(message) => Self::Cancelled(words(message)),
+            Self::Timeout(message) => Self::Timeout(words(message)),
+            Self::InvalidFrame(message) => Self::InvalidFrame(words(message)),
+            Self::Failed(message) => Self::Failed(words(message)),
         }
     }
 

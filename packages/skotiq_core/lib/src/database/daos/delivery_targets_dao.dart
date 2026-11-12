@@ -1,9 +1,7 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/darkroom/delivery.dart';
 import '../../models/darkroom/recipe.dart' show DarkroomWireFormatException;
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
@@ -334,7 +332,3 @@ class DeliveryTargetsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 }
-
-final deliveryTargetsDaoProvider = Provider<DeliveryTargetsDao>((ref) {
-  return DeliveryTargetsDao(ref.watch(databaseProvider));
-});

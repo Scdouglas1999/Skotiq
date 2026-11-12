@@ -19,16 +19,42 @@ pub(crate) async fn read_autofocus_position(ctx: &InstructionContext) -> Option<
 }
 
 /// Tell the operator that `source` did not converge and that imaging carries
-/// on: the continuation decision row (which raises the app's "Autofocus failed
-/// — continuing" notification) and a Warning in the run's feed naming the
-/// cause and where the focuser is. A Warning, not an Error: every sequencer
-/// Error is reported as a failed sequence, and this run has not failed.
+/// on: the continuation decision row (see [`record_autofocus_failed_continuing`])
+/// and a Warning in the run's feed naming the cause and where the focuser is.
+/// A Warning, not an Error: every sequencer Error is reported as a failed
+/// sequence, and this run has not failed.
 pub(crate) async fn notify_autofocus_failed_continuing(
     ctx: &InstructionContext,
     source: &str,
     result: &InstructionResult,
     position_before: Option<i32>,
 ) {
+    let notice = record_autofocus_failed_continuing(
+        ctx,
+        source,
+        serde_json::json!({ "node_id": ctx.node_id }),
+        result,
+        position_before,
+    )
+    .await;
+    tracing::warn!("{}", notice);
+    if let Some(event_tx) = &ctx.run.event_tx {
+        let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message: notice });
+    }
+}
+
+/// Write the run's one decision row for an autofocus that did not converge
+/// while imaging carries on, the row the app raises its "Autofocus failed —
+/// continuing" notification from, with the fields of `context` added to its
+/// details. Every autofocus that carries on records it here, once. Returns
+/// the operator's notice.
+pub(crate) async fn record_autofocus_failed_continuing(
+    ctx: &InstructionContext,
+    source: &str,
+    context: serde_json::Value,
+    result: &InstructionResult,
+    position_before: Option<i32>,
+) -> String {
     let position_after = read_autofocus_position(ctx).await;
     let origin_restored = result
         .data
@@ -43,19 +69,14 @@ pub(crate) async fn notify_autofocus_failed_continuing(
         .unwrap_or_else(|| "autofocus did not converge".to_string());
     let continuation = crate::executor::autofocus_failure_continuation(
         source,
-        serde_json::json!({ "node_id": ctx.node_id }),
+        context,
         &reason,
         position_before,
         position_after,
         origin_restored,
     );
     ctx.run.emit_decision(continuation.decision);
-    tracing::warn!("{}", continuation.operator_message);
-    if let Some(event_tx) = &ctx.run.event_tx {
-        let _ = event_tx.send(crate::executor::ExecutorEvent::Warning {
-            message: continuation.operator_message,
-        });
-    }
+    continuation.operator_message
 }
 
 /// Process-wide hardware admission for autofocus. Every entry path ultimately
@@ -523,30 +544,33 @@ async fn run_autofocus_admitted(
                     if let Err(error) =
                         move_autofocus_filter(ctx, target_name, target_position as i32).await
                     {
-                        pre_run_error = Some(format!(
-                            "Failed to switch to autofocus filter \"{}\": {}",
-                            target_name, error
-                        ));
+                        pre_run_error = Some(
+                            InstructionResult::failure(format!(
+                                "Failed to switch to autofocus filter \"{}\": {}",
+                                target_name, error
+                            ))
+                            .caused_by(&error),
+                        );
                     }
                 } else {
-                    pre_run_error = Some(format!(
+                    pre_run_error = Some(InstructionResult::failure(format!(
                         "Configured autofocus filter \"{}\" is not present in the connected wheel",
                         target_name
-                    ));
+                    )));
                 }
             }
             Some(_) => {}
             None => {
-                pre_run_error = Some(format!(
+                pre_run_error = Some(InstructionResult::failure(format!(
                     "Autofocus is configured to use filter \"{}\", but no filter wheel is connected",
                     target_name
-                ));
+                )));
             }
         }
     }
 
     let mut result = match pre_run_error {
-        Some(error) => InstructionResult::failure(error),
+        Some(failure) => failure,
         None => execute_autofocus_attempts(&effective_config, ctx, progress_callback, pause).await,
     };
 
@@ -560,7 +584,8 @@ async fn run_autofocus_admitted(
                         "failed to restore original filter \"{}\" at position {}: {}",
                         original_name, original_position, error
                     ),
-                );
+                )
+                .caused_by(&error);
             }
         }
     }
@@ -708,14 +733,16 @@ pub(crate) async fn move_autofocus_filter(
     ctx: &InstructionContext,
     filter_name: &str,
     target_position: i32,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     let filterwheel_id = ctx
         .run
         .rig
         .filterwheel_id
         .as_deref()
         .filter(|id| !id.is_empty())
-        .ok_or_else(|| "no filter wheel is connected".to_string())?;
+        .ok_or(DeviceError::NotConfigured {
+            device: crate::device_ops::DeviceKind::FilterWheel,
+        })?;
 
     // The command is retried through transient wheel faults like any other
     // filter change; the arrival check below stays this function's own.
@@ -726,7 +753,7 @@ pub(crate) async fn move_autofocus_filter(
         None,
     )
     .await
-    .map_err(|error| format!("filter move command failed: {}", error))?;
+    .map_err(|failure| failure.into_error().context("filter move command failed"))?;
 
     // Cleanup still owns the wheel after cancellation, so this verification
     // intentionally does not consult the sequence cancellation token.
@@ -757,7 +784,7 @@ pub(crate) async fn move_autofocus_filter(
             ),
         }
         if start.elapsed() > timeout {
-            return Err(match last_observed {
+            return Err(DeviceError::Timeout(match last_observed {
                 Some(observed) => format!(
                     "filter wheel did not reach position {} within {} seconds; it is sitting at \
                      position {} — something else moved it",
@@ -771,14 +798,14 @@ pub(crate) async fn move_autofocus_filter(
                     target_position,
                     timeout.as_secs()
                 ),
-            });
+            }));
         }
         sleep(Duration::from_millis(200)).await;
     }
 
     apply_filter_focus_offset(filter_name, ctx, None)
         .await
-        .map_err(|error| format!("focus offset failed: {}", error))
+        .map_err(|error| error.context("focus offset failed"))
 }
 
 /// How long the autofocus cleanup watches a restarted guider, once the start
@@ -1818,6 +1845,7 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 "{}; CRITICAL: failed to restore original focuser position {}: {}",
                 prior, current_position, error
             ));
+            result = result.caused_by(error);
         }
         let mut metadata = match result.data.take() {
             Some(serde_json::Value::Object(object)) => object,
@@ -1845,11 +1873,15 @@ pub(crate) async fn restore_autofocus_origin(
     ctx: &InstructionContext,
     original_position: i32,
     run_up_from: Option<i32>,
-) -> Result<(), String> {
+) -> Result<(), DeviceError> {
     let mut errors = Vec::new();
+    // A focuser that dropped during the restore makes the whole restore a
+    // disconnect, so the run reconnects it.
+    let mut lost = None;
 
     if let Err(error) = ctx.run.device_ops.focuser_halt(focuser_id).await {
         errors.push(format!("halt failed: {}", error));
+        lost = lost.or(lost_device(&error));
     }
     if !wait_for_focuser_stop_after_halt(focuser_id, &ctx.run.device_ops, Duration::from_secs(10))
         .await
@@ -1875,7 +1907,10 @@ pub(crate) async fn restore_autofocus_origin(
             }
             // Still try the return itself: the origin from the wrong side
             // is better than the focuser left wherever the run stopped.
-            Err(error) => errors.push(format!("run-up move to {} was rejected: {}", run_up, error)),
+            Err(error) => {
+                errors.push(format!("run-up move to {} was rejected: {}", run_up, error));
+                lost = lost.or(lost_device(&error));
+            }
         }
     }
 
@@ -1899,16 +1934,30 @@ pub(crate) async fn restore_autofocus_origin(
                 ));
             }
         }
-        Err(error) => errors.push(format!(
-            "return move to {} was rejected: {}",
-            original_position, error
-        )),
+        Err(error) => {
+            errors.push(format!(
+                "return move to {} was rejected: {}",
+                original_position, error
+            ));
+            lost = lost.or(lost_device(&error));
+        }
     }
 
     if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("; "))
+        return Ok(());
+    }
+    let message = errors.join("; ");
+    Err(match lost {
+        Some(device) => DeviceError::NotConnected { device, message },
+        None => DeviceError::Failed(message),
+    })
+}
+
+/// The device a failure says is gone, if it says so.
+fn lost_device(error: &DeviceError) -> Option<crate::device_ops::DeviceKind> {
+    match error {
+        DeviceError::NotConnected { device, .. } => Some(*device),
+        _ => None,
     }
 }
 

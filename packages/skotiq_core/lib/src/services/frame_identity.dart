@@ -4,6 +4,7 @@ import '../models/backend/fits_header.dart';
 import '../models/equipment/equipment_models.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/settings_provider.dart';
 import 'logging_service.dart';
 

@@ -1,5 +1,6 @@
-//! The accessory driver traits over the ASCOM wrappers. Every call still goes
-//! to the wrapper's command channel and runs on the STA worker.
+//! The accessory driver traits, and what each accessory supports, over the
+//! ASCOM wrappers. Every call still goes to the wrapper's command channel and
+//! runs on the STA worker.
 
 use super::covercalibrator::AscomCoverCalibratorWrapper;
 use super::dome::AscomDomeWrapper;
@@ -7,6 +8,12 @@ use super::rotator::AscomRotatorWrapper;
 use super::safetymonitor::AscomSafetyMonitorWrapper;
 use super::switch::AscomSwitchWrapper;
 use super::weather::AscomObservingConditionsWrapper;
+use crate::device_capabilities::{
+    DomeCapabilities, RotatorCapabilities, SafetyMonitorCapabilities,
+    ShutterStatus as CapabilityShutter, WeatherCapabilities,
+};
+use crate::device_manager::accessory::{Dome, Rotator, SafetyMonitor, Weather};
+use crate::error::SkotiqError;
 use crate::dispatch::DeviceOpError;
 use async_trait::async_trait;
 use skotiq_device::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
@@ -97,20 +104,14 @@ impl DomeDriver for AscomDomeWrapper {
                 );
                 4
             });
-        let slewing = self.slewing().await.map_err(|e| {
-            com(DeviceOpError::caused_by(
-                None,
-                format!("Failed to read ASCOM dome slewing: {}", e),
-                e,
-            ))
-        })?;
-        let at_park = self.at_park().await.map_err(|e| {
-            com(DeviceOpError::caused_by(
-                None,
-                format!("Failed to read ASCOM dome at_park: {}", e),
-                e,
-            ))
-        })?;
+        let slewing = self
+            .slewing()
+            .await
+            .map_err(|e| com(DeviceOpError::caused_by(None, format!("Failed to read ASCOM dome slewing: {}", e), e)))?;
+        let at_park = self
+            .at_park()
+            .await
+            .map_err(|e| com(DeviceOpError::caused_by(None, format!("Failed to read ASCOM dome at_park: {}", e), e)))?;
         Ok(DomeState {
             azimuth: 0.0,
             altitude: None,
@@ -318,6 +319,113 @@ impl CoverCalibratorDriver for AscomCoverCalibratorWrapper {
             calibrator: calibrator.into(),
             brightness,
             max_brightness: self.cached_max_brightness(),
+        })
+    }
+}
+
+// What each wrapper supports, read through its own COM object on the STA
+// worker. The `unwrap_or` defaults are what the ASCOM interface means when a
+// driver does not implement an optional property: the feature is absent, the
+// device is not in that state.
+
+#[async_trait]
+impl Rotator for AscomRotatorWrapper {
+    async fn capabilities(&self, _device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
+        // CanReverse and Sync arrived in IRotatorV3; a driver that does not
+        // say its version is taken as V1.
+        let is_v3 = AscomRotatorWrapper::interface_version(self)
+            .await
+            .unwrap_or(0)
+            >= 3;
+        Ok(RotatorCapabilities {
+            can_reverse: is_v3,
+            reverse: false,
+            step_size: None,
+            is_moving: AscomRotatorWrapper::is_moving(self)
+                .await
+                .unwrap_or(false),
+            mechanical_position: self.mechanical_position().await.ok(),
+            position: AscomRotatorWrapper::position(self).await.ok(),
+            can_move_absolute: true,
+            can_halt: true,
+            can_sync: is_v3,
+            // IRotatorV3 has no angle limits: positions wrap within 0-360.
+            min_angle_deg: None,
+            max_angle_deg: None,
+        })
+    }
+}
+
+#[async_trait]
+impl Dome for AscomDomeWrapper {
+    async fn capabilities(&self, _device_id: &str) -> Result<DomeCapabilities, SkotiqError> {
+        let shutter_status = AscomDomeWrapper::shutter_status(self)
+            .await
+            .ok()
+            .map(|s| match s {
+                0 => CapabilityShutter::Open,
+                1 => CapabilityShutter::Closed,
+                2 => CapabilityShutter::Opening,
+                3 => CapabilityShutter::Closing,
+                _ => CapabilityShutter::Unknown,
+            });
+        let azimuth = self.azimuth().await.ok();
+        let at_park = self.at_park().await;
+        Ok(DomeCapabilities {
+            // A dome that does not answer CanSetAzimuth but reports its
+            // azimuth is offered as one that can be turned.
+            can_set_azimuth: self.can_set_azimuth().await.unwrap_or(azimuth.is_some()),
+            can_park: at_park.is_ok(),
+            can_find_home: false,
+            can_set_shutter: shutter_status.is_some(),
+            can_sync_azimuth: false,
+            azimuth,
+            slewing: self.slewing().await.unwrap_or(false),
+            at_home: false,
+            at_park: at_park.unwrap_or(false),
+            shutter_status,
+            can_slave: false,
+            slaved: false,
+            can_abort: true,
+        })
+    }
+}
+
+#[async_trait]
+impl Weather for AscomObservingConditionsWrapper {
+    /// A sensor the station does not have throws PropertyNotImplemented.
+    async fn capabilities(&self, _device_id: &str) -> Result<WeatherCapabilities, SkotiqError> {
+        Ok(WeatherCapabilities {
+            has_cloud_cover: self.cloud_cover().await.is_ok(),
+            has_dew_point: self.dew_point().await.is_ok(),
+            has_humidity: self.humidity().await.is_ok(),
+            has_pressure: self.pressure().await.is_ok(),
+            has_rain_rate: self.rain_rate().await.is_ok(),
+            has_sky_brightness: self.sky_brightness().await.is_ok(),
+            has_sky_quality: self.sky_quality().await.is_ok(),
+            has_sky_temperature: self.sky_temperature().await.is_ok(),
+            has_seeing: self.star_fwhm().await.is_ok(),
+            has_temperature: self.temperature().await.is_ok(),
+            has_wind_direction: self.wind_direction().await.is_ok(),
+            has_wind_gust: self.wind_gust().await.is_ok(),
+            has_wind_speed: self.wind_speed().await.is_ok(),
+            average_period: None,
+        })
+    }
+}
+
+#[async_trait]
+impl SafetyMonitor for AscomSafetyMonitorWrapper {
+    async fn capabilities(
+        &self,
+        _device_id: &str,
+    ) -> Result<SafetyMonitorCapabilities, SkotiqError> {
+        Ok(SafetyMonitorCapabilities {
+            // A monitor that cannot be read is never reported safe.
+            is_safe: AscomSafetyMonitorWrapper::is_safe(self)
+                .await
+                .unwrap_or(false),
+            safety_description: self.driver_info().await.ok(),
         })
     }
 }

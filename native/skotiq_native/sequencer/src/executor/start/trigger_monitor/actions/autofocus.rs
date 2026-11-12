@@ -11,7 +11,6 @@ pub(in super::super) struct AutofocusRequest<'a> {
     pub trigger_name: &'a str,
     pub rig: &'a Rig,
     pub run: &'a RunControl,
-    pub decisions: &'a DecisionLog,
     /// The context progress is published through, under a synthetic node id.
     pub progress_context: &'a ExecutionContext,
     pub camera_claim: &'a mut TriggerCameraClaim,
@@ -23,14 +22,13 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
         trigger_name,
         rig,
         run,
-        decisions,
         progress_context,
         camera_claim,
     } = request;
     tracing::info!("Executing autofocus as trigger recovery action");
     if let Some(missing) = autofocus_trigger_skip_reason(
-        rig.context.camera_id.as_ref(),
-        rig.context.focuser_id.as_ref(),
+        rig.devices().camera_id.as_ref(),
+        rig.devices().focuser_id.as_ref(),
     ) {
         skip_impossible_autofocus(trigger_name, missing, rig, run).await;
         return ActionFlow::Finished;
@@ -106,8 +104,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
         ));
     };
     // Recorded so the decision row can name the focus the run kept.
-    let position_before_af =
-        read_focuser_position(&rig.device_ops, rig.context.focuser_id.as_ref()).await;
+    let position_before_af = crate::instructions::read_autofocus_position(&af_ctx).await;
 
     let af_result = crate::instructions::execute_autofocus_admitted(
         &af_config,
@@ -158,7 +155,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
         trigger_name,
         rig,
         run,
-        decisions,
+        af_ctx: &af_ctx,
         af_result,
         tolerance_ratio: af_config.failure_hfr_tolerance_ratio,
         position_before_af,
@@ -210,7 +207,7 @@ struct FailedSweep<'a> {
     trigger_name: &'a str,
     rig: &'a Rig,
     run: &'a RunControl,
-    decisions: &'a DecisionLog,
+    af_ctx: &'a crate::instructions::InstructionContext,
     af_result: crate::instructions::InstructionResult,
     tolerance_ratio: f64,
     position_before_af: Option<i32>,
@@ -225,7 +222,7 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         trigger_name,
         rig,
         run,
-        decisions,
+        af_ctx,
         af_result,
         tolerance_ratio,
         position_before_af,
@@ -240,28 +237,21 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
     };
     record_failed_sweep(&mut *rig.trigger_state.write().await);
 
-    // Absent (not `false`) when the sweep never moved the focuser.
-    let origin_restored = af_result
-        .data
-        .as_ref()
-        .and_then(|data| data.get("autofocus_origin_restored"))
-        .and_then(|value| value.as_bool());
-    let position_after_af =
-        read_focuser_position(&rig.device_ops, rig.context.focuser_id.as_ref()).await;
-    let failure_cost = autofocus_trigger_failure_cost(&af_result);
-    let reason = af_result
-        .message
-        .unwrap_or_else(|| "autofocus did not converge".to_string());
-
-    if failure_cost == AutofocusTriggerFailureCost::EveryFrameUnguided {
+    if autofocus_trigger_failure_cost(&af_result) == AutofocusTriggerFailureCost::EveryFrameUnguided
+    {
         // The guider was stopped and not proven back. Every further frame
         // would trail, so the run pauses: reversible by one button, and
         // nothing is moved or closed. Safety triggers keep acting while
         // paused. Decided before the focus verdict, which a dead guider with
         // good focus would otherwise pass.
+        let reason = af_result
+            .message
+            .as_deref()
+            .unwrap_or("autofocus did not converge");
+        let position_after_af = crate::instructions::read_autofocus_position(af_ctx).await;
         let hold =
-            autofocus_trigger_unguided_hold(trigger_id, trigger_name, &reason, position_after_af);
-        decisions.send(hold.decision);
+            autofocus_trigger_unguided_hold(trigger_id, trigger_name, reason, position_after_af);
+        af_ctx.run.emit_decision(hold.decision);
         tracing::error!("{}", hold.operator_message);
         // Or the trigger re-fires on resume and stops the guider again.
         rig.trigger_state
@@ -291,16 +281,18 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         ),
         AutofocusOutcome::Unmeasurable => String::new(),
     };
-    let continuation = autofocus_trigger_continuation(
-        trigger_id,
-        trigger_name,
-        &reason,
+    let notice = crate::instructions::record_autofocus_failed_continuing(
+        af_ctx,
+        &format!("Autofocus trigger '{trigger_name}'"),
+        serde_json::json!({
+            "trigger_id": trigger_id,
+            "trigger_name": trigger_name,
+        }),
+        &af_result,
         position_before_af,
-        position_after_af,
-        origin_restored,
-    );
-    decisions.send(continuation.decision);
-    let message = format!("{}{}", continuation.operator_message, focus_note);
+    )
+    .await;
+    let message = format!("{notice}{focus_note}");
     tracing::warn!("{}", message);
     run.warning(message);
 }

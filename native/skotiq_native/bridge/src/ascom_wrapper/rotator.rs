@@ -14,6 +14,8 @@ enum AscomRotatorCommand {
     IsMoving(oneshot::Sender<Result<bool, DeviceOpError>>),
     Sync(f64, oneshot::Sender<Result<(), DeviceOpError>>),
     SetReverse(bool, oneshot::Sender<Result<(), DeviceOpError>>),
+    InterfaceVersion(oneshot::Sender<Result<i32, DeviceOpError>>),
+    MechanicalPosition(oneshot::Sender<Result<f64, DeviceOpError>>),
 }
 
 pub struct AscomRotatorWrapper {
@@ -77,6 +79,14 @@ impl AscomRotatorWrapper {
                     AscomRotatorCommand::SetReverse(reverse, reply) => {
                         let _ =
                             reply.send(rotator.set_reverse(reverse).map_err(DeviceOpError::from));
+                    }
+                    AscomRotatorCommand::InterfaceVersion(reply) => {
+                        let _ =
+                            reply.send(rotator.interface_version().map_err(DeviceOpError::from));
+                    }
+                    AscomRotatorCommand::MechanicalPosition(reply) => {
+                        let _ =
+                            reply.send(rotator.mechanical_position().map_err(DeviceOpError::from));
                     }
                 }
                 PumpOutcome::DidWork
@@ -176,5 +186,37 @@ impl AscomRotatorWrapper {
             .await
             .map_err(|error| format!("Send error: {}", error))?;
         super::recv_with_timeout("Rotator", rx, Timeouts::property_write(), "set_reverse").await
+    }
+
+    /// The ASCOM `InterfaceVersion`; `CanReverse` and `Sync` arrived in IRotatorV3.
+    pub async fn interface_version(&self) -> Result<i32, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomRotatorCommand::InterfaceVersion(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout(
+            "Rotator",
+            rx,
+            Timeouts::property_read(),
+            "interface_version",
+        )
+        .await
+    }
+
+    /// Degrees the mechanism is at, before any sync offset.
+    pub async fn mechanical_position(&self) -> Result<f64, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomRotatorCommand::MechanicalPosition(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout(
+            "Rotator",
+            rx,
+            Timeouts::property_read(),
+            "mechanical_position",
+        )
+        .await
     }
 }

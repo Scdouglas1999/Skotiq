@@ -26,6 +26,7 @@
 
 mod panel;
 
+use crate::device_ops::DeviceError;
 use crate::instructions::{
     execute_exposure_with_renderer, resolve_frame_filter, BurstControl, InstructionContext,
     InstructionResult, Setback,
@@ -71,6 +72,8 @@ struct FlatWizardRun<'a> {
     /// On success: the converged (exposure, adu, brightness) triple.
     converged: Option<(f64, u16, i32)>,
     panel_cleanup_required: Arc<AtomicBool>,
+    /// The device failure that ended the run, so a lost device is recovered.
+    cause: Option<DeviceError>,
 }
 
 impl FlatWizardRun<'_> {
@@ -140,31 +143,27 @@ impl<'a> Wizard for FlatWizardRun<'a> {
         progress: &dyn WizardProgressReporter,
     ) -> WizardStepOutcome<FlatStep> {
         match step {
-            FlatStep::Filter => match self.do_filter_change(ctx).await {
-                Ok(()) => WizardStepOutcome::Completed,
-                Err(e) => WizardStepOutcome::Failed(e),
-            },
-            FlatStep::Position => match panel::position_for_flats(self.config, ctx, progress).await
-            {
-                Ok(()) => WizardStepOutcome::Completed,
-                Err(e) => WizardStepOutcome::Failed(e),
-            },
+            FlatStep::Filter => {
+                let changed = self.do_filter_change(ctx).await;
+                self.step_outcome(changed)
+            }
+            FlatStep::Position => {
+                let positioned = panel::position_for_flats(self.config, ctx, progress).await;
+                self.step_outcome(positioned)
+            }
             FlatStep::Panel => {
                 if !matches!(self.config.panel_location, PanelLocation::FlatPanel) {
                     return WizardStepOutcome::Completed;
                 }
                 progress.report(0.2, "Setting up flat panel".to_string());
-                match panel::setup_flat_panel(
+                let ready = panel::setup_flat_panel(
                     ctx,
                     self.current_brightness,
                     progress,
                     self.panel_cleanup_required.as_ref(),
                 )
-                .await
-                {
-                    Ok(()) => WizardStepOutcome::Completed,
-                    Err(e) => WizardStepOutcome::Failed(e),
-                }
+                .await;
+                self.step_outcome(ready)
             }
             FlatStep::Iter(n) => self.do_binary_search_iteration(ctx, n, progress).await,
         }
@@ -202,7 +201,13 @@ impl<'a> Wizard for FlatWizardRun<'a> {
                 }
             }
             (WizardRunStatus::Cancelled, _) => InstructionResult::failure("Operation cancelled"),
-            (WizardRunStatus::Failed(msg), _) => InstructionResult::failure(msg),
+            (WizardRunStatus::Failed(msg), _) => {
+                let result = InstructionResult::failure(msg);
+                match &self.cause {
+                    Some(cause) => result.caused_by(cause),
+                    None => result,
+                }
+            }
             (WizardRunStatus::Completed, None) => {
                 // Plan exhausted without convergence — emit the canonical
                 // error message.
@@ -227,7 +232,19 @@ in the Flat Wizard settings, or adjust panel brightness or exposure bounds.",
 }
 
 impl<'a> FlatWizardRun<'a> {
-    async fn do_filter_change(&self, ctx: &InstructionContext) -> Result<(), String> {
+    /// A step's outcome, keeping the device failure behind a failed step.
+    fn step_outcome(&mut self, result: Result<(), DeviceError>) -> WizardStepOutcome<FlatStep> {
+        match result {
+            Ok(()) => WizardStepOutcome::Completed,
+            Err(error) => {
+                let message = error.to_string();
+                self.cause = Some(error);
+                WizardStepOutcome::Failed(message)
+            }
+        }
+    }
+
+    async fn do_filter_change(&self, ctx: &InstructionContext) -> Result<(), DeviceError> {
         if self.config.filter.is_none() && self.config.filter_index.is_none() {
             return Ok(());
         }
@@ -245,7 +262,7 @@ impl<'a> FlatWizardRun<'a> {
                 .device_ops
                 .filterwheel_set_position(fw_id, index)
                 .await
-                .map_err(|e| format!("Failed to change filter: {}", e))
+                .map_err(|e| e.context("Failed to change filter"))
         } else if let Some(filter_name) = &self.config.filter {
             tracing::info!("Changing to filter by name: {}", filter_name);
             ctx.run
@@ -253,7 +270,7 @@ impl<'a> FlatWizardRun<'a> {
                 .filterwheel_set_filter_by_name(fw_id, filter_name)
                 .await
                 .map(|_| ())
-                .map_err(|e| format!("Failed to change filter: {}", e))
+                .map_err(|e| e.context("Failed to change filter"))
         } else {
             Ok(())
         }
@@ -317,7 +334,11 @@ impl<'a> FlatWizardRun<'a> {
             .await
         {
             Ok(data) => data,
-            Err(e) => return WizardStepOutcome::Failed(format!("Test exposure failed: {}", e)),
+            Err(e) => {
+                let message = format!("Test exposure failed: {}", e);
+                self.cause = Some(e);
+                return WizardStepOutcome::Failed(message);
+            }
         };
 
         let median_adu = calculate_median_adu(&image_data);
@@ -568,6 +589,7 @@ pub async fn execute_flat_wizard(
         last_adu: None,
         converged: None,
         panel_cleanup_required: panel_cleanup_required.clone(),
+        cause: None,
     };
     let (mut result, _status) = executor.run(wizard, ctx).await;
 
@@ -578,7 +600,8 @@ pub async fn execute_flat_wizard(
         borrow_reporter.report(0.9, "Cleaning up flat panel".to_string());
         if let Err(e) = panel::cleanup_flat_panel(ctx).await {
             tracing::error!("Failed to cleanup flat panel: {}", e);
-            surface_cleanup_failure(&mut result, e);
+            surface_cleanup_failure(&mut result, e.to_string());
+            result = result.caused_by(&e);
         }
     }
 
@@ -697,6 +720,7 @@ mod tests {
             last_adu: None,
             converged: None,
             panel_cleanup_required: Arc::new(AtomicBool::new(false)),
+            cause: None,
         }
     }
 

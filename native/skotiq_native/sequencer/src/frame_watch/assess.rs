@@ -75,7 +75,7 @@ pub async fn measure_saved_frame(
 /// Record the solve in the frame itself, so a stacker or PixInsight can use
 /// the frame without solving it again. A frame that cannot be rewritten keeps
 /// its header; the solve still counts.
-async fn write_solved_wcs(path: &str, wcs: skotiq_imaging::WcsInfo) {
+async fn write_solved_wcs(path: &str, wcs: skotiq_imaging::SipWcs) {
     let owned = std::path::PathBuf::from(path);
     let outcome =
         tokio::task::spawn_blocking(move || skotiq_imaging::write_wcs_into_frame(&owned, &wcs))

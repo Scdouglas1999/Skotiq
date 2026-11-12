@@ -423,7 +423,7 @@ trailed_round_G.fits/star_crops ae699bddf754d1b2
 trailed_round_G.fits/stats de4418e44d3a2f27
 trailed_round_G.fits/stf 47178af7118d0e2a
 wcs/header.sip_wcs 9f2bb167e8264163
-wcs/info.from_plate_solve cae8185c755d5360
+wcs/from_pointing.cd_only cae8185c755d5360
 wcs/info.header 79b24bca4986f678
 wcs/pixel_scale e3a0a953adc9412e
 wcs/projection.samples b2fd85f963e84d0b

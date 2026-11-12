@@ -28,6 +28,8 @@ enum AscomDomeCommand {
     },
     // Version query commands
     Heartbeat(oneshot::Sender<Result<(), DeviceOpError>>),
+    GetAzimuth(oneshot::Sender<Result<f64, DeviceOpError>>),
+    GetCanSetAzimuth(oneshot::Sender<Result<bool, DeviceOpError>>),
 }
 
 pub struct AscomDomeWrapper {
@@ -125,6 +127,12 @@ impl AscomDomeWrapper {
                     }
                     AscomDomeCommand::Heartbeat(reply) => {
                         let _ = reply.send(dome.heartbeat().map_err(DeviceOpError::from));
+                    }
+                    AscomDomeCommand::GetAzimuth(reply) => {
+                        let _ = reply.send(dome.azimuth().map_err(DeviceOpError::from));
+                    }
+                    AscomDomeCommand::GetCanSetAzimuth(reply) => {
+                        let _ = reply.send(dome.can_set_azimuth().map_err(DeviceOpError::from));
                     }
                 }
                 PumpOutcome::DidWork
@@ -276,6 +284,25 @@ impl AscomDomeWrapper {
             .await
             .map_err(|e| format!("Send error: {}", e))?;
         super::recv_with_timeout("Dome", rx, Timeouts::property_write(), "set_slaved").await
+    }
+
+    /// Degrees, north through east.
+    pub async fn azimuth(&self) -> Result<f64, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomDomeCommand::GetAzimuth(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Dome", rx, Timeouts::property_read(), "azimuth").await
+    }
+
+    pub async fn can_set_azimuth(&self) -> Result<bool, DeviceOpError> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomDomeCommand::GetCanSetAzimuth(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        super::recv_with_timeout("Dome", rx, Timeouts::property_read(), "can_set_azimuth").await
     }
 }
 
