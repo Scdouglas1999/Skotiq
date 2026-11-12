@@ -663,24 +663,6 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 
-  Stream<List<ScienceTileMetricRow>> watchTileMetricsForSessionLayer(
-    int sessionId,
-    String layerType,
-  ) {
-    return (select(scienceTileMetrics)
-          ..where(
-            (tbl) =>
-                tbl.sessionId.equals(sessionId) &
-                tbl.layerType.equals(layerType),
-          )
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.timestamp),
-            (tbl) => OrderingTerm.asc(tbl.tileRow),
-            (tbl) => OrderingTerm.asc(tbl.tileCol),
-          ]))
-        .watch();
-  }
-
   Future<void> replaceResidualVectorsForImage(
     int capturedImageId,
     List<AstrometryResidualVectorsCompanion> vectors,
