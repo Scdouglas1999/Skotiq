@@ -257,13 +257,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     // subtype will fail to compile here rather than silently fall through to
     // a zero-duration default and mis-estimate sequence timing.
     return switch (node) {
-      ExposureNode() => Duration(
-        milliseconds:
-            ((node.count * node.durationSecs +
-                        node.count * overhead.downloadOverheadPerExposureSecs) *
-                    1000)
-                .round(),
-      ),
+      ExposureNode() => exposureFramesDuration(node, node.count),
       // SmartExposure. Sum of (count * duration) across
       // all plans + per-frame download overhead + one filter-change penalty
       // per plan + dither-cost for each dither point. When an integration

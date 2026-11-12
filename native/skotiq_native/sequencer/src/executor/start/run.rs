@@ -380,7 +380,7 @@ impl Run {
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),
             // A burst a resume continues has its frames counted already.
-            node_frame_progress: Arc::new(StdRwLock::new(self.resume.snapshot().frames_taken)),
+            node_frame_progress: Arc::new(StdRwLock::new(self.resume.snapshot().frames.in_pass)),
             node_integration_credited: Arc::default(),
             node_names: Arc::new(StdRwLock::new(self.plan.node_display_names.clone())),
             run_state: self.control.state.clone(),

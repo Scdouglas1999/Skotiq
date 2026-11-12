@@ -131,9 +131,9 @@ impl SequenceExecutor {
 
         let budget_registry = crate::scheduling::integration_budget::BudgetRegistry::new();
         let mut smart_exposure_states = std::collections::HashMap::new();
-        let mut frames_taken = std::collections::HashMap::new();
+        let mut frames = crate::node::resume::BurstFrames::default();
         if let Some(prepared) = &self.current_checkpoint {
-            frames_taken = prepared.exposure_frames_taken.clone();
+            frames = crate::node::resume::BurstFrames::from_checkpoint(prepared);
             budget_registry
                 .restore_snapshot(prepared.budget_states.clone())
                 .await;
@@ -143,7 +143,7 @@ impl SequenceExecutor {
             Some(root) => {
                 let mut passes = std::collections::HashMap::new();
                 root.snapshot_loop_iterations(&mut passes);
-                crate::node::resume::ResumeRecord::new(root.as_ref(), passes, frames_taken)
+                crate::node::resume::ResumeRecord::new(root.as_ref(), passes, frames)
             }
             None => crate::node::resume::ResumeRecord::default(),
         };

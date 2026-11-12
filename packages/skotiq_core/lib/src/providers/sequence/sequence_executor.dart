@@ -28,6 +28,7 @@ import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
         currentSequenceProvider,
+        framesDoneBeforeRunProvider,
         restoredCheckpointProvider,
         sequenceExecutionStateProvider,
         sequenceLaunchInFlightProvider,
@@ -449,6 +450,7 @@ class SequenceExecutor {
   /// checkpoint is already in the host's executor and is started as it is.
   Future<void> _startOnHost(SkotiqBackend backend, RemoteHost host) async {
     if (!_hostRestoreAwaitingStart) {
+      _ref.read(framesDoneBeforeRunProvider.notifier).state = const {};
       final sequence = _ref.read(currentSequenceProvider);
       if (sequence == null) throw _noSequenceLoaded();
       await host.runState.putOpenEditorSequence(
@@ -673,6 +675,7 @@ class SequenceExecutor {
     // integration total and the per-node badges accumulate otherwise.
     _ref.read(sequenceProgressProvider.notifier).reset();
     _ref.read(nodeExposureTallyProvider.notifier).reset();
+    _ref.read(framesDoneBeforeRunProvider.notifier).state = const {};
     return _openRunRecords(
       sequenceName: sequenceName,
       sequenceDatabaseId: sequenceDatabaseId,
@@ -761,6 +764,7 @@ class SequenceExecutor {
     // reader sees them. Run START is where the previous run's frames stop
     // being this node's story.
     _ref.read(nodeExposureTallyProvider.notifier).reset();
+    _ref.read(framesDoneBeforeRunProvider.notifier).state = const {};
     progressNotifier.setTotals(
       sequence.totalExposures,
       sequence.totalIntegrationSecs,
@@ -1829,6 +1833,7 @@ class SequenceExecutor {
 
     _ref.read(sequenceProgressProvider.notifier).reset();
     _ref.read(nodeExposureTallyProvider.notifier).reset();
+    _ref.read(framesDoneBeforeRunProvider.notifier).state = const {};
 
     final backend = _backend;
     try {
@@ -1903,8 +1908,10 @@ class SequenceExecutor {
         // the next start continues it there.
         await backend.resumeFromCheckpoint();
         _hostRestoreAwaitingStart = true;
-        _ref.read(restoredCheckpointProvider.notifier).state = await backend
-            .getCheckpointInfo();
+        final info = await backend.getCheckpointInfo();
+        _ref.read(restoredCheckpointProvider.notifier).state = info;
+        _ref.read(framesDoneBeforeRunProvider.notifier).state =
+            info?.framesDoneByStep ?? const {};
         return;
       }
       await _restoreFromCheckpointInner();
@@ -2047,6 +2054,8 @@ class SequenceExecutor {
       sequence: _ref.read(currentSequenceProvider),
     );
     _ref.read(restoredCheckpointProvider.notifier).state = info;
+    _ref.read(framesDoneBeforeRunProvider.notifier).state =
+        info.framesDoneByStep;
     _logger.info(
       'Restored "${info.sequenceName}" from its checkpoint '
       '(${info.completedExposures} frames, '

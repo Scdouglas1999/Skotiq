@@ -158,6 +158,9 @@ class _PreFlightValidationDialogState
         minAltitude: settings.effectiveHorizonDeg,
         darkWindowStart: twilight?.astronomicalDusk,
         darkWindowEnd: twilight?.astronomicalDawn,
+        framesDone: ref.read(restoredCheckpointProvider) == null
+            ? const {}
+            : ref.read(framesDoneBeforeRunProvider),
       );
       return (simulation, null);
     } catch (e) {
@@ -462,5 +465,4 @@ class _PreFlightValidationDialogState
                   : _buildResults(colors),
     );
   }
-
 }

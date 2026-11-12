@@ -59,6 +59,41 @@ void main() {
       expect(result.targetWindows, contains('target-m31'));
     });
 
+    // A run restored from its checkpoint takes only the frames its steps
+    // still owe; pre-flight estimated the whole plan for it.
+    test('a continued run is estimated for the frames still owed', () {
+      final start = DateTime(2026, 5, 21, 22);
+      final sequence = sequenceWith(
+        target: TargetHeaderNode(
+          id: 'target-m31',
+          name: 'M31 Target',
+          targetName: 'M31',
+          raHours: 0.7,
+          decDegrees: 41.3,
+        ),
+        children: [
+          ExposureNode(
+            id: 'exp-l',
+            name: 'Lum 120s',
+            durationSecs: 120,
+            count: 2,
+            filter: 'L',
+          ),
+        ],
+      );
+
+      final result = simulator.simulate(
+        sequence,
+        start: start,
+        latitude: 40,
+        longitude: -75,
+        framesDone: const {'exp-l': 1, 'no-such-step': 9},
+      );
+
+      expect(result.duration, const Duration(seconds: 122));
+      expect(result.end, start.add(const Duration(seconds: 122)));
+    });
+
     test('warns when the simulated run overruns the dark window', () {
       final start = DateTime(2026, 5, 21, 22);
       final sequence = sequenceWith(

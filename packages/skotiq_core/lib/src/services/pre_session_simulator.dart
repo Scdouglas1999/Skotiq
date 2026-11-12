@@ -75,6 +75,9 @@ class PreSessionSimulator {
     SequenceTimeEstimator estimator = const SequenceTimeEstimator(),
   }) : _estimator = estimator;
 
+  /// Simulate [sequence] run from [start]. [framesDone] holds the frames each
+  /// exposure step already has, by node id, when the run continues one that
+  /// was stopped; the run's end then counts only what is left.
   PreSessionSimulationResult simulate(
     Sequence sequence, {
     required DateTime start,
@@ -84,6 +87,7 @@ class PreSessionSimulator {
     DateTime? darkWindowStart,
     DateTime? darkWindowEnd,
     DateTime? runEndsBy,
+    Map<String, int> framesDone = const {},
   }) {
     final analysis = latitude == null || longitude == null
         ? (
@@ -123,9 +127,13 @@ class PreSessionSimulator {
         runEndsBy: runEndsBy,
       ),
     );
-    final end = segments.isEmpty
+    final planEnd = segments.isEmpty
         ? start
         : (walkEnd.isAfter(segments.last.end) ? walkEnd : segments.last.end);
+    // A run continued from its checkpoint takes only the frames its steps
+    // still owe.
+    final remainingEnd = planEnd.subtract(_framesDoneTime(sequence, framesDone));
+    final end = remainingEnd.isBefore(start) ? start : remainingEnd;
     final issues = <PreSessionSimulationIssue>[
       ...analysis.conflicts.map(
         (message) => PreSessionSimulationIssue(
@@ -158,6 +166,17 @@ class PreSessionSimulator {
       targetWindows: Map.unmodifiable(analysis.windows),
       issues: List.unmodifiable(issues),
     );
+  }
+
+  Duration _framesDoneTime(Sequence sequence, Map<String, int> framesDone) {
+    var done = Duration.zero;
+    for (final MapEntry(key: nodeId, value: frames) in framesDone.entries) {
+      final node = sequence.nodes[nodeId];
+      if (node is ExposureNode) {
+        done += _estimator.exposureFramesDuration(node, frames);
+      }
+    }
+    return done;
   }
 
   PreSessionSimulationSegment _segmentFromTiming(

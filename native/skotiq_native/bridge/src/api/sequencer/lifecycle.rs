@@ -243,6 +243,9 @@ pub struct CheckpointInfoApi {
     /// How the run ended ("stopped", "failed", "ended_early"); `None` when the
     /// app died under it, which is the only interrupted run.
     pub ended: Option<String>,
+    /// Frames each Take Exposures step of the plan already has, by node id;
+    /// empty for a checkpoint written before it was recorded.
+    pub frames_done_by_step: std::collections::HashMap<String, u32>,
 }
 
 /// Set the checkpoint directory for crash recovery
@@ -272,6 +275,7 @@ pub fn api_sequencer_get_checkpoint_info() -> Option<CheckpointInfoApi> {
             can_resume: info.can_resume,
             age_seconds: info.age_seconds,
             ended: info.ended.map(|end| end.as_str().to_string()),
+            frames_done_by_step: info.frames_done_by_step,
         })
 }
 
