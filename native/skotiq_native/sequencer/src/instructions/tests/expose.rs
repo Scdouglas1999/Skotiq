@@ -60,7 +60,8 @@ async fn pause_stops_the_burst_before_the_next_frame_starts() {
     paused.store(false, Ordering::SeqCst);
     let result = tokio::time::timeout(Duration::from_secs(10), burst)
         .await
-        .expect("resume must let the burst finish");
+        .expect("resume must let the burst finish")
+        .result;
 
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success);
@@ -375,6 +376,44 @@ mod light_frame_grading {
         .await
         .expect_err("0.8 eccentricity against a 0.5 limit must be rejected");
         assert!(reason.contains("eccentricity"), "{reason}");
+    }
+
+    /// The burst counts its own rejected frames, which the node credits the
+    /// target's budget by.
+    #[tokio::test]
+    async fn a_burst_reports_the_frames_of_it_the_grader_rejected() {
+        let scratch = scratch_dir("burst-rejects");
+        let ops =
+            Arc::new(ScriptedDomeRotatorOps::new().with_scripted_frame_metrics(5.0, 60, 0.1));
+        let (event_tx, _events) = tokio::sync::broadcast::channel(64);
+        let mut ctx = saving_expose_ctx(ops, scratch.0.clone(), event_tx).await;
+        let mut ts = crate::triggers::TriggerState::new();
+        ts.set_max_sun_altitude_degrees(live_sun_alt() + 5.0);
+        ctx.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
+        ctx.run
+            .grading
+            .frames_rejected
+            .store(7, Ordering::Relaxed);
+        let config = ExposureConfig {
+            duration_secs: 0.01,
+            count: 3,
+            frame_type: "Light".to_string(),
+            quality_check: Some(check(|c| c.hfr_threshold = Some(3.0))),
+            ..ExposureConfig::default()
+        };
+
+        let burst = execute_exposure_with_renderer(
+            &config,
+            &ctx,
+            None,
+            &BurstControl::default(),
+            |_, _, _| {},
+        )
+        .await;
+
+        assert_eq!(burst.result.status, NodeStatus::Success, "{:?}", burst.result.message);
+        assert_eq!(burst.frames_rejected, 3);
+        assert_eq!(ctx.run.grading.frames_rejected.load(Ordering::Relaxed), 10);
     }
 
     #[tokio::test]
@@ -801,7 +840,9 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     let (events, mut rx) = tokio::sync::broadcast::channel(64);
     let mut ctx = ctx;
     ctx.run.event_tx = Some(events);
-    let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
+    let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {})
+        .await
+        .result;
     let rejected_files = std::fs::read_dir(dir.join("Reject"))
         .map(|entries| entries.count())
         .unwrap_or(0);
@@ -870,8 +911,9 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
                 }
             })
         };
-        let result =
-            execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}).await;
+        let result = execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {})
+            .await
+            .result;
         stopper.await.expect("stopper");
         let rejected_files = std::fs::read_dir(dir.join("Reject"))
             .map(|entries| entries.count())
@@ -943,7 +985,8 @@ async fn a_pending_guide_restart_waits_for_the_mount_to_track() {
     state.write().await.telemetry.mount_is_tracking = Some(true);
     let result = tokio::time::timeout(Duration::from_secs(600), burst)
         .await
-        .expect("the frame runs once the mount tracks");
+        .expect("the frame runs once the mount tracks")
+        .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
@@ -984,7 +1027,8 @@ async fn an_unguided_run_retries_guiding_before_a_light_frame() {
         execute_exposure_with_renderer(&config, &ctx, None, &control, |_, _, _| {}),
     )
     .await
-    .expect("the frame runs");
+    .expect("the frame runs")
+    .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 1);
@@ -1034,7 +1078,8 @@ async fn a_pending_guide_restart_waits_when_the_mount_itself_reads_not_tracking(
     // Past the wait the frame is taken without restarting guiding.
     let result = tokio::time::timeout(Duration::from_secs(600), burst)
         .await
-        .expect("the frame runs after the wait");
+        .expect("the frame runs after the wait")
+        .result;
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(result.status, NodeStatus::Success, "{:?}", result.message);
     assert_eq!(ops.guider_start_calls.load(Ordering::SeqCst), 0);

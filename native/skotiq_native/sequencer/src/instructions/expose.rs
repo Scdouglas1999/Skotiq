@@ -99,6 +99,7 @@ pub async fn execute_exposure(
         progress_callback,
     )
     .await
+    .result
 }
 
 /// Run-scoped controls a burst needs but an [`InstructionContext`] cannot
@@ -125,6 +126,16 @@ impl BurstControl<'_> {
     }
 }
 
+/// How a burst ended, and what of it only the burst knows.
+#[derive(Debug)]
+pub struct BurstEnd {
+    pub result: InstructionResult,
+    /// Frames of this burst the grader rejected, counted as each was graded.
+    /// The run's own count (`GradingState::frames_rejected`) also moves with
+    /// every other burst in the run, a Parallel branch's or a second camera's.
+    pub frames_rejected: u32,
+}
+
 /// entry point that accepts a save-path renderer. Use this from
 /// the expose-instruction node wrapper so user templates in
 /// `ExposureConfig.save_to` (including hierarchical paths and per-frame
@@ -138,6 +149,30 @@ pub async fn execute_exposure_with_renderer(
     // frame is RECORDED as — the camera's own report, bounded (see
     // [`recorded_exposure_secs`]) — not the node's planned duration. Every
     // integration total downstream rides on it.
+    progress_callback: impl Fn(u32, u32, f64),
+) -> BurstEnd {
+    let mut frames_rejected = 0;
+    let result = take_burst(
+        config,
+        ctx,
+        path_renderer,
+        control,
+        &mut frames_rejected,
+        progress_callback,
+    )
+    .await;
+    BurstEnd {
+        result,
+        frames_rejected,
+    }
+}
+
+async fn take_burst(
+    config: &ExposureConfig,
+    ctx: &InstructionContext,
+    path_renderer: Option<FrameSavePathRenderer>,
+    control: &BurstControl<'_>,
+    frames_rejected: &mut u32,
     progress_callback: impl Fn(u32, u32, f64),
 ) -> InstructionResult {
     let camera_id = match ctx.camera_id() {
@@ -990,6 +1025,9 @@ pub async fn execute_exposure_with_renderer(
             // default — a whole automated night produces FITS files on disk and no
             // database rows, so no Analytics stats and no gallery entries. The
             // grader DECISION stays gated inside `emit_grade_progress`.
+            if matches!(grade, crate::quality::FrameGrade::Reject { .. }) {
+                *frames_rejected += 1;
+            }
             emit_grade_progress(
                 ctx,
                 grade,
