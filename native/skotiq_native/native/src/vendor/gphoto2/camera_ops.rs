@@ -365,9 +365,7 @@ impl CameraDriver for GPhoto2Camera {
             ExposureState::BulbExposing {
                 start,
                 duration_secs,
-            } => {
-                Ok(start.elapsed().as_secs_f64() >= duration_secs)
-            }
+            } => Ok(start.elapsed().as_secs_f64() >= duration_secs),
         }
     }
 

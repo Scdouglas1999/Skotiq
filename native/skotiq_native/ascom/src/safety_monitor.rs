@@ -3,9 +3,7 @@
 use crate::com::ComDispatch;
 use crate::error::AscomResult;
 
-com_device!(
-    SafetyMonitor
-);
+com_device!(SafetyMonitor);
 
 impl<D: ComDispatch> SafetyMonitor<D> {
     skotiq_device::ascom_safety_monitor_members!(com_member);

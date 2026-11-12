@@ -205,9 +205,15 @@ fn decode_reply(reply: String) -> Result<String, DriverError> {
 
 #[derive(Debug, Clone)]
 pub enum SynScanConnection {
-    Serial { port: String, baud_rate: u32 },
+    Serial {
+        port: String,
+        baud_rate: u32,
+    },
     /// UDP/WiFi connection
-    Udp { ip: String, port: u16 },
+    Udp {
+        ip: String,
+        port: u16,
+    },
 }
 
 impl Default for SynScanConnection {

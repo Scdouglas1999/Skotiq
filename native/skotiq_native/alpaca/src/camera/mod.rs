@@ -143,10 +143,7 @@ pub struct ImageArrayResult {
     pub element_type: ImageArrayElementType,
 }
 
-alpaca_device!(
-    AlpacaCamera,
-    Camera
-);
+alpaca_device!(AlpacaCamera, Camera);
 
 impl AlpacaCamera {
     skotiq_device::ascom_camera_members!(alpaca_member);

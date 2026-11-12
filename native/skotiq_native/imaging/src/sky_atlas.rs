@@ -590,22 +590,13 @@ pub enum AtlasError {
     NoCoverage,
     /// Two tiles disagree on id (e.g. a merge across different sky positions).
     #[error("tile geometry mismatch: {got} vs {expected}")]
-    GeometryMismatch {
-        got: TileId,
-        expected: TileId,
-    },
+    GeometryMismatch { got: TileId, expected: TileId },
     /// Two tiles disagree on HEALPix order.
     #[error("tile order mismatch: {got} vs {expected}")]
-    OrderMismatch {
-        got: u32,
-        expected: u32,
-    },
+    OrderMismatch { got: u32, expected: u32 },
     /// Two tiles (or a frame and a tile) disagree on channel count.
     #[error("channel mismatch: {got} vs {expected}")]
-    ChannelMismatch {
-        got: u32,
-        expected: u32,
-    },
+    ChannelMismatch { got: u32, expected: u32 },
     /// A serialized tile is truncated or its payload is inconsistent.
     #[error("serialized tile is truncated/corrupt: {0}")]
     Corrupt(String),

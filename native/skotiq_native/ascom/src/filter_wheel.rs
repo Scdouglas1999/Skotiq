@@ -3,9 +3,7 @@
 use crate::com::ComDispatch;
 use crate::error::AscomResult;
 
-com_device!(
-    FilterWheel
-);
+com_device!(FilterWheel);
 
 impl<D: ComDispatch> FilterWheel<D> {
     skotiq_device::ascom_filter_wheel_members!(com_member);

@@ -3,9 +3,7 @@
 use crate::com::ComDispatch;
 use crate::error::{AscomError, AscomResult};
 
-com_device!(
-    Dome
-);
+com_device!(Dome);
 
 impl<D: ComDispatch> Dome<D> {
     skotiq_device::ascom_dome_members!(com_member);

@@ -48,7 +48,10 @@ pub enum IndiError {
     Timeout,
     /// XML parse error
     ParseError(String),
-    PropertyNotFound { device: String, property: String },
+    PropertyNotFound {
+        device: String,
+        property: String,
+    },
     /// Permission denied (attempted to write to read-only property)
     PermissionDenied(String),
     /// Device alert state
@@ -59,7 +62,10 @@ pub enum IndiError {
     /// Send channel closed
     ChannelClosed(String),
     NotConnected,
-    BlobFormatError { format: String, message: String },
+    BlobFormatError {
+        format: String,
+        message: String,
+    },
     /// Property value out of range
     ValueOutOfRange {
         device: String,
@@ -70,7 +76,10 @@ pub enum IndiError {
         max: f64,
     },
     /// Reconnection failed after max attempts
-    ReconnectionFailed { attempts: u32, last_error: String },
+    ReconnectionFailed {
+        attempts: u32,
+        last_error: String,
+    },
     /// The device has not published the value, or has no property that
     /// offers the control. Holds the whole sentence shown to the user.
     Unavailable(String),

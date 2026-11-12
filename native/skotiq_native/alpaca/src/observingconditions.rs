@@ -1,9 +1,6 @@
 //! Alpaca Observing Conditions (Weather Station) API implementation
 
-alpaca_device!(
-    AlpacaObservingConditions,
-    ObservingConditions
-);
+alpaca_device!(AlpacaObservingConditions, ObservingConditions);
 
 impl AlpacaObservingConditions {
     skotiq_device::ascom_observing_conditions_members!(alpaca_member);

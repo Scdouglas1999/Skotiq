@@ -17,10 +17,7 @@ pub struct FilterWheelInfo {
     pub focus_offsets: Vec<i32>,
 }
 
-alpaca_device!(
-    AlpacaFilterWheel,
-    FilterWheel
-);
+alpaca_device!(AlpacaFilterWheel, FilterWheel);
 
 impl AlpacaFilterWheel {
     skotiq_device::ascom_filter_wheel_members!(alpaca_member);

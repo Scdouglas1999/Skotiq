@@ -2,9 +2,7 @@
 
 use crate::com::ComDispatch;
 
-com_device!(
-    CoverCalibrator
-);
+com_device!(CoverCalibrator);
 
 impl<D: ComDispatch> CoverCalibrator<D> {
     skotiq_device::ascom_cover_calibrator_members!(com_member);

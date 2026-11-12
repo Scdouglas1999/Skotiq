@@ -387,9 +387,7 @@ pub enum OpError {
     #[error(
         "unsupported pixel type {found:?} for the recipe engine; linear masters are F32 and U16 is carried as ADU"
     )]
-    UnsupportedPixelType {
-        found: PixelType,
-    },
+    UnsupportedPixelType { found: PixelType },
     /// The operation does not define a result for this channel layout.
     #[error(
         "{op_id}@{op_version}: unsupported channel layout: a {channels}-channel image, {expected}"
@@ -516,9 +514,7 @@ pub enum RecipeError {
     },
     /// The base image is not usable as a render input.
     #[error("base image is not renderable: {source}")]
-    BaseImage {
-        source: Box<OpError>,
-    },
+    BaseImage { source: Box<OpError> },
     /// An operation failed while the recipe was rendering.
     #[error("step {} failed: {source}", .index + 1)]
     Step {

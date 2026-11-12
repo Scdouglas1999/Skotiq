@@ -2,9 +2,7 @@
 
 use crate::com::ComDispatch;
 
-com_device!(
-    Switch
-);
+com_device!(Switch);
 
 impl<D: ComDispatch> Switch<D> {
     skotiq_device::ascom_switch_members!(com_member);

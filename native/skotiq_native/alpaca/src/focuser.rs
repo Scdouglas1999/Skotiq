@@ -21,10 +21,7 @@ pub struct FocuserCapabilities {
     pub temp_comp_available: bool,
 }
 
-alpaca_device!(
-    AlpacaFocuser,
-    Focuser
-);
+alpaca_device!(AlpacaFocuser, Focuser);
 
 impl AlpacaFocuser {
     skotiq_device::ascom_focuser_members!(alpaca_member);
