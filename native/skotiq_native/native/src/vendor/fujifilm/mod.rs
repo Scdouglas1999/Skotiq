@@ -2,14 +2,14 @@
 //!
 //! Provides native support for Fujifilm cameras (GFX and X-series) via the X Acquire SDK.
 //! The SDK is Windows-only and provided as XAPI.dll plus model-specific DLLs. The rules
-//! that turn a request into camera settings (`exposure`, `errors`, `models`) build on
-//! every platform so they are tested everywhere.
+//! that turn a request into camera settings (`exposure`, `errors`, `models`), lens
+//! positions into focus pulses (`focus`) and decide when live view runs (`live_view`)
+//! build on every platform so they are tested everywhere.
 //!
 //! ## Thread Safety
 //!
 //! The Fujifilm SDK is NOT thread-safe. Its function table is reached through
-//! the guard from `FujifilmSdk::lock()`, which holds the SDK's lock. The bulb
-//! start/stop helpers are the one exception; their comment says why.
+//! the guard from `FujifilmSdk::lock()`, which holds the SDK's lock.
 //!
 //! ## SDK behavior this driver depends on
 //!
@@ -25,6 +25,9 @@
 //! 5. **The buffer**: `XSDK_ReadImage` removes the frame it returns; a cancelled
 //!    exposure still leaves a frame behind, which must be discarded.
 //! 6. **Detection may need retries** with backoff.
+//! 7. **One open per body**: a second `XSDK_OpenEx` of an open body fails until it
+//!    is power-cycled, so the camera and its lens focuser share one session
+//!    (`session.rs`).
 //!
 //! ## SDK Requirements
 //!
@@ -36,6 +39,8 @@
 
 mod errors;
 mod exposure;
+mod focus;
+mod live_view;
 mod models;
 
 #[cfg(target_os = "windows")]
@@ -47,9 +52,13 @@ mod discovery;
 #[cfg(target_os = "windows")]
 mod ffi;
 #[cfg(target_os = "windows")]
+mod lens;
+#[cfg(target_os = "windows")]
 mod raw;
 #[cfg(target_os = "windows")]
 mod sdk;
+#[cfg(target_os = "windows")]
+mod session;
 #[cfg(test)]
 mod tests;
 
@@ -59,6 +68,10 @@ pub use models::*;
 use errors::*;
 #[cfg(target_os = "windows")]
 use exposure::*;
+#[cfg(target_os = "windows")]
+use focus::*;
+#[cfg(target_os = "windows")]
+use live_view::LiveViewDemand;
 
 #[cfg(target_os = "windows")]
 use async_trait::async_trait;
@@ -69,9 +82,13 @@ pub use discovery::*;
 #[cfg(target_os = "windows")]
 use ffi::*;
 #[cfg(target_os = "windows")]
+pub use lens::FujifilmLens;
+#[cfg(target_os = "windows")]
 use raw::*;
 #[cfg(target_os = "windows")]
 use sdk::*;
+#[cfg(target_os = "windows")]
+use session::Session;
 #[cfg(target_os = "windows")]
 use skotiq_device::camera::*;
 #[cfg(target_os = "windows")]
@@ -82,5 +99,7 @@ use skotiq_device::*;
 use std::ffi::{c_char, c_long, c_ulong, c_void, CString};
 #[cfg(target_os = "windows")]
 use std::path::PathBuf;
+#[cfg(target_os = "windows")]
+use std::sync::{Arc, Mutex};
 #[cfg(target_os = "windows")]
 use std::time::{Duration, Instant};

@@ -336,6 +336,8 @@ fn native_fujifilm_serial_id() {
     assert_eq!(vendor, "fujifilm");
     assert_eq!(dev, "7CB12345");
     assert_eq!(idx, None);
+    // The body's lens, as a focuser, carries the same serial.
+    assert_native_roundtrip("native:fujifilm_lens:7CB12345", "fujifilm_lens");
 }
 
 #[test]
