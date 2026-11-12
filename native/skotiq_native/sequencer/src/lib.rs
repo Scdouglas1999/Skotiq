@@ -2907,6 +2907,7 @@ pub enum TriggerType {
     },
     /// Trigger when meridian flip is needed
     MeridianFlip { config: MeridianFlipConfig },
+    /// Trigger when guiding fails
     GuidingFailed {
         rms_threshold: f64,
         duration_secs: f64,
@@ -2919,8 +2920,11 @@ pub enum TriggerType {
     },
     /// Trigger when altitude too low
     AltitudeLimit { min_altitude: f64 },
+    /// Trigger when weather unsafe
     WeatherUnsafe,
+    /// Trigger when temperature changes
     TemperatureShift { degrees: f64 },
+    /// Trigger on filter change
     FilterChange,
     /// Trigger when dawn is approaching (astronomical twilight)
     DawnApproaching { minutes_before: f64 },

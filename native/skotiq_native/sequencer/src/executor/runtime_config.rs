@@ -24,7 +24,6 @@ use crate::SafetyFailMode;
 use std::collections::HashMap;
 
 impl SequenceExecutor {
-
     /// The current operator settings.
     pub fn run_config(&self) -> RunConfig {
         self.settings.snapshot()

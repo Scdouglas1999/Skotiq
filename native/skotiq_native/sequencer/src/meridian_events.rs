@@ -51,28 +51,34 @@ impl FlipStep {
 /// Events emitted during meridian flip execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MeridianFlipEvent {
+    /// Flip is starting
     Starting {
         target_name: String,
         from_pier_side: PierSide,
         hour_angle: f64,
     },
+    /// A step has started
     StepStarted {
         step: FlipStep,
         step_index: u8,
         total_steps: u8,
     },
+    /// A step completed successfully
     StepCompleted {
         step: FlipStep,
         duration_secs: Option<f64>,
     },
+    /// A step failed
     StepFailed { step: FlipStep, error: String },
     /// Overall progress update (0-100)
     Progress { percent: u8 },
+    /// Retry scheduled after failure
     RetryScheduled {
         attempt: u8,
         max_attempts: u8,
         delay_secs: f64,
     },
+    /// Flip completed successfully
     Completed {
         new_pier_side: PierSide,
         duration_secs: f64,
