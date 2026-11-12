@@ -172,8 +172,7 @@ class LiveStackingFeed {
         _armed = true;
         logger.info(
           'Live-stacking auto-feed armed: reference frame $savePath '
-          '(method=${node.stackMethod.label}, broadcast port '
-          '${node.broadcastPort})',
+          '(method=${node.stackMethod.label})',
           source: 'SequenceExecutor',
         );
       } else {

@@ -5264,8 +5264,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.mode = cst_encode_String(apiObj.mode);
     wireObj.stack_method = cst_encode_String(apiObj.stackMethod);
     wireObj.broadcast_enabled = cst_encode_bool(apiObj.broadcastEnabled);
-    wireObj.broadcast_port = cst_encode_u_16(apiObj.broadcastPort);
-    wireObj.broadcast_path = cst_encode_String(apiObj.broadcastPath);
     wireObj.auth_token = cst_encode_String(apiObj.authToken);
     wireObj.watermark_template = cst_encode_String(apiObj.watermarkTemplate);
     wireObj.thumbnail_width = cst_encode_u_32(apiObj.thumbnailWidth);
@@ -20604,11 +20602,6 @@ final class wire_cst_live_stacking_broadcast_snapshot extends ffi.Struct {
 
   @ffi.Bool()
   external bool broadcast_enabled;
-
-  @ffi.Uint16()
-  external int broadcast_port;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> broadcast_path;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> auth_token;
 

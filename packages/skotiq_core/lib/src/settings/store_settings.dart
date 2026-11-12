@@ -337,15 +337,6 @@ abstract final class StoreSettings {
     sync: SettingSync.hostStore,
   );
 
-  /// TCP port a new Live Stacking node broadcasts on, clear of the headless
-  /// API server's default (8080).
-  static const liveStackingPort = IntSetting(
-    'livestackingDefaultPort',
-    'livestacking_default_port',
-    8081,
-    sync: SettingSync.hostStore,
-  );
-
   /// A new Live Stacking node broadcasts without an access token.
   static const liveStackingPublicByDefault = BoolSetting(
     'livestackingPublicByDefault',
@@ -511,7 +502,6 @@ abstract final class StoreSettings {
     sequencerExposureOffset,
     sequencerExposureBinning,
     sequencerExposureDitherEvery,
-    liveStackingPort,
     liveStackingPublicByDefault,
     liveStackingStackMethod,
     liveStackingWatermark,

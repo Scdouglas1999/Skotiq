@@ -175,7 +175,6 @@ Sequence _sequenceWith({
       parentId: 'root',
       isEnabled: liveStackingEnabled,
       stackMethod: LiveStackingMethod.sigma,
-      broadcastPort: 8081,
       maxFramesToStack: maxFrames,
     );
     childIds.insert(0, 'ls-1');

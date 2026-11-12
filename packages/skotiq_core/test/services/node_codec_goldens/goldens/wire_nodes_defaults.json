@@ -175,8 +175,6 @@
     "node_type": {
       "auth_token": null,
       "broadcast_enabled": true,
-      "broadcast_path": "/broadcast",
-      "broadcast_port": 8081,
       "max_frames_to_stack": 0,
       "mode": "broadcast_only",
       "stack_method": "average",

@@ -200,8 +200,6 @@
     "properties": {
       "authToken": "secret-token",
       "broadcastEnabled": false,
-      "broadcastPath": "/live",
-      "broadcastPort": 9090,
       "comment": "live note",
       "maxFramesToStack": 50,
       "mode": "record_and_broadcast",

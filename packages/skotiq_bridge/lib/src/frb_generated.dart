@@ -14825,21 +14825,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return LiveStackingBroadcastSnapshot(
       nodeId: dco_decode_String(arr[0]),
       mode: dco_decode_String(arr[1]),
       stackMethod: dco_decode_String(arr[2]),
       broadcastEnabled: dco_decode_bool(arr[3]),
-      broadcastPort: dco_decode_u_16(arr[4]),
-      broadcastPath: dco_decode_String(arr[5]),
-      authToken: dco_decode_String(arr[6]),
-      watermarkTemplate: dco_decode_String(arr[7]),
-      thumbnailWidth: dco_decode_u_32(arr[8]),
-      thumbnailHeight: dco_decode_u_32(arr[9]),
-      maxFramesToStack: dco_decode_u_32(arr[10]),
-      activatedAtUnixMillis: dco_decode_i_64(arr[11]),
+      authToken: dco_decode_String(arr[4]),
+      watermarkTemplate: dco_decode_String(arr[5]),
+      thumbnailWidth: dco_decode_u_32(arr[6]),
+      thumbnailHeight: dco_decode_u_32(arr[7]),
+      maxFramesToStack: dco_decode_u_32(arr[8]),
+      activatedAtUnixMillis: dco_decode_i_64(arr[9]),
     );
   }
 
@@ -19410,8 +19408,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_mode = sse_decode_String(deserializer);
     var var_stackMethod = sse_decode_String(deserializer);
     var var_broadcastEnabled = sse_decode_bool(deserializer);
-    var var_broadcastPort = sse_decode_u_16(deserializer);
-    var var_broadcastPath = sse_decode_String(deserializer);
     var var_authToken = sse_decode_String(deserializer);
     var var_watermarkTemplate = sse_decode_String(deserializer);
     var var_thumbnailWidth = sse_decode_u_32(deserializer);
@@ -19423,8 +19419,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       mode: var_mode,
       stackMethod: var_stackMethod,
       broadcastEnabled: var_broadcastEnabled,
-      broadcastPort: var_broadcastPort,
-      broadcastPath: var_broadcastPath,
       authToken: var_authToken,
       watermarkTemplate: var_watermarkTemplate,
       thumbnailWidth: var_thumbnailWidth,
@@ -24366,8 +24360,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.mode, serializer);
     sse_encode_String(self.stackMethod, serializer);
     sse_encode_bool(self.broadcastEnabled, serializer);
-    sse_encode_u_16(self.broadcastPort, serializer);
-    sse_encode_String(self.broadcastPath, serializer);
     sse_encode_String(self.authToken, serializer);
     sse_encode_String(self.watermarkTemplate, serializer);
     sse_encode_u_32(self.thumbnailWidth, serializer);
