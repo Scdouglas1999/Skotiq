@@ -114,10 +114,18 @@ pub async fn api_sequencer_resume() -> Result<(), SkotiqError> {
 pub async fn api_sequencer_stop(origin: Option<String>) -> Result<(), SkotiqError> {
     tracing::info!(origin = origin.as_deref(), "Stopping sequence execution");
 
-    let mut executor = get_sequence_executor().write().await;
-    let run_id = executor.active_sequence_run_id();
-    executor
-        .stop_with_origin(skotiq_sequencer::StopOrigin::from_wire(origin.as_deref()))
+    // The executor is held only to ask: its stopping phase can run the plan's
+    // shutdown steps for minutes, and status reads go through the same lock.
+    let (run_id, stopping) = {
+        let mut executor = get_sequence_executor().write().await;
+        let run_id = executor.active_sequence_run_id();
+        let stopping = executor
+            .request_stop(skotiq_sequencer::StopOrigin::from_wire(origin.as_deref()))
+            .await;
+        (run_id, stopping)
+    };
+    stopping
+        .finished()
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to stop sequence: {}", e)))?;
 

@@ -141,6 +141,25 @@ impl RunCell {
         true
     }
 
+    /// Turn a run that is under way `Stopping`, announced once however many
+    /// stop requests arrive. A run already at its end keeps its state.
+    pub(crate) fn begin_stopping(&self) {
+        {
+            let mut progress = self.inner.progress.write();
+            if !matches!(
+                progress.state,
+                ExecutorState::Running | ExecutorState::Paused | ExecutorState::Recovering
+            ) {
+                return;
+            }
+            progress.state = ExecutorState::Stopping;
+        }
+        let _ = self
+            .inner
+            .events
+            .send(ExecutorEvent::StateChanged(ExecutorState::Stopping));
+    }
+
     /// Back to `Idle` with an empty snapshot, unannounced: the executor is
     /// being recycled, not run.
     pub(crate) fn reset(&self) {

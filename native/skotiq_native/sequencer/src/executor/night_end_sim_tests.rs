@@ -133,6 +133,80 @@ async fn dawn_park_still_runs_the_plans_shutdown_steps() {
     assert!(notified(&calls, "Warm camera: done"), "calls={calls:?}");
 }
 
+/// A stop that arrives while dawn is putting the rig away is a request: the
+/// executor shared behind a lock is free again at once and reads `Stopping`,
+/// the plan's Warm camera is not cut short, and the stop is confirmed when it
+/// is done. The host's API used to hold the executor for the whole ramp, so
+/// every status read timed out for fifteen minutes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stop_during_the_dawn_shutdown_does_not_hold_the_executor() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut plan = night_plan(node("park", "Park mount", NodeType::Park));
+    // One ten-second ramp step from the camera's -10 C.
+    let warm = plan.nodes.iter_mut().find(|n| n.id == "warm").unwrap();
+    warm.node_type = NodeType::WarmCamera(WarmConfig {
+        target_temp: Some(-9.7),
+        ..WarmConfig::default()
+    });
+    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    // A cooler at work: Warm camera ramps instead of switching off.
+    ops.cooler_idle.store(false, Ordering::SeqCst);
+    wait_for_monitor(&ops).await;
+    bring_dawn_near(&executor).await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+    while !notified(&ops.calls(), "running the plan's shutdown steps") {
+        assert!(tokio::time::Instant::now() < deadline, "dawn never fired");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    let executor = tokio::sync::RwLock::new(executor);
+    let stopping = executor
+        .write()
+        .await
+        .request_stop(super::StopOrigin::Operator)
+        .await;
+    let a_second_stop = executor
+        .write()
+        .await
+        .request_stop(super::StopOrigin::Operator)
+        .await;
+    let read = tokio::time::timeout(Duration::from_secs(1), executor.read())
+        .await
+        .expect("the executor answers while the run stops");
+    assert_eq!(read.get_state().await, super::ExecutorState::Stopping);
+    drop(read);
+
+    let mut stopping = Box::pin(stopping.finished());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(500), &mut stopping)
+            .await
+            .is_err(),
+        "the stop must not cut the plan's Warm camera short"
+    );
+    // The ramp is one ten-second step.
+    tokio::time::timeout(Duration::from_secs(30), stopping)
+        .await
+        .unwrap_or_else(|_| {
+            panic!(
+                "the stop is confirmed once the shutdown steps end; calls={:?}",
+                ops.calls()
+            )
+        })
+        .expect("the run ended cleanly");
+    tokio::time::timeout(Duration::from_secs(1), a_second_stop.finished())
+        .await
+        .expect("every stop request sees the same end")
+        .expect("the run ended cleanly");
+
+    let executor = executor.into_inner();
+    assert_eq!(executor.get_state().await, super::ExecutorState::Cancelled);
+    let calls = ops.calls();
+    assert!(
+        calls.iter().any(|c| c == "camera_set_cooler:cam-1:false"),
+        "the camera was warmed and switched off; calls={calls:?}"
+    );
+}
+
 /// With Park before dawn off, the plan's own Park step is what puts the mount
 /// away, and the operator is told so rather than that it may still track.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

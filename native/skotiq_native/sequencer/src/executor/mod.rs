@@ -100,7 +100,7 @@ mod types;
 
 use crate::instructions::RunRig;
 use checkpoint_writer::{CheckpointSources, CheckpointWriter};
-pub use lifecycle::StopOrigin;
+pub use lifecycle::{RunStopping, StopOrigin};
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;
@@ -116,11 +116,11 @@ pub struct SequenceExecutor {
     /// The executor state, the progress snapshot and the event stream.
     run_state: RunCell,
     command_tx: Option<mpsc::Sender<ExecutorCommand>>,
-    /// Completion acknowledgment for the currently spawned executor task.
-    /// `stop()` takes and awaits this receiver so native termination is not
-    /// reported until instruction cancellation cleanup (including camera
-    /// exposure abort) and terminal event emission have finished.
-    run_completion_rx: Option<oneshot::Receiver<()>>,
+    /// Turns true when the spawned run has ended: instruction cancellation
+    /// cleanup (including camera exposure abort), the stopping phase and
+    /// terminal event emission are finished. Every stop request waits on it
+    /// before a stop is confirmed.
+    run_completion_rx: Option<watch::Receiver<bool>>,
     is_cancelled: Arc<AtomicBool>,
     root_node: Option<Box<dyn Node>>,
     /// Device operations handler - None indicates no device ops have been configured.

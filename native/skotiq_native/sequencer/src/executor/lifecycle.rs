@@ -64,6 +64,38 @@ impl StopOrigin {
 }
 use crate::NodeId;
 use std::sync::atomic::Ordering;
+use tokio::sync::{mpsc, watch};
+
+/// A run asked to stop, to wait for until it has ended.
+#[must_use = "a stop is confirmed only once the run has ended"]
+pub struct RunStopping {
+    /// `None` when no run was ever started.
+    completion: Option<watch::Receiver<bool>>,
+    /// The run's command channel, held open until the run has ended. A closed
+    /// channel ends the run's command handler, and the run then stops polling
+    /// its trigger monitor while a dawn park's shutdown steps are still
+    /// running in it.
+    commands: Option<mpsc::Sender<ExecutorCommand>>,
+}
+
+impl RunStopping {
+    /// Wait until the run has ended, its hardware cancelled and its rig put
+    /// away as its stopping phase requires.
+    pub async fn finished(self) -> Result<(), String> {
+        let _commands = self.commands;
+        match self.completion {
+            Some(mut completion) => completion
+                .wait_for(|ended| *ended)
+                .await
+                .map(|_| ())
+                .map_err(|_| {
+                    "Executor task ended without confirming hardware cancellation cleanup"
+                        .to_string()
+                }),
+            None => Ok(()),
+        }
+    }
+}
 
 impl SequenceExecutor {
     /// Pause the sequence. The currently-running instruction (e.g. an in-
@@ -109,7 +141,21 @@ impl SequenceExecutor {
     /// scheduler drives this same path on unattended re-plans: an autopilot
     /// stop must not wear the operator's evidence.
     pub async fn stop_with_origin(&mut self, origin: StopOrigin) -> Result<(), String> {
+        self.request_stop(origin).await.finished().await
+    }
+
+    /// Ask the run to stop and hand back its end to wait for.
+    ///
+    /// The run's stopping phase can take minutes: an exposure being aborted,
+    /// or the plan's shutdown steps a dawn park started, which a stop does not
+    /// cut short. A caller that shares the executor behind a lock waits on the
+    /// returned [`RunStopping`] after releasing it, so status reads and other
+    /// requests are answered meanwhile and see the run as `Stopping`.
+    pub async fn request_stop(&mut self, origin: StopOrigin) -> RunStopping {
         self.is_cancelled.store(true, Ordering::Release);
+        // The run's command handler is not listening while a trigger's
+        // shutdown steps finish, so the state is turned here as well.
+        self.run_state.begin_stopping();
 
         if let Some(tx) = &self.command_tx {
             let _ = tx.send(ExecutorCommand::Stop).await;
@@ -127,15 +173,10 @@ impl SequenceExecutor {
             ),
         }
 
-        let completion_result = if let Some(completion_rx) = self.run_completion_rx.take() {
-            completion_rx.await.map_err(|_| {
-                "Executor task ended without confirming hardware cancellation cleanup".to_string()
-            })
-        } else {
-            Ok(())
-        };
-        self.command_tx = None;
-        completion_result
+        RunStopping {
+            completion: self.run_completion_rx.clone(),
+            commands: self.command_tx.take(),
+        }
     }
 
     /// Replay Debug — emit a [`crate::decision::DecisionCategory::ManualIntervention`]
