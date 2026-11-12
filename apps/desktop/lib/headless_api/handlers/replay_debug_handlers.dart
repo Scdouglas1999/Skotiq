@@ -85,13 +85,19 @@ class ReplayDebugHandlers implements RouteSource {
   /// that a remote client would read as truth.
   Future<Response> handleGetSettings(Request request) async {
     final dao = container.read(settingsDaoProvider);
-    final enabledRaw = await dao.getSetting(replayDebugEnabledKey);
-    final retentionRaw = await dao.getSetting(replayDebugRetentionDaysKey);
+    final rows = await dao.readRows(const [
+      StoreSettings.replayDebugEnabled,
+      StoreSettings.replayDebugRetentionDays,
+    ]);
     final bool enabled;
     final int retentionDays;
     try {
-      enabled = parseReplayEnabledSetting(enabledRaw);
-      retentionDays = parseReplayRetentionSetting(retentionRaw);
+      enabled = parseReplayEnabledSetting(
+        rows[StoreSettings.replayDebugEnabled.key],
+      );
+      retentionDays = parseReplayRetentionSetting(
+        rows[StoreSettings.replayDebugRetentionDays.key],
+      );
     } on FormatException catch (error, stack) {
       throw HandlerFailure(
         code: 'replay_settings_corrupt',
@@ -123,23 +129,20 @@ class ReplayDebugHandlers implements RouteSource {
     final dao = container.read(settingsDaoProvider);
     final backend = container.read(sequencerBackendProvider);
 
-    // Snapshot the prior raw value (may be null/absent) so a rollback restores
-    // exactly what was there — not a re-normalized guess.
-    final priorRaw = await dao.getSetting(replayDebugEnabledKey);
+    // Snapshot the prior row (may be absent) so a rollback restores exactly
+    // what was there — not a re-normalized guess.
+    const setting = StoreSettings.replayDebugEnabled;
+    final priorRows = await dao.readRows([setting]);
 
     // 1) Persist the new value.
-    await dao.setSetting(replayDebugEnabledKey, enabled.toString());
+    await dao.write(setting, enabled);
 
     // 2) Mirror into the executor; roll the persist back on failure.
     try {
       await backend.sequencerSetDecisionLoggingEnabled(enabled);
     } catch (error, stack) {
       try {
-        if (priorRaw == null) {
-          await dao.deleteSetting(replayDebugEnabledKey);
-        } else {
-          await dao.setSetting(replayDebugEnabledKey, priorRaw);
-        }
+        await dao.restore(setting, priorRows);
       } catch (rollbackError) {
         // Rollback itself failed; the surfaced failure below is still the
         // primary error the caller must see, but the stranded persisted flag
@@ -170,9 +173,14 @@ class ReplayDebugHandlers implements RouteSource {
   Future<Response> handleSetRetention(Request request) async {
     _logInfo('[API] POST /api/sequencer/replay-debug/settings/retention');
     final payload = await readJsonObject(request);
-    final days = requireInt(payload, 'days', min: 1, max: 3650);
-    final dao = container.read(settingsDaoProvider);
-    await dao.setSetting(replayDebugRetentionDaysKey, days.toString());
+    const setting = StoreSettings.replayDebugRetentionDays;
+    final days = requireInt(
+      payload,
+      'days',
+      min: setting.inputMin,
+      max: setting.inputMax,
+    );
+    await container.read(settingsDaoProvider).write(setting, days);
     return jsonOk({'status': 'ok', 'retentionDays': days});
   }
 

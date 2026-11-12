@@ -1048,6 +1048,9 @@ const Map<String, Object?> _changedOnPurpose = {
       'unreadable': {'saveOriginal': true},
     },
   },
+  'decision log': {
+    'reads': {'empty': _SameAs('missing')},
+  },
   'notification routing': {
     'reads': {'empty': _SameAs('missing')},
   },
