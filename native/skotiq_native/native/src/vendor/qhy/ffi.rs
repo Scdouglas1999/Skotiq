@@ -5,17 +5,6 @@ use super::*;
 /// QHY Camera handle type
 pub(crate) type QhyCamHandle = *mut c_void;
 
-/// QHY Bayer patterns
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub enum QhyBayer {
-    Mono = 0,
-    Rggb = 1,
-    Grbg = 2,
-    Gbrg = 3,
-    Bggr = 4,
-}
-
 /// QHY Control IDs - matches CONTROL_ID enum from qhyccdstruct.h
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -83,4 +72,5 @@ pub enum QhyControl {
     hasHardwareFrameCounter = 60,
     CAM_HUMIDITY = 62,
     CAM_PRESSURE = 63,
+    CAM_Sensor_ULVO_Status = 67,
 }

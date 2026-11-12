@@ -17,7 +17,8 @@
 //! 1. **Enable/Disable Flag**: Discovery can be globally disabled if it causes issues
 //! 2. **Panic Protection**: Discovery is wrapped in `catch_unwind` to prevent crashes
 //! 3. **Timeout**: Discovery has a configurable timeout (default 10 seconds)
-//! 4. **Lock Serialization**: All discovery calls are serialized by the `QhySdk` lock
+//! 4. **Lock Serialization**: All discovery calls are serialized by the `QhySdk` lock,
+//!    which a timed-out scan keeps until the SDK returns
 //! 5. **Quirks Integration**: Discovery respects quirks from the vendor database
 
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
@@ -40,6 +41,7 @@ mod discovery;
 mod ffi;
 mod filter_wheel;
 mod sdk;
+mod session;
 #[cfg(test)]
 mod tests;
 
