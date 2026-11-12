@@ -54,6 +54,7 @@ async fn connected_camera(manager: &DeviceManager, base_url: &str) -> String {
             heartbeat_active: false,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
     id

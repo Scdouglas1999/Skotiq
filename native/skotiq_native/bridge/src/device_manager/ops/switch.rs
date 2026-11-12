@@ -7,6 +7,7 @@
 //! rendering would ship unexercised.
 
 use crate::device::*;
+use crate::device_manager::accessory::switch_value_on_step;
 use crate::device_manager::handle::device_error;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
@@ -42,7 +43,8 @@ impl DeviceManager {
         switch_id: i32,
         value: f64,
     ) -> Result<(), DeviceOpError> {
-        self.switch_set_value_dispatch(device_id, switch_id, value)
+        let value = self
+            .switch_set_value_dispatch(device_id, switch_id, value)
             .await?;
         self.publish_property_changed(
             DeviceType::Switch,
@@ -125,17 +127,29 @@ impl DeviceManager {
             .map_err(|e| device_error(device_id, e))
     }
 
+    /// The value goes out on one of the switch's steps (a slider can land
+    /// between steps); a range or step the switch does not report leaves the
+    /// value as asked. Answers the value sent.
     async fn switch_set_value_dispatch(
         &self,
         device_id: &str,
         switch_id: i32,
         value: f64,
-    ) -> Result<(), DeviceOpError> {
-        self.switch(device_id)
-            .await?
+    ) -> Result<f64, DeviceOpError> {
+        let switch = self.switch(device_id).await?;
+        let value = match (
+            switch.min_value(switch_id).await,
+            switch.max_value(switch_id).await,
+            switch.step(switch_id).await,
+        ) {
+            (Ok(min), Ok(max), Ok(step)) => switch_value_on_step(value, min, max, step),
+            _ => value,
+        };
+        switch
             .set_value(switch_id, value)
             .await
-            .map_err(|e| device_error(device_id, e))
+            .map_err(|e| device_error(device_id, e))?;
+        Ok(value)
     }
 
     pub async fn switch_get_min_value(

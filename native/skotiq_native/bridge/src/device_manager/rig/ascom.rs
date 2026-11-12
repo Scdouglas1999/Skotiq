@@ -22,6 +22,7 @@ use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::{focuser_move_with_timeout, Timeouts};
 use async_trait::async_trait;
+use skotiq_device::ascom::{optional, NotImplemented};
 use skotiq_device::DriverError;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::time::Duration;
@@ -75,12 +76,9 @@ pub(crate) trait FilterWheelMembers: DeviceMembers {
     async fn focus_offsets(&self) -> Result<Vec<i32>, DeviceOpError>;
 }
 
-/// A member the device does not have answers NotImplemented.
-fn optional<T>(read: Result<T, DeviceOpError>) -> Result<Option<T>, DeviceOpError> {
-    match read {
-        Ok(value) => Ok(Some(value)),
-        Err(DeviceOpError::Unsupported { .. }) => Ok(None),
-        Err(error) => Err(error),
+impl NotImplemented for DeviceOpError {
+    fn is_not_implemented(&self) -> bool {
+        matches!(self, DeviceOpError::Unsupported { .. })
     }
 }
 

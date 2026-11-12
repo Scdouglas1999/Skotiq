@@ -92,8 +92,8 @@ pub fn discover_devices(_device_type: AscomDeviceType) -> Vec<AscomDevice> {
 pub use camera::{
     Camera, CameraExposureSettings, CameraFullStatus, CameraSensorConfig, CameraThermalStatus,
 };
-pub use cover_calibrator::{CoverCalibrator, CoverCalibratorFullStatus};
-pub use dome::{Dome, DomeFullStatus};
+pub use cover_calibrator::CoverCalibrator;
+pub use dome::Dome;
 pub use error::{AscomError, AscomResult};
 pub use filter_wheel::FilterWheel;
 pub use focuser::Focuser;
@@ -102,12 +102,10 @@ pub use mount::{
     Mount, MountCapabilities, MountFullStatus, MountGuideRates, MountMotionStatus,
     MountPositionStatus, MountSiteStatus,
 };
-pub use observing_conditions::{
-    ObservingConditions, ObservingConditionsFullStatus, SkyStatus, WeatherStatus, WindStatus,
-};
+pub use observing_conditions::ObservingConditions;
 pub use rotator::Rotator;
-pub use safety_monitor::{SafetyMonitor, SafetyMonitorFullStatus};
-pub use switch::{Switch, SwitchChannelState, SwitchFullStatus};
+pub use safety_monitor::SafetyMonitor;
+pub use switch::Switch;
 
 #[cfg(windows)]
 pub use windows::{init_com, uninit_com, AscomDeviceConnection};

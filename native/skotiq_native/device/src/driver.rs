@@ -450,6 +450,10 @@ pub trait SwitchDriver: AccessoryDriver {
     async fn min_value(&self, index: i32) -> Result<f64, DriverError>;
 
     async fn max_value(&self, index: i32) -> Result<f64, DriverError>;
+
+    /// The smallest change of value the switch makes; a value written is a
+    /// whole number of steps above `min_value`.
+    async fn step(&self, index: i32) -> Result<f64, DriverError>;
 }
 
 /// What a weather station reports. A reading the station does not have is
