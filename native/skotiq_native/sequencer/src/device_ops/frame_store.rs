@@ -216,6 +216,37 @@ mod save_frame_tests {
         .await
     }
 
+    struct XisfStore;
+
+    #[async_trait]
+    impl FrameStoreOps for XisfStore {
+        async fn save_fits(
+            &self,
+            _: &ImageData,
+            _: &str,
+            _: &crate::scheduling::FrameContext,
+        ) -> DeviceResult<()> {
+            Ok(())
+        }
+        fn frame_file_extension(&self) -> &'static str {
+            "xisf"
+        }
+        async fn measure_light_frame(&self, _: &ImageData) -> DeviceResult<LightFrameMeasurement> {
+            Ok(LightFrameMeasurement::default())
+        }
+    }
+
+    struct Wrapper {
+        inner: XisfStore,
+    }
+    crate::forward_device_ops!(Wrapper => inner: FrameStoreOps);
+
+    /// A wrapper names frames in the format the layer it wraps saves them in.
+    #[test]
+    fn a_forwarding_wrapper_keeps_the_wrapped_layers_file_format() {
+        assert_eq!(Wrapper { inner: XisfStore }.frame_file_extension(), "xisf");
+    }
+
     #[tokio::test]
     async fn a_scratch_frame_never_writes_the_camera_file() {
         let dir = scratch("scratch");
