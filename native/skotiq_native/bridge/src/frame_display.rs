@@ -22,21 +22,18 @@ pub(crate) fn mono(image: &ImageData) -> DisplayImage {
     }
 }
 
-/// A colour sensor's raw mosaic: bilinear debayer, histogram-peak white
-/// balance, then the STF per channel, unlinked (PixInsight's default).
+/// A colour sensor's raw mosaic: bilinear debayer (X-Trans: its one linear
+/// method), histogram-peak white balance, then the STF per channel, unlinked
+/// (PixInsight's default).
 pub(crate) fn color(
     mosaic: &[u16],
     width: u32,
     height: u32,
-    pattern: skotiq_device::BayerPattern,
+    filter: skotiq_imaging::ColorFilterArray,
 ) -> DisplayImage {
-    let mut rgb = skotiq_imaging::debayer_to_rgb16(
-        mosaic,
-        width,
-        height,
-        imaging_bayer_pattern(pattern),
-        skotiq_imaging::DebayerAlgorithm::Bilinear,
-    );
+    let mut rgb = filter
+        .demosaic(mosaic, width, height, skotiq_imaging::DebayerAlgorithm::Bilinear)
+        .to_rgb16();
     apply_auto_white_balance(&mut rgb);
     // A channel with no spread gets the identity curve, not a black frame.
     let (r, g, b) = skotiq_imaging::auto_stretch_rgb_with_mode(
@@ -52,13 +49,23 @@ pub(crate) fn color(
     }
 }
 
-fn imaging_bayer_pattern(pattern: skotiq_device::BayerPattern) -> skotiq_imaging::BayerPattern {
-    match pattern {
+/// A frame read from disk: in colour when its header names a colour filter
+/// and it is still the one-plane mosaic, else mono.
+pub(crate) fn for_file(image: &ImageData, header: &skotiq_imaging::FitsHeader) -> DisplayImage {
+    match (skotiq_imaging::read_color_filter_array(header), image.channels, image.as_u16()) {
+        (Some(filter), 1, Some(mosaic)) => color(&mosaic, image.width, image.height, filter),
+        _ => mono(image),
+    }
+}
+
+/// The imaging crate's name for a device-reported Bayer cell.
+pub(crate) fn device_filter(pattern: skotiq_device::BayerPattern) -> skotiq_imaging::ColorFilterArray {
+    skotiq_imaging::ColorFilterArray::Bayer(match pattern {
         skotiq_device::BayerPattern::Rggb => skotiq_imaging::BayerPattern::RGGB,
         skotiq_device::BayerPattern::Grbg => skotiq_imaging::BayerPattern::GRBG,
         skotiq_device::BayerPattern::Gbrg => skotiq_imaging::BayerPattern::GBRG,
         skotiq_device::BayerPattern::Bggr => skotiq_imaging::BayerPattern::BGGR,
-    }
+    })
 }
 
 fn histogram(values: &[u8]) -> Vec<u32> {

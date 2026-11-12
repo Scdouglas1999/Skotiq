@@ -951,8 +951,8 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
         )));
     }
 
-    let (image_data, header) = skotiq_imaging::read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
+    let (image_data, header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
 
     let object_name = header.get_string("OBJECT").map(|s| s.to_string());
     let exposure_time = header.get_float("EXPTIME");
@@ -965,7 +965,7 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
 
     let stats = skotiq_imaging::calculate_stats_u16(&image_data);
 
-    let display = crate::frame_display::mono(&image_data);
+    let display = crate::frame_display::for_file(&image_data, &header);
 
     tracing::info!(
         "FITS file loaded: {}x{}, {} pixels",
@@ -1019,8 +1019,8 @@ pub async fn api_read_fits_linear_data(
         )));
     }
 
-    let (image_data, header) = skotiq_imaging::read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
+    let (image_data, header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
 
     let object_name = header.get_string("OBJECT").map(|s| s.to_string());
     let exposure_time = header.get_float("EXPTIME");
@@ -1841,12 +1841,24 @@ pub async fn api_generate_fits_thumbnail(
 /// The blocking body of [`api_generate_fits_thumbnail`]. Never call this from
 /// an async context without `spawn_blocking`.
 fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8>, SkotiqError> {
-    use skotiq_imaging::read_fits;
     use std::path::Path;
 
     let path = Path::new(file_path);
-    let (image_data, _header) = read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {:?}", e)))?;
+    let (image_data, header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
+    // A color mosaic is reduced one filter cell at a time; sampling it pixel
+    // by pixel would show whichever color the grid lands on.
+    let image_data = match (
+        skotiq_imaging::read_color_filter_array(&header),
+        image_data.channels,
+        image_data.as_u16(),
+    ) {
+        (Some(filter), 1, Some(mosaic)) => {
+            let (w, h, binned) = filter.bin_cells(&mosaic, image_data.width, image_data.height);
+            ImageData::from_u16(w, h, 1, &binned)
+        }
+        _ => image_data,
+    };
 
     let width = image_data.width;
     let height = image_data.height;

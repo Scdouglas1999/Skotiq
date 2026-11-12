@@ -29,12 +29,12 @@ fn copy_card(to: &mut FitsHeader, from: &FitsHeader, key: &str) -> bool {
     true
 }
 
-/// The typed FITS header of `path`, or `None` for a non-FITS or unreadable file.
+/// The typed header of `path` in any format the app reads, or `None` for a
+/// file that is no frame or cannot be read.
 pub(crate) fn fits_header_of(path: &str) -> Option<FitsHeader> {
     let p = Path::new(path.trim());
-    let ext = p.extension()?.to_str()?.to_ascii_lowercase();
-    matches!(ext.as_str(), "fits" | "fit" | "fts")
-        .then(|| read_fits_header(p).ok())
+    skotiq_imaging::is_frame_path(p)
+        .then(|| skotiq_imaging::read_frame_header(p).ok())
         .flatten()
 }
 

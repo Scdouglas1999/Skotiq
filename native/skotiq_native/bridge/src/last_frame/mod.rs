@@ -74,7 +74,12 @@ pub(crate) async fn store(
 pub(crate) fn measure(raw: &RawFrame, exposure_secs: f64) -> CapturedImageResult {
     let image = skotiq_imaging::ImageData::from_u16(raw.width, raw.height, 1, &raw.data);
     let display = match raw.bayer_pattern {
-        Some(pattern) => crate::frame_display::color(&raw.data, raw.width, raw.height, pattern),
+        Some(pattern) => crate::frame_display::color(
+            &raw.data,
+            raw.width,
+            raw.height,
+            crate::frame_display::device_filter(pattern),
+        ),
         None => crate::frame_display::mono(&image),
     };
     // Measured on the sensor's own samples, mosaic included, as the FITS on

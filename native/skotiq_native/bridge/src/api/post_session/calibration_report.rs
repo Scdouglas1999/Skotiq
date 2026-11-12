@@ -323,20 +323,13 @@ fn non_blank(path: &Option<String>) -> Option<&str> {
     }
 }
 
-/// Read a FITS header by path, or `None` for a non-FITS or unreadable file.
-///
-/// Only FITS carries typed keywords through this reader; XISF and RAW flatten
-/// them lossily, so attempting them would compare mangled values.
+/// A frame's typed header by path in any format the app reads, or `None` for
+/// a file that is no frame or cannot be read.
 fn read_header_if_fits(path: &str) -> Option<FitsHeader> {
-    let ext = Path::new(path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase();
-    if ext != "fits" && ext != "fit" && ext != "fts" {
-        return None;
-    }
-    read_fits_header(Path::new(path)).ok()
+    let path = Path::new(path);
+    skotiq_imaging::is_frame_path(path)
+        .then(|| skotiq_imaging::read_frame_header(path).ok())
+        .flatten()
 }
 
 /// The dimensions compared for a slot, in a fixed order so two runs over the
