@@ -103,6 +103,14 @@ pub(crate) const EXPOSURE_SPEED_POWER_SAVE: u16 = 0;
 /// In fast mode frames arrive only through a callback, never through
 /// ArtemisImageBuffer.
 pub(crate) const EXPOSURE_SPEED_FAST: u16 = 2;
+/// TE series (TE Series Programmers Guide): 6 bytes to read (min, max,
+/// current as u16). 0 lowest noise and 1 low noise read through ADC1, which
+/// has its own offset and no gain; 2 preview reads through ADC2, which takes
+/// the custom gain and offset.
+pub(crate) const ID_READOUT_MODE_TE: u16 = 20;
+pub(crate) const READOUT_MODE_TE_PREVIEW: u16 = 2;
+/// The TE series' ADC1 offset: 6 bytes to read, 2 to set.
+pub(crate) const ID_ADC1_OFFSET_TE: u16 = 88;
 
 // ARTEMISCOLOURTYPE (AtikDefs.h:53-61). Note that 0 is NOT "monochrome":
 // the vendor header documents it as "either the device is not a camera or the

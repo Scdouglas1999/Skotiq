@@ -228,8 +228,8 @@ impl AtikCamera {
         let has_shutter = props.camera_flags & ARTEMIS_CAMERA_HAS_SHUTTER != 0;
         self.core.capabilities = CameraCapabilities {
             can_cool: has_cooling && setpoint_control,
-            can_set_gain: gain_control.is_settable(),
-            can_set_offset: gain_control.is_settable(),
+            can_set_gain: gain_control.takes(false),
+            can_set_offset: gain_control.takes(true),
             can_set_binning: max_bin_x > 1 || max_bin_y > 1,
             can_subframe: true,
             has_shutter,

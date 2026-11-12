@@ -398,3 +398,8 @@ pub(crate) fn efw_index_now(
 #[cfg(test)]
 #[path = "tests.rs"]
 mod driver_tests;
+
+// The driver against a model of the SDK written from Atik's documents.
+#[cfg(test)]
+#[path = "verify_tests.rs"]
+mod verify_tests;
