@@ -217,6 +217,7 @@ export 'src/models/sequence/validation/validation_issue.dart';
 export 'src/models/sequence/sequence_editor_exceptions.dart';
 export 'src/providers/sequence/remote_sequence_editor_sync.dart';
 export 'src/providers/sequence_stats_provider.dart';
+export 'src/models/sequence/terminal_run_result.dart';
 // The one predicate every surface asks before calling a run's end an error.
 export 'src/models/sequence/run_stop_classification.dart';
 // The one wording for a target dropped by its own end_when.

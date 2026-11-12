@@ -33,6 +33,7 @@ import '../sequence_provider.dart'
         sequenceExecutionStateProvider,
         sequenceProgressProvider;
 import '../sequence_stats_provider.dart';
+import '../../models/sequence/terminal_run_result.dart';
 import '../session_provider.dart';
 import '../settings_provider.dart';
 // Session-lifecycle hooks: optical-train baseline capture,

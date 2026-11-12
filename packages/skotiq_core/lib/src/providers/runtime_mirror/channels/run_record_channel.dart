@@ -8,6 +8,7 @@ import '../../../models/sequence/run_stop_classification.dart';
 import '../../sequence/sequence_progress.dart';
 import '../../sequence/sequence_selection.dart';
 import '../../sequence_stats_provider.dart';
+import '../../../models/sequence/terminal_run_result.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
 

@@ -13,6 +13,7 @@ import '../../providers/sequence/sequence_selection.dart';
 import '../../models/sequence/sequence_models.dart'
     show SequenceExecutionStateCapabilities;
 import '../../providers/sequence_stats_provider.dart';
+import '../../models/sequence/terminal_run_result.dart';
 import '../../providers/settings_provider.dart';
 import '../logging_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
