@@ -109,13 +109,21 @@ pub enum PlateSolveError {
         #[source]
         source: std::io::Error,
     },
+    #[error("WCS file `{path}` holds a solution that cannot be referenced at the frame center")]
+    WcsNotCentered { path: String },
 }
 
+/// One solve, referenced at the frame center: `ra`/`dec` are the solution's
+/// reference point (`CRVAL`) with the center pixel as its reference pixel, and
+/// the CD matrix and SIP polynomials are those about that pixel. Every solver
+/// output is brought to this form where it is parsed, so centering, the
+/// frame's WCS ([`crate::SipWcs::from_plate_solve`]) and the app read one
+/// solution.
 #[derive(Debug, Clone, Default)]
 pub struct PlateSolveResult {
-    /// Solved RA in degrees
+    /// RA of the frame center in degrees
     pub ra: f64,
-    /// Solved Dec in degrees
+    /// Dec of the frame center in degrees
     pub dec: f64,
     /// Image scale in arcsec/pixel
     pub pixel_scale: f64,
@@ -1381,6 +1389,13 @@ fn parse_wcs_file_inner(
 /// in pixels; it supplies the field size when the `.wcs` names no dimensions
 /// (ASTAP writes `NAXIS = 0`), and the `.wcs`'s own NAXISn/IMAGEW/IMAGEH win
 /// when present.
+///
+/// The result is the solution at the frame center. ASTAP solves there, and
+/// `solve-field` is asked to ([`build_astrometry_args`]); a `.wcs` whose
+/// `CRPIX` is somewhere else is moved to the center
+/// ([`crate::SipWcs::rereferenced`]) instead of having its `CRVAL` taken for
+/// the center. With no frame size from either source the center is unknown
+/// and the solution stays where the solver referenced it.
 fn parse_wcs_file_with_image_size(
     wcs_path: &Path,
     solve_time: f64,
@@ -1394,6 +1409,8 @@ fn parse_wcs_file_with_image_size(
 
     let mut ra: Option<f64> = None;
     let mut dec: Option<f64> = None;
+    let mut crpix1: Option<f64> = None;
+    let mut crpix2: Option<f64> = None;
     let mut cd1_1: Option<f64> = None;
     let mut cd1_2: Option<f64> = None;
     let mut cd2_1: Option<f64> = None;
@@ -1461,6 +1478,8 @@ fn parse_wcs_file_with_image_size(
         match keyword {
             "CRVAL1" => parse(&mut ra)?,
             "CRVAL2" => parse(&mut dec)?,
+            "CRPIX1" => parse(&mut crpix1)?,
+            "CRPIX2" => parse(&mut crpix2)?,
             "CD1_1" => parse(&mut cd1_1)?,
             "CD1_2" => parse(&mut cd1_2)?,
             "CD2_1" => parse(&mut cd2_1)?,
@@ -1492,6 +1511,63 @@ fn parse_wcs_file_with_image_size(
     let cd2_1 = require(cd2_1, "CD2_1")?;
     let cd2_2 = require(cd2_2, "CD2_2")?;
 
+    let naxis1 = naxis1.filter(|n| *n > 0.0).or(image_size.map(|s| s.0));
+    let naxis2 = naxis2.filter(|n| *n > 0.0).or(image_size.map(|s| s.1));
+
+    let a_order = a_order.unwrap_or(0);
+    let b_order = b_order.unwrap_or(0);
+    let ap_order = ap_order.unwrap_or(0);
+    let bp_order = bp_order.unwrap_or(0);
+    let mut solution = crate::SipWcs {
+        crval1: ra,
+        crval2: dec,
+        crpix1: crpix1.unwrap_or_default(),
+        crpix2: crpix2.unwrap_or_default(),
+        cd1_1,
+        cd1_2,
+        cd2_1,
+        cd2_2,
+        a_order,
+        b_order,
+        a_coeffs: sip_layout(a_order, &a_terms),
+        b_coeffs: sip_layout(b_order, &b_terms),
+        ap_order,
+        bp_order,
+        ap_coeffs: sip_layout(ap_order, &ap_terms),
+        bp_coeffs: sip_layout(bp_order, &bp_terms),
+    };
+    if let (Some(width), Some(height), Some(crpix1), Some(crpix2)) =
+        (naxis1, naxis2, crpix1, crpix2)
+    {
+        let center = ((width + 1.0) / 2.0, (height + 1.0) / 2.0);
+        // Solvers print CRPIX to a thousandth of a pixel or better.
+        const AT_CENTER_PX: f64 = 1e-3;
+        if (crpix1 - center.0).abs() > AT_CENTER_PX || (crpix2 - center.1).abs() > AT_CENTER_PX {
+            solution = solution
+                .rereferenced(center.0, center.1, width, height)
+                .ok_or_else(|| PlateSolveError::WcsNotCentered {
+                    path: path_display.clone(),
+                })?;
+        }
+    }
+    let crate::SipWcs {
+        crval1: ra,
+        crval2: dec,
+        cd1_1,
+        cd1_2,
+        cd2_1,
+        cd2_2,
+        a_order,
+        b_order,
+        a_coeffs,
+        b_coeffs,
+        ap_order,
+        bp_order,
+        ap_coeffs,
+        bp_coeffs,
+        ..
+    } = solution;
+
     let pixel_scale = ((cd1_1 * cd1_1 + cd2_1 * cd2_1).sqrt() * 3600.0
         + (cd1_2 * cd1_2 + cd2_2 * cd2_2).sqrt() * 3600.0)
         / 2.0;
@@ -1520,19 +1596,8 @@ fn parse_wcs_file_with_image_size(
     // Field extent in degrees, derived from the image dimensions and pixel
     // scale. Zero only when neither the `.wcs` nor the caller knows the frame
     // size.
-    let naxis1 = naxis1.filter(|n| *n > 0.0).or(image_size.map(|s| s.0));
-    let naxis2 = naxis2.filter(|n| *n > 0.0).or(image_size.map(|s| s.1));
     let field_width = naxis1.map_or(0.0, |n| n * pixel_scale / 3600.0);
     let field_height = naxis2.map_or(0.0, |n| n * pixel_scale / 3600.0);
-
-    let a_order = a_order.unwrap_or(0);
-    let b_order = b_order.unwrap_or(0);
-    let ap_order = ap_order.unwrap_or(0);
-    let bp_order = bp_order.unwrap_or(0);
-    let a_coeffs = sip_layout(a_order, &a_terms);
-    let b_coeffs = sip_layout(b_order, &b_terms);
-    let ap_coeffs = sip_layout(ap_order, &ap_terms);
-    let bp_coeffs = sip_layout(bp_order, &bp_terms);
 
     Ok(PlateSolveResult {
         ra,
@@ -1951,6 +2016,42 @@ fn run_solver_command(
     })
 }
 
+/// The argument vector `solve-field` receives.
+///
+/// * `--dir` keeps its product set out of the capture folder (see
+///   [`SolveScratch`]).
+/// * `--crpix-center` has it reference the solution at the frame center, the
+///   form every solve is reported in ([`PlateSolveResult`]). Left to itself it
+///   puts `CRPIX` on the star pattern it matched, anywhere in the frame, and
+///   fits its SIP terms about that point.
+/// * `--ra`/`--dec`/`--radius` (degrees) only on a near solve.
+pub(crate) fn build_astrometry_args(
+    output_dir: &Path,
+    input: &Path,
+    hint_ra: Option<f64>,
+    hint_dec: Option<f64>,
+    search_radius: f64,
+) -> Vec<std::ffi::OsString> {
+    use std::ffi::OsString;
+
+    let mut args: Vec<OsString> = vec![
+        "--overwrite".into(),
+        "--no-plots".into(),
+        "--crpix-center".into(),
+        "--dir".into(),
+        output_dir.as_os_str().to_os_string(),
+        input.as_os_str().to_os_string(),
+    ];
+    if let (Some(ra), Some(dec)) = (hint_ra, hint_dec) {
+        args.extend(["--ra".into(), format!("{ra}").into()]);
+        args.extend(["--dec".into(), format!("{dec}").into()]);
+        if search_radius > 0.0 {
+            args.extend(["--radius".into(), format!("{search_radius}").into()]);
+        }
+    }
+    args
+}
+
 fn solve_with_astrometry(
     astrometry_path: &Path,
     image_path: &Path,
@@ -1995,21 +2096,13 @@ fn solve_with_astrometry(
     }
 
     let mut cmd = Command::new(astrometry_path);
-    cmd.arg("--overwrite")
-        .arg("--no-plots")
-        .arg("--dir")
-        .arg(output_dir)
-        .arg(image_path);
-
-    if let (Some(ra), Some(dec)) = (hint_ra, hint_dec) {
-        cmd.arg("--ra")
-            .arg(format!("{}", ra))
-            .arg("--dec")
-            .arg(format!("{}", dec));
-        if search_radius > 0.0 {
-            cmd.arg("--radius").arg(format!("{}", search_radius));
-        }
-    }
+    cmd.args(build_astrometry_args(
+        &output_dir,
+        image_path,
+        hint_ra,
+        hint_dec,
+        search_radius,
+    ));
 
     tracing::info!("Running astrometry.net solve-field: {:?}", cmd);
 
@@ -3885,6 +3978,102 @@ mod rig_2026_09_14_tests {
             }
         }
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// One real frame from the owner's ASI1600 (4656 x 3520, 0.616"/px,
+    /// 2024-08-20), solved by ASTAP CLI 2026.10.30 with `-sip`, by
+    /// astrometry.net 0.97 as it runs by default (`CRPIX` on the matched
+    /// stars, 1280 px from the center) and with `--crpix-center`. Whichever
+    /// solver wrote the `.wcs`, the solve the app gets from it puts the center
+    /// and every corner where astropy puts them reading the same file.
+    #[test]
+    fn every_solvers_wcs_reads_as_astropy_reads_it() {
+        let dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../test-fixtures/solver-wcs-2026-11-12");
+        let astropy: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(dir.join("astropy.json")).unwrap()).unwrap();
+        let (width, height) = (4656_u32, 3520_u32);
+        let arcsec = |a: (f64, f64), b: (f64, f64)| {
+            ((a.0 - b.0) * b.1.to_radians().cos()).hypot(a.1 - b.1) * 3600.0
+        };
+        // (file, worst pixel-to-sky difference, CRVAL against the center).
+        // ASTAP's SIP has constant terms (A_0_0 = 0.16 px), so its CRVAL sits
+        // 0.14" from the sky at its own CRPIX. The default astrometry.net
+        // solution is fitted again about the center (`SipWcs::rereferenced`).
+        let solvers = [
+            ("astap-sip.wcs", 1e-6, 0.2),
+            ("astrometry-crpix-center.wcs", 1e-6, 1e-6),
+            ("astrometry-default.wcs", 1e-6, 1e-6),
+        ];
+        for (file, sky_tolerance, center_tolerance) in solvers {
+            let solve = parse_wcs_file_with_image_size(
+                &dir.join(file),
+                0.0,
+                Some((f64::from(width), f64::from(height))),
+            )
+            .unwrap_or_else(|e| panic!("{file}: {e}"));
+            let wcs = crate::SipWcs::from_plate_solve(&solve, width, height).expect("a WCS");
+            let points = astropy["points"][file].as_array().expect("astropy points");
+            assert_eq!(points.len(), 5, "{file}");
+            for (n, point) in points.iter().enumerate() {
+                let v: Vec<f64> = point
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_f64().unwrap())
+                    .collect();
+                let (x, y, sky) = (v[0], v[1], (v[2], v[3]));
+                let off = arcsec(wcs.pixel_to_world(x, y), sky);
+                assert!(
+                    off < sky_tolerance,
+                    "{file} ({x}, {y}): {off:.6}\" from astropy"
+                );
+                // ASTAP's own inverse polynomials are good to 0.002 px here.
+                let (px, py) = wcs.world_to_pixel(sky.0, sky.1).expect("on the frame");
+                assert!(
+                    (px - x).hypot(py - y) < 0.01,
+                    "{file} ({x}, {y}): sky to pixel gives ({px}, {py})"
+                );
+                if n == 0 {
+                    let off = arcsec((solve.ra, solve.dec), sky);
+                    assert!(
+                        off < center_tolerance,
+                        "{file}: the solved position is {off:.4}\" from the frame center"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn solve_field_is_asked_for_a_solution_at_the_frame_center() {
+        let args = build_astrometry_args(
+            Path::new("/scratch"),
+            Path::new("/scratch/frame.fits"),
+            Some(15.5),
+            Some(61.0),
+            5.0,
+        );
+        let args: Vec<&str> = args.iter().map(|a| a.to_str().unwrap()).collect();
+        assert_eq!(
+            args,
+            [
+                "--overwrite",
+                "--no-plots",
+                "--crpix-center",
+                "--dir",
+                "/scratch",
+                "/scratch/frame.fits",
+                "--ra",
+                "15.5",
+                "--dec",
+                "61",
+                "--radius",
+                "5"
+            ]
+        );
+        let blind = build_astrometry_args(Path::new("/s"), Path::new("/s/f.fits"), None, None, 5.0);
+        assert_eq!(blind.len(), 6, "no position, no radius");
     }
 
     #[test]

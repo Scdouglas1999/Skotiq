@@ -1,0 +1,9 @@
+{
+  "description": "Plate solver output for one real frame, byte for byte as each solver wrote it, with astropy's reading of each file. The frame is a 180 s H-alpha light from the owner's ASI1600MM-Cool (4656x3520, 3.8 um) on the C8 at 1273 mm, 0.616 arcsec/pixel, taken with N.I.N.A. on 2024-08-20 (Ghost Nebula field, RA 14.98 deg, Dec +60.99 deg). The frame itself is not in the repository.",
+  "files": {
+    "astap-sip.wcs": "ASTAP CLI 2026.10.30, D05 database: astap_cli -f frame.fits -ra 1.00874 -spd 150.9666 -r 5 -fov 0.6027 -z 2 -wcs -sip. CRPIX is the frame center (2328.5, 1760.5); the SIP polynomials have constant terms (A_0_0 = 0.159 px).",
+    "astrometry-default.wcs": "astrometry.net 0.97, index-4205..4208: solve-field --overwrite --no-plots --dir default frame.fits --ra 15.131 --dec 60.9666 --radius 5. CRPIX (3387.77, 2486.09) is on the matched stars, 1280 px from the center; CRVAL is 792 arcsec from the sky at the center.",
+    "astrometry-crpix-center.wcs": "The same solve with --crpix-center: CRPIX (2328.5, 1760.5).",
+    "astropy.json": "generate.py: astropy 8.0.2 all_pix2world(.., 0) of each .wcs at the center and the four corner pixel centers."
+  }
+}
