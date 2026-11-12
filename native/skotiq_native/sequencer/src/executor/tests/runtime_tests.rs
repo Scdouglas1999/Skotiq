@@ -2709,8 +2709,9 @@ async fn run_a_failing_autofocus_node(decision_logging: bool) -> FailedAutofocus
         }
     }
     executor
-        .set_decision_logging_enabled(decision_logging)
-        .await;
+        .update_run_config(|config| config.decision_logging_enabled = decision_logging)
+        .await
+        .expect("decision logging setting applies");
     let mut events = executor.subscribe();
     let mut decision_rx = executor.subscribe_decisions();
     executor.load_sequence(sequence).expect("sequence loads");

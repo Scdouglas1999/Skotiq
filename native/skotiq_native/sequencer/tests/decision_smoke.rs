@@ -47,7 +47,10 @@ async fn disabling_logging_short_circuits_emit() {
 async fn a_row_the_operator_is_notified_from_goes_out_with_logging_off() {
     let executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false).await;
+    executor
+        .update_run_config(|config| config.decision_logging_enabled = false)
+        .await
+        .expect("decision logging setting applies");
     let sent = executor.emit_decision(
         DecisionEvent::new(
             DecisionCategory::SystemEvent,
