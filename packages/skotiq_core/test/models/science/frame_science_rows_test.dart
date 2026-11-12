@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/imaging/widgets/frame_science_selection.dart';
+import 'package:skotiq_core/skotiq_core.dart';
 
 typedef _Row = ({int? image, int seconds});
 

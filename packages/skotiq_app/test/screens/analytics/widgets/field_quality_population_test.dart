@@ -115,8 +115,8 @@ Widget _tab({required bool accepted}) {
           _metrics(imageId: 2, cv: 0.240),
         ]),
       ),
-      sessionTileMetricsProvider.overrideWith(
-        (ref, id) => Stream.value(const <ScienceTileMetricRow>[]),
+      frameTileMetricsProvider.overrideWith(
+        (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
       ),
       dbSessionImagesProvider.overrideWith((ref, id) => Stream.value(frames)),
       sciencePhotometrySelectionProvider.overrideWith(_NoSelectionNotifier.new),

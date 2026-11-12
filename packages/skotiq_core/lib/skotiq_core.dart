@@ -156,6 +156,7 @@ export 'src/models/onboarding/next_use_steps.dart';
 export 'src/models/hardware_presets/hardware_preset_models.dart';
 export 'src/models/science/science_models.dart';
 export 'src/models/science/frame_quality_readings.dart';
+export 'src/models/science/frame_science_rows.dart';
 export 'src/models/defect_map.dart';
 export 'src/models/plate_solver.dart';
 export 'src/models/readiness/readiness_models.dart';
