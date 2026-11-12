@@ -207,6 +207,101 @@ async fn a_stop_during_the_dawn_shutdown_does_not_hold_the_executor() {
     );
 }
 
+/// One target: Start Guiding when `start_guiding`, then a long wait.
+fn guided_plan(start_guiding: bool) -> SequenceDefinition {
+    let mut steps = Vec::new();
+    if start_guiding {
+        steps.push(node(
+            "guide",
+            "Start Guiding",
+            NodeType::StartGuiding(crate::StartGuidingConfig {
+                settle_timeout: 10.0,
+                validate_calibration: false,
+                ..Default::default()
+            }),
+        ));
+    }
+    steps.push(node(
+        "imaging",
+        "Imaging",
+        NodeType::Delay(DelayConfig { seconds: 600.0 }),
+    ));
+    let mut root = node(
+        "root",
+        "Night",
+        NodeType::Loop(LoopConfig {
+            iterations: Some(1),
+            condition: LoopCondition::Count,
+            ..Default::default()
+        }),
+    );
+    root.children = steps.iter().map(|n| n.id.clone()).collect();
+    let mut sequence = SequenceDefinition::new("Night".into());
+    sequence.root_node_id = Some("root".into());
+    sequence.nodes = std::iter::once(root).chain(steps).collect();
+    sequence
+}
+
+async fn wait_for_step(executor: &super::SequenceExecutor, id: &str) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+    while executor.get_progress().current_node_id.as_deref() != Some(id) {
+        assert!(tokio::time::Instant::now() < deadline, "{id} never ran");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// The operator's Stop ends the guiding the run started; on the rig the
+/// guider went on guiding after the run had stopped.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stopped_run_stops_the_guiding_it_started() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_night(
+        super::SequenceExecutor::new(),
+        ops.clone(),
+        guided_plan(true),
+    )
+    .await;
+    wait_for_step(&executor, "imaging").await;
+    let before = ops.calls().iter().filter(|c| *c == "guider_stop").count();
+
+    executor.stop().await.expect("the run stops");
+
+    let calls = ops.calls();
+    assert_eq!(executor.get_state().await, super::ExecutorState::Cancelled);
+    assert_eq!(
+        calls.iter().filter(|c| *c == "guider_stop").count(),
+        before + 1,
+        "calls={calls:?}"
+    );
+    assert_eq!(
+        executor.get_progress().message.as_deref(),
+        Some("Cancelled: Night")
+    );
+}
+
+/// Guiding the operator started before the run is not the run's: a Stop
+/// leaves it guiding and the run's verdict says so.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stopped_run_leaves_guiding_it_did_not_start_and_says_so() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_night(
+        super::SequenceExecutor::new(),
+        ops.clone(),
+        guided_plan(false),
+    )
+    .await;
+    wait_for_step(&executor, "imaging").await;
+
+    executor.stop().await.expect("the run stops");
+
+    let calls = ops.calls();
+    assert!(!calls.iter().any(|c| c == "guider_stop"), "calls={calls:?}");
+    assert_eq!(
+        executor.get_progress().message.as_deref(),
+        Some("Cancelled: Night. The guider is still guiding: it was started outside this run.")
+    );
+}
+
 /// With Park before dawn off, the plan's own Park step is what puts the mount
 /// away, and the operator is told so rather than that it may still track.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
