@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
+mod capabilities;
 mod guards;
 mod heartbeat_config;
 mod heartbeat_events;

@@ -18,7 +18,7 @@ pub(crate) fn indi_readout_mode_label(mode: &skotiq_indi::IndiReadoutMode) -> St
     }
 }
 
-/// Get capabilities for an INDI device
+/// Get capabilities for an INDI camera or mount
 ///
 /// INDI devices report capabilities through their property definitions.
 /// This function queries the INDI server to discover what properties
@@ -26,7 +26,7 @@ pub(crate) fn indi_readout_mode_label(mode: &skotiq_indi::IndiReadoutMode) -> St
 pub(crate) async fn get_indi_capabilities(
     device_id: &str,
 ) -> Result<DeviceCapabilities, SkotiqError> {
-    use skotiq_indi::{IndiCamera, IndiClient, IndiFilterWheel, IndiFocuser, IndiPermission};
+    use skotiq_indi::{IndiCamera, IndiClient};
 
     let parsed = parse_device_id_cached(device_id)?;
     let (host, port, device_name) = match &parsed.connection_info {
@@ -87,22 +87,6 @@ pub(crate) async fn get_indi_capabilities(
     let has_telescope_props = properties
         .iter()
         .any(|p| p.name.starts_with("EQUATORIAL_") || p.name == "TELESCOPE_MOTION_NS");
-    let has_focuser_props = properties
-        .iter()
-        .any(|p| p.name.starts_with("FOCUS_") || p.name == "ABS_FOCUS_POSITION");
-    let has_filter_props = properties
-        .iter()
-        .any(|p| p.name.starts_with("FILTER_") || p.name == "FILTER_SLOT");
-    // Mirrors the rotator detection in indi/src/discovery.rs (ABS_ROTATOR_ANGLE
-    // is the absolute-position rotator; ROTATOR_ANGLE is the legacy/raw form).
-    let has_rotator_props = properties
-        .iter()
-        .any(|p| p.name == "ABS_ROTATOR_ANGLE" || p.name == "ROTATOR_ANGLE");
-    // Mirrors the dome detection in indi/src/discovery.rs (a dome publishes at
-    // least one of shutter control, azimuth motion, or absolute position).
-    let has_dome_props = properties.iter().any(|p| {
-        p.name == "DOME_SHUTTER" || p.name == "DOME_MOTION" || p.name == "ABS_DOME_POSITION"
-    });
 
     // Build capabilities based on discovered properties
     if has_ccd_props {
@@ -292,213 +276,10 @@ pub(crate) async fn get_indi_capabilities(
             max_pulse_guide_ms,
             ..Default::default()
         }))
-    } else if has_focuser_props {
-        let is_absolute = properties.iter().any(|p| p.name == "ABS_FOCUS_POSITION");
-        let has_temp_comp = properties
-            .iter()
-            .any(|p| p.name == "FOCUS_TEMPERATURE_COMP" || p.name == "FOCUS_TEMP_COMP");
-        let can_halt = properties.iter().any(|p| p.name == "FOCUS_ABORT_MOTION");
-        let focuser = IndiFocuser::new(Arc::clone(&client), &device_name);
-        let max_position = focuser.get_max_step().await.unwrap_or(0);
-
-        Ok(DeviceCapabilities::Focuser(FocuserCapabilities {
-            max_position,
-            max_increment: max_position,
-            step_size: focuser.get_step_size().await,
-            absolute: is_absolute,
-            temp_comp_available: has_temp_comp,
-            temp_comp: focuser.is_temp_comp_enabled().await.unwrap_or(false),
-            temperature: focuser.get_temperature().await.ok(),
-            is_moving: focuser.is_moving().await,
-            position: focuser.get_position().await.ok(),
-            can_halt,
-            ..Default::default()
-        }))
-    } else if has_filter_props {
-        let filter_wheel = IndiFilterWheel::new(Arc::clone(&client), &device_name);
-        let filter_names = filter_wheel.get_names().await.unwrap_or_default();
-        let slot_limits = {
-            let locked_client = client.read().await;
-            locked_client
-                .get_number_limits(&device_name, "FILTER_SLOT", "FILTER_SLOT_VALUE")
-                .await
-        };
-        let position_count = slot_limits
-            .and_then(|limits| match (limits.min, limits.max) {
-                (Some(min), Some(max)) if max >= min => {
-                    // Why: INDI filter slots are a small
-                    // physical count; after finite/range validation, f64 to
-                    // i32 conversion is bounded and represents a whole count.
-                    Some((max - min + 1.0).round() as i32)
-                }
-                _ => None,
-            })
-            .or_else(|| i32::try_from(filter_names.len()).ok())
-            .unwrap_or(0);
-        let can_set_filter_names = properties
-            .iter()
-            .find(|p| p.name == "FILTER_NAME")
-            .map(|p| {
-                matches!(
-                    p.perm,
-                    IndiPermission::WriteOnly | IndiPermission::ReadWrite
-                )
-            })
-            .unwrap_or(false);
-
-        Ok(DeviceCapabilities::FilterWheel(FilterWheelCapabilities {
-            position_count,
-            current_position: filter_wheel.get_position().await.ok(),
-            filter_names,
-            focus_offsets: Vec::new(),
-            is_moving: filter_wheel.is_moving().await,
-            can_set_filter_names,
-            can_set_focus_offsets: false,
-        }))
-    } else if has_rotator_props {
-        // INDI rotator. Capabilities are derived from which standard properties
-        // the driver published (see indi/src/rotator.rs + protocol.rs for the
-        // property/element names). `has_*` flags below are presence checks, so a
-        // missing property honestly maps to "capability absent" (false) — no
-        // fabricated capability.
-        let has_abs_angle = properties.iter().any(|p| p.name == "ABS_ROTATOR_ANGLE");
-        let can_reverse = properties.iter().any(|p| p.name == "ROTATOR_REVERSE");
-        let can_halt = properties.iter().any(|p| p.name == "ROTATOR_ABORT_MOTION");
-        let can_sync = properties.iter().any(|p| p.name == "SYNC_ROTATOR_ANGLE");
-
-        // The absolute rotator exposes its angle under ABS_ROTATOR_ANGLE/ANGLE;
-        // legacy drivers use ROTATOR_ANGLE/ANGLE. Read whichever the driver
-        // actually published so the position and its limits come from the same
-        // property.
-        let angle_property = if has_abs_angle {
-            "ABS_ROTATOR_ANGLE"
-        } else {
-            "ROTATOR_ANGLE"
-        };
-
-        let (position, min_angle_deg, max_angle_deg) = {
-            let locked_client = client.read().await;
-            let position = locked_client
-                .get_number(&device_name, angle_property, "ANGLE")
-                .await;
-            // Why: INDI publishes the mechanical angle range as the ANGLE
-            // element's min/max number limits. Absent property/limits → None
-            // ("range unknown"), never a fabricated 0–360 clamp.
-            let limits = locked_client
-                .get_number_limits(&device_name, angle_property, "ANGLE")
-                .await;
-            (
-                position,
-                limits.as_ref().and_then(|l| l.min),
-                limits.as_ref().and_then(|l| l.max),
-            )
-        };
-
-        let caps = RotatorCapabilities {
-            can_reverse,
-            // Why: INDI does not report the current reverse state via a
-            // capability snapshot here; the rotator state provider polls
-            // ROTATOR_REVERSE live. `false` is the safe display default.
-            reverse: false,
-            // Why: INDI rotators expose absolute angle in degrees but no
-            // per-step resolution property; None = "step size unknown".
-            step_size: None,
-            // Why: motion state is transient and re-polled by the rotator state
-            // provider; a capability snapshot defaults to "stationary".
-            is_moving: false,
-            // INDI reports a single angle; mechanical and sky position coincide
-            // until a SYNC_ROTATOR_ANGLE offset is applied (tracked live by the
-            // state provider, not in this static snapshot).
-            mechanical_position: position,
-            position,
-            can_move_absolute: has_abs_angle,
-            can_halt,
-            can_sync,
-            min_angle_deg,
-            max_angle_deg,
-        };
-
-        Ok(DeviceCapabilities::Rotator(caps))
-    } else if has_dome_props {
-        // INDI dome. Capabilities are presence checks over the standard dome
-        // properties (see indi/src/dome.rs for the property/element names the
-        // ops actually drive). A missing property honestly maps to "capability
-        // absent" (false) — no fabricated capability. Before this branch existed,
-        // every INDI dome fell through to the `not_supported` arm below, which
-        // the Dart dome handler surfaced as 501 for open/close/park/home even
-        // though the native ops are fully implemented.
-        let can_set_shutter = properties.iter().any(|p| p.name == "DOME_SHUTTER");
-        let can_set_azimuth = properties.iter().any(|p| p.name == "ABS_DOME_POSITION");
-        // Home and park are both driven via DOME_GOTO (DOME_HOME / DOME_PARK
-        // elements); unpark additionally uses the DOME_PARK switch vector.
-        let has_goto = properties.iter().any(|p| p.name == "DOME_GOTO");
-        let can_find_home = has_goto;
-        let can_park = has_goto || properties.iter().any(|p| p.name == "DOME_PARK");
-        let can_abort = properties.iter().any(|p| p.name == "DOME_ABORT_MOTION");
-        let can_slave = properties.iter().any(|p| p.name == "DOME_AUTOSYNC");
-
-        // Live snapshot values (re-polled by the dome state provider on a timer;
-        // absent/failed reads fall back to safe defaults).
-        let locked_client = client.read().await;
-        let azimuth = locked_client
-            .get_number(&device_name, "ABS_DOME_POSITION", "DOME_ABSOLUTE_POSITION")
-            .await;
-        let shutter_open = locked_client
-            .get_switch(&device_name, "DOME_SHUTTER", "SHUTTER_OPEN")
-            .await;
-        let shutter_close = locked_client
-            .get_switch(&device_name, "DOME_SHUTTER", "SHUTTER_CLOSE")
-            .await;
-        let shutter_busy = locked_client
-            .is_property_busy(&device_name, "DOME_SHUTTER")
-            .await;
-        let shutter_status = match (shutter_open, shutter_close, shutter_busy) {
-            (Some(true), Some(false), true) => Some(ShutterStatus::Opening),
-            (Some(false), Some(true), true) => Some(ShutterStatus::Closing),
-            (Some(true), Some(false), false) => Some(ShutterStatus::Open),
-            (Some(false), Some(true), false) => Some(ShutterStatus::Closed),
-            _ => None,
-        };
-        let at_home = locked_client
-            .get_switch(&device_name, "DOME_GOTO", "DOME_HOME")
-            .await
-            .unwrap_or(false);
-        let at_park = locked_client
-            .get_switch(&device_name, "DOME_PARK", "PARK")
-            .await
-            .unwrap_or(false)
-            || locked_client
-                .get_switch(&device_name, "DOME_GOTO", "DOME_PARK")
-                .await
-                .unwrap_or(false);
-        let slewing = locked_client
-            .is_property_busy(&device_name, "ABS_DOME_POSITION")
-            .await
-            || shutter_busy;
-        let slaved = locked_client
-            .get_switch(&device_name, "DOME_AUTOSYNC", "DOME_AUTOSYNC_ENABLE")
-            .await
-            .unwrap_or(false);
-        drop(locked_client);
-
-        Ok(DeviceCapabilities::Dome(DomeCapabilities {
-            can_set_azimuth,
-            can_park,
-            can_find_home,
-            can_set_shutter,
-            // INDI has no standard sync-azimuth property (unlike ASCOM SyncToAzimuth).
-            can_sync_azimuth: false,
-            azimuth,
-            slewing,
-            at_home,
-            at_park,
-            shutter_status,
-            can_slave,
-            slaved,
-            can_abort,
-        }))
     } else {
-        // Unknown device type - return minimal capabilities
+        // A focuser, wheel, rotator or dome answers through its handle once
+        // connected (`read_capabilities`); an id that reaches here was never
+        // registered.
         Err(SkotiqError::not_supported(
             device_id,
             "Could not determine INDI device type from properties",
