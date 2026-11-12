@@ -179,6 +179,12 @@ pub(crate) async fn display(camera_id: &str) -> Option<CapturedImageResult> {
         .map(|f| f.display.clone())
 }
 
+/// A copy of `camera_id`'s last frame, display and samples together, for a
+/// caller that both shows the frame and measures it.
+pub(crate) async fn frame(camera_id: &str) -> Option<StoredFrame> {
+    frames().lock().await.get(camera_id).cloned()
+}
+
 /// A copy of `camera_id`'s last frame as the camera delivered it.
 pub(crate) async fn raw(camera_id: &str) -> Option<RawFrame> {
     frames().lock().await.get(camera_id).map(|f| f.raw.clone())
