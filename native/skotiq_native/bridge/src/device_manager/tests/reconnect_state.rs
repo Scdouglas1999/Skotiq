@@ -372,11 +372,7 @@ async fn turning_the_cooler_off_sends_no_setpoint_to_the_driver() {
 
     let camera = RecordingCoolerCamera::default();
     let calls = camera.calls.clone();
-    manager
-        .native_cameras
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(camera));
+    manager.hold_vendor_camera(device_id, Box::new(camera));
 
     // The exact request the warm-up controller and safe_rig both issue.
     manager
@@ -406,11 +402,7 @@ async fn a_setpoint_supplied_with_a_cooler_off_command_is_dropped() {
 
     let camera = RecordingCoolerCamera::default();
     let calls = camera.calls.clone();
-    manager
-        .native_cameras
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(camera));
+    manager.hold_vendor_camera(device_id, Box::new(camera));
 
     // The sequencer's WarmCamera instruction ends with exactly this shape:
     // `camera_set_cooler(id, false, 20.0)`.
@@ -448,11 +440,7 @@ async fn enabling_passes_the_callers_setpoint_through_unchanged() {
 
     let camera = RecordingCoolerCamera::default();
     let calls = camera.calls.clone();
-    manager
-        .native_cameras
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(camera));
+    manager.hold_vendor_camera(device_id, Box::new(camera));
 
     manager
         .camera_set_cooler(device_id, true, Some(-15.0))

@@ -1,7 +1,7 @@
 //! What the ICameraV4 members mean, decided once for both ASCOM transports.
 //!
 //! The COM wrapper (`bridge/src/ascom_wrapper/camera.rs`) and the Alpaca
-//! camera path (`bridge/src/device_manager/ops/camera/`) read and write the
+//! camera path (`bridge/src/device_manager/rig/camera/alpaca.rs`) read and write the
 //! same members; the rules here say how a request becomes member values and
 //! how member values become what Skotiq reports, so the two cannot drift.
 //! References: ASCOM Master Interfaces 1.1.0 (ICameraV4) and ConformU's

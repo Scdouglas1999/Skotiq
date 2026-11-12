@@ -24,9 +24,10 @@ mod listing_order;
 mod mount_home;
 mod mount_ops;
 mod mount_set_park;
-mod omnisim;
+mod mount_trace;
 mod native_camera_probe;
 mod native_mount_probe;
+mod omnisim;
 mod omnisim_camera;
 mod omnisim_mount;
 mod protocol_errors;
@@ -89,15 +90,7 @@ fn build_device_manager() -> DeviceManager {
         stop_reconnect: Arc::new(RwLock::new(false)),
         handles: Default::default(),
         native_devices: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_cameras: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_mounts: RwLock::new(HashMap::new()),
         indi_clients: RwLock::new(HashMap::new()),
-        alpaca_cameras: RwLock::new(HashMap::new()),
-        alpaca_mounts: RwLock::new(HashMap::new()),
-        native_cameras: RwLock::new(HashMap::new()),
-        native_mounts: RwLock::new(HashMap::new()),
         heartbeat_tasks: RwLock::new(HashMap::new()),
         reconnect_cancel_tokens: RwLock::new(HashMap::new()),
         active_operations: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),

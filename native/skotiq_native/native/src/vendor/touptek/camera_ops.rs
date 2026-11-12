@@ -581,6 +581,10 @@ impl TouptekCamera {
 
 #[async_trait]
 impl CameraDriver for TouptekCamera {
+    fn exposure_abort(&self) -> Option<std::sync::Arc<dyn skotiq_device::ExposureAbort>> {
+        Some(self.core.abort_handle())
+    }
+
     fn capabilities(&self) -> CameraCapabilities {
         self.core.capabilities.clone()
     }
@@ -592,7 +596,7 @@ impl CameraDriver for TouptekCamera {
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         self.require_present()?;
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         let handle = self.handle.0;
 
         // The gain read is the liveness check: every model answers it, while a
@@ -636,6 +640,7 @@ impl CameraDriver for TouptekCamera {
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         self.require_present()?;
+        self.core.clear_abort();
 
         if let Some(gain) = params.gain {
             self.set_gain(gain).await?;
@@ -671,7 +676,7 @@ impl CameraDriver for TouptekCamera {
         let exposure_us = (requested_us as c_uint).max(min_us);
 
         let brand = self.brand.clone();
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         let handle = self.handle.0;
 
         // Set exposure time and fire ONE software-triggered frame, all within the SDK lock.
@@ -723,7 +728,7 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
 
         let handle = self.handle.0;
 
@@ -800,6 +805,11 @@ impl CameraDriver for TouptekCamera {
             if es.image_ready.load(Ordering::SeqCst) {
                 break;
             }
+            // The camera is left as it is: the abort that follows cancels
+            // the trigger and clears the event state.
+            if self.core.abort_requested() {
+                return Err(self.core.read_given_up());
+            }
             if poll_start.elapsed().as_secs_f64() > timeout_secs {
                 self.core.state = CameraState::Idle;
                 self.core.exposure_started_at = None;
@@ -813,7 +823,7 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
 
         let handle = self.handle.0;
 
@@ -996,7 +1006,7 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
 
         let handle = self.handle.0;
 
@@ -1051,7 +1061,7 @@ impl CameraDriver for TouptekCamera {
     async fn get_temperature(&self) -> Result<f64, DriverError> {
         self.require_present()?;
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         self.read_temperature_locked(&lock, self.handle.0)?
             .ok_or(DriverError::NotSupported)
     }
@@ -1062,7 +1072,7 @@ impl CameraDriver for TouptekCamera {
             return Err(DriverError::NotSupported);
         }
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         self.cooler_power_locked(&lock, self.handle.0)
             .ok_or(DriverError::NotSupported)
     }
@@ -1082,7 +1092,7 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
 
         let handle = self.handle.0;
 
@@ -1114,7 +1124,7 @@ impl CameraDriver for TouptekCamera {
             )));
         }
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         let handle = self.handle.0;
         let name = self.core.name.clone();
         with_sdk(&lock, &self.brand, |sdk| {
@@ -1144,7 +1154,7 @@ impl CameraDriver for TouptekCamera {
 
         let brand = self.brand.clone();
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
 
         let handle = self.handle.0;
 
@@ -1193,7 +1203,7 @@ impl CameraDriver for TouptekCamera {
             }
         });
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         let handle = self.handle.0;
         let name = self.core.name.clone();
         with_sdk(&lock, &self.brand, |sdk| {
@@ -1247,7 +1257,7 @@ impl CameraDriver for TouptekCamera {
     async fn get_gain(&self) -> Result<i32, DriverError> {
         self.require_present()?;
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         let handle = self.handle.0;
         self.read_gain_locked(&lock, handle)
     }
@@ -1257,7 +1267,7 @@ impl CameraDriver for TouptekCamera {
             return Ok(0);
         }
         self.require_present()?;
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         Ok(self
             .read_option_locked(&lock, self.handle.0, OGMACAM_OPTION_BLACKLEVEL)
             .unwrap_or(self.core.offset))
@@ -1291,7 +1301,7 @@ impl CameraDriver for TouptekCamera {
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
         self.require_present()?;
 
-        let lock = TOUPTEK_SDK_LOCK.lock().await;
+        let lock = self.sdk_lock().await;
         let handle_val = self.handle.0;
 
         with_sdk(&lock, &self.brand, |sdk| {

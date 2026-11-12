@@ -254,11 +254,7 @@ impl skotiq_device::CameraDriver for FakeRangedCamera {
 async fn native_camera_capabilities_map_cooler_temp_range_from_trait() {
     let device_id = "native:zwo:900021";
     register_native_test_device(device_id, crate::device::DeviceType::Camera).await;
-    crate::api::get_device_manager()
-        .native_cameras
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(FakeRangedCamera));
+    crate::api::get_device_manager().hold_vendor_camera(device_id, Box::new(FakeRangedCamera));
 
     let caps = get_device_capabilities(device_id)
         .await
@@ -275,11 +271,7 @@ async fn native_camera_capabilities_map_cooler_temp_range_from_trait() {
         other => panic!("expected camera capabilities, got {other:?}"),
     }
 
-    crate::api::get_device_manager()
-        .native_cameras
-        .write()
-        .await
-        .remove(device_id);
+    crate::api::get_device_manager().handles.remove(device_id);
     crate::api::get_device_manager()
         .devices
         .write()

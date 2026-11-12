@@ -8,8 +8,10 @@ use crate::device::{DeviceType, DriverType};
 use crate::device_capabilities::DeviceCapabilities;
 use crate::device_manager::accessory::{self, Dome, Rotator, SafetyMonitor, Weather};
 use crate::device_manager::ops::sim_gate;
+use crate::device_manager::rig::camera::Camera;
 use crate::device_manager::rig::filter_wheel::FilterWheel;
 use crate::device_manager::rig::focuser::Focuser;
+use crate::device_manager::rig::mount::Mount;
 use crate::device_manager::rig::RigDriver;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
@@ -28,6 +30,8 @@ pub(crate) enum DeviceHandle {
     CoverCalibrator(Arc<dyn CoverCalibratorDriver>),
     FilterWheel(Arc<dyn FilterWheel>),
     Focuser(Arc<dyn Focuser>),
+    Camera(Arc<dyn Camera>),
+    Mount(Arc<dyn Mount>),
 }
 
 /// What a handle is closed and probed through.
@@ -47,6 +51,8 @@ impl DeviceHandle {
             DeviceHandle::CoverCalibrator(d) => Link::Accessory(d.clone()),
             DeviceHandle::FilterWheel(d) => Link::Rig(d.clone()),
             DeviceHandle::Focuser(d) => Link::Rig(d.clone()),
+            DeviceHandle::Camera(d) => Link::Rig(d.clone()),
+            DeviceHandle::Mount(d) => Link::Rig(d.clone()),
         }
     }
 
@@ -104,6 +110,8 @@ impl DeviceHandle {
             DeviceHandle::Focuser(d) => {
                 DeviceCapabilities::Focuser(d.capabilities(device_id).await?)
             }
+            DeviceHandle::Camera(d) => d.capabilities(device_id).await?,
+            DeviceHandle::Mount(d) => d.capabilities(device_id).await?,
         })
     }
 }
@@ -179,7 +187,16 @@ impl DeviceManager {
             .get(device_id)
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
-        self.handles.get(device_id).and_then(pick).ok_or_else(|| {
+        // The simulated camera and mount are the simulator's own state; a
+        // handle for one holds nothing, so an id that never went through
+        // connect gets one here and the simulator's gate answers for it.
+        let handle = self.handles.get(device_id).or_else(|| {
+            (info.driver_type == DriverType::Simulator
+                && matches!(info.device_type, DeviceType::Camera | DeviceType::Mount))
+            .then(|| crate::device_manager::simulated::handle(&info))
+            .flatten()
+        });
+        handle.and_then(pick).ok_or_else(|| {
             let noun = device_noun(info.device_type);
             match (info.driver_type, info.device_type) {
                 // The simulated rig devices answer with the simulator's own
@@ -203,6 +220,31 @@ impl DeviceManager {
     pub(crate) async fn focuser(&self, device_id: &str) -> Result<Arc<dyn Focuser>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Focuser(d) => Some(d),
+            _ => None,
+        })
+        .await
+    }
+
+    /// An id nobody registered answers not connected, as every camera
+    /// operation did.
+    pub(crate) async fn camera(&self, device_id: &str) -> Result<Arc<dyn Camera>, DeviceOpError> {
+        self.connected(device_id, |h| match h {
+            DeviceHandle::Camera(d) => Some(d),
+            _ => None,
+        })
+        .await
+        .map_err(|error| match error {
+            DeviceOpError::DeviceNotFound(_) => DeviceOpError::not_connected(
+                Some(device_id.to_string()),
+                format!("Camera {} not found", device_id),
+            ),
+            other => other,
+        })
+    }
+
+    pub(crate) async fn mount(&self, device_id: &str) -> Result<Arc<dyn Mount>, DeviceOpError> {
+        self.connected(device_id, |h| match h {
+            DeviceHandle::Mount(d) => Some(d),
             _ => None,
         })
         .await
@@ -232,10 +274,7 @@ impl DeviceManager {
         .await
     }
 
-    pub(crate) async fn rotator(
-        &self,
-        device_id: &str,
-    ) -> Result<Arc<dyn Rotator>, DeviceOpError> {
+    pub(crate) async fn rotator(&self, device_id: &str) -> Result<Arc<dyn Rotator>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Rotator(d) => Some(d),
             _ => None,
@@ -254,10 +293,7 @@ impl DeviceManager {
         .await
     }
 
-    pub(crate) async fn weather(
-        &self,
-        device_id: &str,
-    ) -> Result<Arc<dyn Weather>, DeviceOpError> {
+    pub(crate) async fn weather(&self, device_id: &str) -> Result<Arc<dyn Weather>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Weather(d) => Some(d),
             _ => None,
@@ -285,5 +321,54 @@ impl DeviceManager {
             _ => None,
         })
         .await
+    }
+}
+
+/// Stand-ins for a connect, for tests that bring their own driver.
+#[cfg(test)]
+impl DeviceManager {
+    pub(crate) fn hold_vendor_camera(
+        &self,
+        device_id: &str,
+        camera: Box<dyn skotiq_device::CameraDriver + Send + Sync>,
+    ) {
+        use crate::device_manager::rig::camera::VendorCamera;
+        self.handles.insert(
+            device_id,
+            DeviceHandle::Camera(Arc::new(VendorCamera::new(device_id, camera))),
+        );
+    }
+
+    pub(crate) fn hold_vendor_mount(
+        &self,
+        device_id: &str,
+        mount: Box<dyn skotiq_device::MountDriver + Send + Sync>,
+    ) {
+        use crate::device_manager::rig::mount::VendorMount;
+        self.handles.insert(
+            device_id,
+            DeviceHandle::Mount(Arc::new(VendorMount::new(device_id, mount))),
+        );
+    }
+
+    pub(crate) fn hold_alpaca_mount(&self, device_id: &str, mount: skotiq_alpaca::AlpacaTelescope) {
+        use crate::device_manager::rig::mount::AlpacaMount;
+        self.handles.insert(
+            device_id,
+            DeviceHandle::Mount(Arc::new(AlpacaMount::new(device_id, mount))),
+        );
+    }
+
+    #[cfg(windows)]
+    pub(crate) fn hold_ascom_mount(
+        &self,
+        device_id: &str,
+        mount: crate::ascom_wrapper::mount::AscomMountWrapper,
+    ) {
+        use crate::device_manager::rig::mount::ComMount;
+        self.handles.insert(
+            device_id,
+            DeviceHandle::Mount(Arc::new(ComMount::new(device_id, mount))),
+        );
     }
 }

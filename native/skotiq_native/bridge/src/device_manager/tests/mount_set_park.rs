@@ -92,8 +92,8 @@ async fn a_mount_without_set_park_is_unsupported() {
     let manager = build_device_manager();
     let device_id = "native:meade:TEST_PORT_SETPARK";
     register_mount(&manager, device_id, DriverType::Native).await;
-    manager.native_mounts.write().await.insert(
-        device_id.to_string(),
+    manager.hold_vendor_mount(
+        device_id,
         Box::new(skotiq_native::vendor::lx200::Lx200Mount::new_meade(
             "TEST_PORT_SETPARK".to_string(),
         )),

@@ -59,6 +59,18 @@ impl std::fmt::Debug for TouptekCamera {
 const COOLER_POWER_READ_INTERVAL: std::time::Duration = std::time::Duration::from_secs(2);
 
 impl TouptekCamera {
+    /// The Touptek SDK lock, held for this camera (see
+    /// `sdk_loader::lock_scope`).
+    pub(crate) async fn sdk_lock(&self) -> crate::vendor::sdk_loader::SdkLockHeld {
+        use crate::vendor::sdk_loader::{device_key, lock_scope};
+        super::sdk::TOUPTEK_SDK_LOCK
+            .lock_device(
+                lock_scope(&skotiq_device::Vendor::Touptek),
+                device_key(&self.core.device_id),
+            )
+            .await
+    }
+
     /// Create a new Touptek camera instance for a specific brand
     pub fn new(device_index: usize, brand: &str) -> Self {
         let sdk_device_id = discovered_device_ids()

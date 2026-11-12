@@ -1,0 +1,274 @@
+> heartbeat
+  GET connected
+< ok true
+> site_capabilities
+< ok MountSiteCapabilities { can_read_site: true, can_write_site: true, can_read_time: true, can_write_time: true }
+> get_site
+  GET siteelevation
+  GET sitelatitude
+  GET sitelongitude
+< ok MountSite { latitude_deg: 40.0, longitude_deg: -75.0, elevation_m: Some(100.0) }
+> get_time
+  GET utcdate
+< ok MountTimeInfo { utc_unix_seconds: 1794452400, utc_offset_hours: 0.0 }
+> status
+  GET altitude
+  GET athome
+  GET atpark
+  GET azimuth
+  GET canfindhome
+  GET canpark
+  GET canpulseguide
+  GET cansetguiderates
+  GET cansetpark
+  GET cansettracking
+  GET canslew
+  GET canslewaltaz
+  GET canslewaltazasync
+  GET canslewasync
+  GET cansync
+  GET cansyncaltaz
+  GET canunpark
+  GET declination
+  GET rightascension
+  GET sideofpier
+  GET siderealtime
+  GET slewing
+  GET tracking
+  GET trackingrate
+  GET trackingrates
+< ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=5.5 dec=22.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Sidereal) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> coordinates
+  GET declination
+  GET rightascension
+< ok (5.5, 22.0)
+> can_park
+  GET canpark
+< ok true
+> can_set_park
+  GET cansetpark
+< ok true
+> can_find_home
+  GET canfindhome
+< ok true
+> unpark
+  PUT unpark
+< ok ()
+> set_tracking off
+  PUT tracking Tracking=false
+< ok ()
+> tracking_rate
+< err Getting tracking rate is not supported by this driver type
+> set_tracking_rate lunar
+< err Setting tracking rate is not supported by this driver type
+> slew 6.25h +35
+  GET altitude
+  GET athome
+  GET atpark
+  GET azimuth
+  GET canfindhome
+  GET canpark
+  GET canpulseguide
+  GET cansetguiderates
+  GET cansetpark
+  GET cansettracking
+  GET canslew
+  GET canslewaltaz
+  GET canslewaltazasync
+  GET canslewasync
+  GET cansync
+  GET cansyncaltaz
+  GET canunpark
+  GET declination
+  GET rightascension
+  GET sideofpier
+  GET siderealtime
+  GET slewing
+  GET tracking
+  GET trackingrate
+  GET trackingrates
+  PUT tracking Tracking=true
+  PUT slewtocoordinatesasync RightAscension=6.3&Declination=35.0
+< ok ()
+> status
+  GET altitude
+  GET athome
+  GET atpark
+  GET azimuth
+  GET canfindhome
+  GET canpark
+  GET canpulseguide
+  GET cansetguiderates
+  GET cansetpark
+  GET cansettracking
+  GET canslew
+  GET canslewaltaz
+  GET canslewaltazasync
+  GET canslewasync
+  GET cansync
+  GET cansyncaltaz
+  GET canunpark
+  GET declination
+  GET rightascension
+  GET sideofpier
+  GET siderealtime
+  GET slewing
+  GET tracking
+  GET trackingrate
+  GET trackingrates
+< ok "tracking=true slewing=false parked=false at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Sidereal) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> abort
+  PUT abortslew
+< ok ()
+> sync 6.26h +35.05
+  GET altitude
+  GET athome
+  GET atpark
+  GET azimuth
+  GET canfindhome
+  GET canpark
+  GET canpulseguide
+  GET cansetguiderates
+  GET cansetpark
+  GET cansettracking
+  GET canslew
+  GET canslewaltaz
+  GET canslewaltazasync
+  GET canslewasync
+  GET cansync
+  GET cansyncaltaz
+  GET canunpark
+  GET declination
+  GET rightascension
+  GET sideofpier
+  GET siderealtime
+  GET slewing
+  GET tracking
+  GET trackingrate
+  GET trackingrates
+  PUT synctocoordinates RightAscension=6.3&Declination=35.0
+< ok ()
+> pulse north 60 ms
+  PUT pulseguide Direction=0&Duration=60
+  GET ispulseguiding
+< ok ()
+> pulse west 60 ms
+  PUT pulseguide Direction=3&Duration=60
+  GET ispulseguiding
+< ok ()
+> move_axis 0 at 1
+  PUT moveaxis Axis=0&Rate=1
+< ok ()
+> move_axis 0 at 0
+  PUT moveaxis Axis=0&Rate=0
+< ok ()
+> move_axis 1 at -1
+  PUT moveaxis Axis=1&Rate=-1
+< ok ()
+> stop
+  PUT abortslew
+< ok ()
+> slew_alt_az 50 120
+  PUT slewtoaltazasync Altitude=50&Azimuth=120
+< ok ()
+> find_home
+  GET altitude
+  GET athome
+  GET atpark
+  GET azimuth
+  GET canfindhome
+  GET canfindhome
+  GET canpark
+  GET canpulseguide
+  GET cansetguiderates
+  GET cansetpark
+  GET cansettracking
+  GET canslew
+  GET canslewaltaz
+  GET canslewaltazasync
+  GET canslewasync
+  GET cansync
+  GET cansyncaltaz
+  GET canunpark
+  GET declination
+  GET rightascension
+  GET sideofpier
+  GET siderealtime
+  GET slewing
+  GET tracking
+  GET trackingrate
+  GET trackingrates
+  PUT findhome
+< ok ()
+> set_site
+  PUT sitelatitude SiteLatitude=41.5
+  PUT sitelongitude SiteLongitude=-74.25
+  PUT siteelevation SiteElevation=120
+< ok ()
+> set_time
+  PUT utcdate UTCDate=2026-11-06T21%3A20%3A00.000Z
+< ok ()
+> set_park
+  GET altitude
+  GET athome
+  GET atpark
+  GET azimuth
+  GET canfindhome
+  GET canpark
+  GET canpulseguide
+  GET cansetguiderates
+  GET cansetpark
+  GET cansetpark
+  GET cansettracking
+  GET canslew
+  GET canslewaltaz
+  GET canslewaltazasync
+  GET canslewasync
+  GET cansync
+  GET cansyncaltaz
+  GET canunpark
+  GET declination
+  GET rightascension
+  GET sideofpier
+  GET siderealtime
+  GET slewing
+  GET tracking
+  GET trackingrate
+  GET trackingrates
+  PUT setpark
+< ok ()
+> park
+  PUT park
+< ok ()
+> status
+  GET altitude
+  GET athome
+  GET atpark
+  GET azimuth
+  GET canfindhome
+  GET canpark
+  GET canpulseguide
+  GET cansetguiderates
+  GET cansetpark
+  GET cansettracking
+  GET canslew
+  GET canslewaltaz
+  GET canslewaltazasync
+  GET canslewasync
+  GET cansync
+  GET cansyncaltaz
+  GET canunpark
+  GET declination
+  GET rightascension
+  GET sideofpier
+  GET siderealtime
+  GET slewing
+  GET tracking
+  GET trackingrate
+  GET trackingrates
+< ok "tracking=false slewing=false parked=true at_home=Some(false) pier=Some(East) ra=6.3 dec=35.0 alt=Some(45.0) az=Some(180.0) lst=Some(5.0) rate=Some(Sidereal) can_park=true can_slew=true can_sync=true can_pulse=true can_rate=true"
+> disconnect
+  PUT connected Connected=false
+< ok ()
+> status
+< err Alpaca mount not connected

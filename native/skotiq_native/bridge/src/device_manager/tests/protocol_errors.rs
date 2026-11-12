@@ -60,9 +60,9 @@ async fn register_alpaca_mount(manager: &DeviceManager, device_id: &str, base_ur
             declared_mount_frame: None,
         },
     );
-    manager.alpaca_mounts.write().await.insert(
-        device_id.to_string(),
-        Arc::new(skotiq_alpaca::AlpacaTelescope::from_server(base_url, 0)),
+    manager.hold_alpaca_mount(
+        device_id,
+        skotiq_alpaca::AlpacaTelescope::from_server(base_url, 0),
     );
 }
 

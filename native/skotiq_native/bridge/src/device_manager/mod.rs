@@ -20,7 +20,7 @@ pub(crate) mod simulated;
 
 use crate::device::*;
 use crate::state::SharedAppState;
-use skotiq_device::{CameraDriver, DeviceDriver, MountDriver};
+use skotiq_device::DeviceDriver;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -137,32 +137,14 @@ pub struct DeviceManager {
     /// Flag to stop the reconnection task
     stop_reconnect: Arc<RwLock<bool>>,
 
-    /// The connected devices that have a handle: the accessory types and the
-    /// rig types listed in [`rig`].
+    /// The connected devices' handles: every device type but the guider.
     pub(crate) handles: handle::Handles,
 
+    /// A vendor camera registered as a guider, held as a plain device.
     pub(crate) native_devices: RwLock<HashMap<String, Box<dyn DeviceDriver>>>,
-
-    #[cfg(windows)]
-    pub(crate) ascom_cameras:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::camera::AscomCameraWrapper>>>>,
-
-    #[cfg(windows)]
-    pub(crate) ascom_mounts:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::mount::AscomMountWrapper>>>>,
 
     /// Active INDI clients (key: "host:port")
     pub(crate) indi_clients: RwLock<HashMap<String, Arc<RwLock<skotiq_indi::IndiClient>>>>,
-
-    pub(crate) alpaca_cameras: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaCamera>>>,
-
-    pub(crate) alpaca_mounts: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaTelescope>>>,
-
-    /// Active Native SDK cameras (stored separately for typed access)
-    pub(crate) native_cameras: RwLock<HashMap<String, Box<dyn CameraDriver + Send + Sync>>>,
-
-    /// Active Native SDK mounts (stored separately for typed access)
-    pub(crate) native_mounts: RwLock<HashMap<String, Box<dyn MountDriver + Send + Sync>>>,
 
     /// Active heartbeat monitoring tasks (device_id -> join handle)
     heartbeat_tasks: RwLock<HashMap<String, tokio::task::JoinHandle<()>>>,
@@ -356,15 +338,7 @@ impl DeviceManager {
             stop_reconnect: Arc::new(RwLock::new(false)),
             handles: Default::default(),
             native_devices: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_cameras: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_mounts: RwLock::new(HashMap::new()),
             indi_clients: RwLock::new(HashMap::new()),
-            alpaca_cameras: RwLock::new(HashMap::new()),
-            alpaca_mounts: RwLock::new(HashMap::new()),
-            native_cameras: RwLock::new(HashMap::new()),
-            native_mounts: RwLock::new(HashMap::new()),
             heartbeat_tasks: RwLock::new(HashMap::new()),
             reconnect_cancel_tokens: RwLock::new(HashMap::new()),
             active_operations: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
