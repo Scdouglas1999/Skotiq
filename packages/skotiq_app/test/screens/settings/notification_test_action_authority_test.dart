@@ -147,8 +147,7 @@ void main() {
 
       expect(
         find.text(
-          'Set on the imaging computer. Change it there, or link with admin '
-          'access.',
+          'Set. Change it on the imaging computer, or link with admin access.',
         ),
         findsNWidgets(2),
         reason: 'the Discord webhook and the Pushover API key are set',

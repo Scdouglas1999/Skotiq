@@ -18,8 +18,7 @@ const String adminOnlyAdvice =
 /// host tells a link without admin access ([credentialSetMarker]).
 String adminOnlyCredentialAdvice(String value) => value.isEmpty
     ? 'Not set. Set it on the imaging computer, or link with admin access.'
-    : 'Set on the imaging computer. Change it there, or link with admin '
-        'access.';
+    : 'Set. Change it on the imaging computer, or link with admin access.';
 
 /// True on a linked client whose link the imaging host says lacks admin
 /// access. False on the host itself, and while the host has not said.
