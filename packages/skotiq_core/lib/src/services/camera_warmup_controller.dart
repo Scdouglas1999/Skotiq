@@ -127,12 +127,15 @@ class CameraWarmupController {
     final status = await _readStatus(deviceId);
     if (run.canceled) return CameraWarmupOutcome.canceled;
 
-    final coolerOn = status?.coolerOn ?? cameraState.isCooling;
+    // A cooler the camera cannot report is warmed like one that is on: it
+    // may be cooling from an earlier session, and warming an idle one is
+    // harmless.
+    final coolerOn = status == null ? cameraState.coolerOn : status.coolerOn;
     final coolerPower = status?.coolerPower ?? cameraState.coolerPower;
     final sensorTemp = status?.sensorTemp ?? cameraState.temperature;
     final tempText = sensorTemp?.toStringAsFixed(1) ?? '?';
 
-    if (!coolerOn) {
+    if (coolerOn == false) {
       finishEarly();
       notifier.setCooling(false);
       _log(
@@ -235,7 +238,7 @@ class CameraWarmupController {
 
       final live = await _readStatus(deviceId);
       if (run.canceled) return true;
-      if (live != null && !live.coolerOn) {
+      if (live != null && live.coolerOn == false) {
         _markCoolerOff();
         _log(
           (l) => l.info(

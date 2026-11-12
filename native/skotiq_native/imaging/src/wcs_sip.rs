@@ -283,6 +283,117 @@ impl SipWcs {
         }
     }
 
+    /// The same astrometry referenced at another pixel: `CRPIX` moved to the
+    /// 1-based pixel `(crpix1, crpix2)` of a `width` × `height` frame, with
+    /// `CRVAL` the sky position this solution gives that pixel.
+    ///
+    /// A plate solve is reported at the frame center
+    /// ([`crate::platesolve::PlateSolveResult`]); astrometry.net by default
+    /// anchors its solution on a matched star pattern anywhere in the frame.
+    /// Moving the tangent point is a projective map of the tangent plane, not
+    /// a polynomial one, so the CD matrix and the forward SIP polynomials are
+    /// fitted again over the frame, one order above the solution's own (at
+    /// least third): the first term left out is below a microarcsecond on a
+    /// degree-wide field. The inverse polynomials are left to the forward
+    /// ones ([`Self::world_to_pixel`] inverts those when it has no `AP`/`BP`).
+    ///
+    /// `None` when this solution cannot be inverted or the fit has no answer.
+    pub fn rereferenced(&self, crpix1: f64, crpix2: f64, width: f64, height: f64) -> Option<Self> {
+        if !self.is_invertible() || !(width >= 1.0 && height >= 1.0) {
+            return None;
+        }
+        let (x0, y0) = (crpix1 - 1.0, crpix2 - 1.0);
+        let (crval1, crval2) = self.pixel_to_world(x0, y0);
+        let own_order = if self.has_forward_sip() {
+            self.a_order.max(self.b_order)
+        } else {
+            1
+        };
+        let order = (own_order.max(2) + 1) as usize;
+        if order + 1 > MAX_SIP_TERMS {
+            return None;
+        }
+        let terms: Vec<(usize, usize)> = (0..=order)
+            .flat_map(|i| (0..=order - i).map(move |j| (i, j)))
+            .collect();
+
+        // Offsets are fitted in units of the frame's longer side so the
+        // powers stay near one.
+        let unit = width.max(height);
+        let steps = 2 * order + 3;
+        let n = terms.len();
+        let mut normal = vec![vec![0.0; n]; n];
+        let (mut rhs_xi, mut rhs_eta) = (vec![0.0; n], vec![0.0; n]);
+        for row in 0..steps {
+            for col in 0..steps {
+                let x = (width - 1.0) * col as f64 / (steps - 1) as f64;
+                let y = (height - 1.0) * row as f64 / (steps - 1) as f64;
+                let (ra, dec) = self.pixel_to_world(x, y);
+                let (xi, eta) = tan_project(crval1, crval2, ra, dec)?;
+                let (s, t) = ((x - x0) / unit, (y - y0) / unit);
+                let basis: Vec<f64> = terms
+                    .iter()
+                    .map(|&(i, j)| s.powi(i as i32) * t.powi(j as i32))
+                    .collect();
+                for a in 0..n {
+                    for b in 0..n {
+                        normal[a][b] += basis[a] * basis[b];
+                    }
+                    rhs_xi[a] += basis[a] * xi;
+                    rhs_eta[a] += basis[a] * eta;
+                }
+            }
+        }
+        let solve = crate::background_extraction::solve_linear_system;
+        let xi = solve(normal.clone(), rhs_xi)?;
+        let eta = solve(normal, rhs_eta)?;
+        // Per-pixel coefficient of term (i, j) on each tangent-plane axis.
+        let per_pixel = |k: usize| {
+            let (i, j) = terms[k];
+            let scale = unit.powi((i + j) as i32);
+            (xi[k] / scale, eta[k] / scale)
+        };
+        let index = |i: usize, j: usize| terms.iter().position(|&t| t == (i, j));
+        let (cd1_1, cd2_1) = per_pixel(index(1, 0)?);
+        let (cd1_2, cd2_2) = per_pixel(index(0, 1)?);
+        let det = cd1_1 * cd2_2 - cd1_2 * cd2_1;
+        if !det.is_finite() || det.abs() < 1e-18 {
+            return None;
+        }
+
+        // xi = CD (u + A, v + B): everything but the linear terms, taken
+        // through the inverse of CD, is the SIP polynomial pair.
+        let stride = order + 1;
+        let mut a_coeffs = vec![0.0; stride * stride];
+        let mut b_coeffs = vec![0.0; stride * stride];
+        for (k, &(i, j)) in terms.iter().enumerate() {
+            if i + j == 1 {
+                continue;
+            }
+            let (c_xi, c_eta) = per_pixel(k);
+            a_coeffs[i * stride + j] = (cd2_2 * c_xi - cd1_2 * c_eta) / det;
+            b_coeffs[i * stride + j] = (-cd2_1 * c_xi + cd1_1 * c_eta) / det;
+        }
+        Some(Self {
+            crval1,
+            crval2,
+            crpix1,
+            crpix2,
+            cd1_1,
+            cd1_2,
+            cd2_1,
+            cd2_2,
+            a_order: order as u32,
+            b_order: order as u32,
+            a_coeffs,
+            b_coeffs,
+            ap_order: 0,
+            bp_order: 0,
+            ap_coeffs: Vec::new(),
+            bp_coeffs: Vec::new(),
+        })
+    }
+
     /// The linear (CD-only) part.
     pub fn cd_only(&self) -> WcsInfo {
         WcsInfo {
@@ -351,7 +462,7 @@ impl SipWcs {
     /// True iff forward SIP coefficients are present (both orders > 0 with
     /// non-empty coefficient lists), matching the Dart `hasForwardSip`.
     #[inline]
-    fn has_forward_sip(&self) -> bool {
+    pub fn has_forward_sip(&self) -> bool {
         self.a_order > 0
             && self.b_order > 0
             && !self.a_coeffs.is_empty()
@@ -378,6 +489,14 @@ impl SipWcs {
     /// 0-based pixel `(x, y)` → `(ra_deg in [0, 360), dec_deg)`. Applies forward
     /// SIP before the CD matrix, then deprojects through the TAN tangent plane.
     pub fn pixel_to_world(&self, x: f64, y: f64) -> (f64, f64) {
+        let (xi_deg, eta_deg) = self.pixel_to_plane(x, y);
+        tan_deproject(self.crval1, self.crval2, xi_deg, eta_deg)
+    }
+
+    /// 0-based pixel `(x, y)` → intermediate world coordinates `(ξ, η)` in
+    /// degrees on the plane tangent at `CRVAL`: forward SIP, then the CD
+    /// matrix.
+    pub fn pixel_to_plane(&self, x: f64, y: f64) -> (f64, f64) {
         let crpix1_0 = self.crpix1 - 1.0;
         let crpix2_0 = self.crpix2 - 1.0;
         // Pixel offsets from the reference pixel.
@@ -394,9 +513,10 @@ impl SipWcs {
         };
         // CD maps the (distortion-corrected) pixel offsets to intermediate world
         // coords (degrees).
-        let xi_deg = self.cd1_1 * up + self.cd1_2 * vp;
-        let eta_deg = self.cd2_1 * up + self.cd2_2 * vp;
-        tan_deproject(self.crval1, self.crval2, xi_deg, eta_deg)
+        (
+            self.cd1_1 * up + self.cd1_2 * vp,
+            self.cd2_1 * up + self.cd2_2 * vp,
+        )
     }
 
     /// `(ra_deg, dec_deg)` → 0-based pixel `(x, y)`. `None` on the far hemisphere
@@ -962,6 +1082,51 @@ mod tests {
         let bad = SipWcs::tan_only(10.0, 20.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0);
         assert!(!bad.is_invertible());
         assert!(bad.world_to_pixel(10.0, 20.0).is_none());
+    }
+
+    /// A solution referenced on one side of the frame, moved to the frame
+    /// center, is the same map from pixels to the sky and back.
+    #[test]
+    fn a_rereferenced_solution_is_the_same_projection() {
+        let (width, height) = (4656.0, 3520.0);
+        let solved = SipWcs {
+            a_order: 2,
+            b_order: 2,
+            a_coeffs: vec![0.0, 0.0, -5.5e-9, 0.0, -2.0e-7, 0.0, -2.7e-7, 0.0, 0.0],
+            b_coeffs: vec![0.0, 0.0, -2.1e-7, 0.0, -1.9e-7, 0.0, -4.0e-8, 0.0, 0.0],
+            ..SipWcs::tan_only(
+                14.6945, 61.1617, 3387.77, 2486.09, -1.49e-5, -1.705e-4, 1.705e-4, -1.5e-5,
+            )
+        };
+        let centered = solved
+            .rereferenced((width + 1.0) / 2.0, (height + 1.0) / 2.0, width, height)
+            .expect("a solvable fit");
+        assert_eq!((centered.crpix1, centered.crpix2), (2328.5, 1760.5));
+        let center = solved.pixel_to_world(2327.5, 1759.5);
+        assert_eq!((centered.crval1, centered.crval2), center);
+        // The tangent point moved 13', so the CD matrix is not the old one.
+        assert!((centered.cd1_1 - solved.cd1_1).abs() > 1e-8);
+        for &(x, y) in &[
+            (0.0, 0.0),
+            (4655.0, 0.0),
+            (0.0, 3519.0),
+            (4655.0, 3519.0),
+            (2327.5, 1759.5),
+            (1000.0, 3000.0),
+        ] {
+            let (ra, dec) = solved.pixel_to_world(x, y);
+            let (got_ra, got_dec) = centered.pixel_to_world(x, y);
+            let arcsec = ((got_ra - ra) * dec.to_radians().cos()).hypot(got_dec - dec) * 3600.0;
+            assert!(arcsec < 1e-6, "({x}, {y}): {arcsec:e}\"");
+            let (px, py) = centered.world_to_pixel(ra, dec).expect("on the frame");
+            assert!(
+                (px - x).hypot(py - y) < 1e-6,
+                "({x}, {y}) back as ({px}, {py})"
+            );
+        }
+        assert!(SipWcs::tan_only(0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+            .rereferenced(5.0, 5.0, 10.0, 10.0)
+            .is_none());
     }
 
     #[test]

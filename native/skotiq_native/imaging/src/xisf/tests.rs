@@ -333,6 +333,88 @@ fn the_astrometric_solution_is_the_wcs_the_app_reads() {
     }
 }
 
+/// PixInsight does not read SIP keywords: a distorted solution reaches it as
+/// the control points of its spline world transformation, which are the SIP
+/// solution itself on a grid over the image. (PixInsight 1.9.4 reads a real
+/// ASTAP or astrometry.net SIP solve written this way within 0.01 px of
+/// astropy, outside the 6 px border where its own grid interpolation drifts.)
+#[test]
+fn a_sip_solution_is_written_as_pixinsights_spline_control_points() {
+    const SPLINE: &str = "PCL:AstrometricSolution:SplineWorldTransformation:";
+    let wcs = crate::SipWcs {
+        a_order: 3,
+        b_order: 3,
+        a_coeffs: vec![
+            0.1, 0.0, 9.0e-8, 2.8e-11, 0.0, -1.1e-7, -4.8e-11, 0.0, -2.0e-7, -2.8e-11, 0.0, 0.0,
+            -5.7e-12, 0.0, 0.0, 0.0,
+        ],
+        b_coeffs: vec![
+            -0.1, 0.0, -1.4e-7, 6.6e-12, 0.0, -1.2e-7, -4.8e-11, 0.0, -9.0e-8, -1.3e-10, 0.0, 0.0,
+            5.5e-12, 0.0, 0.0, 0.0,
+        ],
+        ..crate::SipWcs::from_pointing(14.98, 60.99, 94.75, 0.616, 4656, 3520)
+    };
+    let mut header = capture_header();
+    wcs.write_to_header(&mut header);
+    let wcs = crate::SipWcs::from_header(&header).unwrap();
+    let frame = crate::ImageData::new(4656, 3520, 1, PixelType::U16);
+    let image = image_header_from_fits(&header, &frame);
+
+    let text = |id: &str| image.property(&format!("{SPLINE}{id}")).cloned();
+    assert_eq!(text("Version"), Some(PropertyValue::String("2.0".into())));
+    assert_eq!(
+        text("RBFType"),
+        Some(PropertyValue::String("ThinPlateSpline".into()))
+    );
+    assert_eq!(text("SplineOrder"), Some(PropertyValue::Int32(2)));
+    assert_eq!(text("SplineSmoothness"), Some(PropertyValue::Float32(0.0)));
+    assert_eq!(text("UseSimplifiers"), Some(PropertyValue::Boolean(false)));
+    let points = |id: &str| {
+        image
+            .property(&format!("{SPLINE}ControlPoints:{id}"))
+            .and_then(PropertyValue::as_f64_values)
+            .unwrap_or_else(|| panic!("no {id} control points"))
+    };
+    let (pixels, plane) = (points("Image"), points("World"));
+    assert_eq!(pixels.len(), 2 * 24 * 24);
+    assert_eq!(plane.len(), pixels.len());
+    // XISF image coordinates: the first pixel's center is (0.5, 0.5).
+    assert_eq!(pixels[..2], [0.5, 0.5]);
+    assert_eq!(pixels[pixels.len() - 2..], [4655.5, 3519.5]);
+    let mut distortion: f64 = 0.0;
+    let pairs = |values: &[f64]| values.as_chunks::<2>().0.to_vec();
+    for (at, on_plane) in pairs(&pixels).into_iter().zip(pairs(&plane)) {
+        let (x, y) = (at[0] - 0.5, at[1] - 0.5);
+        let (xi, eta) = wcs.pixel_to_plane(x, y);
+        assert!(
+            (xi - on_plane[0]).abs() < 1e-12 && (eta - on_plane[1]).abs() < 1e-12,
+            "({x}, {y})"
+        );
+        // The same point through the linear layer alone, which is all
+        // PixInsight had before.
+        let (u, v) = (x - (wcs.crpix1 - 1.0), y - (wcs.crpix2 - 1.0));
+        let linear = (wcs.cd1_1 * u + wcs.cd1_2 * v, wcs.cd2_1 * u + wcs.cd2_2 * v);
+        distortion = distortion.max((linear.0 - on_plane[0]).hypot(linear.1 - on_plane[1]));
+    }
+    assert!(distortion * 3600.0 > 1.0, "the points carry the distortion");
+
+    // A solution without distortion has no spline layer, and replacing a
+    // distorted solution with one removes it.
+    let mut linear = header.clone();
+    crate::SipWcs::from(&wcs.cd_only()).write_to_header(&mut linear);
+    let plain = image_header_from_fits(&linear, &frame);
+    assert!(plain.properties.iter().all(|p| !p.id.starts_with(SPLINE)));
+    let mut replaced = image.clone();
+    apply_header(&mut replaced, &header, &linear);
+    assert!(replaced
+        .properties
+        .iter()
+        .all(|p| !p.id.starts_with(SPLINE)));
+    assert!(replaced
+        .property("PCL:AstrometricSolution:LinearTransformationMatrix")
+        .is_some());
+}
+
 #[test]
 fn several_images_are_read_by_index() {
     let first = test_image(16, 8, 1, PixelType::U16);

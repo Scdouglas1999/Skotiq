@@ -63,19 +63,7 @@ impl FujifilmLens {
     /// refocuses at every half press, which the bulb exposure sequence makes.
     /// Returns the mode to restore.
     fn hold_manual_focus(&self, handle: XsdkHandle, sdk: &FujifilmSdk) -> Option<c_long> {
-        let mut mode: c_long = 0;
-        // SAFETY: `handle` is the session's open handle; GetFocusMode writes one c_long (API_PARAM_GetFocusMode = 1).
-        let read = unsafe {
-            (sdk.get_prop)(
-                handle,
-                API_CODE_GET_FOCUS_MODE,
-                API_PARAM_ONE_VALUE,
-                &mut mode,
-            )
-        };
-        if read != XSDK_COMPLETE || mode == SDK_FOCUS_MANUAL {
-            return None;
-        }
+        let mode = focus_mode(handle, sdk).filter(|&mode| mode != SDK_FOCUS_MANUAL)?;
         // SAFETY: as above; SetFocusMode takes one c_long (API_PARAM_SetFocusMode = 1).
         let set = unsafe {
             (sdk.set_prop)(
@@ -101,6 +89,33 @@ impl FujifilmLens {
             None
         }
     }
+
+    fn restore_focus_mode(&self, handle: XsdkHandle, sdk: &FujifilmSdk, mode: c_long) {
+        // SAFETY: `handle` is the session's open handle (the lens holds the session until it leaves); SetFocusMode takes one c_long (API_PARAM_SetFocusMode = 1).
+        let result =
+            unsafe { (sdk.set_prop)(handle, API_CODE_SET_FOCUS_MODE, API_PARAM_ONE_VALUE, mode) };
+        if result != XSDK_COMPLETE {
+            tracing::warn!(
+                "Fujifilm {}: {}",
+                self.id,
+                sdk_error(handle, sdk, "restoring the camera's focus mode")
+            );
+        }
+    }
+}
+
+fn focus_mode(handle: XsdkHandle, sdk: &FujifilmSdk) -> Option<c_long> {
+    let mut mode: c_long = 0;
+    // SAFETY: `handle` is the session's open handle; GetFocusMode writes one c_long (API_PARAM_GetFocusMode = 1).
+    let read = unsafe {
+        (sdk.get_prop)(
+            handle,
+            API_CODE_GET_FOCUS_MODE,
+            API_PARAM_ONE_VALUE,
+            &mut mode,
+        )
+    };
+    (read == XSDK_COMPLETE).then_some(mode)
 }
 
 /// The lens' focus travel, or why there is none.
@@ -170,14 +185,29 @@ impl DeviceDriver for FujifilmLens {
         let sdk = FujifilmSdk::lock().await?;
         let session = session::join(&sdk, &self.address).await?;
         let handle = session.handle();
+        // A body in AF-S or AF-C reports an empty focus range (owner's NINA
+        // plugin 3.1.0.0, GFX100S II), so manual focus comes first.
+        let focus_mode_before = self.hold_manual_focus(handle, &sdk);
         let travel = match focus_travel(handle, &sdk) {
             Ok(travel) => travel,
             Err(error) => {
+                let in_autofocus =
+                    focus_mode(handle, &sdk).is_some_and(|mode| mode != SDK_FOCUS_MANUAL);
+                if let Some(mode) = focus_mode_before {
+                    self.restore_focus_mode(handle, &sdk, mode);
+                }
                 session::leave(&sdk, &session);
-                return Err(error);
+                return Err(match error {
+                    DriverError::InvalidDevice(_) if in_autofocus => DriverError::InvalidDevice(
+                        "the camera stayed in autofocus, where it reports no lens focus range. \
+                         Set the camera's focus mode switch to M and connect the lens again."
+                            .to_string(),
+                    ),
+                    other => other,
+                });
             }
         };
-        self.focus_mode_before = self.hold_manual_focus(handle, &sdk);
+        self.focus_mode_before = focus_mode_before;
         tracing::info!(
             "Fujifilm {}: lens focus travel 0 to {}, infinity at {} with {} past it, smallest move {}",
             self.id,
@@ -204,22 +234,7 @@ impl DeviceDriver for FujifilmLens {
         };
         let sdk = FujifilmSdk::lock().await?;
         if let Some(mode) = self.focus_mode_before.take() {
-            // SAFETY: `session.handle()` is still open (this lens holds it until `leave` below); SetFocusMode takes one c_long.
-            let result = unsafe {
-                (sdk.set_prop)(
-                    session.handle(),
-                    API_CODE_SET_FOCUS_MODE,
-                    API_PARAM_ONE_VALUE,
-                    mode,
-                )
-            };
-            if result != XSDK_COMPLETE {
-                tracing::warn!(
-                    "Fujifilm {}: {}",
-                    self.id,
-                    sdk_error(session.handle(), &sdk, "restoring the camera's focus mode")
-                );
-            }
+            self.restore_focus_mode(session.handle(), &sdk, mode);
         }
         *lock(&self.focus) = None;
         session::leave(&sdk, &session);

@@ -61,7 +61,6 @@ impl AtikCamera {
             core: CameraCore::new(
                 format!("atik_{}", device_index),
                 format!("Atik Camera {}", device_index),
-                -10.0,
             ),
             facts: AtikFacts::default(),
             frame_bayer: None,
@@ -241,8 +240,8 @@ impl AtikCamera {
         let has_shutter = props.camera_flags & ARTEMIS_CAMERA_HAS_SHUTTER != 0;
         self.core.capabilities = CameraCapabilities {
             can_cool: has_cooling && setpoint_control,
-            can_set_gain: gain_control.is_settable(),
-            can_set_offset: gain_control.is_settable(),
+            can_set_gain: gain_control.takes(false),
+            can_set_offset: gain_control.takes(true),
             can_set_binning: max_bin_x > 1 || max_bin_y > 1,
             can_subframe: true,
             has_shutter,
@@ -276,9 +275,9 @@ impl AtikCamera {
         self.core.subframe = None;
         if let Some(cooling) = cooling {
             self.core.update_cooler(|cooler| {
-                cooler.enabled = cooling.is_cooling();
+                cooler.enabled = Some(cooling.is_cooling());
                 if cooling.is_cooling() {
-                    cooler.target_c = cooling.setpoint_c();
+                    cooler.target_c = Some(cooling.setpoint_c());
                 }
             });
         }
@@ -311,7 +310,7 @@ impl AtikCamera {
         // Letting a cooled sensor warm up by itself can damage it (SDK guide
         // 5.6), so the warm-up is started whenever the camera reports cooling.
         let cooling_now = cooling_info(sdk, handle).is_some_and(|c| c.is_cooling());
-        if cooling_now || self.core.cooler().enabled {
+        if cooling_now || self.core.cooler().enabled == Some(true) {
             // SAFETY: the handle is open.
             let result = unsafe { (sdk.cooler_warm_up)(handle) };
             if result != ArtemisError::Ok as c_int {

@@ -630,7 +630,14 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
           ('Gain', state.gain?.toString() ?? kReadoutUnknown),
           ('Offset', state.offset?.toString() ?? kReadoutUnknown),
           ('Binning', state.binning ?? kReadoutUnknown),
-          ('Cooling', state.isCooling ? 'Active' : 'Off'),
+          (
+            'Cooling',
+            switch (state.coolerOn) {
+              true => 'Active',
+              false => 'Off',
+              null => 'Not reported',
+            },
+          ),
           ('Target temp', formatCelsius(state.targetTemp)),
         ];
 

@@ -15,8 +15,11 @@ class EonDarkGroup {
   });
 
   final double exposureSecs;
-  final int gain;
-  final int offset;
+
+  /// Null for a camera without gain or offset control: its lights record
+  /// none, and its darks are taken and matched without them.
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
 
@@ -31,7 +34,7 @@ class EonDarkGroup {
     final temp = setPointC == null
         ? 'uncooled'
         : '${_formatNumber(setPointC!)} C';
-    return '${_formatNumber(exposureSecs)} s, gain $gain, offset $offset, '
+    return '${_formatNumber(exposureSecs)} s, ${gainOffsetLabel(gain, offset)}, '
         'bin ${binX}x$binY, $temp';
   }
 
@@ -71,8 +74,8 @@ class EonBiasGroup {
     required this.setPointC,
   });
 
-  final int gain;
-  final int offset;
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
   final double? setPointC;
@@ -89,6 +92,12 @@ class EonBiasGroup {
   @override
   int get hashCode => Object.hash(gain, offset, binX, binY, setPointC);
 }
+
+/// "gain 100, offset 20", or "no gain" / "no offset" for a camera without
+/// that control.
+String gainOffsetLabel(int? gain, int? offset) =>
+    '${gain == null ? 'no gain' : 'gain $gain'}, '
+    '${offset == null ? 'no offset' : 'offset $offset'}';
 
 /// What the night's lights need.
 class EonFrameNeeds {
@@ -137,22 +146,14 @@ EonFrameNeeds planFrameNeeds(
   Iterable<CapturedImage> lights, {
   double? cameraSetPointC,
 }) {
-  final darkCounts = <(int, int, int, int, int, double?), int>{};
+  final darkCounts = <(int, int?, int?, int, int, double?), int>{};
   for (final light in lights) {
     if (light.frameType.toLowerCase() != 'light') continue;
     if (light.exposureDuration <= 0) continue;
-    final gain = light.gain;
-    final offset = light.offset;
-    if (gain == null || offset == null) {
-      throw FormatException(
-        'Cannot match calibration settings for ${light.fileName}: '
-        'the recorded gain or offset is missing.',
-      );
-    }
     final key = (
       (light.exposureDuration * 1000).round(),
-      gain,
-      offset,
+      light.gain,
+      light.offset,
       light.binX,
       light.binY,
       _setPointFor(light, cameraSetPointC),
@@ -275,7 +276,7 @@ Sequence buildCalibrationSequence({
       add(
         ExposureNode(
           id: 'eon-bias-${index++}',
-          name: 'Bias gain ${bias.gain}, offset ${bias.offset}',
+          name: 'Bias ${gainOffsetLabel(bias.gain, bias.offset)}',
           parentId: root,
           durationSecs: biasExposureSecs,
           count: biasCount,

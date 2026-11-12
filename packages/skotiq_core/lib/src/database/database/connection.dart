@@ -67,9 +67,12 @@ LazyDatabase _openConnection() {
     // corrupt file to a `skotiq-corrupt-<ts>.db` forensic backup so that
     // drift's `onCreate` then seeds a fresh database.
     //
-    // It is the open's only integrity check: a full pass reads every page,
-    // 1.2-1.6 s on a 185 MB rig database already in the page cache and 12 s
-    // straight after a boot.
+    // It is `PRAGMA quick_check`, the open's only check: 0.3 s on a 185 MB rig
+    // database where the full `integrity_check` takes 1.2 s warm and 12 s
+    // straight after a boot. The full check, which also compares every index
+    // with its table, runs on a copy once the app is up
+    // ([DatabaseHealthCheck]); when it finds damage it asks the next start to
+    // run the full check here instead.
     //
     // The recovery marker file written by [runIntegrityCheckAndRecover] is
     // consumed on next launch by [SkotiqDatabase.consumeRecoveryMarker]
@@ -80,7 +83,7 @@ LazyDatabase _openConnection() {
     // throws (file lock, permission denied, …) the exception propagates and
     // the operator sees the real error rather than a silently broken
     // database. The check only quarantines a file SQLite reports as
-    // SQLITE_CORRUPT/SQLITE_NOTADB or that fails `PRAGMA integrity_check`.
+    // SQLITE_CORRUPT/SQLITE_NOTADB or that fails the check.
     await integrity.runIntegrityCheckAndRecover(file);
 
     // A first boot that was killed part-way through schema creation leaves a

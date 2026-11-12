@@ -41,8 +41,8 @@ void main() {
 
   Future<int> insertDark({
     required double exposureTime,
-    int gain = 100,
-    int offset = 50,
+    int? gain = 100,
+    int? offset = 50,
     int binX = 1,
     int binY = 1,
     double? temperature,
@@ -71,8 +71,8 @@ void main() {
 
   Future<int> insertFlat({
     String filter = 'L',
-    int gain = 100,
-    int offset = 50,
+    int? gain = 100,
+    int? offset = 50,
     int binX = 1,
     int binY = 1,
     double? temperature,
@@ -366,6 +366,54 @@ void main() {
     });
   });
 
+  group('a camera without gain or offset control', () {
+    test('its lights match its darks, bias and flats, which record neither, '
+        'as an exact pick, ahead of a gain-0 master', () async {
+      await insertDark(exposureTime: 300, gain: 0, offset: 0, temperature: -10);
+      await insertDark(
+        exposureTime: 300,
+        gain: null,
+        offset: null,
+        temperature: -10,
+      );
+      await insertDark(exposureTime: 0, gain: null, offset: null, frameType: 'bias');
+      await insertFlat(gain: null, offset: null);
+
+      final match = await service.match(
+        const LightFrameContext(
+          gain: null,
+          offset: null,
+          exposureSeconds: 300,
+          temperature: -10,
+          filter: 'L',
+        ),
+      );
+
+      for (final pick in [match.dark, match.bias, match.flat]) {
+        expect(pick, isNotNull);
+        expect((pick!.record.gain, pick.record.offset), (null, null));
+        expect(pick.reasons.any((r) => r.contains('UNVERIFIED')), isFalse);
+        expect(pick.warnings.any((w) => w.contains('record no')), isFalse);
+      }
+      expect(
+        match.dark!.reasons.first,
+        'Exact no gain / no offset / bin 1x1 match (required for darks)',
+      );
+      expect(match.dark!.score, 100);
+    });
+
+    test('its lights never take a master of a camera with gain as an exact '
+        'pick', () async {
+      await insertDark(exposureTime: 300, gain: 0, offset: 0);
+      final match = await service.match(
+        const LightFrameContext(gain: null, offset: null, exposureSeconds: 300),
+      );
+      expect(match.dark, isNotNull);
+      expect(match.dark!.reasons.any((r) => r.contains('gain UNVERIFIED')), isTrue);
+      expect(match.dark!.score, lessThan(100));
+    });
+  });
+
   group('unrecorded gain / offset', () {
     test('a light with no recorded gain still matches on the remaining '
         'dimensions and reports gain unverified', () async {
@@ -484,8 +532,8 @@ void main() {
       final darkWarning = match.warnings.firstWhere(
         (w) => w.contains('No matching master dark'),
       );
-      expect(darkWarning, contains('gain unrecorded'));
-      expect(darkWarning, contains('offset unrecorded'));
+      expect(darkWarning, contains('no gain'));
+      expect(darkWarning, contains('no offset'));
       expect(darkWarning, isNot(contains('gain 0')));
     });
 

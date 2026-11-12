@@ -506,7 +506,7 @@ async fn idle_motion_from_outside_skotiq_is_left_alone() {
 #[test]
 fn a_dive_toward_the_horizon_is_a_danger_and_a_slew_to_a_target_is_not() {
     let mut rig = Rig::new(IDLE);
-    let mut alt = |t: f64, a: f64| {
+    let alt = |t: f64, a: f64| {
         let mut s = at(t, 3.0, 40.0);
         s.altitude_deg = Some(a);
         s

@@ -212,7 +212,7 @@ pub(crate) enum SvbCameraMode {
 
 /// SVB_CONTROL_TYPE values Skotiq reads or sets by name. The others
 /// (gamma, contrast, white balance, flip, sharpness, saturation, frame speed,
-/// bad-pixel correction...) are only ever put back to their defaults.
+/// bad-pixel correction...) are only ever put back to their defaults at connect.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SvbControlType {
@@ -257,13 +257,11 @@ pub(crate) fn control_name(control_type: c_int) -> &'static str {
 }
 
 impl SvbControlType {
-    /// Controls Skotiq sets for each exposure or that belong to the cooler.
-    /// Connect leaves these alone; a cooler that is running keeps running
-    /// across a reconnect.
-    pub(crate) const OWNED: [SvbControlType; 7] = [
-        Self::Gain,
+    /// Controls connect leaves as the camera holds them: the exposure, which
+    /// every exposure sets, and the cooler, so a cooler that is running keeps
+    /// running across a reconnect.
+    pub(crate) const KEPT_AT_CONNECT: [SvbControlType; 5] = [
         Self::Exposure,
-        Self::BlackLevel,
         Self::CoolerEnable,
         Self::TargetTemperature,
         Self::CurrentTemperature,

@@ -615,24 +615,15 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     EonSettings config,
     EonReport report,
   ) async {
-    final groups = <(String, int, int, int, int, int), List<CapturedImage>>{};
+    final groups = <(String, int, int?, int?, int, int), List<CapturedImage>>{};
     for (final frame in frames) {
       final type = frame.frameType.toLowerCase();
       if (type != 'dark' && type != 'bias') continue;
-      final gain = frame.gain;
-      final offset = frame.offset;
-      if (gain == null || offset == null) {
-        report.problems.add(
-          'Excluded ${frame.fileName} from master building: '
-          'the recorded gain or offset is missing.',
-        );
-        continue;
-      }
       final key = (
         type,
         (frame.exposureDuration * 1000).round(),
-        gain,
-        offset,
+        frame.gain,
+        frame.offset,
         frame.binX,
         frame.binY,
       );
@@ -664,10 +655,10 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       final temp = temps.isEmpty
           ? null
           : temps.reduce((a, b) => a + b) / temps.length;
+      final settings = gainOffsetLabel(gain, offset);
       final label = type == 'bias'
-          ? 'bias, gain $gain, offset $offset, bin ${binX}x$binY'
-          : '${_trim(exposure)} s darks, gain $gain, offset $offset, '
-                'bin ${binX}x$binY';
+          ? 'bias, $settings, bin ${binX}x$binY'
+          : '${_trim(exposure)} s darks, $settings, bin ${binX}x$binY';
       if (type == 'dark' && group.length < config.darkCount ||
           type == 'bias' && group.length < config.biasCount) {
         report.problems.add(
@@ -687,7 +678,8 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       }
       final name =
           '${type == 'bias' ? 'MasterBias' : 'MasterDark_${_trim(exposure)}s'}'
-          '_g${gain}_o${offset}_${_tempTag(temp)}_bin$binX'
+          '${gain == null ? '' : '_g$gain'}${offset == null ? '' : '_o$offset'}'
+          '_${_tempTag(temp)}_bin$binX'
           '_$stamp.fits';
       final output = p.join(p.dirname(group.first.filePath), 'Masters', name);
       try {

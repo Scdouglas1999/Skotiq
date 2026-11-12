@@ -39,7 +39,8 @@
 //! * `pixel_size_x/y` → 0.0 → "unknown" in UI scale bars.
 //! * `max_adu` → `65535` — the 16-bit max representable in standard ASCOM
 //!   camera readouts; safe default for histogram scaling.
-//! * boolean caps (`can_cool`, `cooler_on`) → `false` — feature-not-declared.
+//! * `can_cool` → `false` — feature-not-declared. `cooler_on` is never
+//!   defaulted: a cooler state the driver did not report stays `None`.
 //! * `gain`/`offset` → 0 — bottom of the legal ASCOM gain table; user
 //!   adjusts via the gain UI before exposing.
 //!
@@ -72,15 +73,29 @@ use skotiq_device::{ImageData, SubFrame};
 pub(crate) const UNKNOWN_CAMERA_SETTING: i32 = -1;
 
 /// `None` when a camera setting was recorded as unreadable, else `Some(value)`.
-///
-/// Keeps a failed device read from outranking the operator's configured value in
-/// `image_data.gain.or(config.gain)`.
 pub(crate) fn camera_setting_or_unknown(value: i32) -> Option<i32> {
     if value <= UNKNOWN_CAMERA_SETTING {
         None
     } else {
         Some(value)
     }
+}
+
+/// What a frame records for one camera setting, gain or offset: nothing for a
+/// camera that has no such control (FLI, Atik CCDs), so its frames carry no
+/// card and no database value a calibration match could read as 0; else the
+/// camera's report for the frame, or the commanded value when the camera could
+/// not read one back. `has_control` is `None` when the camera's status could
+/// not be read, and the report then stands.
+pub(crate) fn frame_setting(
+    has_control: Option<bool>,
+    reported: i32,
+    commanded: Option<i32>,
+) -> Option<i32> {
+    if has_control == Some(false) {
+        return None;
+    }
+    camera_setting_or_unknown(reported).or(commanded)
 }
 
 /// Parse the integer value out of a fixed-format 80-byte FITS header card.
@@ -170,6 +185,30 @@ mod fits_card_tests {
             Some(120)
         );
         assert_eq!(camera_setting_or_unknown(0).or(Some(120)), Some(0));
+    }
+
+    #[test]
+    fn a_camera_without_the_control_records_no_value() {
+        use super::{frame_setting, UNKNOWN_CAMERA_SETTING};
+
+        // FLI and Atik CCD drivers report 0 and a sequence may still command
+        // a gain; neither is a fact about the frame.
+        assert_eq!(frame_setting(Some(false), 0, Some(120)), None);
+        assert_eq!(
+            frame_setting(Some(false), UNKNOWN_CAMERA_SETTING, None),
+            None
+        );
+        assert_eq!(frame_setting(Some(true), 0, Some(120)), Some(0));
+        assert_eq!(
+            frame_setting(Some(true), UNKNOWN_CAMERA_SETTING, Some(120)),
+            Some(120)
+        );
+        // Status unreadable: the camera's own report stands.
+        assert_eq!(frame_setting(None, 139, Some(120)), Some(139));
+        assert_eq!(
+            frame_setting(None, UNKNOWN_CAMERA_SETTING, Some(120)),
+            Some(120)
+        );
     }
 }
 

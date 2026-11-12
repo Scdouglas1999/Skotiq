@@ -39,7 +39,7 @@ impl AscomRotatorWrapper {
             let mut rotator = match AscomRotator::new(&prog_id_clone) {
                 Ok(rotator) => rotator,
                 Err(error) => {
-                    return Err(format!("Failed to create ASCOM rotator: {}", error).into());
+                    return Err(format!("Failed to create ASCOM rotator: {}", error));
                 }
             };
 

@@ -567,57 +567,81 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
   }) {
     final t = scienceTileMetrics;
     final inSession = t.sessionId.equals(sessionId);
-    Expression<int> frameWhere(
-      Expression<bool> where,
-      List<OrderingTerm> order,
-    ) => subqueryExpression<int>(
+    final frame = coalesce<int>([
+      if (capturedImageId != null)
+        _tileFrame(inSession, t.capturedImageId.equals(capturedImageId)),
+      ..._lastMeasuredTileFrame(inSession),
+    ]);
+    return selectExpressions([frame]).watchSingle().asyncMap((row) {
+      final frameId = row.read(frame);
+      return _tileRows(
+        inSession &
+            (frameId == null
+                ? const Constant(true)
+                : t.capturedImageId.equals(frameId)),
+      );
+    });
+  }
+
+  /// The image id of the first tile row of [scope] that matches [where].
+  Expression<int> _tileFrame(
+    Expression<bool> scope,
+    Expression<bool> where, [
+    List<OrderingTerm> order = const [],
+  ]) {
+    final t = scienceTileMetrics;
+    return subqueryExpression<int>(
       selectOnly(t)
         ..addColumns([t.capturedImageId])
-        ..where(inSession & where)
+        ..where(scope & where)
         ..orderBy(order)
         ..limit(1),
     );
+  }
+
+  /// The newest tile row time in [scope].
+  Expression<DateTime> _newestTile(Expression<bool> scope) {
+    final t = scienceTileMetrics;
+    return subqueryExpression<DateTime>(
+      selectOnly(t)
+        ..addColumns([t.timestamp.max()])
+        ..where(scope),
+    );
+  }
+
+  /// The frame [scope] measured last, as `selectFrameScienceRows` picks it:
+  /// the first of these that is not null.
+  List<Expression<int>> _lastMeasuredTileFrame(Expression<bool> scope) {
+    final t = scienceTileMetrics;
     final tileOrder = [
       OrderingTerm.asc(t.tileRow),
       OrderingTerm.asc(t.tileCol),
     ];
-    final newest = subqueryExpression<DateTime>(
-      selectOnly(t)
-        ..addColumns([t.timestamp.max()])
-        ..where(inSession),
-    );
-    final frame = coalesce<int>([
-      if (capturedImageId != null)
-        frameWhere(t.capturedImageId.equals(capturedImageId), const []),
-      // The newest row of the session, found on the session index alone.
-      frameWhere(
-        t.capturedImageId.isNotNull() & t.timestamp.equalsExp(newest),
+    return [
+      // The newest row, found on the session index alone.
+      _tileFrame(
+        scope,
+        t.capturedImageId.isNotNull() &
+            t.timestamp.equalsExp(_newestTile(scope)),
         tileOrder,
       ),
-      // Only reached when the session's newest rows belong to no frame.
-      frameWhere(t.capturedImageId.isNotNull(), [
+      // Only reached when the newest rows belong to no frame.
+      _tileFrame(scope, t.capturedImageId.isNotNull(), [
         OrderingTerm.desc(t.timestamp),
         ...tileOrder,
       ]),
-    ]);
-    return selectExpressions([frame]).watchSingle().asyncMap((row) {
-      final frameId = row.read(frame);
-      return (select(t)
-            ..where(
-              (tbl) =>
-                  inSession &
-                  (frameId == null
-                      ? const Constant(true)
-                      : tbl.capturedImageId.equals(frameId)),
-            )
+    ];
+  }
+
+  Future<List<ScienceTileMetricRow>> _tileRows(Expression<bool> where) =>
+      (select(scienceTileMetrics)
+            ..where((_) => where)
             ..orderBy([
               (tbl) => OrderingTerm.desc(tbl.timestamp),
               (tbl) => OrderingTerm.asc(tbl.tileRow),
               (tbl) => OrderingTerm.asc(tbl.tileCol),
             ]))
           .get();
-    });
-  }
 
   Future<List<ScienceTileMetricRow>> getTileMetricsForSession(
     int sessionId, {
@@ -637,24 +661,6 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
             (tbl) => OrderingTerm.asc(tbl.tileCol),
           ]))
         .get();
-  }
-
-  Stream<List<ScienceTileMetricRow>> watchTileMetricsForSessionLayer(
-    int sessionId,
-    String layerType,
-  ) {
-    return (select(scienceTileMetrics)
-          ..where(
-            (tbl) =>
-                tbl.sessionId.equals(sessionId) &
-                tbl.layerType.equals(layerType),
-          )
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.timestamp),
-            (tbl) => OrderingTerm.asc(tbl.tileRow),
-            (tbl) => OrderingTerm.asc(tbl.tileCol),
-          ]))
-        .watch();
   }
 
   Future<void> replaceResidualVectorsForImage(
@@ -834,19 +840,26 @@ class ScienceDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
+  // With no frame to go by, the last measurement: sessionless rows pile up
+  // over every night, and the live lane stamps one frame's rows with its time.
   @override
-  Stream<List<ScienceTileMetricRow>> watchSessionlessTileMetricsRecent({
-    int limit = 500,
-  }) {
-    return (select(scienceTileMetrics)
-          ..where((tbl) => tbl.sessionId.isNull())
-          ..orderBy([
-            (tbl) => OrderingTerm.desc(tbl.timestamp),
-            (tbl) => OrderingTerm.asc(tbl.tileRow),
-            (tbl) => OrderingTerm.asc(tbl.tileCol),
-          ])
-          ..limit(limit))
-        .watch();
+  Stream<List<ScienceTileMetricRow>> watchSessionlessTileMetricsRecent() {
+    final t = scienceTileMetrics;
+    final sessionless = t.sessionId.isNull();
+    final frame = coalesce<int>(_lastMeasuredTileFrame(sessionless));
+    final newest = _newestTile(sessionless);
+    return selectExpressions([frame, newest]).watchSingle().asyncMap((row) {
+      final frameId = row.read(frame);
+      final measuredAt = row.read(newest);
+      return _tileRows(
+        sessionless &
+            (frameId != null
+                ? t.capturedImageId.equals(frameId)
+                : measuredAt == null
+                ? const Constant(false)
+                : t.timestamp.equals(measuredAt)),
+      );
+    });
   }
 
   @override

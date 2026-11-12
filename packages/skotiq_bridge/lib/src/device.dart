@@ -39,7 +39,10 @@ class CameraStatus {
   final double? sensorTemp;
   final double? coolerPower;
   final double? targetTemp;
-  final bool coolerOn;
+
+  /// `None` when the camera does not say and this connection has not set
+  /// it; see `skotiq_device::CameraStatus::cooler_on`.
+  final bool? coolerOn;
   final int gain;
   final int offset;
   final int binX;
@@ -64,7 +67,7 @@ class CameraStatus {
     this.sensorTemp,
     this.coolerPower,
     this.targetTemp,
-    required this.coolerOn,
+    this.coolerOn,
     required this.gain,
     required this.offset,
     required this.binX,

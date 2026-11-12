@@ -34,19 +34,18 @@ impl DeviceDriver for QhyCamera {
         let sdk = QhySdk::lock().await?;
         let (handle, _) = session::join(&sdk, &self.camera_id)?;
         self.handle = Some(handle);
-        if let Err(error) = self.configure(&sdk) {
+        self.current_gain = 0;
+        self.current_offset = 0;
+        self.gain_written = false;
+        self.offset_written = false;
+        let configured = self
+            .configure(&sdk)
+            .and_then(|()| self.settle_gain_and_offset(&sdk));
+        if let Err(error) = configured {
             self.handle = None;
             session::leave(&sdk, &self.camera_id);
             return Err(error);
         }
-        self.current_gain = self
-            .read(&sdk, QhyControl::CONTROL_GAIN)
-            .map_or(0, |g| g as i32);
-        self.current_offset = self
-            .read(&sdk, QhyControl::CONTROL_OFFSET)
-            .map_or(0, |o| o as i32);
-        self.gain_written = false;
-        self.offset_written = false;
         self.exposure = None;
         self.connected = true;
         tracing::info!(
@@ -117,7 +116,11 @@ impl CameraDriver for QhyCamera {
             state,
             sensor_temp: self.temperature(&sdk),
             target_temp: self.cooler_target_c,
-            cooler_on: self.cooler_on,
+            cooler_on: if self.has_cooler {
+                self.cooler_on
+            } else {
+                Some(false)
+            },
             cooler_power: self.cooler_power(&sdk),
             gain: self.current_gain,
             offset: self.current_offset,
@@ -170,8 +173,8 @@ impl CameraDriver for QhyCamera {
                 } else {
                     SHUTTER_CLOSED
                 };
-                // SAFETY: `handle` is open and the SDK lock is held.
                 check_qhy_error(
+                    // SAFETY: `handle` is open and the SDK lock is held.
                     unsafe { control_shutter(handle, state) },
                     "move its shutter",
                 )?;
@@ -404,7 +407,7 @@ impl CameraDriver for QhyCamera {
             }
             let sdk = self.sdk().await?;
             self.start_cooling(&sdk, target)?;
-            self.cooler_on = true;
+            self.cooler_on = Some(true);
             self.cooler_target_c = Some(target);
         } else {
             self.keepalive.stop();
@@ -426,7 +429,7 @@ impl CameraDriver for QhyCamera {
                     "switch its cooler off",
                 )?;
             }
-            self.cooler_on = false;
+            self.cooler_on = Some(false);
             self.cooler_target_c = None;
         }
         Ok(())
@@ -643,7 +646,10 @@ impl CameraDriver for QhyCamera {
             if restore_init != QHYCCD_SUCCESS {
                 rollback_failures.push(format!("InitQHYCCD error {}", restore_init));
             }
-            if let Err(e) = self.configure(&sdk) {
+            if let Err(e) = self
+                .configure(&sdk)
+                .and_then(|()| self.settle_gain_and_offset(&sdk))
+            {
                 rollback_failures.push(format!("settings refresh failed: {}", e));
             }
             if rollback_failures.is_empty() {
@@ -667,25 +673,8 @@ impl CameraDriver for QhyCamera {
         }
 
         self.configure(&sdk)?;
-        if self.gain_written {
-            let gain = self.current_gain;
-            self.write(
-                &sdk,
-                QhyControl::CONTROL_GAIN,
-                f64::from(gain),
-                &format!("keep the gain {gain} in the new read mode"),
-            )?;
-        }
-        if self.offset_written {
-            let offset = self.current_offset;
-            self.write(
-                &sdk,
-                QhyControl::CONTROL_OFFSET,
-                f64::from(offset),
-                &format!("keep the offset {offset} in the new read mode"),
-            )?;
-        }
-        if self.cooler_on {
+        self.settle_gain_and_offset(&sdk)?;
+        if self.cooler_on == Some(true) {
             if let Some(target) = self.cooler_target_c {
                 self.start_cooling(&sdk, target)?;
             }

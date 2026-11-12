@@ -21,7 +21,9 @@ export 'src/database/database_aliases.dart';
 // Aliases for class names hidden from the barrel due to symbol collisions
 // (legacy HorizonProfile vs scheduler HorizonProfile).
 export 'src/legacy_aliases.dart';
+export 'src/database/database_health_check.dart';
 export 'src/database/integrity_check.dart';
+export 'src/database/integrity_findings.dart';
 export 'src/database/recovery/crash_recovery.dart';
 export 'src/database/integration_stage_marker.dart';
 export 'src/database/session_orphan_sweep.dart';

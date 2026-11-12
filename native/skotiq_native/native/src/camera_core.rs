@@ -1,14 +1,14 @@
 //! What every vendor camera driver keeps and does the same way.
 //!
 //! [`CameraCore`] is the state each driver embeds (identity, connection,
-//! gain/offset/binning/subframe, cooler command, exposure timing, capabilities
-//! and sensor description), with the one connected check. [`Frame`] is the one
+//! gain/offset/binning/subframe, what is known of the cooler, exposure timing,
+//! capabilities and sensor description), with the one connected check. [`Frame`] is the one
 //! place a downloaded frame becomes [`ImageData`]; the free functions are the
 //! pixel unpacking and SDK-value conversions the drivers share.
 //!
 //! Rules that differ between vendors are inputs here, never decided here: each
-//! driver names its byte order, its 8-bit rule, its cooler default and the
-//! metadata values that do not come from the cached state.
+//! driver names its byte order, its 8-bit rule and the metadata values that
+//! do not come from the cached state.
 
 use skotiq_device::camera::{
     BayerPattern, CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame,
@@ -18,29 +18,21 @@ use skotiq_device::{DriverError, ExposureAbort};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-/// The cooler state a driver last commanded or read back.
-///
-/// Several SDKs cannot read back "is the cooler commanded on?" (or fail to
-/// now and then), so status falls back to this.
-///
-/// The set-point before any command is each vendor's own, passed to
-/// [`CoolerState::off`]: -10 C for ZWO, SVBony, Atik, FLI and Touptek (the
-/// value those drivers held before they shared this type), 0 C for Player One
-/// and Moravian.
+/// What a driver knows of its camera's cooler: the camera's last read-back
+/// or this connection's last accepted command. A field is `None` until one of
+/// the two has said it; a driver never fills it with a default, because a
+/// camera can still be cooling from an earlier session.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct CoolerState {
-    pub(crate) enabled: bool,
-    pub(crate) target_c: f64,
+    pub(crate) enabled: Option<bool>,
+    pub(crate) target_c: Option<f64>,
 }
 
 impl CoolerState {
-    /// Cooler off, with the set-point the vendor reports before any command.
-    pub(crate) fn off(target_c: f64) -> Self {
-        Self {
-            enabled: false,
-            target_c,
-        }
-    }
+    pub(crate) const UNKNOWN: Self = Self {
+        enabled: None,
+        target_c: None,
+    };
 }
 
 /// An abort asked for while a frame read is in flight. The read checks it
@@ -78,8 +70,8 @@ pub(crate) struct CameraCore {
 }
 
 impl CameraCore {
-    /// A disconnected camera at bin 1, gain and offset 0, cooler off.
-    pub(crate) fn new(device_id: String, name: String, cooler_default_target_c: f64) -> Self {
+    /// A disconnected camera at bin 1, gain and offset 0, cooler unknown.
+    pub(crate) fn new(device_id: String, name: String) -> Self {
         Self {
             device_id,
             name,
@@ -92,7 +84,7 @@ impl CameraCore {
             bin_x: 1,
             bin_y: 1,
             subframe: None,
-            cooler: std::sync::Mutex::new(CoolerState::off(cooler_default_target_c)),
+            cooler: std::sync::Mutex::new(CoolerState::UNKNOWN),
             exposure_started_at: None,
             exposure_duration: 0.0,
             abort: Arc::default(),
@@ -416,7 +408,7 @@ mod tests {
 
     #[test]
     fn only_a_connected_core_passes_the_guard() {
-        let mut core = CameraCore::new("native:test:0".into(), "Test".into(), -10.0);
+        let mut core = CameraCore::new("native:test:0".into(), "Test".into());
         assert!(matches!(
             core.require_connected(),
             Err(DriverError::NotConnected)
@@ -427,7 +419,7 @@ mod tests {
 
     #[test]
     fn a_frame_takes_cached_state_unless_the_driver_overrides_it() {
-        let mut core = CameraCore::new("native:test:0".into(), "Test".into(), 0.0);
+        let mut core = CameraCore::new("native:test:0".into(), "Test".into());
         core.gain = 120;
         core.offset = 30;
         core.bin_x = 2;

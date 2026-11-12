@@ -228,6 +228,9 @@ struct ScriptedDomeRotatorOps {
     focuser_move_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// When `Some`, `cover_calibrator_open_cover` fails with this error.
     cover_open_error: Option<crate::device_ops::DeviceError>,
+    /// When `Some`, the ASCOM `CalibratorStatus` number every state read
+    /// answers.
+    calibrator_state: Option<i32>,
 }
 
 impl ScriptedDomeRotatorOps {
@@ -321,6 +324,7 @@ impl ScriptedDomeRotatorOps {
             filter_stalled_moves: AtomicU32::new(0),
             focuser_move_failures: Mutex::new(std::collections::VecDeque::new()),
             cover_open_error: None,
+            calibrator_state: None,
         }
     }
 
@@ -334,6 +338,11 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// Fail every cover open with `error`.
+    fn with_calibrator_state(mut self, state: i32) -> Self {
+        self.calibrator_state = Some(state);
+        self
+    }
+
     fn failing_cover_open(mut self, error: crate::device_ops::DeviceError) -> Self {
         self.cover_open_error = Some(error);
         self
@@ -1115,7 +1124,10 @@ impl CoverCalibratorOps for ScriptedDomeRotatorOps {
         self.inner.cover_calibrator_get_cover_state(id).await
     }
     async fn cover_calibrator_get_calibrator_state(&self, id: &str) -> DeviceResult<i32> {
-        self.inner.cover_calibrator_get_calibrator_state(id).await
+        match self.calibrator_state {
+            Some(state) => Ok(state),
+            None => self.inner.cover_calibrator_get_calibrator_state(id).await,
+        }
     }
     async fn cover_calibrator_get_brightness(&self, id: &str) -> DeviceResult<i32> {
         self.inner.cover_calibrator_get_brightness(id).await

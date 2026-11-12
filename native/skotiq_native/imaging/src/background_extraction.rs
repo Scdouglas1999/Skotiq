@@ -819,7 +819,7 @@ pub(crate) fn solve_poly_fit(
 /// outer loop swaps whole rows. Index arithmetic is the clearest and most
 /// borrow-checker-friendly way to express the simultaneous cross-row access.
 #[allow(clippy::needless_range_loop)]
-fn solve_linear_system(mut m: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
+pub(crate) fn solve_linear_system(mut m: Vec<Vec<f64>>, mut b: Vec<f64>) -> Option<Vec<f64>> {
     let n = b.len();
     if n == 0 || m.len() != n {
         return None;

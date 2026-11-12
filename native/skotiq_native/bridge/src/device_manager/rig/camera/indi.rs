@@ -502,7 +502,6 @@ impl Camera for IndiCameraHandle {
             .get_switch(&device_name, indi::CCD_COOLER, indi::COOLER_ON)
             .await;
         let has_cooler = cooler_state.is_some();
-        let cooler_on = cooler_state.unwrap_or(false);
         let bin_x = locked_client
             .get_number(&device_name, indi::CCD_BINNING, indi::HOR_BIN)
             .await
@@ -647,7 +646,7 @@ impl Camera for IndiCameraHandle {
             sensor_temp,
             cooler_power,
             target_temp: None,
-            cooler_on,
+            cooler_on: cooler_state,
             gain,
             offset,
             bin_x,

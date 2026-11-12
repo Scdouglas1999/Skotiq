@@ -406,6 +406,10 @@ impl SwitchDriver for SimSwitch {
     async fn max_value(&self, index: i32) -> Result<f64, DriverError> {
         Ok(sim::sim_switch_read(index).await.map_err(refuse)?.max)
     }
+
+    async fn step(&self, index: i32) -> Result<f64, DriverError> {
+        Ok(sim::sim_switch_read(index).await.map_err(refuse)?.step)
+    }
 }
 
 struct SimWeather {

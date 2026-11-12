@@ -426,10 +426,16 @@ pub fn write_frame_as(
 }
 
 /// Edit a file's metadata in place; its pixels are not touched.
+///
+/// One edit at a time: each reads the file, changes it and replaces it whole,
+/// so two at once on one frame (the solved WCS and the science keywords both
+/// arrive seconds after a capture) would drop one's cards or mix both files.
 pub fn rewrite_frame_header(
     path: &Path,
     mut edit: impl FnMut(&mut FitsHeader),
 ) -> Result<(), FrameIoError> {
+    static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _held = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
     codec_for_file(path)?.rewrite_header(path, &mut edit)
 }
 
@@ -475,7 +481,8 @@ impl Drop for FitsCopy {
 }
 
 /// Write through a sibling file and move it into place, so no reader sees a
-/// half-written file.
+/// half-written file. The new file is flushed to disk before it takes the
+/// old one's name: the old file is the only copy of the frame.
 fn replace_file(
     path: &Path,
     write: impl FnOnce(&Path) -> Result<(), FrameIoError>,
@@ -486,10 +493,16 @@ fn replace_file(
         let _ = std::fs::remove_file(&staged);
         return Err(e);
     }
-    std::fs::rename(&staged, path).map_err(|e| {
-        let _ = std::fs::remove_file(&staged);
-        FrameIoError::Io(e)
-    })
+    // Opened for writing: Windows flushes only a handle that may write.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&staged)
+        .and_then(|file| file.sync_all())
+        .and_then(|()| std::fs::rename(&staged, path))
+        .map_err(|e| {
+            let _ = std::fs::remove_file(&staged);
+            FrameIoError::Io(e)
+        })
 }
 
 #[cfg(test)]
@@ -514,6 +527,46 @@ mod tests {
                 assert_eq!(size("NAXIS1"), Some(7), "{extension}");
                 assert_eq!(size("NAXIS2"), Some(5), "{extension}");
                 assert_eq!(size("NAXIS3"), (channels > 1).then_some(3), "{extension}");
+            }
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Two edits of one frame at the same moment both land, and the pixels
+    /// are the ones saved.
+    #[test]
+    fn two_edits_of_one_frame_at_once_both_land() {
+        let dir = std::env::temp_dir().join(format!("sk-frame-edits-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let pixels: Vec<u16> = (0..640 * 480).map(|i| (i % 60000) as u16).collect();
+        let image = ImageData::from_u16(640, 480, 1, &pixels);
+        for extension in ["fits", "xisf"] {
+            let path = dir.join(format!("frame.{extension}"));
+            write_frame(&path, &image, &FitsHeader::new()).unwrap();
+            for round in 0..20i64 {
+                std::thread::scope(|scope| {
+                    for writer in ["SK-ONE", "SK-TWO"] {
+                        let path = &path;
+                        scope.spawn(move || {
+                            rewrite_frame_header(path, |header| {
+                                // Cards of growing size, so the two files differ in layout.
+                                for card in 0..=round {
+                                    header.set_int(&format!("{writer}{card}"), round);
+                                }
+                            })
+                            .unwrap()
+                        });
+                    }
+                });
+                let (read_back, header) = read_frame(&path).unwrap();
+                for writer in ["SK-ONE", "SK-TWO"] {
+                    assert_eq!(
+                        header.get_int(&format!("{writer}{round}")),
+                        Some(round),
+                        "{extension} round {round}: {writer}'s cards were lost"
+                    );
+                }
+                assert_eq!(read_back.as_u16().unwrap(), pixels, "{extension} round {round}");
             }
         }
         let _ = std::fs::remove_dir_all(&dir);

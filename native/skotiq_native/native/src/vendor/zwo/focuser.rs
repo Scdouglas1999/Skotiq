@@ -151,6 +151,16 @@ pub(crate) fn check_eaf_error(code: c_int) -> Result<(), DriverError> {
     }
 }
 
+/// [`check_eaf_error`] for a call on a focuser that `connect` opened: an id the
+/// SDK no longer knows (INVALID_INDEX, INVALID_ID) is a focuser that left the
+/// bus, as for the camera ([`super::sdk::check_open_camera_error`]).
+pub(crate) fn check_open_focuser_error(code: c_int) -> Result<(), DriverError> {
+    match code {
+        1 | 2 => Err(DriverError::Disconnected),
+        _ => check_eaf_error(code),
+    }
+}
+
 #[derive(Debug)]
 pub struct ZwoFocuser {
     pub(crate) focuser_id: i32,
@@ -378,7 +388,7 @@ impl FocuserDriver for ZwoFocuser {
         // SAFETY: `target` was validated to be in
         // [0, max_position]; focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.move_to)(self.focuser_id, target) };
-        check_eaf_error(result)
+        check_open_focuser_error(result)
     }
 
     async fn move_relative(&mut self, steps: i32) -> Result<(), DriverError> {
@@ -405,7 +415,7 @@ impl FocuserDriver for ZwoFocuser {
         let mut position: c_int = 0;
         // SAFETY: `position` is a valid stack pointer; focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.get_position)(self.focuser_id, &mut position) };
-        check_eaf_error(result)?;
+        check_open_focuser_error(result)?;
         Ok(position)
     }
 
@@ -419,7 +429,7 @@ impl FocuserDriver for ZwoFocuser {
         let mut hand_control = false;
         // SAFETY: both out-bool pointers point to valid stack bools (SDK writes 0 or 1); focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.is_moving)(self.focuser_id, &mut is_moving, &mut hand_control) };
-        check_eaf_error(result)?;
+        check_open_focuser_error(result)?;
         Ok(is_moving)
     }
 
@@ -432,7 +442,7 @@ impl FocuserDriver for ZwoFocuser {
         tracing::debug!("Stopping ZWO EAF movement");
         // SAFETY: focuser_id is valid (connected=true checked).
         let result = unsafe { (sdk.stop)(self.focuser_id) };
-        check_eaf_error(result)
+        check_open_focuser_error(result)
     }
 
     async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {

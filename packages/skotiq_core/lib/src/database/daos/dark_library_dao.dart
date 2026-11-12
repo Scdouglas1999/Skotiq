@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 
 import '../../models/calibration/dark_library_match_tolerances.dart';
 import '../../services/logging_service.dart';
+import '../camera_setting_match.dart';
 import '../database.dart';
 import '../tables/dark_library.dart';
 
@@ -79,8 +80,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
   /// "all darks present" while this method returned null at runtime.
   Future<DarkLibraryEntry?> findBestMatch({
     required double exposureTime,
-    required int gain,
-    required int offset,
+    required int? gain,
+    required int? offset,
     required int binX,
     required int binY,
     double? temperature,
@@ -94,8 +95,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
         (t) =>
             t.exposureTime.isBiggerOrEqualValue(exposureTime - exposureTol) &
             t.exposureTime.isSmallerOrEqualValue(exposureTime + exposureTol) &
-            t.gain.equals(gain) &
-            t.offset.equals(offset) &
+            t.gain.isSetting(gain) &
+            t.offset.isSetting(offset) &
             t.binX.equals(binX) &
             t.binY.equals(binY) &
             t.frameType.equals(frameType),
@@ -149,8 +150,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
   /// runtime.
   Future<List<DarkLibraryEntry>> getMatchingFrames({
     required double exposureTime,
-    required int gain,
-    required int offset,
+    required int? gain,
+    required int? offset,
     required int binX,
     required int binY,
     String frameType = 'dark',
@@ -166,8 +167,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
                 t.exposureTime.isSmallerOrEqualValue(
                   exposureTime + exposureTol,
                 ) &
-                t.gain.equals(gain) &
-                t.offset.equals(offset) &
+                t.gain.isSetting(gain) &
+                t.offset.isSetting(offset) &
                 t.binX.equals(binX) &
                 t.binY.equals(binY) &
                 t.frameType.equals(frameType) &
@@ -189,8 +190,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
           ..where(
             (t) =>
                 t.exposureTime.equals(group.exposureTime) &
-                t.gain.equals(group.gain) &
-                t.offset.equals(group.offset) &
+                t.gain.isSetting(group.gain) &
+                t.offset.isSetting(group.offset) &
                 t.binX.equals(group.binX) &
                 t.binY.equals(group.binY) &
                 t.frameType.equals(group.frameType),
@@ -481,8 +482,8 @@ class DarkLibraryDao extends DatabaseAccessor<SkotiqDatabase>
       return DarkGroupKey(
         frameType: row.read(darkLibrary.frameType)!,
         exposureTime: row.read(darkLibrary.exposureTime)!,
-        gain: row.read(darkLibrary.gain)!,
-        offset: row.read(darkLibrary.offset)!,
+        gain: row.read(darkLibrary.gain),
+        offset: row.read(darkLibrary.offset),
         binX: row.read(darkLibrary.binX)!,
         binY: row.read(darkLibrary.binY)!,
       );
@@ -508,8 +509,10 @@ class DarkLibraryStats {
 class DarkGroupKey {
   final String frameType;
   final double exposureTime;
-  final int gain;
-  final int offset;
+
+  /// Null for a camera without gain or offset control.
+  final int? gain;
+  final int? offset;
   final int binX;
   final int binY;
 

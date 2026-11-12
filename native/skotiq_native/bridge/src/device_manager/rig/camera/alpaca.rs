@@ -308,7 +308,7 @@ impl Camera for AlpacaCameraHandle {
             sensor_temp: status.ccd_temperature,
             cooler_power: status.cooler_power,
             target_temp: setpoint,
-            cooler_on: status.cooler_on.unwrap_or(false),
+            cooler_on: status.cooler_on,
             gain: gain.unwrap_or(0),
             offset: offset.unwrap_or(0),
             bin_x: status.bin_x,

@@ -216,6 +216,10 @@ pub struct DeviceManager {
     /// Whether each device's status reads are still succeeding; the heartbeat
     /// counts a run of failures as a failed poll. See [`read_health`].
     pub(crate) status_reads: read_health::StatusReadHealth,
+
+    /// Cameras already told about a pixel size they do not report; the notice
+    /// goes out once per camera per run. See `publish_unknown_pixel_size_notice`.
+    pub(crate) pixel_size_notices: std::sync::Mutex<std::collections::HashSet<String>>,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -342,6 +346,7 @@ impl DeviceManager {
             command_activity: Default::default(),
             published_temperatures: Default::default(),
             status_reads: Default::default(),
+            pixel_size_notices: Default::default(),
         });
 
         // Start the reconnection background task

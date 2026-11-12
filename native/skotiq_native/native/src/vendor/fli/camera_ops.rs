@@ -67,8 +67,15 @@ impl CameraDriver for FliCamera {
             state: self.core.state,
             sensor_temp,
             cooler_power,
-            target_temp: Some(self.core.cooler().target_c),
-            cooler_on: self.core.cooler().enabled,
+            // libfli has no cooler switch and no getter for the set-point
+            // FLISetTemperature writes (libfli.h), so both are known only once
+            // this connection has set them; the power above is the camera's.
+            target_temp: self.core.cooler().target_c,
+            cooler_on: if self.core.capabilities.can_cool {
+                self.core.cooler().enabled
+            } else {
+                Some(false)
+            },
             gain: self.core.gain,
             offset: self.core.offset,
             bin_x: self.core.bin_x,
@@ -248,10 +255,16 @@ impl CameraDriver for FliCamera {
         let sdk = FliSdk::lock().await?;
 
         // FLISetTemperature *is* the enable on this SDK: cooling needs a
-        // setpoint, so when the caller names none we reuse the one this driver
-        // already holds instead of inventing a temperature.
+        // setpoint, so when the caller names none, the one this connection
+        // last set, never an invented temperature.
         let setpoint_c = if enabled {
-            target_temp.unwrap_or(self.core.cooler().target_c)
+            target_temp.or(self.core.cooler().target_c).ok_or_else(|| {
+                DriverError::InvalidParameter(format!(
+                    "FLI camera '{}' needs a target temperature to cool: \
+                     the camera cannot report the one it holds",
+                    self.core.name
+                ))
+            })?
         } else {
             FLI_COOLER_OFF_SETPOINT_C
         };
@@ -261,9 +274,9 @@ impl CameraDriver for FliCamera {
         check_fli_error(result, "set temperature")?;
 
         self.core.update_cooler(|cooler| {
-            cooler.enabled = enabled;
+            cooler.enabled = Some(enabled);
             if enabled {
-                cooler.target_c = setpoint_c;
+                cooler.target_c = Some(setpoint_c);
             }
         });
         Ok(())

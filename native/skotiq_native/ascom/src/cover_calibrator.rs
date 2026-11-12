@@ -1,4 +1,4 @@
-//! ASCOM Cover Calibrator wrapper and batch status types.
+//! ASCOM Cover Calibrator wrapper.
 
 use crate::com::ComDispatch;
 
@@ -6,26 +6,6 @@ com_device!(CoverCalibrator);
 
 impl<D: ComDispatch> CoverCalibrator<D> {
     skotiq_device::ascom_cover_calibrator_members!(com_member);
-
-    /// Get complete cover calibrator status in a single batch operation
-    pub fn get_full_status(&self) -> CoverCalibratorFullStatus {
-        CoverCalibratorFullStatus {
-            cover_state: self.cover_state().ok(),
-            calibrator_state: self.calibrator_state().ok(),
-            brightness: self.brightness().ok(),
-            max_brightness: self.max_brightness().ok(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct CoverCalibratorFullStatus {
-    /// Cover state (0=NotPresent, 1=Closed, 2=Moving, 3=Open, 4=Unknown, 5=Error)
-    pub cover_state: Option<i32>,
-    /// Calibrator state (0=NotPresent, 1=Off, 2=NotReady, 3=Ready, 4=Unknown, 5=Error)
-    pub calibrator_state: Option<i32>,
-    pub brightness: Option<i32>,
-    pub max_brightness: Option<i32>,
 }
 
 /// `CalibratorOn` must pass an `EXCEPINFO` to `IDispatch::Invoke`. Without it
@@ -46,7 +26,7 @@ mod excepinfo_tests {
             },
             false,
         );
-        let mut panel = CoverCalibrator { device };
+        let panel = CoverCalibrator { device };
 
         let err = panel.calibrator_on(5000).unwrap_err().to_string();
 

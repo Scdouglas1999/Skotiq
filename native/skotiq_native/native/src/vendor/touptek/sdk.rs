@@ -333,24 +333,32 @@ pub(crate) fn open_touptek_device(
     }
 }
 
-pub(crate) fn touptek_static_cstr(ptr: *const c_char) -> Option<String> {
+/// A NUL-terminated string the SDK owns, in the SDK's character type.
+pub(crate) fn touptek_static_str(ptr: *const OgmacamChar) -> Option<String> {
     if ptr.is_null() {
         return None;
     }
 
-    // SAFETY: Touptek-family Version functions return static, NUL-terminated C strings
-    // owned by the loaded SDK shared library.
+    #[cfg(windows)]
+    // SAFETY: `ptr` is a static, NUL-terminated UTF-16 string owned by the loaded SDK
+    // library; every unit read lies before or at its terminator.
+    let value = unsafe {
+        let len = (0..).take_while(|&i| *ptr.add(i) != 0).count();
+        String::from_utf16_lossy(std::slice::from_raw_parts(ptr, len))
+    };
+    #[cfg(not(windows))]
+    // SAFETY: `ptr` is a static, NUL-terminated C string owned by the loaded SDK library.
     let value = unsafe { CStr::from_ptr(ptr) }
         .to_string_lossy()
-        .trim()
-        .to_string();
-    (!value.is_empty()).then_some(value)
+        .into_owned();
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_string())
 }
 
 pub(crate) fn sdk_version_from_sdk(sdk: &TouptekSdk, brand: &str) -> Option<String> {
     let version = sdk.version?;
     // SAFETY: <Prefix>_Version takes no arguments and returns a static C string.
-    touptek_static_cstr(unsafe { version() }).map(|value| format!("{brand} SDK v{value}"))
+    touptek_static_str(unsafe { version() }).map(|value| format!("{brand} SDK v{value}"))
 }
 
 /// What a failed SDK call's HRESULT means, in words a camera owner can act on.

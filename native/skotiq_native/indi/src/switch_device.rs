@@ -283,4 +283,8 @@ impl skotiq_device::SwitchDriver for IndiSwitchDevice {
     async fn max_value(&self, _index: i32) -> Result<f64, skotiq_device::DriverError> {
         Ok(1.0)
     }
+
+    async fn step(&self, _index: i32) -> Result<f64, skotiq_device::DriverError> {
+        Ok(1.0)
+    }
 }

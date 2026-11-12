@@ -68,7 +68,6 @@ impl MoravianCamera {
             core: CameraCore::new(
                 format!("moravian_{}", camera_id),
                 format!("Moravian Camera {}", camera_id),
-                0.0,
             ),
             handle: SdkHandle(std::ptr::null_mut()),
             serial: None,
@@ -106,7 +105,7 @@ impl MoravianCamera {
     /// The error for a failed call: the camera's disconnection when it says
     /// it is gone, else the library's reason.
     pub(crate) fn failure(&self, session: &Session<'_>, doing: &str) -> DriverError {
-        if session.boolean(GBP_CONNECTED) == Some(false) {
+        if !still_connected(session) {
             tracing::warn!(
                 "Moravian camera '{}' is no longer connected ({} failed)",
                 self.core.name,
@@ -296,9 +295,7 @@ impl MoravianCamera {
 
     pub(crate) fn status(&self, api: &dyn Api) -> Result<CameraStatus, DriverError> {
         let session = self.session(api);
-        // The one reading that says whether the camera is still there
-        // (gxccd.h:223); NINA's Connected is this flag.
-        if session.boolean(GBP_CONNECTED) == Some(false) {
+        if !still_connected(&session) {
             tracing::warn!(
                 "Moravian camera '{}' reports it is no longer connected",
                 self.core.name
@@ -315,8 +312,15 @@ impl MoravianCamera {
             state: self.core.state,
             sensor_temp: session.value(GV_CHIP_TEMPERATURE).map(f64::from),
             cooler_power: cooler_percent(&session),
-            target_temp: Some(self.core.cooler().target_c),
-            cooler_on: self.core.cooler().enabled,
+            // gxccd reports neither the cooler switch nor its set-point
+            // (gxccd.h GV_*), so both are known only once this connection has
+            // set them; the power above is the camera's.
+            target_temp: self.core.cooler().target_c,
+            cooler_on: if self.core.capabilities.can_cool {
+                self.core.cooler().enabled
+            } else {
+                Some(false)
+            },
             gain: self.core.gain,
             offset: self.core.offset,
             bin_x: self.core.bin_x,
@@ -609,6 +613,10 @@ impl MoravianCamera {
         session: &Session<'_>,
         index: u32,
     ) -> Result<(), DriverError> {
+        if self.read_modes.is_empty() && index == 0 {
+            // The one mode `offered_read_modes` names for a camera that lists none.
+            return Ok(());
+        }
         if index as usize >= self.read_modes.len() {
             return Err(DriverError::InvalidParameter(format!(
                 "Moravian camera '{}' has {} read modes, not mode {}",
@@ -629,19 +637,42 @@ impl MoravianCamera {
         session: &Session<'_>,
         name: &str,
     ) -> Result<(), DriverError> {
-        let index = self
-            .read_modes
+        let offered = self.offered_read_modes();
+        let mode = offered
             .iter()
-            .position(|mode| mode.eq_ignore_ascii_case(name))
+            .find(|mode| mode.name.eq_ignore_ascii_case(name))
             .ok_or_else(|| {
+                let names: Vec<_> = offered.iter().map(|mode| mode.name.as_str()).collect();
                 DriverError::InvalidParameter(format!(
                     "Moravian camera '{}' has no read mode '{}' (it has {})",
                     self.core.name,
                     name,
-                    self.read_modes.join(", ")
+                    names.join(", ")
                 ))
             })?;
-        self.apply_read_mode(session, index as u32)
+        self.apply_read_mode(session, mode.index as u32)
+    }
+
+    /// The read modes a user can pick: the camera's own, or one standard mode
+    /// when its library lists none (NINA's "Default", MoravianCamera.cs:204-208).
+    pub(crate) fn offered_read_modes(&self) -> Vec<ReadoutMode> {
+        let mode = |index: usize, name: &str, description: &str| ReadoutMode {
+            name: name.to_string(),
+            description: description.to_string(),
+            index: index as i32,
+            gain_min: None,
+            gain_max: None,
+            offset_min: None,
+            offset_max: None,
+        };
+        if self.read_modes.is_empty() {
+            return vec![mode(0, "Normal", "Standard readout mode")];
+        }
+        self.read_modes
+            .iter()
+            .enumerate()
+            .map(|(index, name)| mode(index, name, name))
+            .collect()
     }
 
     pub(crate) fn read_mode_name(&self) -> Option<String> {
@@ -659,21 +690,28 @@ impl MoravianCamera {
         let session = self.session(api);
         if enabled {
             // Setting a temperature is what switches cooling on; without a named
-            // set-point the one this driver holds is kept.
-            let target = target.unwrap_or(self.core.cooler().target_c);
+            // set-point, the one this connection last set, never an invented one.
+            let target = target.or(self.core.cooler().target_c).ok_or_else(|| {
+                DriverError::InvalidParameter(format!(
+                    "Moravian camera '{}' needs a target temperature to cool: \
+                     the camera cannot report the one it holds",
+                    self.core.name
+                ))
+            })?;
             if !session.set_temperature(target as c_float) {
                 return Err(self.failure(&session, &format!("set the cooler to {:.1} C", target)));
             }
             self.core.update_cooler(|cooler| {
-                cooler.enabled = true;
-                cooler.target_c = target;
+                cooler.enabled = Some(true);
+                cooler.target_c = Some(target);
             });
             tracing::info!("Moravian cooler on: target {} C", target);
         } else {
             if !session.set_temperature(TEMP_COOLER_OFF) {
                 return Err(self.failure(&session, "turn the cooler off"));
             }
-            self.core.update_cooler(|cooler| cooler.enabled = false);
+            self.core
+                .update_cooler(|cooler| cooler.enabled = Some(false));
             tracing::info!("Moravian cooler off");
         }
         Ok(())
@@ -716,6 +754,14 @@ impl MoravianCamera {
             tokio::time::sleep(Duration::from_millis(READOUT_POLL_MS)).await;
         }
     }
+}
+
+/// Whether the camera is still there (GBP_CONNECTED, gxccd.h:223). Index 0
+/// is in every library, so a call that fails on it means the camera cannot
+/// answer: NINA's Connected is "the call succeeded and said true"
+/// (MoravianCamera.cs:70, GetBoolSafe).
+pub(crate) fn still_connected(session: &Session<'_>) -> bool {
+    session.boolean(GBP_CONNECTED) == Some(true)
 }
 
 /// The largest pixel value the camera delivers in its current read mode and binning.

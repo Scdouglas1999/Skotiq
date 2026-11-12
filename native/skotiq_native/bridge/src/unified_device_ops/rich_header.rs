@@ -15,19 +15,9 @@ pub(crate) fn build_rich_header(
     // carry, because the context is also what the `captured_images` row is
     // written from — one source, so a card and its column cannot disagree
     // about one frame. `ImageData` remains the fallback for callers that hand
-    // us a context with the field unset (the flat wizard, one-shot captures),
-    // which would otherwise lose the keyword outright.
-    //
-    // For the sequencer this changes nothing on disk: `build_frame_context_for_save`
-    // already folds the camera's own report into the context before calling
-    // here, so these fields are equal by construction. What it removes is the
-    // ability for them to stop being equal.
-    if header.gain.is_none() {
-        header.gain = image_data.gain;
-    }
-    if header.offset.is_none() {
-        header.offset = image_data.offset;
-    }
+    // us a context with the field unset, which would otherwise lose the
+    // keyword outright. Gain and offset have no fallback: the context holds
+    // the frame's own, and `None` there means the camera has no such control.
     if header.ccd_temp.is_none() {
         header.ccd_temp = image_data.temperature;
     }

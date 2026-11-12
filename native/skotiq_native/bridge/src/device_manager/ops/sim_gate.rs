@@ -463,7 +463,7 @@ mod fault_injection_tests {
             let mut cam = get_sim_camera().write().await;
             cam.status.target_temp = Some(-10.0);
             cam.status.sensor_temp = Some(20.0);
-            cam.status.cooler_on = true;
+            cam.status.cooler_on = Some(true);
         }
         sim_faults::arm(
             "camera.cooler",

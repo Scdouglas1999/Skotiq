@@ -210,7 +210,7 @@ void main() {
     await match('null filter gain 0', () => dao.findBestMatch());
     await match(
       'Ha bin2',
-      () => dao.findBestMatch(filter: 'Ha', binX: 2, binY: 2),
+      () => dao.findBestMatch(filter: 'Ha', gain: 0, binX: 2, binY: 2),
     );
     await match('Ha bin1 none', () => dao.findBestMatch(filter: 'Ha'));
     await match(

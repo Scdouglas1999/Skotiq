@@ -103,10 +103,11 @@ impl Camera for SimCamera {
             .await;
             let sim = crate::api::devices::simulation::get_sim_camera_for(device_id);
             let mut guard = sim.write().await;
-            if let Some(g) = gain {
+            // A camera without the control ignores the request.
+            if let Some(g) = gain.filter(|_| guard.status.can_set_gain) {
                 guard.status.gain = g;
             }
-            if let Some(o) = offset {
+            if let Some(o) = offset.filter(|_| guard.status.can_set_offset) {
                 guard.status.offset = o;
             }
             guard.status.bin_x = bin_x;
@@ -237,6 +238,11 @@ impl Camera for SimCamera {
                 crate::device_manager::ops::sim_gate::not_connected_camera(),
             ));
         }
+        if !cam.status.can_set_gain {
+            return Err(DeviceOpError::unsupported(
+                "This simulated camera has no gain control",
+            ));
+        }
         cam.status.gain = gain;
         Ok(())
     }
@@ -249,6 +255,11 @@ impl Camera for SimCamera {
             return Err(DeviceOpError::not_connected(
                 None,
                 crate::device_manager::ops::sim_gate::not_connected_camera(),
+            ));
+        }
+        if !cam.status.can_set_offset {
+            return Err(DeviceOpError::unsupported(
+                "This simulated camera has no offset control",
             ));
         }
         cam.status.offset = offset;
@@ -294,7 +305,7 @@ impl Camera for SimCamera {
                 crate::device_manager::ops::sim_gate::not_connected_camera(),
             ));
         }
-        cam.status.cooler_on = enabled;
+        cam.status.cooler_on = Some(enabled);
         if let Some(t) = target_temp {
             cam.status.target_temp = Some(t);
         }

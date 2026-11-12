@@ -259,6 +259,7 @@ pub(crate) struct SimSwitchReading {
     pub state: bool,
     pub min: f64,
     pub max: f64,
+    pub step: f64,
     pub writable: bool,
 }
 
@@ -286,6 +287,7 @@ pub(crate) async fn sim_switch_read(switch_id: i32) -> Result<SimSwitchReading, 
         state: sim_switch_value_as_bool(channel.value, channel.min, channel.max),
         min: channel.min,
         max: channel.max,
+        step: channel.step,
         writable: channel.writable,
     })
 }

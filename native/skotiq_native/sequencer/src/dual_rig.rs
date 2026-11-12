@@ -756,8 +756,6 @@ async fn capture_secondary_frame(
             rig: &rig,
             identity: &identity,
             commanded_secs: config.exposure_secs,
-            commanded_gain: config.gain,
-            commanded_offset: config.offset,
             binning: (config.bin_x.max(1) as u32, config.bin_y.max(1) as u32),
             frame_type: "Light",
             exposure_started_at,

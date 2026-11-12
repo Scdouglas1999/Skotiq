@@ -3,7 +3,8 @@ import 'dart:async';
 import '../models/backend/event_types.dart';
 import '../models/backend/host_mutation_event.dart';
 
-/// Fan-out point for host-authoritative REST mutations.
+/// Fan-out point for host-authoritative REST mutations, and for the notices
+/// the host raises in Dart ([announce]).
 ///
 /// Handlers publish here after successful writes. The hub always notifies local
 /// subscribers (desktop GUI EventBus merge + host-local sync). An optional
@@ -51,6 +52,16 @@ class HostMutationEventHub {
       entityId: entityId,
       extra: extra,
     );
+    wsBroadcast?.call(event);
+  }
+
+  /// A notice the host raised itself rather than a device or a run: the host
+  /// window's event history and night log show it, and so does every linked
+  /// client, live and (from the server's night log) when it links later.
+  void announce(SkotiqEvent event) {
+    if (!_controller.isClosed) {
+      _controller.add(event);
+    }
     wsBroadcast?.call(event);
   }
 

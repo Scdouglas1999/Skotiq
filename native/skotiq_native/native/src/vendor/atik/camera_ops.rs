@@ -54,7 +54,7 @@ impl AtikCamera {
         }
         for (value, is_offset) in [(params.gain, false), (params.offset, true)] {
             let Some(value) = value else { continue };
-            if self.facts.gain.is_settable() {
+            if self.facts.gain.takes(is_offset) {
                 self.apply_gain(sdk, value, is_offset)?;
             } else {
                 tracing::debug!(
@@ -276,7 +276,11 @@ impl AtikCamera {
             sensor_temp: sensor_temperature(sdk, handle),
             cooler_power: cooling.and_then(|c| c.power_percent()),
             target_temp: cooling.map(|c| c.setpoint_c()),
-            cooler_on: cooling.map_or(self.core.cooler().enabled, |c| c.is_cooling()),
+            cooler_on: if self.facts.has_cooling {
+                cooling.map_or(self.core.cooler().enabled, |c| Some(c.is_cooling()))
+            } else {
+                Some(false)
+            },
             gain: self.core.gain,
             offset: self.core.offset,
             bin_x: self.core.bin_x,
@@ -361,11 +365,16 @@ impl CameraDriver for AtikCamera {
         }
 
         // ArtemisSetCooling *is* the enable on this SDK, so cooling needs a
-        // setpoint; when the caller names none we reuse the one this driver
-        // already holds rather than inventing a temperature. Switching off
-        // goes through ArtemisCoolerWarmUp and needs no setpoint at all.
+        // setpoint; when the caller names none, the one this connection last
+        // set, never an invented temperature. Switching off goes through
+        // ArtemisCoolerWarmUp and needs no setpoint at all.
         let setpoint_c = if enabled {
-            Some(target_temp.unwrap_or(self.core.cooler().target_c))
+            Some(target_temp.or(self.core.cooler().target_c).ok_or_else(|| {
+                DriverError::InvalidParameter(format!(
+                    "Atik camera '{}' needs a target temperature to cool",
+                    self.core.name
+                ))
+            })?)
         } else {
             None
         };
@@ -395,9 +404,9 @@ impl CameraDriver for AtikCamera {
         }
 
         self.core.update_cooler(|cooler| {
-            cooler.enabled = enabled;
+            cooler.enabled = Some(enabled);
             if let Some(target) = setpoint_c {
-                cooler.target_c = target;
+                cooler.target_c = Some(target);
             }
         });
         Ok(())
@@ -426,7 +435,7 @@ impl CameraDriver for AtikCamera {
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        if !self.facts.gain.is_settable() {
+        if !self.facts.gain.takes(false) {
             return Err(DriverError::NotSupported);
         }
         let sdk = self.sdk().await?;
@@ -439,7 +448,7 @@ impl CameraDriver for AtikCamera {
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        if !self.facts.gain.is_settable() {
+        if !self.facts.gain.takes(true) {
             return Err(DriverError::NotSupported);
         }
         let sdk = self.sdk().await?;
