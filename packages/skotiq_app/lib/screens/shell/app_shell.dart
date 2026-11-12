@@ -445,6 +445,12 @@ class _AppShellState extends ConsumerState<AppShell> {
     final startupReady = !ref.watch(
       appSettingsProvider.select((s) => s.isLoading),
     );
+    // A linked client's settings come from its host, so the splash waits for
+    // the host; say so once the draw is over.
+    final linkedHost = ref.watch(remoteLaunchTargetProvider);
+    final connectingToHost = linkedHost != null &&
+        ref.watch(remoteLaunchStatusProvider
+            .select((s) => s.phase == RemoteLaunchPhase.connecting));
     final currentLocation = _getCurrentLocation(context);
     final currentRoute = AppRoute.of(currentLocation);
     final shownByScreen = currentRoute?.showsItself ?? const {};
@@ -475,6 +481,9 @@ class _AppShellState extends ConsumerState<AppShell> {
         // update prompts — paint above it and stay interactive.
         final Widget shell = SkotiqSplashGate(
           ready: startupReady,
+          statusText: connectingToHost
+              ? 'Connecting to the imaging host at ${linkedHost.label}…'
+              : null,
           child: OnboardingTourReplayLauncher(
             child: TutorialOverlay(
               // Ctrl/Cmd+K anywhere in the shell. BOTH activators are bound

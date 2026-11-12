@@ -420,43 +420,20 @@ void main(List<String> args) async {
   if (host != null) {
     await runHostStartup(host, HostStartupPhase.core, hostStartupSteps);
   } else {
-    await initialiseCatalogManager(logger);
+    // The window does not wait for the host: a host that is off or asleep
+    // takes the connect's whole timeout to answer. Until it does, the shell
+    // shows "Connecting to the imaging host…", then the reason with Retry,
+    // and the status notifier keeps retrying on its own.
+    unawaited(_connectToLinkedHost(container, remoteTarget!, logger));
   }
+  final (shouldMinimize, _) = await (
+    shouldStartMinimized(container),
+    host == null ? initialiseCatalogManager(logger) : Future<void>.value(),
+  ).wait;
   startupTimeline.mark('host core steps');
-
-  final shouldMinimize = await shouldStartMinimized(container);
-  startupTimeline.mark('start minimized setting');
 
   await windowReady;
   startupTimeline.mark('window ready');
-
-  // Remote-client mode: connect to the headless rig now that the container is
-  // live, then invalidate the host-backed providers so they re-fetch against
-  // the open NetworkBackend connection (equipment profiles, app settings, and
-  // anything else keyed on the backend). Without this refresh they keep the
-  // empty value they resolved while the backend was still DisconnectedBackend,
-  // which is why profiles/devices appeared missing. Mirrors the mobile
-  // post-connect sequence (invalidate appSettings + equipmentProfiles).
-  if (remoteTarget != null) {
-    // A failed connect is shown in the window (with Retry) by the shell's
-    // connection banner; the status notifier keeps retrying an unreachable
-    // host on its own.
-    final connected = await container
-        .read(remoteLaunchStatusProvider.notifier)
-        .connect();
-    if (!connected) {
-      final status = container.read(remoteLaunchStatusProvider);
-      logger.warning(
-        'Remote connect to ${remoteTarget.scheme}://'
-        '${remoteTarget.host}:${remoteTarget.port} failed '
-        '(${status.failure?.name}): ${status.detail}',
-        source: 'desktop.main',
-      );
-    }
-    container.invalidate(appSettingsProvider);
-    container.invalidate(equipmentProfilesProvider);
-    startupTimeline.mark('linked host connect');
-  }
 
   if (host != null) {
     // --serve/--master turns the embedded host server on for this run only;
@@ -516,6 +493,28 @@ void main(List<String> args) async {
       await windowManager.minimize();
     }
   });
+}
+
+/// Connects a linked client to its host and logs why when it cannot.
+///
+/// A connect that succeeds re-reads the host-backed values resolved while
+/// disconnected (the status notifier does that).
+Future<void> _connectToLinkedHost(
+  ProviderContainer container,
+  _RemoteClientTarget target,
+  LoggingService logger,
+) async {
+  final connected = await container
+      .read(remoteLaunchStatusProvider.notifier)
+      .connect();
+  startupTimeline.mark('linked host connect');
+  if (connected) return;
+  final status = container.read(remoteLaunchStatusProvider);
+  logger.warning(
+    'Remote connect to ${target.scheme}://${target.host}:${target.port} '
+    'failed (${status.failure?.name}): ${status.detail}',
+    source: 'desktop.main',
+  );
 }
 
 /// The first window's size: 1600 x 900, shrunk to fit the display it opens on.
