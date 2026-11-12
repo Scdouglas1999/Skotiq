@@ -238,8 +238,41 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     if (id == null || id.isEmpty) {
       state = state.copyWith(clearGuider: true);
     } else {
-      state = state.copyWith(guiderId: id, guiderName: name);
+      // The guide camera answers a question only the built-in guider asks.
+      final keepsGuideCamera = id == state.guiderId;
+      state = state.copyWith(
+        guiderId: id,
+        guiderName: name,
+        clearGuideCamera: !keepsGuideCamera,
+        clearGuideFocalLength: !keepsGuideCamera,
+      );
     }
+    await _persistDraft();
+  }
+
+  /// The camera the built-in guider uses. Picking the simulator's guide camera
+  /// also fills in the simulator's guide scope when none is entered.
+  Future<void> setGuideCamera({String? id, String? name}) async {
+    if (id == null || id.isEmpty) {
+      state = state.copyWith(clearGuideCamera: true);
+    } else {
+      state = state.copyWith(
+        guideCameraId: id,
+        guideCameraName: name,
+        guideFocalLengthMm: id == kSimGuideCameraId
+            ? state.guideFocalLengthMm ?? kSimGuideFocalLengthMm
+            : null,
+      );
+    }
+    await _persistDraft();
+  }
+
+  /// Guide scope focal length in millimeters; null for an off-axis guider.
+  Future<void> setGuideFocalLength(double? millimeters) async {
+    state = state.copyWith(
+      guideFocalLengthMm: millimeters,
+      clearGuideFocalLength: millimeters == null,
+    );
     await _persistDraft();
   }
 
@@ -340,6 +373,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
     await _persistDraft();
   }
 
+  Future<void> setDownloadSkyCatalogs(bool download) async {
+    state = state.copyWith(downloadSkyCatalogs: download);
+    await _persistDraft();
+  }
+
   Future<void> setProfileName(String name) async {
     state = state.copyWith(profileName: name);
     await _persistDraft();
@@ -385,12 +423,14 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
         ? (draft.focalLengthMm! * draft.reducerFactor) / draft.apertureMm!
         : null;
 
-    // A simulator rig guided by the built-in guider guides through the
+    // A simulator rig guided by the built-in guider, restored from a draft
+    // saved before the wizard asked for a guide camera, guides through the
     // simulator's own guide camera.
-    final simGuide = usesSimulatedGuideCamera(
-      cameraId: draft.cameraId,
-      guiderId: draft.guiderId,
-    );
+    final simGuide = draft.guideCameraId == null &&
+        usesSimulatedGuideCamera(
+          cameraId: draft.cameraId,
+          guiderId: draft.guiderId,
+        );
     final profile = EquipmentProfileModel(
       name: (draft.profileName ?? '').trim().isNotEmpty
           ? draft.profileName!.trim()
@@ -406,9 +446,12 @@ class OnboardingNotifier extends StateNotifier<OnboardingDraft> {
       filterWheelName: draft.filterWheelName,
       guiderId: draft.guiderId,
       guiderName: draft.guiderName,
-      guideCameraId: simGuide ? kSimGuideCameraId : null,
-      guideCameraName: simGuide ? kSimGuideCameraName : null,
-      guideFocalLength: simGuide ? kSimGuideFocalLengthMm : null,
+      guideCameraId:
+          simGuide ? kSimGuideCameraId : draft.guideCameraId,
+      guideCameraName:
+          simGuide ? kSimGuideCameraName : draft.guideCameraName,
+      guideFocalLength:
+          simGuide ? kSimGuideFocalLengthMm : draft.guideFocalLengthMm,
       telescopeName: draft.telescopeName,
       focalLength: draft.focalLengthMm != null
           ? draft.focalLengthMm! * draft.reducerFactor

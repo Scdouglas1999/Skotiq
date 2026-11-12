@@ -162,10 +162,12 @@ void main() {
     await tester.tap(find.text('Detect location'));
     await tester.pumpAndSettle();
 
-    final fields = tester.widgetList<TextField>(find.byType(TextField));
-    expect(fields.first.controller?.text, '39.9527');
+    TextField field(Key key) => tester.widget<TextField>(
+          find.descendant(of: find.byKey(key), matching: find.byType(TextField)),
+        );
+    expect(field(onboardingSiteLatitudeKey).controller?.text, '39.9527');
     expect(
-      fields.elementAt(1).controller?.text,
+      field(onboardingSiteLongitudeKey).controller?.text,
       '-75.1635',
       reason: 'an estimate good to ~10 km must not claim centimeters',
     );

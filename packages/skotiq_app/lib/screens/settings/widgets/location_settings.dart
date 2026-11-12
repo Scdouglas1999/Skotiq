@@ -15,8 +15,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../../../utils/confirm_dialog.dart';
+import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/geolocation_consent.dart';
+import '../../../widgets/site/place_search.dart';
 import '../../../widgets/tutorial_keys/settings_keys.dart';
 import 'learned_obstructions_section.dart';
 import 'settings_widgets.dart';
@@ -42,12 +44,6 @@ typedef SiteLocator = Future<PositioningAttempt> Function({
 
 final siteLocatorProvider = Provider<SiteLocator>(
   (ref) => GeolocationService.locate,
-);
-
-typedef PlaceSearcher = Future<List<PlaceSearchHit>> Function(String query);
-
-final placeSearchProvider = Provider<PlaceSearcher>(
-  (ref) => GeolocationService.searchPlaces,
 );
 
 Future<file_selector.XFile?> _pickHorizonImport() {
@@ -78,13 +74,11 @@ class LocationSettingsPage extends ConsumerStatefulWidget {
 }
 
 class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
-  final _placeSearchController = TextEditingController();
+  final _placeSearch = PlaceSearch();
   final Map<String, TextEditingController> _horizonControllers = {};
   bool _isImportingHorizon = false;
   int _horizonImportGeneration = 0;
   bool _legacyTimezoneMigrated = false;
-  bool _placeSearching = false;
-  List<PlaceSearchHit> _placeHits = const [];
   bool _detecting = false;
 
   /// Set when a detect ran and the precise Wi-Fi tier was skipped because the
@@ -100,6 +94,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   @override
   void initState() {
     super.initState();
+    _placeSearch.addListener(_onPlaceSearchChanged);
     for (final dir in horizonDirections) {
       _horizonControllers[dir] = TextEditingController();
     }
@@ -115,7 +110,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
 
   @override
   void dispose() {
-    _placeSearchController.dispose();
+    _placeSearch.dispose();
     _googleKeyController.dispose();
     _googleKeyFocus.dispose();
     for (final c in _horizonControllers.values) {
@@ -211,53 +206,21 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       'with no GPS',
                   trailing: SizedBox(
                     width: widget.isMobile ? 180 : 240,
-                    child: SkotiqTextField(
-                      controller: _placeSearchController,
-                      // A real town as the hint read as the saved site's name.
-                      hint: 'Town, city or observatory',
-                      onSubmitted: (_) => _searchPlace(),
-                      suffixWidget: GestureDetector(
-                        onTap: _placeSearching ? null : _searchPlace,
-                        child: Icon(
-                          LucideIcons.search,
-                          size: SkotiqTokens.iconXs,
-                          color: SkotiqColors.of(context).textMuted,
-                        ),
-                      ),
-                    ),
+                    child: PlaceSearchInput(search: _placeSearch),
                   ),
                   controlFlex: 2,
                   isMobile: widget.isMobile,
                 ),
-                if (_placeHits.isNotEmpty)
+                // Only while there is something to show: the section draws a
+                // hairline between children, so an empty one doubled it.
+                if (_placeSearch.hasOutcome)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      SkotiqTokens.spaceLg,
-                      SkotiqTokens.spaceSm,
-                      SkotiqTokens.spaceLg,
-                      SkotiqTokens.spaceMd,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SkotiqTokens.spaceLg,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (final hit in _placeHits)
-                          GestureDetector(
-                            onTap: () => _applyPlace(hit),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: SkotiqTokens.spaceSm,
-                              ),
-                              child: Text(
-                                hit.elevation == null
-                                    ? hit.label
-                                    : '${hit.label} · ${hit.elevation!.round()} m',
-                                style: SkotiqTypography.body.copyWith(
-                                  color: SkotiqColors.of(context).textPrimary,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                    child: PlaceSearchResults(
+                      search: _placeSearch,
+                      onPicked: _applyPlace,
                     ),
                   ),
                 SettingRow(
@@ -293,12 +256,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     min: -90,
                     max: 90,
                     decimals: 6,
-                    parse: (text) => parseSiteAngle(
-                      text,
-                      maxDegrees: 90,
-                      positiveHemisphere: 'N',
-                      negativeHemisphere: 'S',
-                    ),
+                    parse: parseSiteLatitude,
                     onChanged: (value) async {
                       await ref
                           .read(appSettingsProvider.notifier)
@@ -321,12 +279,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     min: -180,
                     max: 180,
                     decimals: 6,
-                    parse: (text) => parseSiteAngle(
-                      text,
-                      maxDegrees: 180,
-                      positiveHemisphere: 'E',
-                      negativeHemisphere: 'W',
-                    ),
+                    parse: parseSiteLongitude,
                     onChanged: (value) async {
                       await ref
                           .read(appSettingsProvider.notifier)
@@ -436,10 +389,14 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       : 'Nearby Wi-Fi networks place you to within '
                           'about 100 m. Falls back to this machine’s GPS or '
                           'your internet address.',
-                  trailing: SkotiqIconButton(
-                    icon: LucideIcons.crosshair,
-                    tooltip: 'Detect this location',
-                    color: SkotiqColors.of(context).primary,
+                  // A labeled button: a bare red crosshair read as a status
+                  // glyph, not as the action this row offers.
+                  trailing: SkotiqButton(
+                    icon: LucideIcons.locate,
+                    label: 'Detect',
+                    variant: ButtonVariant.secondary,
+                    size: ButtonSize.small,
+                    isLoading: _detecting,
                     onPressed:
                         _detecting ? null : () => _detectLocation(settings),
                   ),
@@ -725,25 +682,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     return earthRadiusKm * 2 * math.asin(math.min(1.0, math.sqrt(a)));
   }
 
-  Future<void> _searchPlace() async {
-    final query = _placeSearchController.text.trim();
-    if (query.isEmpty || _placeSearching) return;
-    setState(() => _placeSearching = true);
-    try {
-      final hits = await ref.read(placeSearchProvider)(query);
-      if (!mounted) return;
-      setState(() {
-        _placeSearching = false;
-        _placeHits = hits;
-      });
-      if (hits.isEmpty) {
-        context.showWarningSnackBar('No places matched that name.');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _placeSearching = false);
-      context.showErrorSnackBar('Could not search for a place: ${userFacingError(e)}');
-    }
+  void _onPlaceSearchChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _applyPlace(PlaceSearchHit hit) async {
@@ -753,7 +693,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
           elevation: hit.elevation ?? 0.0,
         );
     if (!mounted) return;
-    setState(() => _placeHits = const []);
+    _placeSearch.clear();
     final elev = hit.elevation;
     context.showSuccessSnackBar(
       elev == null

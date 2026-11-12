@@ -185,6 +185,23 @@ void main() {
     },
   );
 
+  test('an unreachable place search says so instead of "no match"', () async {
+    GeolocationService.clientFactory = () => MockClient((request) async {
+      throw http.ClientException('Network is unreachable');
+    });
+
+    await expectLater(
+      GeolocationService.searchPlaces('Cherry Springs'),
+      throwsA(
+        isA<PlaceSearchUnavailable>().having(
+          (e) => e.message,
+          'message',
+          startsWith('Could not reach geocoding-api.open-meteo.com'),
+        ),
+      ),
+    );
+  });
+
   test('an empty place query does not leave the machine', () async {
     var calls = 0;
     GeolocationService.clientFactory = () => MockClient((request) async {

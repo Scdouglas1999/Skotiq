@@ -575,8 +575,10 @@ final Map<String, Map<String, String>> _localizedValues = {
         'The planner scores targets from where you are; add your latitude and '
             'longitude to start.',
     'plannerNoSiteAction': 'Open settings',
-    'plannerNoCatalogTitle': 'Install the object catalog',
-    'plannerNoCatalogBody': 'OpenNGC lets the planner score 13000 targets.',
+    'plannerNoCatalogTitle': 'The planner needs the object catalog',
+    'plannerNoCatalogBody':
+        'It scores tonight\'s targets from the deep-sky catalog, which is not '
+            'installed yet.',
     'plannerNoCatalogAction': 'Open catalog settings',
     'plannerNoMatchesTitle': 'No targets match these filters',
     'plannerNoMatchesBody':
@@ -2195,9 +2197,10 @@ final Map<String, Map<String, String>> _localizedValues = {
         'El planificador puntúa objetivos desde donde estás; añade tu latitud '
             'y longitud para empezar.',
     'plannerNoSiteAction': 'Abrir ajustes',
-    'plannerNoCatalogTitle': 'Instala el catálogo de objetos',
+    'plannerNoCatalogTitle': 'El planificador necesita el catálogo de objetos',
     'plannerNoCatalogBody':
-        'OpenNGC permite al planificador puntuar 13000 objetivos.',
+        'Puntúa los objetivos de esta noche con el catálogo de cielo '
+            'profundo, que aún no está instalado.',
     'plannerNoCatalogAction': 'Abrir ajustes del catálogo',
     'plannerNoMatchesTitle': 'Ningún objetivo coincide con estos filtros',
     'plannerNoMatchesBody':

@@ -4,6 +4,16 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../equipment/dialogs/indi_server_dialog.dart';
+import '../../settings/widgets/connection_settings_alpaca_dialog.dart';
+
+/// The pickers that already chose for the user this session because the scan
+/// found exactly one device, keyed by [OnboardingDevicePickerBody.question].
+/// Each picks at most once, so a device the user cleared, or a step they
+/// skipped and came back to, stays as they left it.
+final onboardingLoneDeviceAutoPickedProvider =
+    StateProvider<Set<String>>((ref) => const {});
+
 /// Reusable device-picker step body shared between Camera / Mount /
 /// Focuser / Filter Wheel / Guider onboarding steps.
 ///
@@ -28,6 +38,9 @@ class OnboardingDevicePickerBody extends ConsumerStatefulWidget {
     required this.onSelected,
     required this.onCleared,
     this.allowSkip = false,
+    this.pickLoneDevice = true,
+    this.excludeDeviceIds = const {},
+    this.showBackendStatus = true,
   });
 
   final String title;
@@ -42,6 +55,23 @@ class OnboardingDevicePickerBody extends ConsumerStatefulWidget {
   /// True for steps that should render an explicit "Skip this device"
   /// affordance (focuser, filter wheel, guider).
   final bool allowSkip;
+
+  /// Select the device when a finished scan found exactly one and nothing is
+  /// chosen yet, as NINA and ASIAIR do. Off where the list is not the whole
+  /// question (the guider step, whose usual answer is PHD2 above the list).
+  final bool pickLoneDevice;
+
+  /// Devices that cannot be the answer here, by any of their backend ids: the
+  /// imaging camera when the question is which camera guides.
+  final Set<String> excludeDeviceIds;
+
+  /// False for a picker placed under another one that already shows how each
+  /// backend's scan went.
+  final bool showBackendStatus;
+
+  /// What this picker asks: its device type, narrowed by what it excludes.
+  String get question =>
+      [deviceType.name, ...excludeDeviceIds.toList()..sort()].join(':');
 
   @override
   ConsumerState<OnboardingDevicePickerBody> createState() =>
@@ -75,6 +105,41 @@ class _OnboardingDevicePickerBodyState
     });
   }
 
+  /// Let the user point INDI or Alpaca at the server they actually run, then
+  /// scan again with it. Both dialogs return null when canceled.
+  Future<void> _changeServerAddress(DriverType driver) async {
+    final saved = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => driver == DriverType.indi
+          ? const IndiServerDialog()
+          : const AlpacaServerDialog(),
+    );
+    if (saved == null || !mounted) return;
+    await _runDiscovery();
+  }
+
+  void _maybePickLoneDevice(List<UnifiedDevice> devices, bool isDiscovering) {
+    if (!widget.pickLoneDevice ||
+        !_scanRequested ||
+        isDiscovering ||
+        devices.length != 1 ||
+        (widget.selectedDeviceId ?? '').isNotEmpty) {
+      return;
+    }
+    final picked = ref.read(onboardingLoneDeviceAutoPickedProvider);
+    if (picked.contains(widget.question)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final already = ref.read(onboardingLoneDeviceAutoPickedProvider);
+      if (already.contains(widget.question)) return;
+      ref.read(onboardingLoneDeviceAutoPickedProvider.notifier).state = {
+        ...already,
+        widget.question,
+      };
+      widget.onSelected(devices.single);
+    });
+  }
+
   Future<void> _runDiscovery() async {
     if (!mounted) return;
     setState(() => _scanRequested = true);
@@ -102,10 +167,13 @@ class _OnboardingDevicePickerBodyState
       // Keep the device if it has at least one backend in the user's
       // selected driver set; otherwise we'd surface a device the user
       // can't actually connect to.
-      return device.availableBackends.keys.any(selectedDrivers.contains);
+      return device.availableBackends.keys.any(selectedDrivers.contains) &&
+          !device.availableBackends.values
+              .any((info) => widget.excludeDeviceIds.contains(info.id));
     }).toList();
 
     final isDiscovering = discovery.isDiscovering;
+    _maybePickLoneDevice(devices, isDiscovering);
 
     // The picker is handed a FIXED height by the steps that embed it (the
     // filter-wheel step gives it 240 px so the slot editor has room). Its own
@@ -190,13 +258,15 @@ class _OnboardingDevicePickerBodyState
 
         // Per-backend status (so the user understands why some lists are
         // empty — e.g. INDI server unreachable).
-        _BackendStatusRow(
-          discovery: discovery,
-          drivers: selectedDrivers,
-          deviceType: widget.deviceType,
-        ),
-
-        const SizedBox(height: SkotiqTokens.spaceMd),
+        if (widget.showBackendStatus) ...[
+          _BackendStatusRow(
+            discovery: discovery,
+            drivers: selectedDrivers,
+            deviceType: widget.deviceType,
+            onChangeAddress: _changeServerAddress,
+          ),
+          const SizedBox(height: SkotiqTokens.spaceMd),
+        ],
 
         // Device list. A minimum, not a slot: the surrounding box is a fixed
         // height that the chrome above can eat into, and a list laid out at
@@ -267,7 +337,7 @@ String describeBackendFailure(String? rawError) {
   final endpoint = _endpointPattern.firstMatch(raw)?.group(1);
   final at = endpoint ?? 'that address';
 
-  if (lower.contains('connection refused') || lower.contains('os error 111')) {
+  if (backendFailureIsNoServer(raw)) {
     return 'nothing is listening at $at';
   }
   if (lower.contains('timed out') || lower.contains('timeout')) {
@@ -305,16 +375,30 @@ String describeBackendFailure(String? rawError) {
   return raw;
 }
 
+/// True when a scan failed only because no server was running at the address:
+/// the connection was refused. For INDI and Alpaca that is the normal answer
+/// on a machine that does not use them, not a fault.
+@visibleForTesting
+bool backendFailureIsNoServer(String? rawError) {
+  final lower = rawError?.toLowerCase() ?? '';
+  return lower.contains('connection refused') || lower.contains('os error 111');
+}
+
 class _BackendStatusRow extends StatelessWidget {
   const _BackendStatusRow({
     required this.discovery,
     required this.drivers,
     required this.deviceType,
+    required this.onChangeAddress,
   });
 
   final UnifiedDiscoveryState discovery;
   final Set<DriverType> drivers;
   final DeviceType deviceType;
+  final void Function(DriverType driver) onChangeAddress;
+
+  static bool _hasServerAddress(DriverType driver) =>
+      driver == DriverType.indi || driver == DriverType.alpaca;
 
   @override
   Widget build(BuildContext context) {
@@ -322,7 +406,10 @@ class _BackendStatusRow extends StatelessWidget {
 
     final entries =
         drivers.map((d) => MapEntry(d, discovery.backendStates[d])).toList();
-    final failures = <String>[];
+    // One line per backend that did not complete. A server protocol that
+    // answered "nothing here" is said in muted type, never as an error: it is
+    // what INDI and Alpaca answer on a machine that does not run them.
+    final notes = <({DriverType driver, String text, bool problem})>[];
 
     final chips = entries.map((entry) {
       final driver = entry.key;
@@ -362,12 +449,23 @@ class _BackendStatusRow extends StatelessWidget {
                 '$matchingCount found';
             break;
           case DiscoveryStatus.error:
+            if (_hasServerAddress(driver) &&
+                backendFailureIsNoServer(state.error)) {
+              final at = _endpointPattern.firstMatch(state.error!)?.group(1) ??
+                  'the configured address';
+              icon = SkotiqIcons.circle;
+              tone = ChipTone.neutral;
+              label = '${driver.shortLabel}: no server';
+              description = 'No ${driver.shortLabel} server at $at.';
+              notes.add((driver: driver, text: description, problem: false));
+              break;
+            }
             icon = SkotiqIcons.warning;
-            tone = ChipTone.error;
+            tone = ChipTone.warning;
             label = '${driver.shortLabel} (0)';
             description = '${driver.shortLabel}: nothing answered — '
                 '${describeBackendFailure(state.error)}';
-            failures.add(description);
+            notes.add((driver: driver, text: description, problem: true));
             break;
         }
       }
@@ -391,16 +489,29 @@ class _BackendStatusRow extends StatelessWidget {
           runSpacing: SkotiqTokens.spaceXs,
           children: chips,
         ),
-        // A red chip whose only explanation is a hover tooltip is an unexplained
-        // alarm on the first run of a paid product. Say what happened where the
-        // user is already looking.
-        if (failures.isNotEmpty) ...[
-          const SizedBox(height: SkotiqTokens.spaceSm),
-          Text(
-            failures.join('\n'),
-            style: SkotiqTypography.bodySm.copyWith(color: colors.error),
+        // A chip whose only explanation is a hover tooltip leaves the user
+        // guessing. Say what happened where they are already looking.
+        if (notes.isNotEmpty) const SizedBox(height: SkotiqTokens.spaceXs),
+        for (final note in notes)
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: SkotiqTokens.spaceSm,
+            children: [
+              Text(
+                note.text,
+                style: SkotiqTypography.bodySm.copyWith(
+                  color: note.problem ? colors.warning : colors.textMuted,
+                ),
+              ),
+              if (_hasServerAddress(note.driver))
+                SkotiqButton(
+                  label: 'Change address',
+                  variant: ButtonVariant.ghost,
+                  size: ButtonSize.small,
+                  onPressed: () => onChangeAddress(note.driver),
+                ),
+            ],
           ),
-        ],
       ],
     );
   }

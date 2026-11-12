@@ -17,6 +17,17 @@ export 'positioning/wifi_scan.dart';
 /// A named place from the geocoding lookup. Town-accurate, with elevation
 /// when the service has a DEM sample — unlike an IP estimate, which is a
 /// ZIP or city centroid with elevation 0.
+/// The place-name service could not be asked; [message] says why in words a
+/// user can act on.
+class PlaceSearchUnavailable implements Exception {
+  const PlaceSearchUnavailable(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class PlaceSearchHit {
   const PlaceSearchHit({
     required this.latitude,
@@ -203,19 +214,32 @@ class GeolocationService {
     );
     final client = clientFactory();
     try {
-      final response = await client
-          .get(uri, headers: const {'User-Agent': 'Skotiq/observatory'})
-          .timeout(const Duration(seconds: 8));
-      if (response.statusCode != 200) return const [];
+      final http.Response response;
+      try {
+        response = await client
+            .get(uri, headers: const {'User-Agent': 'Skotiq/observatory'})
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        developer.log(
+          '[Geolocation] Place search failed: $e',
+          name: 'GeolocationService',
+          level: 900,
+          error: e,
+        );
+        // Offline is not "no such place": an empty list here told a user at
+        // a dark site that their town does not exist.
+        throw PlaceSearchUnavailable(
+          'Could not reach ${uri.host}. Check the internet connection, or '
+          'enter the coordinates.',
+        );
+      }
+      if (response.statusCode != 200) {
+        throw PlaceSearchUnavailable(
+          '${uri.host} did not answer the search (HTTP '
+          '${response.statusCode}). Try again, or enter the coordinates.',
+        );
+      }
       return parsePlaceSearchBody(response.body);
-    } catch (e) {
-      developer.log(
-        '[Geolocation] Place search failed: $e',
-        name: 'GeolocationService',
-        level: 900,
-        error: e,
-      );
-      return const [];
     } finally {
       client.close();
     }

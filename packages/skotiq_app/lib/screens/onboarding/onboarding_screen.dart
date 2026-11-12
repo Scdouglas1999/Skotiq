@@ -7,11 +7,15 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/utils/confirm_dialog.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart'
+    show catalogStateProvider, skyCatalogInstallProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../shell/shell_chrome.dart';
 import '../shell/widgets/window_chrome.dart';
+import '../../widgets/catalogs/sky_catalog_download_panel.dart';
 
+import 'steps/blocked_next.dart';
 import 'steps/camera_defaults_step.dart';
 import 'steps/camera_step.dart';
 import 'steps/capture_dir_step.dart';
@@ -181,6 +185,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         BannerTone.warning,
         fromValidation: true,
       );
+      ref.read(onboardingBlockedNextProvider.notifier).state++;
       return;
     }
 
@@ -333,6 +338,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     try {
       final notifier = ref.read(onboardingDraftProvider.notifier);
       await notifier.complete();
+      if (ref.read(onboardingDraftProvider).downloadSkyCatalogs &&
+          skyCatalogsMissing(ref.read(catalogStateProvider))) {
+        // Runs on while the user reads the next step, which shows it.
+        unawaited(ref.read(skyCatalogInstallProvider.notifier).start());
+      }
       await notifier.next();
       if (!mounted) return;
       setState(() {
@@ -411,7 +421,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         return null;
       case OnboardingStep.focuser:
       case OnboardingStep.filterWheel:
+        return null;
       case OnboardingStep.guider:
+        if (draft.usesBuiltinGuider && draft.guideCameraId == null) {
+          return 'Pick the camera the built-in guider uses, or choose another '
+              'guider.';
+        }
         return null;
       case OnboardingStep.opticalTrain:
         // Bounds, not just "> 0": focal length 999999999 with aperture 0.0001

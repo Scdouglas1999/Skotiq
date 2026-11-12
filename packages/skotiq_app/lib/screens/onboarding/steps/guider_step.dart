@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -11,6 +12,8 @@ import 'device_picker_step.dart';
 const Key guiderHostFieldKey = Key('onboarding.guider.host');
 
 const Key guiderPortFieldKey = Key('onboarding.guider.port');
+
+const Key guideFocalLengthFieldKey = Key('onboarding.guider.guideFocalLength');
 
 /// Guider step.
 ///
@@ -37,6 +40,7 @@ class OnboardingGuiderStep extends ConsumerStatefulWidget {
 class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
   late final TextEditingController _hostController;
   late final TextEditingController _portController;
+  late final TextEditingController _guideFocalController;
   bool _testing = false;
   bool? _lastResult;
   String? _lastError;
@@ -60,6 +64,9 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
     // their previous PHD2 setup. Falls back to localhost:4400.
     _hostController = TextEditingController(text: 'localhost');
     _portController = TextEditingController(text: '4400');
+    _guideFocalController = TextEditingController(
+      text: _formatFocal(ref.read(onboardingDraftProvider).guideFocalLengthMm),
+    );
 
     // Pull the live PHD2 host/port via the settings provider for resume.
     Future.microtask(() async {
@@ -91,7 +98,22 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
   void dispose() {
     _hostController.dispose();
     _portController.dispose();
+    _guideFocalController.dispose();
     super.dispose();
+  }
+
+  static String _formatFocal(double? millimeters) {
+    if (millimeters == null) return '';
+    return millimeters == millimeters.roundToDouble()
+        ? millimeters.round().toString()
+        : millimeters.toString();
+  }
+
+  void _commitGuideFocal(String raw) {
+    final value = double.tryParse(raw.trim());
+    ref.read(onboardingDraftProvider.notifier).setGuideFocalLength(
+          value != null && value.isFinite && value > 0 ? value : null,
+        );
   }
 
   /// Record PHD2 at the typed endpoint as this profile's guider.
@@ -265,6 +287,17 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
     final savedEndpoint = _phd2EndpointOf(draft.guiderId);
     final phd2IsSelected = savedEndpoint == _currentEndpoint;
 
+    // A focal length filled in for the user (the simulator's guide scope)
+    // reaches the box; the user's own typing is never overwritten.
+    ref.listen<double?>(
+      onboardingDraftProvider.select((d) => d.guideFocalLengthMm),
+      (_, next) {
+        if (double.tryParse(_guideFocalController.text.trim()) != next) {
+          _guideFocalController.text = _formatFocal(next);
+        }
+      },
+    );
+
     // Scrollable: this step stacks a PHD2 card, a divider and a whole device
     // picker, which together need more height than a small desktop window or a
     // phone gives the wizard body. As a bare Column the surplus overflowed and
@@ -386,6 +419,7 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
               selectedDeviceId: draft.guiderId,
               selectedDeviceName: draft.guiderName,
               allowSkip: true,
+              pickLoneDevice: false,
               onSelected: (device) => notifier.setGuider(
                 id: device.activeDeviceId,
                 name: device.displayName,
@@ -393,8 +427,67 @@ class _OnboardingGuiderStepState extends ConsumerState<OnboardingGuiderStep> {
               onCleared: () => notifier.setGuider(id: ''),
             ),
           ),
+          if (draft.usesBuiltinGuider) ..._guideCameraQuestion(draft, colors),
         ],
       ),
     );
+  }
+
+  /// "Which camera guides?" — asked as soon as the built-in guider is the
+  /// choice, the way PHD2's new-profile wizard does. Without it the profile
+  /// was saved with a guider and nothing for it to guide with.
+  List<Widget> _guideCameraQuestion(
+    OnboardingDraft draft,
+    SkotiqColors colors,
+  ) {
+    final notifier = ref.read(onboardingDraftProvider.notifier);
+    final imagingCamera = draft.cameraId;
+    return [
+      const SizedBox(height: SkotiqTokens.spaceLg),
+      Text(
+        'Which camera guides?'.toUpperCase(),
+        style: SkotiqTypography.eyebrow.copyWith(color: colors.textMuted),
+      ),
+      const SizedBox(height: SkotiqTokens.spaceSm),
+      // Fits the picker's chrome and one camera at phone width, where its
+      // subtitle wraps to two lines, without a second scroll box.
+      SizedBox(
+        height: 250,
+        child: OnboardingDevicePickerBody(
+          title: 'Guide camera',
+          subtitle: 'The built-in guider takes its frames with this camera. '
+              'The imaging camera is not listed.',
+          icon: SkotiqIcons.camera,
+          deviceType: DeviceType.camera,
+          selectedDeviceId: draft.guideCameraId,
+          selectedDeviceName: draft.guideCameraName,
+          excludeDeviceIds: {if (imagingCamera != null) imagingCamera},
+          showBackendStatus: false,
+          onSelected: (device) => notifier.setGuideCamera(
+            id: device.activeDeviceId,
+            name: device.displayName,
+          ),
+          onCleared: () => notifier.setGuideCamera(id: ''),
+        ),
+      ),
+      const SizedBox(height: SkotiqTokens.spaceMd),
+      FormRow(
+        label: 'Guide scope focal length',
+        help: 'Leave empty for an off-axis guider, which shares the '
+            "telescope's focal length.",
+        child: SkotiqTextField(
+          key: guideFocalLengthFieldKey,
+          controller: _guideFocalController,
+          hint: 'e.g. 240',
+          suffix: 'mm',
+          mono: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+          ],
+          onChanged: _commitGuideFocal,
+        ),
+      ),
+    ];
   }
 }

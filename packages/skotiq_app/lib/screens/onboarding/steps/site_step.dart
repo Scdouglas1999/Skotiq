@@ -9,8 +9,10 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
+import '../../../utils/site_angle.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/geolocation_consent.dart';
+import '../../../widgets/site/place_search.dart';
 
 /// Why the observing-site step will not let the wizard advance, or null when the
 /// current entry is acceptable.
@@ -21,6 +23,9 @@ import '../../../widgets/geolocation_consent.dart';
 /// and "Skip this step" advance, which is what stops an out-of-range entry from
 /// being waved through with its red error still on screen.
 final onboardingSiteEntryErrorProvider = StateProvider<String?>((ref) => null);
+
+const Key onboardingSiteLatitudeKey = Key('onboarding.site.latitude');
+const Key onboardingSiteLongitudeKey = Key('onboarding.site.longitude');
 
 /// The approximate-location lookup that *offers* a starting point. Injected so
 /// tests exercise the suggestion UI without reaching the network.
@@ -87,6 +92,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   final _latController = TextEditingController();
   final _lonController = TextEditingController();
   final _elevController = TextEditingController();
+  final _placeSearch = PlaceSearch();
 
   String? _latError;
   String? _lonError;
@@ -118,6 +124,7 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     _latController.dispose();
     _lonController.dispose();
     _elevController.dispose();
+    _placeSearch.dispose();
     super.dispose();
   }
 
@@ -201,22 +208,27 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     _onFieldChanged();
   }
 
+  /// Put a searched place in the fields, the same way typing it would.
+  void _applyPlace(PlaceSearchHit hit) {
+    _latController.text = _trimNumber(_roundLookup(hit.latitude));
+    _lonController.text = _trimNumber(_roundLookup(hit.longitude));
+    final elevation = hit.elevation;
+    _elevController.text =
+        elevation == null ? '' : elevation.round().toString();
+    _placeSearch.clear();
+    _onFieldChanged();
+  }
+
   static String? _validateLatitude(String raw) {
-    if (raw.isEmpty) return null;
-    final value = double.tryParse(raw);
-    if (value == null || value < -90 || value > 90) {
-      return 'Latitude must be between -90 and 90.';
-    }
-    return null;
+    if (raw.isEmpty || parseSiteLatitude(raw) != null) return null;
+    return 'Latitude must be between -90 and 90: decimal degrees (40.71) or '
+        'degrees, minutes, seconds (40 42 36 N).';
   }
 
   static String? _validateLongitude(String raw) {
-    if (raw.isEmpty) return null;
-    final value = double.tryParse(raw);
-    if (value == null || value < -180 || value > 180) {
-      return 'Longitude must be between -180 and 180.';
-    }
-    return null;
+    if (raw.isEmpty || parseSiteLongitude(raw) != null) return null;
+    return 'Longitude must be between -180 and 180: decimal degrees (-74.01) '
+        'or degrees, minutes, seconds (74 0 36 W).';
   }
 
   static String? _validateElevation(String raw) {
@@ -276,8 +288,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
         latRaw.isNotEmpty &&
         lonRaw.isNotEmpty;
     if (entryIsUsable) {
-      latitude = double.parse(latRaw);
-      longitude = double.parse(lonRaw);
+      latitude = parseSiteLatitude(latRaw)!;
+      longitude = parseSiteLongitude(lonRaw)!;
     } else if (latRaw.isEmpty && lonRaw.isEmpty) {
       latitude = 0.0;
       longitude = 0.0;
@@ -566,24 +578,54 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
                 _buildIpEstimate(),
               ],
               const SizedBox(height: SkotiqTokens.spaceLg),
+              // The same place search as Settings > Location: on a desktop
+              // with no GPS a town name is the quickest accurate answer.
+              FormRow(
+                label: 'Search place',
+                help: 'Town or observatory by name',
+                child: PlaceSearchInput(search: _placeSearch),
+              ),
+              // Under the field, in the form's control column.
+              LayoutBuilder(
+                builder: (context, constraints) => Padding(
+                  padding: EdgeInsets.only(
+                    left: FormRow.resolveLabelWidth(
+                          FormRow.defaultLabelWidth,
+                          constraints.maxWidth,
+                        ) +
+                        FormRow.columnGap,
+                  ),
+                  child: PlaceSearchResults(
+                    search: _placeSearch,
+                    onPicked: _applyPlace,
+                  ),
+                ),
+              ),
+              const SizedBox(height: FormRow.rowGap),
               // One form, one label column: side by side, latitude and
               // longitude left a 42 px field on a phone.
               _CoordinateField(
+                fieldKey: onboardingSiteLatitudeKey,
                 controller: _latController,
                 label: 'Latitude',
-                hint: 'e.g. 40.71',
+                hint: 'e.g. 40.71 or 40 42 36 N',
                 suffix: '°',
-                helper: 'Positive for North, negative for South',
+                helper: 'Decimal degrees or degrees, minutes, seconds. '
+                    'Positive is North, negative is South',
+                acceptsDms: true,
                 errorText: _latError,
                 onChanged: _onFieldChanged,
               ),
               const SizedBox(height: FormRow.rowGap),
               _CoordinateField(
+                fieldKey: onboardingSiteLongitudeKey,
                 controller: _lonController,
                 label: 'Longitude',
-                hint: 'e.g. -74.01',
+                hint: 'e.g. -74.01 or 74 0 36 W',
                 suffix: '°',
-                helper: 'Positive for East, negative for West',
+                helper: 'Decimal degrees or degrees, minutes, seconds. '
+                    'Positive is East, negative is West',
+                acceptsDms: true,
                 errorText: _lonError,
                 onChanged: _onFieldChanged,
               ),
@@ -605,9 +647,8 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
   }
 }
 
-/// A labelled decimal coordinate input: a label, a [SkotiqTextField] that
-/// accepts signed decimals, and a muted helper line. Mirrors the numeric-field
-/// styling used by the camera-defaults step.
+/// A labelled site input: a label, a [SkotiqTextField] and a muted helper
+/// line. Mirrors the numeric-field styling used by the camera-defaults step.
 class _CoordinateField extends StatelessWidget {
   const _CoordinateField({
     required this.controller,
@@ -617,8 +658,11 @@ class _CoordinateField extends StatelessWidget {
     required this.suffix,
     required this.onChanged,
     this.errorText,
+    this.acceptsDms = false,
+    this.fieldKey,
   });
 
+  final Key? fieldKey;
   final TextEditingController controller;
   final String label;
   final String hint;
@@ -627,24 +671,32 @@ class _CoordinateField extends StatelessWidget {
   final String? errorText;
   final VoidCallback onChanged;
 
+  /// Latitude and longitude take whatever [parseSiteAngle] reads, so the
+  /// degree marks and hemisphere letters of `40°42'46" N` reach the parser.
+  /// Filtering them out turned that into `404246`.
+  final bool acceptsDms;
+
   @override
   Widget build(BuildContext context) {
     return FormRow(
       label: label,
       help: helper,
       child: SkotiqTextField(
+        key: fieldKey,
         controller: controller,
         hint: hint,
         suffix: suffix,
         errorText: errorText,
         mono: true,
-        keyboardType: const TextInputType.numberWithOptions(
-          decimal: true,
-          signed: true,
-        ),
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[0-9\-\.]')),
-        ],
+        keyboardType: acceptsDms
+            ? TextInputType.text
+            : const TextInputType.numberWithOptions(
+                decimal: true,
+                signed: true,
+              ),
+        inputFormatters: acceptsDms
+            ? null
+            : [FilteringTextInputFormatter.allow(RegExp(r'[0-9\-\.]'))],
         onChanged: (_) => onChanged(),
       ),
     );

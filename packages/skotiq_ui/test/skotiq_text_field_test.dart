@@ -307,4 +307,68 @@ void main() {
       reason: 'unit shares the value baseline',
     );
   });
+
+  testWidgets('an empty field shows its unit before anything is typed', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        const SizedBox(
+          width: 200,
+          child: SkotiqTextField(hint: 'e.g. 800', suffix: 'mm', mono: true),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final opacity = tester.widget<AnimatedOpacity>(
+      find.ancestor(of: find.text('mm'), matching: find.byType(AnimatedOpacity)),
+    );
+    expect(opacity.opacity, 1.0, reason: 'the unit is part of the question');
+  });
+
+  testWidgets('focus and error rings are different colors', (tester) async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    Color ringOf() {
+      final well = tester
+          .widgetList<Container>(
+            find.descendant(
+              of: find.byType(SkotiqTextField),
+              matching: find.byType(Container),
+            ),
+          )
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .firstWhere((d) => d.border != null);
+      return (well.border! as Border).top.color;
+    }
+
+    await tester.pumpWidget(
+      wrap(SkotiqTextField(focusNode: focus, suffix: 'm')),
+    );
+    focus.requestFocus();
+    await tester.pumpAndSettle();
+    final focused = ringOf();
+
+    await tester.pumpWidget(
+      wrap(
+        const SkotiqTextField(
+          key: ValueKey('error'),
+          errorText: 'Out of range',
+          suffix: 'm',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final error = ringOf();
+
+    final colors = SkotiqColors.of(tester.element(find.byType(SkotiqTextField)));
+    expect(error, colors.error);
+    expect(
+      focused,
+      isNot(colors.error),
+      reason: 'a focused field must not look like a rejected one',
+    );
+  });
 }
