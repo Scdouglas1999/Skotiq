@@ -115,7 +115,7 @@
   Stop
 < ok ()
 > slew_alt_az 50 120
-  SlewToAltAz 50.0 120.0
+  SlewToAltAz 50.0000 120.0000
 < ok ()
 > find_home
   GetCapabilities

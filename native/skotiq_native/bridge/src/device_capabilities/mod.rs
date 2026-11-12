@@ -264,10 +264,9 @@ pub async fn get_device_capabilities(device_id: &str) -> Result<DeviceCapabiliti
 
 /// What the device supports, from its handle.
 ///
-/// Cameras and mounts have no handle yet: their capabilities are still read
-/// per protocol (`alpaca`, `ascom`, `indi`, `native`, `simulator`), as is an
-/// id nobody registered. When one of them gets a handle, its arm here moves
-/// to the handle.
+/// A camera or mount that is registered but not connected, a guider, and an
+/// id nobody registered have no handle: those are read by the protocol's own
+/// probe (`alpaca`, `ascom`, `indi`, `native`, `simulator`).
 async fn read_capabilities(
     device_id: &str,
     parsed: &crate::device_id::ParsedDeviceId,
@@ -287,6 +286,9 @@ async fn read_capabilities(
             | DeviceType::CoverCalibrator,
         ) => mgr.handle(device_id).await?.capabilities(device_id).await,
         Some(DeviceType::Camera | DeviceType::Mount | DeviceType::Guider) | None => {
+            if let Some(handle) = mgr.handles.get(device_id) {
+                return handle.capabilities(device_id).await;
+            }
             match parsed.driver_type {
                 DriverType::Alpaca => get_alpaca_capabilities(device_id).await,
                 DriverType::Ascom => get_ascom_capabilities(device_id).await,

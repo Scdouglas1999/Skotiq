@@ -156,11 +156,7 @@ async fn manager_with(device_id: &str, camera: ThermometerlessCamera) -> Arc<Dev
             false,
         )
         .await;
-    manager
-        .native_cameras
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(camera));
+    manager.hold_vendor_camera(device_id, Box::new(camera));
     manager
 }
 

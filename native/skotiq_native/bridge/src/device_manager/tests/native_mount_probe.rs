@@ -134,11 +134,7 @@ async fn manager_with(device_id: &str, mount: SerialMount) -> Arc<DeviceManager>
             false,
         )
         .await;
-    manager
-        .native_mounts
-        .write()
-        .await
-        .insert(device_id.to_string(), Box::new(mount));
+    manager.hold_vendor_mount(device_id, Box::new(mount));
     manager
 }
 

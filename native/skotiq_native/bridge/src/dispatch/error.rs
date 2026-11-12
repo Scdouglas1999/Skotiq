@@ -132,13 +132,6 @@ impl DeviceOpError {
         }
     }
 
-    /// Malformed / unparseable device id.
-    pub(crate) fn invalid_device_id(detail: impl Into<String>) -> Self {
-        DeviceOpError::InvalidDeviceId {
-            detail: detail.into(),
-        }
-    }
-
     /// Invalid caller parameter.
     pub(crate) fn invalid_parameter(detail: impl Into<String>) -> Self {
         DeviceOpError::InvalidParameter {

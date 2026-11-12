@@ -125,15 +125,24 @@ impl CameraOps for UnifiedDeviceOps {
         )
         .await
         {
-            Ok(inner) => inner.map_err(|e| {
+            Ok(Ok(image)) => image,
+            // An abort releases the download at once; that is a cancelled
+            // exposure, not a failed one.
+            Ok(Err(_)) if exposure_abort_generation(camera_id).await != acquisition_generation => {
+                exposure.end(false, EventSeverity::Info);
+                return Err(DeviceError::Cancelled("Exposure cancelled".to_string()));
+            }
+            Ok(Err(e)) => {
                 exposure.end(false, EventSeverity::Error);
-                match device_error(skotiq_sequencer::DeviceKind::Camera)(e) {
-                    DeviceError::Failed(message) => {
-                        DeviceError::Failed(format!("Failed to download image: {message}"))
-                    }
-                    other => other,
-                }
-            })?,
+                return Err(
+                    match device_error(skotiq_sequencer::DeviceKind::Camera)(e) {
+                        DeviceError::Failed(message) => {
+                            DeviceError::Failed(format!("Failed to download image: {message}"))
+                        }
+                        other => other,
+                    },
+                );
+            }
             Err(_) => {
                 exposure.end(false, EventSeverity::Error);
                 return Err(DeviceError::Timeout(format!(

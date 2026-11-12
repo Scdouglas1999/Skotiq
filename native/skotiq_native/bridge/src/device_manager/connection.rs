@@ -8,7 +8,7 @@
 //! monolithic `devices.rs`.
 
 use crate::device::*;
-use crate::device_manager::handle::{device_noun, protocol_label};
+use crate::device_manager::handle::{device_noun, protocol_label, DeviceHandle};
 use crate::device_manager::identity::{DeviceIdentity, IDENTITY_CONFLICT_MARKER};
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, ManagedDevice};
@@ -740,12 +740,10 @@ impl DeviceManager {
     /// post-connect identity surface return an empty identity, which the caller
     /// treats as "no opinion" rather than as a match.
     pub(crate) async fn probe_device_identity(&self, info: &DeviceInfo) -> DeviceIdentity {
-        if let Some(camera) = self.native_cameras.read().await.get(&info.id) {
-            return Self::identity_from_camera(&info.id, camera.as_ref());
-        }
-
-        if let Some(identity) = self.probe_ascom_camera_identity(&info.id).await {
-            return identity;
+        if let Some(DeviceHandle::Camera(camera)) = self.handles.get(&info.id) {
+            if let Some(identity) = camera.identity().await {
+                return identity;
+            }
         }
 
         if let Some(device) = self.native_devices.read().await.get(&info.id) {
@@ -780,45 +778,6 @@ impl DeviceManager {
         }
     }
 
-    /// Identity of a connected ASCOM camera, when this platform has ASCOM.
-    ///
-    /// **Geometry only, deliberately.** `AscomCameraWrapper::name()` returns the
-    /// ProgID it was constructed with, not anything the driver said, so feeding
-    /// it in as `model` would compare a constant against itself and would also
-    /// overwrite the displayed name with `ASCOM.ASICamera2.Camera`. The sensor
-    /// cache, by contrast, is refreshed from the live driver during
-    /// `AscomCameraWrapper::connect` (which calls `get_capabilities` and fails
-    /// the connect if the driver cannot answer), so the geometry read here is
-    /// genuinely the connected camera's — and geometry is exactly what
-    /// distinguishes two bodies sharing one ProgID.
-    ///
-    /// Getting the real model over ASCOM needs a `Name` read *after*
-    /// `Connected = true`. Measured on the reference rig, an unconnected
-    /// `ASCOM.ASICamera2.Camera` answers `Name = "ASI Camera (1)"` and an empty
-    /// `SensorName`, so the existing `skotiq_ascom::probe_device_name`
-    /// helper — which reads `Name` without connecting — cannot supply it.
-    #[cfg(windows)]
-    async fn probe_ascom_camera_identity(&self, device_id: &str) -> Option<DeviceIdentity> {
-        let cameras = self.ascom_cameras.read().await;
-        let camera = cameras.get(device_id)?.clone();
-        drop(cameras);
-        let sensor = camera.read().await.get_sensor_info();
-        Some(DeviceIdentity {
-            model: None,
-            serial_number: None,
-            sensor: DeviceIdentity::sensor_fingerprint(
-                sensor.width,
-                sensor.height,
-                sensor.pixel_size_x,
-            ),
-        })
-    }
-
-    #[cfg(not(windows))]
-    async fn probe_ascom_camera_identity(&self, _device_id: &str) -> Option<DeviceIdentity> {
-        None
-    }
-
     /// A driver-reported model, or `None` when the driver only echoed the id.
     ///
     /// Some vendor wrappers implement `DeviceDriver::name()` by handing back the
@@ -850,7 +809,10 @@ impl DeviceManager {
     ///
     /// Geometry is what separates two bodies whose driver-reported names are
     /// identical, which is the normal case behind one ASCOM ProgID.
-    fn identity_from_camera(device_id: &str, camera: &dyn CameraDriver) -> DeviceIdentity {
+    pub(crate) fn identity_from_camera(
+        device_id: &str,
+        camera: &dyn CameraDriver,
+    ) -> DeviceIdentity {
         let sensor = camera.get_sensor_info();
         DeviceIdentity {
             model: Self::reported_model(device_id, camera.name()),
@@ -1116,81 +1078,12 @@ impl DeviceManager {
                     if let Some(mut device) = native_devices.remove(device_id) {
                         record_disconnect!("Native device", device.disconnect().await);
                     }
-
-                    // Also remove from typed native storage maps
-                    match device_info.device_type {
-                        DeviceType::Camera => {
-                            let mut cameras = self.native_cameras.write().await;
-                            if let Some(mut camera) = cameras.remove(device_id) {
-                                record_disconnect!("Native camera", camera.disconnect().await);
-                            }
-                        }
-                        DeviceType::Mount => {
-                            let mut mounts = self.native_mounts.write().await;
-                            if let Some(mut mount) = mounts.remove(device_id) {
-                                record_disconnect!("Native mount", mount.disconnect().await);
-                            }
-                        }
-                        // These have a handle when a native driver connected
-                        // them, or no native driver at all.
-                        DeviceType::Focuser
-                        | DeviceType::FilterWheel
-                        | DeviceType::Rotator
-                        | DeviceType::Dome
-                        | DeviceType::Weather
-                        | DeviceType::SafetyMonitor
-                        | DeviceType::Switch
-                        | DeviceType::CoverCalibrator
-                        | DeviceType::Guider => {}
-                    }
                 }
-                DriverType::Alpaca => {
-                    // Remove from Alpaca storage based on device type
-                    match device_info.device_type {
-                        DeviceType::Camera => {
-                            let mut cameras = self.alpaca_cameras.write().await;
-                            if let Some(camera) = cameras.remove(device_id) {
-                                record_disconnect!("Alpaca camera", camera.disconnect().await);
-                            }
-                        }
-                        DeviceType::Mount => {
-                            let mut mounts = self.alpaca_mounts.write().await;
-                            if let Some(mount) = mounts.remove(device_id) {
-                                record_disconnect!("Alpaca mount", mount.disconnect().await);
-                            }
-                        }
-                        // The other types are released through their handle above;
-                        // Alpaca guiders are not managed here.
-                        _ => {}
-                    }
-                }
-                #[cfg(windows)]
-                DriverType::Ascom => {
-                    // Remove from ASCOM storage based on device type
-                    match device_info.device_type {
-                        DeviceType::Camera => {
-                            let mut cameras = self.ascom_cameras.write().await;
-                            if let Some(camera) = cameras.remove(device_id) {
-                                let mut cam = camera.write().await;
-                                record_disconnect!("ASCOM camera", cam.disconnect().await);
-                            }
-                        }
-                        DeviceType::Mount => {
-                            let mut mounts = self.ascom_mounts.write().await;
-                            if let Some(mount) = mounts.remove(device_id) {
-                                let mut m = mount.write().await;
-                                record_disconnect!("ASCOM mount", m.disconnect().await);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                #[cfg(not(windows))]
-                DriverType::Ascom => {
-                    // ASCOM not available on non-Windows platforms
-                }
-                // A camera or mount: released on its server's shared
-                // connection, as the other types are through their handle.
+                // Every Alpaca and ASCOM device is released through its
+                // handle above.
+                DriverType::Alpaca | DriverType::Ascom => {}
+                // A device type with no handle (a guider) is released on its
+                // server's shared connection.
                 DriverType::Indi => {
                     record_disconnect!("INDI device", self.release_indi_device(device_id).await);
                 }

@@ -56,13 +56,10 @@
 //! values *after* `with_camera!` has already established the device path.
 
 use crate::device::*;
+use crate::device_manager::rig;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
-#[cfg(windows)]
-use skotiq_device::CameraDriver;
-use skotiq_device::{ExposureParams, ImageData, SubFrame};
-use std::sync::Arc;
-use tracing::warn;
+use skotiq_device::{ImageData, SubFrame};
 
 /// Sentinel meaning "this camera setting could not be read".
 ///
@@ -92,7 +89,7 @@ pub(crate) fn camera_setting_or_unknown(value: i32) -> Option<i32> {
 /// bytes 10..30, so splitting on `=` and taking everything before any `/` is
 /// sufficient — no full FITS parser needed for NAXIS1/NAXIS2. Returns `None`
 /// for a malformed card so the caller can fall back rather than trust a guess.
-fn parse_fits_card_u32(card: &[u8]) -> Option<u32> {
+pub(crate) fn parse_fits_card_u32(card: &[u8]) -> Option<u32> {
     let text = std::str::from_utf8(card).ok()?;
     let after_eq = text.split_once('=')?.1;
     let value = after_eq.split('/').next()?.trim();
@@ -476,8 +473,9 @@ mod sim_sky_wiring_tests {
         {
             // The simulated mount keeps coordinates of date; point it at the
             // J2000 field the way a slew would.
-            let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
-                .j2000_to_mount(ra_hours, dec_deg);
+            let (mount_ra, mount_dec) =
+                crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
+                    .j2000_to_mount(ra_hours, dec_deg);
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
             mount.status.right_ascension = mount_ra;
@@ -593,8 +591,9 @@ mod sim_sky_wiring_tests {
         {
             // The simulated mount keeps coordinates of date; point it at the
             // J2000 field the way a slew would.
-            let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
-                .j2000_to_mount(ra_hours, dec_deg);
+            let (mount_ra, mount_dec) =
+                crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
+                    .j2000_to_mount(ra_hours, dec_deg);
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
             mount.status.right_ascension = mount_ra;

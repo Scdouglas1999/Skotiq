@@ -84,7 +84,10 @@ async fn drive(manager: &DeviceManager, id: &str, driver_type: DriverType, trace
     op!("unpark", manager.mount_unpark(id));
     op!("set_tracking off", manager.mount_set_tracking(id, false));
     op!("tracking_rate", manager.mount_get_tracking_rate(id));
-    op!("set_tracking_rate lunar", manager.mount_set_tracking_rate(id, 1));
+    op!(
+        "set_tracking_rate lunar",
+        manager.mount_set_tracking_rate(id, 1)
+    );
     op!("slew 6.25h +35", manager.mount_slew(id, 6.25, 35.0));
     status!();
     op!("abort", manager.mount_abort(id));
@@ -101,7 +104,10 @@ async fn drive(manager: &DeviceManager, id: &str, driver_type: DriverType, trace
     op!("move_axis 0 at 0", manager.mount_move_axis(id, 0, 0.0));
     op!("move_axis 1 at -1", manager.mount_move_axis(id, 1, -1.0));
     op!("stop", manager.mount_stop(id));
-    op!("slew_alt_az 50 120", manager.mount_slew_alt_az(id, 50.0, 120.0));
+    op!(
+        "slew_alt_az 50 120",
+        manager.mount_slew_alt_az(id, 50.0, 120.0)
+    );
     op!("find_home", manager.mount_find_home(id));
     op!(
         "set_site",
@@ -185,10 +191,25 @@ async fn fake_alpaca_telescope(trace: Trace) -> String {
     let address = listener.local_addr().expect("listener address");
     let mut values: HashMap<&'static str, serde_json::Value> = HashMap::new();
     for member in [
-        "connected", "atpark", "canpark", "canunpark", "cansetpark", "canfindhome",
-        "cansettracking", "canslew", "canslewasync", "canslewaltaz", "canslewaltazasync",
-        "cansync", "cansyncaltaz", "canpulseguide", "cansetguiderates",
-        "cansetrightascensionrate", "cansetdeclinationrate", "cansetpierside", "canmoveaxis",
+        "connected",
+        "atpark",
+        "canpark",
+        "canunpark",
+        "cansetpark",
+        "canfindhome",
+        "cansettracking",
+        "canslew",
+        "canslewasync",
+        "canslewaltaz",
+        "canslewaltazasync",
+        "cansync",
+        "cansyncaltaz",
+        "canpulseguide",
+        "cansetguiderates",
+        "cansetrightascensionrate",
+        "cansetdeclinationrate",
+        "cansetpierside",
+        "canmoveaxis",
     ] {
         values.insert(member, json!(true));
     }
@@ -210,10 +231,7 @@ async fn fake_alpaca_telescope(trace: Trace) -> String {
     values.insert("equatorialsystem", json!(1));
     values.insert("alignmentmode", json!(2));
     values.insert("interfaceversion", json!(4));
-    values.insert(
-        "axisrates",
-        json!([{ "Minimum": 0.0, "Maximum": 4.0 }]),
-    );
+    values.insert("axisrates", json!([{ "Minimum": 0.0, "Maximum": 4.0 }]));
     let values = Arc::new(StdMutex::new(values));
     tokio::spawn(async move {
         loop {
@@ -234,7 +252,9 @@ async fn fake_alpaca_telescope(trace: Trace) -> String {
                         .filter(|pair| {
                             !pair.is_empty()
                                 && !pair.to_ascii_lowercase().starts_with("clientid=")
-                                && !pair.to_ascii_lowercase().starts_with("clienttransactionid=")
+                                && !pair
+                                    .to_ascii_lowercase()
+                                    .starts_with("clienttransactionid=")
                         })
                         .collect::<Vec<_>>()
                         .join("&")
@@ -245,7 +265,10 @@ async fn fake_alpaca_telescope(trace: Trace) -> String {
                 });
                 if method == "PUT" {
                     let body = own(request.split("\r\n\r\n").nth(1).unwrap_or_default());
-                    push(&trace, format!("  PUT {member} {body}").trim_end().to_string());
+                    push(
+                        &trace,
+                        format!("  PUT {member} {body}").trim_end().to_string(),
+                    );
                     let field = |name: &str| {
                         body.split('&').find_map(|pair| {
                             let (key, value) = pair.split_once('=')?;
@@ -256,7 +279,8 @@ async fn fake_alpaca_telescope(trace: Trace) -> String {
                     let mut values = values.lock().expect("lock values");
                     match member.as_str() {
                         "tracking" => {
-                            let on = field("Tracking").is_some_and(|v| v.eq_ignore_ascii_case("true"));
+                            let on =
+                                field("Tracking").is_some_and(|v| v.eq_ignore_ascii_case("true"));
                             values.insert("tracking", json!(on));
                         }
                         "park" => {
@@ -283,13 +307,19 @@ async fn fake_alpaca_telescope(trace: Trace) -> String {
                             }
                         }
                         "connected" => {
-                            let on = field("Connected").is_some_and(|v| v.eq_ignore_ascii_case("true"));
+                            let on =
+                                field("Connected").is_some_and(|v| v.eq_ignore_ascii_case("true"));
                             values.insert("connected", json!(on));
                         }
                         _ => {}
                     }
                 } else {
-                    push(&trace, format!("  GET {member} {}", own(query)).trim_end().to_string());
+                    push(
+                        &trace,
+                        format!("  GET {member} {}", own(query))
+                            .trim_end()
+                            .to_string(),
+                    );
                     match values.lock().expect("lock values").get(member.as_str()) {
                         Some(value) => reply["Value"] = value.clone(),
                         None => {
@@ -407,7 +437,11 @@ impl skotiq_device::DeviceDriver for TraceMount {
 
 #[async_trait::async_trait]
 impl skotiq_device::MountDriver for TraceMount {
-    async fn slew_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), skotiq_device::DriverError> {
+    async fn slew_to_coordinates(
+        &mut self,
+        ra: f64,
+        dec: f64,
+    ) -> Result<(), skotiq_device::DriverError> {
         self.saw(format!("slew_to_coordinates {ra:.1} {dec:.1}"));
         self.position = (ra, dec);
         Ok(())
@@ -416,7 +450,11 @@ impl skotiq_device::MountDriver for TraceMount {
         self.saw("get_coordinates");
         Ok(self.position)
     }
-    async fn sync_to_coordinates(&mut self, ra: f64, dec: f64) -> Result<(), skotiq_device::DriverError> {
+    async fn sync_to_coordinates(
+        &mut self,
+        ra: f64,
+        dec: f64,
+    ) -> Result<(), skotiq_device::DriverError> {
         self.saw(format!("sync_to_coordinates {ra:.1} {dec:.1}"));
         self.position = (ra, dec);
         Ok(())
@@ -469,7 +507,9 @@ impl skotiq_device::MountDriver for TraceMount {
         self.rate = rate;
         Ok(())
     }
-    async fn get_tracking_rate(&self) -> Result<skotiq_device::TrackingRate, skotiq_device::DriverError> {
+    async fn get_tracking_rate(
+        &self,
+    ) -> Result<skotiq_device::TrackingRate, skotiq_device::DriverError> {
         self.saw("get_tracking_rate");
         Ok(self.rate)
     }
@@ -489,7 +529,9 @@ impl skotiq_device::MountDriver for TraceMount {
         self.saw("can_set_tracking_rate");
         true
     }
-    async fn get_side_of_pier(&self) -> Result<skotiq_device::PierSide, skotiq_device::DriverError> {
+    async fn get_side_of_pier(
+        &self,
+    ) -> Result<skotiq_device::PierSide, skotiq_device::DriverError> {
         self.saw("get_side_of_pier");
         Ok(skotiq_device::PierSide::East)
     }
@@ -593,9 +635,10 @@ async fn an_ascom_mount_is_sent_the_recorded_commands() {
     let id = "ascom:Trace.Telescope";
     register_mount(&manager, id, DriverType::Ascom).await;
     let recorder = Arc::clone(&trace);
-    let wrapper = crate::ascom_wrapper::mount::test_support::build_recording_mount_wrapper(
-        move |command| push(&recorder, format!("  {command}")),
-    );
+    let wrapper =
+        crate::ascom_wrapper::mount::test_support::build_recording_mount_wrapper(move |command| {
+            push(&recorder, format!("  {command}"))
+        });
     install_ascom_mount(&manager, id, wrapper).await;
     drive(&manager, id, DriverType::Ascom, &trace).await;
     check(
@@ -606,10 +649,7 @@ async fn an_ascom_mount_is_sent_the_recorded_commands() {
 }
 
 async fn install_alpaca_mount(manager: &DeviceManager, id: &str, base_url: &str) {
-    manager.alpaca_mounts.write().await.insert(
-        id.to_string(),
-        Arc::new(skotiq_alpaca::AlpacaTelescope::from_server(base_url, 0)),
-    );
+    manager.hold_alpaca_mount(id, skotiq_alpaca::AlpacaTelescope::from_server(base_url, 0));
 }
 
 async fn install_vendor_mount(
@@ -617,7 +657,7 @@ async fn install_vendor_mount(
     id: &str,
     mount: Box<dyn skotiq_device::MountDriver + Send + Sync>,
 ) {
-    manager.native_mounts.write().await.insert(id.to_string(), mount);
+    manager.hold_vendor_mount(id, mount);
 }
 
 #[cfg(windows)]
@@ -626,9 +666,5 @@ async fn install_ascom_mount(
     id: &str,
     wrapper: crate::ascom_wrapper::mount::AscomMountWrapper,
 ) {
-    manager
-        .ascom_mounts
-        .write()
-        .await
-        .insert(id.to_string(), Arc::new(RwLock::new(wrapper)));
+    manager.hold_ascom_mount(id, wrapper);
 }

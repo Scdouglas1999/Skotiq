@@ -8,6 +8,8 @@
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::ascom::{AscomFilterWheel, AscomFocuser};
+use crate::device_manager::rig::camera::AlpacaCameraHandle;
+use crate::device_manager::rig::mount::AlpacaMount;
 use crate::device_manager::DeviceManager;
 use std::sync::Arc;
 
@@ -37,16 +39,20 @@ impl DeviceManager {
             DeviceType::Camera => {
                 let camera = AlpacaCamera::from_server(&base_url, device_number);
                 camera.connect().await.map_err(|e| e.to_string())?;
-                let mut alpaca_cameras = self.alpaca_cameras.write().await;
-                alpaca_cameras.insert(info.id.clone(), Arc::new(camera));
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Camera(Arc::new(AlpacaCameraHandle::new(&info.id, camera))),
+                );
             }
             DeviceType::Mount => {
                 let telescope = AlpacaTelescope::from_server(&base_url, device_number);
                 telescope.connect().await.map_err(|e| e.to_string())?;
                 self.record_declared_mount_frame(&info.id, telescope.equatorial_system().await)
                     .await;
-                let mut alpaca_mounts = self.alpaca_mounts.write().await;
-                alpaca_mounts.insert(info.id.clone(), Arc::new(telescope));
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Mount(Arc::new(AlpacaMount::new(&info.id, telescope))),
+                );
             }
             DeviceType::Focuser => {
                 let focuser = AlpacaFocuser::from_server(&base_url, device_number);
@@ -110,61 +116,5 @@ impl DeviceManager {
         }
 
         Ok(())
-    }
-
-    /// Perform health check for Alpaca devices.
-    pub(crate) async fn perform_alpaca_health_check(
-        &self,
-        device_id: &str,
-        device_type: &DeviceType,
-    ) -> Result<bool, String> {
-        match device_type {
-            DeviceType::Camera => {
-                let cameras = self.alpaca_cameras.read().await;
-                if let Some(camera) = cameras.get(device_id) {
-                    match camera.heartbeat().await {
-                        Ok(rtt_ms) => {
-                            tracing::trace!(
-                                "Alpaca camera {} heartbeat: {}ms RTT",
-                                device_id,
-                                rtt_ms
-                            );
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!("Alpaca camera {} heartbeat failed: {}", device_id, e);
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("Alpaca camera {} not found", device_id))
-                }
-            }
-            DeviceType::Mount => {
-                let mounts = self.alpaca_mounts.read().await;
-                if let Some(mount) = mounts.get(device_id) {
-                    match mount.heartbeat().await {
-                        Ok(rtt_ms) => {
-                            tracing::trace!(
-                                "Alpaca mount {} heartbeat: {}ms RTT",
-                                device_id,
-                                rtt_ms
-                            );
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!("Alpaca mount {} heartbeat failed: {}", device_id, e);
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("Alpaca mount {} not found", device_id))
-                }
-            }
-            _ => Err(format!(
-                "No Alpaca heartbeat implementation for device {} ({:?})",
-                device_id, device_type
-            )),
-        }
     }
 }

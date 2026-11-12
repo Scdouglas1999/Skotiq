@@ -20,8 +20,10 @@ use crate::device_capabilities::{
 use crate::device_manager::accessory::{Dome, Rotator, SafetyMonitor, Weather};
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::ops::sim_gate;
+use crate::device_manager::rig::camera::SimCamera;
 use crate::device_manager::rig::filter_wheel::SimFilterWheel;
 use crate::device_manager::rig::focuser::SimFocuser;
+use crate::device_manager::rig::mount::SimMount;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -41,6 +43,8 @@ fn refuse(error: impl Into<DeviceOpError>) -> DriverError {
 pub(crate) fn handle(info: &DeviceInfo) -> Option<DeviceHandle> {
     let device_id = info.id.clone();
     Some(match info.device_type {
+        DeviceType::Camera => DeviceHandle::Camera(Arc::new(SimCamera::new(&device_id))),
+        DeviceType::Mount => DeviceHandle::Mount(Arc::new(SimMount::new(&device_id))),
         DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(SimFocuser {})),
         DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(SimFilterWheel {})),
         DeviceType::Dome => DeviceHandle::Dome(Arc::new(SimDome { device_id })),
