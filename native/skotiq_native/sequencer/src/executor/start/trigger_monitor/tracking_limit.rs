@@ -11,8 +11,6 @@ use std::time::Duration;
 /// How long a hold may outlast the moment its flip was due before it gives up
 /// and hands the run to the operator.
 const HOLD_OVERRUN: Duration = Duration::from_secs(15 * 60);
-/// Hour angle advances this many sidereal seconds per solar second.
-const SIDEREAL_RATE: f64 = 1.002_737_909;
 
 pub(super) struct TrackingLimitHold {
     target: (Option<f64>, Option<f64>),
@@ -28,7 +26,7 @@ pub(super) struct TrackingLimitHold {
 
 /// Seconds until a waiting hold's flip comes due at `hour_angle`.
 fn secs_until_window(config: &crate::MeridianFlipConfig, hour_angle: f64) -> f64 {
-    (tracking_limit_flip_threshold(config) - hour_angle).max(0.0) * 3600.0 / SIDEREAL_RATE
+    (tracking_limit_flip_threshold(config) - hour_angle).max(0.0) * 3600.0 / crate::meridian::SIDEREAL_PER_SOLAR
 }
 
 fn relative_to_meridian(hour_angle: f64) -> String {
