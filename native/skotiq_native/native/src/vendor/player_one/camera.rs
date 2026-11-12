@@ -42,7 +42,7 @@ impl PlayerOneCamera {
             current_subframe: None,
             current_gain: 0,
             current_offset: 0,
-            cooler_state: Mutex::new(CoolerState::default()),
+            cooler_state: Mutex::new(CoolerState::off(0.0)),
         }
     }
 

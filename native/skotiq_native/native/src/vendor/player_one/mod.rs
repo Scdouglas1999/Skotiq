@@ -44,6 +44,7 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
+use crate::camera_core::CoolerState;
 use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use async_trait::async_trait;
 use skotiq_device::camera::*;
@@ -67,26 +68,3 @@ pub use discovery::*;
 use ffi::*;
 pub use filter_wheel::*;
 pub use sdk::*;
-
-/// Cooler state tracked at the driver level.
-///
-/// The POA SDK does not provide a guaranteed-to-succeed read-back for the
-/// `POA_COOLER` register on every camera/firmware. We mirror the Atik pattern
-/// (see `vendor/atik.rs`) and remember the last successfully written state so
-/// `get_status` can report it accurately even when the SDK read-back path is
-/// unavailable. When `POAGetConfig(POA_COOLER)` succeeds, that authoritative
-/// value wins and the cached state is refreshed to match.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct CoolerState {
-    pub(crate) enabled: bool,
-    pub(crate) target_c: f64,
-}
-
-impl Default for CoolerState {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            target_c: 0.0,
-        }
-    }
-}
