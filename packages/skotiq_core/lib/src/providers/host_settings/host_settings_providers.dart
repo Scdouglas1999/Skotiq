@@ -96,9 +96,14 @@ final hostAdminAccessProvider = FutureProvider<bool?>((ref) async {
 /// its own database, announcing host-owned writes to linked clients.
 PublishingSettingsDao buildHostSettingsDao(Ref ref, SkotiqDatabase database) {
   final container = ref.container;
+  // A write can finish after the provider that built this DAO is gone (a
+  // start-up migration nobody awaits); then there is no host left to tell.
+  var live = true;
+  ref.onDispose(() => live = false);
   return PublishingSettingsDao(
     database,
     onHostRowsWritten: (keys) {
+      if (!live) return;
       container
           .read(hostMutationEventHubProvider)
           .publishRemoteOnly(
