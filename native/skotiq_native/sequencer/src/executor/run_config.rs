@@ -1227,6 +1227,45 @@ mod tests {
         .is_err());
     }
 
+    /// The trigger monitor's altitude, dawn and meridian computations read
+    /// the trigger state, which takes a saved site, sun limit, park policy or
+    /// flip setting at once: safety limits do not wait for a step.
+    #[tokio::test]
+    async fn a_saved_site_and_limit_reach_the_next_trigger_computation_at_once() {
+        let rig = rig();
+        rig.update(|config| {
+            config.latitude = Some(-33.9);
+            config.longitude = Some(18.4);
+            config.max_sun_altitude_degrees = Some(-15.0);
+            config.meridian_flip = Some(MeridianFlipConfig {
+                minutes_past_meridian: 12.0,
+                ..MeridianFlipConfig::default()
+            });
+        })
+        .await;
+        let (site, sun) = rig
+            .trigger_state(|state| {
+                (
+                    (
+                        state.settings.observer_latitude,
+                        state.settings.observer_longitude,
+                    ),
+                    state.settings.max_sun_altitude_degrees,
+                )
+            })
+            .await;
+        assert_eq!(site, (Some(-33.9), Some(18.4)));
+        assert_eq!(sun, Some(-15.0));
+        assert_eq!(
+            rig.triggers
+                .read()
+                .await
+                .meridian_flip_config()
+                .map(|flip| flip.minutes_past_meridian),
+            Some(12.0)
+        );
+    }
+
     #[tokio::test]
     async fn the_operators_autofocus_tuning_takes_precedence_over_the_sequences() {
         let rig = rig();

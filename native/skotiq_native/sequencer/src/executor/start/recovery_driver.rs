@@ -804,7 +804,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
             target_name,
             current_filter,
             ..crate::instructions::InstructionContext::new(
-                exit.shared.clone(),
+                exit.shared.for_step(),
                 exit.is_cancelled.clone(),
             )
         };

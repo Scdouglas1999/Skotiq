@@ -328,9 +328,7 @@ impl Run {
         &self,
         recovery_requests: mpsc::Sender<RecoveryCause>,
     ) -> crate::instructions::RunShared {
-        let config = self.config.snapshot();
         let slots = self.config.slots();
-        let profile = config.observer_profile;
         let mut shared = crate::instructions::RunShared::new(self.device_ops.clone());
         shared.rig = self.rig.clone();
         shared.trigger_state = Some(self.triggers.read().await.state());
@@ -338,19 +336,10 @@ impl Run {
         shared.recovery_request_tx = Some(recovery_requests);
         shared.decision_tx = Some(self.decisions.tx.clone());
         shared.active_sequence_run_id = self.decisions.run_id.clone();
-        shared.identity = crate::instructions::FrameIdentity {
-            // One id per start, so `SK-SESID` names this run and no other.
-            session_id: uuid::Uuid::new_v4().to_string(),
-            observer_name: profile.observer_name,
-            site_elevation_m: profile.site_elevation_m,
-            camera_make: profile.camera_make,
-            camera_model: profile.camera_model,
-            telescope_name: profile.telescope_name,
-            telescope_focal_length_mm: profile.telescope_focal_length_mm,
-            telescope_aperture_mm: profile.telescope_aperture_mm,
-        };
-        shared.grading.default_quality_check = config.default_quality_check;
-        shared.grading.reject_folder_path = config.reject_folder_path;
+        // One id per start, so `SK-SESID` names this run and no other.
+        shared.identity.session_id = uuid::Uuid::new_v4().to_string();
+        shared.settings = Some(self.config.clone());
+        shared.take_settings();
         shared.conditions.sky_brightness_mag = self.sky.sky_brightness_mag.clone();
         shared.conditions.cloud_motion = self.sky.cloud_motion.clone();
         shared.defect_map_apply = self.shared.defect_map_apply.clone();
@@ -358,7 +347,6 @@ impl Run {
         // A secondary capture loop armed before this start shares its dither
         // barrier with the run.
         shared.dither_barrier = crate::dual_rig::active_barrier();
-        shared.camera_file_saving = config.camera_file_saving;
         shared
     }
 

@@ -22,21 +22,17 @@ import '../weather_providers.dart'
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequencer_defaults.dart';
 
-/// Run-config sections a run takes when it starts and keeps to its end: a
-/// change to them reaches the next run. Every other section follows the
-/// settings while a run lasts.
-const Set<String> kRunConfigKeptForTheRun = {'autofocus', 'meridian_flip'};
-
 /// Keeps the host's executor on the run configuration the operator's settings
 /// make: the native `RunConfig`, built whole from the settings catalog
 /// (`kAppSettingsTable`, each entry with a `runConfig` path copied as it is)
 /// and the settings stores the catalog does not hold, and sent in one call.
 ///
 /// From host start-up on, every change to those settings is sent, so a manual
-/// capture saves as the Imaging settings say. While a run lasts the sections
-/// in [kRunConfigKeptForTheRun] stay as the run started with them. A linked
-/// client has no executor to configure: its settings reach the host, whose
-/// own copy of this service sends them.
+/// capture saves as the Imaging settings say and a running sequence takes the
+/// change from its next step (the executor reads its settings as each step
+/// starts; safety limits apply at once). A linked client has no executor to
+/// configure: its settings reach the host, whose own copy of this service
+/// sends them.
 final runConfigSyncProvider = Provider<RunConfigSync>((ref) {
   final sync = RunConfigSync(ref, runsHere: !ref.watch(isRemoteClientProvider));
   ref.onDispose(sync._dispose);
@@ -67,9 +63,6 @@ class RunConfigSync {
         _ref.read(loggingServiceProvider).warning(message, source: 'RunConfig'),
   );
 
-  /// The config the running sequence started with; null between runs.
-  Map<String, Object?>? _runStart;
-
   /// Where a failed send during a run is reported.
   void Function(String message)? _onRunSendFailure;
 
@@ -77,11 +70,11 @@ class RunConfigSync {
   bool _sendScheduled = false;
   Future<void> _sending = Future<void>.value();
 
-  /// Send the settings for a run about to start or resume, and keep the
-  /// sections a run keeps until [endRun]. Throws when a setting cannot be
-  /// read or the executor refuses the config, so the run does not start on
-  /// values the operator did not choose. A later send that fails during the
-  /// run goes to [onSendFailure]; the run keeps the previous value.
+  /// Send the settings for a run about to start or resume. Throws when a
+  /// setting cannot be read or the executor refuses the config, so the run
+  /// does not start on values the operator did not choose. A later send that
+  /// fails during the run goes to [onSendFailure] until [endRun]; the run
+  /// keeps the previous values.
   Future<void> beginRun({
     required void Function(String message) onSendFailure,
   }) async {
@@ -90,7 +83,6 @@ class RunConfigSync {
     }
     await _ready;
     final config = build();
-    _runStart = config;
     _onRunSendFailure = onSendFailure;
     // Sent even when equal to the last send: a resume has just loaded its
     // checkpoint's site, fail mode and offsets into the executor.
@@ -102,15 +94,13 @@ class RunConfigSync {
     }
   }
 
-  /// The run is over: the kept sections follow the settings again.
+  /// The run is over: a failed send is logged, not put on a run.
   void endRun() {
-    _runStart = null;
     _onRunSendFailure = null;
-    _scheduleSend();
   }
 
   /// The run config the settings make now, as the native `RunConfig` reads
-  /// it. A section the running sequence keeps is not taken from here.
+  /// it.
   Map<String, Object?> build() {
     final settings = _ref.read(appSettingsProvider).requireValue;
     final defaults = _ref.read(sequencerDefaultsProvider);
@@ -280,12 +270,6 @@ class RunConfigSync {
       } catch (e) {
         _reportSendFailure('The sequencer settings could not be read: $e');
         return;
-      }
-      final runStart = _runStart;
-      if (runStart != null) {
-        for (final section in kRunConfigKeptForTheRun) {
-          config[section] = runStart[section];
-        }
       }
       if (jsonEncode(config) == _lastSent) return;
       unawaited(

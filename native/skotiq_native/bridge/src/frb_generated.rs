@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -196540453;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1550801571;
 
 // Section: executor
 
@@ -2222,50 +2222,97 @@ fn wire__crate__api__finishing_enhance__api_extract_background_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names_impl(
+fn wire__crate__api__devices__filter_wheel__api_filterwheel_get_names_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_filterwheel_get_names", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::simulation::filter_wheel::api_filterwheel_get_names(api_device_id).await?;   Ok(output_ok)
-                    })().await)
-                } })
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_filterwheel_get_names",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::devices::filter_wheel::api_filterwheel_get_names(
+                                api_device_id,
+                            )
+                            .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
 }
-fn wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    name: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_filterwheel_set_by_name", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode();let api_name = name.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::simulation::filter_wheel::api_filterwheel_set_by_name(api_device_id, api_name).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names_impl(
+fn wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     names: impl CstDecode<Vec<String>>,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_filterwheel_set_filter_names", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode();let api_names = names.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::simulation::filter_wheel::api_filterwheel_set_filter_names(api_device_id, api_names).await?;   Ok(output_ok)
-                    })().await)
-                } })
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_filterwheel_set_filter_names",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            let api_names = names.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::devices::filter_wheel::api_filterwheel_set_filter_names(
+                                api_device_id,
+                                api_names,
+                            )
+                            .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
 }
-fn wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position_impl(
+fn wire__crate__api__devices__filter_wheel__api_filterwheel_set_position_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     position: impl CstDecode<i32>,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_filterwheel_set_position", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode();let api_position = position.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::simulation::filter_wheel::api_filterwheel_set_position(api_device_id, api_position).await?;   Ok(output_ok)
-                    })().await)
-                } })
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_filterwheel_set_position",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            let api_position = position.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::devices::filter_wheel::api_filterwheel_set_position(
+                                api_device_id,
+                                api_position,
+                            )
+                            .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
 }
-fn wire__crate__api__devices__simulation__focuser__api_focuser_halt_impl(
+fn wire__crate__api__devices__focuser__api_focuser_halt_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
@@ -2280,10 +2327,8 @@ fn wire__crate__api__devices__simulation__focuser__api_focuser_halt_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::devices::simulation::focuser::api_focuser_halt(
-                            api_device_id,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::devices::focuser::api_focuser_halt(api_device_id).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -2292,7 +2337,7 @@ fn wire__crate__api__devices__simulation__focuser__api_focuser_halt_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__focuser__api_focuser_move_relative_impl(
+fn wire__crate__api__devices__focuser__api_focuser_move_relative_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     delta: impl CstDecode<i32>,
@@ -2309,12 +2354,11 @@ fn wire__crate__api__devices__simulation__focuser__api_focuser_move_relative_imp
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::focuser::api_focuser_move_relative(
-                                api_device_id,
-                                api_delta,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::focuser::api_focuser_move_relative(
+                            api_device_id,
+                            api_delta,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -2323,7 +2367,7 @@ fn wire__crate__api__devices__simulation__focuser__api_focuser_move_relative_imp
         },
     )
 }
-fn wire__crate__api__devices__simulation__focuser__api_focuser_move_to_impl(
+fn wire__crate__api__devices__focuser__api_focuser_move_to_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     position: impl CstDecode<i32>,
@@ -2340,12 +2384,11 @@ fn wire__crate__api__devices__simulation__focuser__api_focuser_move_to_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::focuser::api_focuser_move_to(
-                                api_device_id,
-                                api_position,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::focuser::api_focuser_move_to(
+                            api_device_id,
+                            api_position,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -2424,34 +2467,6 @@ fn wire__crate__api__diagnostics__api_get_camera_capabilities_impl(
                         let output_ok =
                             crate::api::diagnostics::api_get_camera_capabilities(api_device_id)
                                 .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__camera__api_get_camera_status_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_get_camera_status",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::camera::api_get_camera_status(
-                                api_device_id,
-                            )
-                            .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -2677,15 +2692,33 @@ fn wire__crate__api__diagnostics__api_get_filterwheel_capabilities_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status_impl(
+fn wire__crate__api__devices__filter_wheel__api_get_filterwheel_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_get_filterwheel_status", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::simulation::filter_wheel::api_get_filterwheel_status(api_device_id).await?;   Ok(output_ok)
-                    })().await)
-                } })
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_get_filterwheel_status",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_device_id = device_id.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::devices::filter_wheel::api_get_filterwheel_status(
+                                api_device_id,
+                            )
+                            .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
 }
 fn wire__crate__api__diagnostics__api_get_focuser_capabilities_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
@@ -2713,7 +2746,7 @@ fn wire__crate__api__diagnostics__api_get_focuser_capabilities_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__focuser__api_get_focuser_status_impl(
+fn wire__crate__api__devices__focuser__api_get_focuser_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
@@ -2729,10 +2762,8 @@ fn wire__crate__api__devices__simulation__focuser__api_get_focuser_status_impl(
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
                         let output_ok =
-                            crate::api::devices::simulation::focuser::api_get_focuser_status(
-                                api_device_id,
-                            )
-                            .await?;
+                            crate::api::devices::focuser::api_get_focuser_status(api_device_id)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -2833,7 +2864,7 @@ fn wire__crate__api__diagnostics__api_get_mount_capabilities_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__mount__api_get_mount_status_impl(
+fn wire__crate__api__devices__mount__api_get_mount_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
@@ -2849,10 +2880,7 @@ fn wire__crate__api__devices__simulation__mount__api_get_mount_status_impl(
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
                         let output_ok =
-                            crate::api::devices::simulation::mount::api_get_mount_status(
-                                api_device_id,
-                            )
-                            .await?;
+                            crate::api::devices::mount::api_get_mount_status(api_device_id).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -2937,7 +2965,7 @@ fn wire__crate__api__diagnostics__api_get_rotator_capabilities_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__rotator__api_get_rotator_status_impl(
+fn wire__crate__api__devices__rotator__api_get_rotator_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
@@ -2953,10 +2981,8 @@ fn wire__crate__api__devices__simulation__rotator__api_get_rotator_status_impl(
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
                         let output_ok =
-                            crate::api::devices::simulation::rotator::api_get_rotator_status(
-                                api_device_id,
-                            )
-                            .await?;
+                            crate::api::devices::rotator::api_get_rotator_status(api_device_id)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -3851,7 +3877,7 @@ fn wire__crate__api__mount_guard__api_mount_guard_solve_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__mount__api_mount_park_impl(
+fn wire__crate__api__devices__mount__api_mount_park_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
@@ -3867,8 +3893,7 @@ fn wire__crate__api__devices__simulation__mount__api_mount_park_impl(
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
                         let output_ok =
-                            crate::api::devices::simulation::mount::api_mount_park(api_device_id)
-                                .await?;
+                            crate::api::devices::mount::api_mount_park(api_device_id).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -3877,7 +3902,7 @@ fn wire__crate__api__devices__simulation__mount__api_mount_park_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__mount__api_mount_pulse_guide_impl(
+fn wire__crate__api__devices__mount__api_mount_pulse_guide_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     direction: impl CstDecode<String>,
@@ -3896,13 +3921,12 @@ fn wire__crate__api__devices__simulation__mount__api_mount_pulse_guide_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::mount::api_mount_pulse_guide(
-                                api_device_id,
-                                api_direction,
-                                api_duration_ms,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::mount::api_mount_pulse_guide(
+                            api_device_id,
+                            api_direction,
+                            api_duration_ms,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -3911,7 +3935,7 @@ fn wire__crate__api__devices__simulation__mount__api_mount_pulse_guide_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__mount__api_mount_set_tracking_impl(
+fn wire__crate__api__devices__mount__api_mount_set_tracking_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     enabled: impl CstDecode<u8>,
@@ -3928,12 +3952,11 @@ fn wire__crate__api__devices__simulation__mount__api_mount_set_tracking_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::mount::api_mount_set_tracking(
-                                api_device_id,
-                                api_enabled,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::mount::api_mount_set_tracking(
+                            api_device_id,
+                            api_enabled,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -3942,7 +3965,7 @@ fn wire__crate__api__devices__simulation__mount__api_mount_set_tracking_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates_impl(
+fn wire__crate__api__devices__mount__api_mount_slew_to_coordinates_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     ra: impl CstDecode<f64>,
@@ -3961,13 +3984,12 @@ fn wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates_i
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::mount::api_mount_slew_to_coordinates(
-                                api_device_id,
-                                api_ra,
-                                api_dec,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::mount::api_mount_slew_to_coordinates(
+                            api_device_id,
+                            api_ra,
+                            api_dec,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -3976,7 +3998,7 @@ fn wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates_i
         },
     )
 }
-fn wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates_impl(
+fn wire__crate__api__devices__mount__api_mount_sync_to_coordinates_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     ra: impl CstDecode<f64>,
@@ -3995,13 +4017,12 @@ fn wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates_i
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::mount::api_mount_sync_to_coordinates(
-                                api_device_id,
-                                api_ra,
-                                api_dec,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::mount::api_mount_sync_to_coordinates(
+                            api_device_id,
+                            api_ra,
+                            api_dec,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -4010,7 +4031,7 @@ fn wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates_i
         },
     )
 }
-fn wire__crate__api__devices__simulation__mount__api_mount_unpark_impl(
+fn wire__crate__api__devices__mount__api_mount_unpark_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
@@ -4026,8 +4047,7 @@ fn wire__crate__api__devices__simulation__mount__api_mount_unpark_impl(
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
                         let output_ok =
-                            crate::api::devices::simulation::mount::api_mount_unpark(api_device_id)
-                                .await?;
+                            crate::api::devices::mount::api_mount_unpark(api_device_id).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -4993,7 +5013,7 @@ fn wire__crate__api__hotplug__api_rescan_devices_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__rotator__api_rotator_halt_impl(
+fn wire__crate__api__devices__rotator__api_rotator_halt_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
 ) {
@@ -5008,10 +5028,8 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_halt_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::devices::simulation::rotator::api_rotator_halt(
-                            api_device_id,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::devices::rotator::api_rotator_halt(api_device_id).await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -5020,7 +5038,7 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_halt_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__rotator__api_rotator_move_relative_impl(
+fn wire__crate__api__devices__rotator__api_rotator_move_relative_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     delta: impl CstDecode<f64>,
@@ -5037,12 +5055,11 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_move_relative_imp
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::rotator::api_rotator_move_relative(
-                                api_device_id,
-                                api_delta,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::rotator::api_rotator_move_relative(
+                            api_device_id,
+                            api_delta,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -5051,7 +5068,7 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_move_relative_imp
         },
     )
 }
-fn wire__crate__api__devices__simulation__rotator__api_rotator_move_to_impl(
+fn wire__crate__api__devices__rotator__api_rotator_move_to_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     angle: impl CstDecode<f64>,
@@ -5068,12 +5085,11 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_move_to_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::rotator::api_rotator_move_to(
-                                api_device_id,
-                                api_angle,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::rotator::api_rotator_move_to(
+                            api_device_id,
+                            api_angle,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -5082,7 +5098,7 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_move_to_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse_impl(
+fn wire__crate__api__devices__rotator__api_rotator_set_reverse_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     reverse: impl CstDecode<bool>,
@@ -5099,12 +5115,11 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::rotator::api_rotator_set_reverse(
-                                api_device_id,
-                                api_reverse,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::rotator::api_rotator_set_reverse(
+                            api_device_id,
+                            api_reverse,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -5113,7 +5128,7 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse_impl(
         },
     )
 }
-fn wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa_impl(
+fn wire__crate__api__devices__rotator__api_rotator_sync_to_pa_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     pa: impl CstDecode<f64>,
@@ -5130,12 +5145,11 @@ fn wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::rotator::api_rotator_sync_to_pa(
-                                api_device_id,
-                                api_pa,
-                            )
-                            .await?;
+                        let output_ok = crate::api::devices::rotator::api_rotator_sync_to_pa(
+                            api_device_id,
+                            api_pa,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -6240,135 +6254,6 @@ fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_ver
                     })().await)
                 } })
 }
-fn wire__crate__api__devices__camera__api_set_camera_binning_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    bin_x: impl CstDecode<i32>,
-    bin_y: impl CstDecode<i32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_set_camera_binning",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_bin_x = bin_x.cst_decode();
-            let api_bin_y = bin_y.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::devices::camera::api_set_camera_binning(
-                            api_device_id,
-                            api_bin_x,
-                            api_bin_y,
-                        )
-                        .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__camera__api_set_camera_cooler_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    enabled: impl CstDecode<u8>,
-    target_temp: impl CstDecode<Option<f64>>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_set_camera_cooler",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_enabled = enabled.cst_decode();
-            let api_target_temp = target_temp.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::camera::api_set_camera_cooler(
-                                api_device_id,
-                                api_enabled,
-                                api_target_temp,
-                            )
-                            .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__camera__api_set_camera_gain_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    gain: impl CstDecode<i32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_set_camera_gain",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_gain = gain.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::camera::api_set_camera_gain(
-                                api_device_id,
-                                api_gain,
-                            )
-                            .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__camera__api_set_camera_offset_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    offset: impl CstDecode<i32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_set_camera_offset",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_offset = offset.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::simulation::camera::api_set_camera_offset(
-                                api_device_id,
-                                api_offset,
-                            )
-                            .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__storage__api_set_location_impl(
     location: impl CstDecode<Option<crate::storage::ObserverLocation>>,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
@@ -7181,87 +7066,6 @@ fn wire__crate__api__storage__api_update_settings_impl(
         },
     )
 }
-fn wire__crate__api__devices__camera__cancel_exposure_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "cancel_exposure",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::camera::cancel_exposure(api_device_id).await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__filter_wheel__filter_wheel_set_position_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    position: impl CstDecode<i32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "filter_wheel_set_position",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_position = position.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::filter_wheel::filter_wheel_set_position(
-                                api_device_id,
-                                api_position,
-                            )
-                            .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__focuser__focuser_halt_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "focuser_halt",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::focuser::focuser_halt(api_device_id).await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__devices__camera__get_camera_status_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
@@ -7362,31 +7166,6 @@ fn wire__crate__api__devices__mount__mount_get_site_impl(
         },
     )
 }
-fn wire__crate__api__devices__mount__mount_get_status_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "mount_get_status",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::mount::mount_get_status(api_device_id).await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__devices__mount__mount_get_time_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
@@ -7435,64 +7214,6 @@ fn wire__crate__api__devices__mount__mount_move_axis_impl(
                             api_device_id,
                             api_axis,
                             api_rate,
-                        )
-                        .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__mount__mount_park_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "mount_park",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::mount::mount_park(api_device_id).await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__mount__mount_pulse_guide_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    direction: impl CstDecode<String>,
-    duration_ms: impl CstDecode<u32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "mount_pulse_guide",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_direction = direction.cst_decode();
-            let api_duration_ms = duration_ms.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::devices::mount::mount_pulse_guide(
-                            api_device_id,
-                            api_direction,
-                            api_duration_ms,
                         )
                         .await?;
                         Ok(output_ok)
@@ -7597,36 +7318,6 @@ fn wire__crate__api__devices__mount__mount_set_time_impl(
         },
     )
 }
-fn wire__crate__api__devices__mount__mount_set_tracking_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    enabled: impl CstDecode<u8>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "mount_set_tracking",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_enabled = enabled.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::devices::mount::mount_set_tracking(
-                            api_device_id,
-                            api_enabled,
-                        )
-                        .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__devices__mount__mount_set_tracking_rate_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
@@ -7716,61 +7407,6 @@ fn wire__crate__api__devices__mount__mount_slew_alt_az_impl(
         },
     )
 }
-fn wire__crate__api__devices__mount__mount_sync_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    ra: impl CstDecode<f64>,
-    dec: impl CstDecode<f64>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "mount_sync",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_ra = ra.cst_decode();
-            let api_dec = dec.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::mount::mount_sync(api_device_id, api_ra, api_dec)
-                                .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__mount__mount_unpark_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "mount_unpark",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::devices::mount::mount_unpark(api_device_id).await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__secondary_rig__secondary_rig_status_api_default_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
@@ -7825,7 +7461,7 @@ fn wire__crate__api__devices__camera__set_camera_cooler_impl(
         },
     )
 }
-fn wire__crate__api__devices__filter_wheel__set_camera_gain_impl(
+fn wire__crate__api__devices__camera__set_camera_gain_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     gain: impl CstDecode<i32>,
@@ -7842,11 +7478,9 @@ fn wire__crate__api__devices__filter_wheel__set_camera_gain_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::devices::filter_wheel::set_camera_gain(
-                            api_device_id,
-                            api_gain,
-                        )
-                        .await?;
+                        let output_ok =
+                            crate::api::devices::camera::set_camera_gain(api_device_id, api_gain)
+                                .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -7855,7 +7489,7 @@ fn wire__crate__api__devices__filter_wheel__set_camera_gain_impl(
         },
     )
 }
-fn wire__crate__api__devices__filter_wheel__set_camera_offset_impl(
+fn wire__crate__api__devices__camera__set_camera_offset_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
     offset: impl CstDecode<i32>,
@@ -7872,7 +7506,7 @@ fn wire__crate__api__devices__filter_wheel__set_camera_offset_impl(
             move |context| async move {
                 transform_result_dco::<_, _, crate::error::SkotiqError>(
                     (move || async move {
-                        let output_ok = crate::api::devices::filter_wheel::set_camera_offset(
+                        let output_ok = crate::api::devices::camera::set_camera_offset(
                             api_device_id,
                             api_offset,
                         )
@@ -8066,48 +7700,6 @@ fn wire__crate__api__imaging__star_detection_config_api_default_impl(
                     )?;
                     Ok(output_ok)
                 })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__camera__start_exposure_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    duration_secs: impl CstDecode<f64>,
-    gain: impl CstDecode<i32>,
-    offset: impl CstDecode<i32>,
-    bin_x: impl CstDecode<i32>,
-    bin_y: impl CstDecode<i32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "start_exposure",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_duration_secs = duration_secs.cst_decode();
-            let api_gain = gain.cst_decode();
-            let api_offset = offset.cst_decode();
-            let api_bin_x = bin_x.cst_decode();
-            let api_bin_y = bin_y.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::devices::camera::start_exposure(
-                            api_device_id,
-                            api_duration_secs,
-                            api_gain,
-                            api_offset,
-                            api_bin_x,
-                            api_bin_y,
-                        )
-                        .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
             }
         },
     )
@@ -28526,76 +28118,59 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_get_names(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_get_names_impl(
-            port_, device_id,
-        )
+        wire__crate__api__devices__filter_wheel__api_filterwheel_get_names_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        name: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_by_name_impl(
-            port_, device_id, name,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         names: *mut wire_cst_list_String,
     ) {
-        wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_filter_names_impl(
+        wire__crate__api__devices__filter_wheel__api_filterwheel_set_filter_names_impl(
             port_, device_id, names,
         )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_filterwheel_set_position(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         position: i32,
     ) {
-        wire__crate__api__devices__simulation__filter_wheel__api_filterwheel_set_position_impl(
+        wire__crate__api__devices__filter_wheel__api_filterwheel_set_position_impl(
             port_, device_id, position,
         )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_halt(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_halt(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__focuser__api_focuser_halt_impl(port_, device_id)
+        wire__crate__api__devices__focuser__api_focuser_halt_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_move_relative(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_move_relative(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         delta: i32,
     ) {
-        wire__crate__api__devices__simulation__focuser__api_focuser_move_relative_impl(
-            port_, device_id, delta,
-        )
+        wire__crate__api__devices__focuser__api_focuser_move_relative_impl(port_, device_id, delta)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_focuser_move_to(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_focuser_move_to(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         position: i32,
     ) {
-        wire__crate__api__devices__simulation__focuser__api_focuser_move_to_impl(
-            port_, device_id, position,
-        )
+        wire__crate__api__devices__focuser__api_focuser_move_to_impl(port_, device_id, position)
     }
 
     #[unsafe(no_mangle)]
@@ -28620,14 +28195,6 @@ mod io {
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__diagnostics__api_get_camera_capabilities_impl(port_, device_id)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_get_camera_status(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__simulation__camera__api_get_camera_status_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -28699,13 +28266,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__api_get_filterwheel_status(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__filter_wheel__api_get_filterwheel_status_impl(
-            port_, device_id,
-        )
+        wire__crate__api__devices__filter_wheel__api_get_filterwheel_status_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -28717,13 +28282,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__api_get_focuser_status(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__focuser__api_get_focuser_status(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__focuser__api_get_focuser_status_impl(
-            port_, device_id,
-        )
+        wire__crate__api__devices__focuser__api_get_focuser_status_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -28757,11 +28320,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_get_mount_status(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_get_mount_status(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__mount__api_get_mount_status_impl(port_, device_id)
+        wire__crate__api__devices__mount__api_get_mount_status_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -28791,13 +28354,11 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_get_rotator_status(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_get_rotator_status(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__rotator__api_get_rotator_status_impl(
-            port_, device_id,
-        )
+        wire__crate__api__devices__rotator__api_get_rotator_status_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -29115,21 +28676,21 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_park(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_park(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__mount__api_mount_park_impl(port_, device_id)
+        wire__crate__api__devices__mount__api_mount_park_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_pulse_guide(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_pulse_guide(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         direction: *mut wire_cst_list_prim_u_8_strict,
         duration_ms: i32,
     ) {
-        wire__crate__api__devices__simulation__mount__api_mount_pulse_guide_impl(
+        wire__crate__api__devices__mount__api_mount_pulse_guide_impl(
             port_,
             device_id,
             direction,
@@ -29138,46 +28699,44 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_set_tracking(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_set_tracking(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         enabled: u8,
     ) {
-        wire__crate__api__devices__simulation__mount__api_mount_set_tracking_impl(
-            port_, device_id, enabled,
-        )
+        wire__crate__api__devices__mount__api_mount_set_tracking_impl(port_, device_id, enabled)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_slew_to_coordinates(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         ra: f64,
         dec: f64,
     ) {
-        wire__crate__api__devices__simulation__mount__api_mount_slew_to_coordinates_impl(
+        wire__crate__api__devices__mount__api_mount_slew_to_coordinates_impl(
             port_, device_id, ra, dec,
         )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_sync_to_coordinates(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         ra: f64,
         dec: f64,
     ) {
-        wire__crate__api__devices__simulation__mount__api_mount_sync_to_coordinates_impl(
+        wire__crate__api__devices__mount__api_mount_sync_to_coordinates_impl(
             port_, device_id, ra, dec,
         )
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_unpark(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__api_mount_unpark(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__mount__api_mount_unpark_impl(port_, device_id)
+        wire__crate__api__devices__mount__api_mount_unpark_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -29521,55 +29080,47 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_halt(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_halt(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
-        wire__crate__api__devices__simulation__rotator__api_rotator_halt_impl(port_, device_id)
+        wire__crate__api__devices__rotator__api_rotator_halt_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_move_relative(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_relative(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         delta: f64,
     ) {
-        wire__crate__api__devices__simulation__rotator__api_rotator_move_relative_impl(
-            port_, device_id, delta,
-        )
+        wire__crate__api__devices__rotator__api_rotator_move_relative_impl(port_, device_id, delta)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_move_to(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_to(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         angle: f64,
     ) {
-        wire__crate__api__devices__simulation__rotator__api_rotator_move_to_impl(
-            port_, device_id, angle,
-        )
+        wire__crate__api__devices__rotator__api_rotator_move_to_impl(port_, device_id, angle)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_set_reverse(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         reverse: bool,
     ) {
-        wire__crate__api__devices__simulation__rotator__api_rotator_set_reverse_impl(
-            port_, device_id, reverse,
-        )
+        wire__crate__api__devices__rotator__api_rotator_set_reverse_impl(port_, device_id, reverse)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_sync_to_pa(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         pa: f64,
     ) {
-        wire__crate__api__devices__simulation__rotator__api_rotator_sync_to_pa_impl(
-            port_, device_id, pa,
-        )
+        wire__crate__api__devices__rotator__api_rotator_sync_to_pa_impl(port_, device_id, pa)
     }
 
     #[unsafe(no_mangle)]
@@ -30058,55 +29609,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__api_set_camera_binning(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        bin_x: i32,
-        bin_y: i32,
-    ) {
-        wire__crate__api__devices__camera__api_set_camera_binning_impl(
-            port_, device_id, bin_x, bin_y,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_cooler(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        enabled: u8,
-        target_temp: *mut f64,
-    ) {
-        wire__crate__api__devices__simulation__camera__api_set_camera_cooler_impl(
-            port_,
-            device_id,
-            enabled,
-            target_temp,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_gain(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        gain: i32,
-    ) {
-        wire__crate__api__devices__simulation__camera__api_set_camera_gain_impl(
-            port_, device_id, gain,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__api_set_camera_offset(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        offset: i32,
-    ) {
-        wire__crate__api__devices__simulation__camera__api_set_camera_offset_impl(
-            port_, device_id, offset,
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_set_location(
         location: *mut wire_cst_observer_location,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
@@ -30426,33 +29928,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__cancel_exposure(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__camera__cancel_exposure_impl(port_, device_id)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__filter_wheel_set_position(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        position: i32,
-    ) {
-        wire__crate__api__devices__filter_wheel__filter_wheel_set_position_impl(
-            port_, device_id, position,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__focuser__focuser_halt(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__focuser__focuser_halt_impl(port_, device_id)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__get_camera_status(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
@@ -30485,14 +29960,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_status(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__mount__mount_get_status_impl(port_, device_id)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_get_time(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
@@ -30508,29 +29975,6 @@ mod io {
         rate: f64,
     ) {
         wire__crate__api__devices__mount__mount_move_axis_impl(port_, device_id, axis, rate)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_park(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__mount__mount_park_impl(port_, device_id)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_pulse_guide(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        direction: *mut wire_cst_list_prim_u_8_strict,
-        duration_ms: u32,
-    ) {
-        wire__crate__api__devices__mount__mount_pulse_guide_impl(
-            port_,
-            device_id,
-            direction,
-            duration_ms,
-        )
     }
 
     #[unsafe(no_mangle)]
@@ -30574,15 +30018,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_tracking(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        enabled: u8,
-    ) {
-        wire__crate__api__devices__mount__mount_set_tracking_impl(port_, device_id, enabled)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_set_tracking_rate(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
@@ -30612,24 +30047,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_sync(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        ra: f64,
-        dec: f64,
-    ) {
-        wire__crate__api__devices__mount__mount_sync_impl(port_, device_id, ra, dec)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__mount__mount_unpark(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__mount__mount_unpark_impl(port_, device_id)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__secondary_rig__secondary_rig_status_api_default(
         port_: i64,
     ) {
@@ -30652,21 +30069,21 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__set_camera_gain(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_gain(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         gain: i32,
     ) {
-        wire__crate__api__devices__filter_wheel__set_camera_gain_impl(port_, device_id, gain)
+        wire__crate__api__devices__camera__set_camera_gain_impl(port_, device_id, gain)
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__filter_wheel__set_camera_offset(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_offset(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
         offset: i32,
     ) {
-        wire__crate__api__devices__filter_wheel__set_camera_offset_impl(port_, device_id, offset)
+        wire__crate__api__devices__camera__set_camera_offset_impl(port_, device_id, offset)
     }
 
     #[unsafe(no_mangle)]
@@ -30741,27 +30158,6 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__imaging__star_detection_config_api_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__camera__start_exposure(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        duration_secs: f64,
-        gain: i32,
-        offset: i32,
-        bin_x: i32,
-        bin_y: i32,
-    ) {
-        wire__crate__api__devices__camera__start_exposure_impl(
-            port_,
-            device_id,
-            duration_secs,
-            gain,
-            offset,
-            bin_x,
-            bin_y,
-        )
     }
 
     #[unsafe(no_mangle)]

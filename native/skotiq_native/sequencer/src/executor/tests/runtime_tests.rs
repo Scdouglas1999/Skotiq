@@ -966,10 +966,9 @@ fn trigger_action_quiesce_budget_covers_the_default_retry_ladder() {
     );
 }
 
-/// `update_dither_config` must write through the shared
-/// `runtime_config` Arc so the next dither uses the new pixel count.
-/// A `let _` on the parameters here is a silent fallback: the call is
-/// accepted and nothing changes.
+/// A dither change must reach the shared settings store so the next dither
+/// uses the new pixel count; a change accepted and dropped is a silent
+/// fallback.
 #[tokio::test]
 async fn update_dither_config_writes_through_runtime_config() {
     let executor = SequenceExecutor::new();
@@ -1285,8 +1284,8 @@ async fn the_stall_watchdog_holds_off_while_a_trigger_action_is_in_flight() {
 /// The daylight gate's max Sun altitude must be populated from Dart. With no
 /// setter the field holds the derive-default and the native gate blocks only
 /// above the geometric horizon (0°), opening a twilight gap against the Dart
-/// -12° gate. `update_max_sun_altitude` writes the Dart value through
-/// `runtime_config` AND patches the live trigger state so the gate honours it.
+/// -12° gate. The run config's value reaches the settings store AND the live
+/// trigger state, so the gate honours it.
 #[tokio::test]
 async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state() {
     let executor = SequenceExecutor::new();
@@ -1356,8 +1355,8 @@ fn default_max_sun_altitude_matches_dart_nautical_darkness() {
     );
 }
 
-/// `update_filter_offsets` must propagate to runtime_config
-/// so the next filter change reads the updated map.
+/// A filter-offset change must reach the settings store so the next filter
+/// change reads the updated map.
 #[tokio::test]
 async fn update_filter_offsets_writes_through_runtime_config() {
     let executor = SequenceExecutor::new();

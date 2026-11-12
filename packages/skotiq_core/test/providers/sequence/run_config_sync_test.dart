@@ -3,10 +3,10 @@
 //
 // What is pinned here: what default settings make (the same file the native
 // side reads to prove it knows every key), that a catalog entry with a
-// `runConfig` path reaches its field, which sections a run keeps from its
-// start and which follow the settings while it lasts, that a manual capture
-// and a sequence frame get one file format, and that a linked client never
-// sends one.
+// `runConfig` path reaches its field, that a setting edited during a run is
+// sent at once (the executor takes it from the run's next step), that a
+// manual capture and a sequence frame get one file format, and that a linked
+// client never sends one.
 
 import 'dart:convert';
 import 'dart:io';
@@ -201,14 +201,13 @@ void main() {
   });
 
   group('a run', () {
-    test('keeps the autofocus tuning and the meridian-flip settings it started '
-        'with, and follows every other setting', () async {
+    test('sends every setting edited during it, the autofocus tuning and '
+        'meridian-flip settings included', () async {
       build();
       final sync = container.read(runConfigSyncProvider);
       await settle();
       final warnings = <String>[];
       await sync.beginRun(onSendFailure: warnings.add);
-      final atStart = backend.runConfigs.last;
       backend.runConfigs.clear();
 
       // The operator changes the autofocus step and the dither settle.
@@ -219,13 +218,8 @@ void main() {
       await settle();
 
       final during = backend.runConfigs.last;
-      expect(during['autofocus'], atStart['autofocus']);
-      expect(during['meridian_flip'], atStart['meridian_flip']);
+      expect((during['autofocus']! as Map)['step_size'], 99);
       expect((during['dither']! as Map)['settle_time'], 42);
-
-      sync.endRun();
-      await settle();
-      expect((backend.runConfigs.last['autofocus']! as Map)['step_size'], 99);
       expect(warnings, isEmpty);
     });
 
