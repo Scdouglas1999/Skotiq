@@ -50,7 +50,7 @@ import '../../models/framing_hips_projection.dart';
 import '../../models/framing_plate_scale.dart';
 import '../../models/hips/hips_properties.dart';
 import '../../models/hips/hips_tile_id.dart';
-import '../../providers/framing_provider.dart' show FramingTarget;
+import '../../models/framing_models.dart' show FramingTarget;
 import 'healpix_nested.dart';
 
 /// Raised when tile selection is asked to do something geometrically

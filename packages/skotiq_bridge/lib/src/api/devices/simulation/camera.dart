@@ -4,7 +4,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../../../device.dart';
-import '../../../error.dart';
 import '../../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
@@ -12,39 +11,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SimCameraUnit`, `SimExposurePhase`, `SimExposureRequest`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `eq`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
-
-/// Get camera status
-Future<CameraStatus> apiGetCameraStatus({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesSimulationCameraApiGetCameraStatus(deviceId: deviceId);
-
-/// Set camera cooling target
-Future<void> apiSetCameraCooler({
-  required String deviceId,
-  required int enabled,
-  double? targetTemp,
-}) => RustLib.instance.api.crateApiDevicesSimulationCameraApiSetCameraCooler(
-  deviceId: deviceId,
-  enabled: enabled,
-  targetTemp: targetTemp,
-);
-
-/// Set camera gain
-Future<void> apiSetCameraGain({required String deviceId, required int gain}) =>
-    RustLib.instance.api.crateApiDevicesSimulationCameraApiSetCameraGain(
-      deviceId: deviceId,
-      gain: gain,
-    );
-
-/// Set camera offset
-Future<void> apiSetCameraOffset({
-  required String deviceId,
-  required int offset,
-}) => RustLib.instance.api.crateApiDevicesSimulationCameraApiSetCameraOffset(
-  deviceId: deviceId,
-  offset: offset,
-);
 
 class SimulatedCamera {
   final CameraStatus status;

@@ -1,4 +1,4 @@
-import '../../providers/framing_provider.dart' show SurveySource;
+import '../framing_models.dart' show SurveySource;
 
 /// One registered HiPS survey: how to reach its tile pyramid on a CDS mirror.
 ///

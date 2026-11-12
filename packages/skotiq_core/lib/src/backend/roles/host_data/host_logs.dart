@@ -1,4 +1,5 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../services/logging_service.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 
 /// The log entries and log files of a linked imaging host.
 ///

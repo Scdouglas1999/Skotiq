@@ -4,6 +4,7 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../meridian_flip_provider.dart' show isMeridianFlipEnabledProvider;
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// REJECTS sequence start when no usable image output directory
 /// is configured.

@@ -16,6 +16,7 @@ import 'package:skotiq_core/src/providers/sequence/rules/equipment_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/filter_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/settings_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
+import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 
 // Minimal fakes so we can drive the equipment / settings providers from

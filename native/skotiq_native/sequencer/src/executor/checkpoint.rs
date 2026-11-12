@@ -169,7 +169,6 @@ impl SequenceExecutor {
                 },
                 settings: self.settings.clone(),
                 trigger_manager: self.trigger_manager.clone(),
-                triggers_enabled: self.triggers_enabled,
                 budget_registry,
                 smart_exposure_states: Arc::new(tokio::sync::RwLock::new(smart_exposure_states)),
                 resume,
@@ -197,10 +196,9 @@ impl SequenceExecutor {
     /// executor via [`Self::load_checkpoint`]), rebuilds the runtime
     /// node tree from the persisted definition, marks already-Success
     /// nodes on the fresh tree, restores the trigger state snapshot,
-    /// and re-applies safety / triggers-enabled / filter-offsets
-    /// fields. The next `start()` walks the same tree and short-
-    /// circuits the marked nodes — that is what makes resume
-    /// idempotent.
+    /// and re-applies the safety mode and the filter offsets. The next
+    /// `start()` walks the same tree and short-circuits the marked nodes —
+    /// that is what makes resume idempotent.
     ///
     /// Errors when no checkpoint is loaded or when the checkpoint
     /// itself reports `can_resume() == false` (e.g. checkpoint was
@@ -266,7 +264,6 @@ impl SequenceExecutor {
                     config.filter_focus_offsets = snapshot.filter_focus_offsets.clone();
                 })
                 .await?;
-            self.triggers_enabled = snapshot.triggers_enabled;
             let trigger_state = {
                 let manager = self.trigger_manager.read().await;
                 manager.state()

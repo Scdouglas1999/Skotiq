@@ -29,6 +29,7 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'flat_wizard_output.dart';
 import 'profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 
 part 'flat_wizard/flat_output_paths.dart';
 part 'flat_wizard/flat_camera_config.dart';

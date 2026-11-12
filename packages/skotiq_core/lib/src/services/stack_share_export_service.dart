@@ -7,8 +7,10 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
 import '../database/daos/stacked_results_dao.dart';
+import '../providers/database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../utils/skotiq_data_directory.dart';
 import 'logging_service.dart';
 import 'share_card_renderer.dart';

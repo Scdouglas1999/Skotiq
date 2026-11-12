@@ -1,5 +1,6 @@
 import '../../armed_start_provider.dart';
 import '../../host_scheduled_start_provider.dart';
+import '../../../models/sequencer/host_scheduled_start.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
 

@@ -67,6 +67,10 @@ LazyDatabase _openConnection() {
     // corrupt file to a `skotiq-corrupt-<ts>.db` forensic backup so that
     // drift's `onCreate` then seeds a fresh database.
     //
+    // It is the open's only integrity check: a full pass reads every page,
+    // 1.2-1.6 s on a 185 MB rig database already in the page cache and 12 s
+    // straight after a boot.
+    //
     // The recovery marker file written by [runIntegrityCheckAndRecover] is
     // consumed on next launch by [SkotiqDatabase.consumeRecoveryMarker]
     // so the UI can show a one-shot "your database was corrupted and

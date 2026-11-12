@@ -1,7 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../tables/sky_atlas_tables.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -490,7 +488,3 @@ class SkyAtlasDao extends DatabaseAccessor<SkotiqDatabase>
         .get();
   }
 }
-
-final skyAtlasDaoProvider = Provider<SkyAtlasDao>((ref) {
-  return SkyAtlasDao(ref.watch(databaseProvider));
-});

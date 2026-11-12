@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 
 import '../backend/network_backend.dart';
-import '../database/daos/stacked_results_dao.dart';
+import 'database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../services/logging_service.dart';
 import '../services/stack_and_share_service.dart';

@@ -1126,22 +1126,21 @@ impl FrameStoreOps for ScriptedDomeRotatorOps {
         self.saved_frame_paths.lock().unwrap().push(f.to_string());
         self.inner.save_fits(d, f, ctx).await
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
         match self.scripted_frame_metrics {
-            Some((hfr, _, _)) => Ok(Some(hfr)),
-            None => self.inner.calculate_image_hfr(d).await,
-        }
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        match self.scripted_frame_metrics {
-            Some((hfr, stars, _)) => Ok((0..stars).map(|i| (i as f64, i as f64, hfr)).collect()),
-            None => self.inner.detect_stars_in_image(d).await,
-        }
-    }
-    async fn measure_frame_eccentricity(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        match self.scripted_frame_metrics {
-            Some((_, _, eccentricity)) => Ok(Some(eccentricity)),
-            None => self.inner.measure_frame_eccentricity(d).await,
+            Some((hfr, stars, eccentricity)) => Ok(crate::device_ops::LightFrameMeasurement {
+                hfr: Some(hfr),
+                star_count: Some(stars as u32),
+                star_shape: Some(crate::device_ops::FrameStarShape {
+                    eccentricity,
+                    elongation: None,
+                }),
+                trail: None,
+            }),
+            None => self.inner.measure_light_frame(d).await,
         }
     }
 }

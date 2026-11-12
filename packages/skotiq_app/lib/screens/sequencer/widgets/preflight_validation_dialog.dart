@@ -21,7 +21,8 @@ part 'preflight_validation_dialog/section_builders.dart';
 // PRE-FLIGHT VALIDATION DIALOG
 //
 // UI shell for the canonical sequence validator. The validation engine
-// lives in `skotiq_core/.../sequence/sequence_validation.dart` — this
+// lives in `skotiq_core/.../providers/sequence/sequence_validation.dart`, its
+// issue types in `skotiq_core/.../models/sequence/validation/` — this
 // file only renders the result. It consumes that engine's ValidationIssue /
 // ValidationSeverity / ValidationResult types directly, so there is one source
 // of truth for sequence validation across the app.

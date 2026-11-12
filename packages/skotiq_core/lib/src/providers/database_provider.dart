@@ -14,6 +14,24 @@ import '../database/daos/settings_dao.dart';
 import '../database/daos/science_dao.dart';
 import '../database/daos/guide_rms_history_dao.dart';
 import '../database/daos/narrator_events_dao.dart';
+import '../database/daos/calibration_tags_dao.dart';
+import '../database/daos/campaigns_dao.dart';
+import '../database/daos/coimaging_sessions_dao.dart';
+import '../database/daos/constellation_contributions_dao.dart';
+import '../database/daos/darkroom_jobs_dao.dart';
+import '../database/daos/delivery_journal_dao.dart';
+import '../database/daos/delivery_targets_dao.dart';
+import '../database/daos/flat_library_dao.dart';
+import '../database/daos/integrated_masters_dao.dart';
+import '../database/daos/living_sky_retention_dao.dart';
+import '../database/daos/mosaic_panels_dao.dart';
+import '../database/daos/mosaic_projects_dao.dart';
+import '../database/daos/narrowband_composites_dao.dart';
+import '../database/daos/night_reports_dao.dart';
+import '../database/daos/recipes_dao.dart';
+import '../database/daos/sky_atlas_dao.dart';
+import '../database/daos/stacked_results_dao.dart';
+import '../database/daos/transient_detections_dao.dart';
 import '../services/imaging_records_repository.dart';
 import 'backend_provider.dart';
 import 'host_settings/host_settings_providers.dart';
@@ -73,6 +91,81 @@ final guideRmsHistoryDaoProvider = Provider<GuideRmsHistoryDao>((ref) {
 
 final narratorEventsDaoProvider = Provider<NarratorEventsDao>((ref) {
   return NarratorEventsDao(ref.watch(databaseProvider));
+});
+
+final calibrationTagsDaoProvider = Provider<CalibrationTagsDao>((ref) {
+  return CalibrationTagsDao(ref.watch(databaseProvider));
+});
+
+final campaignsDaoProvider = Provider<CampaignsDao>((ref) {
+  return CampaignsDao(ref.watch(databaseProvider));
+});
+
+final coImagingSessionsDaoProvider = Provider<CoImagingSessionsDao>((ref) {
+  return CoImagingSessionsDao(ref.watch(databaseProvider));
+});
+
+final constellationContributionsDaoProvider =
+    Provider<ConstellationContributionsDao>((ref) {
+      return ConstellationContributionsDao(ref.watch(databaseProvider));
+    });
+
+final darkroomJobsDaoProvider = Provider<DarkroomJobsDao>((ref) {
+  return DarkroomJobsDao(ref.watch(databaseProvider));
+});
+
+final deliveryJournalDaoProvider = Provider<DeliveryJournalDao>((ref) {
+  return DeliveryJournalDao(ref.watch(databaseProvider));
+});
+
+final deliveryTargetsDaoProvider = Provider<DeliveryTargetsDao>((ref) {
+  return DeliveryTargetsDao(ref.watch(databaseProvider));
+});
+
+final flatLibraryDaoProvider = Provider<FlatLibraryDao>((ref) {
+  return FlatLibraryDao(ref.watch(databaseProvider));
+});
+
+final integratedMastersDaoProvider = Provider<IntegratedMastersDao>((ref) {
+  return IntegratedMastersDao(ref.watch(databaseProvider));
+});
+
+final livingSkyRetentionDaoProvider = Provider<LivingSkyRetentionDao>((ref) {
+  return LivingSkyRetentionDao(ref.watch(databaseProvider));
+});
+
+final mosaicPanelsDaoProvider = Provider<MosaicPanelsDao>((ref) {
+  return MosaicPanelsDao(ref.watch(databaseProvider));
+});
+
+final mosaicProjectsDaoProvider = Provider<MosaicProjectsDao>((ref) {
+  return MosaicProjectsDao(ref.watch(databaseProvider));
+});
+
+final narrowbandCompositesDaoProvider = Provider<NarrowbandCompositesDao>((
+  ref,
+) {
+  return NarrowbandCompositesDao(ref.watch(databaseProvider));
+});
+
+final nightReportsDaoProvider = Provider<NightReportsDao>((ref) {
+  return NightReportsDao(ref.watch(databaseProvider));
+});
+
+final recipesDaoProvider = Provider<RecipesDao>((ref) {
+  return RecipesDao(ref.watch(databaseProvider));
+});
+
+final skyAtlasDaoProvider = Provider<SkyAtlasDao>((ref) {
+  return SkyAtlasDao(ref.watch(databaseProvider));
+});
+
+final stackedResultsDaoProvider = Provider<StackedResultsDao>((ref) {
+  return StackedResultsDao(ref.watch(databaseProvider));
+});
+
+final transientDetectionsDaoProvider = Provider<TransientDetectionsDao>((ref) {
+  return TransientDetectionsDao(ref.watch(databaseProvider));
 });
 
 /// The saved targets of whichever machine is the imaging host.
@@ -135,6 +228,19 @@ final allDbImagesProvider = StreamProvider<List<db.CapturedImage>>((ref) {
   if (rows != null) return rows.watch();
   return ref.watch(imagesDaoProvider).watchAllImages();
 });
+
+/// Whether the imaging host has stored any frame.
+final hasCapturedImagesProvider = Provider<AsyncValue<bool>>((ref) {
+  if (ref.watch(remoteImageRowsProvider) != null) {
+    // A linked client already holds the host's rows.
+    return ref.watch(allDbImagesProvider).whenData((rows) => rows.isNotEmpty);
+  }
+  return ref.watch(_localHasCapturedImagesProvider);
+});
+
+final _localHasCapturedImagesProvider = StreamProvider<bool>(
+  (ref) => ref.watch(imagesDaoProvider).watchHasAnyImage(),
+);
 
 /// A linked client's copy of the imaging host's `captured_images` rows; null
 /// on a process with its own database.

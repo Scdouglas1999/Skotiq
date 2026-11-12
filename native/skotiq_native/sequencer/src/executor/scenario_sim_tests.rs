@@ -654,11 +654,11 @@ impl FrameStoreOps for ScriptedDeviceOps {
         self.saved_frames.lock().unwrap().push(f.to_string());
         self.inner.save_fits(d, f, ctx).await
     }
-    async fn calculate_image_hfr(&self, d: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(d).await
-    }
-    async fn detect_stars_in_image(&self, d: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(d).await
+    async fn measure_light_frame(
+        &self,
+        d: &ImageData,
+    ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
+        self.inner.measure_light_frame(d).await
     }
 }
 

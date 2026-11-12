@@ -8,7 +8,7 @@ import 'package:http/testing.dart';
 import 'package:image/image.dart' as img;
 import 'package:skotiq_core/src/models/framing_plate_scale.dart';
 import 'package:skotiq_core/src/models/hips/hips_properties.dart';
-import 'package:skotiq_core/src/providers/framing_provider.dart'
+import 'package:skotiq_core/src/models/framing_models.dart'
     show FramingTarget, SurveySource;
 import 'package:skotiq_core/src/providers/hips_framing_provider.dart';
 import 'package:skotiq_core/src/services/hips/hips_tile_cache.dart';

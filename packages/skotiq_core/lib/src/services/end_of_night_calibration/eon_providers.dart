@@ -20,6 +20,7 @@ import '../../providers/sequence/sequence_executor.dart';
 import '../../providers/sequence/sequence_progress.dart';
 import '../../providers/sequence/sequence_selection.dart';
 import '../../providers/sequence_stats_provider.dart';
+import '../../models/sequence/terminal_run_result.dart';
 import '../../providers/ui_notification_provider.dart';
 import '../calibration_master_builder.dart';
 import '../camera_warmup_controller.dart' show CameraWarmupOutcome;

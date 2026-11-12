@@ -407,83 +407,74 @@ fn test_executor_state_for_result_keeps_cancelled_distinct() {
     );
 }
 
-#[test]
-fn test_trigger_autofocus_context_preserves_runtime_metadata() {
-    let trigger_context = RunRig {
-        camera_id: Some("camera".to_string()),
-        mount_id: Some("mount".to_string()),
-        focuser_id: Some("focuser".to_string()),
-        filterwheel_id: Some("wheel".to_string()),
-        rotator_id: Some("rotator".to_string()),
-        dome_id: Some("dome".to_string()),
-        cover_calibrator_id: Some("panel".to_string()),
-        save_path: Some(std::path::PathBuf::from("C:/captures")),
-        latitude: Some(45.0),
-        longitude: Some(-122.0),
-        filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
-    };
-    let runtime_config = RunConfigStore::default();
-    let instruction_ctx = trigger_instruction_context(
-        &trigger_context,
-        Some("M31".to_string()),
-        Some(1.25),
-        Some(41.0),
-        Some("Ha".to_string()),
-        Arc::new(AtomicBool::new(false)),
-        Arc::new(crate::device_ops::NullDeviceOps),
-        Arc::new(RwLock::new(TriggerState::new())),
-        &runtime_config,
-        None,
-    );
-
-    assert_eq!(instruction_ctx.target_name.as_deref(), Some("M31"));
-    assert_eq!(
-        instruction_ctx.run.rig.save_path,
-        Some(std::path::PathBuf::from("C:/captures"))
-    );
-    assert_eq!(instruction_ctx.run.rig.latitude, Some(45.0));
-    assert_eq!(instruction_ctx.run.rig.longitude, Some(-122.0));
-    assert_eq!(
-        instruction_ctx.run.rig.filter_focus_offsets.get("Ha"),
-        Some(&42)
-    );
+/// An instruction aimed at M42 on a run with this rig.
+fn flip_instruction(rig: RunRig, filter: Option<&str>) -> crate::instructions::InstructionContext {
+    let mut run = crate::instructions::RunShared::new(Arc::new(crate::device_ops::NullDeviceOps));
+    run.rig = rig;
+    crate::instructions::InstructionContext {
+        target_name: Some("M42".to_string()),
+        target_ra: Some(5.5),
+        target_dec: Some(-5.0),
+        current_filter: filter.map(str::to_string),
+        ..crate::instructions::InstructionContext::new(run, Arc::new(AtomicBool::new(false)))
+    }
 }
 
-#[test]
-fn test_trigger_flip_context_keeps_focuser_id() {
-    let trigger_context = RunRig {
-        mount_id: Some("mount".to_string()),
-        camera_id: Some("camera".to_string()),
-        focuser_id: Some("focuser".to_string()),
-        ..RunRig::default()
-    };
-
-    let flip_ctx = build_trigger_flip_context(
-        &trigger_context,
-        TriggerFlipTarget {
-            name: "M42".to_string(),
-            ra_hours: Some(5.5),
-            dec_degrees: Some(-5.0),
+#[tokio::test]
+async fn a_flip_context_keeps_the_runs_focuser() {
+    let ctx = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            camera_id: Some("camera".to_string()),
+            focuser_id: Some("focuser".to_string()),
+            ..RunRig::default()
         },
         None,
-        None,
-        None,
-        None,
-    )
-    .expect("flip context should be created");
+    );
+
+    let flip_ctx = crate::meridian_flip_executor::FlipContext::for_instruction(&ctx, None)
+        .await
+        .expect("flip context should be created");
 
     assert_eq!(flip_ctx.focuser_id.as_deref(), Some("focuser"));
     assert_eq!(flip_ctx.mount_id, "mount");
+    assert_eq!(flip_ctx.target_name, "M42");
 }
 
-#[test]
-fn trigger_flip_context_preserves_real_autofocus_config() {
-    let trigger_context = RunRig {
-        mount_id: Some("mount".to_string()),
-        filterwheel_id: Some("wheel".to_string()),
-        filter_focus_offsets: HashMap::from([("L".to_string(), 0), ("Ha".to_string(), 180)]),
-        ..RunRig::default()
-    };
+#[tokio::test]
+async fn a_flip_context_needs_a_mount_and_target_coordinates() {
+    let no_mount = flip_instruction(RunRig::default(), None);
+    assert!(
+        crate::meridian_flip_executor::FlipContext::for_instruction(&no_mount, None)
+            .await
+            .is_none()
+    );
+    let mut no_target = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            ..RunRig::default()
+        },
+        None,
+    );
+    no_target.target_ra = None;
+    assert!(
+        crate::meridian_flip_executor::FlipContext::for_instruction(&no_target, None)
+            .await
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_flip_context_preserves_the_real_autofocus_config() {
+    let ctx = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            filterwheel_id: Some("wheel".to_string()),
+            filter_focus_offsets: HashMap::from([("L".to_string(), 0), ("Ha".to_string(), 180)]),
+            ..RunRig::default()
+        },
+        Some("L"),
+    );
     let autofocus_config = crate::AutofocusConfig {
         filter: Some("Ha".to_string()),
         step_size: 275,
@@ -492,19 +483,10 @@ fn trigger_flip_context_preserves_real_autofocus_config() {
         ..crate::AutofocusConfig::default()
     };
 
-    let flip_ctx = build_trigger_flip_context(
-        &trigger_context,
-        TriggerFlipTarget {
-            name: "M42".to_string(),
-            ra_hours: Some(5.5),
-            dec_degrees: Some(-5.0),
-        },
-        None,
-        None,
-        Some(autofocus_config),
-        Some("L".to_string()),
-    )
-    .expect("flip context should be created");
+    let flip_ctx =
+        crate::meridian_flip_executor::FlipContext::for_instruction(&ctx, Some(autofocus_config))
+            .await
+            .expect("flip context should be created");
 
     let observed = flip_ctx
         .autofocus_config
@@ -1715,26 +1697,6 @@ async fn non_camera_actions_take_no_claim() {
     }
 }
 
-/// The guard's coverage is only real while it is the ONLY way the trigger
-/// dispatch hands the imaging train back: a hand-placed
-/// `imaging_train.release()` per arm plus a comment claiming every exit is
-/// covered is a claim rather than a check, and one arm goes uncovered.
-///
-/// So check it: a bare release inside the dispatch is a release that some
-/// future early exit will route around.
-#[test]
-fn the_trigger_dispatch_releases_the_camera_only_through_the_guard() {
-    let start_rs = include_str!("../start.rs");
-    let bare_releases = start_rs.matches("imaging_train.release(").count();
-    assert_eq!(
-        bare_releases, 0,
-        "executor/start.rs releases the imaging-train claim directly in {bare_releases} \
-         place(s). Route it through `camera_claim.release().await` instead: a per-arm release \
-         only covers the exits someone remembered, and the autofocus device-missing branch is \
-         what happens when one is forgotten — ten minutes of blocked frames per firing."
-    );
-}
-
 /// The live defect (2026-08-17, D1 sim-night harness, release bundle): the
 /// meridian-flip trigger fired 1.5 ms after the run started, on a target 1.5h
 /// EAST of the meridian, and the flip's own banner printed the contradiction —
@@ -2569,22 +2531,33 @@ async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
             ExecutorState::Running,
             "{persisted}: the run must keep going on the previous focus"
         );
-        assert!(
-            run.decisions
-                .iter()
-                .any(|d| d.summary == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY),
-            "{persisted}: the operator must be notified (the decision row is what raises the \
-             notification): {:?}",
+        // The decision row is what raises the operator's notification: one
+        // missed focus, one row, one warning.
+        let rows: Vec<_> = run
+            .decisions
+            .iter()
+            .filter(|d| d.summary == super::AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY)
+            .collect();
+        assert_eq!(
+            rows.len(),
+            1,
+            "{persisted}: the missed focus is recorded once: {:?}",
             run.decisions
                 .iter()
                 .map(|d| d.summary.clone())
                 .collect::<Vec<_>>()
         );
-        assert!(
-            run.warnings
-                .iter()
-                .any(|w| w.contains("did not converge") && w.contains("imaging continues")),
-            "{persisted}: the cause goes to the run's warnings: {:?}",
+        assert_eq!(rows[0].details["trigger_id"], "hfr_degraded");
+        assert_eq!(rows[0].details["trigger_name"], "HFR Degradation");
+        let notices: Vec<_> = run
+            .warnings
+            .iter()
+            .filter(|w| w.contains("did not converge") && w.contains("imaging continues"))
+            .collect();
+        assert_eq!(
+            notices.len(),
+            1,
+            "{persisted}: the cause goes to the run's warnings once: {:?}",
             run.warnings
         );
         assert!(

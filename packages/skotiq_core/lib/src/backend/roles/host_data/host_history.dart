@@ -1,4 +1,5 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../database/database.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 
 /// Recorded history of a linked imaging host: polar alignments, guide RMS, the night narrator feed and photometric transforms.
 ///

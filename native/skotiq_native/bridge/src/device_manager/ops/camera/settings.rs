@@ -1,6 +1,7 @@
 use super::*;
 use crate::device_manager::ops::state_events::property;
 use crate::event::EquipmentEvent;
+use skotiq_indi::names as indi;
 
 impl DeviceManager {
     // Each setter publishes the camera's settings once it accepted the value
@@ -151,7 +152,12 @@ impl DeviceManager {
                 if let Some(client) = clients.get(&server_key) {
                     let mut locked = client.write().await;
                     locked
-                        .set_number(&device_name, "CCD_CONTROLS", "Gain", gain as f64)
+                        .set_number(
+                            &device_name,
+                            indi::CCD_CONTROLS,
+                            indi::CONTROLS_GAIN,
+                            gain as f64,
+                        )
                         .await
                         .map_err(|e| {
                             DeviceOpError::hardware(
@@ -250,7 +256,12 @@ impl DeviceManager {
                 if let Some(client) = clients.get(&server_key) {
                     let mut locked = client.write().await;
                     locked
-                        .set_number(&device_name, "CCD_CONTROLS", "Offset", offset as f64)
+                        .set_number(
+                            &device_name,
+                            indi::CCD_CONTROLS,
+                            indi::CONTROLS_OFFSET,
+                            offset as f64,
+                        )
                         .await
                         .map_err(|e| {
                             DeviceOpError::hardware(
@@ -348,10 +359,10 @@ impl DeviceManager {
                 if let Some(client) = clients.get(&server_key) {
                     let mut locked_client = client.write().await;
                     locked_client
-                        .set_number(&device_name, "CCD_BINNING", "HOR_BIN", bin_x as f64)
+                        .set_number(&device_name, indi::CCD_BINNING, indi::HOR_BIN, bin_x as f64)
                         .await?;
                     locked_client
-                        .set_number(&device_name, "CCD_BINNING", "VER_BIN", bin_y as f64)
+                        .set_number(&device_name, indi::CCD_BINNING, indi::VER_BIN, bin_y as f64)
                         .await?;
                     return Ok(());
                 }
@@ -466,7 +477,11 @@ impl DeviceManager {
                     let mut locked = client.write().await;
                     // INDI cameras expose readout speed as a switch property.
                     // Common property names: CCD_READ_MODE, CCD_READOUT_SPEED, READOUT_QUALITY
-                    let switch_props = ["CCD_READ_MODE", "CCD_READOUT_SPEED", "READOUT_QUALITY"];
+                    let switch_props = [
+                        indi::CCD_READ_MODE,
+                        indi::CCD_READOUT_SPEED,
+                        indi::READOUT_QUALITY,
+                    ];
                     let all_props = locked.get_properties(&device_name).await;
                     for prop_name in &switch_props {
                         if let Some(prop) = all_props.iter().find(|p| {
@@ -680,16 +695,20 @@ impl DeviceManager {
                 let clients = self.indi_clients.read().await;
                 if let Some(client) = clients.get(&server_key) {
                     let mut locked_client = client.write().await;
-                    let switch_element = if enabled { "COOLER_ON" } else { "COOLER_OFF" };
+                    let switch_element = if enabled {
+                        indi::COOLER_ON
+                    } else {
+                        indi::COOLER_OFF
+                    };
                     locked_client
-                        .set_switch(&device_name, "CCD_COOLER", switch_element, true)
+                        .set_switch(&device_name, indi::CCD_COOLER, switch_element, true)
                         .await?;
                     if let Some(temp) = target_temp {
                         locked_client
                             .set_number(
                                 &device_name,
-                                "CCD_TEMPERATURE",
-                                "CCD_TEMPERATURE_VALUE",
+                                indi::CCD_TEMPERATURE,
+                                indi::CCD_TEMPERATURE_VALUE,
                                 temp,
                             )
                             .await?;

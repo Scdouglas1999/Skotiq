@@ -5,7 +5,7 @@ import '../../models/equipment/discovery_state.dart';
 import '../../services/device_service/profile_device_resolution.dart';
 import '../../utils/device_id.dart';
 import '../backend_provider.dart';
-import '../profiles_provider.dart';
+import '../../models/equipment_profile_model.dart';
 import '../unified_discovery_provider.dart';
 import 'device_slots.dart';
 import 'profile_connection_status_provider.dart';

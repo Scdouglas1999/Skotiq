@@ -5,6 +5,7 @@ import '../../settings_provider.dart';
 import '../../equipment_provider.dart';
 import '../../weather_providers.dart';
 import '../sequence_validation.dart';
+import '../../../models/sequence/validation/validation_issue.dart';
 
 /// Catches the fail-closed weather gate BEFORE the run wastes a slew.
 ///
