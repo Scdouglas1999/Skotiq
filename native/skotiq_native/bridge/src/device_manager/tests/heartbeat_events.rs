@@ -370,3 +370,54 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
     manager.disconnect_device(device_id).await.unwrap();
     get_sim_mount().write().await.status.connected = false;
 }
+
+// A lost mount whose reconnect keeps failing told the operator twice per
+// attempt: the failed connect's Error with the reason, and a second
+// "Reconnection attempt N failed" event for the same failure.
+#[tokio::test]
+async fn a_failed_reconnect_attempt_publishes_one_event() {
+    use crate::api::devices::simulation::get_sim_mount;
+    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::event::{EquipmentEvent, EventPayload};
+    use tokio::sync::broadcast::error::TryRecvError;
+
+    let _guard = super::simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let device_id = "sim_mount_1";
+    let info = super::build_sim_info(device_id, DeviceType::Mount);
+    manager.register_device(info.clone(), true).await;
+    sim_faults::arm(
+        "mount.connect",
+        FaultSpec::new(Trigger::Always, Effect::Error("unplugged".into())),
+    );
+    let mut rx = manager.app_state.event_bus.subscribe();
+
+    manager.attempt_reconnect(device_id, &info).await;
+    sim_faults::clear_all();
+
+    let mut errors = Vec::new();
+    loop {
+        match rx.try_recv() {
+            Ok(event) => {
+                if let EventPayload::Equipment(EquipmentEvent::Error {
+                    device_id: id,
+                    message,
+                    ..
+                }) = &event.payload
+                {
+                    if id == device_id {
+                        errors.push(message.clone());
+                    }
+                }
+            }
+            Err(TryRecvError::Lagged(_)) => continue,
+            Err(_) => break,
+        }
+    }
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    assert!(errors[0].contains("unplugged"), "{errors:?}");
+    let devices = manager.devices.read().await;
+    assert_eq!(devices.get(device_id).unwrap().reconnect_attempts, 1);
+    drop(devices);
+    get_sim_mount().write().await.status.connected = false;
+}
