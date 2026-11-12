@@ -265,7 +265,14 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
                     format!("unknown export format '{other}'; expected fits/xisf/png/jpeg/tiff")
                 })?;
                 let header = export_header(&image, &stage, &fingerprint, &recipe, &history);
-                let record = write_frame_atomic(frame_format, &path, &image, &header)?;
+                // A render that left the linear stage is display-referred,
+                // 0..1; a linear one keeps the range of its master.
+                let range = if stretched_domain {
+                    skotiq_imaging::SampleRange::UNIT
+                } else {
+                    image.range()
+                };
+                let record = write_frame_atomic(frame_format, &path, &image, range, &header)?;
                 fits_paths.push(path.clone());
                 record
             }
@@ -420,9 +427,10 @@ fn write_frame_atomic(
     format: skotiq_imaging::ImageFormat,
     path: &Path,
     image: &OpImage,
+    range: skotiq_imaging::SampleRange,
     header: &FitsHeader,
 ) -> Result<Value, String> {
-    let data = image.to_image_data();
+    let data = image.to_image_data().with_range(range);
     let temp = temp_sibling(path);
     skotiq_imaging::write_frame_as(format, &temp, &data, header, &Default::default())
         .map_err(|e| format!("cannot write '{}': {e}", path.display()))?;
@@ -473,6 +481,7 @@ fn write_raster(
                 channels,
                 pixel_type: PixelType::U8,
                 data: samples,
+                range: skotiq_imaging::SampleRange::of(PixelType::U8),
             };
             write_jpeg(&temp, &data, quality)?;
         }

@@ -217,8 +217,7 @@ impl CameraDriver for InstantCompleteCamera {
 
 async fn cleanup_test_camera(mgr: &Arc<DeviceManager>, device_id: &str) {
     mgr.unregister_device(device_id).await;
-    let mut native_cameras = mgr.native_cameras.write().await;
-    native_cameras.remove(device_id);
+    mgr.handles.remove(device_id);
 }
 
 #[tokio::test]
@@ -240,16 +239,13 @@ async fn exposure_polling_short_circuits_when_complete() {
     };
 
     mgr.register_device(info, false).await;
-    {
-        let mut native_cameras = mgr.native_cameras.write().await;
-        native_cameras.insert(
+    mgr.hold_vendor_camera(
+        &device_id,
+        Box::new(InstantCompleteCamera::new(
             device_id.clone(),
-            Box::new(InstantCompleteCamera::new(
-                device_id.clone(),
-                Arc::clone(&exposure_checked),
-            )),
-        );
-    }
+            Arc::clone(&exposure_checked),
+        )),
+    );
 
     let ops = UnifiedDeviceOps::new(crate::api::get_state().clone());
     let device_id_for_exposure = device_id.clone();
@@ -306,8 +302,8 @@ async fn a_camera_without_gain_control_writes_no_gain_or_offset_card() {
             false,
         )
         .await;
-        mgr.native_cameras.write().await.insert(
-            device_id.clone(),
+        mgr.hold_vendor_camera(
+            &device_id,
             Box::new(InstantCompleteCamera {
                 controls_gain,
                 ..InstantCompleteCamera::new(device_id.clone(), Arc::new(AtomicUsize::new(0)))
@@ -380,8 +376,8 @@ async fn an_exposure_given_up_mid_frame_announces_that_it_ended() {
         false,
     )
     .await;
-    mgr.native_cameras.write().await.insert(
-        device_id.clone(),
+    mgr.hold_vendor_camera(
+        &device_id.clone(),
         Box::new(InstantCompleteCamera::never_completing(device_id.clone())),
     );
     let mut events = crate::api::get_state().event_bus.subscribe();

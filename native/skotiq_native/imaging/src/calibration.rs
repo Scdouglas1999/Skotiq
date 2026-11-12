@@ -165,7 +165,8 @@ fn validate_frames(
     other_name: &str,
 ) -> Result<(), CalibrationError> {
     validate_frame_geometry(reference, other, other_name)?;
-    if reference.pixel_type != other.pixel_type {
+    // Byte-wise arithmetic needs the same numbers to mean the same level.
+    if reference.pixel_type != other.pixel_type || reference.range != other.range {
         return Err(CalibrationError::PixelTypeMismatch {
             expected: reference.pixel_type,
             actual: other.pixel_type,
@@ -198,6 +199,7 @@ fn subtract_dark(light: &ImageData, dark: &ImageData) -> Result<ImageData, Calib
         channels: light.channels,
         pixel_type: light.pixel_type,
         data: result_data,
+        range: light.range,
     })
 }
 
@@ -222,6 +224,7 @@ fn subtract_bias(frame: &ImageData, bias: &ImageData) -> Result<ImageData, Calib
         channels: frame.channels,
         pixel_type: frame.pixel_type,
         data: result_data,
+        range: frame.range,
     })
 }
 
@@ -238,10 +241,12 @@ pub fn divide_flat(light: &ImageData, flat: &ImageData) -> Result<ImageData, Cal
     if light.pixel_type != flat.pixel_type {
         // Keep a unit-mean float flat fractional: converting it to integer
         // samples before division would turn its response into 0, 1, or 2.
-        let float_light = convert_sample_type(light, PixelType::F64);
-        let float_flat = convert_sample_type(flat, PixelType::F64);
+        let float_light = light.converted_to(PixelType::F64, crate::SampleRange::ADU);
+        let float_flat = flat.converted_to(PixelType::F64, crate::SampleRange::ADU);
         let corrected = divide_flat(&float_light, &float_flat)?;
-        return Ok(convert_sample_type(&corrected, light.pixel_type).into_owned());
+        return Ok(corrected
+            .converted_to(light.pixel_type, light.range)
+            .into_owned());
     }
 
     let channels = (light.channels as usize).max(1);
@@ -259,6 +264,7 @@ pub fn divide_flat(light: &ImageData, flat: &ImageData) -> Result<ImageData, Cal
         channels: light.channels,
         pixel_type: light.pixel_type,
         data: result_data,
+        range: light.range,
     })
 }
 
@@ -292,8 +298,8 @@ pub fn calibrate_frame(
 
     // Dark and bias masters are additive and in ADU. Flats retain their own
     // sample type so normalized float responses stay fractional during division.
-    let conformed_dark = dark.map(|d| convert_sample_type(d, light.pixel_type));
-    let conformed_bias = bias.map(|b| convert_sample_type(b, light.pixel_type));
+    let conformed_dark = dark.map(|d| d.converted_to(light.pixel_type, light.range));
+    let conformed_bias = bias.map(|b| b.converted_to(light.pixel_type, light.range));
     let dark = conformed_dark.as_deref();
     let bias = conformed_bias.as_deref();
 
@@ -320,7 +326,7 @@ pub fn calibrate_frame(
     // corrupt it.
     let corrected_flat: Option<ImageData> = match (flat, bias) {
         (Some(f), Some(b)) if !is_float(f.pixel_type) => {
-            Some(subtract_bias(f, &convert_sample_type(b, f.pixel_type))?)
+            Some(subtract_bias(f, &b.converted_to(f.pixel_type, f.range))?)
         }
         (Some(f), _) => Some(f.clone()),
         _ => None,
@@ -479,45 +485,6 @@ pub fn calibrate_frame_f32(
         light.channels,
         &data,
     ))
-}
-
-/// `master` re-encoded as `target` samples, or borrowed unchanged when it
-/// already is. Integer targets round and clamp to their range; NaN becomes 0.
-fn convert_sample_type(master: &ImageData, target: PixelType) -> std::borrow::Cow<'_, ImageData> {
-    if master.pixel_type == target || master.is_empty() {
-        return std::borrow::Cow::Borrowed(master);
-    }
-    let values = master.samples_f64();
-    let clean = |v: f64| if v.is_nan() { 0.0 } else { v };
-    let data: Vec<u8> = match target {
-        PixelType::U8 => values
-            .iter()
-            .map(|&v| clean(v).round().clamp(0.0, 255.0) as u8)
-            .collect(),
-        PixelType::U16 => values
-            .iter()
-            .flat_map(|&v| (clean(v).round().clamp(0.0, 65535.0) as u16).to_le_bytes())
-            .collect(),
-        PixelType::U32 => values
-            .iter()
-            .flat_map(|&v| (clean(v).round().clamp(0.0, f64::from(u32::MAX)) as u32).to_le_bytes())
-            .collect(),
-        PixelType::F32 => values
-            .iter()
-            .flat_map(|&v| (clean(v) as f32).to_le_bytes())
-            .collect(),
-        PixelType::F64 => values
-            .iter()
-            .flat_map(|&v| clean(v).to_le_bytes())
-            .collect(),
-    };
-    std::borrow::Cow::Owned(ImageData {
-        width: master.width,
-        height: master.height,
-        channels: master.channels,
-        pixel_type: target,
-        data,
-    })
 }
 
 /// Per-channel mean of interleaved samples, where `values[i]` belongs to

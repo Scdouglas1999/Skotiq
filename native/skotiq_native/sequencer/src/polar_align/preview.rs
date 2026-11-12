@@ -99,6 +99,7 @@ pub(crate) fn emit_preview<I>(
         channels: 1,
         pixel_type: PixelType::U16,
         data: packed_data,
+        range: skotiq_imaging::SampleRange::ADU,
     };
 
     if let Ok(jpeg_data) = prepare_image_for_display(&imaging_image_data, is_color, bayer_pattern) {

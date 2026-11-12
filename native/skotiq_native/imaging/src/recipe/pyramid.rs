@@ -144,13 +144,14 @@ pub fn downsample_2x(image: &OpImage) -> Result<OpImage, OpError> {
 
     let mut header = image.header().clone();
     scale_header_for_downsample(&mut header, out_width as u32, out_height as u32);
-    OpImage::new(
+    Ok(OpImage::new(
         out_width as u32,
         out_height as u32,
         channels as u32,
         out,
         header,
-    )
+    )?
+    .with_range(image.range()))
 }
 
 /// Rewrite a header for a factor-of-two downsample: the image size and the

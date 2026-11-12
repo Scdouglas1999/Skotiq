@@ -53,8 +53,10 @@ pub mod stack_master; // NEW: the live stack's FITS master (synthesized EXPTIME/
 pub mod stacking;
 mod star_detect; // Star detection: background/noise maps, matched filter, deblending
 pub mod star_reduction; // NEW: Star-size reduction (morphological + screen recombine)
+pub mod sample_range;
 mod stats;
 mod stretch;
+mod thumbnail;
 mod trail; // Star trailing from the autocorrelation of the bright pixels
 pub mod wcs_sip; // NEW: SIP-aware (CD + forward/inverse SIP) gnomonic projection
 pub mod xisf;
@@ -85,10 +87,12 @@ pub use raw::*;
 /// The color-composite stages, under the name the bridge imports them by.
 pub use recipe::composite as color_composite;
 pub use registration::*; // NEW: Export registration types
+pub use sample_range::{SampleRange, ADU_FULL_SCALE};
 pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
 pub use star_reduction::*; // NEW: Export star-reduction types
 pub use stats::*;
 pub use stretch::*;
+pub use thumbnail::thumbnail;
 pub use trail::{measure_frame_trail, FrameTrail, TRAIL_MIN_AXIS_RATIO};
 pub use wcs_sip::*; // NEW: Export SIP-aware projection types
 pub use xisf::{
@@ -152,6 +156,9 @@ pub struct ImageData {
     pub channels: u32,
     pub pixel_type: PixelType,
     pub data: Vec<u8>,
+    /// The sample values of black and full scale. [`SampleRange::of`] the
+    /// pixel type unless the image's source or producer says otherwise.
+    pub range: SampleRange,
 }
 
 impl Default for ImageData {
@@ -171,7 +178,14 @@ impl ImageData {
             channels,
             pixel_type,
             data: vec![0u8; size],
+            range: SampleRange::of(pixel_type),
         }
+    }
+
+    /// The same samples, declared to span `range`.
+    pub fn with_range(mut self, range: SampleRange) -> Self {
+        self.range = range;
+        self
     }
 
     pub fn bytes_per_pixel(&self) -> usize {
@@ -201,19 +215,12 @@ impl ImageData {
         )
     }
 
+    /// The samples of an `F32` image as it stores them, whatever its sample
+    /// range; `None` for another type. For data that is not brightness (a
+    /// coverage or weight map) and for tests; an algorithm reads
+    /// [`ImageData::samples_f32`].
     pub fn as_f32(&self) -> Option<Vec<f32>> {
-        if self.pixel_type != PixelType::F32 {
-            return None;
-        }
-
-        Some(
-            self.data
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-                .collect(),
-        )
+        (self.pixel_type == PixelType::F32).then(|| self.stored_f32())
     }
 
     pub fn from_u16(width: u32, height: u32, channels: u32, data: &[u16]) -> Self {
@@ -225,6 +232,7 @@ impl ImageData {
             channels,
             pixel_type: PixelType::U16,
             data: bytes,
+            range: SampleRange::ADU,
         }
     }
 
@@ -237,32 +245,22 @@ impl ImageData {
             channels,
             pixel_type: PixelType::F32,
             data: bytes,
+            range: SampleRange::ADU,
         }
     }
 
-    /// Convert to 8-bit for display (auto-stretched)
+    /// Convert to 8-bit for display, auto-stretched. An 8-bit image is taken
+    /// as display-ready.
     pub fn to_display_u8(&self) -> Vec<u8> {
-        match self.pixel_type {
-            PixelType::U16 if self.channels == 3 => match self.as_u16() {
-                Some(rgb) => {
-                    let (r, g, b) = auto_stretch_rgb(&rgb, self.width, self.height);
-                    apply_stretch_rgb_per_channel(&rgb, self.width, self.height, &r, &g, &b)
-                }
-                None => vec![0u8; self.pixel_count()],
-            },
-            PixelType::U16 => apply_stretch(self, &auto_stretch_stf(self)),
-            PixelType::U8 => self.data.clone(),
-            // Float data is taken as already normalized to [0, 1].
-            PixelType::F32 => self
-                .data
-                .par_chunks_exact(4)
-                .map(|chunk| {
-                    let val = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-                    (val.clamp(0.0, 1.0) * 255.0) as u8
-                })
-                .collect(),
-            _ => vec![128u8; self.pixel_count()],
+        if self.pixel_type == PixelType::U8 {
+            return self.data.clone();
         }
+        if self.channels == 3 {
+            let rgb = stretch::display_levels(self).unwrap_or_else(|| self.adu_levels());
+            let (r, g, b) = auto_stretch_rgb(&rgb, self.width, self.height);
+            return apply_stretch_rgb_per_channel(&rgb, self.width, self.height, &r, &g, &b);
+        }
+        apply_stretch(self, &auto_stretch_stf(self))
     }
 
     /// Convert to RGBA for Flutter display.
@@ -696,6 +694,7 @@ mod tests {
             channels: 4,
             pixel_type: PixelType::U8,
             data: vec![10, 20, 30, 200],
+            range: crate::SampleRange::of(PixelType::U8),
         };
         let rgba = image
             .to_rgba()
@@ -713,6 +712,7 @@ mod tests {
             channels: 5,
             pixel_type: PixelType::U16,
             data: vec![0u8; 4 * 4 * 5 * 2],
+            range: crate::SampleRange::of(PixelType::U16),
         };
 
         let err = image
@@ -747,6 +747,7 @@ mod tests {
             channels: 0,
             pixel_type: PixelType::U16,
             data: vec![],
+            range: crate::SampleRange::of(PixelType::U16),
         };
         assert_eq!(
             image.to_rgba().unwrap_err(),

@@ -29,120 +29,16 @@ pub(crate) async fn get_native_capabilities(
         .ok_or_else(|| SkotiqError::hardware_error(device_id, "Device not found in registry"))?;
 
     match device_type {
-        crate::device::DeviceType::Camera => {
-            let native_cameras = mgr.native_cameras.read().await;
-            if let Some(camera) = native_cameras.get(device_id) {
-                let native_caps = camera.capabilities();
-                let sensor_info = camera.get_sensor_info();
-                let gain_range = camera.get_gain_range().await.ok();
-                let iso_speeds = camera.get_iso_speeds().await.unwrap_or_default();
-                let offset_range = camera.get_offset_range().await.ok();
-                // Why: vendor SDK readout-mode enumeration is optional (only ZWO
-                // and QHY expose multi-mode sensors). Empty vec → UI hides the
-                // readout-mode selector, matching cameras that have a single
-                // hard-coded mode.
-                let readout_modes = camera.get_readout_modes().await.unwrap_or_default();
-                let status = camera.get_status().await.ok();
-                let cooler_power = status.as_ref().and_then(|s| s.cooler_power);
-                // Why: the CameraDriver trait's get_cooler_temp_range default
-                // returns Ok(None); only drivers that publish the achievable
-                // regulated-cooling range (currently ZWO, via C2) override it.
-                // `.ok().flatten()` collapses a transient SDK error to None
-                // ("range unknown") — the equipment view re-probes on a timer,
-                // and an unknown range simply leaves the setpoint field unclamped
-                // rather than fabricating limits.
-                let (cooler_min_temp_c, cooler_max_temp_c) = camera
-                    .get_cooler_temp_range()
-                    .await
-                    .ok()
-                    .flatten()
-                    .map_or((None, None), |(min, max)| (Some(min), Some(max)));
-
-                // Same contract as the cooler range: `None` means "this driver
-                // does not publish the limits", never a guessed clamp. Without
-                // these, `exposureMin`/`exposureMax` were always null, so no
-                // client could validate an exposure before submitting it and an
-                // out-of-range request failed deep in the SDK instead of being
-                // refused up front. ZWO publishes them via ASIGetControlCaps.
-                let (exposure_min, exposure_max) = camera
-                    .get_exposure_range()
-                    .await
-                    .ok()
-                    .flatten()
-                    .map_or((None, None), |(min, max)| (Some(min), Some(max)));
-
-                Ok(DeviceCapabilities::Camera(CameraCapabilities {
-                    max_width: sensor_info.width,
-                    max_height: sensor_info.height,
-                    bit_depth: sensor_info.bit_depth,
-                    has_shutter: native_caps.has_shutter,
-                    can_set_ccd_temperature: native_caps.can_cool,
-                    can_set_cooler: native_caps.can_cool,
-                    can_get_cooler_power: cooler_power.is_some(),
-                    can_bin: native_caps.can_set_binning,
-                    max_bin_x: native_caps.max_bin_x,
-                    max_bin_y: native_caps.max_bin_y,
-                    can_set_gain: native_caps.can_set_gain,
-                    gain_min: gain_range.map(|(min, _)| min),
-                    gain_max: gain_range.map(|(_, max)| max),
-                    iso_speeds,
-                    can_set_offset: native_caps.can_set_offset,
-                    offset_min: offset_range.map(|(min, _)| min),
-                    offset_max: offset_range.map(|(_, max)| max),
-                    can_abort_exposure: true,
-                    can_subframe: native_caps.can_subframe,
-                    pixel_size_x: Some(sensor_info.pixel_size_x),
-                    pixel_size_y: Some(sensor_info.pixel_size_y),
-                    is_color: sensor_info.color,
-                    bayer_pattern: sensor_info.bayer_pattern.map(|bp| format!("{:?}", bp)),
-                    readout_modes: readout_modes.into_iter().map(|m| m.name).collect(),
-                    ccd_temperature: status.as_ref().and_then(|s| s.sensor_temp),
-                    set_ccd_temperature: status.as_ref().and_then(|s| s.target_temp),
-                    cooler_power,
-                    cooler_on: status.as_ref().and_then(|s| s.cooler_on),
-                    cooler_min_temp_c,
-                    cooler_max_temp_c,
-                    exposure_min,
-                    exposure_max,
-                    ..Default::default()
-                }))
-            } else {
-                Err(SkotiqError::hardware_error(
-                    device_id,
-                    "Native camera not connected",
-                ))
-            }
-        }
-        crate::device::DeviceType::Mount => {
-            let native_mounts = mgr.native_mounts.read().await;
-            if let Some(mount) = native_mounts.get(device_id) {
-                let tracking = mount.get_tracking().await.ok();
-                let can_set_tracking = tracking.is_some();
-                let can_park = mount.is_parked().await.is_ok();
-                let can_abort_slew = mount.is_slewing().await.is_ok();
-                Ok(DeviceCapabilities::Mount(MountCapabilities {
-                    can_slew: true,
-                    can_slew_async: true,
-                    can_sync: true,
-                    can_park,
-                    can_unpark: can_park,
-                    can_pulse_guide: true,
-                    can_set_tracking,
-                    can_abort_slew,
-                    can_find_home: mount.can_find_home(),
-                    can_set_park: mount.can_set_park(),
-                    is_equatorial: true,
-                    tracking,
-                    axis_count: 2,
-                    ..Default::default()
-                }))
-            } else {
-                Err(SkotiqError::hardware_error(
-                    device_id,
-                    "Native mount not connected",
-                ))
-            }
-        }
+        // A connected camera or mount answers through its handle
+        // (`read_capabilities`); one that reaches here is not connected.
+        crate::device::DeviceType::Camera => Err(SkotiqError::hardware_error(
+            device_id,
+            "Native camera not connected",
+        )),
+        crate::device::DeviceType::Mount => Err(SkotiqError::hardware_error(
+            device_id,
+            "Native mount not connected",
+        )),
         _ => Err(SkotiqError::not_supported(
             device_id,
             &format!(

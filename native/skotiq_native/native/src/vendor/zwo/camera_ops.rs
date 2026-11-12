@@ -225,7 +225,7 @@ impl CameraDriver for ZwoCamera {
             return Err(DriverError::NotConnected);
         }
 
-        let sdk = AsiSdk::lock().await?;
+        let sdk = self.sdk().await?;
 
         let mut exp_status: c_int = 0;
         // SAFETY: `exp_status` is a valid stack pointer; camera_id is valid (self.connected was checked).
@@ -323,7 +323,7 @@ impl CameraDriver for ZwoCamera {
             }
         }
 
-        let sdk = AsiSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_roi(&sdk, bin, roi, params.subframe.is_some())?;
 
         // Microseconds; within the camera's maximum, so within c_long on Windows.
@@ -366,7 +366,7 @@ impl CameraDriver for ZwoCamera {
             return Err(DriverError::NotConnected);
         }
 
-        let sdk = AsiSdk::lock().await?;
+        let sdk = self.sdk().await?;
         // SAFETY: camera_id is valid (connected=true checked earlier).
         let result = unsafe { (sdk.stop_exposure)(self.camera_id) };
         check_open_camera_error(result)?;
@@ -381,7 +381,7 @@ impl CameraDriver for ZwoCamera {
             return Err(DriverError::NotConnected);
         }
 
-        let sdk = AsiSdk::lock().await?;
+        let sdk = self.sdk().await?;
 
         let mut status: c_int = 0;
         // SAFETY: `status` is a valid stack pointer; camera_id is valid (connected=true checked).
@@ -420,7 +420,7 @@ impl CameraDriver for ZwoCamera {
             return Err(DriverError::NotConnected);
         }
 
-        let sdk = AsiSdk::lock().await?;
+        let sdk = self.sdk().await?;
 
         let mut width: c_int = 0;
         let mut height: c_int = 0;
@@ -609,7 +609,7 @@ impl CameraDriver for ZwoCamera {
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
-        let sdk = AsiSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.read_temperature_celsius_sync(&sdk)
     }
 
@@ -676,7 +676,7 @@ impl CameraDriver for ZwoCamera {
         }
         let bin = self.validate_bin(bin_x, bin_y)?;
         let roi = self.frame_roi(bin, None)?;
-        let sdk = AsiSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_roi(&sdk, bin, roi, false)
     }
 
@@ -690,7 +690,7 @@ impl CameraDriver for ZwoCamera {
         }
         let bin = self.current_bin;
         let roi = self.frame_roi(bin, subframe.as_ref())?;
-        let sdk = AsiSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_roi(&sdk, bin, roi, subframe.is_some())
     }
 

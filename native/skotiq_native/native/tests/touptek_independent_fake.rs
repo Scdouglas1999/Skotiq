@@ -50,36 +50,47 @@ struct Fake {
 
 fn fake() -> &'static Fake {
     static FAKE: OnceLock<Fake> = OnceLock::new();
-    FAKE.get_or_init(|| unsafe {
-        let lib = libloading::Library::new("libtoupcam.so")
-            .expect("the independent fake libtoupcam.so must be on LD_LIBRARY_PATH");
-        Fake {
-            reset: *lib.get(b"FakeToup_reset\0").unwrap(),
-            add: *lib.get(b"FakeToup_add\0").unwrap(),
-            set: *lib.get(b"FakeToup_set\0").unwrap(),
-            get: *lib.get(b"FakeToup_get\0").unwrap(),
-            log: *lib.get(b"FakeToup_log\0").unwrap(),
-            clear_log: *lib.get(b"FakeToup_clear_log\0").unwrap(),
-            fire: *lib.get(b"FakeToup_fire\0").unwrap(),
-            pixel: *lib.get(b"FakeToup_sensor_pixel\0").unwrap(),
-            _lib: lib,
+    FAKE.get_or_init(|| {
+        // SAFETY: the library is the C fake; each field's type matches the C declaration
+        // of the symbol it is read from, and `_lib` lives in the same static as the
+        // pointers, so the library stays loaded for as long as they can be called.
+        unsafe {
+            let lib = libloading::Library::new("libtoupcam.so")
+                .expect("the independent fake libtoupcam.so must be on LD_LIBRARY_PATH");
+            Fake {
+                reset: *lib.get(b"FakeToup_reset\0").unwrap(),
+                add: *lib.get(b"FakeToup_add\0").unwrap(),
+                set: *lib.get(b"FakeToup_set\0").unwrap(),
+                get: *lib.get(b"FakeToup_get\0").unwrap(),
+                log: *lib.get(b"FakeToup_log\0").unwrap(),
+                clear_log: *lib.get(b"FakeToup_clear_log\0").unwrap(),
+                fire: *lib.get(b"FakeToup_fire\0").unwrap(),
+                pixel: *lib.get(b"FakeToup_sensor_pixel\0").unwrap(),
+                _lib: lib,
+            }
         }
     })
 }
 
 impl Fake {
     fn camera(&self, flags: u64, width: u32, height: u32, max_bits: i32) -> i32 {
+        // SAFETY: no arguments; the fake clears its state under its own lock.
         unsafe { (self.reset)() };
         self.add_camera("ATR585M", "tp-1", flags, width, height, max_bits)
     }
     fn add_camera(&self, name: &str, id: &str, flags: u64, w: u32, h: u32, bits: i32) -> i32 {
         let name = CString::new(name).unwrap();
         let id = CString::new(id).unwrap();
+        // SAFETY: `name` and `id` are NUL-terminated and outlive the call, which copies them.
+        // The fake does not bound-check its eight camera slots; `camera` resets it first, so
+        // no test adds more than two.
         unsafe { (self.add)(name.as_ptr(), id.as_ptr(), flags, w, h, bits) }
     }
     fn set(&self, idx: i32, key: &str, value: i64) {
         let key_c = CString::new(key).unwrap();
         assert_eq!(
+            // SAFETY: `key_c` is NUL-terminated and outlives the call; `idx` is a slot
+            // index `add_camera` returned, which the fake indexes without a bound check.
             unsafe { (self.set)(idx, key_c.as_ptr(), value) },
             1,
             "fake key {key}"
@@ -87,20 +98,29 @@ impl Fake {
     }
     fn get(&self, idx: i32, key: &str) -> i32 {
         let key = CString::new(key).unwrap();
+        // SAFETY: `key` is NUL-terminated and outlives the call; `idx` is a slot index
+        // `add_camera` returned, which the fake indexes without a bound check.
         unsafe { (self.get)(idx, key.as_ptr()) }
     }
     fn log(&self) -> String {
+        // SAFETY: the log is a static 1 MiB buffer that is never freed and that the fake
+        // NUL-terminates after every append, so the scan ends inside it.
         unsafe { CStr::from_ptr((self.log)()) }
             .to_string_lossy()
             .into_owned()
     }
     fn clear_log(&self) {
+        // SAFETY: no arguments; the fake truncates its log under its own lock.
         unsafe { (self.clear_log)() }
     }
     fn fire(&self, event: u32) {
+        // SAFETY: the fake passes the event to the callback the driver registered, with the
+        // context it registered, on this thread; tests fire only while that camera is
+        // connected, so the context is alive. With no callback registered it does nothing.
         unsafe { (self.fire)(event) }
     }
     fn pixel(&self, row: u32, col: u32, bits: i32) -> u16 {
+        // SAFETY: plain integer arguments; the fake only computes the pattern value.
         unsafe { (self.pixel)(row, col, bits) as u16 }
     }
 }

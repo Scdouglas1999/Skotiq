@@ -493,14 +493,7 @@ fn transform_from_row_major(m: &[f64]) -> Result<TransformModel, String> {
 /// and silently producing an empty buffer would mis-size the integration.
 fn decode_image_f64(image: &ImageData, path: &str) -> Result<Vec<f64>, String> {
     match image.pixel_type {
-        PixelType::U16 => image
-            .as_u16()
-            .map(|v| v.into_iter().map(|x| x as f64).collect())
-            .ok_or_else(|| format!("'{path}' could not be decoded as U16")),
-        PixelType::F32 => image
-            .as_f32()
-            .map(|v| v.into_iter().map(|x| x as f64).collect())
-            .ok_or_else(|| format!("'{path}' could not be decoded as F32")),
+        PixelType::U16 | PixelType::F32 => Ok(image.samples_f64()),
         other => Err(format!(
             "'{path}' is {other:?}; drizzle requires a U16 or F32 frame"
         )),

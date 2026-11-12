@@ -35,6 +35,19 @@ impl std::fmt::Debug for AtikCamera {
 }
 
 impl AtikCamera {
+    /// The SDK, held for this camera (see `sdk_loader::lock_scope`).
+    pub(crate) async fn sdk(
+        &self,
+    ) -> Result<crate::vendor::sdk_loader::SdkGuard<AtikSdk>, skotiq_device::DriverError> {
+        use crate::vendor::sdk_loader::{device_key, lock_scope};
+        AtikSdk::slot()
+            .lock_device(
+                lock_scope(&skotiq_device::Vendor::Atik),
+                device_key(&self.core.device_id),
+            )
+            .await
+    }
+
     pub fn new(device_index: i32) -> Self {
         let serial_number = discovered_camera_serials()
             .lock()

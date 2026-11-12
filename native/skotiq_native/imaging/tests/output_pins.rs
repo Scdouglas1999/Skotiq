@@ -142,7 +142,15 @@ fn as_rgb(image: &ImageData, gains: [f64; 3]) -> ImageData {
     ImageData::from_u16(image.width, image.height, 3, &out)
 }
 
+/// The frame as a float image in `[0, 1]`, declared so: what PixInsight
+/// writes.
 fn to_f32_unit(image: &ImageData) -> ImageData {
+    small_f32(image).with_range(skotiq_imaging::SampleRange::UNIT)
+}
+
+/// The frame's levels divided by 65535 as plain float numbers with no range
+/// declared: small values for the stages that take numbers as they are.
+fn small_f32(image: &ImageData) -> ImageData {
     let px: Vec<f32> = image
         .as_u16()
         .expect("u16 frame")
@@ -240,7 +248,7 @@ fn pin_fixture_measurements(pins: &mut Pins) {
             &p("detect_stars_with_stats"),
             &detect_stars_with_stats(&image, &StarDetectionConfig::default()),
         );
-        let stats = calculate_stats_u16(&image);
+        let stats = calculate_stats(&image);
         pins.add_debug(
             &p("stats"),
             &(
@@ -1045,7 +1053,7 @@ fn pin_resampling(pins: &mut Pins) {
         image_digest(&tile.finalize()) ^ image_digest(&tile.coverage_map()),
     );
 
-    let plane = to_f32_unit(&mono).samples_f32();
+    let plane = small_f32(&mono).samples_f32();
     for sigma in [0.6, 1.7, 4.2] {
         pins.add(
             &format!("resample/gaussian_blur.{sigma}"),
@@ -1155,8 +1163,8 @@ fn pin_finishing(pins: &mut Pins) {
 
 fn pin_recipe(pins: &mut Pins) {
     use recipe::*;
-    let mono = to_f32_unit(&crop(&load(RIG, "focused_L_0005.fits"), 384));
-    let rgb = to_f32_unit(&as_rgb(
+    let mono = small_f32(&crop(&load(RIG, "focused_L_0005.fits"), 384));
+    let rgb = small_f32(&as_rgb(
         &crop(&load(RIG, "focused_L_0005.fits"), 384),
         [0.8, 1.0, 0.65],
     ));

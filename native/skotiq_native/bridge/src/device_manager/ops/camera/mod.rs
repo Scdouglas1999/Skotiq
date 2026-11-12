@@ -57,13 +57,10 @@
 //! values *after* `with_camera!` has already established the device path.
 
 use crate::device::*;
+use crate::device_manager::rig;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
-#[cfg(windows)]
-use skotiq_device::CameraDriver;
-use skotiq_device::{ExposureParams, ImageData, SubFrame};
-use std::sync::Arc;
-use tracing::warn;
+use skotiq_device::{ImageData, SubFrame};
 
 /// Sentinel meaning "this camera setting could not be read".
 ///
@@ -107,7 +104,7 @@ pub(crate) fn frame_setting(
 /// bytes 10..30, so splitting on `=` and taking everything before any `/` is
 /// sufficient — no full FITS parser needed for NAXIS1/NAXIS2. Returns `None`
 /// for a malformed card so the caller can fall back rather than trust a guess.
-fn parse_fits_card_u32(card: &[u8]) -> Option<u32> {
+pub(crate) fn parse_fits_card_u32(card: &[u8]) -> Option<u32> {
     let text = std::str::from_utf8(card).ok()?;
     let after_eq = text.split_once('=')?.1;
     let value = after_eq.split('/').next()?.trim();
@@ -378,6 +375,56 @@ mod sim_camera_tests {
         );
     }
 
+    /// An abort while the frame is being read answers the download at once,
+    /// and the read that was given up is not left behind to take the next
+    /// exposure's frame.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn an_abort_during_the_download_leaves_the_next_exposure_its_frame() {
+        use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+        let _serialized = sim_singleton_test_lock().lock().await;
+        let device_id = "sim_camera_abort_in_download";
+        attach_sim_camera(device_id).await;
+        let mgr = get_device_manager();
+        sim_faults::arm(
+            "camera.download",
+            FaultSpec::new(Trigger::Times(1), Effect::Delay(600)),
+        );
+
+        mgr.camera_start_exposure(device_id, 0.05, None, None, 1, 1, FrameType::Light)
+            .await
+            .unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let slow = tokio::spawn(async move {
+            get_device_manager()
+                .camera_download_image("sim_camera_abort_in_download")
+                .await
+                .map(|_| ())
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let asked = std::time::Instant::now();
+        mgr.camera_abort_exposure(device_id).await.unwrap();
+        let answer = slow.await.unwrap();
+        sim_faults::clear("camera.download");
+        assert!(
+            asked.elapsed() < std::time::Duration::from_millis(300),
+            "the download waited {:?} after the abort",
+            asked.elapsed()
+        );
+        let error = answer
+            .expect_err("an aborted exposure has no frame")
+            .to_string();
+        assert!(error.contains("aborted"), "{error}");
+
+        mgr.camera_start_exposure(device_id, 0.05, None, None, 1, 1, FrameType::Light)
+            .await
+            .unwrap();
+        // Past the moment the abandoned read would have woken.
+        tokio::time::sleep(std::time::Duration::from_millis(700)).await;
+        mgr.camera_download_image(device_id)
+            .await
+            .expect("the next exposure's frame is still there to read");
+    }
+
     /// Downloading without having started anything is a caller bug, not an
     /// invitation to synthesize a frame out of the last request's parameters.
     #[tokio::test]
@@ -515,8 +562,9 @@ mod sim_sky_wiring_tests {
         {
             // The simulated mount keeps coordinates of date; point it at the
             // J2000 field the way a slew would.
-            let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
-                .j2000_to_mount(ra_hours, dec_deg);
+            let (mount_ra, mount_dec) =
+                crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
+                    .j2000_to_mount(ra_hours, dec_deg);
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
             mount.status.right_ascension = mount_ra;
@@ -632,8 +680,9 @@ mod sim_sky_wiring_tests {
         {
             // The simulated mount keeps coordinates of date; point it at the
             // J2000 field the way a slew would.
-            let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
-                .j2000_to_mount(ra_hours, dec_deg);
+            let (mount_ra, mount_dec) =
+                crate::device_manager::epoch::MountFrame::for_driver(DriverType::Simulator)
+                    .j2000_to_mount(ra_hours, dec_deg);
             let mut mount = get_sim_mount().write().await;
             mount.status.connected = true;
             mount.status.right_ascension = mount_ra;

@@ -69,9 +69,7 @@
 //! chrominance. That is out of scope for this preview and noted here rather than
 //! silently assumed.
 
-use crate::detection_plane::{
-    collapse_channels, finite_range, ChannelCollapse, DetectionPlane, Quantize, ADU_SCALE_MIN_PEAK,
-};
+use crate::detection_plane::{collapse_channels, ChannelCollapse, DetectionPlane, Quantize};
 use crate::{detect_stars_in_plane, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
 
@@ -303,27 +301,13 @@ fn detect_mask_stars(image: &ImageData) -> Vec<DetectedStar> {
         image.channels.max(1) as usize,
         ChannelCollapse::Max,
     );
-    match mask_detection_plane(&peak, image.width as usize, image.height as usize) {
+    let (width, height) = (image.width as usize, image.height as usize);
+    match DetectionPlane::from_adu(width, height, &peak, Quantize::Round) {
         Some(plane) => detect_stars_in_plane(plane, &mask_detection_config()),
         None => Vec::new(),
     }
 }
 
-/// `levels` as a detector plane.
-///
-/// Levels on the ADU scale are used as they are. Levels whose peak is below
-/// [`ADU_SCALE_MIN_PEAK`] are a normalized float frame (star structure in
-/// values like `[0.02, 0.82]`) and are rescaled from their own range, or the
-/// detector's 1 ADU floors would hide every star. `None` for a flat
-/// normalized plane: nothing to detect.
-fn mask_detection_plane(levels: &[f64], width: usize, height: usize) -> Option<DetectionPlane> {
-    match finite_range(levels) {
-        Some((low, high)) if high < ADU_SCALE_MIN_PEAK => {
-            DetectionPlane::from_range(width, height, levels, low, high, Quantize::Round)
-        }
-        _ => DetectionPlane::from_adu(width, height, levels, Quantize::Round),
-    }
-}
 
 /// Build a soft, feathered star mask in `[0, 1]` from detected stars.
 ///
@@ -573,7 +557,7 @@ fn write_planes(
                     continue;
                 }
                 for (c, plane) in planes.iter().enumerate().take(channels) {
-                    let v = plane[i] as f32;
+                    let v = template.range.from_adu(plane[i]) as f32;
                     let base = i * stride + c * bpp;
                     out.data[base..base + 4].copy_from_slice(&v.to_le_bytes());
                 }
@@ -901,6 +885,7 @@ mod tests {
             channels: 1,
             pixel_type: PixelType::U16,
             data: vec![],
+            range: crate::SampleRange::of(PixelType::U16),
         };
         assert_eq!(
             reduce_stars(&empty2, &StarReductionConfig::default()).unwrap_err(),
@@ -945,7 +930,8 @@ mod tests {
                 }
             }
         }
-        let input = ImageData::from_f32(w as u32, h as u32, 1, &data);
+        let input = ImageData::from_f32(w as u32, h as u32, 1, &data)
+            .with_range(crate::SampleRange::UNIT);
         let cfg = StarReductionConfig {
             strength: 0.6,
             method: StarReduceMethod::ScreenedResidual,
@@ -1068,7 +1054,7 @@ mod tests {
         // max-across-channels plane DOES find it.
         let red_only = input.plane_f64(0).unwrap();
         let red_stars = detect_stars_in_plane(
-            mask_detection_plane(&red_only, w, h).unwrap(),
+            DetectionPlane::from_adu(w, h, &red_only, Quantize::Round).unwrap(),
             &mask_detection_config(),
         );
         let lum_stars = detect_mask_stars(&input);

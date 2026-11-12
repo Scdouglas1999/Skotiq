@@ -54,6 +54,13 @@ pub(crate) fn color(
 pub(crate) fn for_file(image: &ImageData, header: &skotiq_imaging::FitsHeader) -> DisplayImage {
     match (skotiq_imaging::read_color_filter_array(header), image.channels, image.as_u16()) {
         (Some(filter), 1, Some(mosaic)) => color(&mosaic, image.width, image.height, filter),
+        (_, 3, _) => {
+            let rgb8 = image.to_display_u8();
+            DisplayImage {
+                histogram: histogram(&rgb8),
+                rgba: rgb_to_rgba(&rgb8),
+            }
+        }
         _ => mono(image),
     }
 }

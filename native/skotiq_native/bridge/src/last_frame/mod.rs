@@ -139,7 +139,7 @@ pub(crate) fn measure(
     };
     // Measured on the sensor's own samples, mosaic included, as the FITS on
     // disk holds them.
-    let stats = skotiq_imaging::calculate_stats_u16(&image);
+    let stats = skotiq_imaging::calculate_stats(&image);
     let stars =
         skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
     let frame_stats = frame_stats_result(&stats, &stars);

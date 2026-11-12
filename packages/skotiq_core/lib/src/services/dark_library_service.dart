@@ -387,8 +387,10 @@ class DarkLibraryService {
   /// - `16`  — signed 16-bit (big-endian) reinterpreted as unsigned with the
   ///   implicit `BZERO = 32768` offset Skotiq's own darks are written with.
   /// - `-32` — IEEE 754 single-precision float (big-endian, FITS spec). Used
-  ///   by NINA, PixInsight, SiriL master darks. Converted to u16 via
-  ///   `clamp(round(BSCALE * stored + BZERO), 0, 65535)`.
+  ///   by NINA, PixInsight, SiriL master darks. The physical value
+  ///   `BSCALE * stored + BZERO` is taken to 16-bit ADU from the file's sample
+  ///   range (`RANGELOW`/`RANGEHI`; without them `[0, 1]` when every sample
+  ///   lies within it, else ADU), then `clamp(round(adu), 0, 65535)`.
   /// - `-64` — IEEE 754 double-precision float (big-endian, FITS spec).
   ///   Same conversion as `-32`.
   ///
@@ -410,6 +412,10 @@ class DarkLibraryService {
     // keep its implicit BZERO=32768 convention when the keyword is absent.
     double? bzeroFromHeader;
     double? bscaleFromHeader;
+    // The sample values of black and full scale a float file declares
+    // (RANGELOW / RANGEHI, the cards the native writer records).
+    double? rangeLow;
+    double? rangeHigh;
 
     // FITS headers are in 2880-byte blocks, each card is 80 chars
     bool endFound = false;
@@ -435,6 +441,10 @@ class DarkLibraryService {
           bzeroFromHeader = _parseFitsDoubleValue(card);
         } else if (card.startsWith('BSCALE')) {
           bscaleFromHeader = _parseFitsDoubleValue(card);
+        } else if (card.startsWith('RANGELOW')) {
+          rangeLow = _parseFitsDoubleValue(card);
+        } else if (card.startsWith('RANGEHI')) {
+          rangeHigh = _parseFitsDoubleValue(card);
         } else if (card.startsWith('END')) {
           headerEnd = blockStart + 2880; // Data starts at next block boundary
           endFound = true;
@@ -513,22 +523,52 @@ class DarkLibraryService {
         dataOffset + expectedDataBytes,
       );
 
+      // Where the file's numbers sit on the 16-bit ADU scale, by the rule the
+      // native reader uses (fits_reader.rs): the declared range; else a file
+      // whose finite samples all lie within [0, 1] is a normalized image, as
+      // PixInsight and Siril write float masters; else the samples are ADU.
+      final physicalValues = Float64List(pixelCount);
+      var lowest = double.infinity;
+      var highest = double.negativeInfinity;
       for (int i = 0; i < pixelCount; i++) {
         // FITS floats are big-endian per the spec.
         final stored = bitpix == -32
             ? bd.getFloat32(i * 4, Endian.big)
             : bd.getFloat64(i * 8, Endian.big);
-
         // Apply BZERO/BSCALE per the FITS linear transform.
+        final value = bscale * stored + bzero;
+        physicalValues[i] = value;
+        if (value.isFinite) {
+          if (value < lowest) lowest = value;
+          if (value > highest) highest = value;
+        }
+      }
+      final declared =
+          rangeLow != null &&
+          rangeHigh != null &&
+          rangeLow.isFinite &&
+          rangeHigh.isFinite &&
+          rangeHigh > rangeLow;
+      final double black;
+      final double fullScale;
+      if (declared) {
+        black = rangeLow;
+        fullScale = rangeHigh;
+      } else if (lowest >= 0.0 && highest <= 1.0) {
+        black = 0.0;
+        fullScale = 1.0;
+      } else {
+        black = 0.0;
+        fullScale = 65535.0;
+      }
+      final aduPerUnit = 65535.0 / (fullScale - black);
+
+      for (int i = 0; i < pixelCount; i++) {
         // NaN samples (common in float masters where rejected pixels become
         // NaN) collapse to zero so they don't poison the median combine
         // downstream.
-        double physical;
-        if (stored.isNaN) {
-          physical = 0.0;
-        } else {
-          physical = bscale * stored + bzero;
-        }
+        final value = physicalValues[i];
+        final double physical = value.isNaN ? 0.0 : (value - black) * aduPerUnit;
 
         if (physical <= 0.0) {
           if (physical < 0.0) saturatedLow++;

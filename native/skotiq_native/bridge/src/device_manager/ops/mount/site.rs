@@ -22,17 +22,17 @@ const OLE_EPOCH_TO_UNIX_DAYS: f64 = 25_569.0;
 const SECONDS_PER_DAY: f64 = 86_400.0;
 
 #[cfg_attr(not(windows), allow(dead_code))]
-fn ole_to_unix_seconds(ole_days: f64) -> i64 {
+pub(crate) fn ole_to_unix_seconds(ole_days: f64) -> i64 {
     ((ole_days - OLE_EPOCH_TO_UNIX_DAYS) * SECONDS_PER_DAY).round() as i64
 }
 
 #[cfg_attr(not(windows), allow(dead_code))]
-fn unix_seconds_to_ole(unix_seconds: i64) -> f64 {
+pub(crate) fn unix_seconds_to_ole(unix_seconds: i64) -> f64 {
     unix_seconds as f64 / SECONDS_PER_DAY + OLE_EPOCH_TO_UNIX_DAYS
 }
 
 /// An Alpaca `UTCDate` value: ISO 8601 in UTC with a `Z` suffix.
-fn alpaca_utc_date(unix_seconds: i64) -> Result<String, DeviceOpError> {
+pub(crate) fn alpaca_utc_date(unix_seconds: i64) -> Result<String, DeviceOpError> {
     chrono::DateTime::from_timestamp(unix_seconds, 0)
         .map(|utc| utc.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
         .ok_or_else(|| DeviceOpError::from(format!("{unix_seconds} is not a UTC time")))
@@ -45,155 +45,13 @@ impl DeviceManager {
         &self,
         device_id: &str,
     ) -> Result<MountSiteCapabilities, DeviceOpError> {
-        let devices = self.devices.read().await;
-        let info = devices
-            .get(device_id)
-            .map(|d| d.info.clone())
-            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
-        drop(devices);
-
-        Ok(match info.driver_type {
-            // The native trait defaults to NotSupported, so a serial protocol
-            // without site commands reports false by simply not implementing
-            // them. Probing is the only honest way to know.
-            DriverType::Native => {
-                let mounts = self.native_mounts.read().await;
-                match mounts.get(device_id) {
-                    Some(mount) => {
-                        let can_read_site = !matches!(
-                            mount.get_site().await,
-                            Err(skotiq_device::DriverError::NotSupported)
-                        );
-                        let can_read_time = !matches!(
-                            mount.get_clock().await,
-                            Err(skotiq_device::DriverError::NotSupported)
-                        );
-                        // Write support tracks read support in every native
-                        // driver: a protocol either has the site commands or
-                        // it does not.
-                        MountSiteCapabilities {
-                            can_read_site,
-                            can_write_site: can_read_site,
-                            can_read_time,
-                            can_write_time: can_read_time,
-                        }
-                    }
-                    None => {
-                        return Err(DeviceOpError::not_connected(
-                            Some(device_id.to_string()),
-                            "Native mount not connected",
-                        ))
-                    }
-                }
-            }
-            DriverType::Ascom => MountSiteCapabilities {
-                can_read_site: true,
-                can_write_site: true,
-                can_read_time: true,
-                can_write_time: true,
-            },
-            DriverType::Alpaca => MountSiteCapabilities {
-                can_read_site: true,
-                can_write_site: true,
-                can_read_time: true,
-                can_write_time: true,
-            },
-            // INDI carries GEOGRAPHIC_COORD and TIME_UTC, but this client does
-            // not wire them yet. Reported as absent rather than attempted.
-            DriverType::Indi => MountSiteCapabilities {
-                can_read_site: false,
-                can_write_site: false,
-                can_read_time: false,
-                can_write_time: false,
-            },
-            DriverType::Simulator => MountSiteCapabilities {
-                can_read_site: true,
-                can_write_site: true,
-                can_read_time: true,
-                can_write_time: true,
-            },
-        })
+        self.mount(device_id).await?.site_capabilities().await
     }
 
     pub async fn mount_get_site(&self, device_id: &str) -> Result<MountSite, DeviceOpError> {
-        let devices = self.devices.read().await;
-        let info = devices
-            .get(device_id)
-            .map(|d| d.info.clone())
-            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
-        drop(devices);
+        let mount = self.mount(device_id).await?;
 
-        match info.driver_type {
-            DriverType::Native => {
-                let mounts = self.native_mounts.read().await;
-                let mount = mounts.get(device_id).ok_or_else(|| {
-                    DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Native mount not connected",
-                    )
-                })?;
-                let site = mount.get_site().await.map_err(DeviceOpError::from)?;
-                Ok(MountSite {
-                    latitude_deg: site.latitude_deg,
-                    longitude_deg: site.longitude_deg,
-                    elevation_m: site.elevation_m,
-                })
-            }
-            DriverType::Ascom => {
-                #[cfg(windows)]
-                {
-                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
-                    if let Some(mount) = mount {
-                        let mount = mount.read().await;
-                        let (latitude_deg, longitude_deg, elevation_m) =
-                            mount.get_site().await.map_err(DeviceOpError::from)?;
-                        return Ok(MountSite {
-                            latitude_deg,
-                            longitude_deg,
-                            elevation_m,
-                        });
-                    }
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    "ASCOM mount not connected",
-                ))
-            }
-            DriverType::Alpaca => {
-                let mounts = self.alpaca_mounts.read().await;
-                let mount = mounts.get(device_id).ok_or_else(|| {
-                    DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Alpaca mount not connected",
-                    )
-                })?;
-                let latitude_deg = mount.site_latitude().await.map_err(DeviceOpError::from)?;
-                let longitude_deg = mount.site_longitude().await.map_err(DeviceOpError::from)?;
-                Ok(MountSite {
-                    latitude_deg,
-                    longitude_deg,
-                    elevation_m: mount.site_elevation().await.ok(),
-                })
-            }
-            DriverType::Indi => Err(DeviceOpError::unsupported(
-                "Reading the site from an INDI mount is not wired up yet",
-            )),
-            DriverType::Simulator => {
-                let location = crate::api::get_state()
-                    .get_observer_location()
-                    .map_err(|e| DeviceOpError::from(e.to_string()))?;
-                match location {
-                    Some(loc) => Ok(MountSite {
-                        latitude_deg: loc.latitude,
-                        longitude_deg: loc.longitude,
-                        elevation_m: Some(loc.elevation),
-                    }),
-                    None => Err(DeviceOpError::unsupported(
-                        "The simulated mount has no site until the observer location is set",
-                    )),
-                }
-            }
-        }
+        mount.site().await
     }
 
     pub async fn mount_set_site(
@@ -210,160 +68,15 @@ impl DeviceManager {
             )));
         }
 
-        let devices = self.devices.read().await;
-        let info = devices
-            .get(device_id)
-            .map(|d| d.info.clone())
-            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
-        drop(devices);
+        let mount = self.mount(device_id).await?;
 
-        match info.driver_type {
-            DriverType::Native => {
-                let mut mounts = self.native_mounts.write().await;
-                let mount = mounts.get_mut(device_id).ok_or_else(|| {
-                    DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Native mount not connected",
-                    )
-                })?;
-                mount
-                    .set_site(skotiq_device::MountSiteInfo {
-                        latitude_deg: site.latitude_deg,
-                        longitude_deg: site.longitude_deg,
-                        elevation_m: site.elevation_m,
-                    })
-                    .await
-                    .map_err(DeviceOpError::from)
-            }
-            DriverType::Ascom => {
-                #[cfg(windows)]
-                {
-                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
-                    if let Some(mount) = mount {
-                        let mount = mount.write().await;
-                        // Elevation tolerance lives inside the wrapper's worker,
-                        // where the three property writes happen on the one COM
-                        // thread that owns the driver.
-                        return mount
-                            .set_site(site.latitude_deg, site.longitude_deg, site.elevation_m)
-                            .await
-                            .map_err(DeviceOpError::from);
-                    }
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    "ASCOM mount not connected",
-                ))
-            }
-            DriverType::Alpaca => {
-                let mounts = self.alpaca_mounts.read().await;
-                let mount = mounts.get(device_id).ok_or_else(|| {
-                    DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Alpaca mount not connected",
-                    )
-                })?;
-                mount
-                    .set_site_latitude(site.latitude_deg)
-                    .await
-                    .map_err(DeviceOpError::from)?;
-                mount
-                    .set_site_longitude(site.longitude_deg)
-                    .await
-                    .map_err(DeviceOpError::from)?;
-                if let Some(elevation) = site.elevation_m {
-                    if let Err(e) = mount.set_site_elevation(elevation).await {
-                        tracing::warn!(
-                            "Mount {} accepted lat/lon but refused elevation: {}",
-                            device_id,
-                            e
-                        );
-                    }
-                }
-                Ok(())
-            }
-            DriverType::Indi => Err(DeviceOpError::unsupported(
-                "Writing the site to an INDI mount is not wired up yet",
-            )),
-            DriverType::Simulator => Ok(()),
-        }
+        mount.set_site(site).await
     }
 
     pub async fn mount_get_time(&self, device_id: &str) -> Result<MountTimeInfo, DeviceOpError> {
-        let devices = self.devices.read().await;
-        let info = devices
-            .get(device_id)
-            .map(|d| d.info.clone())
-            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
-        drop(devices);
+        let mount = self.mount(device_id).await?;
 
-        match info.driver_type {
-            DriverType::Native => {
-                let mounts = self.native_mounts.read().await;
-                let mount = mounts.get(device_id).ok_or_else(|| {
-                    DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Native mount not connected",
-                    )
-                })?;
-                let clock = mount.get_clock().await.map_err(DeviceOpError::from)?;
-                Ok(MountTimeInfo {
-                    utc_unix_seconds: clock.utc_unix_seconds,
-                    utc_offset_hours: clock.utc_offset_hours,
-                })
-            }
-            DriverType::Ascom => {
-                #[cfg(windows)]
-                {
-                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
-                    if let Some(mount) = mount {
-                        let mount = mount.read().await;
-                        let ole = mount.get_utc_date().await.map_err(DeviceOpError::from)?;
-                        return Ok(MountTimeInfo {
-                            utc_unix_seconds: ole_to_unix_seconds(ole),
-                            // ASCOM's UTCDate is UTC by definition; the mount's
-                            // local offset is not exposed, so report zero rather
-                            // than inventing one.
-                            utc_offset_hours: 0.0,
-                        });
-                    }
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    "ASCOM mount not connected",
-                ))
-            }
-            DriverType::Alpaca => {
-                let mounts = self.alpaca_mounts.read().await;
-                let mount = mounts.get(device_id).ok_or_else(|| {
-                    DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Alpaca mount not connected",
-                    )
-                })?;
-                let iso = mount.utc_date().await.map_err(DeviceOpError::from)?;
-                let parsed = chrono::DateTime::parse_from_rfc3339(&iso)
-                    .map(|d| d.timestamp())
-                    .or_else(|_| {
-                        chrono::NaiveDateTime::parse_from_str(&iso, "%Y-%m-%dT%H:%M:%S%.f")
-                            .map(|d| d.and_utc().timestamp())
-                    })
-                    .map_err(|e| {
-                        DeviceOpError::from(format!("Unparseable Alpaca utcdate {iso:?}: {e}"))
-                    })?;
-                Ok(MountTimeInfo {
-                    utc_unix_seconds: parsed,
-                    utc_offset_hours: 0.0,
-                })
-            }
-            DriverType::Indi => Err(DeviceOpError::unsupported(
-                "Reading the clock from an INDI mount is not wired up yet",
-            )),
-            DriverType::Simulator => Ok(MountTimeInfo {
-                utc_unix_seconds: chrono::Utc::now().timestamp(),
-                utc_offset_hours: 0.0,
-            }),
-        }
+        mount.time().await
     }
 
     pub async fn mount_set_time(
@@ -378,65 +91,9 @@ impl DeviceManager {
             )));
         }
 
-        let devices = self.devices.read().await;
-        let info = devices
-            .get(device_id)
-            .map(|d| d.info.clone())
-            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
-        drop(devices);
+        let mount = self.mount(device_id).await?;
 
-        match info.driver_type {
-            DriverType::Native => {
-                let mut mounts = self.native_mounts.write().await;
-                let mount = mounts.get_mut(device_id).ok_or_else(|| {
-                    DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Native mount not connected",
-                    )
-                })?;
-                mount
-                    .set_clock(skotiq_device::MountClock {
-                        utc_unix_seconds: time.utc_unix_seconds,
-                        utc_offset_hours: time.utc_offset_hours,
-                    })
-                    .await
-                    .map_err(DeviceOpError::from)
-            }
-            DriverType::Ascom => {
-                #[cfg(windows)]
-                {
-                    let mount = self.ascom_mounts.read().await.get(device_id).cloned();
-                    if let Some(mount) = mount {
-                        let mount = mount.write().await;
-                        return mount
-                            .set_utc_date(unix_seconds_to_ole(time.utc_unix_seconds))
-                            .await
-                            .map_err(DeviceOpError::from);
-                    }
-                }
-                Err(DeviceOpError::not_connected(
-                    Some(device_id.to_string()),
-                    "ASCOM mount not connected",
-                ))
-            }
-            DriverType::Alpaca => {
-                let mount = self.alpaca_mounts.read().await.get(device_id).cloned();
-                let mount = mount.ok_or_else(|| {
-                    DeviceOpError::not_connected(
-                        Some(device_id.to_string()),
-                        "Alpaca mount not connected",
-                    )
-                })?;
-                mount
-                    .set_utc_date(&alpaca_utc_date(time.utc_unix_seconds)?)
-                    .await
-                    .map_err(DeviceOpError::from)
-            }
-            DriverType::Indi => Err(DeviceOpError::unsupported(
-                "Writing the clock to an INDI mount is not wired up yet",
-            )),
-            DriverType::Simulator => Ok(()),
-        }
+        mount.set_time(time).await
     }
 }
 

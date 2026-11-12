@@ -9,7 +9,7 @@
 //! whole stack down — and a quality-aware integration.
 //!
 //! This module turns the cheap, already-available per-frame primitives
-//! ([`crate::detect_stars_with_stats`], [`crate::calculate_stats_u16`], the
+//! ([`crate::detect_stars_with_stats`], [`crate::calculate_stats`], the
 //! star moments in [`crate::stats`]) into:
 //!
 //! 1. A robust per-frame quality descriptor ([`FrameQuality`]) — noise,
@@ -163,7 +163,7 @@ pub fn analyze_frame_quality(image: &ImageData, cfg: &FrameQualityConfig) -> Opt
     if image.is_empty() {
         return None;
     }
-    let pixels = image.as_u16()?;
+    let pixels = image.adu_levels();
     if pixels.is_empty() {
         return None;
     }
@@ -172,7 +172,7 @@ pub fn analyze_frame_quality(image: &ImageData, cfg: &FrameQualityConfig) -> Opt
 
     // Background = robust frame median; signal = a high percentile of the
     // pixel distribution. Both come from one count of the levels.
-    let levels = LevelCounts::of_le_bytes(&image.data);
+    let levels = LevelCounts::of_channel(&pixels, 0, 1);
     let background = stats_from_levels(&levels).median;
     let signal = percentile_u16(&levels, cfg.signal_percentile);
     let snr = ((signal - background) / noise.max(f64::MIN_POSITIVE)).max(0.0);

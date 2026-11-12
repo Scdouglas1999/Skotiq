@@ -648,10 +648,12 @@ fn delivery_writes_linear_masters_and_composites() {
     assert_eq!(header.get_float("CRPIX1"), Some(160.5 - x0));
     assert_eq!(header.get_float("CRPIX2"), Some(120.5 - y0));
     assert_eq!(header.get_float("FOCALLEN"), Some(530.0));
+    // The file holds ADU / 65535 and says so; read back, the samples are ADU.
+    assert_eq!(l.range, skotiq_imaging::SampleRange::UNIT);
     let l = image_to_f64(&l);
     let mut sorted = l.clone();
     sorted.sort_by(f64::total_cmp);
-    let sky = sorted[sorted.len() / 2] * 65535.0;
+    let sky = sorted[sorted.len() / 2];
     assert!(
         (sky - 800.0).abs() < 20.0,
         "ADU / 65535 keeps the level, sky {sky}"

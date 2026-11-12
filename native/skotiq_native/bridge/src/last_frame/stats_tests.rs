@@ -40,7 +40,7 @@ fn star_frame(width: u32, height: u32, count: u32, sigma: f64) -> skotiq_imaging
 #[test]
 fn a_frame_with_stars_publishes_every_measurement_from_one_detection() {
     let image = star_frame(512, 512, 36, 2.0);
-    let stats = skotiq_imaging::calculate_stats_u16(&image);
+    let stats = skotiq_imaging::calculate_stats(&image);
     let stars =
         skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
     assert!(!stars.is_empty(), "the synthetic frame must carry stars");
@@ -61,7 +61,7 @@ fn a_frame_with_stars_publishes_every_measurement_from_one_detection() {
 #[test]
 fn a_starless_frame_publishes_nothing_rather_than_a_zero() {
     let image = star_frame(128, 128, 0, 2.0);
-    let stats = skotiq_imaging::calculate_stats_u16(&image);
+    let stats = skotiq_imaging::calculate_stats(&image);
     let stars =
         skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
 
@@ -84,13 +84,13 @@ fn a_defocused_frame_publishes_a_larger_hfr_than_a_sharp_one() {
     let config = skotiq_imaging::StarDetectionConfig::default();
 
     let sharp_hfr = frame_stats_result(
-        &skotiq_imaging::calculate_stats_u16(&sharp),
+        &skotiq_imaging::calculate_stats(&sharp),
         &skotiq_imaging::detect_stars(&sharp, &config),
     )
     .hfr
     .expect("the sharp frame is measurable");
     let soft_hfr = frame_stats_result(
-        &skotiq_imaging::calculate_stats_u16(&soft),
+        &skotiq_imaging::calculate_stats(&soft),
         &skotiq_imaging::detect_stars(&soft, &config),
     )
     .hfr

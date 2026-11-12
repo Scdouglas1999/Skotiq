@@ -22,12 +22,7 @@
 use crate::device::*;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
-use crate::error::SkotiqError;
-use crate::timeout_ops::{mount_slew_with_timeout, with_timeout_str, Timeouts};
-#[cfg(windows)]
-use skotiq_device::MountDriver;
 use std::collections::HashMap;
-use tracing::warn;
 
 pub(crate) mod park;
 pub(crate) mod site;
