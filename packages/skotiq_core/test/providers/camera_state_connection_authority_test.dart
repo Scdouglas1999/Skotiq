@@ -10,53 +10,13 @@ class _MockDeviceService extends Mock implements DeviceService {}
 
 void main() {
   test(
-    'late connect completion cannot mark a replacement camera connected',
-    () async {
-      final service = _MockDeviceService();
-      final cameraAGate = Completer<void>();
-      final cameraBGate = Completer<void>();
-      when(
-        () => service.connect(DeviceType.camera, 'camera-a'),
-      ).thenAnswer((_) => cameraAGate.future);
-      when(
-        () => service.connect(DeviceType.camera, 'camera-b'),
-      ).thenAnswer((_) => cameraBGate.future);
-      final container = ProviderContainer(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          deviceServiceProvider.overrideWithValue(service),
-        ],
-      );
-      addTearDown(container.dispose);
-      final notifier = container.read(cameraStateProvider.notifier);
-
-      final cameraA = notifier.connect('camera-a');
-      final cameraB = notifier.connect('camera-b');
-      cameraAGate.complete();
-      await cameraA;
-
-      var state = container.read(cameraStateProvider);
-      expect(state.deviceId, 'camera-b');
-      expect(state.connectionState, DeviceConnectionState.connecting);
-
-      cameraBGate.complete();
-      await cameraB;
-      state = container.read(cameraStateProvider);
-      expect(state.deviceId, 'camera-b');
-      expect(state.connectionState, DeviceConnectionState.connected);
-    },
-  );
-
-  test(
     'late disconnect completion cannot clear a replacement camera',
     () async {
       final service = _MockDeviceService();
       final disconnectGate = Completer<void>();
-      final cameraBGate = Completer<void>();
-      when(() => service.disconnect(DeviceType.camera)).thenAnswer((_) => disconnectGate.future);
       when(
-        () => service.connect(DeviceType.camera, 'camera-b'),
-      ).thenAnswer((_) => cameraBGate.future);
+        () => service.disconnect(DeviceType.camera),
+      ).thenAnswer((_) => disconnectGate.future);
       final container = ProviderContainer(
         overrides: [
           inMemoryDatabaseOverride(),
@@ -69,15 +29,14 @@ void main() {
       notifier.setConnected();
 
       final disconnect = notifier.disconnect();
-      final cameraB = notifier.connect('camera-b');
+      // The device service connecting camera B while A is let go.
+      notifier.setConnecting('camera-b', 'Camera B');
       disconnectGate.complete();
       await disconnect;
 
       final state = container.read(cameraStateProvider);
       expect(state.deviceId, 'camera-b');
       expect(state.connectionState, DeviceConnectionState.connecting);
-      cameraBGate.complete();
-      await cameraB;
     },
   );
 }

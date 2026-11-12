@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../services/device_service.dart';
 
@@ -41,7 +40,6 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
   final Ref ref;
   final DeviceType deviceType;
   final S _baseline;
-  int _connectionRevision = 0;
 
   @override
   DeviceConnectionState get connectionState => state.connectionState;
@@ -51,10 +49,11 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
 
   @override
   Future<void> disconnect() async {
-    if (state.deviceId == null) return;
-    final revision = ++_connectionRevision;
+    final released = state.deviceId;
+    if (released == null) return;
     await ref.read(deviceServiceProvider).disconnect(deviceType);
-    if (_isCurrent(revision)) setDisconnected();
+    // A device connected in its place meanwhile keeps the slot.
+    if (mounted && state.deviceId == released) setDisconnected();
   }
 
   @override
@@ -116,6 +115,4 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
       lastError: DeviceError.fromException(error, deviceId: state.deviceId),
     );
   }
-
-  bool _isCurrent(int revision) => mounted && revision == _connectionRevision;
 }

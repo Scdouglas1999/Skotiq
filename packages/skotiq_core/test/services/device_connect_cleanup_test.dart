@@ -36,6 +36,14 @@ void main() {
     when(
       () => backend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
+    // The native policy: the heartbeat reconnects these itself.
+    when(() => backend.nativeReconnectedDeviceTypes).thenReturn(const {
+      DeviceType.mount,
+      DeviceType.guider,
+      DeviceType.dome,
+      DeviceType.weather,
+      DeviceType.coverCalibrator,
+    });
     container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith(
