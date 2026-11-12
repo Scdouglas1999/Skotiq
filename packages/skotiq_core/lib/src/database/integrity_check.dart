@@ -13,8 +13,8 @@ import 'sqlite_busy.dart';
 /// the path of the corrupt-file backup to triage. A boolean would force every
 /// caller to re-derive the marker / backup path, which is fragile.
 class IntegrityRecoveryReport {
-  /// True iff `PRAGMA integrity_check` returned anything other than `ok` AND
-  /// the corrupt file was rotated out of the way successfully.
+  /// True iff the start-up check returned anything other than `ok` AND the
+  /// corrupt file was rotated out of the way successfully.
   final bool recovered;
 
   /// True iff the database file did not exist when the check ran. This is the
@@ -23,8 +23,8 @@ class IntegrityRecoveryReport {
   /// the path the DB will end up at.
   final bool freshInstall;
 
-  /// True iff the file existed AND `integrity_check` returned `ok`. Mutually
-  /// exclusive with [recovered] and [freshInstall].
+  /// True iff the file existed AND the start-up check returned `ok`.
+  /// Mutually exclusive with [recovered] and [freshInstall].
   final bool wasHealthy;
 
   /// Absolute path of the corrupt-file backup that was retained for forensic
@@ -35,7 +35,7 @@ class IntegrityRecoveryReport {
   /// consume + delete on next launch. Null unless [recovered] is true.
   final String? markerPath;
 
-  /// Raw `integrity_check` result string that triggered the recovery (e.g.
+  /// Raw check result string that triggered the recovery (e.g.
   /// `'database disk image is malformed'`). Null unless [recovered] is true.
   final String? failureReason;
 
@@ -103,6 +103,12 @@ const String _recoveryMarkerPrefix = '.recovered-on-';
 /// opens the database.
 const String _restoreRequestName = '.restore-pending.txt';
 
+/// Name of the file that asks the next start to run the full
+/// `PRAGMA integrity_check` instead of `quick_check`. Written by the
+/// background check when it finds damage `REINDEX` cannot repair, so the
+/// start-up recovery below runs on it before anything opens the database.
+const String _fullCheckRequestName = '.integrity-check-pending.txt';
+
 /// SQLite primary result codes that mean "this file is not a usable SQLite
 /// database" — the ONLY two conditions under which we are allowed to move a
 /// user's database out of the way.
@@ -131,10 +137,17 @@ bool _isCorruption(SqliteException e) =>
 bool _needsWritableRetry(SqliteException e) =>
     e.resultCode == _sqliteCantOpen || e.resultCode == _sqliteReadOnly;
 
-/// Open the database file once, run `PRAGMA integrity_check`, and on failure
+/// Open the database file once, run `PRAGMA quick_check`, and on failure
 /// rotate the corrupt file to a forensic backup so that drift's `onCreate`
 /// can run on a fresh file. Does NOT delete the backup — it is retained as
 /// evidence for support.
+///
+/// `quick_check` reads every page and checks every b-tree, record and
+/// constraint, but not that each index holds exactly its table's rows: 0.3 s
+/// on a 185 MB rig database where the full check takes 1.2 s warm and 12 s
+/// straight after a boot. The full check runs in the background once the app
+/// is up ([DatabaseHealthCheck]), and runs here instead when that check asked
+/// for it ([requestFullCheckAtNextStart]).
 ///
 /// Why this lives outside [SkotiqDatabase]: the integrity check has to
 /// run BEFORE drift opens the database, otherwise drift's migrator may begin
@@ -158,9 +171,31 @@ Future<IntegrityRecoveryReport> runIntegrityCheckAndRecover(File dbFile) async {
     return IntegrityRecoveryReport.freshInstall();
   }
 
+  final fullCheckRequest = File(
+    p.join(dbFile.parent.path, _fullCheckRequestName),
+  );
+  final full = await fullCheckRequest.exists();
+  final report = await _checkAndRecover(dbFile, full: full);
+  // The request is answered once the check has run, whatever it found. A
+  // check that threw (a lock, an unreadable volume) leaves it for the next
+  // start.
+  if (full && await fullCheckRequest.exists()) {
+    await fullCheckRequest.delete();
+  }
+  return report;
+}
+
+Future<IntegrityRecoveryReport> _checkAndRecover(
+  File dbFile, {
+  required bool full,
+}) async {
   final String failureReason;
   try {
-    failureReason = _checkIntegrity(dbFile.path, mode: OpenMode.readOnly);
+    failureReason = _checkIntegrity(
+      dbFile.path,
+      mode: OpenMode.readOnly,
+      full: full,
+    );
   } on SqliteException catch (e) {
     if (!await dbFile.exists()) {
       // The file was there a moment ago and is gone now: deleted underneath
@@ -179,7 +214,11 @@ Future<IntegrityRecoveryReport> runIntegrityCheckAndRecover(File dbFile) async {
       // crash recovery.
       final String retry;
       try {
-        retry = _checkIntegrity(dbFile.path, mode: OpenMode.readWrite);
+        retry = _checkIntegrity(
+          dbFile.path,
+          mode: OpenMode.readWrite,
+          full: full,
+        );
       } on SqliteException catch (retryError) {
         // Same rule on the second attempt: only a file SQLite calls corrupt
         // or not-a-database may be moved. Anything else (still unwritable,
@@ -198,7 +237,7 @@ Future<IntegrityRecoveryReport> runIntegrityCheckAndRecover(File dbFile) async {
       rethrow;
     }
     // SQLITE_CORRUPT / SQLITE_NOTADB at open time: the header itself is
-    // unreadable. Same recovery path as a failed integrity_check.
+    // unreadable. Same recovery path as a failed check.
     return _quarantine(dbFile, 'open-time error: ${e.message}');
   }
 
@@ -290,36 +329,58 @@ Future<InterruptedCreateReport> discardInterruptedFirstCreate(
   );
 }
 
-/// Runs `PRAGMA integrity_check` against [path]. Returns an empty string when
-/// the database is healthy, or the joined failure rows when it is not.
-/// Propagates [SqliteException] to the caller for classification.
-String _checkIntegrity(String path, {required OpenMode mode}) {
+/// Asks the next start to run the full `PRAGMA integrity_check` before the
+/// database opens, so a database it fails goes through the start-up recovery.
+/// [messages] are what the background check found, kept for support.
+Future<void> requestFullCheckAtNextStart(
+  File dbFile,
+  List<String> messages,
+) async {
+  await File(p.join(dbFile.parent.path, _fullCheckRequestName)).writeAsString(
+    'requested_at_utc=${DateTime.now().toUtc().toIso8601String()}\n'
+    '${messages.map((m) => 'found=${m.replaceAll('\n', ' ')}\n').join()}',
+    flush: true,
+  );
+}
+
+/// Whether the next start will run the full check.
+Future<bool> fullCheckRequestedAtNextStart(Directory dbDirectory) =>
+    File(p.join(dbDirectory.path, _fullCheckRequestName)).exists();
+
+/// Runs `PRAGMA quick_check`, or `PRAGMA integrity_check` when [full],
+/// against [path]. Returns an empty string when the database is healthy, or
+/// the joined failure rows when it is not. Propagates [SqliteException] to
+/// the caller for classification.
+String _checkIntegrity(
+  String path, {
+  required OpenMode mode,
+  required bool full,
+}) {
   final db = sqlite3.open(path, mode: mode);
   try {
     // The same lock-wait budget the live connection gets, from the same
     // definition. A read-only probe still needs it: an external writer holding
-    // an EXCLUSIVE lock makes `integrity_check` report SQLITE_BUSY, and this
+    // an EXCLUSIVE lock makes the check report SQLITE_BUSY, and this
     // function's contract is that anything other than corruption propagates —
     // so without the timeout a passing backup turns a healthy database into a
     // startup failure.
     applySqliteBusyTimeout(db);
-    final result = db.select('PRAGMA integrity_check;');
-    // PRAGMA integrity_check returns either a single row {integrity_check:
-    // 'ok'} on a healthy database, or one or more rows describing the
-    // corruption (e.g. {integrity_check: 'database disk image is
-    // malformed'}). The single-row 'ok' shape is the only healthy case.
-    if (result.length == 1 &&
-        result.first.values.length == 1 &&
-        result.first.values.first == 'ok') {
-      return '';
-    }
-    return result
-        .map((row) => row.values.isNotEmpty ? '${row.values.first}' : '?')
-        .join('; ');
+    final rows = integrityCheckRows(db, full: full);
+    if (rows.length == 1 && rows.single == 'ok') return '';
+    return rows.join('; ');
   } finally {
     db.close();
   }
 }
+
+/// The rows of `PRAGMA integrity_check` (or `quick_check`) on [db]: a single
+/// `ok` on a healthy database, otherwise one row per problem found.
+List<String> integrityCheckRows(Database db, {required bool full}) => [
+  for (final row in db.select(
+    full ? 'PRAGMA integrity_check;' : 'PRAGMA quick_check;',
+  ))
+    row.values.isNotEmpty ? '${row.values.first}' : '?',
+];
 
 Future<IntegrityRecoveryReport> _quarantine(
   File dbFile,
@@ -591,7 +652,11 @@ Future<QuarantinedDatabaseCheck> inspectQuarantinedDatabase(
     // Read-only: inspecting evidence must never modify it. A backup that
     // needs journal replay reports SQLITE_READONLY here and is honestly
     // described as "could not be verified" rather than "corrupt".
-    final failure = _checkIntegrity(backupPath, mode: OpenMode.readOnly);
+    final failure = _checkIntegrity(
+      backupPath,
+      mode: OpenMode.readOnly,
+      full: true,
+    );
     return QuarantinedDatabaseCheck(
       exists: true,
       integrityOk: failure.isEmpty,
