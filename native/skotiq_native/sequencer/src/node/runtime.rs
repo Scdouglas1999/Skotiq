@@ -72,9 +72,8 @@ tokio::task_local! {
 /// failure has already been published to the operator.
 ///
 /// Publishing per attempt makes one failed node produce one error entry per
-/// try: a node that fails with "No dome connected" (a message
-/// [`crate::instructions::is_device_disconnected_message`] classifies as a
-/// disconnect) runs six times, and the session report lists the same sentence
+/// try: a node that fails with "No dome connected" (a disconnect) runs six
+/// times, and the session report lists the same sentence
 /// six times with six identical Critical toasts, so the error count never
 /// matches the number of failed nodes.
 pub(crate) fn is_disconnect_retry_attempt() -> bool {

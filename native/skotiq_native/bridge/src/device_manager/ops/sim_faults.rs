@@ -46,6 +46,7 @@
 //! effect instead sets a latch that the simulator's motion advancers consult
 //! (see [`is_stalled`]).
 
+use crate::dispatch::DeviceOpError;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex as StdMutex, OnceLock};
@@ -348,9 +349,9 @@ pub fn release_backlash(key: &str) {
 /// `await`.
 enum Decision {
     Proceed,
-    Fail(String),
+    Fail(DeviceOpError),
     Sleep(u64),
-    SleepThenFail(u64, String),
+    SleepThenFail(u64, DeviceOpError),
 }
 
 fn decide(key: &str) -> Decision {
@@ -384,10 +385,15 @@ fn decide(key: &str) -> Decision {
     }
 
     match armed.spec.effect.clone() {
-        Effect::Error(message) => Decision::Fail(message),
-        Effect::NotConnected => Decision::Fail(super::sim_gate::not_connected_injected(key)),
+        Effect::Error(message) => Decision::Fail(DeviceOpError::Message(message)),
+        Effect::NotConnected => Decision::Fail(DeviceOpError::not_connected(
+            None,
+            super::sim_gate::not_connected_injected(key),
+        )),
         Effect::Delay(ms) => Decision::Sleep(ms),
-        Effect::DelayThenError(ms, message) => Decision::SleepThenFail(ms, message),
+        Effect::DelayThenError(ms, message) => {
+            Decision::SleepThenFail(ms, DeviceOpError::Message(message))
+        }
         Effect::Stall => {
             reg.stalled.insert(key.to_string(), true);
             Decision::Proceed
@@ -400,8 +406,9 @@ fn decide(key: &str) -> Decision {
             reg.unplugged
                 .entry(key.to_string())
                 .or_insert((reorder, false));
-            Decision::Fail(format!(
-                "Injected simulator fault: the device dropped off the bus ({key})"
+            Decision::Fail(DeviceOpError::not_connected(
+                None,
+                format!("Injected simulator fault: the device dropped off the bus ({key})"),
             ))
         }
         effect @ (Effect::Runaway { .. } | Effect::ExternalSlew { .. }) => {
@@ -467,27 +474,27 @@ pub fn backlash_steps(key: &str) -> Option<i32> {
 ///
 /// Returns `Err` when a fault fires with a failing effect, after applying any
 /// delay the effect asks for. [`Effect::Stall`] returns `Ok(())` by design.
-pub async fn check(key: &str) -> Result<(), String> {
+pub async fn check(key: &str) -> Result<(), DeviceOpError> {
     match decide(key) {
         Decision::Proceed => Ok(()),
-        Decision::Fail(message) => {
-            tracing::warn!(key, message, "simulator fault injected");
-            Err(message)
+        Decision::Fail(error) => {
+            tracing::warn!(key, %error, "simulator fault injected");
+            Err(error)
         }
         Decision::Sleep(ms) => {
             tracing::warn!(key, ms, "simulator fault injected: delay");
             tokio::time::sleep(Duration::from_millis(ms)).await;
             Ok(())
         }
-        Decision::SleepThenFail(ms, message) => {
+        Decision::SleepThenFail(ms, error) => {
             tracing::warn!(
                 key,
                 ms,
-                message,
+                %error,
                 "simulator fault injected: delay then error"
             );
             tokio::time::sleep(Duration::from_millis(ms)).await;
-            Err(message)
+            Err(error)
         }
     }
 }
@@ -792,7 +799,10 @@ mod tests {
     async fn times_one_fires_exactly_once() {
         let _g = Guard::new(&["test.times1"]).await;
         arm("test.times1", FaultSpec::transient("boom"));
-        assert_eq!(check("test.times1").await, Err("boom".to_string()));
+        assert_eq!(
+            check("test.times1").await.map_err(|e| e.to_string()),
+            Err("boom".to_string())
+        );
         assert!(
             check("test.times1").await.is_ok(),
             "a Times(1) fault fired twice, so 'retry once' logic could never pass"
@@ -805,7 +815,7 @@ mod tests {
         arm("test.always", FaultSpec::not_implemented());
         for _ in 0..5 {
             let err = check("test.always").await.expect_err("must keep failing");
-            assert!(err.contains("0x80020009"), "got {err}");
+            assert!(err.to_string().contains("0x80020009"), "got {err}");
         }
     }
 
@@ -850,9 +860,10 @@ mod tests {
         );
         let err = check("test.notconnected").await.expect_err("must fail");
         assert!(
-            err.contains("not connected"),
-            "the app distinguishes disconnection from operation failure: {err}"
+            matches!(err, DeviceOpError::NotConnected { .. }),
+            "the app distinguishes disconnection from operation failure: {err:?}"
         );
+        assert!(err.to_string().contains("test.notconnected"), "{err}");
     }
 
     /// A stall must NOT surface as an error — that is the entire point. It has
@@ -883,7 +894,7 @@ mod tests {
         );
         let started = std::time::Instant::now();
         let err = check("test.dte").await.expect_err("must fail");
-        assert_eq!(err, "download timed out");
+        assert_eq!(err.to_string(), "download timed out");
         assert!(
             started.elapsed() >= Duration::from_millis(50),
             "returned in {:?}; a download timeout that fails instantly does not \

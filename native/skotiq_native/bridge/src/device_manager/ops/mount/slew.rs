@@ -144,14 +144,14 @@ impl DeviceManager {
                                 mount
                                     .slew_to_coordinates(ra, dec)
                                     .await
-                                    .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                                    .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
                             },
                             device_id,
                         )
                         .await
                         .map_err(|e| {
                             tracing::error!("mount_slew ASCOM error: {}", e);
-                            DeviceOpError::driver(e)
+                            DeviceOpError::from(e)
                         });
                     } else {
                         tracing::error!(
@@ -175,14 +175,14 @@ impl DeviceManager {
                             mount
                                 .slew_to_coordinates_async(ra, dec)
                                 .await
-                                .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                                .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
                         },
                         device_id,
                     )
                     .await
                     .map_err(|e| {
                         tracing::error!("mount_slew Alpaca error: {}", e);
-                        DeviceOpError::driver(e)
+                        DeviceOpError::from(e)
                     });
                 }
                 tracing::error!("mount_slew: Alpaca mount {} not connected", device_id);
@@ -208,14 +208,14 @@ impl DeviceManager {
                                 mount
                                     .slew_to_coordinates(ra, dec)
                                     .await
-                                    .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                                    .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
                             },
                             device_id,
                         )
                         .await
                         .map_err(|e| {
                             tracing::error!("mount_slew INDI error: {}", e);
-                            DeviceOpError::driver(e)
+                            DeviceOpError::from(e)
                         });
                     }
                     tracing::error!("mount_slew: INDI client not connected for {}", server_key);
@@ -237,14 +237,14 @@ impl DeviceManager {
                             mount
                                 .slew_to_coordinates(ra, dec)
                                 .await
-                                .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                                .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
                         },
                         device_id,
                     )
                     .await
                     .map_err(|e| {
                         tracing::error!("mount_slew Native error: {}", e);
-                        DeviceOpError::driver(e)
+                        DeviceOpError::from(e)
                     });
                 }
                 tracing::error!("mount_slew: Native mount {} not connected", device_id);
@@ -331,7 +331,7 @@ impl DeviceManager {
                         .await
                         .map_err(|e| {
                             tracing::error!("mount_slew_alt_az ASCOM error: {}", e);
-                            DeviceOpError::driver(e)
+                            DeviceOpError::from(e)
                         });
                     }
                 }
@@ -357,7 +357,7 @@ impl DeviceManager {
                     .await
                     .map_err(|e| {
                         tracing::error!("mount_slew_alt_az Alpaca error: {}", e);
-                        DeviceOpError::driver(e)
+                        DeviceOpError::from(e)
                     });
                 }
                 Err(DeviceOpError::not_connected(
@@ -386,7 +386,7 @@ impl DeviceManager {
                         .await
                         .map_err(|e| {
                             tracing::error!("mount_slew_alt_az INDI error: {}", e);
-                            DeviceOpError::driver(e)
+                            DeviceOpError::from(e)
                         });
                     }
                     return Err(DeviceOpError::not_connected(
@@ -471,7 +471,7 @@ impl DeviceManager {
                     let mount = self.ascom_mounts.read().await.get(device_id).cloned();
                     if let Some(mount) = mount {
                         let mut mount = mount.write().await;
-                        return mount.abort_slew().await.map_err(DeviceOpError::driver);
+                        return mount.abort_slew().await.map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -482,7 +482,7 @@ impl DeviceManager {
             DriverType::Native => {
                 let mut native_mounts = self.native_mounts.write().await;
                 if let Some(mount) = native_mounts.get_mut(device_id) {
-                    return mount.abort_slew().await.map_err(DeviceOpError::driver);
+                    return mount.abort_slew().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -492,7 +492,7 @@ impl DeviceManager {
             DriverType::Alpaca => {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
-                    return mount.abort_slew().await.map_err(DeviceOpError::driver);
+                    return mount.abort_slew().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -505,7 +505,7 @@ impl DeviceManager {
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
-                        return mount.abort_slew().await.map_err(DeviceOpError::driver);
+                        return mount.abort_slew().await.map_err(DeviceOpError::from);
                     }
                     return Err(DeviceOpError::not_connected(
                         Some(device_id.to_string()),
@@ -552,7 +552,7 @@ impl DeviceManager {
                     let mount = self.ascom_mounts.read().await.get(device_id).cloned();
                     if let Some(mount) = mount {
                         let mount = mount.read().await;
-                        return mount.stop().await.map_err(DeviceOpError::driver);
+                        return mount.stop().await.map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -563,7 +563,7 @@ impl DeviceManager {
             DriverType::Native => {
                 let mut native_mounts = self.native_mounts.write().await;
                 if let Some(mount) = native_mounts.get_mut(device_id) {
-                    return mount.abort_slew().await.map_err(DeviceOpError::driver);
+                    return mount.abort_slew().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -573,7 +573,7 @@ impl DeviceManager {
             DriverType::Alpaca => {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
-                    return mount.abort_slew().await.map_err(DeviceOpError::driver);
+                    return mount.abort_slew().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -586,7 +586,7 @@ impl DeviceManager {
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
-                        return mount.abort_slew().await.map_err(DeviceOpError::driver);
+                        return mount.abort_slew().await.map_err(DeviceOpError::from);
                     }
                     return Err(DeviceOpError::not_connected(
                         Some(device_id.to_string()),
@@ -665,7 +665,7 @@ impl DeviceManager {
                         let mut mount = mount.write().await;
                         return mount.move_axis(axis, rate).await.map_err(|e| {
                             tracing::error!("mount_move_axis ASCOM error: {}", e);
-                            DeviceOpError::driver(e)
+                            DeviceOpError::from(e)
                         });
                     } else {
                         tracing::error!(
@@ -686,7 +686,7 @@ impl DeviceManager {
                     tracing::debug!("mount_move_axis: Calling Alpaca move_axis");
                     return mount.move_axis(axis, rate).await.map_err(|e| {
                         tracing::error!("mount_move_axis Alpaca error: {}", e);
-                        DeviceOpError::driver(e)
+                        DeviceOpError::from(e)
                     });
                 }
                 tracing::error!("mount_move_axis: Alpaca mount {} not connected", device_id);
@@ -716,7 +716,7 @@ impl DeviceManager {
                                         "mount_move_axis INDI error (move east): {}",
                                         e
                                     );
-                                    DeviceOpError::driver(e)
+                                    DeviceOpError::from(e)
                                 });
                             } else if rate < 0.0 {
                                 return mount.move_west(true).await.map_err(|e| {
@@ -724,7 +724,7 @@ impl DeviceManager {
                                         "mount_move_axis INDI error (move west): {}",
                                         e
                                     );
-                                    DeviceOpError::driver(e)
+                                    DeviceOpError::from(e)
                                 });
                             } else {
                                 // Stop both directions. Attempt-all, then report
@@ -745,7 +745,7 @@ impl DeviceManager {
                                             "mount_move_axis INDI error (stop RA): {}",
                                             detail
                                         );
-                                        Err(DeviceOpError::driver(detail))
+                                        Err(DeviceOpError::from(detail))
                                     }
                                 };
                             }
@@ -757,7 +757,7 @@ impl DeviceManager {
                                         "mount_move_axis INDI error (move north): {}",
                                         e
                                     );
-                                    DeviceOpError::driver(e)
+                                    DeviceOpError::from(e)
                                 });
                             } else if rate < 0.0 {
                                 return mount.move_south(true).await.map_err(|e| {
@@ -765,7 +765,7 @@ impl DeviceManager {
                                         "mount_move_axis INDI error (move south): {}",
                                         e
                                     );
-                                    DeviceOpError::driver(e)
+                                    DeviceOpError::from(e)
                                 });
                             } else {
                                 // Stop both directions — see the RA arm above for
@@ -782,7 +782,7 @@ impl DeviceManager {
                                             "mount_move_axis INDI error (stop Dec): {}",
                                             detail
                                         );
-                                        Err(DeviceOpError::driver(detail))
+                                        Err(DeviceOpError::from(detail))
                                     }
                                 };
                             }

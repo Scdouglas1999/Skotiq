@@ -17,12 +17,13 @@ impl DeviceManager {
                     if let Some(camera) = cameras.get(device_id) {
                         let mut camera = camera.write().await;
                         return camera.download_image().await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to download image from ASCOM camera {}: {}",
                                     device_id, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -38,12 +39,13 @@ impl DeviceManager {
                     // Use the new download_image_data method
                     let (width, height, pixels) =
                         camera.download_image_data().await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to download image from Alpaca camera {}: {}",
                                     device_id, e
                                 ),
+                                e,
                             )
                         })?;
 

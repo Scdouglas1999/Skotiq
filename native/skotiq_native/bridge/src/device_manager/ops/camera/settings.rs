@@ -99,12 +99,13 @@ impl DeviceManager {
                     if let Some(camera) = cameras.get(device_id) {
                         let mut camera = camera.write().await;
                         return camera.set_gain(gain).await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to set ASCOM camera {} gain to {}: {}",
                                     device_id, gain, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -128,12 +129,13 @@ impl DeviceManager {
                 let mut native_cameras = self.native_cameras.write().await;
                 if let Some(camera) = native_cameras.get_mut(device_id) {
                     return camera.set_gain(gain).await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to set native SDK camera {} gain to {}: {}",
                                 device_id, gain, e
                             ),
+                            e,
                         )
                     });
                 }
@@ -160,9 +162,10 @@ impl DeviceManager {
                         )
                         .await
                         .map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!("Failed to set INDI camera gain: {}", e),
+                                e,
                             )
                         })?;
                     return Ok(());
@@ -264,9 +267,10 @@ impl DeviceManager {
                         )
                         .await
                         .map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!("Failed to set INDI camera offset: {}", e),
+                                e,
                             )
                         })?;
                     return Ok(());
@@ -494,9 +498,10 @@ impl DeviceManager {
                                     .set_switch(&device_name, prop_name, &element, true)
                                     .await
                                     .map_err(|e| {
-                                        DeviceOpError::hardware(
+                                        DeviceOpError::caused_by(
                                             Some(device_id.to_string()),
                                             format!("Failed to set INDI readout mode: {}", e),
+                                            e,
                                         )
                                     })?;
                                 return Ok(());
@@ -656,12 +661,13 @@ impl DeviceManager {
                                 Some(t) => format!("{}C", t),
                                 None => "unchanged".to_string(),
                             };
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                 "Failed to set ASCOM camera {} cooler (enabled={}, target={}): {}",
                                 device_id, enabled, target, e
                             ),
+                                e,
                             )
                         })?;
                         return Ok(());

@@ -126,7 +126,7 @@ pub(crate) async fn get_ascom_capabilities(
                 .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?
         } else {
             let mut wrapper = AscomCameraWrapper::new(prog_id.clone())
-                .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             wrapper
                 .connect()
                 .await
@@ -179,7 +179,7 @@ pub(crate) async fn get_ascom_capabilities(
                 .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?
         } else {
             let mut wrapper = AscomMountWrapper::new(prog_id.clone())
-                .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             wrapper
                 .connect()
                 .await

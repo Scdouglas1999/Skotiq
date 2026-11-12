@@ -127,7 +127,7 @@ impl DeviceManager {
                         "Native mount not connected",
                     )
                 })?;
-                let site = mount.get_site().await.map_err(DeviceOpError::driver)?;
+                let site = mount.get_site().await.map_err(DeviceOpError::from)?;
                 Ok(MountSite {
                     latitude_deg: site.latitude_deg,
                     longitude_deg: site.longitude_deg,
@@ -141,7 +141,7 @@ impl DeviceManager {
                     if let Some(mount) = mount {
                         let mount = mount.read().await;
                         let (latitude_deg, longitude_deg, elevation_m) =
-                            mount.get_site().await.map_err(DeviceOpError::driver)?;
+                            mount.get_site().await.map_err(DeviceOpError::from)?;
                         return Ok(MountSite {
                             latitude_deg,
                             longitude_deg,
@@ -162,11 +162,8 @@ impl DeviceManager {
                         "Alpaca mount not connected",
                     )
                 })?;
-                let latitude_deg = mount.site_latitude().await.map_err(DeviceOpError::driver)?;
-                let longitude_deg = mount
-                    .site_longitude()
-                    .await
-                    .map_err(DeviceOpError::driver)?;
+                let latitude_deg = mount.site_latitude().await.map_err(DeviceOpError::from)?;
+                let longitude_deg = mount.site_longitude().await.map_err(DeviceOpError::from)?;
                 Ok(MountSite {
                     latitude_deg,
                     longitude_deg,
@@ -179,7 +176,7 @@ impl DeviceManager {
             DriverType::Simulator => {
                 let location = crate::api::get_state()
                     .get_observer_location()
-                    .map_err(|e| DeviceOpError::driver(e.to_string()))?;
+                    .map_err(|e| DeviceOpError::from(e.to_string()))?;
                 match location {
                     Some(loc) => Ok(MountSite {
                         latitude_deg: loc.latitude,
@@ -202,7 +199,7 @@ impl DeviceManager {
         if !(-90.0..=90.0).contains(&site.latitude_deg)
             || !(-180.0..=180.0).contains(&site.longitude_deg)
         {
-            return Err(DeviceOpError::driver(format!(
+            return Err(DeviceOpError::from(format!(
                 "Refusing to write site {:.4},{:.4}: out of range",
                 site.latitude_deg, site.longitude_deg
             )));
@@ -231,7 +228,7 @@ impl DeviceManager {
                         elevation_m: site.elevation_m,
                     })
                     .await
-                    .map_err(DeviceOpError::driver)
+                    .map_err(DeviceOpError::from)
             }
             DriverType::Ascom => {
                 #[cfg(windows)]
@@ -245,7 +242,7 @@ impl DeviceManager {
                         return mount
                             .set_site(site.latitude_deg, site.longitude_deg, site.elevation_m)
                             .await
-                            .map_err(DeviceOpError::driver);
+                            .map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -264,11 +261,11 @@ impl DeviceManager {
                 mount
                     .set_site_latitude(site.latitude_deg)
                     .await
-                    .map_err(DeviceOpError::driver)?;
+                    .map_err(DeviceOpError::from)?;
                 mount
                     .set_site_longitude(site.longitude_deg)
                     .await
-                    .map_err(DeviceOpError::driver)?;
+                    .map_err(DeviceOpError::from)?;
                 if let Some(elevation) = site.elevation_m {
                     if let Err(e) = mount.set_site_elevation(elevation).await {
                         tracing::warn!(
@@ -304,7 +301,7 @@ impl DeviceManager {
                         "Native mount not connected",
                     )
                 })?;
-                let clock = mount.get_clock().await.map_err(DeviceOpError::driver)?;
+                let clock = mount.get_clock().await.map_err(DeviceOpError::from)?;
                 Ok(MountTimeInfo {
                     utc_unix_seconds: clock.utc_unix_seconds,
                     utc_offset_hours: clock.utc_offset_hours,
@@ -316,7 +313,7 @@ impl DeviceManager {
                     let mount = self.ascom_mounts.read().await.get(device_id).cloned();
                     if let Some(mount) = mount {
                         let mount = mount.read().await;
-                        let ole = mount.get_utc_date().await.map_err(DeviceOpError::driver)?;
+                        let ole = mount.get_utc_date().await.map_err(DeviceOpError::from)?;
                         return Ok(MountTimeInfo {
                             utc_unix_seconds: ole_to_unix_seconds(ole),
                             // ASCOM's UTCDate is UTC by definition; the mount's
@@ -339,7 +336,7 @@ impl DeviceManager {
                         "Alpaca mount not connected",
                     )
                 })?;
-                let iso = mount.utc_date().await.map_err(DeviceOpError::driver)?;
+                let iso = mount.utc_date().await.map_err(DeviceOpError::from)?;
                 let parsed = chrono::DateTime::parse_from_rfc3339(&iso)
                     .map(|d| d.timestamp())
                     .or_else(|_| {
@@ -347,7 +344,7 @@ impl DeviceManager {
                             .map(|d| d.and_utc().timestamp())
                     })
                     .map_err(|e| {
-                        DeviceOpError::driver(format!("Unparseable Alpaca utcdate {iso:?}: {e}"))
+                        DeviceOpError::from(format!("Unparseable Alpaca utcdate {iso:?}: {e}"))
                     })?;
                 Ok(MountTimeInfo {
                     utc_unix_seconds: parsed,
@@ -370,7 +367,7 @@ impl DeviceManager {
         time: MountTimeInfo,
     ) -> Result<(), DeviceOpError> {
         if !(-14.0..=14.0).contains(&time.utc_offset_hours) {
-            return Err(DeviceOpError::driver(format!(
+            return Err(DeviceOpError::from(format!(
                 "Refusing to write UTC offset {}: out of range",
                 time.utc_offset_hours
             )));
@@ -398,7 +395,7 @@ impl DeviceManager {
                         utc_offset_hours: time.utc_offset_hours,
                     })
                     .await
-                    .map_err(DeviceOpError::driver)
+                    .map_err(DeviceOpError::from)
             }
             DriverType::Ascom => {
                 #[cfg(windows)]
@@ -409,7 +406,7 @@ impl DeviceManager {
                         return mount
                             .set_utc_date(unix_seconds_to_ole(time.utc_unix_seconds))
                             .await
-                            .map_err(DeviceOpError::driver);
+                            .map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(

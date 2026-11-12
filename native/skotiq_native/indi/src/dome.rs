@@ -444,13 +444,19 @@ impl skotiq_device::DomeDriver for IndiDome {
             )
             .await
             .map_err(|e| {
-                skotiq_device::DriverError::Backend(
-                    format!(
-                        "Failed to slew INDI dome {} to azimuth {:.2}: {}",
-                        self.device_name, azimuth_deg, e
-                    )
-                    .into(),
-                )
+                let detail = format!(
+                    "Failed to slew INDI dome {} to azimuth {:.2}: {}",
+                    self.device_name, azimuth_deg, e
+                );
+                match skotiq_device::DriverError::from(e) {
+                    skotiq_device::DriverError::Backend(_) => {
+                        skotiq_device::DriverError::Backend(detail.into())
+                    }
+                    skotiq_device::DriverError::Timeout(_) => {
+                        skotiq_device::DriverError::Timeout(detail)
+                    }
+                    kind => kind,
+                }
             })
     }
 

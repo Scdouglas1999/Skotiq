@@ -92,12 +92,13 @@ impl FilterWheel for VendorFilterWheel {
             .move_to_position(slot)
             .await
             .map_err(|e| {
-                DeviceOpError::hardware(
+                DeviceOpError::caused_by(
                     Some(device_id.clone()),
                     format!(
                         "Failed to move native filter wheel {} to slot {}: {}",
                         device_id, slot, e
                     ),
+                    e,
                 )
             })?;
 
@@ -141,7 +142,7 @@ impl FilterWheel for VendorFilterWheel {
             .await
             .get_position()
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
@@ -150,7 +151,7 @@ impl FilterWheel for VendorFilterWheel {
             .await
             .is_moving()
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn config(&self) -> Result<(i32, Vec<String>), DeviceOpError> {
@@ -159,7 +160,7 @@ impl FilterWheel for VendorFilterWheel {
         let names = wheel
             .get_filter_names()
             .await
-            .map_err(DeviceOpError::driver)?;
+            .map_err(DeviceOpError::from)?;
         Ok((count, names))
     }
 
@@ -170,7 +171,7 @@ impl FilterWheel for VendorFilterWheel {
             wheel
                 .set_filter_name(slot as i32, name.clone())
                 .await
-                .map_err(DeviceOpError::driver)?;
+                .map_err(DeviceOpError::from)?;
         }
         Ok(())
     }
@@ -256,24 +257,25 @@ impl FilterWheel for AscomWheel {
         let device_id = &self.device_id;
         let mut wheel = self.driver.write().await;
         wheel.move_to_position(slot).await.map_err(|e| {
-            DeviceOpError::hardware(
+            DeviceOpError::caused_by(
                 Some(device_id.clone()),
                 format!(
                     "Failed to move ASCOM filter wheel {} to slot {}: {}",
                     device_id, slot, e
                 ),
+                e,
             )
         })
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
         let wheel = self.driver.read().await;
-        wheel.get_position().await.map_err(DeviceOpError::driver)
+        wheel.get_position().await.map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
         let wheel = self.driver.read().await;
-        wheel.is_moving().await.map_err(DeviceOpError::driver)
+        wheel.is_moving().await.map_err(DeviceOpError::from)
     }
 
     /// One Position read supplies both values; that read can be an expensive
@@ -288,7 +290,7 @@ impl FilterWheel for AscomWheel {
         let names = wheel
             .get_filter_names()
             .await
-            .map_err(DeviceOpError::driver)?;
+            .map_err(DeviceOpError::from)?;
         let count = names.len() as i32;
         Ok((count, names))
     }
@@ -352,13 +354,13 @@ impl RigDriver for AlpacaFilterWheel {
 #[async_trait]
 impl FilterWheel for AlpacaFilterWheel {
     async fn move_to_slot(&self, slot: i32) -> Result<(), DeviceOpError> {
-        self.set_position(slot).await.map_err(DeviceOpError::driver)
+        self.set_position(slot).await.map_err(DeviceOpError::from)
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
         AlpacaFilterWheel::position(self)
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     /// Alpaca reports motion as position -1.
@@ -444,7 +446,7 @@ impl RigDriver for IndiWheel {
 impl FilterWheel for IndiWheel {
     async fn move_to_slot(&self, slot: i32) -> Result<(), DeviceOpError> {
         self.wheel.move_to_position(slot).await.map_err(|e| {
-            DeviceOpError::hardware(
+            DeviceOpError::caused_by(
                 Some(self.device_id.clone()),
                 format!(
                     "Failed to set INDI filter wheel {} to slot {}: {}",
@@ -452,15 +454,13 @@ impl FilterWheel for IndiWheel {
                     slot,
                     e
                 ),
+                e,
             )
         })
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
-        self.wheel
-            .get_position()
-            .await
-            .map_err(DeviceOpError::driver)
+        self.wheel.get_position().await.map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
@@ -472,13 +472,14 @@ impl FilterWheel for IndiWheel {
     /// connection problem.
     async fn config(&self) -> Result<(i32, Vec<String>), DeviceOpError> {
         let names = self.wheel.get_names().await.map_err(|e| {
-            DeviceOpError::hardware(
+            DeviceOpError::caused_by(
                 Some(self.device_id.clone()),
                 format!(
                     "Failed to read INDI filter names for {}: {}",
                     self.wheel.device_name(),
                     e
                 ),
+                e,
             )
         })?;
         let count = names.len() as i32;
@@ -559,8 +560,7 @@ impl FilterWheel for SimFilterWheel {
         // Injected driver errors fire before the connected gate; see
         // `sim_faults` for the key grammar.
         sim_faults::check("filterwheel.set_position")
-            .await
-            .map_err(DeviceOpError::driver)?;
+            .await?;
         let mut fw = get_sim_filterwheel().write().await;
         if !fw.status.connected {
             return Err(DeviceOpError::not_connected(

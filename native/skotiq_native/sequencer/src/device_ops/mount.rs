@@ -77,7 +77,6 @@ pub trait MountOps: Send + Sync {
     /// instead of reporting a move that did not happen.
     async fn mount_find_home(&self, _mount_id: &str) -> DeviceResult<()> {
         Err(DeviceError::unsupported(
-            "mount_find_home",
             "Homing is not supported by this device backend",
         ))
     }
@@ -87,7 +86,6 @@ pub trait MountOps: Send + Sync {
     /// Fails closed by default for the same reason as [`Self::mount_find_home`].
     async fn mount_is_at_home(&self, _mount_id: &str) -> DeviceResult<bool> {
         Err(DeviceError::unsupported(
-            "mount_is_at_home",
             "Homing is not supported by this device backend",
         ))
     }
@@ -126,10 +124,9 @@ pub trait MountOps: Send + Sync {
         _axis: i32,
         _rate_deg_per_sec: f64,
     ) -> DeviceResult<()> {
-        Err(DeviceError::unsupported(
-            "mount_move_axis",
-            format!("Moving an axis directly is not supported for mount {mount_id}"),
-        ))
+        Err(DeviceError::unsupported(format!(
+            "Moving an axis directly is not supported for mount {mount_id}"
+        )))
     }
 
     /// Hold the run for a mount fault the run itself ran into (a recenter

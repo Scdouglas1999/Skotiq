@@ -9,7 +9,7 @@ impl RotatorOps for UnifiedDeviceOps {
         // end.
         api_rotator_move_to(rotator_id.to_string(), angle)
             .await
-            .map_err(|e| format!("Rotator move failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Rotator))
     }
 
     async fn rotator_move_relative(&self, rotator_id: &str, delta: f64) -> DeviceResult<()> {
@@ -17,13 +17,13 @@ impl RotatorOps for UnifiedDeviceOps {
 
         api_rotator_move_relative(rotator_id.to_string(), delta)
             .await
-            .map_err(|e| format!("Rotator move relative failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Rotator))
     }
 
     async fn rotator_get_angle(&self, rotator_id: &str) -> DeviceResult<f64> {
         let status = api_get_rotator_status(rotator_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get rotator status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Rotator))?;
 
         Ok(status.position)
     }
@@ -33,6 +33,6 @@ impl RotatorOps for UnifiedDeviceOps {
 
         api_rotator_halt(rotator_id.to_string())
             .await
-            .map_err(|e| format!("Halt failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Rotator))
     }
 }

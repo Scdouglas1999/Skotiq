@@ -25,6 +25,7 @@ mod mount_ops;
 mod mount_set_park;
 mod native_camera_probe;
 mod native_mount_probe;
+mod protocol_errors;
 mod reconnect_state;
 mod simulator;
 mod switch_ops;

@@ -39,7 +39,7 @@ pub async fn execute_open_cover(
         .cover_calibrator_open_cover(&device_id)
         .await
     {
-        return InstructionResult::failure(format!("Failed to open cover: {}", e));
+        return InstructionResult::failure(format!("Failed to open cover: {}", e)).caused_by(&e);
     }
 
     // Wait for cover to reach open state with timeout
@@ -88,7 +88,7 @@ pub async fn execute_close_cover(
         .cover_calibrator_close_cover(&device_id)
         .await
     {
-        return InstructionResult::failure(format!("Failed to close cover: {}", e));
+        return InstructionResult::failure(format!("Failed to close cover: {}", e)).caused_by(&e);
     }
 
     // Wait for cover to reach closed state with timeout
@@ -144,7 +144,8 @@ pub async fn execute_calibrator_on(
         .cover_calibrator_calibrator_on(&device_id, config.brightness)
         .await
     {
-        return InstructionResult::failure(format!("Failed to turn on calibrator: {}", e));
+        return InstructionResult::failure(format!("Failed to turn on calibrator: {}", e))
+            .caused_by(&e);
     }
 
     // Wait for calibrator to reach ready state with timeout
@@ -213,7 +214,8 @@ pub async fn execute_calibrator_off(
         .cover_calibrator_calibrator_off(&device_id)
         .await
     {
-        return InstructionResult::failure(format!("Failed to turn off calibrator: {}", e));
+        return InstructionResult::failure(format!("Failed to turn off calibrator: {}", e))
+            .caused_by(&e);
     }
 
     // Wait for calibrator to reach off state with timeout

@@ -53,9 +53,10 @@ impl DeviceManager {
                     if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount.park().await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!("Failed to park ASCOM mount {}: {}", device_id, e),
+                                e,
                             )
                         });
                     }
@@ -68,7 +69,7 @@ impl DeviceManager {
             DriverType::Alpaca => {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
-                    return mount.park().await.map_err(DeviceOpError::driver);
+                    return mount.park().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -82,9 +83,10 @@ impl DeviceManager {
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
                         return mount.park().await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!("Failed to park INDI mount {}: {}", device_name, e),
+                                e,
                             )
                         });
                     }
@@ -102,9 +104,10 @@ impl DeviceManager {
                 let mut native_mounts = self.native_mounts.write().await;
                 if let Some(mount) = native_mounts.get_mut(device_id) {
                     return mount.park().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!("Failed to park native mount {}: {}", device_id, e),
+                            e,
                         )
                     });
                 }
@@ -155,7 +158,7 @@ impl DeviceManager {
                     let mount = self.ascom_mounts.read().await.get(device_id).cloned();
                     if let Some(mount) = mount {
                         let mut mount = mount.write().await;
-                        mount.unpark().await.map_err(DeviceOpError::driver)?;
+                        mount.unpark().await.map_err(DeviceOpError::from)?;
                         let deadline =
                             tokio::time::Instant::now() + std::time::Duration::from_secs(15);
                         loop {
@@ -193,7 +196,7 @@ impl DeviceManager {
             DriverType::Alpaca => {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
-                    return mount.unpark().await.map_err(DeviceOpError::driver);
+                    return mount.unpark().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -206,7 +209,7 @@ impl DeviceManager {
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
-                        return mount.unpark().await.map_err(DeviceOpError::driver);
+                        return mount.unpark().await.map_err(DeviceOpError::from);
                     }
                     return Err(DeviceOpError::not_connected(
                         Some(device_id.to_string()),
@@ -221,7 +224,7 @@ impl DeviceManager {
             DriverType::Native => {
                 let mut native_mounts = self.native_mounts.write().await;
                 if let Some(mount) = native_mounts.get_mut(device_id) {
-                    return mount.unpark().await.map_err(DeviceOpError::driver);
+                    return mount.unpark().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -331,7 +334,7 @@ impl DeviceManager {
                 if let Some(mount) = mounts.get(device_id) {
                     return mount.find_home().await.map_err(|e| {
                         tracing::error!("mount_find_home Alpaca error: {}", e);
-                        DeviceOpError::driver(e)
+                        DeviceOpError::from(e)
                     });
                 }
                 Err(DeviceOpError::not_connected(
@@ -348,7 +351,7 @@ impl DeviceManager {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
                         return mount.find_home().await.map_err(|e| {
                             tracing::error!("mount_find_home INDI error: {}", e);
-                            DeviceOpError::driver(e)
+                            DeviceOpError::from(e)
                         });
                     }
                     return Err(DeviceOpError::not_connected(
@@ -415,7 +418,7 @@ impl DeviceManager {
                             .get_capabilities()
                             .await
                             .map(|caps| caps.can_find_home)
-                            .map_err(DeviceOpError::driver);
+                            .map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -426,7 +429,7 @@ impl DeviceManager {
             DriverType::Alpaca => {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
-                    return mount.can_find_home().await.map_err(DeviceOpError::driver);
+                    return mount.can_find_home().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -534,7 +537,7 @@ impl DeviceManager {
                 if let Some(mount) = mounts.get(device_id) {
                     return mount.set_park().await.map_err(|e| {
                         tracing::error!("mount_set_park Alpaca error: {}", e);
-                        DeviceOpError::driver(e)
+                        DeviceOpError::from(e)
                     });
                 }
                 Err(DeviceOpError::not_connected(
@@ -550,7 +553,7 @@ impl DeviceManager {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
                         return mount.set_park_to_current().await.map_err(|e| {
                             tracing::error!("mount_set_park INDI error: {}", e);
-                            DeviceOpError::driver(e)
+                            DeviceOpError::from(e)
                         });
                     }
                     return Err(DeviceOpError::not_connected(
@@ -619,7 +622,7 @@ impl DeviceManager {
                             .get_capabilities()
                             .await
                             .map(|caps| caps.can_set_park)
-                            .map_err(DeviceOpError::driver);
+                            .map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -630,7 +633,7 @@ impl DeviceManager {
             DriverType::Alpaca => {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
-                    return mount.can_set_park().await.map_err(DeviceOpError::driver);
+                    return mount.can_set_park().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -687,7 +690,7 @@ impl DeviceManager {
                     let mount = self.ascom_mounts.read().await.get(device_id).cloned();
                     if let Some(mount) = mount {
                         let mount = mount.read().await;
-                        return mount.can_park().await.map_err(DeviceOpError::driver);
+                        return mount.can_park().await.map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -718,7 +721,7 @@ impl DeviceManager {
             DriverType::Alpaca => {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
-                    return mount.can_park().await.map_err(DeviceOpError::driver);
+                    return mount.can_park().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),

@@ -5,18 +5,17 @@ use skotiq_device::Vendor;
 use skotiq_device::{DeviceDriver, DriverError, FilterWheelDriver};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug)]
 enum AscomFilterWheelCommand {
-    Connect(oneshot::Sender<Result<i32, String>>), // Returns filter count on success
-    Disconnect(oneshot::Sender<Result<(), String>>),
-    SetPosition(i32, oneshot::Sender<Result<(), String>>),
-    GetPosition(oneshot::Sender<Result<i32, String>>),
-    GetNames(oneshot::Sender<Result<Vec<String>, String>>),
+    Connect(oneshot::Sender<Result<i32, DriverError>>), // Returns filter count on success
+    Disconnect(oneshot::Sender<Result<(), DriverError>>),
+    SetPosition(i32, oneshot::Sender<Result<(), DriverError>>),
+    GetPosition(oneshot::Sender<Result<i32, DriverError>>),
+    GetNames(oneshot::Sender<Result<Vec<String>, DriverError>>),
     // Version query commands
-    Heartbeat(oneshot::Sender<Result<(), String>>),
+    Heartbeat(oneshot::Sender<Result<(), DriverError>>),
 }
 
 pub struct AscomFilterWheelWrapper {
@@ -84,7 +83,7 @@ impl AscomFilterWheelWrapper {
                 };
                 match cmd {
                     AscomFilterWheelCommand::Connect(reply) => {
-                        let result = fw.connect().map_err(|e| e.to_string()).and_then(|()| {
+                        let result = fw.connect().map_err(super::ascom_error).and_then(|()| {
                             // Why: Names is the source of truth for filter count and
                             // is required to populate saved-profile filter offsets. If
                             // it errors, returning a zero-count silently breaks every
@@ -104,7 +103,7 @@ impl AscomFilterWheelWrapper {
                                         d
                                     );
                                 }
-                                msg
+                                DriverError::SdkError(msg)
                             })?;
                             // Why: physical filter wheel
                             // slot counts are ≤ 16; usize → i32 SAFE.
@@ -134,13 +133,13 @@ impl AscomFilterWheelWrapper {
                         let _ = reply.send(result);
                     }
                     AscomFilterWheelCommand::Disconnect(reply) => {
-                        let _ = reply.send(fw.disconnect().map_err(|e| e.to_string()));
+                        let _ = reply.send(fw.disconnect().map_err(super::ascom_error));
                     }
                     AscomFilterWheelCommand::SetPosition(pos, reply) => {
-                        let _ = reply.send(fw.set_position(pos).map_err(|e| e.to_string()));
+                        let _ = reply.send(fw.set_position(pos).map_err(super::ascom_error));
                     }
                     AscomFilterWheelCommand::GetPosition(reply) => {
-                        let result = fw.position().map_err(|e| e.to_string());
+                        let result = fw.position().map_err(super::ascom_error);
                         match &result {
                             Ok(pos) => {
                                 tracing::info!("[ASCOM FW] GetPosition returned position={}", pos)
@@ -159,10 +158,10 @@ impl AscomFilterWheelWrapper {
                             ),
                             Err(e) => tracing::error!("ASCOM FilterWheel GetNames failed: {}", e),
                         }
-                        let _ = reply.send(result.map_err(|e| e.to_string()));
+                        let _ = reply.send(result.map_err(super::ascom_error));
                     }
                     AscomFilterWheelCommand::Heartbeat(reply) => {
-                        let _ = reply.send(fw.heartbeat().map_err(|e| e.to_string()));
+                        let _ = reply.send(fw.heartbeat().map_err(super::ascom_error));
                     }
                 }
                 PumpOutcome::DidWork
@@ -177,25 +176,6 @@ impl AscomFilterWheelWrapper {
             connected: AtomicBool::new(false),
             filter_count: AtomicI32::new(0),
         })
-    }
-
-    /// Helper to receive a response with a timeout
-    async fn recv_with_timeout<T>(
-        rx: oneshot::Receiver<Result<T, String>>,
-        timeout: Duration,
-        operation: &str,
-    ) -> Result<T, DriverError> {
-        match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result.map_err(|e| DriverError::SdkError(e)),
-            Ok(Err(_recv_err)) => Err(DriverError::Unknown(format!(
-                "Worker thread dead during {}",
-                operation
-            ))),
-            Err(_elapsed) => Err(DriverError::Timeout(format!(
-                "FilterWheel {} timed out after {:?}",
-                operation, timeout
-            ))),
-        }
     }
 }
 
@@ -224,7 +204,7 @@ impl DeviceDriver for AscomFilterWheelWrapper {
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
         let result: Result<i32, DriverError> =
-            Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await;
+            super::recv_with_timeout("FilterWheel", rx, Timeouts::connection(), "connect").await;
         match result {
             Ok(count) => {
                 self.connected.store(true, Ordering::SeqCst);
@@ -241,7 +221,8 @@ impl DeviceDriver for AscomFilterWheelWrapper {
             .send(AscomFilterWheelCommand::Disconnect(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
+        let result =
+            super::recv_with_timeout("FilterWheel", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }
@@ -258,7 +239,13 @@ impl FilterWheelDriver for AscomFilterWheelWrapper {
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
         // Filter wheel rotation can take time
-        Self::recv_with_timeout(rx, Timeouts::filter_wheel(), "move_to_position").await
+        super::recv_with_timeout(
+            "FilterWheel",
+            rx,
+            Timeouts::filter_wheel(),
+            "move_to_position",
+        )
+        .await
     }
 
     async fn get_position(&self) -> Result<i32, DriverError> {
@@ -267,7 +254,7 @@ impl FilterWheelDriver for AscomFilterWheelWrapper {
             .send(AscomFilterWheelCommand::GetPosition(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_position").await
+        super::recv_with_timeout("FilterWheel", rx, Timeouts::property_read(), "get_position").await
     }
 
     async fn is_moving(&self) -> Result<bool, DriverError> {
@@ -286,7 +273,13 @@ impl FilterWheelDriver for AscomFilterWheelWrapper {
             .send(AscomFilterWheelCommand::GetNames(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_filter_names").await
+        super::recv_with_timeout(
+            "FilterWheel",
+            rx,
+            Timeouts::property_read(),
+            "get_filter_names",
+        )
+        .await
     }
 
     async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), DriverError> {
@@ -302,7 +295,7 @@ impl AscomFilterWheelWrapper {
             .send(AscomFilterWheelCommand::Heartbeat(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "heartbeat").await
+        super::recv_with_timeout("FilterWheel", rx, Timeouts::property_read(), "heartbeat").await
     }
 }
 
@@ -347,10 +340,10 @@ mod tests {
     async fn test_connect_propagates_names_failure() {
         let mut wrapper = build_test_wrapper(move |cmd| {
             if let AscomFilterWheelCommand::Connect(reply) = cmd {
-                let _ = reply.send(Err(
+                let _ = reply.send(Err(DriverError::SdkError(
                     "ASCOM FilterWheel `Names` query failed after connect: COM error 0x80004005"
                         .to_string(),
-                ));
+                )));
                 return true;
             }
             false
@@ -398,7 +391,7 @@ mod tests {
     async fn test_heartbeat_uses_worker_command() {
         let wrapper = build_test_wrapper(move |cmd| {
             if let AscomFilterWheelCommand::Heartbeat(reply) = cmd {
-                let _ = reply.send(Err("COM disconnected".to_string()));
+                let _ = reply.send(Err(DriverError::SdkError("COM disconnected".to_string())));
                 return true;
             }
             false

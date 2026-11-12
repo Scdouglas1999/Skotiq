@@ -719,12 +719,23 @@ pub(crate) async fn camera_start_exposure_opt(
 /// [`SkotiqError::OperationFailed`] (HTTP 500). The split matters because a
 /// client retrying on 5xx would otherwise retry a request that can only fail again.
 fn classify_exposure_failure(device_id: &str, error: skotiq_sequencer::DeviceError) -> SkotiqError {
+    use skotiq_sequencer::DeviceError;
     match error {
-        skotiq_sequencer::DeviceError::InvalidFrame(reason) => SkotiqError::ExposureFailed {
+        DeviceError::InvalidFrame(reason) => SkotiqError::ExposureFailed {
             camera_id: device_id.to_string(),
             reason,
         },
-        other => SkotiqError::OperationFailed(other.to_string()),
+        DeviceError::NotConnected { .. } => SkotiqError::NotConnected(device_id.to_string()),
+        DeviceError::Unsupported(operation) => SkotiqError::NotSupported {
+            device_id: device_id.to_string(),
+            operation,
+        },
+        DeviceError::Rejected(reason) => SkotiqError::InvalidParameter(reason),
+        DeviceError::Timeout(reason) => SkotiqError::Timeout(reason),
+        DeviceError::Cancelled(_) => SkotiqError::ExposureCancelled,
+        other @ (DeviceError::NotConfigured { .. } | DeviceError::Failed(_)) => {
+            SkotiqError::OperationFailed(other.to_string())
+        }
     }
 }
 

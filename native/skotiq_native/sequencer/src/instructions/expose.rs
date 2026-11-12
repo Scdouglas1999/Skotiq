@@ -523,7 +523,7 @@ async fn take_burst(
                     ctx,
                     RetriedDevice::Camera,
                     camera_retries_done,
-                    &error.to_string(),
+                    error,
                     &format!("on frame {}/{}", frame, config.count),
                 )
                 .await
@@ -532,8 +532,9 @@ async fn take_burst(
                     RetryOutcome::Cancelled => {
                         return InstructionResult::cancelled("Exposure cancelled")
                     }
-                    RetryOutcome::GiveUp(message) => {
-                        return InstructionResult::failure(format!("Exposure failed: {}", message))
+                    RetryOutcome::GiveUp(failure) => {
+                        return InstructionResult::failure(format!("Exposure failed: {failure}"))
+                            .caused_by(&failure.error)
                     }
                 },
             }
@@ -1513,7 +1514,10 @@ async fn apply_burst_filter(
                 if let Err(e) =
                     move_filter_wheel(ctx, fw_id, WheelTarget::Position(index), None).await
                 {
-                    return Err(InstructionResult::failure(e));
+                    return Err(
+                        InstructionResult::failure(format!("Filter change failed: {e}"))
+                            .caused_by(&e.error),
+                    );
                 }
                 let filter_name = match config.filter.as_deref() {
                     Some(name) if !name.is_empty() => Some(name.to_string()),
@@ -1538,7 +1542,8 @@ async fn apply_burst_filter(
                                 return Err(InstructionResult::failure(format!(
                                     "Failed to read filter names for focus offset lookup: {}",
                                     e
-                                )));
+                                ))
+                                .caused_by(&e));
                             }
                         }
                     }
@@ -1549,20 +1554,25 @@ async fn apply_burst_filter(
                         return Err(InstructionResult::failure(format!(
                             "Focus offset failed for filter \"{}\": {}",
                             filter_name, e
-                        )));
+                        ))
+                        .caused_by(&e));
                     }
                 }
             } else if let Some(filter) = &config.filter {
                 tracing::info!("Changing to filter by name: {}", filter);
                 if let Err(e) = move_filter_wheel(ctx, fw_id, WheelTarget::Name(filter), None).await
                 {
-                    return Err(InstructionResult::failure(e));
+                    return Err(
+                        InstructionResult::failure(format!("Filter change failed: {e}"))
+                            .caused_by(&e.error),
+                    );
                 }
                 if let Err(e) = apply_filter_focus_offset(filter, ctx, None).await {
                     return Err(InstructionResult::failure(format!(
                         "Focus offset failed for filter \"{}\": {}",
                         filter, e
-                    )));
+                    ))
+                    .caused_by(&e));
                 }
             }
         }
