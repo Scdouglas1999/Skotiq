@@ -1,6 +1,6 @@
 // The pieces every right-panel tab body is built from: a section with its
 // title row, the body that scrolls (or not) the way the layout asks, the
-// dense 28 px button, a label/value row and the view-model to kit mappings.
+// dense button, a label/value row and the view-model to kit mappings.
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -213,9 +213,10 @@ class NightPanelNote extends StatelessWidget {
   }
 }
 
-/// The panel's 28 px button: a quiet fill, the primary tint when
-/// [selected]. Disabled with a [disabledReason] it says why in a tooltip and
-/// in its semantics hint.
+/// The panel's button: a quiet fill, the primary tint when [selected]. 28 px
+/// tall under a pointer and the platform's touch minimum under a finger.
+/// Disabled with a [disabledReason] it says why in a tooltip and in its
+/// semantics hint.
 class NightPanelButton extends StatelessWidget {
   const NightPanelButton({
     super.key,
@@ -238,11 +239,15 @@ class NightPanelButton extends StatelessWidget {
   /// Figures in the mono face (jog steps).
   final bool mono;
 
-  static const double height = SkotiqTokens.buttonHeightSm;
+  static const double pointerHeight = SkotiqTokens.buttonHeightSm;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
+    final height = SkotiqTouchTarget.minExtent(
+      context,
+      desktopExtent: pointerHeight,
+    );
     final enabled = onPressed != null;
     final fill = selected
         ? colors.primary.withValues(alpha: PanelTabStrip.selectedAlpha)
