@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../../link_rig/linked_rig_panel.dart';
 import '../pairing_screen.dart' show pairingProvider;
+import 'admin_only.dart';
 import 'settings_widgets.dart';
 import '../../../router/app_routes.dart';
 
@@ -237,13 +238,15 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                   icon: LucideIcons.globe,
                   title: l10n.text('remoteAccessEnableTitle'),
                   subtitle: l10n.text('remoteAccessEnableDesc'),
-                  trailing: SettingsSwitch(
-                    value: settings.webServerEnabled,
-                    onChanged: (value) {
-                      return ref
-                          .read(appSettingsProvider.notifier)
-                          .setWebServerEnabled(value);
-                    },
+                  trailing: AdminOnlyControl(
+                    child: SettingsSwitch(
+                      value: settings.webServerEnabled,
+                      onChanged: (value) {
+                        return ref
+                            .read(appSettingsProvider.notifier)
+                            .setWebServerEnabled(value);
+                      },
+                    ),
                   ),
                   isMobile: widget.isMobile,
                 ),
@@ -251,53 +254,56 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                   icon: LucideIcons.hash,
                   title: l10n.text('remoteAccessPortTitle'),
                   subtitle: l10n.text('remoteAccessPortDesc'),
-                  trailing: SizedBox(
-                    width: 100,
-                    child: TextField(
-                      key: const ValueKey('remote-access-port'),
-                      controller: _portController,
-                      focusNode: _portFocusNode,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                        _PortRangeFormatter(),
-                      ],
-                      style: SkotiqTypography.bodySm.copyWith(
-                        color: SkotiqColors.of(context).textPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
+                  trailing: AdminOnlyControl(
+                    text: 'Port ${settings.webServerPort}. $adminOnlyAdvice',
+                    child: SizedBox(
+                      width: 100,
+                      child: TextField(
+                        key: const ValueKey('remote-access-port'),
+                        controller: _portController,
+                        focusNode: _portFocusNode,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          _PortRangeFormatter(),
+                        ],
+                        style: SkotiqTypography.bodySm.copyWith(
+                          color: SkotiqColors.of(context).textPrimary,
                         ),
-                        border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusMd),
-                          borderSide: BorderSide(
-                              color: SkotiqColors.of(context).border),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusMd),
-                          borderSide: BorderSide(
-                              color: SkotiqColors.of(context).border),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(SkotiqTokens.radiusMd),
-                          borderSide: BorderSide(
-                            color: SkotiqColors.of(context).primary,
-                            width: 2,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
                           ),
+                          border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(SkotiqTokens.radiusMd),
+                            borderSide: BorderSide(
+                                color: SkotiqColors.of(context).border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(SkotiqTokens.radiusMd),
+                            borderSide: BorderSide(
+                                color: SkotiqColors.of(context).border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(SkotiqTokens.radiusMd),
+                            borderSide: BorderSide(
+                              color: SkotiqColors.of(context).primary,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: SkotiqColors.of(context).well,
                         ),
-                        filled: true,
-                        fillColor: SkotiqColors.of(context).well,
+                        onTapOutside: (_) =>
+                            _commitPort(settings, showFeedback: true),
+                        onSubmitted: (_) =>
+                            _commitPort(settings, showFeedback: true),
                       ),
-                      onTapOutside: (_) =>
-                          _commitPort(settings, showFeedback: true),
-                      onSubmitted: (_) =>
-                          _commitPort(settings, showFeedback: true),
                     ),
                   ),
                   isLast: true,

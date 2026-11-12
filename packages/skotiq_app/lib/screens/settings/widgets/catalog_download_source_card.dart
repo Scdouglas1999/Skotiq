@@ -6,6 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/snackbar_helper.dart';
+import 'admin_only.dart';
 
 /// Where catalog downloads come from, for self-hosters: a mirror of the
 /// catalog release asked before each catalog's own site. The editor stays
@@ -74,6 +75,7 @@ class _CatalogDownloadSourceCardState
     final settings = ref.watch(appSettingsProvider);
     final saved = settings.valueOrNull?.catalogBaseUrl ?? '';
     final linked = ref.watch(backendProvider).remoteHost != null;
+    final adminOnlyRefused = hostRefusesAdminOnly(ref);
     final bodyStyle = SkotiqTypography.bodySm.copyWith(
       color: colors.textSecondary,
     );
@@ -83,13 +85,14 @@ class _CatalogDownloadSourceCardState
         label: 'Download source',
         icon: LucideIcons.server,
         trailing: [
-          SkotiqButton(
-            label: _open ? 'Close' : 'Change',
-            icon: _open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-            variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
-            onPressed: settings.hasValue ? () => _toggle(saved) : null,
-          ),
+          if (!adminOnlyRefused)
+            SkotiqButton(
+              label: _open ? 'Close' : 'Change',
+              icon: _open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+              variant: ButtonVariant.ghost,
+              size: ButtonSize.small,
+              onPressed: settings.hasValue ? () => _toggle(saved) : null,
+            ),
         ],
       ),
       child: Column(
@@ -118,7 +121,13 @@ class _CatalogDownloadSourceCardState
               ),
             ),
           ],
-          if (_open) ...[
+          if (adminOnlyRefused) ...[
+            const SizedBox(height: SkotiqTokens.spaceXs),
+            const Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: AdminOnlyNotice(),
+            ),
+          ] else if (_open) ...[
             const SizedBox(height: SkotiqTokens.spaceMd),
             Text(
               'For a self-hosted copy of the catalog release. Skotiq adds each '
