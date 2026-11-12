@@ -20,6 +20,7 @@ import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
 import '../actions/armed_start_provider.dart';
+import '../actions/manual_action_gating.dart' show manualActionKey;
 import '../actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_plan_inputs.dart' show NightClockTimes;
@@ -594,7 +595,10 @@ class _RunPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
-    final tone = _tone(header.phase, header.ending).resolve(colors);
+    final tone = (header.actionUnderWay != null
+            ? ChipTone.warning
+            : _tone(header.phase, header.ending))
+        .resolve(colors);
     final ink = tone ?? colors.textSecondary;
     final state = _label(l10n);
     final started = header.runStartedAt;
@@ -656,23 +660,29 @@ class _RunPill extends StatelessWidget {
     );
   }
 
-  String _label(SkotiqLocalizations l10n) => switch (header.phase) {
-        NightRunPhase.notSetUp => l10n.text('nightCtlPillNotSetUp'),
-        NightRunPhase.ready => l10n.text('nightCtlPillReady'),
-        NightRunPhase.armed => l10n.text('nightCtlPillArmed'),
-        NightRunPhase.running => l10n.text('nightCtlPillRunning'),
-        NightRunPhase.pausedByUser => l10n.text('nightCtlPillPaused'),
-        NightRunPhase.pausedForAction => switch (header.pausedFor) {
-            null => l10n.text('nightCtlPillPaused'),
-            final id => l10n.text(_pausedForKey(id)),
-          },
-        NightRunPhase.stopping => l10n.text('nightCtlPillStopping'),
-        NightRunPhase.finished => switch (header.ending) {
-            NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
-            NightRunEnding.failed => l10n.text('nightCtlPillFailed'),
-            NightRunEnding.ended || null => l10n.text('nightCtlPillFinished'),
-          },
-      };
+  String _label(SkotiqLocalizations l10n) {
+    if (header.actionUnderWay case final id?) {
+      return l10n.text(manualActionKey('nightActBusy', id));
+    }
+    return switch (header.phase) {
+      NightRunPhase.notSetUp => l10n.text('nightCtlPillNotSetUp'),
+      NightRunPhase.ready => l10n.text('nightCtlPillReady'),
+      NightRunPhase.armed => l10n.text('nightCtlPillArmed'),
+      NightRunPhase.running => l10n.text('nightCtlPillRunning'),
+      NightRunPhase.pausedByUser => l10n.text('nightCtlPillPaused'),
+      NightRunPhase.pausedForAction => switch (header.pausedFor) {
+          null => l10n.text('nightCtlPillPaused'),
+          final id => l10n.text(_pausedForKey(id)),
+        },
+      NightRunPhase.stopping => l10n.text('nightCtlPillStopping'),
+      NightRunPhase.finished => switch (header.ending) {
+          NightRunEnding.completed => l10n.text('nightCtlPillCompleted'),
+          NightRunEnding.failed => l10n.text('nightCtlPillFailed'),
+          NightRunEnding.stopped => l10n.text('nightCtlPillStopped'),
+          NightRunEnding.ended || null => l10n.text('nightCtlPillFinished'),
+        },
+    };
+  }
 
   static String _pausedForKey(ManualActionId id) => switch (id) {
         ManualActionId.snapshot => 'nightCtlPausedForSnapshot',
@@ -688,8 +698,8 @@ class _RunPill extends StatelessWidget {
         ManualActionId.cooler => 'nightCtlPausedForCooler',
       };
 
-  // The finished tones follow the rig chip: a completed run in the primary
-  // tone, a failed one in the error tone.
+  // A completed run reads as a success and a failed one as an error, like
+  // the rig chip; a stopped or otherwise ended run is neutral.
   static ChipTone _tone(NightRunPhase phase, NightRunEnding? ending) =>
       switch (phase) {
         NightRunPhase.running => ChipTone.success,
@@ -699,9 +709,12 @@ class _RunPill extends StatelessWidget {
         NightRunPhase.stopping =>
           ChipTone.warning,
         NightRunPhase.finished => switch (ending) {
-            NightRunEnding.completed => ChipTone.primary,
+            NightRunEnding.completed => ChipTone.success,
             NightRunEnding.failed => ChipTone.error,
-            NightRunEnding.ended || null => ChipTone.neutral,
+            NightRunEnding.stopped ||
+            NightRunEnding.ended ||
+            null =>
+              ChipTone.neutral,
           },
         NightRunPhase.notSetUp => ChipTone.neutral,
       };

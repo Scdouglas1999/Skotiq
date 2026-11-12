@@ -35,11 +35,17 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
         title: 'Running validation checks…',
       );
 
-  Widget _buildPreparingState(SkotiqColors colors) => _buildBusyState(
-        colors,
-        title: 'Preparing to start…',
-        body: 'Checking for unfinished integration to carry over.',
-      );
+  Widget _buildPreparingState(SkotiqColors colors) => _unparking
+      ? _buildBusyState(
+          colors,
+          title: 'Unparking the mount…',
+          body: 'The run starts once the mount is off its park.',
+        )
+      : _buildBusyState(
+          colors,
+          title: 'Preparing to start…',
+          body: 'Checking for unfinished integration to carry over.',
+        );
 
   Widget _buildBusyState(
     SkotiqColors colors, {
@@ -188,7 +194,27 @@ extension _PreFlightSectionBuilders on _PreFlightValidationDialogState {
             const SizedBox(height: SkotiqTokens.spaceMd),
           ],
 
+          if (_startError case final error?) ...[
+            SkotiqBanner(
+              title: 'The run did not start',
+              message: error,
+              tone: BannerTone.error,
+            ),
+            const SizedBox(height: SkotiqTokens.spaceMd),
+          ],
           _buildVerdictBanner(colors, result, _simulation),
+          if (_startUnparks(
+            ref.watch(mountStateProvider),
+            ref.watch(currentSequenceProvider),
+          )) ...[
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            const SkotiqBanner(
+              title: 'The mount is parked',
+              message: 'Start unparks it before the run begins. Cancel to '
+                  'keep it parked.',
+              tone: BannerTone.warning,
+            ),
+          ],
           const SizedBox(height: SkotiqTokens.space2xl),
           _buildSimulationSection(colors),
           const SizedBox(height: SkotiqTokens.space2xl),

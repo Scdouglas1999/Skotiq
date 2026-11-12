@@ -355,6 +355,9 @@ class FrameStage extends ConsumerWidget {
 
   static const double _inset = 10;
 
+  /// Below this stage width the star status gets its own line.
+  static const double _stackStatusBelow = 560;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.skotiqColors;
@@ -423,24 +426,46 @@ class FrameStage extends ConsumerWidget {
                       right: _inset,
                       bottom: _inset,
                       left: _inset,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: <Widget>[
-                          const Flexible(child: _OverlayStatus()),
-                          const SizedBox(width: SkotiqTokens.spaceSm),
-                          Flexible(
-                            flex: 2,
-                            child: Align(
-                              alignment: Alignment.bottomRight,
-                              child: _ViewButtons(
-                                image: image,
-                                viewport: viewport,
-                              ),
+                      // On a narrow stage the star count takes its own
+                      // line above the view buttons rather than a third of
+                      // one, which cut its HFR.
+                      child: viewport.width < _stackStatusBelow
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                const Align(
+                                  alignment: Alignment.bottomLeft,
+                                  child: _OverlayStatus(),
+                                ),
+                                const SizedBox(height: SkotiqTokens.spaceXs),
+                                Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: _ViewButtons(
+                                    image: image,
+                                    viewport: viewport,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: <Widget>[
+                                const Flexible(child: _OverlayStatus()),
+                                const SizedBox(width: SkotiqTokens.spaceSm),
+                                Flexible(
+                                  flex: 2,
+                                  child: Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: _ViewButtons(
+                                      image: image,
+                                      viewport: viewport,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                 ],
               );

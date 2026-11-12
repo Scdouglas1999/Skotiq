@@ -343,7 +343,6 @@ void main() {
       final guider = _item(items, ChecklistItemId.guider);
       expect(guider.state, ChecklistItemState.attention);
       expect(guider.detail!.key, 'nightSessionCheckGuiderIdle');
-      expect(guider.detail!.params['name'], 'PHD2');
       expect(guider.actionLabel!.key, 'nightSessionActionLoop');
       // Loop happens in place, not on another screen.
       expect(guider.route, isNull);
@@ -712,7 +711,7 @@ void main() {
       expect(log.last.message.params, <String, String>{
         'n': '1',
         'filter': ' Ha',
-        'hfr': ' · HFR 2.10',
+        'hfr': ' · HFR 2.10 px',
         'reason': '',
       });
     });

@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -82,6 +83,9 @@ class _LastSolveSection extends ConsumerWidget {
     if (solveState.isSolving || inFlight(ManualActionId.solve)) {
       status = l10n.text('nightScopeSolveSolving');
       statusColor = colors.warning;
+    } else if (inputs.solverMissing) {
+      status = l10n.text('nightScopeSolverMissing');
+      statusColor = colors.warning;
     } else if (result == null) {
       status = l10n.text('nightScopeSolveNone');
       statusColor = colors.textMuted;
@@ -137,15 +141,12 @@ class _LastSolveSection extends ConsumerWidget {
           items: [
             MetricGridItem(
               label: l10n.text('nightScopeRa'),
-              value: ra == null
-                  ? null
-                  : CoordinateFormat.raDenseFromDegrees(ra),
+              value:
+                  ra == null ? null : CoordinateFormat.raDenseFromDegrees(ra),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeDec'),
-              value: dec == null
-                  ? null
-                  : CoordinateFormat.decDense(dec),
+              value: dec == null ? null : CoordinateFormat.decDense(dec),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSolveRotation'),
@@ -171,23 +172,36 @@ class _LastSolveSection extends ConsumerWidget {
         ),
         if (result != null && !result.success && result.error != null)
           NightPanelNote(result.error!, color: colors.error),
+        if (inputs.solverMissing)
+          NightPanelNote(
+            l10n.text('nightScopeSolverMissingNote'),
+            color: colors.warning,
+          ),
         // Solve & sync on its own row: its label does not fit a third of
-        // the panel.
+        // the panel. Without a solver, setting one up takes its place.
         NightPanelButtonGrid(
           columns: 1,
           buttons: [
-            NightPanelButtonSpec(
-              key: const ValueKey<String>('nightSolve.solveSync'),
-              label: l10n.text('nightActSolveSync'),
-              emphasized: true,
-              busy: inFlight(ManualActionId.solveSync),
-              disabledReason: syncReason,
-              onPressed: syncReason == null
-                  ? () => unawaited(
-                        ref.read(nightActionApiProvider).solveAndSync(),
-                      )
-                  : null,
-            ),
+            if (inputs.solverMissing)
+              NightPanelButtonSpec(
+                key: const ValueKey<String>('nightSolve.setUpSolver'),
+                label: l10n.text('nightScopeSolverSetUp'),
+                emphasized: true,
+                onPressed: () => context.go(kNightSolveSettingsRoute),
+              )
+            else
+              NightPanelButtonSpec(
+                key: const ValueKey<String>('nightSolve.solveSync'),
+                label: l10n.text('nightActSolveSync'),
+                emphasized: true,
+                busy: inFlight(ManualActionId.solveSync),
+                disabledReason: syncReason,
+                onPressed: syncReason == null
+                    ? () => unawaited(
+                          ref.read(nightActionApiProvider).solveAndSync(),
+                        )
+                    : null,
+              ),
           ],
         ),
         NightPanelButtonGrid(

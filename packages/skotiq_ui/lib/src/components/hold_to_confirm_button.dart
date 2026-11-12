@@ -1,4 +1,4 @@
-import '../theme/skotiq_tokens.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -7,9 +7,12 @@ import 'package:flutter/services.dart';
 /// devices where a stray tap (thumb-slip, glove, phone in pocket pressing
 /// against the screen) must NOT trigger irreversible state changes.
 ///
-/// While the user is holding, a progress ring fills around the wrapped
-/// [child]. The callback fires exactly once when the ring reaches 100%.
-/// Releasing early aborts the gesture and reverses the ring.
+/// The hold starts the moment the pointer goes down: a fill sweeps across the
+/// wrapped [child] and a ring traces its edge, both from the first frame, so
+/// the press visibly does something. The callback fires exactly once when
+/// they complete. Releasing early aborts the gesture and drains them, and a
+/// press too short to be a hold shows [confirmText] ("Hold to stop") as a
+/// tooltip, so a click that did nothing says what would.
 ///
 /// Why not a confirm dialog? Dialogs interrupt at-a-glance monitoring (the
 /// canonical use case for this widget is the Stop button on a multi-hour
@@ -30,14 +33,14 @@ class HoldToConfirmButton extends StatefulWidget {
   /// Guaranteed to be called at most once per hold cycle.
   final VoidCallback onConfirmed;
 
-  /// How long the user must hold before the callback fires. Defaults to
-  /// 1500ms — long enough to be deliberate, short enough that a user who
-  /// genuinely wants to stop the sequence does not feel like they are
-  /// fighting the UI.
+  /// How long the user must hold, counted from the press. Two seconds:
+  /// long enough to be deliberate, short enough that a user who genuinely
+  /// wants to stop the sequence does not feel like they are fighting the UI.
   final Duration duration;
 
-  /// Optional label shown beneath the child while the user is holding.
-  /// e.g. "Hold to stop". If null, no overlay text is drawn.
+  /// What the gesture asks for, e.g. "Hold to stop": the tooltip on hover,
+  /// while the user holds and after a press too short to count. If null,
+  /// the semantics label stands in.
   final String? confirmText;
 
   /// When false, all gestures are ignored and the visual stays in its
@@ -58,7 +61,7 @@ class HoldToConfirmButton extends StatefulWidget {
     super.key,
     required this.child,
     required this.onConfirmed,
-    this.duration = const Duration(milliseconds: 1500),
+    this.duration = const Duration(seconds: 2),
     this.confirmText,
     this.enabled = true,
     this.holdColor,
@@ -84,6 +87,8 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
   /// future AND as a status callback in some Flutter versions; we want
   /// exactly-once semantics.
   bool _confirmedThisHold = false;
+
+  final GlobalKey<TooltipState> _tooltip = GlobalKey<TooltipState>();
 
   @override
   void initState() {
@@ -156,6 +161,37 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
     }
   }
 
+  Offset? _pressedAt;
+
+  void _onPointerDown(PointerDownEvent event) {
+    // A right or middle click is not a press of the button.
+    if (event.buttons & kPrimaryButton == 0) return;
+    _pressedAt = event.position;
+    _handleHoldStart();
+    // After the frame: the tooltip closes itself on any pointer down,
+    // this one included, once this handler returns.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _holding) _tooltip.currentState?.ensureTooltipVisible();
+    });
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    final start = _pressedAt;
+    if (start == null) return;
+    if ((event.position - start).distance > kTouchSlop) {
+      _pressedAt = null;
+      _cancelHold();
+    }
+  }
+
+  /// The press ended before the hold completed: say what the gesture is.
+  void _releaseHold() {
+    _pressedAt = null;
+    final released = _holding && !_confirmedThisHold;
+    _cancelHold();
+    if (released) _tooltip.currentState?.ensureTooltipVisible();
+  }
+
   void _cancelHold() {
     if (!_holding) return;
     setState(() => _holding = false);
@@ -172,20 +208,32 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ringColor = widget.holdColor ?? theme.colorScheme.error;
+    final ask =
+        widget.confirmText ??
+        widget.semanticsLabel ??
+        'Press and hold to confirm';
 
     return Semantics(
       button: true,
       enabled: widget.enabled,
       label: widget.semanticsLabel ?? 'Press and hold to confirm',
       child: Tooltip(
-        message: widget.enabled
-            ? (widget.confirmText ?? 'Press and hold to confirm')
-            : '',
-        child: GestureDetector(
+        key: _tooltip,
+        message: widget.enabled ? ask : '',
+        // Touch would otherwise open the tooltip on a long press, which is
+        // the very gesture this button is for.
+        triggerMode: TooltipTriggerMode.manual,
+        // Raw pointer events, not a recognizer: the hold starts at the press
+        // instead of half a second into it, and no long-press recognizer
+        // around the button (a tooltip's, on touch) can win the arena and
+        // end the hold early. Moving off past the touch slop, as a scroll
+        // does, cancels it.
+        child: Listener(
           behavior: HitTestBehavior.opaque,
-          onLongPressStart: widget.enabled ? (_) => _handleHoldStart() : null,
-          onLongPressEnd: widget.enabled ? (_) => _cancelHold() : null,
-          onLongPressCancel: widget.enabled ? _cancelHold : null,
+          onPointerDown: widget.enabled ? _onPointerDown : null,
+          onPointerMove: widget.enabled ? _onPointerMove : null,
+          onPointerUp: widget.enabled ? (_) => _releaseHold() : null,
+          onPointerCancel: widget.enabled ? (_) => _cancelHold() : null,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -197,46 +245,13 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
                       animation: _controller,
                       builder: (context, _) {
                         return CustomPaint(
-                          painter: _RingPainter(
+                          painter: _HoldPainter(
                             progress: _controller.value,
                             color: ringColor,
                             strokeWidth: widget.ringStrokeWidth,
                           ),
                         );
                       },
-                    ),
-                  ),
-                ),
-              if (_holding && widget.confirmText != null)
-                Positioned(
-                  bottom: 4,
-                  left: 0,
-                  right: 0,
-                  child: IgnorePointer(
-                    child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface.withValues(
-                            alpha: 0.85,
-                          ),
-                          borderRadius: BorderRadius.circular(
-                            SkotiqTokens.radiusXs,
-                          ),
-                        ),
-                        child: Text(
-                          widget.confirmText!,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: ringColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
                     ),
                   ),
                 ),
@@ -248,12 +263,14 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
   }
 }
 
-class _RingPainter extends CustomPainter {
+/// The hold's progress: a translucent fill sweeping left to right across the
+/// button and a ring tracing its edge.
+class _HoldPainter extends CustomPainter {
   final double progress;
   final Color color;
   final double strokeWidth;
 
-  _RingPainter({
+  _HoldPainter({
     required this.progress,
     required this.color,
     required this.strokeWidth,
@@ -276,6 +293,12 @@ class _RingPainter extends CustomPainter {
       rect,
       Radius.circular(size.shortestSide / 2),
     );
+
+    final sweep = progress.clamp(0.0, 1.0);
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width * sweep, size.height));
+    canvas.drawRRect(rrect, Paint()..color = color.withValues(alpha: 0.45));
+    canvas.restore();
 
     // Background track (dim) so the user perceives "how far to go".
     final trackPaint = Paint()
@@ -309,7 +332,7 @@ class _RingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RingPainter old) {
+  bool shouldRepaint(covariant _HoldPainter old) {
     return old.progress != progress ||
         old.color != color ||
         old.strokeWidth != strokeWidth;

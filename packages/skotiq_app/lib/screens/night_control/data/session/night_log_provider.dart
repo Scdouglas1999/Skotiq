@@ -181,7 +181,7 @@ final nightLogProvider = Provider<List<NightLogEntryVm>>((ref) {
           params: <String, String>{
             'n': '${i + 1}',
             'filter': filter == null || filter.isEmpty ? '' : ' $filter',
-            'hfr': hfr == null ? '' : ' · HFR ${nightFixed(hfr, 2)}',
+            'hfr': hfr == null ? '' : nightHfrClause(hfr),
             'reason': rejected && reason != null && reason.isNotEmpty
                 ? ' ($reason)'
                 : '',
@@ -205,7 +205,7 @@ final nightLogProvider = Provider<List<NightLogEntryVm>>((ref) {
                 'nightSessionLogAutofocus',
                 params: <String, String>{
                   'position': nightGrouped(position),
-                  'hfr': hfr == null ? '' : ' · HFR ${nightFixed(hfr, 2)}',
+                  'hfr': hfr == null ? '' : nightHfrClause(hfr),
                   'duration': duration == null ? '' : ' · $duration',
                 },
               ),

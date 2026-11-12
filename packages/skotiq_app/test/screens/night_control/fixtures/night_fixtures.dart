@@ -878,7 +878,7 @@ abstract final class NightFixtures {
           id: ChecklistItemId.guider,
           state: ChecklistItemState.attention,
           title: _t('Guider'),
-          detail: _t('PHD2 connected, not looping'),
+          detail: _t('connected · not looping'),
           actionLabel: _t('Loop'),
         ),
         ChecklistItemVm(

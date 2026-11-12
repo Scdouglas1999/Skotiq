@@ -255,8 +255,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
       focuser.connectionState,
       focuser.deviceName,
       () => <NightText>[
-        if (focuser.position != null)
-          NightText.literal(nightGrouped(focuser.position!)),
+        if (focuser.position != null) nightFocuserSteps(focuser.position!),
         if (focuser.temperature != null)
           NightText.literal(nightCelsius(focuser.temperature!)),
         if (focuser.isMoving) const NightText('nightSessionFocuserMoving'),

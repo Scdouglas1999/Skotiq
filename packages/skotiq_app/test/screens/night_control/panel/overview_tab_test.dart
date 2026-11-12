@@ -128,13 +128,11 @@ void main() {
 
     expect(find.text('Before you start'), findsOneWidget);
     expect(find.text('2 to look at'), findsOneWidget);
-    expect(find.text('PHD2 connected, not looping'), findsOneWidget);
     expect(find.text('Last frame'), findsNothing);
     expect(find.text('Session'), findsNothing);
     // The state mark is a glyph; its meaning is read out.
     expect(
-      find.bySemanticsLabel(
-          'Guider, needs a look, PHD2 connected, not looping'),
+      find.bySemanticsLabel('Guider, needs a look, connected · not looping'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

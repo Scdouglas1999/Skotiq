@@ -89,6 +89,8 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
       target?.moonSet ?? (night == null ? null : _moonSetTonight(night));
   final moonPct = night?.moonIlluminationPercent;
   final planEnd = ref.watch(nightPlanProgressProvider.select((p) => p?.eta));
+  final paused = phase == NightRunPhase.pausedByUser ||
+      phase == NightRunPhase.pausedForAction;
 
   final nextTarget = _nextTarget(ref);
   final switchAt =
@@ -119,11 +121,18 @@ final nightUpcomingProvider = Provider<List<UpcomingItemVm>>((ref) {
         at: moonSet,
         moonIlluminationPct: moonPct,
       ),
-    if (ahead(planEnd)) UpcomingItemVm(kind: UpcomingKind.planEnd, at: planEnd),
+    if (!paused && ahead(planEnd))
+      UpcomingItemVm(kind: UpcomingKind.planEnd, at: planEnd),
     if (night != null && now.isBefore(night.astroDawn))
       at(UpcomingKind.astroDawn, night.astroDawn),
   ]..sort((a, b) => a.at!.compareTo(b.at!));
-  return [...items, ...timed];
+  return [
+    ...items,
+    ...timed,
+    // A paused run's end moves with the pause, so it has no time to give.
+    if (paused && planEnd != null)
+      const UpcomingItemVm(kind: UpcomingKind.planEnd, paused: true),
+  ];
 });
 
 DateTime? _moonRiseTonight(TonightNight night) {

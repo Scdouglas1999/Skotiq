@@ -39,6 +39,7 @@ class NightHeaderVm {
   const NightHeaderVm({
     required this.phase,
     this.pausedFor,
+    this.actionUnderWay,
     this.runStartedAt,
     this.armedStartAt,
     this.planName,
@@ -68,6 +69,11 @@ class NightHeaderVm {
   /// The manual action holding the run, for "Paused for autofocus". Set
   /// only in [NightRunPhase.pausedForAction].
   final ManualActionId? pausedFor;
+
+  /// A manual action under way while no run is live ("Autofocus is
+  /// running" in place of "Not set up"); null during a run, whose pill
+  /// already says what holds it.
+  final ManualActionId? actionUnderWay;
 
   /// When the run started; the widget ticks the "4 h 04 m" itself.
   final DateTime? runStartedAt;
@@ -111,6 +117,7 @@ class NightHeaderVm {
       other is NightHeaderVm &&
       other.phase == phase &&
       other.pausedFor == pausedFor &&
+      other.actionUnderWay == actionUnderWay &&
       other.runStartedAt == runStartedAt &&
       other.armedStartAt == armedStartAt &&
       other.planName == planName &&
@@ -135,6 +142,7 @@ class NightHeaderVm {
   int get hashCode => Object.hashAll(<Object?>[
         phase,
         pausedFor,
+        actionUnderWay,
         runStartedAt,
         armedStartAt,
         planName,
@@ -160,6 +168,7 @@ class NightHeaderVm {
   NightHeaderVm withEnding(NightRunEnding? ending) => NightHeaderVm(
         phase: phase,
         pausedFor: pausedFor,
+        actionUnderWay: actionUnderWay,
         runStartedAt: runStartedAt,
         armedStartAt: armedStartAt,
         planName: planName,
@@ -189,8 +198,11 @@ enum NightRunEnding {
 
   failed,
 
-  /// The run was stopped, or ended at dawn; it settles idle, which does not
-  /// say which.
+  /// The operator stopped the run, here, from a linked window or a phone.
+  stopped,
+
+  /// The run ended some other way (the dawn park, the weather, the
+  /// autopilot) or nothing on the wire said who ended it.
   ended,
 }
 
@@ -618,6 +630,7 @@ class UpcomingItemVm {
     this.moonRise,
     this.limitDeg,
     this.tone = MetricTone.neutral,
+    this.paused = false,
   });
 
   final UpcomingKind kind;
@@ -654,6 +667,9 @@ class UpcomingItemVm {
   /// The meridian flip row is [MetricTone.warning] on the boards.
   final MetricTone tone;
 
+  /// The run is paused, so the time cannot be known ("Plan ends · paused").
+  final bool paused;
+
   @override
   bool operator ==(Object other) =>
       other is UpcomingItemVm &&
@@ -668,7 +684,8 @@ class UpcomingItemVm {
       other.moonIlluminationPct == moonIlluminationPct &&
       other.moonRise == moonRise &&
       other.limitDeg == limitDeg &&
-      other.tone == tone;
+      other.tone == tone &&
+      other.paused == paused;
 
   @override
   int get hashCode => Object.hash(
@@ -684,5 +701,6 @@ class UpcomingItemVm {
         moonRise,
         limitDeg,
         tone,
+        paused,
       );
 }

@@ -109,6 +109,41 @@ void main() {
     }
   });
 
+  test('a run the operator stopped reads as stopped; a dawn park does not', () {
+    final plan = TwoTargetPlan().sequence;
+    for (final (evidence, ending) in <(SequenceStopDecision?, NightRunEnding)>[
+      (
+        const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+        NightRunEnding.stopped,
+      ),
+      (
+        const SequenceStopDecision(
+          SequenceStopAuthor.system,
+          origin: 'dawn_approaching',
+          parked: true,
+        ),
+        NightRunEnding.ended,
+      ),
+      (null, NightRunEnding.ended),
+    ]) {
+      final container = planContainer(
+        now: evening,
+        sequence: plan,
+        execution: SequenceExecutionState.running,
+      );
+      addTearDown(container.dispose);
+      container.listen(lastEndedRunProvider, (_, __) {});
+      container.read(sequenceStopEvidenceProvider.notifier).state = evidence;
+      container.read(sequenceExecutionStateProvider.notifier).state =
+          SequenceExecutionState.idle;
+      expect(
+        container.read(nightHeaderProvider).ending,
+        ending,
+        reason: '${evidence?.author}',
+      );
+    }
+  });
+
   test('Start at dark needs a site, and a dark still ahead', () {
     final noSite = planContainer(
       now: evening,
@@ -192,6 +227,31 @@ void main() {
     );
     expect(header.stop, const NightControlVm.enabled(),
         reason: 'Stop is never taken away from a paused run.');
+  });
+
+  test('an action under way with no run is named; during a run it is not', () {
+    const autofocus = ManualActionState(
+      phase: ManualActionPhase.running,
+      active: ManualActionId.autofocus,
+    );
+    final idle = planContainer(now: evening, action: autofocus);
+    addTearDown(idle.dispose);
+    expect(idle.read(nightRunPhaseProvider), NightRunPhase.notSetUp);
+    expect(idle.read(nightHeaderProvider).actionUnderWay,
+        ManualActionId.autofocus);
+
+    final running = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+      execution: SequenceExecutionState.running,
+      action: autofocus,
+    );
+    addTearDown(running.dispose);
+    expect(running.read(nightHeaderProvider).actionUnderWay, isNull);
+
+    final nothing = planContainer(now: evening);
+    addTearDown(nothing.dispose);
+    expect(nothing.read(nightHeaderProvider).actionUnderWay, isNull);
   });
 
   test('an action running while the operator had paused is still their pause',

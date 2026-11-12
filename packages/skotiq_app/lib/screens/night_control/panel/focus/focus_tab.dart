@@ -579,62 +579,74 @@ class NightRecentRunsSection extends StatelessWidget {
     final l10n = SkotiqLocalizations.of(context);
     final colors = context.skotiqColors;
     final mono = SkotiqTypography.monoXs.copyWith(color: colors.textPrimary);
+    final muted = SkotiqTypography.caption.copyWith(color: colors.textMuted);
     return NightPanelSection(
       title: l10n.text('nightPanelRecentRuns'),
       trailing: l10n.text('nightPanelThisSession'),
       divider: false,
       gap: 3,
       children: <Widget>[
-        if (runs.isEmpty) NightPanelNote(l10n.text('nightPanelNoRuns')),
+        if (runs.isEmpty)
+          NightPanelNote(l10n.text('nightPanelNoRuns'))
+        else
+          ExcludeSemantics(
+            child: _runRow(
+              time: l10n.text('nightPanelRunTime'),
+              position: l10n.text('nightPanelAfPos'),
+              hfr: l10n.text('nightPanelAfHfr'),
+              took: l10n.text('nightPanelRunTook'),
+              valueStyle: muted,
+              mutedStyle: muted,
+            ),
+          ),
         for (final run in runs.take(kNightRecentRunsShown))
           MergeSemantics(
-            child: Row(
-              children: <Widget>[
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    ClockFormat.hm(run.at),
-                    style: SkotiqTypography.caption.copyWith(
-                      color: colors.textMuted,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: SkotiqTokens.spaceSm),
-                Expanded(
-                  child: Text(
-                    run.position == null
-                        ? kReadoutUnknown
-                        : nightGrouped(run.position!),
-                    style: mono,
-                  ),
-                ),
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    run.hfr == null
-                        ? kReadoutUnknown
-                        : run.hfr!.toStringAsFixed(2),
-                    style: mono,
-                  ),
-                ),
-                SizedBox(
-                  width: 56,
-                  child: Text(
-                    run.duration == null
-                        ? ''
-                        : nightDuration(run.duration!.inSeconds.toDouble()) ??
-                            '',
-                    textAlign: TextAlign.end,
-                    style: SkotiqTypography.caption.copyWith(
-                      color: colors.textMuted,
-                    ),
-                    maxLines: 1,
-                  ),
-                ),
-              ],
+            child: _runRow(
+              time: ClockFormat.hm(run.at),
+              position: run.position == null
+                  ? kReadoutUnknown
+                  : nightGrouped(run.position!),
+              hfr: run.hfr == null
+                  ? kReadoutUnknown
+                  : run.hfr!.toStringAsFixed(2),
+              took: run.duration == null
+                  ? ''
+                  : nightDuration(run.duration!.inSeconds.toDouble()) ?? '',
+              valueStyle: mono,
+              mutedStyle: muted,
             ),
           ),
       ],
     );
   }
+
+  /// "time  position  HFR px  took", the columns the header names.
+  static Widget _runRow({
+    required String time,
+    required String position,
+    required String hfr,
+    required String took,
+    required TextStyle valueStyle,
+    required TextStyle mutedStyle,
+  }) =>
+      Row(
+        children: <Widget>[
+          SizedBox(width: 40, child: Text(time, style: mutedStyle)),
+          const SizedBox(width: SkotiqTokens.spaceSm),
+          Expanded(child: Text(position, style: valueStyle)),
+          SizedBox(
+            width: 48,
+            child: Text(hfr, style: valueStyle, maxLines: 1),
+          ),
+          SizedBox(
+            width: 48,
+            child: Text(
+              took,
+              textAlign: TextAlign.end,
+              style: mutedStyle,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      );
 }

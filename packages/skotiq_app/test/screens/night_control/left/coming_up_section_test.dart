@@ -19,12 +19,27 @@ void main() {
   testWidgets('during a run: Coming up', (tester) async {
     await _pump(tester, NightHarness(board: NightFixtures.running()));
     expect(find.text('Coming up'), findsOneWidget);
-    expect(find.text('after #45'), findsOneWidget);
+    expect(find.text('after frame 45'), findsOneWidget);
     expect(find.text('6 frames or 1 °C change'), findsOneWidget);
     expect(find.text('01:58 · in 2 h 06 m'), findsOneWidget);
     expect(find.text('≈03:40 · NGC 891'), findsOneWidget);
     expect(find.text('05:44'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a paused run\'s plan end reads as paused, with no time',
+      (tester) async {
+    await _pump(
+      tester,
+      NightHarness(
+        board: NightFixtures.running(),
+        upcoming: const <UpcomingItemVm>[
+          UpcomingItemVm(kind: UpcomingKind.planEnd, paused: true),
+        ],
+      ),
+    );
+    expect(find.text('Plan ends'), findsOneWidget);
+    expect(find.text('paused'), findsOneWidget);
   });
 
   testWidgets('before a run: The night', (tester) async {
@@ -101,7 +116,7 @@ void main() {
         ],
       ),
     );
-    expect(find.text('after #52 or 1 °C change'), findsOneWidget);
+    expect(find.text('after frame 52 or 1 °C change'), findsOneWidget);
     expect(find.text('NGC 891 below 30°'), findsOneWidget);
     expect(find.textContaining('03:12'), findsOneWidget);
     expect(find.text('Plan ends'), findsOneWidget);

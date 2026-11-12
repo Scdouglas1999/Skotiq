@@ -7,6 +7,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../../night_control_contracts.dart';
+
 /// The session providers' "now". Tests pin it; the app reads the shared
 /// 30-second ticker so elapsed times and the dawn row stay current.
 final nightSessionNowProvider = Provider<DateTime>((ref) {
@@ -40,6 +42,15 @@ String nightSignedDelta(double delta, int decimals) {
   if (double.parse(text) == 0) return text;
   return delta > 0 ? '+$text' : '$_minus$text';
 }
+
+/// A focuser position with its unit: `25 000 steps`.
+NightText nightFocuserSteps(int position) => NightText(
+      'nightSessionFocuserSteps',
+      params: <String, String>{'position': nightGrouped(position)},
+    );
+
+/// ` · HFR 2.10 px`, the HFR clause of a log line.
+String nightHfrClause(double hfr) => ' · HFR ${nightFixed(hfr, 2)} px';
 
 /// `−10.0 °C`.
 String nightCelsius(double value) => '${nightFixed(value, 1)} °C';

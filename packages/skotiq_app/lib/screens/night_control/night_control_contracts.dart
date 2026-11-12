@@ -150,6 +150,18 @@ part 'contracts/action_models.dart';
 /// The right panel's tabs, in display order.
 enum NightPanelTab { overview, camera, focus, mount, guide, solve }
 
+extension NightPanelTabLabel on NightPanelTab {
+  /// The tab's name in translations.dart.
+  String get labelKey => switch (this) {
+        NightPanelTab.overview => 'nightPanelTabOverview',
+        NightPanelTab.camera => 'nightPanelTabCamera',
+        NightPanelTab.focus => 'nightPanelTabFocus',
+        NightPanelTab.mount => 'nightPanelTabMount',
+        NightPanelTab.guide => 'nightPanelTabGuide',
+        NightPanelTab.solve => 'nightPanelTabSolve',
+      };
+}
+
 /// Where tonight's run stands, as the header shows it.
 enum NightRunPhase {
   /// No plan loaded, or the rig is not connected enough to start one.
@@ -218,6 +230,17 @@ extension ManualActionPanelTab on ManualActionId {
 /// away from Tonight and back, and resets when the app restarts.
 final nightPanelTabProvider =
     StateProvider<NightPanelTab>((ref) => NightPanelTab.overview);
+
+/// Counts the operator's requests to see the panel. In the single column
+/// the panel sits below the frame, so opening a tab from elsewhere on the
+/// page scrolls it into view.
+final nightPanelRevealProvider = StateProvider<int>((ref) => 0);
+
+/// Opens [tab] for the operator and brings the panel into view.
+void nightOpenPanelTab(WidgetRef ref, NightPanelTab tab) {
+  ref.read(nightPanelTabProvider.notifier).state = tab;
+  ref.read(nightPanelRevealProvider.notifier).state++;
+}
 
 /// Emphasis for a value, a delta or a row. Maps one to one onto the kit's
 /// `MetricGridTone`.

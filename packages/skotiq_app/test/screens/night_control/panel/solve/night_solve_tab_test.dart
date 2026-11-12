@@ -43,6 +43,7 @@ PlateSolveResult _solved({double ra = 24.17, double dec = 15.78}) =>
 const _solve = ValueKey<String>('nightSolve.solve');
 const _solveSync = ValueKey<String>('nightSolve.solveSync');
 const _center = ValueKey<String>('nightSolve.center');
+const _setUpSolver = ValueKey<String>('nightSolve.setUpSolver');
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -203,6 +204,25 @@ void main() {
     expect(container(tree, second).read(nightPlanCenterNodeProvider)?.id,
         'second');
     expect(container(null, null).read(nightPlanCenterNodeProvider), isNull);
+  });
+
+  testWidgets(
+      'with no plate solver the tab says so and offers to set one up in '
+      'place of Solve & sync', (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightSolveTab(),
+      overrides: panelOverrides(
+        inputs: panelInputs(hasFrame: true, solverMissing: true),
+      ),
+    );
+    expect(find.text('No plate solver set up'), findsOneWidget);
+    expect(find.byKey(_solveSync), findsNothing);
+    expect(find.byKey(_setUpSolver), findsOneWidget);
+    expect(isEnabled(tester, _solve), isFalse);
+    expect(tooltipOf(tester, _solve), 'No plate solver is set up');
+    expect(tooltipOf(tester, _center), 'No plate solver is set up');
+    expectCleanLayout(tester);
   });
 
   testWidgets('a busy controller disables its actions with the reason',

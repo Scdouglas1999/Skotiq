@@ -3,7 +3,6 @@
 // overflow at the owner's widths and at 1.3x text.
 import 'dart:ui' show Tristate;
 
-import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/header/night_header_bar.dart';
@@ -195,6 +194,7 @@ void main() {
     for (final (ending, label) in <(NightRunEnding, String)>[
       (NightRunEnding.completed, 'Completed'),
       (NightRunEnding.failed, 'Failed'),
+      (NightRunEnding.stopped, 'Stopped'),
       (NightRunEnding.ended, 'Finished'),
     ]) {
       testWidgets('finished, $ending: the pill reads $label', (tester) async {
@@ -205,7 +205,12 @@ void main() {
           header: base.withEnding(ending),
         );
         expect(find.text(label), findsOneWidget);
-        for (final other in const ['Completed', 'Failed', 'Finished']) {
+        for (final other in const [
+          'Completed',
+          'Failed',
+          'Stopped',
+          'Finished',
+        ]) {
           if (other != label) expect(find.text(other), findsNothing);
         }
         final pillDot = find.descendant(
@@ -219,13 +224,33 @@ void main() {
         expect(
           dot.color,
           switch (ending) {
-            NightRunEnding.completed => colors.primary,
+            NightRunEnding.completed => colors.success,
             NightRunEnding.failed => colors.error,
-            NightRunEnding.ended => colors.textSecondary,
+            NightRunEnding.stopped ||
+            NightRunEnding.ended =>
+              colors.textSecondary,
           },
         );
       });
     }
+
+    testWidgets(
+        'an autofocus under way with no run reads in the pill, not "Not set '
+        'up"', (tester) async {
+      const off = NightControlVm.disabled(NightText('ncPlanNoPlan'));
+      await _pumpHeader(
+        tester,
+        NightRunPhase.notSetUp,
+        header: const NightHeaderVm(
+          phase: NightRunPhase.notSetUp,
+          actionUnderWay: ManualActionId.autofocus,
+          startNow: off,
+          startAtDark: off,
+        ),
+      );
+      expect(find.text('Autofocus is running'), findsOneWidget);
+      expect(find.text('Not set up'), findsNothing);
+    });
 
     testWidgets('not set up: Start disabled, no plan named', (tester) async {
       await _pumpHeader(tester, NightRunPhase.notSetUp);
@@ -321,14 +346,19 @@ void main() {
         'checkpoint', (tester) async {
       final harness = await _pumpHeader(tester, NightRunPhase.running);
       await tester.tap(find.byType(HoldToConfirmButton));
+      await tester.pump(const Duration(milliseconds: 300));
+      // The tap says what would stop the run.
+      expect(find.text('Hold to stop'), findsOneWidget);
       await tester.pump(const Duration(seconds: 2));
       expect(harness.actions?.calls ?? const <String>[], isEmpty);
 
       final gesture = await tester.startGesture(
         tester.getCenter(find.byType(HoldToConfirmButton)),
       );
-      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
-      await tester.pump(const Duration(milliseconds: 1600));
+      // The hold counts from the press: the fill starts on the next frame
+      // and completes two seconds later.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 2100));
       await gesture.up();
       await tester.pumpAndSettle();
       expect(harness.actions!.calls, <String>['stop']);

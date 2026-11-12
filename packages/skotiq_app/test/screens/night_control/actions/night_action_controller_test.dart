@@ -9,6 +9,8 @@ import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
 import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
+import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart'
+    show NightSolverStatus;
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -429,6 +431,44 @@ void main() {
       for (final vm in h.container.read(nightManualActionsProvider)) {
         expect(vm.enabled, isFalse);
       }
+    });
+
+    test(
+        'with no plate solver, Solve, Solve & sync and Center say so and '
+        'expose nothing', () async {
+      final h = actionHarness(solver: const NightSolverStatus(ready: false));
+      addTearDown(h.container.dispose);
+      final inputs = h.container.read(nightActionInputsProvider);
+      for (final id in [
+        ManualActionId.solve,
+        ManualActionId.solveSync,
+        ManualActionId.center,
+      ]) {
+        expect(
+          manualActionDisabledReason(inputs, id)?.key,
+          'nightActWhyNoSolver',
+          reason: id.name,
+        );
+      }
+      expect(
+          manualActionDisabledReason(inputs, ManualActionId.snapshot), isNull);
+
+      final api = h.container.read(nightActionApiProvider);
+      await api.solveAndSync();
+      await api.center();
+      expect(h.ops.calls, isEmpty);
+    });
+
+    test('a solver still being looked for is not a missing one', () {
+      final h = actionHarness(solver: null);
+      addTearDown(h.container.dispose);
+      expect(
+        manualActionDisabledReason(
+          h.container.read(nightActionInputsProvider),
+          ManualActionId.solveSync,
+        ),
+        isNull,
+      );
     });
 
     test('a disconnected camera disables the camera actions only', () {
