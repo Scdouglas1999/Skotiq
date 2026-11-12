@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/format.dart';
+
 import '../database/database.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 
@@ -34,13 +36,17 @@ class DarkFrameRequirement {
   int get hashCode =>
       Object.hash(gain, offset, durationSecs, binX, binY, targetTemp);
 
+  /// `300 s darks at gain 100, offset 50, -10.0°C, binning 1x1`.
   String describe() {
-    final tempStr = targetTemp == null
-        ? 'any temp'
-        : 'temp=${targetTemp!.toStringAsFixed(1)}C';
-    return 'gain=$gain, offset=$offset, $tempStr, '
-        'duration=${durationSecs.toStringAsFixed(0)}s, '
-        'binning=${binX}x$binY';
+    final whole = durationSecs == durationSecs.roundToDouble();
+    final seconds = whole
+        ? durationSecs.toStringAsFixed(0)
+        : durationSecs.toString();
+    final temperature = targetTemp == null
+        ? 'any temperature'
+        : formatCelsius(targetTemp);
+    return '$seconds s darks at gain $gain, offset $offset, $temperature, '
+        'binning ${binX}x$binY';
   }
 }
 
