@@ -55,33 +55,39 @@ void main() {
     await router.dispose();
   });
 
-  test('a failed run is told once, with the first fault as the reason', () async {
-    events
-      ..add(_sequencer('Started', severity: EventSeverity.info))
-      ..add(_sequencer('Error', data: {'message': _fault}))
-      ..add(_sequencer('Error', data: {'message': 'Exposure: $_fault'}))
-      ..add(_sequencer('SequenceFailed', data: {'error': _fault}));
-    await _settle();
+  test(
+    'a failed run is told once, with the first fault as the reason',
+    () async {
+      events
+        ..add(_sequencer('Started', severity: EventSeverity.info))
+        ..add(_sequencer('Error', data: {'message': _fault}))
+        ..add(_sequencer('Error', data: {'message': 'Exposure: $_fault'}))
+        ..add(_sequencer('SequenceFailed', data: {'error': _fault}));
+      await _settle();
 
-    expect(failures(), hasLength(1));
-    expect(failures().single.title, 'Sequence failed');
-    expect(failures().single.body, endsWith('. $_fault.'));
-  });
+      expect(failures(), hasLength(1));
+      expect(failures().single.title, 'Sequence failed');
+      expect(failures().single.body, endsWith('. $_fault.'));
+    },
+  );
 
-  test('a run that failed on a refusal is told by its terminal event', () async {
-    events
-      ..add(_sequencer('Started', severity: EventSeverity.info))
-      ..add(
-        _sequencer(
-          'SequenceFailed',
-          data: {'error': 'run_refused: Mount is not connected'},
-        ),
-      );
-    await _settle();
+  test(
+    'a run that failed on a refusal is told by its terminal event',
+    () async {
+      events
+        ..add(_sequencer('Started', severity: EventSeverity.info))
+        ..add(
+          _sequencer(
+            'SequenceFailed',
+            data: {'error': 'run_refused: Mount is not connected'},
+          ),
+        );
+      await _settle();
 
-    expect(failures(), hasLength(1));
-    expect(failures().single.body, endsWith('. Mount is not connected.'));
-  });
+      expect(failures(), hasLength(1));
+      expect(failures().single.body, endsWith('. Mount is not connected.'));
+    },
+  );
 
   test('a failure without a reason says where the reason is', () async {
     events
@@ -92,20 +98,71 @@ void main() {
     expect(failures().single.body, endsWith('. The log has the reason.'));
   });
 
-  test('the next run, and a failure after a run ended, are told again', () async {
+  test(
+    'the next run, and a failure after a run ended, are told again',
+    () async {
+      events
+        ..add(_sequencer('Started', severity: EventSeverity.info))
+        ..add(_sequencer('Error', data: {'message': _fault}))
+        ..add(_sequencer('SequenceFailed', data: {'error': _fault}))
+        ..add(_sequencer('Error', data: {'message': 'Flat panel did not open'}))
+        ..add(_sequencer('Started', severity: EventSeverity.info))
+        ..add(_sequencer('Error', data: {'message': 'Slew refused'}));
+      await _settle();
+
+      expect(failures().map((m) => m.body.split('. ').last), [
+        '$_fault.',
+        'Flat panel did not open.',
+        'Slew refused.',
+      ]);
+    },
+  );
+
+  // The hole a "told once per run" flag leaves: a step error the run carries
+  // on through is told as a failure hours before the run really ends, and the
+  // real end must still reach the operator.
+  test(
+    'a run that carried on after a step error is told when it fails',
+    () async {
+      events
+        ..add(_sequencer('Started', severity: EventSeverity.info))
+        ..add(_sequencer('Error', data: {'message': 'Dither did not settle'}))
+        ..add(_sequencer('ExposureStarted', severity: EventSeverity.info))
+        ..add(_sequencer('Error', data: {'message': _fault}))
+        ..add(_sequencer('SequenceFailed', data: {'error': _fault}));
+      await _settle();
+
+      expect(failures().map((m) => m.body.split('. ').last), [
+        'Dither did not settle.',
+        '$_fault.',
+      ]);
+    },
+  );
+
+  test(
+    'a run that ends on a different fault than the one told is told',
+    () async {
+      events
+        ..add(_sequencer('Started', severity: EventSeverity.info))
+        ..add(_sequencer('Error', data: {'message': 'Dither did not settle'}))
+        ..add(_sequencer('SequenceFailed', data: {'error': 'Slew refused'}));
+      await _settle();
+
+      expect(failures().map((m) => m.body.split('. ').last), [
+        'Dither did not settle.',
+        'Slew refused.',
+      ]);
+    },
+  );
+
+  test('the terminal event restating the told fault with the step name adds '
+      'no notice', () async {
     events
       ..add(_sequencer('Started', severity: EventSeverity.info))
       ..add(_sequencer('Error', data: {'message': _fault}))
-      ..add(_sequencer('SequenceFailed', data: {'error': _fault}))
-      ..add(_sequencer('Error', data: {'message': 'Flat panel did not open'}))
-      ..add(_sequencer('Started', severity: EventSeverity.info))
-      ..add(_sequencer('Error', data: {'message': 'Slew refused'}));
+      ..add(_sequencer('SequenceFailed', data: {'error': 'Exposure: $_fault'}));
     await _settle();
 
-    expect(failures().map((m) => m.body.split('. ').last), [
-      '$_fault.',
-      'Flat panel did not open.',
-      'Slew refused.',
-    ]);
+    expect(failures(), hasLength(1));
   });
 }

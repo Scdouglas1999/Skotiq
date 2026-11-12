@@ -190,7 +190,7 @@ class NotificationEventClassifier {
   /// Context for a failure notification: why the run failed, as a sentence.
   static Map<String, String> _failureContext(String reason) {
     if (isUnexplainedRunFailure(reason)) {
-      return const {kFailureReasonContextKey: 'The log has the reason.'};
+      return const {kFailureReasonContextKey: kUnexplainedFailureReason};
     }
     final text = userFacingError(reason.trim());
     return {
