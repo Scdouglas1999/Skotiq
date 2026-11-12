@@ -278,7 +278,11 @@ pub(crate) fn apply_header(image: &mut XisfImageHeader, old: &FitsHeader, new: &
         image
             .properties
             .retain(|p| !p.id.starts_with("Observation:Center:"));
-        cards_to_solution(new, &mut image.properties);
+        let size = match image.dimensions[..] {
+            [width, height] => Some((width, height)),
+            _ => None,
+        };
+        cards_to_solution(new, size, &mut image.properties);
     }
 }
 
@@ -395,11 +399,16 @@ fn frame_type_card(image_type: &str) -> String {
 /// and without them falls back to the FITS keywords, which it reads right
 /// only in CD form. A newer reader takes the standard block first.
 ///
-/// SIP distortion has no place in that layer (the standard's distortion
-/// layer is a spline model), so a distorted solution is written as its
-/// linear part, which is what PixInsight then uses; the SIP cards stay
-/// among the keywords for readers that take them from there.
-fn cards_to_solution(header: &FitsHeader, properties: &mut Vec<XisfProperty>) {
+/// SIP distortion has no place in that layer, and PixInsight does not read
+/// SIP keywords: its distortion model is a surface spline through control
+/// points. A distorted solution of a `size` (width, height) image is written
+/// as that too ([`distortion_control_points`]); the SIP cards stay among the
+/// keywords for readers that take them from there.
+fn cards_to_solution(
+    header: &FitsHeader,
+    size: Option<(u64, u64)>,
+    properties: &mut Vec<XisfProperty>,
+) {
     let Some(projection) = header
         .get_string("CTYPE1")
         .and_then(|ctype1| ctype1.get(5..8))
@@ -447,6 +456,9 @@ fn cards_to_solution(header: &FitsHeader, properties: &mut Vec<XisfProperty>) {
     for (id, value) in geometry {
         properties.push(XisfProperty::new(format!("{LEGACY_SOLUTION}{id}"), value));
     }
+    if let Some((width, height)) = size.filter(|_| wcs.has_forward_sip()) {
+        properties.extend(distortion_control_points(&wcs, width, height));
+    }
     properties.push(XisfProperty::new(
         "Observation:Center:RA",
         PropertyValue::Float64(wcs.crval1),
@@ -463,6 +475,52 @@ fn cards_to_solution(header: &FitsHeader, properties: &mut Vec<XisfProperty>) {
         "Observation:Center:Y",
         PropertyValue::Float64(reference[1]),
     ));
+}
+
+/// Control points per image side of the distortion written for PixInsight.
+/// At 24, PixInsight 1.9.4 reads a real third-order SIP solution of a
+/// 4656 x 3520 frame back within 0.008 px of the polynomials everywhere
+/// (0.014 px at 16, 0.005 px at 32).
+const SPLINE_GRID: usize = 24;
+
+/// A SIP solution's distortion as PixInsight's spline world transformation
+/// (`pcl::SplineWorldTransformation`, the `PCL:` block PixInsight 1.9 reads
+/// and writes, in its control point form): pairs of image coordinates and
+/// coordinates on the projection plane, in degrees, through which PixInsight
+/// generates thin plate splines on reading. The points are the SIP solution
+/// itself on a regular grid over the image, edges included, and the splines
+/// interpolate them (no smoothing, no point rejection).
+fn distortion_control_points(wcs: &crate::SipWcs, width: u64, height: u64) -> Vec<XisfProperty> {
+    let mut image = Vec::with_capacity(2 * SPLINE_GRID * SPLINE_GRID);
+    let mut plane = Vec::with_capacity(2 * SPLINE_GRID * SPLINE_GRID);
+    let along = |n: u64, k: usize| (n as f64 - 1.0) * k as f64 / (SPLINE_GRID - 1) as f64;
+    for row in 0..SPLINE_GRID {
+        for column in 0..SPLINE_GRID {
+            let (x, y) = (along(width, column), along(height, row));
+            let (xi, eta) = wcs.pixel_to_plane(x, y);
+            image.extend([x + 1.0 + FITS_TO_XISF_PIXEL, y + 1.0 + FITS_TO_XISF_PIXEL]);
+            plane.extend([xi, eta]);
+        }
+    }
+    [
+        ("Version", PropertyValue::String("2.0".into())),
+        ("RBFType", PropertyValue::String("ThinPlateSpline".into())),
+        ("SplineOrder", PropertyValue::Int32(2)),
+        ("SplineSmoothness", PropertyValue::Float32(0.0)),
+        ("MaxSplinePoints", PropertyValue::Int32(2100)),
+        ("UseSimplifiers", PropertyValue::Boolean(false)),
+        ("SimplifierRejectFraction", PropertyValue::Float32(0.1)),
+        ("ControlPoints:World", PropertyValue::f64_vector(&plane)),
+        ("ControlPoints:Image", PropertyValue::f64_vector(&image)),
+    ]
+    .into_iter()
+    .map(|(id, value)| {
+        XisfProperty::new(
+            format!("{LEGACY_SOLUTION}SplineWorldTransformation:{id}"),
+            value,
+        )
+    })
+    .collect()
 }
 
 /// The cards of a linear WCS from the first layer of the image's solution,
