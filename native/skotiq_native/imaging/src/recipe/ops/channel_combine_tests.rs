@@ -487,3 +487,26 @@ fn ha_is_blended_into_red() {
     );
     assert!((patch[1] - sky[1]).abs() < 30.0);
 }
+
+/// The exact LRGB render with flattening on, so a change in the kernels it is
+/// built from (the clamped Lanczos warp, the chroma lattice's bilinear
+/// interpolation, the chromaticity blur) cannot move a pixel unnoticed.
+#[test]
+fn a_flattened_lrgb_render_is_pinned() {
+    let scene = lrgb_scene();
+    let mut params = scene.params.clone();
+    params["flatten"] = json!({"chromaBox": 48});
+    let out = ChannelCombineV1
+        .apply_measured(&scene.base, &params, &ctx(&scene.sources))
+        .expect("combines");
+    let digest = out
+        .image
+        .data()
+        .iter()
+        .fold(0xcbf2_9ce4_8422_2325u64, |h, v| {
+            v.to_le_bytes().iter().fold(h, |h, &b| {
+                (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3)
+            })
+        });
+    assert_eq!(format!("{digest:016x}"), "f1b3a6ee9df8ca44");
+}

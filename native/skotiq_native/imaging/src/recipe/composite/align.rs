@@ -20,10 +20,11 @@
 use rayon::prelude::*;
 
 use crate::detection_plane::DetectionPlane;
-use crate::numeric::lanczos3;
+use crate::numeric::det3;
 use crate::recipe::ops::star_detect::detection_plane;
 use crate::recipe::{OpContext, OpError, OpImage, CANCEL_POLL_PIXELS};
 use crate::registration::{solve_registration_from_stars, RegistrationConfig, TransformKind};
+use crate::resample::lanczos3;
 use crate::robust_stats::{median_upper_in_place, MAD_TO_SIGMA};
 use crate::{detect_stars_in_plane, StarDetectionConfig};
 
@@ -628,21 +629,16 @@ fn fit_affine_ls(pairs: &[StarPair]) -> Option<Affine2> {
         }
     }
     let solve = |b: [f64; 3]| -> Option<[f64; 3]> {
-        let m = ata;
-        let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-            - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+        let det = det3(&ata);
         if det.abs() < 1e-12 {
             return None;
         }
         let replace = |col: usize| {
-            let mut c = m;
+            let mut c = ata;
             for r in 0..3 {
                 c[r][col] = b[r];
             }
-            c[0][0] * (c[1][1] * c[2][2] - c[1][2] * c[2][1])
-                - c[0][1] * (c[1][0] * c[2][2] - c[1][2] * c[2][0])
-                + c[0][2] * (c[1][0] * c[2][1] - c[1][1] * c[2][0])
+            det3(&c)
         };
         Some([replace(0) / det, replace(1) / det, replace(2) / det])
     };

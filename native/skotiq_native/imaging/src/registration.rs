@@ -36,7 +36,8 @@
 //!
 //! The public entry point is [`register_frame`].
 
-use crate::numeric::{lanczos3, solve_dense};
+use crate::numeric::{det3, solve_dense};
+pub use crate::resample::{kernel_inside, Interpolator};
 use crate::{detect_stars, DetectedStar, ImageData, PixelType, StarDetectionConfig};
 use rayon::prelude::*;
 
@@ -117,21 +118,6 @@ impl TransformModel {
         let d = self.matrix[1][1];
         (a * d - b * c).abs().sqrt()
     }
-}
-
-/// High-quality resampling kernels for the warp step.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Interpolator {
-    /// 2×2 bilinear — fastest, softest; matches the rigid `LiveStacker` path.
-    Bilinear,
-    /// 4×4 Catmull-Rom cubic — sharp, no ringing, mild overshoot. A good
-    /// default for noisy sub-frames where Lanczos ringing on bright stars is
-    /// undesirable.
-    CatmullRom,
-    /// 6×6 windowed-sinc (Lanczos, `a = 3`) — sharpest reconstruction, the
-    /// PixInsight default for high-SNR data; can ring around saturated stars.
-    #[default]
-    Lanczos3,
 }
 
 /// Per-frame registration quality report.
@@ -489,13 +475,13 @@ pub fn warp_to_grid(
             let mut covered = vec![false; out_w];
             for x in 0..out_w {
                 let (sx, sy) = inverse.apply(x as f64, y as f64);
-                if !kernel_inside(sx, sy, src_w, src_h, interp) {
+                let Some(taps) = interp.taps(sx, sy, src_w, src_h) else {
                     continue;
-                }
+                };
                 covered[x] = true;
                 for c in 0..channels {
                     row[x * channels + c] =
-                        sample(&src, src_w, src_h, channels, stride, c, sx, sy, interp) as f32;
+                        taps.apply(|ix, iy| src[iy * stride + ix * channels + c]) as f32;
                 }
             }
             (row, covered)
@@ -508,21 +494,6 @@ pub fn warp_to_grid(
         covered.extend_from_slice(&cov);
     }
     WarpedFrame { pixels, covered }
-}
-
-/// Whether every tap of `interp` around source position `(sx, sy)` lies inside
-/// a `w` × `h` frame.
-pub fn kernel_inside(sx: f64, sy: f64, w: usize, h: usize, interp: Interpolator) -> bool {
-    if !sx.is_finite() || !sy.is_finite() {
-        return false;
-    }
-    let (x0, y0) = (sx.floor(), sy.floor());
-    let (lo, hi) = match interp {
-        Interpolator::Bilinear => (0.0, 1.0),
-        Interpolator::CatmullRom => (-1.0, 2.0),
-        Interpolator::Lanczos3 => (-2.0, 3.0),
-    };
-    x0 + lo >= 0.0 && y0 + lo >= 0.0 && x0 + hi <= (w as f64 - 1.0) && y0 + hi <= (h as f64 - 1.0)
 }
 
 fn validate_pair(reference: &ImageData, frame: &ImageData) -> Result<(), RegistrationError> {
@@ -1164,11 +1135,11 @@ fn warp_frame(
             let mut row = vec![0u16; out_w * channels];
             for x in 0..out_w {
                 let (sx, sy) = inverse.apply(x as f64, y as f64);
-                if !sx.is_finite() || !sy.is_finite() {
+                let Some(taps) = interp.taps(sx, sy, src_w, src_h) else {
                     continue;
-                }
+                };
                 for c in 0..channels {
-                    let v = sample(&src, src_w, src_h, channels, stride, c, sx, sy, interp);
+                    let v = taps.apply(|ix, iy| src[iy * stride + ix * channels + c]);
                     row[x * channels + c] = v.round().clamp(0.0, 65535.0) as u16;
                 }
             }
@@ -1184,156 +1155,11 @@ fn warp_frame(
     )
 }
 
-/// Sample channel `c` at fractional source position `(sx, sy)` with `interp`.
-/// Returns 0.0 when any tap of the support window leaves the image (no edge
-/// replication, to avoid smearing the frame border into the stack).
-#[allow(clippy::too_many_arguments)]
-fn sample(
-    src: &[f64],
-    src_w: usize,
-    src_h: usize,
-    channels: usize,
-    stride: usize,
-    c: usize,
-    sx: f64,
-    sy: f64,
-    interp: Interpolator,
-) -> f64 {
-    let px = |ix: i64, iy: i64| -> f64 {
-        if ix < 0 || iy < 0 || ix as usize >= src_w || iy as usize >= src_h {
-            0.0
-        } else {
-            src[iy as usize * stride + ix as usize * channels + c]
-        }
-    };
-
-    match interp {
-        Interpolator::Bilinear => {
-            let x0 = sx.floor();
-            let y0 = sy.floor();
-            let ix = x0 as i64;
-            let iy = y0 as i64;
-            if ix < 0 || iy < 0 || (ix + 1) as usize >= src_w || (iy + 1) as usize >= src_h {
-                return 0.0;
-            }
-            let dx = sx - x0;
-            let dy = sy - y0;
-            let p00 = px(ix, iy);
-            let p10 = px(ix + 1, iy);
-            let p01 = px(ix, iy + 1);
-            let p11 = px(ix + 1, iy + 1);
-            (1.0 - dx) * (1.0 - dy) * p00
-                + dx * (1.0 - dy) * p10
-                + (1.0 - dx) * dy * p01
-                + dx * dy * p11
-        }
-        // A kernel reaching past the frame edge would weigh the missing taps as
-        // zero and attenuate the sample, so no sample is produced there.
-        _ if !kernel_inside(sx, sy, src_w, src_h, interp) => 0.0,
-        Interpolator::CatmullRom => separable_sample(&px, sx, sy, 2, catmull_rom),
-        Interpolator::Lanczos3 => separable_sample(&px, sx, sy, 3, lanczos3),
-    }
-}
-
-/// Sample channel `c` of a channel-interleaved `f64` plane at fractional source
-/// position `(sx, sy)` with `interp`, returning `0.0` when the kernel support
-/// leaves the image (no edge replication — identical semantics to the private
-/// warp sampler).
-///
-/// This is the public entry point the WCS-driven reprojectors
-/// ([`crate::mosaic_stitch`], [`crate::sky_atlas`]) share so they resample with
-/// exactly the same Lanczos-3 / Catmull-Rom / bilinear kernels the registration
-/// warp uses, rather than re-deriving them. `data` is interleaved
-/// (`data[y·stride + x·channels + c]`) with `stride == width·channels`.
-#[allow(clippy::too_many_arguments)]
-pub fn sample_interleaved(
-    data: &[f64],
-    width: usize,
-    height: usize,
-    channels: usize,
-    channel: usize,
-    sx: f64,
-    sy: f64,
-    interp: Interpolator,
-) -> f64 {
-    let stride = width * channels;
-    sample(
-        data, width, height, channels, stride, channel, sx, sy, interp,
-    )
-}
-
-/// Separable interpolation with a 1-D kernel of half-width `radius` (taps span
-/// `[-radius+1, radius]` around the floor). Used for both Catmull-Rom (radius 2)
-/// and Lanczos-3 (radius 3).
-fn separable_sample<F, K>(px: &F, sx: f64, sy: f64, radius: i64, kernel: K) -> f64
-where
-    F: Fn(i64, i64) -> f64,
-    K: Fn(f64) -> f64,
-{
-    let x0 = sx.floor() as i64;
-    let y0 = sy.floor() as i64;
-    let fx = sx - x0 as f64;
-    let fy = sy - y0 as f64;
-
-    let mut wx = [0.0f64; 6];
-    let mut wy = [0.0f64; 6];
-    let taps = (2 * radius) as usize;
-    let start = -(radius - 1);
-
-    let mut sum_wx = 0.0;
-    let mut sum_wy = 0.0;
-    for t in 0..taps {
-        let offset = start + t as i64;
-        let kx = kernel(fx - offset as f64);
-        let ky = kernel(fy - offset as f64);
-        wx[t] = kx;
-        wy[t] = ky;
-        sum_wx += kx;
-        sum_wy += ky;
-    }
-
-    // Normalise so the kernel sums to unity (preserves flat-field / flux level
-    // even when the analytic kernel weights don't sum to exactly 1 at this
-    // fractional offset).
-    if sum_wx.abs() < f64::EPSILON || sum_wy.abs() < f64::EPSILON {
-        return 0.0;
-    }
-
-    let mut acc = 0.0;
-    for (ty, &w_y) in wy.iter().enumerate().take(taps) {
-        let iy = y0 + start + ty as i64;
-        let mut row_acc = 0.0;
-        for (tx, &w_x) in wx.iter().enumerate().take(taps) {
-            let ix = x0 + start + tx as i64;
-            row_acc += w_x * px(ix, iy);
-        }
-        acc += w_y * row_acc;
-    }
-
-    acc / (sum_wx * sum_wy)
-}
-
-/// Catmull-Rom cubic kernel (a = -0.5). Interpolating, C¹, mild sharpening.
-fn catmull_rom(x: f64) -> f64 {
-    let a = -0.5;
-    let x = x.abs();
-    if x < 1.0 {
-        (a + 2.0) * x.powi(3) - (a + 3.0) * x.powi(2) + 1.0
-    } else if x < 2.0 {
-        a * x.powi(3) - 5.0 * a * x.powi(2) + 8.0 * a * x - 4.0 * a
-    } else {
-        0.0
-    }
-}
-
 // Small linear-algebra helpers (no nalgebra dependency)
 
 /// Invert a 3×3 matrix; `None` if singular.
 fn invert_3x3(m: &[[f64; 3]; 3]) -> Option<[[f64; 3]; 3]> {
-    let det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-        - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-        + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-
+    let det = det3(m);
     if det.abs() < 1e-12 {
         return None;
     }

@@ -41,6 +41,7 @@ use serde_json::{json, Value};
 use crate::background_extraction::{eval_poly, normalise_xy, poly_terms};
 use crate::recipe::ops::background_extract::{fit_plane, star_disks, Settings, StarDisk};
 use crate::recipe::{OpContext, OpError, OpImage};
+use crate::resample::bilinear_clamped;
 use crate::robust_stats::{mad_sigma, median_and_sigma, median_in_place, median_of};
 use crate::{detect_stars_in_plane, StarDetectionConfig};
 
@@ -653,7 +654,7 @@ pub fn flatten_chroma(
                 let gy = (y as f64 + 0.5) / box_px as f64 - 0.5;
                 for (x, value) in row.iter_mut().enumerate() {
                     let gx = (x as f64 + 0.5) / box_px as f64 - 0.5;
-                    *value = (*value as f64 - bilinear(&delta, gw, gh, gx, gy)) as f32;
+                    *value = (*value as f64 - bilinear_clamped(&delta, gw, gh, gx, gy)) as f32;
                 }
             });
     }
@@ -781,19 +782,6 @@ fn median_filter(values: &[f64], gw: usize, gh: usize, size: usize) -> Vec<f64> 
             }
         })
         .collect()
-}
-
-/// Bilinear interpolation of a lattice at fractional box coordinates, held
-/// constant beyond the outermost box centres.
-fn bilinear(values: &[f64], gw: usize, gh: usize, gx: f64, gy: f64) -> f64 {
-    let gx = gx.clamp(0.0, (gw - 1) as f64);
-    let gy = gy.clamp(0.0, (gh - 1) as f64);
-    let (x0, y0) = (gx.floor() as usize, gy.floor() as usize);
-    let (x1, y1) = ((x0 + 1).min(gw - 1), (y0 + 1).min(gh - 1));
-    let (fx, fy) = (gx - x0 as f64, gy - y0 as f64);
-    let top = values[y0 * gw + x0] * (1.0 - fx) + values[y0 * gw + x1] * fx;
-    let bottom = values[y1 * gw + x0] * (1.0 - fx) + values[y1 * gw + x1] * fx;
-    top * (1.0 - fy) + bottom * fy
 }
 
 #[cfg(test)]

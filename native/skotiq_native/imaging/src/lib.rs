@@ -44,6 +44,7 @@ mod platesolve;
 mod raw; // NEW: RAW file support
 pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
 pub mod registration; // NEW: High-quality star-based registration
+mod resample;
 mod robust_stats; // The crate's one set of order statistics (median / percentile conventions)
 pub mod samples;
 pub mod sky_atlas; // NEW: HEALPix-tiled additive all-sky accumulator (the 5.0 keystone)

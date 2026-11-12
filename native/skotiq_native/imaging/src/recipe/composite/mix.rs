@@ -7,6 +7,7 @@
 
 use rayon::prelude::*;
 
+use crate::numeric::{convolve_separable, gaussian_taps};
 use crate::robust_stats::{median_and_sigma, median_in_place};
 
 /// `y ≈ scale · x + offset`: how one master's values map onto another's.
@@ -143,43 +144,7 @@ pub fn gaussian_blur(plane: &[f32], width: usize, height: usize, sigma: f64) -> 
     if sigma <= 0.0 || width == 0 || height == 0 {
         return plane.to_vec();
     }
-    let radius = (3.0 * sigma).ceil() as i64;
-    let taps: Vec<f64> = (-radius..=radius)
-        .map(|i| (-(i * i) as f64 / (2.0 * sigma * sigma)).exp())
-        .collect();
-    let norm: f64 = taps.iter().sum();
-    let taps: Vec<f64> = taps.iter().map(|t| t / norm).collect();
-    let w = width as i64;
-    let h = height as i64;
-    let mut horizontal = vec![0.0_f32; plane.len()];
-    horizontal
-        .par_chunks_exact_mut(width)
-        .enumerate()
-        .for_each(|(y, row)| {
-            let src = &plane[y * width..(y + 1) * width];
-            for (x, slot) in row.iter_mut().enumerate() {
-                let mut acc = 0.0;
-                for (k, t) in taps.iter().enumerate() {
-                    let sx = (x as i64 + k as i64 - radius).clamp(0, w - 1) as usize;
-                    acc += t * src[sx] as f64;
-                }
-                *slot = acc as f32;
-            }
-        });
-    let mut out = vec![0.0_f32; plane.len()];
-    out.par_chunks_exact_mut(width)
-        .enumerate()
-        .for_each(|(y, row)| {
-            for (x, slot) in row.iter_mut().enumerate() {
-                let mut acc = 0.0;
-                for (k, t) in taps.iter().enumerate() {
-                    let sy = (y as i64 + k as i64 - radius).clamp(0, h - 1) as usize;
-                    acc += t * horizontal[sy * width + x] as f64;
-                }
-                *slot = acc as f32;
-            }
-        });
-    out
+    convolve_separable(plane, width, height, &gaussian_taps(sigma))
 }
 
 /// Lay `luminance` over the color of `rgb`, in linear space.

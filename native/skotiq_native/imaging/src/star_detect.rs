@@ -31,6 +31,7 @@
 //! reported as stars.
 
 use crate::detection_plane::DetectionPlane;
+use crate::numeric::gaussian_taps;
 use crate::robust_stats::{median_upper_in_place_f32, MAD_TO_SIGMA};
 use crate::stats::compute_snr;
 use crate::{DetectedStar, StarDetectionConfig};
@@ -246,7 +247,10 @@ struct Component {
 impl FilteredPass {
     fn new(frame: &Frame, kernel_sigma: f64, config: &StarDetectionConfig) -> Self {
         let (w, h) = (frame.width, frame.height);
-        let kernel = gaussian_kernel(kernel_sigma);
+        let kernel: Vec<f32> = gaussian_taps(kernel_sigma)
+            .into_iter()
+            .map(|v| v as f32)
+            .collect();
         let mut filtered = convolve_separable(frame.residual, w, h, &kernel);
 
         // The noise of the filtered frame, measured on the filtered frame, so
@@ -881,16 +885,6 @@ fn label_components(sig: &[f32], w: usize, h: usize, threshold: f32) -> Vec<Comp
         out.push(Component { pixels });
     }
     out
-}
-
-fn gaussian_kernel(sigma: f64) -> Vec<f32> {
-    let radius = (3.0 * sigma).ceil() as i64;
-    let mut k: Vec<f64> = (-radius..=radius)
-        .map(|i| (-(i * i) as f64 / (2.0 * sigma * sigma)).exp())
-        .collect();
-    let sum: f64 = k.iter().sum();
-    k.iter_mut().for_each(|v| *v /= sum);
-    k.into_iter().map(|v| v as f32).collect()
 }
 
 /// Separable convolution with edge replication.
