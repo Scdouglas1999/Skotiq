@@ -323,6 +323,53 @@ void main() {
     );
   });
 
+  // Plugins are admin only (/api/plugins/*); the key/value store is not a way
+  // around that.
+  test('which plugins run changes only with admin access', () async {
+    await container.read(appSettingsProvider.future);
+    const plugins = 'plugin_enablement';
+    await db.settingsDao.setSetting(plugins, '{"com.example.plugin":false}');
+
+    for (final body in [
+      {
+        'settings': {plugins: '{"com.example.plugin":true}'},
+      },
+      {
+        'merge': {
+          plugins: {'com.example.plugin': true},
+        },
+      },
+      {
+        'remove': [plugins],
+      },
+    ]) {
+      for (final scope in const [
+        HeadlessTokenScope.control,
+        HeadlessTokenScope.view,
+      ]) {
+        final response = await post(body, scope: scope);
+        expect(response.statusCode, HttpStatus.forbidden, reason: '$body');
+        final error = jsonDecode(await response.readAsString()) as Map;
+        expect(error['code'], 'host_program_setting', reason: '$body');
+        expect(error['settings'], [plugins]);
+      }
+    }
+    expect(
+      await db.settingsDao.getSetting(plugins),
+      '{"com.example.plugin":false}',
+    );
+    expect(announced, isEmpty);
+
+    final response = await post({
+      'settings': {plugins: '{"com.example.plugin":true}'},
+    }, scope: HeadlessTokenScope.admin);
+    expect(response.statusCode, HttpStatus.ok);
+    expect(
+      await db.settingsDao.getSetting(plugins),
+      '{"com.example.plugin":true}',
+    );
+  });
+
   test('a request the auth middleware never saw is not admin', () async {
     await container.read(appSettingsProvider.future);
     final response = await translateHandlerErrors(

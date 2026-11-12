@@ -435,6 +435,11 @@ void main() {
               'settings': {'webServerEnabled': true},
             }),
             headers: {'content-type': 'application/json'},
+            context: {
+              authGrantContextKey: HeadlessAuthGrant.fromCoarse(
+                HeadlessTokenScope.admin,
+              ),
+            },
           ),
         );
       } catch (e, st) {

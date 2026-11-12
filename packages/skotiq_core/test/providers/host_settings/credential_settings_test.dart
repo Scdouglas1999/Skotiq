@@ -1,6 +1,6 @@
-// A linked client changes the host's settings, but not the rows that hold a
-// credential or say where the host sends one. The host decides that per row
-// from these declarations.
+// A linked client changes the host's settings, but not the ones the settings
+// catalog keeps for admin links. The host decides that per row from these
+// declarations.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
@@ -17,39 +17,72 @@ void main() {
       'pushover_key',
       'pushover_user',
     ]) {
-      expect(isCredentialSettingKey(key), isTrue, reason: key);
+      expect(adminOnlyRow(key), AdminOnly.credential, reason: key);
     }
-    expect(AppSettingsNotifier.credentialWireKeys, {
-      'discordWebhook',
-      'pushoverKey',
-      'pushoverUser',
-    });
   });
 
-  test('the paths of the programs the host runs are declared', () {
-    expect(AppSettingsNotifier.runsOnHostWireKeys, {
-      'astapPath',
-      'astrometryPath',
-      'phd2Path',
-    });
-  });
-
-  test('every notification server and the cloud backup target count too', () {
-    for (final kind in NotificationTransportKind.values) {
-      expect(
-        isCredentialSettingKey(kind.settingKey),
-        isTrue,
-        reason: kind.name,
-      );
-    }
-    for (final key in const [
+  test('every notification server, the cloud backup target and the Home '
+      'Assistant row say where the host sends a credential', () {
+    for (final key in [
+      for (final kind in NotificationTransportKind.values) kind.settingKey,
       SyncSettingsKeys.serverUrl,
       SyncSettingsKeys.username,
       SyncSettingsKeys.s3Endpoint,
       SyncSettingsKeys.s3AccessKey,
+      'home_assistant_discovery',
     ]) {
-      expect(isCredentialSettingKey(key), isTrue, reason: key);
+      expect(adminOnlyRow(key), AdminOnly.credentialTarget, reason: key);
     }
+  });
+
+  test('the rows that decide which programs the host runs are declared', () {
+    for (final key in const [
+      'astap_path',
+      'astrometry_path',
+      'phd2_path',
+      'plugin_enablement',
+    ]) {
+      expect(adminOnlyRow(key), AdminOnly.hostProgram, reason: key);
+    }
+  });
+
+  test('the host\'s backups, its catalog source and how it is reached stay '
+      'with admin links', () {
+    for (final key in const [
+      'backup.directory',
+      'autosave.backup_enabled',
+      'autosave.backup_interval_hours',
+      'autosave.max_backups',
+      'autosave.last_backup_at',
+      'catalog_base_url',
+      'web_server_enabled',
+      'web_server_port',
+    ]) {
+      expect(adminOnlyRow(key), AdminOnly.administration, reason: key);
+    }
+  });
+
+  // The catalog source travels in the key/value store, not this document.
+  test('the typed settings document names the same fields', () {
+    expect(AppSettingsNotifier.adminOnlyWireFields, {
+      'discordWebhook': AdminOnly.credential,
+      'pushoverKey': AdminOnly.credential,
+      'pushoverUser': AdminOnly.credential,
+      'astapPath': AdminOnly.hostProgram,
+      'astrometryPath': AdminOnly.hostProgram,
+      'phd2Path': AdminOnly.hostProgram,
+      'webServerEnabled': AdminOnly.administration,
+      'webServerPort': AdminOnly.administration,
+    });
+  });
+
+  test('a row saying where the host sends a credential is not hidden', () {
+    expect(
+      rowsWithCredentialsHidden({
+        'notification_transport_email': '{"host":"smtp.example.org"}',
+      }),
+      {'notification_transport_email': '{"host":"smtp.example.org"}'},
+    );
   });
 
   group('a link without admin access', () {
@@ -146,11 +179,14 @@ void main() {
       'image_output_path',
       'observer_latitude',
       'dither_enabled',
+      'phd2_host',
       'sequencer_dither_pixels',
       'notification_routing_matrix',
-      'home_assistant_discovery',
+      'autosave.sequence_enabled',
+      'autosave.sequence_interval_minutes',
+      'a_row_declared_nowhere',
     ]) {
-      expect(isCredentialSettingKey(key), isFalse, reason: key);
+      expect(adminOnlyRow(key), isNull, reason: key);
     }
   });
 }

@@ -248,7 +248,7 @@ class ImagingHandlers implements RouteSource {
       }..removeWhere((path) => path == null || path.isEmpty);
       if (!hostSolvers.contains(executablePath)) {
         throw HandlerFailure(
-          code: AdminOnlySetting.hostProgram.code,
+          code: adminOnlyRefusalCode(AdminOnly.hostProgram),
           statusCode: HttpStatus.forbidden,
           message:
               'Only a link with admin access can run a program the imaging '
@@ -303,10 +303,12 @@ class ImagingHandlers implements RouteSource {
 
     final backend = container.read(imagingBackendProvider);
     final current = await backend.getPlateSolverConfig();
-    AdminOnlySetting.hostProgram.refuseChange(request, [
-      if (pref.astapPath != current.astapPath) 'astapPath',
-      if (pref.astrometryPath != current.astrometryPath) 'astrometryPath',
-    ]);
+    refuseAdminOnlyChange(request, {
+      if (pref.astapPath != current.astapPath)
+        'astapPath': AdminOnly.hostProgram,
+      if (pref.astrometryPath != current.astrometryPath)
+        'astrometryPath': AdminOnly.hostProgram,
+    });
     await backend.setPlateSolverConfig(pref);
     return jsonOk({'status': 'saved'});
   }

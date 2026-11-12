@@ -1,53 +1,59 @@
 import 'dart:io' show HttpStatus;
 
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_core/skotiq_core.dart' show AdminOnly;
 
 import 'request_context.dart';
 import 'validation.dart';
 
-/// Settings a linked client paired the ordinary way may not change: the host
-/// takes them only from a request with admin access.
-enum AdminOnlySetting {
-  /// Holds a credential the host signs in with (`Setting.credential`).
-  credential(
-    code: 'credential_setting',
-    one: 'holds a credential',
-    many: 'hold credentials',
-  ),
+/// The `code` of the 403 that refuses a change to a setting declared
+/// [reason], and what one such setting is and several are, in its message.
+({String code, String one, String many}) _refusal(AdminOnly reason) =>
+    switch (reason) {
+      AdminOnly.credential => (
+        code: 'credential_setting',
+        one: 'holds a credential',
+        many: 'hold credentials',
+      ),
+      AdminOnly.credentialTarget => (
+        code: 'credential_setting',
+        one: 'says where the imaging computer sends a credential',
+        many: 'say where the imaging computer sends its credentials',
+      ),
+      AdminOnly.hostProgram => (
+        code: 'host_program_setting',
+        one: 'decides which program the imaging computer runs',
+        many: 'decide which programs the imaging computer runs',
+      ),
+      AdminOnly.administration => (
+        code: 'admin_setting',
+        one: 'is part of how the imaging computer is backed up and reached',
+        many: 'are part of how the imaging computer is backed up and reached',
+      ),
+    };
 
-  /// Names a program or script the host runs (`Setting.runsOnHost`).
-  hostProgram(
-    code: 'host_program_setting',
-    one: 'names a program the imaging computer runs',
-    many: 'name programs the imaging computer runs',
+/// The `code` of the 403 for a setting declared [reason].
+String adminOnlyRefusalCode(AdminOnly reason) => _refusal(reason).code;
+
+/// Refuses a request changing [settings], each named with why the settings
+/// catalog keeps it for admin links, unless the request has admin access.
+void refuseAdminOnlyChange(Request request, Map<String, AdminOnly> settings) {
+  if (settings.isEmpty || requestHasAdminAccess(request)) return;
+  final reason = AdminOnly.values.firstWhere(settings.containsValue);
+  final names = [
+    for (final MapEntry(:key, :value) in settings.entries)
+      if (value == reason) key,
+  ]..sort();
+  final single = names.length == 1;
+  final refusal = _refusal(reason);
+  throw HandlerFailure(
+    code: refusal.code,
+    statusCode: HttpStatus.forbidden,
+    message:
+        '${names.join(', ')} ${single ? refusal.one : refusal.many}, which '
+        'only a link with admin access can change. Change '
+        '${single ? 'it' : 'them'} on the imaging computer, or link with '
+        'admin access.',
+    details: {'settings': names, 'requiredLevel': 'admin'},
   );
-
-  const AdminOnlySetting({
-    required this.code,
-    required this.one,
-    required this.many,
-  });
-
-  /// The `code` of the 403 refusal.
-  final String code;
-
-  /// What one such setting is, and what several are, in the refusal.
-  final String one;
-  final String many;
-
-  /// Refuses a request changing [settings] unless it has admin access.
-  void refuseChange(Request request, List<String> settings) {
-    if (settings.isEmpty || requestHasAdminAccess(request)) return;
-    final names = [...settings]..sort();
-    final single = names.length == 1;
-    throw HandlerFailure(
-      code: code,
-      statusCode: HttpStatus.forbidden,
-      message:
-          '${names.join(', ')} ${single ? one : many}, which only a link '
-          'with admin access can change. Change ${single ? 'it' : 'them'} on '
-          'the imaging computer, or link with admin access.',
-      details: {'settings': names, 'requiredLevel': 'admin'},
-    );
-  }
 }

@@ -48,6 +48,26 @@ class _InvalidWireValue {
   const _InvalidWireValue();
 }
 
+/// Why a linked client changes a setting only with admin access to the host.
+enum AdminOnly {
+  /// Its value is a credential, such as a webhook URL or an API key. A link
+  /// without admin access also reads only whether it is set.
+  credential,
+
+  /// It says where the host sends a credential it keeps in its keyring: a
+  /// server, an account, a broker. Pointing it elsewhere hands that
+  /// credential over. Its own value is not secret.
+  credentialTarget,
+
+  /// It names a program or script the host runs, or chooses which of them
+  /// run.
+  hostProgram,
+
+  /// It is part of what stays with admin links: the host's backups, where it
+  /// downloads from, and how it is reached.
+  administration,
+}
+
 sealed class Setting<T> {
   const Setting(
     this.field,
@@ -59,8 +79,7 @@ sealed class Setting<T> {
     this.feeds,
     this.seed,
     this.seeded = false,
-    this.credential = false,
-    this.runsOnHost = false,
+    this.adminOnly,
   });
 
   /// Name of the field on `AppSettingsState`.
@@ -90,14 +109,9 @@ sealed class Setting<T> {
   /// setting simply reads as [fallback] until it is changed.
   final bool seeded;
 
-  /// It holds a credential, such as a webhook URL or an API key. A linked
-  /// client changes it only with admin access to the host; the host refuses
-  /// the change from any lesser credential.
-  final bool credential;
-
-  /// It names a program or script the imaging host runs. A linked client
-  /// changes it only with admin access to the host, like a [credential].
-  final bool runsOnHost;
+  /// Set when a linked client changes it only with admin access to the host,
+  /// and why. The host refuses the change from any lesser link.
+  final AdminOnly? adminOnly;
 
   bool get hasInstallRow => seeded || seed != null;
 
@@ -160,6 +174,7 @@ final class BoolSetting extends Setting<bool> {
     super.feeds,
     super.seed,
     super.seeded,
+    super.adminOnly,
   });
 
   @override
@@ -224,6 +239,7 @@ final class IntSetting extends Setting<int> {
     super.feeds,
     super.seed,
     super.seeded,
+    super.adminOnly,
   });
 
   /// Bounds a stored or received value is held to.
@@ -412,8 +428,7 @@ final class TextSetting extends Setting<String> {
     super.feeds,
     super.seed,
     super.seeded,
-    super.credential,
-    super.runsOnHost,
+    super.adminOnly,
   });
 
   /// When set, any other stored or received text reads as [fallback].
@@ -490,6 +505,7 @@ final class OptionalTextSetting extends Setting<String?> {
     super.wireKey,
     super.feeds,
     super.seeded,
+    super.adminOnly,
   }) : super(field, key, null);
 
   /// Row text that stands for "not set": `null` or the empty string.
@@ -712,11 +728,14 @@ String dartStringLiteral(String value) {
 /// Rows whose keys start with [prefix] and always live on the same machine:
 /// one row per host or per id, or a feature's group of rows.
 final class SettingFamily {
-  const SettingFamily(this.prefix, {required this.sync});
+  const SettingFamily(this.prefix, {required this.sync, this.adminOnly});
 
   final String prefix;
 
   final SettingSync sync;
+
+  /// As [Setting.adminOnly], for every row of the family.
+  final AdminOnly? adminOnly;
 
   bool holds(String key) => key.startsWith(prefix);
 }

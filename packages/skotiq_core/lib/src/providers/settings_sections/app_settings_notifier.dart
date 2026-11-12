@@ -53,15 +53,13 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// Every `app_settings` key this notifier reads and writes.
   static final Set<String> storedKeys = AppSettingsCodec.storedKeys;
 
-  /// Fields of the host's typed settings that hold a credential, which only a
-  /// credential with admin access to the host may change.
-  static final Set<String> credentialWireKeys =
-      AppSettingsCodec.credentialWireKeys;
+  /// Fields of the host's typed settings that only a link with admin access
+  /// to the host may change, and why.
+  static final Map<String, AdminOnly> adminOnlyWireFields =
+      AppSettingsCodec.adminOnlyWireFields;
 
-  /// Fields of the host's typed settings that name a program the host runs,
-  /// which only a credential with admin access to the host may change.
-  static final Set<String> runsOnHostWireKeys =
-      AppSettingsCodec.runsOnHostWireKeys;
+  /// Every field of the host's typed settings a setting stands behind.
+  static final Set<String> wireFields = AppSettingsCodec.wireFields;
 
   /// [settings] as the stored rows would hold them.
   Map<String, String> storedRowsOf(AppSettingsState settings) =>

@@ -365,6 +365,10 @@ class ProfileHandlers implements RouteSource {
     'location',
   };
 
+  /// Keys of the settings document that are not app settings: the site
+  /// mirror, and what `GET /api/settings` says about it.
+  static const _documentOnlyKeys = <String>{..._siteKeys, 'locationStatus'};
+
   Future<Response> handleGetSettings(Request request) async {
     // Read from the DB-backed settings notifier (the desktop's source of
     // truth) rather than the Rust bridge, which only carries the ~7
@@ -438,8 +442,8 @@ class ProfileHandlers implements RouteSource {
   /// writing either kind straight to the database would leave the host's
   /// in-memory copy stale and the next settings save would revert it.
   /// Presentation preferences of this computer's screen are refused too, and
-  /// so are rows holding a credential ([isCredentialSettingKey]) unless the
-  /// request has admin access.
+  /// so are rows the settings catalog keeps for admin links ([adminOnlyRow])
+  /// unless the request has admin access.
   Future<Response> handleUpdateSettingsStore(Request request) async {
     _logInfo('[API] POST /api/settings/store');
     final payload = await readJsonObject(request);
@@ -516,10 +520,10 @@ class ProfileHandlers implements RouteSource {
       }
     }
 
-    AdminOnlySetting.credential.refuseChange(request, [
+    refuseAdminOnlyChange(request, {
       for (final key in {...settings.keys, ...remove, ...merge.keys})
-        if (isCredentialSettingKey(key)) key,
-    ]);
+        if (adminOnlyRow(key) case final reason?) key: reason,
+    });
 
     final notifierRows = {
       for (final entry in settings.entries)
@@ -829,23 +833,41 @@ class ProfileHandlers implements RouteSource {
     final previousJson = previous == null
         ? const <String, dynamic>{}
         : jsonDecode(jsonEncode(previous.toJson())) as Map<String, dynamic>;
+    bool changes(String key) =>
+        settingsJson.containsKey(key) &&
+        !(previousJson.containsKey(key) &&
+            _settingsValueEquals(settingsJson[key], previousJson[key]));
     // A full snapshot carries every admin-only field back unchanged; only a
     // field whose value would change counts as changing it.
-    List<String> changing(Set<String> keys) => [
-      for (final key in keys)
-        if (settingsJson.containsKey(key) &&
-            (previous == null ||
-                !_settingsValueEquals(settingsJson[key], previousJson[key])))
+    refuseAdminOnlyChange(request, {
+      for (final MapEntry(:key, :value)
+          in AppSettingsNotifier.adminOnlyWireFields.entries)
+        if (changes(key)) key: value,
+    });
+    // The settings document also carries fields no setting stands behind
+    // (the update channel, for one). Sent back as they were read they mean
+    // nothing; a changed one would be dropped, so it is refused.
+    final unkeptAsRead = previous == null
+        ? const settings_models.AppSettings().toJson()
+        : previousJson;
+    final unkept = [
+      for (final MapEntry(:key, :value) in settingsJson.entries)
+        if (!AppSettingsNotifier.wireFields.contains(key) &&
+            !_documentOnlyKeys.contains(key) &&
+            !_settingsValueEquals(value, unkeptAsRead[key]))
           key,
-    ];
-    AdminOnlySetting.credential.refuseChange(
-      request,
-      changing(AppSettingsNotifier.credentialWireKeys),
-    );
-    AdminOnlySetting.hostProgram.refuseChange(
-      request,
-      changing(AppSettingsNotifier.runsOnHostWireKeys),
-    );
+    ]..sort();
+    if (unkept.isNotEmpty) {
+      final single = unkept.length == 1;
+      throw BadRequestError(
+        field: 'settings.${unkept.first}',
+        expected: 'a setting the imaging computer keeps',
+        message:
+            '${unkept.join(', ')} ${single ? 'is not a setting' : 'are not '
+                      'settings'} the imaging computer keeps here, so '
+            'nothing was changed.',
+      );
+    }
     final mergedJson = <String, dynamic>{...previousJson, ...settingsJson};
 
     // WHAT THIS SAVE MAY DO TO THE OBSERVER SITE.
