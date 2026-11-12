@@ -34,13 +34,21 @@ db.CapturedImage light(
 
 void main() {
   group('planFrameNeeds', () {
-    test('missing gain or offset cannot become a zero-setting dark group', () {
-      for (final frame in [light(1, gain: null), light(2, offset: null)]) {
-        expect(() => planFrameNeeds([frame]), throwsFormatException);
-      }
-      final needs = planFrameNeeds([light(3, gain: 0, offset: 0)]);
-      expect(needs.darks.single.gain, 0);
-      expect(needs.darks.single.offset, 0);
+    test('lights without gain or offset (a camera without the controls) get '
+        'their own dark group, never a zero-setting one', () {
+      final needs = planFrameNeeds([
+        light(1, gain: null, offset: null),
+        light(2, gain: 0, offset: 0),
+      ]);
+      expect(
+        needs.darks.map((d) => (d.gain, d.offset)).toSet(),
+        {(null, null), (0, 0)},
+      );
+      expect(
+        needs.darks.firstWhere((d) => d.gain == null).label,
+        contains('no gain, no offset'),
+      );
+      expect(needs.bias.map((b) => b.gain).toSet(), {null, 0});
     });
     test('one dark set per light setting and one bias set per gain', () {
       final needs = planFrameNeeds([

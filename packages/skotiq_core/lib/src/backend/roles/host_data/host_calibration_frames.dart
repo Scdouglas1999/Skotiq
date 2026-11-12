@@ -33,8 +33,8 @@ abstract interface class HostCalibrationFrames {
 
   Future<int> deleteDarkLibraryGroup({
     required double exposureTime,
-    required int gain,
-    required int offset,
+    required int? gain,
+    required int? offset,
     required int binX,
     required int binY,
     required String frameType,

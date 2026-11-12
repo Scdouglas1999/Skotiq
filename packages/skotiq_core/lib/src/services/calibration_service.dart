@@ -218,12 +218,12 @@ class CalibrationService {
     final isRemote = host != null;
 
     // Determine dark frame path. A manual override always wins; the library
-    // auto-match only runs when no manual dark was supplied.
+    // auto-match only runs when no manual dark was supplied. A null gain or
+    // offset is a camera without that control, matched to darks without it.
     String? darkPath = settings.manualDarkPath;
     if (settings.autoDarkFromLibrary &&
         darkPath == null &&
-        exposureTime != null &&
-        gain != null) {
+        exposureTime != null) {
       if (host != null) {
         // Remote: the dark library lives on the host, so the client can't
         // run the matcher itself. Ask the host to match and hand back the
@@ -233,7 +233,7 @@ class CalibrationService {
         final matchedHostPath = await host.matchDarkFromLibrary(
           exposureTime: exposureTime,
           gain: gain,
-          offset: offset ?? 0,
+          offset: offset,
           binX: binX,
           binY: binY,
           temperature: sensorTemperature,
@@ -259,7 +259,7 @@ class CalibrationService {
         final matchingDark = await _darkLibrary.findMatchingDark(
           exposureTime: exposureTime,
           gain: gain,
-          offset: offset ?? 0,
+          offset: offset,
           binX: binX,
           binY: binY,
           temperature: sensorTemperature,

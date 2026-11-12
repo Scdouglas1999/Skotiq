@@ -112,8 +112,9 @@ CREATE TABLE flat_library (
   equipment_profile_id INTEGER REFERENCES equipment_profiles(id) ON DELETE SET NULL,
   optical_train_id TEXT,
   temperature REAL,
-  gain INTEGER NOT NULL DEFAULT 0,
-  "offset" INTEGER NOT NULL DEFAULT 0,
+  -- NULL for a camera without gain or offset control (FLI, Atik CCDs).
+  gain INTEGER,
+  "offset" INTEGER,
   bin_x INTEGER NOT NULL DEFAULT 1,
   bin_y INTEGER NOT NULL DEFAULT 1,
   width INTEGER,
