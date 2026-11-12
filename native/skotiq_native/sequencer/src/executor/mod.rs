@@ -298,6 +298,13 @@ impl SequenceExecutor {
         self.run_state.progress()
     }
 
+    /// The name of the loaded plan.
+    pub fn sequence_name(&self) -> Option<&str> {
+        self.sequence
+            .as_ref()
+            .map(|sequence| sequence.name.as_str())
+    }
+
     /// Write the sequence's totals into the progress snapshot. Indeterminate
     /// totals (unbounded loops, an engaged integration budget) have no finite
     /// ETA, so they read as zero with no estimate.
