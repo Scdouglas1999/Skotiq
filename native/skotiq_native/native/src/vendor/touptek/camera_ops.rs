@@ -439,6 +439,7 @@ impl DeviceDriver for TouptekCamera {
             bit_depth: setup.bit_depth,
             color: (self.model_flags & OGMACAM_FLAG_MONO) == 0,
             bayer_pattern: setup.bayer_pattern,
+            saturation_adu: None,
         };
         self.bytes_per_sample = setup.bytes_per_sample;
         self.rows_reversed = setup.rows_reversed;

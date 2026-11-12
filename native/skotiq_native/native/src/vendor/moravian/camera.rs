@@ -258,6 +258,7 @@ impl MoravianCamera {
                 .limits
                 .full_frame_cell
                 .map(|cell| frame_bayer(cell, api.bottom_up(), height, 0, 0)),
+            saturation_adu: None,
         };
         let max_bin_x = max_bin_x.max(1);
         let max_bin_y = max_bin_y.max(1);

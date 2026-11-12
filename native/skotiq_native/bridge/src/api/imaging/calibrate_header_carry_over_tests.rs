@@ -35,3 +35,63 @@ fn calibrated_save_keeps_numeric_exptime_and_gain() {
     assert_eq!(out_header.get_float("EXPTIME"), Some(120.0));
     assert_eq!(out_header.get_int("GAIN"), Some(100));
 }
+
+/// The calibrated frame keeps the light's cards in order, with their comments
+/// and its COMMENT and HISTORY lines, and adds its own after them.
+#[test]
+fn calibrated_save_keeps_card_order_comments_and_history() {
+    let light = scratch("ordered_light.fits");
+    let out = scratch("ordered_calibrated.fits");
+
+    let mut header = FitsHeader::new();
+    header.set_string("OBJECT", "61");
+    header.set_float("EXPTIME", 120.0);
+    header.set_comment("EXPTIME", "exposure time (s)");
+    header.set_string("FILTER", "Ha");
+    header.add_comment("taken with Skotiq");
+    header.add_history("dark subtracted on the camera");
+    let image = ImageData::new(4, 4, 1, PixelType::U16);
+    write_fits(&light, &image, &header).unwrap();
+
+    api_calibrate_image_file(
+        light.to_string_lossy().into_owned(),
+        None,
+        None,
+        None,
+        out.to_string_lossy().into_owned(),
+    )
+    .unwrap();
+
+    let (_, out_header) = read_frame(&out).unwrap();
+    assert_eq!(out_header.get_string("OBJECT"), Some("61"));
+    assert_eq!(out_header.get_comment("EXPTIME"), Some("exposure time (s)"));
+    assert_eq!(out_header.comments, vec!["taken with Skotiq".to_string()]);
+    assert_eq!(out_header.history, vec!["dark subtracted on the camera".to_string()]);
+    let order: Vec<&str> = out_header
+        .cards()
+        .map(|(key, _, _)| key)
+        .filter(|key| ["OBJECT", "EXPTIME", "FILTER", "CALSTAT"].contains(key))
+        .collect();
+    assert_eq!(order, ["OBJECT", "EXPTIME", "FILTER", "CALSTAT"]);
+}
+
+/// A camera's raw file cannot be written, so a calibrated copy named like one
+/// is refused instead of being FITS bytes under a raw file's name.
+#[test]
+fn a_calibrated_copy_named_as_camera_raw_is_refused() {
+    let light = scratch("raw_named_light.fits");
+    let out = scratch("raw_named_calibrated.CR2");
+    let _ = std::fs::remove_file(&out);
+    write_fits(&light, &ImageData::new(4, 4, 1, PixelType::U16), &FitsHeader::new()).unwrap();
+
+    let err = api_calibrate_image_file(
+        light.to_string_lossy().into_owned(),
+        None,
+        None,
+        None,
+        out.to_string_lossy().into_owned(),
+    )
+    .unwrap_err();
+    assert!(err.to_string().contains("camera raw"), "{err}");
+    assert!(!out.exists());
+}

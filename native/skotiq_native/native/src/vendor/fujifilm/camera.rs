@@ -78,6 +78,7 @@ impl FujifilmCamera {
                 } else {
                     Some(BayerPattern::Rggb) // GFX uses standard Bayer
                 },
+                saturation_adu: None,
             },
             sdk_reported_bit_depth: None,
             measured_bit_depth: None,

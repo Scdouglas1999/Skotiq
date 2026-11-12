@@ -64,6 +64,7 @@ fn player_one_sensor_info(info: &POACameraProperties) -> SensorInfo {
         color: info.is_color_camera != 0,
         bayer_pattern: (info.is_color_camera != 0)
             .then(|| bayer_from_asi_index(info.bayer_pattern)),
+        saturation_adu: None,
     }
 }
 

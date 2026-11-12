@@ -11673,8 +11673,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CameraStatus dco_decode_camera_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 18)
-      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    if (arr.length != 19)
+      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
     return CameraStatus(
       connected: dco_decode_bool(arr[0]),
       state: dco_decode_camera_state(arr[1]),
@@ -11691,9 +11691,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pixelSizeX: dco_decode_f_64(arr[12]),
       pixelSizeY: dco_decode_f_64(arr[13]),
       maxAdu: dco_decode_u_32(arr[14]),
-      canCool: dco_decode_bool(arr[15]),
-      canSetGain: dco_decode_bool(arr[16]),
-      canSetOffset: dco_decode_bool(arr[17]),
+      saturationAdu: dco_decode_opt_box_autoadd_u_32(arr[15]),
+      canCool: dco_decode_bool(arr[16]),
+      canSetGain: dco_decode_bool(arr[17]),
+      canSetOffset: dco_decode_bool(arr[18]),
     );
   }
 
@@ -15774,6 +15775,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_pixelSizeX = sse_decode_f_64(deserializer);
     var var_pixelSizeY = sse_decode_f_64(deserializer);
     var var_maxAdu = sse_decode_u_32(deserializer);
+    var var_saturationAdu = sse_decode_opt_box_autoadd_u_32(deserializer);
     var var_canCool = sse_decode_bool(deserializer);
     var var_canSetGain = sse_decode_bool(deserializer);
     var var_canSetOffset = sse_decode_bool(deserializer);
@@ -15793,6 +15795,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       pixelSizeX: var_pixelSizeX,
       pixelSizeY: var_pixelSizeY,
       maxAdu: var_maxAdu,
+      saturationAdu: var_saturationAdu,
       canCool: var_canCool,
       canSetGain: var_canSetGain,
       canSetOffset: var_canSetOffset,
@@ -21023,6 +21026,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.pixelSizeX, serializer);
     sse_encode_f_64(self.pixelSizeY, serializer);
     sse_encode_u_32(self.maxAdu, serializer);
+    sse_encode_opt_box_autoadd_u_32(self.saturationAdu, serializer);
     sse_encode_bool(self.canCool, serializer);
     sse_encode_bool(self.canSetGain, serializer);
     sse_encode_bool(self.canSetOffset, serializer);

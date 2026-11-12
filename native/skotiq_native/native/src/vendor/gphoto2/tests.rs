@@ -179,3 +179,61 @@ fn gphoto2_version_from_array_rejects_null_inputs() {
     // SAFETY: versions is a live array whose first entry is the NULL terminator.
     assert!(unsafe { gphoto2_version_from_array(versions.as_ptr()) }.is_none());
 }
+
+fn camera_file(name: &str, bytes: Vec<u8>) -> skotiq_device::CameraFile {
+    skotiq_device::CameraFile {
+        file_name: name.to_string(),
+        bytes: std::sync::Arc::new(bytes),
+    }
+}
+
+#[test]
+fn a_jpeg_download_is_refused_with_a_plain_reason() {
+    let mut camera = camera_with_model_table("Canon EOS 1000D");
+    let jpeg = vec![0xFF, 0xD8, 0xFF, 0xE1, 0, 0x10, b'E', b'x', b'i', b'f', 0, 0];
+    let err = camera
+        .decode_raw_to_image_data(camera_file("IMG_0001.JPG", jpeg))
+        .unwrap_err();
+    assert!(err.to_string().contains("appears to be JPEG"), "{err}");
+}
+
+/// Every maker's capture is decoded, Olympus/OM System and Panasonic included
+/// (their TIFF variants were once taken for JPEG), and a Canon body's
+/// per-ISO saturation level reaches the sensor info. Needs the public raw
+/// samples (`SKOTIQ_RAW_SAMPLES`, see imaging/tests/camera_raw.rs).
+#[test]
+fn every_makers_download_decodes() {
+    let Ok(dir) = std::env::var("SKOTIQ_RAW_SAMPLES") else {
+        eprintln!("SKOTIQ_RAW_SAMPLES is not set; the camera downloads were not checked");
+        return;
+    };
+    for (sample, model) in [
+        ("om1.orf", "OM System OM-1"),
+        ("olympus_em10.orf", "Olympus E-M10"),
+        ("panasonic_gh4.rw2", "Panasonic DMC-GH4"),
+        ("nikon_d7000_lossless14.nef", "Nikon D7000"),
+        ("sony_a7m4_lossless.arw", "Sony ILCE-7M4"),
+        ("pentax_k5.pef", "Pentax K-5"),
+        ("canon_m50_raw.cr3", "Canon EOS M50"),
+    ] {
+        let bytes = std::fs::read(std::path::Path::new(&dir).join(sample)).unwrap();
+        let mut camera = camera_with_model_table(model);
+        // A body that names no file gets one in the format its bytes are in.
+        let image = camera
+            .decode_raw_to_image_data(camera_file("", bytes))
+            .unwrap_or_else(|e| panic!("{sample}: {e}"));
+        let extension = sample.rsplit('.').next().unwrap();
+        let saved = image.metadata.camera_file.expect("camera file kept");
+        assert_eq!(saved.file_name, format!("frame.{extension}"), "{sample}");
+        let saturation = camera.get_sensor_info().saturation_adu;
+        let expected = match sample {
+            "canon_m50_raw.cr3" => Some(11892),
+            "sony_a7m4_lossless.arw" => Some(15360),
+            "olympus_em10.orf" => Some(4093),
+            "panasonic_gh4.rw2" => Some(4079),
+            "pentax_k5.pef" => Some(16316),
+            _ => None,
+        };
+        assert_eq!(saturation, expected, "{sample}");
+    }
+}

@@ -4042,6 +4042,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.pixel_size_x = cst_encode_f_64(apiObj.pixelSizeX);
     wireObj.pixel_size_y = cst_encode_f_64(apiObj.pixelSizeY);
     wireObj.max_adu = cst_encode_u_32(apiObj.maxAdu);
+    wireObj.saturation_adu = cst_encode_opt_box_autoadd_u_32(
+      apiObj.saturationAdu,
+    );
     wireObj.can_cool = cst_encode_bool(apiObj.canCool);
     wireObj.can_set_gain = cst_encode_bool(apiObj.canSetGain);
     wireObj.can_set_offset = cst_encode_bool(apiObj.canSetOffset);
@@ -20661,6 +20664,8 @@ final class wire_cst_camera_status extends ffi.Struct {
 
   @ffi.Uint32()
   external int max_adu;
+
+  external ffi.Pointer<ffi.Uint32> saturation_adu;
 
   @ffi.Bool()
   external bool can_cool;

@@ -247,6 +247,7 @@ impl AtikCamera {
             bit_depth,
             color: cfa_offset.is_some(),
             bayer_pattern: cfa_offset.map(|(x, y)| rggb_cell_at(x, y)),
+            saturation_adu: None,
         };
         self.facts = AtikFacts {
             has_shutter,

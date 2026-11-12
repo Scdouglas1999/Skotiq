@@ -18,6 +18,7 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
       pixelSizeX: s.pixelSizeX,
       pixelSizeY: s.pixelSizeY,
       maxAdu: s.maxAdu,
+      saturationAdu: s.saturationAdu,
       canCool: s.canCool,
       canSetGain: s.canSetGain,
       canSetOffset: s.canSetOffset,

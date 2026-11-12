@@ -1,10 +1,12 @@
-//! Dark and bias masters built straight from FITS files, one band of rows at a
-//! time.
+//! Dark and bias masters built straight from frame files, one band of rows at
+//! a time.
 //!
 //! Peak memory is one band of every frame plus the 16-bit output, never the
 //! whole stack: each band is read from disk with a seek, combined, and dropped.
 //! Fifty full-size bias frames therefore fit in the same few hundred megabytes
-//! as five.
+//! as five. A FITS frame is read in place; a frame in another format (XISF, a
+//! camera raw file) is decoded once into a FITS copy beside the master, read
+//! the same way, and removed when the build ends.
 //!
 //! The combine is a winsorized sigma-clipped mean (3σ low and high), the
 //! PixInsight default for calibration masters. The master is written as
@@ -19,6 +21,7 @@
 
 use crate::fits::{copy_header_cards, write_fits, FitsError, FitsHeader};
 use crate::fits_reader::FitsReader;
+use crate::{frame_format, FitsCopy, ImageFormat};
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
 use crate::robust_stats::median_and_sigma_upper;
 use crate::{ImageData, PixelType};
@@ -171,19 +174,30 @@ pub fn assess_light_leak(levels: &[f64], config: &LightLeakConfig) -> LightLeakA
     }
 }
 
-/// One input FITS file, opened for band reads.
+/// One input frame, opened for band reads.
 struct BandSource {
     path: PathBuf,
     reader: FitsReader<BufReader<File>>,
     width: u32,
     height: u32,
     scratch: Vec<u8>,
+    /// The FITS copy the reader reads when the frame is in another format.
+    /// Declared after `reader` so the file is closed before it is removed.
+    _copy: Option<FitsCopy>,
 }
 
 impl BandSource {
-    fn open(path: &Path) -> Result<Self, String> {
+    /// `copies`: where a frame in another format is decoded to.
+    fn open(path: &Path, copies: &Path) -> Result<Self, String> {
         let describe = |e: FitsError| format!("{}: {e}", path.display());
-        let file = File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let copy = match frame_format(path).map_err(|e| format!("{}: {e}", path.display()))? {
+            ImageFormat::Fits => None,
+            _ => Some(
+                FitsCopy::new(path, copies).map_err(|e| format!("{}: {e}", path.display()))?,
+            ),
+        };
+        let fits = copy.as_ref().map_or(path, FitsCopy::path);
+        let file = File::open(fits).map_err(|e| format!("{}: {e}", path.display()))?;
         let reader = FitsReader::open(BufReader::new(file)).map_err(describe)?;
         let header = reader.header();
         let naxis = header.get_int("NAXIS").unwrap_or(0);
@@ -204,6 +218,7 @@ impl BandSource {
             width,
             height,
             scratch: Vec::new(),
+            _copy: copy,
         })
     }
 
@@ -332,9 +347,14 @@ pub fn build_streamed_master(
             paths.len()
         ));
     }
+    let output_dir = output.parent().unwrap_or(Path::new(""));
+    if !output_dir.as_os_str().is_empty() {
+        std::fs::create_dir_all(output_dir)
+            .map_err(|e| format!("creating {}: {e}", output_dir.display()))?;
+    }
     let mut sources: Vec<BandSource> = paths
         .iter()
-        .map(|p| BandSource::open(p))
+        .map(|p| BandSource::open(p, output_dir))
         .collect::<Result<_, _>>()?;
     check_agreement(&sources)?;
 
@@ -492,10 +512,6 @@ pub fn build_streamed_master(
 
     let image = ImageData::from_u16(width as u32, height as u32, 1, &master);
     drop(master);
-    if let Some(parent) = output.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("creating {}: {e}", parent.display()))?;
-    }
     let partial = output.with_extension("partial.fits");
     write_fits(&partial, &image, &header)
         .map_err(|e| format!("writing {}: {e}", partial.display()))?;
@@ -571,7 +587,7 @@ mod tests {
             }
         }
         let path = dir.join(name);
-        write_fits(&path, &ImageData::from_u16(w, h, 1, pixels), &header).unwrap();
+        crate::write_frame(&path, &ImageData::from_u16(w, h, 1, pixels), &header).unwrap();
         path
     }
 
@@ -645,6 +661,48 @@ mod tests {
         assert_eq!(header.get_int("NCOMBINE"), Some(9));
         assert!(header.history.iter().any(|h| h.contains("Winsorized")));
         assert!(!dir.path().join("master.partial.fits").exists());
+    }
+
+    /// XISF darks build the same master as FITS darks of the same pixels, a
+    /// group may mix the two, and the FITS copies the band reader used are
+    /// gone afterwards, also when the build is refused.
+    #[test]
+    fn frames_in_any_format_build_the_same_master() {
+        let dir = tempdir();
+        let (w, h) = (19, 13);
+        let frames: Vec<Vec<u16>> = (0..5).map(|i| noisy(i + 40, w, h, 400.0)).collect();
+        let named = |ext: &dyn Fn(usize) -> &'static str| -> Vec<PathBuf> {
+            frames
+                .iter()
+                .enumerate()
+                .map(|(i, px)| write_frame(dir.path(), &format!("f{i}.{}", ext(i)), px, w, h, CARDS))
+                .collect()
+        };
+        let fits = named(&|_| "fits");
+        let xisf = named(&|_| "xisf");
+        let mixed = named(&|i| if i % 2 == 0 { "xisf" } else { "fits" });
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        let master = |paths: &[PathBuf], name: &str| {
+            let out = dir.path().join("Masters").join(name);
+            let result = build_streamed_master(paths, &out, &config).unwrap();
+            assert_eq!(result.gain, Some(76), "{name}");
+            read_fits(&out).unwrap().0.data
+        };
+        let from_fits = master(&fits, "fits.fits");
+        assert_eq!(master(&xisf, "xisf.fits"), from_fits);
+        assert_eq!(master(&mixed, "mixed.fits"), from_fits);
+
+        let mut wrong = xisf.clone();
+        wrong.push(write_frame(dir.path(), "long.xisf", &frames[0], w, h, &[("EXPTIME", 300.0)]));
+        let refused = build_streamed_master(&wrong, &dir.path().join("Masters/no.fits"), &config);
+        assert!(refused.unwrap_err().contains("exposed"));
+
+        let left: Vec<_> = std::fs::read_dir(dir.path().join("Masters"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.starts_with('.'))
+            .collect();
+        assert!(left.is_empty(), "{left:?}");
     }
 
     #[test]

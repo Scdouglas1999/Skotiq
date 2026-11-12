@@ -555,6 +555,7 @@ impl CameraDriver for QhyCamera {
             bit_depth: self.actual_output_bits.unwrap_or(self.bits_per_pixel),
             color: self.is_color,
             bayer_pattern: self.bayer_pattern,
+            saturation_adu: None,
         }
     }
 

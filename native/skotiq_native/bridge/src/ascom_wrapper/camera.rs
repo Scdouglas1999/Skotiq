@@ -1040,6 +1040,7 @@ impl AscomCameraWrapper {
             bit_depth,
             color: caps.is_color,
             bayer_pattern: Self::map_bayer_pattern(caps.bayer_pattern.as_deref()),
+            saturation_adu: None,
         }
     }
 

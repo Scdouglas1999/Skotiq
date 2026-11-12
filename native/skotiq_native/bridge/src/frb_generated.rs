@@ -8387,6 +8387,7 @@ impl SseDecode for crate::device::CameraStatus {
         let mut var_pixelSizeX = <f64>::sse_decode(deserializer);
         let mut var_pixelSizeY = <f64>::sse_decode(deserializer);
         let mut var_maxAdu = <u32>::sse_decode(deserializer);
+        let mut var_saturationAdu = <Option<u32>>::sse_decode(deserializer);
         let mut var_canCool = <bool>::sse_decode(deserializer);
         let mut var_canSetGain = <bool>::sse_decode(deserializer);
         let mut var_canSetOffset = <bool>::sse_decode(deserializer);
@@ -8406,6 +8407,7 @@ impl SseDecode for crate::device::CameraStatus {
             pixel_size_x: var_pixelSizeX,
             pixel_size_y: var_pixelSizeY,
             max_adu: var_maxAdu,
+            saturation_adu: var_saturationAdu,
             can_cool: var_canCool,
             can_set_gain: var_canSetGain,
             can_set_offset: var_canSetOffset,
@@ -13557,6 +13559,7 @@ impl flutter_rust_bridge::IntoDart for crate::device::CameraStatus {
             self.pixel_size_x.into_into_dart().into_dart(),
             self.pixel_size_y.into_into_dart().into_dart(),
             self.max_adu.into_into_dart().into_dart(),
+            self.saturation_adu.into_into_dart().into_dart(),
             self.can_cool.into_into_dart().into_dart(),
             self.can_set_gain.into_into_dart().into_dart(),
             self.can_set_offset.into_into_dart().into_dart(),
@@ -17877,6 +17880,7 @@ impl SseEncode for crate::device::CameraStatus {
         <f64>::sse_encode(self.pixel_size_x, serializer);
         <f64>::sse_encode(self.pixel_size_y, serializer);
         <u32>::sse_encode(self.max_adu, serializer);
+        <Option<u32>>::sse_encode(self.saturation_adu, serializer);
         <bool>::sse_encode(self.can_cool, serializer);
         <bool>::sse_encode(self.can_set_gain, serializer);
         <bool>::sse_encode(self.can_set_offset, serializer);
@@ -22324,6 +22328,7 @@ mod io {
                 pixel_size_x: self.pixel_size_x.cst_decode(),
                 pixel_size_y: self.pixel_size_y.cst_decode(),
                 max_adu: self.max_adu.cst_decode(),
+                saturation_adu: self.saturation_adu.cst_decode(),
                 can_cool: self.can_cool.cst_decode(),
                 can_set_gain: self.can_set_gain.cst_decode(),
                 can_set_offset: self.can_set_offset.cst_decode(),
@@ -25544,6 +25549,7 @@ mod io {
                 pixel_size_x: Default::default(),
                 pixel_size_y: Default::default(),
                 max_adu: Default::default(),
+                saturation_adu: core::ptr::null_mut(),
                 can_cool: Default::default(),
                 can_set_gain: Default::default(),
                 can_set_offset: Default::default(),
@@ -31114,6 +31120,7 @@ mod io {
         pixel_size_x: f64,
         pixel_size_y: f64,
         max_adu: u32,
+        saturation_adu: *mut u32,
         can_cool: bool,
         can_set_gain: bool,
         can_set_offset: bool,
