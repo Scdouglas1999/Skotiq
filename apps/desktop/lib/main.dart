@@ -24,6 +24,7 @@ import 'frame_timing_probe.dart';
 import 'host/host_startup.dart';
 import 'host/host_steps.dart';
 import 'main_headless.dart' as headless;
+import 'startup_timeline.dart';
 
 /// A remote rig the desktop GUI should drive as a thin client instead of
 /// connecting local hardware. Populated from `--remote-host=` / `--remote-port=`
@@ -107,6 +108,7 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
 }
 
 void main(List<String> args) async {
+  startupTimeline.mark('main');
   WidgetsFlutterBinding.ensureInitialized();
   // A role switch restarts the app with --relaunched-from=<pid>. It is about
   // this one start only, so it is not part of how the app was "started".
@@ -187,6 +189,7 @@ void main(List<String> args) async {
     // indefinitely instead of exiting.
     exit(75); // EX_TEMPFAIL — try again once the other instance exits.
   }
+  startupTimeline.mark('single-instance probe');
 
   // The role, decided once for the life of this process. Flags and variables
   // win; without them, the rig the connect flow remembered makes this a linked
@@ -211,12 +214,14 @@ void main(List<String> args) async {
   }
 
   final appVersion = await loadDesktopAppVersion();
+  startupTimeline.mark('role and version');
 
   // Pointed at the app logger once it exists.
   void Function(String message) relaunchLog = (message) =>
       developer.log(message, name: 'desktop.relaunch');
 
   await windowManager.ensureInitialized();
+  startupTimeline.mark('window manager');
 
   final initialSize = initialWindowSize(
     ui.PlatformDispatcher.instance.displays,
@@ -280,6 +285,7 @@ void main(List<String> args) async {
 
   final logger = container.read(loggingServiceProvider);
   await logger.ensureInitialized();
+  startupTimeline.mark('logger');
   relaunchLog = (message) => logger.info(message, source: 'desktop.relaunch');
   if (remoteTarget?.rememberedRig != null) {
     logger.info(
@@ -385,6 +391,7 @@ void main(List<String> args) async {
     await lastGasp.handOffDarkroomWork();
     exit(0);
   });
+  startupTimeline.mark('last-session record');
 
   // The window is prepared while the host start-up's core steps run, so
   // neither waits for the other. It is NOT shown yet: showing a
@@ -415,10 +422,13 @@ void main(List<String> args) async {
   } else {
     await initialiseCatalogManager(logger);
   }
+  startupTimeline.mark('host core steps');
 
   final shouldMinimize = await shouldStartMinimized(container);
+  startupTimeline.mark('start minimized setting');
 
   await windowReady;
+  startupTimeline.mark('window ready');
 
   // Remote-client mode: connect to the headless rig now that the container is
   // live, then invalidate the host-backed providers so they re-fetch against
@@ -445,6 +455,7 @@ void main(List<String> args) async {
     }
     container.invalidate(appSettingsProvider);
     container.invalidate(equipmentProfilesProvider);
+    startupTimeline.mark('linked host connect');
   }
 
   if (host != null) {
@@ -490,12 +501,16 @@ void main(List<String> args) async {
     appRoot = ExcludeSemantics(child: appRoot);
   }
 
+  startupTimeline.mark('runApp');
   runApp(UncontrolledProviderScope(container: container, child: appRoot));
+  unawaited(startupTimeline.reportWhenSettled(logger, 'desktop.main'));
 
   // Reveal the frameless window only after Flutter has built at least one
   // frame so the custom title bar (drag target) and scaffold are present.
   WidgetsBinding.instance.addPostFrameCallback((_) async {
+    startupTimeline.mark('first frame built');
     await windowManager.show();
+    startupTimeline.mark('window shown');
     await windowManager.focus();
     if (shouldMinimize) {
       await windowManager.minimize();
