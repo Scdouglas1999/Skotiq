@@ -31,7 +31,7 @@ use skotiq_imaging::background_extraction::{self, BackgroundConfig};
 use skotiq_imaging::deconvolution::{self, DeconvConfig, PsfEstimateConfig, PsfKind, PsfModel};
 use skotiq_imaging::star_reduction::{self, StarReduceMethod, StarReductionConfig};
 use skotiq_imaging::{
-    carry_source_header, read_fits, write_fits, FitsHeader, ImageData, PixelType,
+    carry_source_header, read_frame, write_fits, FitsHeader, ImageData, PixelType,
 };
 use std::path::Path;
 
@@ -143,7 +143,7 @@ fn extract_background_impl(args: ExtractBackgroundArgs) -> Result<ExtractBackgro
         return Err("outputFits is required".to_string());
     }
 
-    let (image, source_header) = read_fits(Path::new(&args.input_fits))
+    let (image, source_header) = read_frame(Path::new(&args.input_fits))
         .map_err(|e| format!("failed to read '{}': {e:?}", args.input_fits))?;
 
     // Build the config from defaults, overriding only the fields the caller set.
@@ -279,7 +279,7 @@ fn deconvolve_preview_impl(args: DeconvolvePreviewArgs) -> Result<DeconvolvePrev
         return Err("outputFits is required".to_string());
     }
 
-    let (image, header) = read_fits(Path::new(&args.input_fits))
+    let (image, header) = read_frame(Path::new(&args.input_fits))
         .map_err(|e| format!("failed to read '{}': {e:?}", args.input_fits))?;
 
     // Resolve the PSF: estimate from the frame's stars, or render from the
@@ -487,7 +487,7 @@ fn reduce_stars_preview_impl(
         return Err("outputFits is required".to_string());
     }
 
-    let (image, source_header) = read_fits(Path::new(&args.input_fits))
+    let (image, source_header) = read_frame(Path::new(&args.input_fits))
         .map_err(|e| format!("failed to read '{}': {e:?}", args.input_fits))?;
 
     let defaults = StarReductionConfig::default();
@@ -589,7 +589,7 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skotiq_imaging::{add_wcs_headers, read_fits, WcsInfo};
+    use skotiq_imaging::{add_wcs_headers, read_frame, WcsInfo};
     use std::path::PathBuf;
 
     /// A scratch directory that deletes itself when the test ends. Cleanup runs
@@ -717,7 +717,7 @@ mod tests {
         assert!(out_path.exists(), "flattened FITS must be on disk");
 
         // The flattened frame is a real, readable F32 master of the same geometry.
-        let (img, _h) = read_fits(out_path.as_path()).expect("read flattened master");
+        let (img, _h) = read_frame(out_path.as_path()).expect("read flattened master");
         assert_eq!(img.pixel_type, PixelType::F32);
         assert_eq!(img.width, size);
         assert_eq!(img.height, size);
@@ -754,7 +754,7 @@ mod tests {
         assert!(out_path.exists(), "restored FITS must be on disk");
 
         // The restored frame preserves the source pixel type + geometry.
-        let (img, _h) = read_fits(out_path.as_path()).expect("read restored frame");
+        let (img, _h) = read_frame(out_path.as_path()).expect("read restored frame");
         assert_eq!(img.pixel_type, PixelType::F32);
         assert_eq!(img.width, size);
         assert_eq!(img.height, size);
@@ -790,7 +790,7 @@ mod tests {
 
         assert!(result.psf.fwhm.is_finite() && result.psf.fwhm > 0.0);
         assert!(result.psf.size >= 5 && result.psf.size % 2 == 1);
-        let (img, _h) = read_fits(out_path.as_path()).expect("read restored frame");
+        let (img, _h) = read_frame(out_path.as_path()).expect("read restored frame");
         assert_eq!(img.pixel_type, PixelType::F32);
         assert_eq!(img.width, size);
     }
@@ -817,7 +817,7 @@ mod tests {
         assert_eq!(result.output_path, out_path.to_string_lossy());
         assert!(out_path.exists(), "reduced FITS must be on disk");
 
-        let (img, _h) = read_fits(out_path.as_path()).expect("read reduced frame");
+        let (img, _h) = read_frame(out_path.as_path()).expect("read reduced frame");
         assert_eq!(img.pixel_type, PixelType::F32);
         assert_eq!(img.width, size);
         assert_eq!(img.height, size);
@@ -899,7 +899,7 @@ mod tests {
     /// with the same value, in the op's output header. A missing or altered card
     /// leaves the next op in a recipe with no sky reference.
     fn assert_astrometry_survived(source: &FitsHeader, out_path: &Path) {
-        let (_img, out) = read_fits(out_path).expect("read op output");
+        let (_img, out) = read_frame(out_path).expect("read op output");
         for key in [
             "CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CD1_1", "CD1_2", "CD2_1", "CD2_2", "EQUINOX",
             "A_2_0", "B_0_2",
@@ -1005,7 +1005,7 @@ mod tests {
         });
         api_extract_background(args.to_string()).expect("extract background");
 
-        let (_img, out) = read_fits(out_path.as_path()).expect("read flattened master");
+        let (_img, out) = read_frame(out_path.as_path()).expect("read flattened master");
         assert_eq!(
             out.get_float("CRVAL1"),
             None,

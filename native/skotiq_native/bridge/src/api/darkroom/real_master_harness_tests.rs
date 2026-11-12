@@ -231,7 +231,7 @@ fn darkroom_real_composite() {
         api_darkroom_render_export(recipe.to_string(), args.to_string()).expect("export final");
     eprintln!("[darkroom_real] final export: {reply}");
     let (image, _) =
-        skotiq_imaging::read_fits(std::path::Path::new(&final_fits)).expect("read final");
+        skotiq_imaging::read_frame(std::path::Path::new(&final_fits)).expect("read final");
     assert_eq!(image.channels, 3);
     let pixels = image.as_f32().expect("float pixels");
     let n = pixels.len() / 3;

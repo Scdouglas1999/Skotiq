@@ -59,7 +59,7 @@ fn rig_data() -> Option<PathBuf> {
 
 fn load(path: &Path) -> ImageData {
     let (image, _) =
-        skotiq_imaging::read_fits(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        skotiq_imaging::read_frame(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     ImageData {
         width: image.width,
         height: image.height,

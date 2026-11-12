@@ -665,7 +665,7 @@ fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
 /// Returns one slot per requested keyword, in the order asked for; every slot
 /// is empty when the header cannot be read.
 fn fits_header_floats(path: &Path, keys: &[&str]) -> Vec<Option<f64>> {
-    match crate::fits::read_fits_header(path) {
+    match crate::read_frame_header(path) {
         Ok(header) => keys.iter().map(|key| header.get_float(key)).collect(),
         Err(_) => vec![None; keys.len()],
     }

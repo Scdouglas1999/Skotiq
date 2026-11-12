@@ -250,6 +250,39 @@ impl FitsHeader {
             .get(&key.to_uppercase())
             .map(|s| s.as_str())
     }
+
+    /// Every value card in header order: keyword, value, inline comment.
+    pub fn cards(&self) -> impl Iterator<Item = (&str, &FitsValue, Option<&str>)> {
+        self.keyword_order.iter().filter_map(|key| {
+            self.keywords
+                .get(key)
+                .map(|value| (key.as_str(), value, self.get_comment(key)))
+        })
+    }
+}
+
+/// The text of a value as it stands on a card: strings quoted with inner
+/// quotes doubled, numbers as `write_fits` writes them, `T`/`F`.
+pub(crate) fn value_card_text(value: &FitsValue) -> String {
+    match value {
+        FitsValue::String(s) | FitsValue::Comment(s) => format!("'{}'", s.replace('\'', "''")),
+        FitsValue::Integer(i) => i.to_string(),
+        FitsValue::Float(f) => format_fits_float(*f),
+        FitsValue::Boolean(b) => if *b { "T" } else { "F" }.to_string(),
+    }
+}
+
+/// Read value text as it stands on a card, without a comment.
+pub(crate) fn parse_value_card_text(text: &str) -> FitsValue {
+    let t = text.trim();
+    if let Some(body) = t.strip_prefix('\'') {
+        let body = body.strip_suffix('\'').unwrap_or(body);
+        return FitsValue::String(body.replace("''", "'").trim_end().to_string());
+    }
+    match parse_fits_value(t) {
+        Ok(value) if !t.contains('/') => value,
+        _ => FitsValue::String(t.to_string()),
+    }
 }
 
 #[derive(Debug)]
@@ -1446,27 +1479,6 @@ impl WcsInfo {
 /// is what lets other astronomical software map pixel coordinates to RA/Dec.
 pub fn add_wcs_headers(header: &mut FitsHeader, wcs: &WcsInfo) {
     crate::wcs_sip::SipWcs::from(wcs).write_to_header(header);
-}
-
-/// Write a plate solve's WCS into the FITS file at `path`, keeping its pixels
-/// and every other card. The file is rewritten beside itself and moved into
-/// place, so a reader never sees a half-written file.
-pub fn write_wcs_into_fits(path: &Path, wcs: &WcsInfo) -> Result<(), FitsError> {
-    let (image, mut header) = read_fits(path)?;
-    add_wcs_headers(&mut header, wcs);
-    let file_name = path
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| "frame.fits".to_string());
-    let staged = path.with_file_name(format!(".{file_name}.wcs-tmp"));
-    if let Err(e) = write_fits(&staged, &image, &header) {
-        let _ = std::fs::remove_file(&staged);
-        return Err(e);
-    }
-    std::fs::rename(&staged, path).map_err(|e| {
-        let _ = std::fs::remove_file(&staged);
-        FitsError::from(e)
-    })
 }
 
 /// Calculate airmass from true (geometric) altitude.
@@ -4041,7 +4053,7 @@ mod write_wcs_tests {
         write_fits(&path, &image, &header).unwrap();
 
         let wcs = WcsInfo::from_plate_solve(40.1, 42.3, 12.0, 1.46, 400, 300);
-        write_wcs_into_fits(&path, &wcs).unwrap();
+        crate::write_wcs_into_frame(&path, &wcs).unwrap();
 
         let (read_back, parsed) = read_fits(&path).unwrap();
         assert_eq!(parsed.get_float("CRVAL1"), Some(40.1));

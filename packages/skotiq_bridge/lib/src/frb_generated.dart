@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -671445970;
+  int get rustContentHash => 504193357;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -943,10 +943,6 @@ abstract class RustLibApi extends BaseApi {
     required String filePath,
   });
 
-  Future<XisfReadResult> crateApiImagingApiReadXisfFile({
-    required String filePath,
-  });
-
   Future<String> crateApiFinishingEnhanceApiReduceStarsPreview({
     required String argsJson,
   });
@@ -1029,14 +1025,6 @@ abstract class RustLibApi extends BaseApi {
     required int width,
     required int height,
     required List<int> rgba,
-  });
-
-  Future<void> crateApiImagingApiSaveXisfFile({
-    required String filePath,
-    required int width,
-    required int height,
-    required List<int> data,
-    required List<(String, String)> properties,
   });
 
   Future<SecondaryRigStatusApi> crateApiSecondaryRigApiSecondaryRigGetStatus();
@@ -1321,6 +1309,12 @@ abstract class RustLibApi extends BaseApi {
     required int offset,
   });
 
+  Future<void> crateApiImagingApiSetCaptureFileFormat({
+    required String format,
+    required String xisfCompression,
+    required bool xisfChecksums,
+  });
+
   void crateApiStorageApiSetLocation({ObserverLocation? location});
 
   void crateApiDiagnosticsApiSetQhyDiscoveryEnabled({required bool enabled});
@@ -1451,6 +1445,11 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
     required int switchId,
     required double value,
+  });
+
+  Future<void> crateApiImagingApiUpdateFrameCards({
+    required String filePath,
+    required List<FrameCardUpdate> cards,
   });
 
   void crateApiStorageApiUpdateSettings({required AppSettings settings});
@@ -7811,36 +7810,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<XisfReadResult> crateApiImagingApiReadXisfFile({
-    required String filePath,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(filePath);
-          return wire.wire__crate__api__imaging__api_read_xisf_file(
-            port_,
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_xisf_read_result,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingApiReadXisfFileConstMeta,
-        argValues: [filePath],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiReadXisfFileConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_read_xisf_file",
-        argNames: ["filePath"],
-      );
-
-  @override
   Future<String> crateApiFinishingEnhanceApiReduceStarsPreview({
     required String argsJson,
   }) {
@@ -8388,48 +8357,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_save_rgba_png_file",
         argNames: ["filePath", "width", "height", "rgba"],
-      );
-
-  @override
-  Future<void> crateApiImagingApiSaveXisfFile({
-    required String filePath,
-    required int width,
-    required int height,
-    required List<int> data,
-    required List<(String, String)> properties,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(filePath);
-          var arg1 = cst_encode_u_32(width);
-          var arg2 = cst_encode_u_32(height);
-          var arg3 = cst_encode_list_prim_u_16_loose(data);
-          var arg4 = cst_encode_list_record_string_string(properties);
-          return wire.wire__crate__api__imaging__api_save_xisf_file(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingApiSaveXisfFileConstMeta,
-        argValues: [filePath, width, height, data, properties],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiSaveXisfFileConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_save_xisf_file",
-        argNames: ["filePath", "width", "height", "data", "properties"],
       );
 
   @override
@@ -10648,6 +10575,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiImagingApiSetCaptureFileFormat({
+    required String format,
+    required String xisfCompression,
+    required bool xisfChecksums,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(format);
+          var arg1 = cst_encode_String(xisfCompression);
+          var arg2 = cst_encode_bool(xisfChecksums);
+          return wire.wire__crate__api__imaging__api_set_capture_file_format(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiImagingApiSetCaptureFileFormatConstMeta,
+        argValues: [format, xisfCompression, xisfChecksums],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiImagingApiSetCaptureFileFormatConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_set_capture_file_format",
+        argNames: ["format", "xisfCompression", "xisfChecksums"],
+      );
+
+  @override
   void crateApiStorageApiSetLocation({ObserverLocation? location}) {
     return handler.executeSync(
       SyncTask(
@@ -11645,6 +11608,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_switch_set_value",
         argNames: ["deviceId", "switchId", "value"],
+      );
+
+  @override
+  Future<void> crateApiImagingApiUpdateFrameCards({
+    required String filePath,
+    required List<FrameCardUpdate> cards,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(filePath);
+          var arg1 = cst_encode_list_frame_card_update(cards);
+          return wire.wire__crate__api__imaging__api_update_frame_cards(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiImagingApiUpdateFrameCardsConstMeta,
+        argValues: [filePath, cards],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiImagingApiUpdateFrameCardsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_update_frame_cards",
+        argNames: ["filePath", "cards"],
       );
 
   @override
@@ -14476,6 +14472,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameCardUpdate dco_decode_frame_card_update(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return FrameCardUpdate(
+      keyword: dco_decode_String(arr[0]),
+      stringValue: dco_decode_opt_String(arr[1]),
+      intValue: dco_decode_opt_box_autoadd_i_64(arr[2]),
+      doubleValue: dco_decode_opt_box_autoadd_f_64(arr[3]),
+      comment: dco_decode_opt_String(arr[4]),
+    );
+  }
+
+  @protected
   FrameType dco_decode_frame_type(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return FrameType.values[raw as int];
@@ -14719,6 +14730,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<FrameCardUpdate> dco_decode_list_frame_card_update(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frame_card_update).toList();
+  }
+
+  @protected
   List<MountGuardStatus> dco_decode_list_mount_guard_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_mount_guard_status).toList();
@@ -14816,12 +14833,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return (raw as List<dynamic>)
         .map(dco_decode_record_string_map_string_f_64_none)
         .toList();
-  }
-
-  @protected
-  List<(String, String)> dco_decode_list_record_string_string(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>).map(dco_decode_record_string_string).toList();
   }
 
   @protected
@@ -15609,16 +15620,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       throw Exception('Expected 2 elements, got ${arr.length}');
     }
     return (dco_decode_String(arr[0]), dco_decode_Map_String_f_64_None(arr[1]));
-  }
-
-  @protected
-  (String, String) dco_decode_record_string_string(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2) {
-      throw Exception('Expected 2 elements, got ${arr.length}');
-    }
-    return (dco_decode_String(arr[0]), dco_decode_String(arr[1]));
   }
 
   @protected
@@ -16587,23 +16588,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       skyQuality: dco_decode_opt_box_autoadd_f_64(arr[7]),
       skyTemperature: dco_decode_opt_box_autoadd_f_64(arr[8]),
       rainRate: dco_decode_opt_box_autoadd_f_64(arr[9]),
-    );
-  }
-
-  @protected
-  XisfReadResult dco_decode_xisf_read_result(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
-    return XisfReadResult(
-      width: dco_decode_u_32(arr[0]),
-      height: dco_decode_u_32(arr[1]),
-      channels: dco_decode_u_32(arr[2]),
-      displayData: dco_decode_list_prim_u_8_strict(arr[3]),
-      histogram: dco_decode_list_prim_u_32_strict(arr[4]),
-      stats: dco_decode_image_stats_result(arr[5]),
-      properties: dco_decode_list_record_string_string(arr[6]),
     );
   }
 
@@ -18870,6 +18854,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameCardUpdate sse_decode_frame_card_update(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_keyword = sse_decode_String(deserializer);
+    var var_stringValue = sse_decode_opt_String(deserializer);
+    var var_intValue = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_doubleValue = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_comment = sse_decode_opt_String(deserializer);
+    return FrameCardUpdate(
+      keyword: var_keyword,
+      stringValue: var_stringValue,
+      intValue: var_intValue,
+      doubleValue: var_doubleValue,
+      comment: var_comment,
+    );
+  }
+
+  @protected
   FrameType sse_decode_frame_type(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
@@ -19219,6 +19220,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<FrameCardUpdate> sse_decode_list_frame_card_update(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrameCardUpdate>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frame_card_update(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<MountGuardStatus> sse_decode_list_mount_guard_status(
     SseDeserializer deserializer,
   ) {
@@ -19368,20 +19383,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <(String, Map<String, double>)>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_record_string_map_string_f_64_none(deserializer));
-    }
-    return ans_;
-  }
-
-  @protected
-  List<(String, String)> sse_decode_list_record_string_string(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <(String, String)>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_record_string_string(deserializer));
     }
     return ans_;
   }
@@ -20506,16 +20507,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_field0 = sse_decode_String(deserializer);
     var var_field1 = sse_decode_Map_String_f_64_None(deserializer);
-    return (var_field0, var_field1);
-  }
-
-  @protected
-  (String, String) sse_decode_record_string_string(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_field0 = sse_decode_String(deserializer);
-    var var_field1 = sse_decode_String(deserializer);
     return (var_field0, var_field1);
   }
 
@@ -21864,27 +21855,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       skyQuality: var_skyQuality,
       skyTemperature: var_skyTemperature,
       rainRate: var_rainRate,
-    );
-  }
-
-  @protected
-  XisfReadResult sse_decode_xisf_read_result(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_width = sse_decode_u_32(deserializer);
-    var var_height = sse_decode_u_32(deserializer);
-    var var_channels = sse_decode_u_32(deserializer);
-    var var_displayData = sse_decode_list_prim_u_8_strict(deserializer);
-    var var_histogram = sse_decode_list_prim_u_32_strict(deserializer);
-    var var_stats = sse_decode_image_stats_result(deserializer);
-    var var_properties = sse_decode_list_record_string_string(deserializer);
-    return XisfReadResult(
-      width: var_width,
-      height: var_height,
-      channels: var_channels,
-      displayData: var_displayData,
-      histogram: var_histogram,
-      stats: var_stats,
-      properties: var_properties,
     );
   }
 
@@ -23861,6 +23831,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_frame_card_update(
+    FrameCardUpdate self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.keyword, serializer);
+    sse_encode_opt_String(self.stringValue, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.intValue, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.doubleValue, serializer);
+    sse_encode_opt_String(self.comment, serializer);
+  }
+
+  @protected
   void sse_encode_frame_type(FrameType self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
@@ -24179,6 +24162,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_frame_card_update(
+    List<FrameCardUpdate> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frame_card_update(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_mount_guard_status(
     List<MountGuardStatus> self,
     SseSerializer serializer,
@@ -24345,18 +24340,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_record_string_map_string_f_64_none(item, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_list_record_string_string(
-    List<(String, String)> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_record_string_string(item, serializer);
     }
   }
 
@@ -25260,16 +25243,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.$1, serializer);
     sse_encode_Map_String_f_64_None(self.$2, serializer);
-  }
-
-  @protected
-  void sse_encode_record_string_string(
-    (String, String) self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.$1, serializer);
-    sse_encode_String(self.$2, serializer);
   }
 
   @protected
@@ -26421,20 +26394,5 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_f_64(self.skyQuality, serializer);
     sse_encode_opt_box_autoadd_f_64(self.skyTemperature, serializer);
     sse_encode_opt_box_autoadd_f_64(self.rainRate, serializer);
-  }
-
-  @protected
-  void sse_encode_xisf_read_result(
-    XisfReadResult self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_u_32(self.width, serializer);
-    sse_encode_u_32(self.height, serializer);
-    sse_encode_u_32(self.channels, serializer);
-    sse_encode_list_prim_u_8_strict(self.displayData, serializer);
-    sse_encode_list_prim_u_32_strict(self.histogram, serializer);
-    sse_encode_image_stats_result(self.stats, serializer);
-    sse_encode_list_record_string_string(self.properties, serializer);
   }
 }

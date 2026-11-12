@@ -98,9 +98,9 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
         {
             return Err("each delivery filter must have a unique filename-safe label".into());
         }
-        let header = read_fits_header(Path::new(&input.path)).map_err(|e| e.to_string())?;
+        let header = read_frame_header(Path::new(&input.path)).map_err(|e| e.to_string())?;
         let (coverage, coverage_header) =
-            read_fits(Path::new(&input.coverage_path)).map_err(|e| e.to_string())?;
+            read_frame(Path::new(&input.coverage_path)).map_err(|e| e.to_string())?;
         let size = (
             header.get_int("NAXIS1").unwrap_or(0) as u32,
             header.get_int("NAXIS2").unwrap_or(0) as u32,
@@ -158,7 +158,7 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
     let mut planes: std::collections::HashMap<&'static str, (Vec<f32>, FitsHeader)> =
         std::collections::HashMap::new();
     for (input, mut header) in args.masters.iter().zip(loaded) {
-        let (image, _) = read_fits(Path::new(&input.path)).map_err(|e| e.to_string())?;
+        let (image, _) = read_frame(Path::new(&input.path)).map_err(|e| e.to_string())?;
         let pixels = image_to_f64(&image);
         drop(image);
         let c = channels as usize;
@@ -265,16 +265,8 @@ fn write_rgb(
     let xisf = path_stem.with_extension("xisf");
     write_fits(&fits, &image, header)
         .map_err(|e| format!("failed to write '{}': {e:?}", fits.display()))?;
-    let metadata = skotiq_imaging::XisfMetadata {
-        fits_keywords: header
-            .keywords
-            .iter()
-            .map(|(k, v)| (k.clone(), v.to_header_string()))
-            .collect(),
-        ..Default::default()
-    };
-    skotiq_imaging::write_xisf(&xisf, &image, &metadata)
-        .map_err(|e| format!("failed to write '{}': {e:?}", xisf.display()))?;
+    skotiq_imaging::write_frame(&xisf, &image, header)
+        .map_err(|e| format!("failed to write '{}': {e}", xisf.display()))?;
     // The stretched thumbnail the master library shows for the composite,
     // each channel auto-stretched on its own as PixInsight's STF does.
     let png = path_stem.with_extension("png");

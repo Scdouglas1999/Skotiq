@@ -951,8 +951,8 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
         )));
     }
 
-    let (image_data, header) = skotiq_imaging::read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
+    let (image_data, header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
 
     let object_name = header.get_string("OBJECT").map(|s| s.to_string());
     let exposure_time = header.get_float("EXPTIME");
@@ -960,7 +960,13 @@ pub async fn api_read_fits_file(file_path: String) -> Result<FitsReadResult, Sko
     let ra = header.get_float("RA");
     let dec = header.get_float("DEC");
     let date_obs = header.get_string("DATE-OBS").map(|s| s.to_string());
-    let bitpix = header.get_int("BITPIX").unwrap_or(16) as i32;
+    let bitpix = match image_data.pixel_type {
+        skotiq_imaging::PixelType::U8 => 8,
+        skotiq_imaging::PixelType::U16 => 16,
+        skotiq_imaging::PixelType::U32 => 32,
+        skotiq_imaging::PixelType::F32 => -32,
+        skotiq_imaging::PixelType::F64 => -64,
+    };
     let bayer_pattern = header.get_string("BAYERPAT").map(|s| s.to_string());
 
     let stats = skotiq_imaging::calculate_stats_u16(&image_data);
@@ -1019,8 +1025,8 @@ pub async fn api_read_fits_linear_data(
         )));
     }
 
-    let (image_data, header) = skotiq_imaging::read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
+    let (image_data, header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
 
     let object_name = header.get_string("OBJECT").map(|s| s.to_string());
     let exposure_time = header.get_float("EXPTIME");
@@ -1028,7 +1034,13 @@ pub async fn api_read_fits_linear_data(
     let ra = header.get_float("RA");
     let dec = header.get_float("DEC");
     let date_obs = header.get_string("DATE-OBS").map(|s| s.to_string());
-    let bitpix = header.get_int("BITPIX").unwrap_or(16) as i32;
+    let bitpix = match image_data.pixel_type {
+        skotiq_imaging::PixelType::U8 => 8,
+        skotiq_imaging::PixelType::U16 => 16,
+        skotiq_imaging::PixelType::U32 => 32,
+        skotiq_imaging::PixelType::F32 => -32,
+        skotiq_imaging::PixelType::F64 => -64,
+    };
     let bayer_pattern = header.get_string("BAYERPAT").map(|s| s.to_string());
     let linear_data = image_data_to_linear_f64(&image_data);
 
@@ -1111,8 +1123,8 @@ pub async fn api_compute_fits_quality_maps(
         )));
     }
 
-    let (image_data, _header) = skotiq_imaging::read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
+    let (image_data, _header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
     let linear_data = image_data_to_linear_f64(&image_data);
 
     let mut result = compute_quality_maps_from_linear_data(
@@ -1212,8 +1224,8 @@ pub async fn api_detect_stars_in_file(
     tracing::info!("Detecting stars in: {}", file_path);
 
     let path = Path::new(&file_path);
-    let (image_data, _header) = skotiq_imaging::read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
+    let (image_data, _header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
 
     let config = config.unwrap_or_default();
     let detection_config = skotiq_imaging::StarDetectionConfig {
@@ -1349,8 +1361,8 @@ pub async fn api_calculate_auto_stretch(
     use std::path::Path;
 
     let path = Path::new(&file_path);
-    let (image_data, _header) = skotiq_imaging::read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
+    let (image_data, _header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
 
     let params = skotiq_imaging::auto_stretch_stf(&image_data);
 
@@ -1369,8 +1381,8 @@ pub async fn api_apply_stretch(
     use std::path::Path;
 
     let path = Path::new(&file_path);
-    let (image_data, _header) = skotiq_imaging::read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {}", e)))?;
+    let (image_data, _header) = skotiq_imaging::read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
 
     let stretch_params = skotiq_imaging::StretchParams {
         shadows: params.shadows,
@@ -1380,109 +1392,6 @@ pub async fn api_apply_stretch(
 
     let gray = skotiq_imaging::apply_stretch(&image_data, &stretch_params);
     Ok(crate::frame_display::gray_to_rgba(&gray))
-}
-
-// XISF file support
-
-/// XISF file read result
-#[derive(Debug, Clone)]
-pub struct XisfReadResult {
-    pub width: u32,
-    pub height: u32,
-    pub channels: u32,
-    pub display_data: Vec<u8>, // Always RGBA (width*height*4), alpha=255
-    pub histogram: Vec<u32>,
-    pub stats: ImageStatsResult,
-    pub properties: Vec<(String, String)>,
-}
-
-/// Read an XISF file
-pub async fn api_read_xisf_file(file_path: String) -> Result<XisfReadResult, SkotiqError> {
-    use std::path::Path;
-
-    tracing::info!("Reading XISF file: {}", file_path);
-
-    let path = Path::new(&file_path);
-    if !path.exists() {
-        return Err(SkotiqError::IoError(format!(
-            "File not found: {}",
-            file_path
-        )));
-    }
-
-    let (image_data, metadata) = skotiq_imaging::read_xisf(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read XISF: {}", e)))?;
-
-    let stats = skotiq_imaging::calculate_stats_u16(&image_data);
-
-    let display = crate::frame_display::mono(&image_data);
-
-    let properties: Vec<(String, String)> = metadata
-        .properties
-        .iter()
-        .map(|(k, v)| (k.clone(), format!("{:?}", v)))
-        .chain(
-            metadata
-                .fits_keywords
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone())),
-        )
-        .collect();
-
-    tracing::info!(
-        "XISF file loaded: {}x{}x{}",
-        image_data.width,
-        image_data.height,
-        image_data.channels
-    );
-
-    Ok(XisfReadResult {
-        width: image_data.width,
-        height: image_data.height,
-        channels: image_data.channels,
-        display_data: display.rgba,
-        histogram: display.histogram,
-        stats: ImageStatsResult {
-            min: stats.min,
-            max: stats.max,
-            mean: stats.mean,
-            median: stats.median,
-            std_dev: stats.std_dev,
-            // XISF load runs no star detection: honest None for both.
-            hfr: None,
-            eccentricity: None,
-            fwhm: None,
-            star_count: 0,
-        },
-        properties,
-    })
-}
-
-/// Save image as XISF
-pub async fn api_save_xisf_file(
-    file_path: String,
-    width: u32,
-    height: u32,
-    data: Vec<u16>,
-    properties: Vec<(String, String)>,
-) -> Result<(), SkotiqError> {
-    use std::path::Path;
-
-    tracing::info!("Saving XISF file: {}", file_path);
-
-    let image_data = skotiq_imaging::ImageData::from_u16(width, height, 1, &data);
-
-    let mut metadata = skotiq_imaging::XisfMetadata::default();
-    for (key, value) in properties {
-        metadata.fits_keywords.insert(key, value);
-    }
-
-    let path = Path::new(&file_path);
-    skotiq_imaging::write_xisf(path, &image_data, &metadata)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to write XISF: {}", e)))?;
-
-    tracing::info!("XISF file saved: {}", file_path);
-    Ok(())
 }
 
 /// Save image as PNG (16-bit preserving, lossless)
@@ -1691,7 +1600,57 @@ pub async fn api_save_fits_file(
     data: Vec<u16>,
     header_data: FitsWriteHeader,
 ) -> Result<(), SkotiqError> {
-    crate::frame_header::write_frame_fits(file_path, width, height, data, header_data.into()).await
+    crate::frame_header::write_capture_frame(file_path, width, height, data, header_data.into()).await
+}
+
+/// One card to set in a frame file's metadata. Exactly one value is given.
+#[derive(Debug, Clone)]
+pub struct FrameCardUpdate {
+    pub keyword: String,
+    pub string_value: Option<String>,
+    pub int_value: Option<i64>,
+    pub double_value: Option<f64>,
+    pub comment: Option<String>,
+}
+
+/// Set cards in a frame file's metadata, FITS or XISF, keeping its pixels and
+/// everything else it holds. The file is replaced whole, never left half
+/// written.
+pub async fn api_update_frame_cards(
+    file_path: String,
+    cards: Vec<FrameCardUpdate>,
+) -> Result<(), SkotiqError> {
+    tokio::task::spawn_blocking(move || {
+        skotiq_imaging::rewrite_frame_header(std::path::Path::new(&file_path), |header| {
+            for card in &cards {
+                if let Some(v) = &card.string_value {
+                    header.set_string(&card.keyword, v);
+                } else if let Some(v) = card.int_value {
+                    header.set_int(&card.keyword, v);
+                } else if let Some(v) = card.double_value {
+                    header.set_float(&card.keyword, v);
+                }
+                if let Some(comment) = &card.comment {
+                    header.set_comment(&card.keyword, comment);
+                }
+            }
+        })
+    })
+    .await
+    .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {e}")))?
+    .map_err(|e| SkotiqError::ImageError(format!("Could not update the frame's metadata: {e}")))
+}
+
+/// Set the file format captured frames are saved in: `format` is `FITS` or
+/// `XISF`; `xisf_compression` names an XISF codec as its `compression`
+/// attribute does (`zstd+sh`, `lz4`, ...) or `none`.
+pub fn api_set_capture_file_format(
+    format: String,
+    xisf_compression: String,
+    xisf_checksums: bool,
+) -> Result<(), SkotiqError> {
+    crate::capture_file_format::set(&format, &xisf_compression, xisf_checksums)
+        .map_err(SkotiqError::InvalidParameter)
 }
 
 /// Save the device's last captured frame as FITS, without moving its pixels
@@ -1719,7 +1678,7 @@ pub async fn api_save_fits_from_last_capture(
         bayer_pattern: frame.bayer_pattern.map(crate::frame_header::bayerpat),
         ..header_data.into()
     };
-    crate::frame_header::write_frame_fits(file_path, frame.width, frame.height, frame.data, header)
+    crate::frame_header::write_capture_frame(file_path, frame.width, frame.height, frame.data, header)
         .await?;
     tracing::info!("FITS file saved successfully from last capture");
     Ok(())
@@ -1838,15 +1797,50 @@ pub async fn api_generate_fits_thumbnail(
         .map_err(|e| SkotiqError::OperationFailed(format!("Thumbnail task join error: {}", e)))?
 }
 
+/// A grayscale JPEG of an 8-bit display preview, no larger than `max_size`.
+fn encode_preview_jpeg(
+    preview: &skotiq_imaging::ImageData,
+    max_size: u32,
+) -> Result<Vec<u8>, SkotiqError> {
+    use image::ImageEncoder;
+    let channels = preview.channels.max(1) as usize;
+    let scale = preview.width.max(preview.height).div_ceil(max_size.max(1)).max(1);
+    let (w, h) = ((preview.width / scale).max(1), (preview.height / scale).max(1));
+    let mut gray = Vec::with_capacity((w * h) as usize);
+    for y in 0..h {
+        for x in 0..w {
+            let at = ((y * scale) as usize * preview.width as usize + (x * scale) as usize) * channels;
+            let pixel = &preview.data[at..at + channels];
+            gray.push(if channels >= 3 {
+                ((77 * u32::from(pixel[0]) + 150 * u32::from(pixel[1]) + 29 * u32::from(pixel[2]) + 128) >> 8) as u8
+            } else {
+                pixel[0]
+            });
+        }
+    }
+    let mut jpeg = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(std::io::Cursor::new(&mut jpeg), 85)
+        .write_image(&gray, w, h, image::ColorType::L8)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to encode the preview: {e}")))?;
+    Ok(jpeg)
+}
+
 /// The blocking body of [`api_generate_fits_thumbnail`]. Never call this from
 /// an async context without `spawn_blocking`.
 fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8>, SkotiqError> {
-    use skotiq_imaging::read_fits;
+    use skotiq_imaging::read_frame;
     use std::path::Path;
 
     let path = Path::new(file_path);
-    let (image_data, _header) = read_fits(path)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read FITS: {:?}", e)))?;
+    // A stored preview is already stretched; only a full frame is stretched
+    // here. A preview that cannot be read is no reason to fail: the frame is.
+    match skotiq_imaging::read_frame_preview(path, max_size) {
+        Ok(Some(preview)) => return encode_preview_jpeg(&preview, max_size),
+        Ok(None) => {}
+        Err(e) => tracing::debug!("No stored preview in {}: {}", file_path, e),
+    }
+    let (image_data, _header) = read_frame(path)
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {}", e)))?;
 
     let width = image_data.width;
     let height = image_data.height;
@@ -2107,7 +2101,7 @@ pub fn api_calibrate_image_file(
     let out_format = ImageFormat::from_extension(ext).unwrap_or(ImageFormat::Fits);
 
     match out_format {
-        ImageFormat::Fits => {
+        ImageFormat::Fits | ImageFormat::Xisf => {
             // Carry over header from original light, add calibration note.
             // set_value_token, not set_string: the read path flattened each
             // value to header text, and re-quoting it would ship
@@ -2117,31 +2111,18 @@ pub fn api_calibrate_image_file(
                 header.set_value_token(key, value);
             }
             header.set_string("CALSTAT", "calibrated by Skotiq");
-            if let Some(ref path) = dark_path {
-                if !path.is_empty() {
-                    header.set_string("DARKFILE", path);
+            for (card, path) in [
+                ("DARKFILE", &dark_path),
+                ("FLATFILE", &flat_path),
+                ("BIASFILE", &bias_path),
+            ] {
+                if let Some(path) = path.as_deref().filter(|p| !p.is_empty()) {
+                    header.set_string(card, path);
                 }
             }
-            if let Some(ref path) = flat_path {
-                if !path.is_empty() {
-                    header.set_string("FLATFILE", path);
-                }
-            }
-            if let Some(ref path) = bias_path {
-                if !path.is_empty() {
-                    header.set_string("BIASFILE", path);
-                }
-            }
-
-            write_fits(out, &calibrated, &header).map_err(|e| {
-                SkotiqError::ImageError(format!("Failed to write calibrated FITS: {:?}", e))
+            skotiq_imaging::write_frame(out, &calibrated, &header).map_err(|e| {
+                SkotiqError::ImageError(format!("Failed to write the calibrated frame: {e}"))
             })?;
-        }
-        ImageFormat::Xisf => {
-            skotiq_imaging::write_xisf(out, &calibrated, &skotiq_imaging::XisfMetadata::default())
-                .map_err(|e| {
-                    SkotiqError::ImageError(format!("Failed to write calibrated XISF: {:?}", e))
-                })?;
         }
         ImageFormat::Tiff => {
             skotiq_imaging::write_tiff(out, &calibrated).map_err(|e| {

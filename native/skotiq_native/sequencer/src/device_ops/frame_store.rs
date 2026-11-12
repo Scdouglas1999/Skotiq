@@ -32,6 +32,12 @@ pub trait FrameStoreOps: Send + Sync {
         frame_ctx: &crate::scheduling::FrameContext,
     ) -> DeviceResult<()>;
 
+    /// The extension, without the dot, of the file format frames are saved
+    /// in: the host's capture file format setting.
+    fn frame_file_extension(&self) -> &'static str {
+        "fits"
+    }
+
     /// Calculate median HFR from an image
     async fn calculate_image_hfr(&self, image_data: &ImageData) -> DeviceResult<Option<f64>>;
 

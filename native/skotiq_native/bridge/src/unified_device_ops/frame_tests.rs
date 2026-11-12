@@ -214,7 +214,7 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
 
     let fits = walk_fits(dir.path());
     assert_eq!(fits.len(), 1, "expected one light frame, found {fits:?}");
-    let header = skotiq_imaging::read_fits_header(&fits[0]).expect("header");
+    let header = skotiq_imaging::read_frame_header(&fits[0]).expect("header");
     let ra_hours = header.get_float("RA").expect("RA card") / 15.0;
     let dec = header.get_float("DEC").expect("DEC card");
     let off = separation_arcmin((ra_hours, dec), NGC7380_J2000);

@@ -467,6 +467,7 @@ pub(crate) fn build_save_path_renderer(
     let filter_index = config.filter_index;
     let reject_folder_override = context.run.grading.reject_folder_path.clone();
     // ExecutionContext is cheaply Clone-able (every field is `Arc`/`Copy`).
+    let extension = context.run.device_ops.frame_file_extension();
     let mut ctx_snapshot = context.clone();
     // A calibration frame has no target BY NATURE — the shutter is closed or the
     // scope is on a flat panel — so `${target.name}` in the default template
@@ -504,7 +505,8 @@ pub(crate) fn build_save_path_renderer(
             };
             let rendered = interpolate(&effective_template, &ctx_snapshot, &eval)
                 .map_err(|e| e.to_string())?;
-            split_rendered_save_path(&rendered, base_path.as_ref())
+            let (dir, name) = split_rendered_save_path(&rendered, base_path.as_ref())?;
+            Ok((dir, with_frame_extension(&name, extension)))
         };
         let taken = |frame_number: u32| -> Result<bool, String> {
             let (dir, name) = render(frame_number)?;
@@ -532,6 +534,19 @@ pub(crate) fn build_save_path_renderer(
         })?;
         Ok((final_dir, filename))
     }))
+}
+
+/// `name` with the extension of the format frames are saved in. A template
+/// that names a frame format (`.fits`, `.xisf`, ...) or none gets the saved
+/// format's, so the capture format setting decides what lands on disk; any
+/// other extension the user typed is kept and the format's appended.
+fn with_frame_extension(name: &str, extension: &str) -> String {
+    let path = std::path::Path::new(name);
+    if skotiq_imaging::is_frame_path(path) {
+        path.with_extension(extension).to_string_lossy().into_owned()
+    } else {
+        format!("{name}.{extension}")
+    }
 }
 
 /// Split a rendered save path into its directory and filename, resolving a

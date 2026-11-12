@@ -8,7 +8,7 @@
 use crate::api::imaging::FitsWriteHeader;
 use crate::error::SkotiqError;
 use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, FitsHeader, ImageData,
+    calculate_airmass, validate_fits_header, validate_image, write_frame_with, FitsHeader, ImageData,
 };
 use skotiq_sequencer::scheduling::{DefectMapCorrectionRecord, FrameContext};
 
@@ -568,16 +568,17 @@ pub(crate) fn bayerpat(pattern: skotiq_device::BayerPattern) -> String {
 }
 
 /// Write a 16-bit mono frame and its header to `file_path`, creating the
-/// directory. A frame that fails validation is still written: the warnings
-/// are logged, the exposure is kept.
-pub(crate) async fn write_frame_fits(
+/// directory, in the format the path's extension names, encoded as the
+/// capture file format setting says. A frame that fails validation is still
+/// written: the warnings are logged, the exposure is kept.
+pub(crate) async fn write_capture_frame(
     file_path: String,
     width: u32,
     height: u32,
     data: Vec<u16>,
     header: FrameHeader,
 ) -> Result<(), SkotiqError> {
-    tracing::info!("Saving FITS file to: {}", file_path);
+    tracing::info!("Saving frame to: {}", file_path);
 
     let image = ImageData::from_u16(width, height, 1, &data);
     let validation = validate_image(&image, Some(width), Some(height));
@@ -600,10 +601,11 @@ pub(crate) async fn write_frame_fits(
     }
 
     let path = std::path::PathBuf::from(file_path);
-    tokio::task::spawn_blocking(move || write_fits(&path, &image, &header))
+    let options = crate::capture_file_format::current().options;
+    tokio::task::spawn_blocking(move || write_frame_with(&path, &image, &header, &options))
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {}", e)))?
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to write FITS: {}", e)))?;
+        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to save the frame: {}", e)))?;
     Ok(())
 }
 

@@ -14,7 +14,7 @@ use skotiq_imaging::depthlock::input::{
     AcquisitionSettings, CompatibilityPolicy, ReferenceGeometry,
 };
 use skotiq_imaging::depthlock::{MeasurementSpec, SkyRectangle, ESTIMATOR_VERSION};
-use skotiq_imaging::{read_fits, PixelType};
+use skotiq_imaging::{read_frame, PixelType};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -528,7 +528,7 @@ pub async fn api_depthlock_inspect_reference(
 
 fn inspect_reference(path: &str) -> Result<ApiDepthReferenceInfo, String> {
     let (image, header) =
-        read_fits(Path::new(path)).map_err(|e| format!("Cannot read {path}: {e}"))?;
+        read_frame(Path::new(path)).map_err(|e| format!("Cannot read {path}: {e}"))?;
     let geometry = ReferenceGeometry::from_header(&header, image.width, image.height);
     let acquisition = skotiq_imaging::depthlock::input::light_settings(&header);
     Ok(ApiDepthReferenceInfo {
@@ -570,7 +570,7 @@ pub async fn api_depthlock_suggest_floor(
     pixel_scale_arcsec: Option<f64>,
 ) -> Result<ApiDepthFloorSuggestion, SkotiqError> {
     tokio::task::spawn_blocking(move || {
-        let (light, header) = read_fits(Path::new(&reference_path))
+        let (light, header) = read_frame(Path::new(&reference_path))
             .map_err(|e| format!("Cannot read {reference_path}: {e}"))?;
         let pixel_scale = match pixel_scale_arcsec {
             Some(scale) => scale,
@@ -584,9 +584,9 @@ pub async fn api_depthlock_suggest_floor(
         {
             return Err("Aperture scale and reference pixel scale must be positive".to_string());
         }
-        let (dark, _) = read_fits(Path::new(&dark_path))
+        let (dark, _) = read_frame(Path::new(&dark_path))
             .map_err(|e| format!("Cannot read master dark {dark_path}: {e}"))?;
-        let (flat, _) = read_fits(Path::new(&flat_path))
+        let (flat, _) = read_frame(Path::new(&flat_path))
             .map_err(|e| format!("Cannot read master flat {flat_path}: {e}"))?;
         let suggestion = skotiq_imaging::depthlock::input::suggest_floor(
             &dark,

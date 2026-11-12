@@ -188,7 +188,7 @@ impl CameraDriver for FixedFrameCamera {
 fn rig_crop() -> (u32, u32, Vec<u16>) {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../test-fixtures/rig-2026-09-14/focused_L_0005.fits");
-    let (image, _) = skotiq_imaging::read_fits(&path).expect("read rig crop");
+    let (image, _) = skotiq_imaging::read_frame(&path).expect("read rig crop");
     let data = image
         .data
         .as_chunks::<2>()

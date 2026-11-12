@@ -33,7 +33,7 @@ fn session_subs(captures: &str, filter: &str, from: &str) -> Vec<(String, f64, S
                 && name.contains(&format!("_{filter}_"))
         })
         .filter_map(|p| {
-            let header = read_fits_header(&p).ok()?;
+            let header = read_frame_header(&p).ok()?;
             let date = header.get_string("DATE-OBS")?.trim().to_string();
             let exposure = header.get_float("EXPTIME")?;
             (date.as_str() >= from).then(|| (p.to_string_lossy().into_owned(), exposure, date))
@@ -187,7 +187,7 @@ fn passviz_capture_real_pass() {
     // geometry an align-channels stage would report.
     let anchor_path = format!("{out_dir}/{}_master.fits", filters[0]);
     // Registration reads U16 frames; the masters are F32 in ADU.
-    let (anchor, _) = read_fits(Path::new(&anchor_path)).expect("read anchor master");
+    let (anchor, _) = read_frame(Path::new(&anchor_path)).expect("read anchor master");
     let anchor = clipped_u16(&anchor);
     // More anchor stars than a sub-to-sub fit uses: two filters' brightest
     // stars overlap less than two subs of one filter.
@@ -199,7 +199,7 @@ fn passviz_capture_real_pass() {
     let mut fits = Vec::new();
     for filter in filters.iter().skip(1) {
         let (master, _) =
-            read_fits(Path::new(&format!("{out_dir}/{filter}_master.fits"))).expect("read master");
+            read_frame(Path::new(&format!("{out_dir}/{filter}_master.fits"))).expect("read master");
         let master = clipped_u16(&master);
         let started = std::time::Instant::now();
         let entry = match solve_registration(&anchor, &master, &config) {

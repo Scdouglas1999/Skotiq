@@ -193,7 +193,7 @@ fn a_missing_file_reports_the_read_failure() {
 
     let error = generate_fits_thumbnail_jpeg(&missing, 128).expect_err("must fail");
     assert!(
-        format!("{error:?}").contains("Failed to read FITS"),
+        format!("{error:?}").contains("Failed to read the image"),
         "unexpected error: {error:?}"
     );
 }

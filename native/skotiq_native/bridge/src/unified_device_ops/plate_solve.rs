@@ -59,7 +59,7 @@ impl PlateSolveOps for UnifiedDeviceOps {
             ..Default::default()
         };
 
-        crate::frame_header::write_frame_fits(
+        crate::frame_header::write_capture_frame(
             temp_path.clone(),
             image_data.width,
             image_data.height,

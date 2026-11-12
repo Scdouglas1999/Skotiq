@@ -56,7 +56,8 @@ mod stats;
 mod stretch;
 mod trail; // Star trailing from the autocorrelation of the bright pixels
 pub mod wcs_sip; // NEW: SIP-aware (CD + forward/inverse SIP) gnomonic projection
-mod xisf;
+pub mod xisf;
+mod frame_io;
 
 pub use background_extraction::*; // NEW: Export background-extraction types
 pub use buffer_pool::*;
@@ -90,7 +91,11 @@ pub use stats::*;
 pub use stretch::*;
 pub use trail::{measure_frame_trail, FrameTrail, TRAIL_MIN_AXIS_RATIO};
 pub use wcs_sip::*; // NEW: Export SIP-aware projection types
-pub use xisf::*;
+pub use frame_io::*;
+pub use xisf::{
+    read_xisf_unit, ChecksumAlgorithm, XisfCodec, XisfCompression, XisfError, XisfUnit,
+    XisfWriteOptions,
+};
 
 use rayon::prelude::*;
 
@@ -137,7 +142,7 @@ impl ImageFormat {
     pub fn from_extension(ext: &str) -> Option<Self> {
         match ext.to_lowercase().as_str() {
             "fits" | "fit" | "fts" => Some(ImageFormat::Fits),
-            "xisf" => Some(ImageFormat::Xisf),
+            "xisf" | "xish" => Some(ImageFormat::Xisf),
             "tiff" | "tif" => Some(ImageFormat::Tiff),
             "png" => Some(ImageFormat::Png),
             "jpg" | "jpeg" => Some(ImageFormat::Jpeg),
@@ -761,114 +766,25 @@ pub fn write_jpeg(path: &std::path::Path, image: &ImageData, quality: u8) -> Res
     Ok(())
 }
 
-/// Read an image file (auto-detect format)
+/// Read an image file in any format the app opens, with its metadata
+/// flattened to value text.
 pub fn read_image(path: &std::path::Path) -> Result<ImageReadResult, String> {
-    // Why: path with no extension OR with a non-UTF-8 extension
-    // returns empty string; `ImageFormat::from_extension("")` returns None and the
-    // ?-propagating ok_or_else fails CLOSED with "Unsupported file extension:" on the
-    // next line. Silent fallback to empty is the correct funneling into the error
-    // path.
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-    let format = ImageFormat::from_extension(ext)
-        .ok_or_else(|| format!("Unsupported file extension: {}", ext))?;
-
-    match format {
-        ImageFormat::Fits => {
-            let (image, fits_header) = read_fits(path).map_err(|e| e.to_string())?;
-
-            // Why: read the typed Bayer geometry BEFORE `fits_header.keywords`
-            // is consumed into the flattened HashMap below. The flattened form
-            // is value text with the type discarded, so the typed header is the
-            // only place the geometry can be parsed without guessing.
-            let bayer = read_bayer_geometry(&fits_header);
-
-            let header: std::collections::HashMap<String, String> = fits_header
-                .keywords
-                .into_iter()
-                .map(|(k, v)| (k, v.to_header_string()))
-                .collect();
-
-            Ok(ImageReadResult {
-                image,
-                format,
-                header,
-                bayer,
-            })
-        }
-        ImageFormat::Xisf => {
-            let (image, xisf_metadata) = read_xisf(path).map_err(|e| e.to_string())?;
-
-            // `fits_keywords` already arrive as on-card value text; the XISF
-            // properties are typed, so they get the same treatment the FITS
-            // branch gives `FitsValue`.
-            let mut header: std::collections::HashMap<String, String> = xisf_metadata.fits_keywords;
-            for (k, v) in xisf_metadata.properties {
-                header.insert(k, v.to_header_string());
-            }
-
-            Ok(ImageReadResult {
-                image,
-                format,
-                header,
-                // Why: the XISF reader exposes CFA metadata only as flattened FITS
-                // keywords/properties (already in `header`); there is no typed
-                // geometry parse on this path, so we report `None` rather than
-                // guess from the stringified values. OSC detection for XISF is
-                // handled separately at the metadata layer.
-                bayer: None,
-            })
-        }
-        ImageFormat::CanonCR2
-        | ImageFormat::CanonCR3
-        | ImageFormat::NikonNEF
-        | ImageFormat::SonyARW
-        | ImageFormat::FujifilmRAF
-        | ImageFormat::PentaxPEF
-        | ImageFormat::OlympusORF
-        | ImageFormat::PanasonicRW2
-        | ImageFormat::GenericRAW => {
-            let (image, raw_metadata) = read_raw(path, None).map_err(|e| e.to_string())?;
-
-            let mut header = std::collections::HashMap::new();
-            header.insert("MAKE".to_string(), raw_metadata.camera_make);
-            header.insert("MODEL".to_string(), raw_metadata.camera_model);
-
-            if let Some(iso) = raw_metadata.iso_speed {
-                header.insert("ISO".to_string(), iso.to_string());
-            }
-            if let Some(shutter) = raw_metadata.shutter_speed {
-                header.insert("EXPTIME".to_string(), shutter.to_string());
-            }
-            if let Some(aperture) = raw_metadata.aperture {
-                header.insert("APERTURE".to_string(), aperture.to_string());
-            }
-            if let Some(focal) = raw_metadata.focal_length {
-                header.insert("FOCALLEN".to_string(), focal.to_string());
-            }
-            if let Some(ts) = raw_metadata.timestamp {
-                if let Some(dt) = chrono::DateTime::<chrono::Utc>::from_timestamp(ts, 0) {
-                    header.insert("DATETIME".to_string(), dt.to_rfc3339());
-                } else {
-                    header.insert("DATETIME".to_string(), ts.to_string());
-                }
-            }
-
-            Ok(ImageReadResult {
-                image,
-                format,
-                header,
-                // Why: LibRaw decodes RAW frames into the demosaiced RGB image
-                // already (the returned `image` is not a CFA mosaic), so there is
-                // no Bayer geometry to apply downstream — `None` is correct here.
-                bayer: None,
-            })
-        }
-        _ => Err(format!(
-            "Reading {:?} is not supported by the current image reader pipeline",
-            format
-        )),
-    }
+    let format = frame_format(path).map_err(|e| e.to_string())?;
+    let (image, header) = read_frame(path).map_err(|e| e.to_string())?;
+    // Read the typed Bayer geometry before the header is flattened: the
+    // flattened form has lost the types it is parsed from.
+    let bayer = read_bayer_geometry(&header);
+    let flattened = header
+        .keywords
+        .into_iter()
+        .map(|(k, v)| (k, v.to_header_string()))
+        .collect();
+    Ok(ImageReadResult {
+        image,
+        format,
+        header: flattened,
+        bayer,
+    })
 }
 
 #[cfg(test)]

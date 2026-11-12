@@ -1,7 +1,7 @@
 use super::{
     altitude_degrees, build_rich_header, context_altitude_pointing, MountPointing, UnifiedDeviceOps,
 };
-use skotiq_imaging::read_fits;
+use skotiq_imaging::read_frame;
 use skotiq_sequencer::scheduling::FrameContext;
 use skotiq_sequencer::ImageData;
 use std::path::{Path, PathBuf};
@@ -76,7 +76,7 @@ async fn untargeted_frame_carries_the_mount_pointing() {
 
     let scratch = temp_scratch_dir("untargeted");
     let path = scratch.as_ref().join("untargeted_0001.fits");
-    crate::frame_header::write_frame_fits(
+    crate::frame_header::write_capture_frame(
         path.to_string_lossy().to_string(),
         4,
         4,
@@ -86,7 +86,7 @@ async fn untargeted_frame_carries_the_mount_pointing() {
     .await
     .expect("FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&path).expect("FITS read-back should succeed");
+    let (_image, parsed) = read_frame(&path).expect("FITS read-back should succeed");
 
     // The numeric RA card is degrees by universal convention; internal RA
     // is hours.
@@ -140,7 +140,7 @@ async fn mountless_sequencer_frame_keeps_its_altitude_through_the_save_path() {
 
     let scratch = temp_scratch_dir("mountless_save_path");
     let path = scratch.as_ref().join("mountless_0001.fits");
-    crate::frame_header::write_frame_fits(
+    crate::frame_header::write_capture_frame(
         path.to_string_lossy().to_string(),
         4,
         4,
@@ -150,7 +150,7 @@ async fn mountless_sequencer_frame_keeps_its_altitude_through_the_save_path() {
     .await
     .expect("FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&path).expect("FITS read-back should succeed");
+    let (_image, parsed) = read_frame(&path).expect("FITS read-back should succeed");
 
     let alt = parsed
         .get_float("OBJCTALT")
@@ -242,7 +242,7 @@ async fn database_row_and_fits_header_agree_for_the_same_frame() {
     let header = build_rich_header(&tiny_frame(), &ctx, None);
     let scratch = temp_scratch_dir("agree");
     let path = scratch.as_ref().join("agree_0007.fits");
-    crate::frame_header::write_frame_fits(
+    crate::frame_header::write_capture_frame(
         path.to_string_lossy().to_string(),
         4,
         4,
@@ -251,7 +251,7 @@ async fn database_row_and_fits_header_agree_for_the_same_frame() {
     )
     .await
     .expect("FITS save should succeed");
-    let (_image, parsed) = read_fits(&path).expect("FITS read-back should succeed");
+    let (_image, parsed) = read_frame(&path).expect("FITS read-back should succeed");
 
     assert_eq!(
         parsed.get_int("GAIN").map(|g| g as i32),
@@ -450,7 +450,7 @@ async fn save_fits_writes_the_header_from_its_own_frame_context() {
         .await
         .expect("save should succeed");
 
-    let (_image, parsed) = read_fits(&path).expect("FITS read-back should succeed");
+    let (_image, parsed) = read_frame(&path).expect("FITS read-back should succeed");
 
     assert_eq!(parsed.get_int("GAIN").map(|g| g as i32), Some(139));
     assert_eq!(parsed.get_int("OFFSET").map(|o| o as i32), Some(21));
@@ -533,7 +533,7 @@ async fn save_fits_derives_the_altitude_at_the_exposure_midpoint() {
         .await
         .expect("save should succeed");
 
-    let (_image, parsed) = read_fits(&path).expect("FITS read-back should succeed");
+    let (_image, parsed) = read_frame(&path).expect("FITS read-back should succeed");
     let recorded = parsed
         .get_float("OBJCTALT")
         .expect("OBJCTALT card must be present");

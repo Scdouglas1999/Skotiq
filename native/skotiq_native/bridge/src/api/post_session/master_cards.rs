@@ -29,12 +29,12 @@ fn copy_card(to: &mut FitsHeader, from: &FitsHeader, key: &str) -> bool {
     true
 }
 
-/// The typed FITS header of `path`, or `None` for a non-FITS or unreadable file.
+/// The typed header of a FITS or XISF frame at `path`, or `None` for another
+/// or unreadable file.
 pub(crate) fn fits_header_of(path: &str) -> Option<FitsHeader> {
     let p = Path::new(path.trim());
-    let ext = p.extension()?.to_str()?.to_ascii_lowercase();
-    matches!(ext.as_str(), "fits" | "fit" | "fts")
-        .then(|| read_fits_header(p).ok())
+    skotiq_imaging::is_frame_path(p)
+        .then(|| read_frame_header(p).ok())
         .flatten()
 }
 
@@ -101,7 +101,7 @@ pub(crate) fn attach_wcs(
         });
     }
     let sidecar = Path::new(grid_path.trim()).with_extension("wcs");
-    if let Some(solve) = read_fits_header(&sidecar).ok().filter(has_wcs) {
+    if let Some(solve) = read_frame_header(&sidecar).ok().filter(has_wcs) {
         copy_wcs(header, &solve);
         return Some(WcsAttachment {
             description: format!("WCS from {}", sidecar.display()),

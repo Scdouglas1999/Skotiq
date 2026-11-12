@@ -782,25 +782,19 @@ pub(crate) struct BuildMasterFlatResult {
     pub(crate) excluded: Vec<ExcludedFlat>,
 }
 
-// Keep non-FITS inputs supported by the existing image reader. Metadata
-// validation is possible only when the input supplies typed FITS cards.
+// A format without typed metadata (a TIFF, a camera raw) gives an empty
+// header, so the validation below has nothing to compare.
 fn flat_metadata(path: &str) -> Result<FitsHeader, String> {
     let path = Path::new(path);
-    match path
-        .extension()
-        .and_then(|s| s.to_str())
-        .unwrap_or("")
-        .to_ascii_lowercase()
-        .as_str()
-    {
-        "fits" | "fit" | "fts" => read_fits_header(path).map_err(|e| {
-            format!(
-                "failed to read calibration metadata '{}': {e}",
-                path.display()
-            )
-        }),
-        _ => Ok(FitsHeader::new()),
+    if !skotiq_imaging::is_frame_path(path) {
+        return Ok(FitsHeader::new());
     }
+    read_frame_header(path).map_err(|e| {
+        format!(
+            "failed to read calibration metadata '{}': {e}",
+            path.display()
+        )
+    })
 }
 
 fn validate_flat_pedestal(flat: &FitsHeader, pedestal: &FitsHeader) -> Result<(), String> {

@@ -33,7 +33,7 @@ use skotiq_imaging::drizzle::{
 };
 use skotiq_imaging::registration::{TransformKind, TransformModel};
 use skotiq_imaging::{
-    copy_astrometry_headers, read_bayer_geometry, read_fits, write_fits, FitsHeader, ImageData,
+    copy_astrometry_headers, read_bayer_geometry, read_frame, write_fits, FitsHeader, ImageData,
     PixelType,
 };
 use std::path::Path;
@@ -271,7 +271,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
     // SAME dark/flat/bias the standard integrate pass applied — otherwise the
     // drizzled FITS that `_runDrizzle` swaps in as THE persisted master would be
     // a raw, uncalibrated deposit (amp glow, hot pixels, vignetting, dust). We
-    // read the masters with `read_fits` (NOT the auto-debayering `read_image`):
+    // read the masters with `read_frame` (NOT the auto-debayering `read_image`):
     // calibration is per-raw-pixel and must run on the same single-channel
     // geometry the (raw, Bayer or mono) sub carries, before any debayer/warp.
     let calibrate = args.calibration.is_active();
@@ -294,7 +294,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
         if fa.fits_path.trim().is_empty() {
             return Err("a drizzle frame has an empty fitsPath".to_string());
         }
-        let (mut image, header) = read_fits(Path::new(&fa.fits_path))
+        let (mut image, header) = read_frame(Path::new(&fa.fits_path))
             .map_err(|e| format!("failed to read '{}': {e:?}", fa.fits_path))?;
         let transform = transform_from_row_major(&fa.transform)
             .map_err(|e| format!("frame '{}': {e}", fa.fits_path))?;
@@ -580,7 +580,7 @@ fn combine_channels_impl(args: CombineChannelsArgs) -> Result<CombineChannelsRes
     let inputs: Vec<(ImageData, FitsHeader)> = args
         .inputs
         .iter()
-        .map(|p| read_fits(Path::new(p)).map_err(|e| format!("failed to read '{p}': {e:?}")))
+        .map(|p| read_frame(Path::new(p)).map_err(|e| format!("failed to read '{p}': {e:?}")))
         .collect::<Result<_, _>>()?;
     let images: Vec<&ImageData> = inputs.iter().map(|(image, _)| image).collect();
 
@@ -661,7 +661,7 @@ fn combine_channels_impl(args: CombineChannelsArgs) -> Result<CombineChannelsRes
 
 /// Read an optional calibration master by path. Empty / `None` → `Ok(None)`.
 ///
-/// Reads with [`read_fits`] (NOT the auto-debayering `read_image`): the drizzle
+/// Reads with [`read_frame`] (NOT the auto-debayering `read_image`): the drizzle
 /// calibration runs on the raw, single-channel (Bayer) or RGB/mono sub geometry,
 /// so the master must keep the same raw layout. Mirrors the `load_optional_master`
 /// in [`crate::api::post_session`]; duplicated here so this module stays
@@ -669,7 +669,7 @@ fn combine_channels_impl(args: CombineChannelsArgs) -> Result<CombineChannelsRes
 fn load_optional_master(path: &Option<String>, label: &str) -> Result<Option<ImageData>, String> {
     match path {
         Some(p) if !p.trim().is_empty() => {
-            let (image, _header) = read_fits(Path::new(p))
+            let (image, _header) = read_frame(Path::new(p))
                 .map_err(|e| format!("failed to read {label} master '{p}': {e:?}"))?;
             Ok(Some(image))
         }
@@ -685,7 +685,7 @@ fn load_optional_flat_raw(
 ) -> Result<Option<crate::api::post_session::FlatMaster>, String> {
     match path {
         Some(p) if !p.trim().is_empty() => {
-            let (image, header) = read_fits(Path::new(p))
+            let (image, header) = read_frame(Path::new(p))
                 .map_err(|e| format!("failed to read flat master '{p}': {e:?}"))?;
             let pedestal = crate::api::post_session::flat_pedestal_state(&image, Some(&header));
             Ok(Some(crate::api::post_session::FlatMaster {
@@ -892,11 +892,11 @@ mod tests {
         assert!(cov_png_path.exists(), "coverage preview must be on disk");
         assert!(png_path.exists(), "drizzle preview PNG must be on disk");
 
-        let (master, _h) = read_fits(out_path.as_path()).expect("read drizzle master");
+        let (master, _h) = read_frame(out_path.as_path()).expect("read drizzle master");
         assert_eq!(master.pixel_type, PixelType::F32);
         assert_eq!(master.width, result.out_width);
         assert_eq!(master.channels, 1);
-        let (cov, _hc) = read_fits(cov_path.as_path()).expect("read coverage map");
+        let (cov, _hc) = read_frame(cov_path.as_path()).expect("read coverage map");
         assert_eq!(cov.channels, 1, "coverage is a single-channel map");
         // The preview decodes as an 8-bit image of the scaled master geometry.
         let preview = image::open(&png_path).expect("decode drizzle preview");
@@ -1013,8 +1013,8 @@ mod tests {
         let cal_resp = api_drizzle_integrate(cal_args.to_string()).expect("calibrated drizzle");
         let _: DrizzleIntegrateResult = serde_json::from_str(&cal_resp).unwrap();
 
-        let (raw_master, _h0) = read_fits(raw_out.as_path()).expect("read raw master");
-        let (cal_master, _h1) = read_fits(cal_out.as_path()).expect("read calibrated master");
+        let (raw_master, _h0) = read_frame(raw_out.as_path()).expect("read raw master");
+        let (cal_master, _h1) = read_frame(cal_out.as_path()).expect("read calibrated master");
 
         let out_h = raw_master.height as usize;
         // Sample bands well inside each region (away from the half-split seam and
@@ -1169,7 +1169,7 @@ mod tests {
         assert!(result.coverage_path.is_none(), "no coverage requested");
         assert!(result.preview_png_path.is_none(), "no preview requested");
 
-        let (master, _h) = read_fits(out_path.as_path()).expect("read bayer drizzle master");
+        let (master, _h) = read_frame(out_path.as_path()).expect("read bayer drizzle master");
         assert_eq!(master.pixel_type, PixelType::F32);
         assert_eq!(master.channels, 3);
     }
@@ -1213,7 +1213,7 @@ mod tests {
         assert!(out_path.exists(), "composite must be on disk");
 
         // The composite is a real, readable 3-channel F32 FITS of the same geometry.
-        let (img, _h) = read_fits(out_path.as_path()).expect("read composite");
+        let (img, _h) = read_frame(out_path.as_path()).expect("read composite");
         assert_eq!(img.pixel_type, PixelType::F32);
         assert_eq!(img.width, size);
         assert_eq!(img.height, size);
@@ -1243,7 +1243,7 @@ mod tests {
         let resp = api_combine_channels(args.to_string()).expect("combine explicit");
         let result: CombineChannelsResult = serde_json::from_str(&resp).unwrap();
         assert_eq!(result.width, size);
-        let (img, _h) = read_fits(out_path.as_path()).expect("read composite");
+        let (img, _h) = read_frame(out_path.as_path()).expect("read composite");
         assert_eq!(img.channels, 3);
     }
 
@@ -1366,7 +1366,7 @@ mod tests {
         });
         api_combine_channels(args.to_string()).expect("combine");
 
-        let (img, out) = read_fits(out_path.as_path()).expect("read composite");
+        let (img, out) = read_frame(out_path.as_path()).expect("read composite");
         assert_eq!(img.channels, 3);
         for key in ["CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CD1_1", "CD2_2"] {
             let want = match key {

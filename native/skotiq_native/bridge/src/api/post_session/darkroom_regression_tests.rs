@@ -161,7 +161,7 @@ fn a_master_flat_combines_auto_exposed_flats() {
     .expect("auto-exposed flats with a bias build a master");
     let v: serde_json::Value = serde_json::from_str(&r).unwrap();
     assert_eq!(v["frameCount"], 3, "{v}");
-    let (master, header) = read_fits(&out).unwrap();
+    let (master, header) = read_frame(&out).unwrap();
     let px = image_to_f64(&master);
     let mean = px.iter().sum::<f64>() / px.len() as f64;
     assert!((mean - 1.0).abs() < 1e-3, "unit mean, got {mean}");
@@ -343,7 +343,7 @@ fn low_background_build(cosmetic: bool) {
     .unwrap();
     let v: serde_json::Value = serde_json::from_str(&build).unwrap();
     assert_eq!(v["frameCount"], 4, "{v}");
-    let (cov, ch) = read_fits(&dir.join("Ha.cov.fits")).unwrap();
+    let (cov, ch) = read_frame(&dir.join("Ha.cov.fits")).unwrap();
     let n = ch.get_int("NFRAMES").unwrap() as f64;
     let c = image_to_f64(&cov);
     let holes = (20..(h as usize - 20))
@@ -352,7 +352,7 @@ fn low_background_build(cosmetic: bool) {
         .count();
     // The master keeps the faint sky: its median sits near the 21 ADU above
     // bias, neither clipped toward zero nor carrying the calibration pedestal.
-    let (master, _) = read_fits(&dir.join("Ha.master.fits")).unwrap();
+    let (master, _) = read_frame(&dir.join("Ha.master.fits")).unwrap();
     let mut m = image_to_f64(&master);
     m.sort_by(f64::total_cmp);
     let sky = m[m.len() / 2];
@@ -423,7 +423,7 @@ fn satellite_build(dir: &Path, reversed: bool) -> Vec<f64> {
         .to_string(),
     )
     .unwrap();
-    image_to_f64(&read_fits(&master).unwrap().0)
+    image_to_f64(&read_frame(&master).unwrap().0)
 }
 
 /// The batch rejection removes a satellite trail in the first sub, and the
@@ -644,7 +644,7 @@ fn delivery_writes_linear_masters_and_composites() {
     .unwrap();
     let crop = r["crop"].as_array().unwrap();
     let (x0, y0) = (crop[0].as_f64().unwrap(), crop[1].as_f64().unwrap());
-    let (l, header) = read_fits(&out.join("L-0_master_linear.fits")).unwrap();
+    let (l, header) = read_frame(&out.join("L-0_master_linear.fits")).unwrap();
     assert_eq!(header.get_float("CRPIX1"), Some(160.5 - x0));
     assert_eq!(header.get_float("CRPIX2"), Some(120.5 - y0));
     assert_eq!(header.get_float("FOCALLEN"), Some(530.0));
@@ -670,7 +670,7 @@ fn delivery_writes_linear_masters_and_composites() {
         assert!(Path::new(path).exists(), "{path}");
     }
     let (rgb, rgb_header) =
-        read_fits(Path::new(r["composites"]["rgbPath"].as_str().unwrap())).unwrap();
+        read_frame(Path::new(r["composites"]["rgbPath"].as_str().unwrap())).unwrap();
     assert_eq!(rgb.channels, 3);
     assert!(rgb_header.get_float("CRVAL1").is_some());
     // The composites carry color thumbnails the size of the crop, so the
