@@ -34,6 +34,19 @@ abstract interface class DeviceConnectionNotifier {
   /// device afterwards but shows the failure, naming the device that failed
   /// so it can be tried again.
   void connectFailed(Object error);
+
+  /// Show the imaging host's state of this slot, on a linked client.
+  ///
+  /// [readings] is the slot's `SlotReadings.decode` bound to the host's
+  /// values, applied in the same state change as the connection half so a
+  /// card rebuilds once per update.
+  void mirrorHost({
+    required DeviceConnectionState connectionState,
+    required String? deviceId,
+    required String? deviceName,
+    required DeviceError? lastError,
+    Object? Function(Object? current)? readings,
+  });
 }
 
 /// The connection half of every device notifier: connect with retry,
@@ -157,6 +170,46 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
       autoReconnectEnabled: state.autoReconnectEnabled,
       lastError: DeviceError.fromException(error, deviceId: state.deviceId),
     );
+  }
+
+  @override
+  void mirrorHost({
+    required DeviceConnectionState connectionState,
+    required String? deviceId,
+    required String? deviceName,
+    required DeviceError? lastError,
+    Object? Function(Object? current)? readings,
+  }) {
+    if (deviceId == null) {
+      // An empty host slot empties this one. A slot already empty keeps what
+      // it shows: a connect tried from here that failed says why.
+      if (state.deviceId != null) setDisconnected();
+      if (lastError == null) return;
+    } else if (state.deviceId != deviceId ||
+        (state.connectionState != connectionState &&
+            connectionState != DeviceConnectionState.error)) {
+      // Through the slot's own transitions, which a device hangs work on.
+      if (state.deviceId != deviceId ||
+          connectionState == DeviceConnectionState.connecting) {
+        setConnecting(deviceId, deviceName);
+      }
+      if (connectionState == DeviceConnectionState.connected) setConnected();
+    }
+    final shown = state.lastError;
+    var next = state.copyWith(
+      connectionState: connectionState,
+      deviceName: deviceName,
+      lastError:
+          shown != null &&
+              lastError != null &&
+              shown.type == lastError.type &&
+              shown.message == lastError.message
+          ? shown
+          : lastError,
+      clearError: lastError == null,
+    );
+    if (readings != null && deviceId != null) next = readings(next) as S;
+    if (next != state) state = next;
   }
 
   bool _isCurrent(int revision) => mounted && revision == _connectionRevision;

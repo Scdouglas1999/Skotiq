@@ -40,12 +40,21 @@ class ClientRuntimeMirrorState {
 
   bool hasApplied(String channel) => _applied.containsKey(channel);
 
+  /// Whether the host has sent a value for [channel], null included. A host
+  /// older than the channel never does.
+  bool hostPublishes(String channel) => _revisions.containsKey(channel);
+
   /// True while a host update is being written into [channel]'s provider.
   bool isApplying(String channel) => _applying.contains(channel);
+
+  /// Whether the operator has been told this host is older than some of
+  /// the channels.
+  bool olderHostNoticed = false;
 
   void reset() {
     _revisions.clear();
     _applied.clear();
+    olderHostNoticed = false;
   }
 }
 
@@ -57,6 +66,8 @@ final clientRuntimeMirrorStateProvider = Provider<ClientRuntimeMirrorState>(
 ///
 /// Updates older than the one already applied for the channel are dropped (an
 /// event can race the hydration fetch), as are updates this client reported.
+/// The update already applied is applied again only for a channel that
+/// [RuntimeMirrorChannel.reappliesOnReread].
 void applyHostRuntimeUpdate(
   Object reader,
   HostRuntimeUpdate update, {
@@ -69,7 +80,11 @@ void applyHostRuntimeUpdate(
   if (channel == null) return;
   final state = readProvider(reader, clientRuntimeMirrorStateProvider);
   final last = state._revisions[update.channel];
-  if (last != null && update.revision <= last) return;
+  if (last != null &&
+      (update.revision < last ||
+          (update.revision == last && !channel.reappliesOnReread))) {
+    return;
+  }
   state._revisions[update.channel] = update.revision;
   if (update.origin == runtimeMirrorOrigin) return;
   state._applying.add(update.channel);

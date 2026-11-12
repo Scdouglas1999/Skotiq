@@ -1288,6 +1288,14 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
         }
         final row = _toDashboardEvent(event);
         ref.read(runDashboardCriticalEventsProvider.notifier).add(row);
+        // An alert the host raised before this window linked to it is shown
+        // with the night so far. It has already sounded and paged where it
+        // was raised.
+        if (ref
+            .read(eventHistoryProvider.notifier)
+            .happenedEarlier(event)) {
+          continue;
+        }
         alerts.add(RunCriticalAlert(event: event, row: row));
       }
     },

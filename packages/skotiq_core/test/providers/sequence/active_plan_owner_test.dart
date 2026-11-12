@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skotiq_core/skotiq_core.dart';
 
+import '../../harness/host_open_plan.dart';
+
 /// Coverage for the active-plan-owner concept: the autopilot (and the other
 /// automated planners) must hand the editor slot back and forth with the human
 /// operator instead of silently destroying unsaved manual work.
@@ -206,20 +208,12 @@ void main() {
       final fileService = c.read(sequenceFileServiceProvider);
       final hostPlan = buildSequence(name: 'Host Autopilot', databaseId: 11);
 
-      await applyRemoteSyncEvent(
-        c,
-        buildHostMutationEvent(
-          entityType: HostMutationEntity.sequenceEditor,
-          action: HostMutationAction.updated,
-          entityId: '11',
-          extra: {
+      showHostOpenPlan(c, {
             'sequence': fileService.sequenceToMap(hostPlan),
             'databaseId': 11,
             'isDirty': false,
             'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
-          },
-        ),
-      );
+          });
 
       expect(c.read(currentSequenceProvider)!.name, 'Host Autopilot');
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.autopilot);
@@ -230,19 +224,11 @@ void main() {
       final fileService = c.read(sequenceFileServiceProvider);
       final hostPlan = buildSequence(name: 'Legacy Host', databaseId: 12);
 
-      await applyRemoteSyncEvent(
-        c,
-        buildHostMutationEvent(
-          entityType: HostMutationEntity.sequenceEditor,
-          action: HostMutationAction.updated,
-          entityId: '12',
-          extra: {
+      showHostOpenPlan(c, {
             'sequence': fileService.sequenceToMap(hostPlan),
             'databaseId': 12,
             'isDirty': false,
-          },
-        ),
-      );
+          });
 
       expect(c.read(currentSequenceProvider)!.name, 'Legacy Host');
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.manual);
@@ -253,28 +239,15 @@ void main() {
       final fileService = c.read(sequenceFileServiceProvider);
 
       // Slave first mirrors a host autopilot plan.
-      await applyRemoteSyncEvent(
-        c,
-        buildHostMutationEvent(
-          entityType: HostMutationEntity.sequenceEditor,
-          action: HostMutationAction.updated,
-          extra: {
+      showHostOpenPlan(c, {
             'sequence': fileService.sequenceToMap(buildSequence()),
             'isDirty': false,
             'activePlanOwner': ActivePlanOwner.autopilot.wireValue,
-          },
-        ),
-      );
+          });
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.autopilot);
 
       // Host closes its editor.
-      await applyRemoteSyncEvent(
-        c,
-        buildHostMutationEvent(
-          entityType: HostMutationEntity.sequenceEditor,
-          action: HostMutationAction.cleared,
-        ),
-      );
+      showHostOpenPlan(c, null);
 
       expect(c.read(currentSequenceProvider), isNull);
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.manual);
