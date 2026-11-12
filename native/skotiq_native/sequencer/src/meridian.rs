@@ -206,7 +206,11 @@ pub fn alt_az_to_ra_dec(
 }
 
 /// Julian Day of a UTC instant (Meeus, Astronomical Algorithms, 7.1), to the
-/// nanosecond. The one Julian Day the sequencer and the bridge use.
+/// whole second. The one Julian Day the sequencer and the bridge use.
+///
+/// The second is kept whole on purpose: values computed from two reads of the
+/// clock in the same second (a mount read-back and the frame header written
+/// from it) come out identical.
 pub fn julian_day(dt: &DateTime<Utc>) -> f64 {
     let year = dt.year();
     // Why: `month()` returns u32 in [1, 12]; u32 → i32
@@ -215,10 +219,10 @@ pub fn julian_day(dt: &DateTime<Utc>) -> f64 {
     // Why: `day()` returns u32 in [1, 31]; u32 → f64
     // exact widening.
     let day = f64::from(dt.day());
-    // Why: hour/minute/second/nanosecond all u32 in small ranges;
+    // Why: hour/minute/second all u32 in small ranges;
     // u32 → f64 exact widening.
-    let seconds = f64::from(dt.second()) + f64::from(dt.nanosecond()) / 1e9;
-    let hour = f64::from(dt.hour()) + f64::from(dt.minute()) / 60.0 + seconds / 3600.0;
+    let hour =
+        f64::from(dt.hour()) + f64::from(dt.minute()) / 60.0 + f64::from(dt.second()) / 3600.0;
 
     let (y, m) = if month <= 2 {
         (year - 1, month + 12)
@@ -549,13 +553,15 @@ mod tests {
         );
     }
 
-    /// A sidereal clock read off `Utc::now()` keeps its fraction of a second.
+    /// Two reads of the clock inside one second give one Julian Day.
     #[test]
-    fn julian_day_keeps_the_fraction_of_a_second() {
+    fn julian_day_is_whole_seconds() {
         let j2000 = Utc.with_ymd_and_hms(2000, 1, 1, 12, 0, 0).unwrap();
         let later = j2000 + chrono::Duration::milliseconds(617);
-        let days = julian_day(&later) - julian_day(&j2000);
-        assert!((days * 86_400.0 - 0.617).abs() < 1e-4, "{} s", days * 86_400.0);
+        assert_eq!(julian_day(&later), julian_day(&j2000));
+        let next = j2000 + chrono::Duration::seconds(1);
+        let days = julian_day(&next) - julian_day(&j2000);
+        assert!((days * 86_400.0 - 1.0).abs() < 1e-4, "{} s", days * 86_400.0);
     }
 
     #[test]
