@@ -17,14 +17,10 @@ pub struct FrameStarShape {
 pub trait FrameStoreOps: Send + Sync {
     /// Save image as FITS file.
     ///
-    /// Image Grading: the per-frame metadata bundle is the
-    /// [`FrameContext`](crate::scheduling::FrameContext) carried from
-    /// `expose.rs`. It supersedes the previous 4-field call signature
-    /// (target_name, filter, RA, Dec) — the FITS writer extracts every
-    /// relevant keyword (target identification, plate-solve coords,
-    /// telemetry, mosaic panel, observer/site info, equipment ID) from
-    /// the context. See `bridge/src/api/imaging.rs::api_save_fits_file`
-    /// for the keyword list.
+    /// Write `image_data` as FITS with the header its
+    /// [`FrameContext`](crate::scheduling::FrameContext) describes. Every
+    /// saved frame comes through here, a sequence's and a manual capture's
+    /// alike; the bridge's `frame_header` holds the keyword list.
     async fn save_fits(
         &self,
         image_data: &ImageData,
