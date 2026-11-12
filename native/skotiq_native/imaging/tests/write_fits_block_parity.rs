@@ -45,6 +45,7 @@ fn image_of(pixel_type: PixelType, width: u32, height: u32, data: Vec<u8>) -> Im
         channels: 1,
         pixel_type,
         data,
+        range: skotiq_imaging::SampleRange::of(pixel_type),
     }
 }
 

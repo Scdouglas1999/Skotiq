@@ -95,6 +95,56 @@ void main() {
     );
 
     test(
+      'BITPIX=-32: a normalized float master (PixInsight, Siril) reads in ADU',
+      () async {
+        // Every sample within [0, 1]: 0.5 is half of full scale, not half an
+        // ADU.
+        final fits = _buildFitsFloat32(
+          values: <double>[0.0, 1000 / 65535, 0.5, 1.0],
+          bzero: null,
+          bscale: null,
+        );
+        final file = await writeFits('float32_unit.fit', fits);
+
+        final pixels = await service.loadDarkPixels(file.path);
+
+        expect(pixels, [0, 1000, 32768, 65535]);
+      },
+    );
+
+    test(
+      'BITPIX=-32: the declared sample range decides the scale',
+      () async {
+        // The same numbers as the normalized master, declared to be ADU: a
+        // dark of less than one ADU, which rounds to 0 and 1.
+        final adu = _buildFitsFloat32(
+          values: <double>[0.0, 0.25, 0.5, 1.0],
+          bzero: null,
+          bscale: null,
+          range: (0.0, 65535.0),
+        );
+        expect(
+          await service.loadDarkPixels((await writeFits('adu.fit', adu)).path),
+          [0, 0, 1, 1],
+        );
+
+        // ADU-sized numbers declared to span 0..4095 (a 12-bit scale).
+        final twelveBit = _buildFitsFloat32(
+          values: <double>[0.0, 4095.0],
+          bzero: null,
+          bscale: null,
+          range: (0.0, 4095.0),
+        );
+        expect(
+          await service.loadDarkPixels(
+            (await writeFits('twelve.fit', twelveBit)).path,
+          ),
+          [0, 65535],
+        );
+      },
+    );
+
+    test(
       'BITPIX=-32: BZERO/BSCALE linear transform is applied per FITS spec',
       () async {
         // Encode physical = 100*stored + 1000 → stored=0.5 should give 1050.
@@ -297,6 +347,7 @@ Uint8List _buildFitsFloat32({
   required List<double> values,
   required double? bzero,
   required double? bscale,
+  (double, double)? range,
 }) {
   final data = ByteData(values.length * 4);
   for (var i = 0; i < values.length; i++) {
@@ -305,6 +356,8 @@ Uint8List _buildFitsFloat32({
   final extra = <String>[
     if (bzero != null) _fitsCard('BZERO', bzero.toString()),
     if (bscale != null) _fitsCard('BSCALE', bscale.toString()),
+    if (range != null) _fitsCard('RANGELOW', range.$1.toString()),
+    if (range != null) _fitsCard('RANGEHI', range.$2.toString()),
   ];
   return _buildFitsHeaderOnly(
     width: values.length,

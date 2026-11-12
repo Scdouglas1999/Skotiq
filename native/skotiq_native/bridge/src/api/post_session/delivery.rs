@@ -411,7 +411,8 @@ pub(crate) fn master_deliver(args_json: &str) -> Result<MasterDeliverResult, Str
             _ => sanitize_name(master.filter.as_deref().unwrap_or("nofilter")),
         };
         let output = out_dir.join(format!("{target}_{name}_linear.fits"));
-        let image = ImageData::from_f32(width, height, master.image.channels(), &data);
+        let image = ImageData::from_f32(width, height, master.image.channels(), &data)
+            .with_range(skotiq_imaging::SampleRange::UNIT);
         write_fits(&output, &image, &delivery_header(&master.image, &history))
             .map_err(|e| format!("failed to write '{}': {e:?}", output.display()))?;
         entry.output_path = output.to_string_lossy().to_string();
@@ -446,7 +447,8 @@ pub(crate) fn master_deliver(args_json: &str) -> Result<MasterDeliverResult, Str
         let output = out_dir.join(format!("{target}_RGB_linear.fits"));
         write_fits(
             &output,
-            &ImageData::from_f32(width, height, 3, &interleaved),
+            &ImageData::from_f32(width, height, 3, &interleaved)
+                .with_range(skotiq_imaging::SampleRange::UNIT),
             &header,
         )
         .map_err(|e| format!("failed to write '{}': {e:?}", output.display()))?;

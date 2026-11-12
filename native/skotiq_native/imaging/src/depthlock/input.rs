@@ -251,24 +251,12 @@ pub fn light_pixels(image: &ImageData) -> Result<Vec<f64>, String> {
         .collect())
 }
 
-/// A master frame as f64, in whichever of Skotiq's two master encodings
+/// A master frame as f64 ADU, in whichever of Skotiq's two master encodings
 /// it was written.
 pub fn master_pixels(image: &ImageData) -> Result<Vec<f64>, String> {
     match image.pixel_type {
-        PixelType::U16 if geometry_ok(image, 2) => Ok(image
-            .data
-            .as_chunks::<2>()
-            .0
-            .iter()
-            .map(|v| f64::from(u16::from_le_bytes(*v)))
-            .collect()),
-        PixelType::F32 if geometry_ok(image, 4) => Ok(image
-            .data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|v| f64::from(f32::from_le_bytes(*v)))
-            .collect()),
+        PixelType::U16 if geometry_ok(image, 2) => Ok(image.samples_f64()),
+        PixelType::F32 if geometry_ok(image, 4) => Ok(image.samples_f64()),
         _ => Err("Master frames must be monochrome U16 or F32 with matching geometry".into()),
     }
 }

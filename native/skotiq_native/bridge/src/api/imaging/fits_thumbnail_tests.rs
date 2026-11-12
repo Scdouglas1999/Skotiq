@@ -37,6 +37,7 @@ fn mono_ramp(width: u32, height: u32) -> ImageData {
         channels: 1,
         pixel_type: PixelType::U16,
         data,
+        range: skotiq_imaging::SampleRange::of(PixelType::U16),
     }
 }
 
@@ -81,9 +82,9 @@ fn every_pixel_type_produces_the_same_thumbnail_for_the_same_physical_values() {
     let width = 128u32;
     let height = 96u32;
 
-    // The same physical ramp expressed four ways. The generator's per-type
-    // conversions are defined to land on the same u16 value, so the JPEGs must
-    // agree pixel for pixel.
+    // The same ramp expressed four ways: each step is the same fraction of
+    // its type's range (the float one of [0, 1]), so the JPEGs must agree
+    // pixel for pixel.
     let mut u8_data = Vec::new();
     let mut u16_data = Vec::new();
     let mut u32_data = Vec::new();
@@ -92,9 +93,9 @@ fn every_pixel_type_produces_the_same_thumbnail_for_the_same_physical_values() {
         for x in 0..width {
             let step = ((y * width + x) % 256) as u8;
             u8_data.push(step);
-            let as_u16 = u16::from(step) << 8;
+            let as_u16 = u16::from(step) * 257;
             u16_data.extend_from_slice(&as_u16.to_le_bytes());
-            u32_data.extend_from_slice(&(u32::from(as_u16) << 16).to_le_bytes());
+            u32_data.extend_from_slice(&(u32::from(as_u16) * 65537).to_le_bytes());
             f32_data.extend_from_slice(&(f32::from(as_u16) / 65535.0).to_le_bytes());
         }
     }
@@ -114,6 +115,11 @@ fn every_pixel_type_produces_the_same_thumbnail_for_the_same_physical_values() {
             channels: 1,
             pixel_type,
             data,
+            range: if pixel_type == PixelType::F32 {
+                skotiq_imaging::SampleRange::UNIT
+            } else {
+                skotiq_imaging::SampleRange::of(pixel_type)
+            },
         };
         let path = write_frame(&dir, name, &image);
         thumbnails.push((
@@ -151,6 +157,7 @@ fn a_three_channel_frame_is_reduced_by_luminance_not_by_its_first_channel() {
         channels: 3,
         pixel_type: PixelType::U16,
         data,
+        range: skotiq_imaging::SampleRange::of(PixelType::U16),
     };
     let path = write_frame(&dir, "rgb.fits", &image);
 

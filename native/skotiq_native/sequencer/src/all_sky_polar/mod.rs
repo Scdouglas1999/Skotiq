@@ -485,6 +485,7 @@ fn emit_adjustment_preview(
         channels: 1,
         pixel_type: PixelType::U16,
         data: packed_data,
+        range: skotiq_imaging::SampleRange::ADU,
     };
 
     if let Ok(jpeg) = prepare_image_for_display(&imaging_image, is_color, bayer_pattern) {

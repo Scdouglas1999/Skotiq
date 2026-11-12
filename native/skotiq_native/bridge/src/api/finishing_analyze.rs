@@ -585,14 +585,7 @@ fn apply_detection_overrides(cfg: &mut StarDetectionConfig, d: &PhotometryDetect
 /// length and surface an error).
 fn image_to_f64(image: &ImageData) -> Vec<f64> {
     match image.pixel_type {
-        PixelType::U16 => image
-            .as_u16()
-            .map(|v| v.into_iter().map(|x| x as f64).collect())
-            .unwrap_or_default(),
-        PixelType::F32 => image
-            .as_f32()
-            .map(|v| v.into_iter().map(|x| x as f64).collect())
-            .unwrap_or_default(),
+        PixelType::U16 | PixelType::F32 => image.samples_f64(),
         _ => Vec::new(),
     }
 }

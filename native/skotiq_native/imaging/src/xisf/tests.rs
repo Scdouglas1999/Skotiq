@@ -213,6 +213,44 @@ fn a_bayer_frame_carries_its_effective_pattern() {
 }
 
 #[test]
+fn an_x_trans_frame_keeps_its_filter_both_ways() {
+    const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
+    let mut header = capture_header();
+    header.set_string("BAYERPAT", XTRANS);
+    header.set_int("YBAYROFF", 1);
+    let path = scratch("xtrans.xisf");
+    write_frame_with(&path, &test_image(12, 12, 1, PixelType::U16), &header, &options(None, None))
+        .unwrap();
+    // The element PixInsight reads holds the cell as the frame's first pixel
+    // sees it: one row down.
+    let unit = read_xisf_unit(&path).unwrap();
+    let cfa = unit.images[0].color_filter_array.as_ref().unwrap();
+    assert_eq!((cfa.width, cfa.height), (6, 6));
+    assert_eq!(cfa.pattern, format!("{}{}", &XTRANS[6..], &XTRANS[..6]));
+    let back = read_frame_header(&path).unwrap();
+    assert_eq!(
+        crate::read_color_filter_array(&back),
+        crate::read_color_filter_array(&header)
+    );
+
+    // A file from PixInsight has the element and no BAYERPAT keyword.
+    let data = vec![0u8; 12 * 12 * 2];
+    let path = monolithic(
+        "pi_xtrans.xisf",
+        &wrap(&format!(
+            r#"<Image geometry="12:12:1" sampleFormat="UInt16" colorSpace="Gray" location="attachment:{{0}}:288"><ColorFilterArray pattern="{XTRANS}" width="6" height="6" name="X-Trans"/></Image>"#
+        )),
+        &[&data],
+    );
+    let header = read_frame_header(&path).unwrap();
+    assert_eq!(
+        crate::read_color_filter_array(&header),
+        crate::ColorFilterArray::parse(XTRANS)
+    );
+    assert!(crate::ColorFilterArray::parse(XTRANS).is_some());
+}
+
+#[test]
 fn a_wcs_becomes_the_first_layer_of_an_astrometric_solution_and_back() {
     let mut header = capture_header();
     header.set_string("CTYPE1", "RA---TAN");
@@ -634,9 +672,11 @@ fn wide_and_complex_formats_are_converted_or_refused_plainly() {
     );
     let pixels = read_frame(&path).unwrap().0;
     assert_eq!(pixels.pixel_type, PixelType::F64);
+    // Normalized over the 64-bit range, and declared so.
+    assert_eq!(pixels.range, crate::SampleRange::UNIT);
     let read: Vec<f64> = pixels.samples_f64();
     assert_eq!(read[0], 0.0);
-    assert!((read[1] - 0.5).abs() < 1e-9 && read[2] == 1.0);
+    assert!((read[1] - 32767.5).abs() < 1e-4 && read[2] == 65535.0);
 
     let path = monolithic(
         "complex.xisf",
@@ -664,7 +704,8 @@ fn cielab_pixels_are_converted_to_rgb() {
         &[&data],
     );
     let pixels = read_frame(&path).unwrap().0;
-    let out = pixels.samples_f64();
+    assert_eq!(pixels.range, crate::SampleRange::UNIT);
+    let out: Vec<f64> = pixels.samples_f64().iter().map(|v| v / 65535.0).collect();
     for (p, expected) in rgb.iter().enumerate() {
         for c in 0..3 {
             assert!((out[p * 3 + c] - expected[c]).abs() < 1e-3, "{out:?}");

@@ -12,13 +12,71 @@
 use super::property::{PropertyValue, XisfProperty};
 use super::{ColorFilterArray, FitsKeyword, XisfImageHeader};
 use crate::fits::{parse_value_card_text, value_card_text};
-use crate::{FitsHeader, FitsValue};
+use crate::fits_reader::{RANGE_HIGH_CARD, RANGE_LOW_CARD};
+use crate::{FitsHeader, FitsValue, SampleRange};
 
 /// Cards that describe how a FITS file stores its pixels; an XISF image says
-/// that in its own attributes.
-const STRUCTURAL: [&str; 10] = [
+/// that in its own attributes. The range cards are among them: `bounds` is
+/// the range, and the cards are in an XISF image only when its writer had to
+/// widen `bounds` past it (see [`sample_range`]).
+const STRUCTURAL: [&str; 12] = [
     "SIMPLE", "BITPIX", "NAXIS", "NAXIS1", "NAXIS2", "NAXIS3", "EXTEND", "BZERO", "BSCALE", "END",
+    RANGE_LOW_CARD, RANGE_HIGH_CARD,
 ];
+
+/// What an image's samples span, as [`XisfUnit::read_pixels`](super::XisfUnit::read_pixels)
+/// returns them: the range cards when the image has them, else `bounds`
+/// (which a float image must state), else the integer format's whole range.
+pub(crate) fn sample_range(image: &XisfImageHeader) -> SampleRange {
+    if image.sample_format == super::SampleFormat::UInt64 {
+        // Read as Float64 normalized over the representable range.
+        return SampleRange::UNIT;
+    }
+    let card = |name: &str| {
+        image
+            .fits_keywords
+            .iter()
+            .find(|k| k.name.trim().eq_ignore_ascii_case(name))
+            .and_then(|k| k.value.trim().parse::<f64>().ok())
+    };
+    let declared = match (card(RANGE_LOW_CARD), card(RANGE_HIGH_CARD)) {
+        (Some(low), Some(high)) if image.sample_format.is_float() => SampleRange::new(low, high),
+        _ => None,
+    };
+    declared
+        .or_else(|| {
+            let (low, high) = image.representable_range()?;
+            SampleRange::new(low, high)
+        })
+        .unwrap_or(SampleRange::UNIT)
+}
+
+/// State what a new image's samples span. `bounds` is the range; when float
+/// samples fall outside it, `bounds` is widened to hold them, because
+/// PixInsight truncates what lies outside, and the range itself goes into the
+/// range cards so the app reads its own file back unchanged.
+pub(crate) fn declare_range(image: &mut XisfImageHeader, range: SampleRange, data: SampleRange) {
+    image
+        .fits_keywords
+        .retain(|k| !matches!(k.name.trim(), RANGE_LOW_CARD | RANGE_HIGH_CARD));
+    if !image.sample_format.is_float() {
+        image.bounds = None;
+        return;
+    }
+    image.bounds = Some((data.low, data.high));
+    if data != range {
+        for (name, value, comment) in [
+            (RANGE_LOW_CARD, range.low, "sample value of black"),
+            (RANGE_HIGH_CARD, range.high, "sample value of full scale"),
+        ] {
+            image.fits_keywords.push(FitsKeyword {
+                name: name.to_string(),
+                value: format!("{value}"),
+                comment: comment.to_string(),
+            });
+        }
+    }
+}
 
 fn is_structural(name: &str) -> bool {
     STRUCTURAL.contains(&name) || name == crate::fits_layout::LAYOUT_KEYWORD
@@ -171,9 +229,13 @@ pub(crate) fn header_from_image(image: &XisfImageHeader) -> FitsHeader {
     }
     if header.get("BAYERPAT").is_none() {
         if let Some(cfa) = &image.color_filter_array {
-            if cfa.width == 2 && cfa.height == 2 && crate::BayerPattern::from_str(&cfa.pattern).is_some()
-            {
-                header.set_string("BAYERPAT", &cfa.pattern);
+            // A 2×2 Bayer or 6×6 X-Trans cell; any other mosaic has no
+            // spelling the app's demosaic reads.
+            if let Some(filter) = crate::ColorFilterArray::parse(&cfa.pattern) {
+                let side = filter.cell_size() as u32;
+                if cfa.width == side && cfa.height == side {
+                    header.set_string("BAYERPAT", &filter.letters());
+                }
             }
         }
     }
@@ -249,14 +311,18 @@ pub(crate) fn apply_header(image: &mut XisfImageHeader, old: &FitsHeader, new: &
         image.image_type = None;
     }
 
-    match crate::read_bayer_geometry(new) {
-        Some(geometry) if image.channels == 1 => {
-            let pattern = format!("{:?}", geometry.effective);
+    match crate::read_color_filter_array(new) {
+        Some(filter) if image.channels == 1 => {
+            let pattern = filter.letters();
+            let side = filter.cell_size() as u32;
             image.color_filter_array = Some(ColorFilterArray {
-                name: Some(format!("{pattern} Bayer Filter")),
+                name: Some(match filter {
+                    crate::ColorFilterArray::Bayer(_) => format!("{pattern} Bayer Filter"),
+                    crate::ColorFilterArray::XTrans(_) => "X-Trans Filter".to_string(),
+                }),
                 pattern,
-                width: 2,
-                height: 2,
+                width: side,
+                height: side,
             });
         }
         _ if old.get("BAYERPAT").is_some() => image.color_filter_array = None,
