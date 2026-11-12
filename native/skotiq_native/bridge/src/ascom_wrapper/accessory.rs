@@ -7,6 +7,7 @@ use super::rotator::AscomRotatorWrapper;
 use super::safetymonitor::AscomSafetyMonitorWrapper;
 use super::switch::AscomSwitchWrapper;
 use super::weather::AscomObservingConditionsWrapper;
+use crate::dispatch::DeviceOpError;
 use async_trait::async_trait;
 use skotiq_device::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
 use skotiq_device::{
@@ -15,8 +16,8 @@ use skotiq_device::{
 };
 use tracing::warn;
 
-fn com(error: String) -> DriverError {
-    DriverError::Backend(error.into())
+fn com(error: DeviceOpError) -> DriverError {
+    error.into()
 }
 
 /// `$probe` is the wrapper's cheapest read, which the heartbeat sends.
@@ -96,14 +97,20 @@ impl DomeDriver for AscomDomeWrapper {
                 );
                 4
             });
-        let slewing = self
-            .slewing()
-            .await
-            .map_err(|e| com(format!("Failed to read ASCOM dome slewing: {}", e)))?;
-        let at_park = self
-            .at_park()
-            .await
-            .map_err(|e| com(format!("Failed to read ASCOM dome at_park: {}", e)))?;
+        let slewing = self.slewing().await.map_err(|e| {
+            com(DeviceOpError::caused_by(
+                None,
+                format!("Failed to read ASCOM dome slewing: {}", e),
+                e,
+            ))
+        })?;
+        let at_park = self.at_park().await.map_err(|e| {
+            com(DeviceOpError::caused_by(
+                None,
+                format!("Failed to read ASCOM dome at_park: {}", e),
+                e,
+            ))
+        })?;
         Ok(DomeState {
             azimuth: 0.0,
             altitude: None,

@@ -30,15 +30,19 @@ use crate::api::devices::simulation::{
     get_sim_filterwheel, get_sim_focuser, get_sim_mount, get_sim_rotator,
 };
 use crate::device::{CameraStatus, FilterWheelStatus, FocuserStatus, MountStatus, RotatorStatus};
+use crate::dispatch::DeviceOpError;
 
 /// Format the not-connected error message uniformly across all simulator
 /// device types. Keeping the wording centralized means tests can match on
 /// a single substring (`"is not connected"`) without coupling to the exact
 /// phrasing of each device type.
-pub(crate) fn not_connected(kind: &str) -> String {
-    format!(
-        "Simulator {} is not connected. Call connect_device first.",
-        kind
+pub(crate) fn not_connected(kind: &str) -> DeviceOpError {
+    DeviceOpError::not_connected(
+        None,
+        format!(
+            "Simulator {} is not connected. Call connect_device first.",
+            kind
+        ),
     )
 }
 
@@ -61,7 +65,7 @@ pub(crate) fn not_connected_injected(key: &str) -> String {
 /// Every gate below calls this before doing its normal work, which is what lets
 /// a test arm a fault without touching any call site. Keys are the
 /// `"<device>.<operation>"` strings documented on [`sim_faults::arm`].
-async fn faults(key: &str) -> Result<(), String> {
+async fn faults(key: &str) -> Result<(), DeviceOpError> {
     super::sim_faults::check(key).await
 }
 
@@ -69,22 +73,22 @@ async fn faults(key: &str) -> Result<(), String> {
 /// arms that take the singleton's write lock themselves (so they cannot use
 /// `require_*_connected`, which would force two separate lock acquisitions).
 #[inline]
-pub(crate) fn not_connected_camera() -> String {
+pub(crate) fn not_connected_camera() -> DeviceOpError {
     not_connected("camera")
 }
 
 #[inline]
-pub(crate) fn not_connected_focuser() -> String {
+pub(crate) fn not_connected_focuser() -> DeviceOpError {
     not_connected("focuser")
 }
 
 #[inline]
-pub(crate) fn not_connected_filterwheel() -> String {
+pub(crate) fn not_connected_filterwheel() -> DeviceOpError {
     not_connected("filter wheel")
 }
 
 #[inline]
-pub(crate) fn not_connected_rotator() -> String {
+pub(crate) fn not_connected_rotator() -> DeviceOpError {
     not_connected("rotator")
 }
 
@@ -95,7 +99,7 @@ pub(crate) fn not_connected_rotator() -> String {
 /// match the singleton's defaults — see `SimulatedCamera::default`) are
 /// covered by the singleton's defaults and need no special handling at
 /// the call site.
-pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, String> {
+pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, DeviceOpError> {
     use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
     let prefix = sim_camera_fault_prefix(device_id);
     // Faults are consulted before anything else, including the connected gate,
@@ -138,7 +142,7 @@ pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, 
 /// constants.
 pub(crate) async fn read_camera_last_exposure(
     device_id: &str,
-) -> Result<crate::api::devices::simulation::SimExposureRequest, String> {
+) -> Result<crate::api::devices::simulation::SimExposureRequest, DeviceOpError> {
     use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
     // `camera.download` is the highest-value fault key in the file: the INDI
     // BLOB download timeout and the USB camera that stops answering mid-read
@@ -157,7 +161,7 @@ pub(crate) async fn read_camera_last_exposure(
 
 /// Write-side gate for camera ops: returns `Ok(())` only when the
 /// simulator camera singleton is currently connected.
-pub(crate) async fn require_camera_connected(device_id: &str) -> Result<(), String> {
+pub(crate) async fn require_camera_connected(device_id: &str) -> Result<(), DeviceOpError> {
     use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
     faults(&format!("{}.command", sim_camera_fault_prefix(device_id))).await?;
     if !get_sim_camera_for(device_id).read().await.status.connected {
@@ -180,7 +184,7 @@ pub(crate) async fn require_camera_connected(device_id: &str) -> Result<(), Stri
 ///
 /// With no site configured there is no honest answer, so the horizon-frame
 /// fields report `Unsupported` and carry `None` instead of a fabricated default.
-pub(crate) async fn read_mount_status() -> Result<MountStatus, String> {
+pub(crate) async fn read_mount_status() -> Result<MountStatus, DeviceOpError> {
     if let Err(e) = faults("mount.status").await {
         // `unplug`: the mount's cable or hub dropped.
         if super::sim_faults::take_unplug("mount.status").is_some() {
@@ -281,7 +285,7 @@ pub(crate) fn apply_derived_mount_telemetry(
 /// abort can never leave you in — so "stopped part-way, pointing at neither end"
 /// was unreachable, and code that assumes a failed slew means "still where it
 /// was" passed here and lost the pointing on hardware.
-pub(crate) async fn require_mount_connected() -> Result<(), String> {
+pub(crate) async fn require_mount_connected() -> Result<(), DeviceOpError> {
     faults("mount.command").await?;
     if !get_sim_mount().read().await.status.connected {
         return Err(not_connected("mount"));
@@ -305,7 +309,7 @@ pub(crate) async fn require_mount_connected() -> Result<(), String> {
 /// Must be called AFTER [`require_mount_connected`], which is what advances the
 /// motion (under the fault gate) so "is it still moving" is answered as of now
 /// rather than as of the last status poll.
-pub(crate) async fn refuse_while_mount_slewing(operation: &str) -> Result<(), String> {
+pub(crate) async fn refuse_while_mount_slewing(operation: &str) -> Result<(), DeviceOpError> {
     // Both signals, because they can disagree: `sim_slew_in_flight` covers a
     // goto (including its settle tail) even when a fault has frozen the
     // interpolation, while `status.slewing` also covers a manual axis move,
@@ -313,16 +317,16 @@ pub(crate) async fn refuse_while_mount_slewing(operation: &str) -> Result<(), St
     let moving = crate::api::devices::simulation::sim_slew_in_flight().await
         || get_sim_mount().read().await.status.slewing;
     if moving {
-        return Err(format!(
+        return Err(DeviceOpError::Message(format!(
             "Simulated mount is slewing and refused {}. Abort the slew or wait for it to finish.",
             operation
-        ));
+        )));
     }
     Ok(())
 }
 
 /// Read-side helper for focuser ops.
-pub(crate) async fn read_focuser_status() -> Result<FocuserStatus, String> {
+pub(crate) async fn read_focuser_status() -> Result<FocuserStatus, DeviceOpError> {
     faults("focuser.status").await?;
     let focuser = get_sim_focuser().read().await;
     if !focuser.status.connected {
@@ -342,7 +346,7 @@ pub(crate) async fn read_focuser_status() -> Result<FocuserStatus, String> {
 /// `not_connected_focuser` instead) — symmetry makes "did the simulator
 /// arm forget the gate?" reviewable at a glance.
 #[allow(dead_code)]
-pub(crate) async fn require_focuser_connected() -> Result<(), String> {
+pub(crate) async fn require_focuser_connected() -> Result<(), DeviceOpError> {
     faults("focuser.command").await?;
     if !get_sim_focuser().read().await.status.connected {
         return Err(not_connected("focuser"));
@@ -351,7 +355,7 @@ pub(crate) async fn require_focuser_connected() -> Result<(), String> {
 }
 
 /// Read-side helper for filter wheel ops.
-pub(crate) async fn read_filterwheel_status() -> Result<FilterWheelStatus, String> {
+pub(crate) async fn read_filterwheel_status() -> Result<FilterWheelStatus, DeviceOpError> {
     faults("filterwheel.status").await?;
     let fw = get_sim_filterwheel().read().await;
     if !fw.status.connected {
@@ -361,7 +365,7 @@ pub(crate) async fn read_filterwheel_status() -> Result<FilterWheelStatus, Strin
 }
 
 /// Read-side helper for rotator ops.
-pub(crate) async fn read_rotator_status() -> Result<RotatorStatus, String> {
+pub(crate) async fn read_rotator_status() -> Result<RotatorStatus, DeviceOpError> {
     faults("rotator.status").await?;
     let rotator = get_sim_rotator().read().await;
     if !rotator.status.connected {
@@ -418,7 +422,7 @@ mod fault_injection_tests {
             .await
             .expect_err("an armed fault must surface, not be swallowed");
         assert!(
-            err.contains("0x80020009"),
+            err.to_string().contains("0x80020009"),
             "the driver's own message must reach the app verbatim so the user is \
              not told something generic: {err}"
         );
@@ -511,8 +515,8 @@ mod fault_injection_tests {
             .await
             .expect_err("must fail");
         assert!(
-            err.contains("not connected"),
-            "a lost handle must read as a disconnection: {err}"
+            matches!(err, DeviceOpError::NotConnected { .. }),
+            "a lost handle must read as a disconnection: {err:?}"
         );
         sim_faults::clear_all();
     }

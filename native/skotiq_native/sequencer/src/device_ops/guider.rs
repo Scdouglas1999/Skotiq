@@ -135,7 +135,6 @@ pub trait GuiderOps: Send + Sync {
     /// that as "validation unavailable", not as a calibration failure.
     async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {
         Err(DeviceError::unsupported(
-            "guider_get_calibration",
             "guider_get_calibration not supported by this driver",
         ))
     }

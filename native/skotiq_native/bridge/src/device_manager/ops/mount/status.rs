@@ -62,12 +62,13 @@ impl DeviceManager {
                     if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount.sync_to_coordinates(ra, dec).await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to sync ASCOM mount {} to RA={:.4} Dec={:.4}: {}",
                                     device_id, ra, dec, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -83,7 +84,7 @@ impl DeviceManager {
                     return mount
                         .sync_to_coordinates(ra, dec)
                         .await
-                        .map_err(DeviceOpError::driver);
+                        .map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -97,12 +98,13 @@ impl DeviceManager {
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
                         return mount.sync_to_coordinates(ra, dec).await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to sync INDI mount {} to RA={:.4} Dec={:.4}: {}",
                                     device_name, ra, dec, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -120,12 +122,13 @@ impl DeviceManager {
                 let mut native_mounts = self.native_mounts.write().await;
                 if let Some(mount) = native_mounts.get_mut(device_id) {
                     return mount.sync_to_coordinates(ra, dec).await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to sync native mount {} to RA={:.4} Dec={:.4}: {}",
                                 device_id, ra, dec, e
                             ),
+                            e,
                         )
                     });
                 }
@@ -171,7 +174,7 @@ impl DeviceManager {
                     let mount = self.ascom_mounts.read().await.get(device_id).cloned();
                     if let Some(mount) = mount {
                         let mount = mount.read().await;
-                        return mount.get_coordinates().await.map_err(DeviceOpError::driver);
+                        return mount.get_coordinates().await.map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -182,7 +185,7 @@ impl DeviceManager {
             DriverType::Native => {
                 let native_mounts = self.native_mounts.read().await;
                 if let Some(mount) = native_mounts.get(device_id) {
-                    return mount.get_coordinates().await.map_err(DeviceOpError::driver);
+                    return mount.get_coordinates().await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -192,11 +195,8 @@ impl DeviceManager {
             DriverType::Alpaca => {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
-                    let ra = mount
-                        .right_ascension()
-                        .await
-                        .map_err(DeviceOpError::driver)?;
-                    let dec = mount.declination().await.map_err(DeviceOpError::driver)?;
+                    let ra = mount.right_ascension().await.map_err(DeviceOpError::from)?;
+                    let dec = mount.declination().await.map_err(DeviceOpError::from)?;
                     return Ok((ra, dec));
                 }
                 Err(DeviceOpError::not_connected(
@@ -210,7 +210,7 @@ impl DeviceManager {
                     let clients = self.indi_clients.read().await;
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
-                        return mount.get_coordinates().await.map_err(DeviceOpError::driver);
+                        return mount.get_coordinates().await.map_err(DeviceOpError::from);
                     }
                     return Err(DeviceOpError::not_connected(
                         Some(device_id.to_string()),
@@ -263,13 +263,11 @@ impl DeviceManager {
                         let mount = mount.read().await;
 
                         // Required fields propagate read failures — these are not optional.
-                        let (ra, dec) = mount
-                            .get_coordinates()
-                            .await
-                            .map_err(DeviceOpError::driver)?;
-                        let tracking = mount.get_tracking().await.map_err(DeviceOpError::driver)?;
-                        let slewing = mount.is_slewing().await.map_err(DeviceOpError::driver)?;
-                        let parked = mount.is_parked().await.map_err(DeviceOpError::driver)?;
+                        let (ra, dec) =
+                            mount.get_coordinates().await.map_err(DeviceOpError::from)?;
+                        let tracking = mount.get_tracking().await.map_err(DeviceOpError::from)?;
+                        let slewing = mount.is_slewing().await.map_err(DeviceOpError::from)?;
+                        let parked = mount.is_parked().await.map_err(DeviceOpError::from)?;
 
                         let mut availability = Self::mount_status_availability_map();
 
@@ -394,12 +392,9 @@ impl DeviceManager {
                 let native_mounts = self.native_mounts.read().await;
                 if let Some(mount) = native_mounts.get(device_id) {
                     // Required fields propagate read failures — these are not optional.
-                    let (ra, dec) = mount
-                        .get_coordinates()
-                        .await
-                        .map_err(DeviceOpError::driver)?;
-                    let tracking = mount.get_tracking().await.map_err(DeviceOpError::driver)?;
-                    let slewing = mount.is_slewing().await.map_err(DeviceOpError::driver)?;
+                    let (ra, dec) = mount.get_coordinates().await.map_err(DeviceOpError::from)?;
+                    let tracking = mount.get_tracking().await.map_err(DeviceOpError::from)?;
+                    let slewing = mount.is_slewing().await.map_err(DeviceOpError::from)?;
                     let (parked, can_park, parked_readable) = match mount.is_parked().await {
                         Ok(p) => (p, true, true),
                         Err(skotiq_device::DriverError::NotSupported) => (false, false, false),
@@ -541,42 +536,47 @@ impl DeviceManager {
                 if let Some(mount) = mounts.get(device_id) {
                     // Required fields propagate read failures.
                     let ra = mount.right_ascension().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!("Failed to read Alpaca mount RA for {}: {}", device_id, e),
+                            e,
                         )
                     })?;
                     let dec = mount.declination().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!("Failed to read Alpaca mount Dec for {}: {}", device_id, e),
+                            e,
                         )
                     })?;
                     let tracking = mount.tracking().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca mount tracking for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let slewing = mount.slewing().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca mount slewing for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let parked = mount.at_park().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca mount at_park for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
 
@@ -724,36 +724,40 @@ impl DeviceManager {
                 if let Some(client) = clients.get(&server_key) {
                     let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
                     let (ra, dec) = mount.get_coordinates().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read INDI mount coordinates for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let tracking = mount.try_is_tracking().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read INDI mount tracking for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let slewing = mount.try_is_slewing().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!("Failed to read INDI mount slewing for {}: {}", device_id, e),
+                            e,
                         )
                     })?;
                     let parked = mount.try_is_parked().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read INDI mount parked state for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
 
@@ -896,7 +900,7 @@ impl DeviceManager {
             }
             DriverType::Simulator => crate::device_manager::ops::sim_gate::read_mount_status()
                 .await
-                .map_err(DeviceOpError::driver),
+                ,
         }
     }
 

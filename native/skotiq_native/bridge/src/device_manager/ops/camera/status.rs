@@ -177,30 +177,33 @@ impl DeviceManager {
                 let cameras = self.alpaca_cameras.read().await;
                 if let Some(camera) = cameras.get(device_id) {
                     let status = camera.get_status().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca camera status for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let capabilities = camera.get_capabilities().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca camera capabilities for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let sensor = camera.get_sensor_info().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to read Alpaca camera sensor info for {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     })?;
                     let gain = camera.gain().await.ok();
@@ -250,7 +253,6 @@ impl DeviceManager {
             Some(DriverType::Simulator) => {
                 crate::device_manager::ops::sim_gate::read_camera_status(device_id)
                     .await
-                    .map_err(DeviceOpError::from)
             }
             Some(DriverType::Native) => {
                 let native_cameras = self.native_cameras.read().await;
@@ -526,12 +528,13 @@ impl DeviceManager {
                 let native_cameras = self.native_cameras.read().await;
                 if let Some(camera) = native_cameras.get(device_id) {
                     return camera.get_recommended_settings().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to query recommended settings for native camera {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     });
                 }

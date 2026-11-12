@@ -41,7 +41,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 telescope
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Why: every `CanXxx` flag below maps to an OPTIONAL ASCOM telescope
@@ -109,7 +109,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 camera
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Why: ASCOM ICameraV3 capability struct. `CameraXSize/YSize` and `MaxADU`
@@ -189,7 +189,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 focuser
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             let caps = FocuserCapabilities {
@@ -225,7 +225,7 @@ pub(crate) async fn get_alpaca_capabilities(
             if !was_connected {
                 fw.connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // A FAILED names lookup must not be reported as "an empty wheel":
@@ -281,7 +281,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 rotator
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             let caps = RotatorCapabilities {
@@ -314,7 +314,7 @@ pub(crate) async fn get_alpaca_capabilities(
             if !was_connected {
                 dome.connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Convert Alpaca ShutterStatus to our ShutterStatus
@@ -359,7 +359,7 @@ pub(crate) async fn get_alpaca_capabilities(
             if !was_connected {
                 cc.connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Convert Alpaca CoverStatus to our CoverState
@@ -411,7 +411,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 weather
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Check which sensors are available by trying to read them
@@ -462,7 +462,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 safety
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             let caps = SafetyMonitorCapabilities {
@@ -486,7 +486,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 switch
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Why: ASCOM ISwitchV2.MaxSwitch is mandatory. Defaulting to 0 on

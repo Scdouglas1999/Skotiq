@@ -289,7 +289,7 @@ impl DeviceManager {
                 client.clone()
             } else {
                 let mut new_client = IndiClient::new(&host, Some(port));
-                new_client.connect().await?;
+                new_client.connect().await.map_err(|e| e.to_string())?;
                 let client_arc = Arc::new(RwLock::new(new_client));
                 clients.insert(server_key.clone(), client_arc.clone());
                 client_arc
@@ -313,7 +313,10 @@ impl DeviceManager {
             .get_property_last_update_ms(&device_name, "CONNECTION")
             .await;
 
-        locked_client.connect_device(&device_name).await?;
+        locked_client
+            .connect_device(&device_name)
+            .await
+            .map_err(|e| e.to_string())?;
 
         // INDI switch writes are asynchronous: `send_command` returning only
         // means the XML reached the socket. Do not publish a connected device
@@ -345,7 +348,10 @@ impl DeviceManager {
             }
 
             if last_connect_write.elapsed() >= Duration::from_millis(250) {
-                locked_client.connect_device(&device_name).await?;
+                locked_client
+                    .connect_device(&device_name)
+                    .await
+                    .map_err(|e| e.to_string())?;
                 last_connect_write = tokio::time::Instant::now();
             }
             tokio::time::sleep(Duration::from_millis(50)).await;

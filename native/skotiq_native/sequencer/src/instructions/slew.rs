@@ -174,10 +174,13 @@ async fn unpark_for_slew(ctx: &InstructionContext, mount_id: &str) -> Option<Ins
 
     tracing::info!("Mount is parked; unparking it to slew");
     if let Err(e) = ctx.run.device_ops.mount_unpark(mount_id).await {
-        return Some(InstructionResult::failure_because(
-            format!("The mount is parked and could not be unparked: {e}"),
-            Setback::MountParked,
-        ));
+        return Some(
+            InstructionResult::failure_because(
+                format!("The mount is parked and could not be unparked: {e}"),
+                Setback::MountParked,
+            )
+            .caused_by(&e),
+        );
     }
     let deadline = tokio::time::Instant::now() + UNPARK_TIMEOUT;
     loop {
@@ -393,14 +396,14 @@ async fn slew_mount(
                                             e
                                         ),
                                         Setback::PositionUnverified,
-                                    )
+                                    ).caused_by(&e)
                                 }
                             }
                         }
                         Err(e) => InstructionResult::failure(e),
                     }
                 }
-                Err(e) => InstructionResult::failure(format!("Slew failed: {}", e)),
+                Err(e) => InstructionResult::failure(format!("Slew failed: {}", e)).caused_by(&e),
             }
         }
         _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {

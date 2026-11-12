@@ -48,17 +48,20 @@ pub enum DeviceError {
     #[error("{}", not_configured_text(*.device))]
     NotConfigured { device: DeviceKind },
 
-    /// The device is configured but not connected.
-    #[error("{message}")]
+    /// The device is configured but not connected, or its connection was
+    /// lost. `message` is the driver's own account.
+    #[error("The {device} is not connected ({message})")]
     NotConnected { device: DeviceKind, message: String },
 
     /// The device layer or the driver behind it cannot do this.
-    #[error("{message}")]
-    Unsupported {
-        /// The trait method that was asked for.
-        operation: &'static str,
-        message: String,
-    },
+    #[error("{0}")]
+    Unsupported(String),
+
+    /// The device refused the request as it was asked: a value out of range,
+    /// an unknown device, a state that forbids it (a parked mount). Asking
+    /// again unchanged gets the same answer.
+    #[error("{0}")]
+    Rejected(String),
 
     /// The operation was stopped on request before it finished.
     #[error("{0}")]
@@ -104,10 +107,25 @@ impl DeviceError {
         device: DeviceKind::SafetyMonitor,
     };
 
-    pub fn unsupported(operation: &'static str, message: impl Into<String>) -> Self {
-        Self::Unsupported {
-            operation,
-            message: message.into(),
+    pub fn unsupported(message: impl Into<String>) -> Self {
+        Self::Unsupported(message.into())
+    }
+
+    /// The same failure, its words prefixed with `what` was being done.
+    pub fn context(self, what: &str) -> Self {
+        let prefixed = |message: String| format!("{what}: {message}");
+        match self {
+            Self::NotConfigured { device } => Self::NotConfigured { device },
+            Self::NotConnected { device, message } => Self::NotConnected {
+                device,
+                message: prefixed(message),
+            },
+            Self::Unsupported(message) => Self::Unsupported(prefixed(message)),
+            Self::Rejected(message) => Self::Rejected(prefixed(message)),
+            Self::Cancelled(message) => Self::Cancelled(prefixed(message)),
+            Self::Timeout(message) => Self::Timeout(prefixed(message)),
+            Self::InvalidFrame(message) => Self::InvalidFrame(prefixed(message)),
+            Self::Failed(message) => Self::Failed(prefixed(message)),
         }
     }
 

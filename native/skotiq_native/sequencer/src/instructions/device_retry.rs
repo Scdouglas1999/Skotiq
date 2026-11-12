@@ -146,8 +146,7 @@ pub(crate) fn retry_backoff(retry: u32) -> Duration {
     })
 }
 
-/// What kind of failure a device error string describes, for the retry
-/// decision.
+/// What a failed attempt means for the retry decision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum DeviceFault {
     /// Could clear on its own: a timeout, a failed download, "not ready", a
@@ -162,31 +161,34 @@ pub(crate) enum DeviceFault {
     Refused,
 }
 
-/// Errors a device gives for a request it will refuse every time.
-///
-/// Image validation failures are here because the bridge already classes them
-/// as the operator's exposure to fix (saturated, blank), not a fault.
-const REFUSED_MARKERS: &[&str] = &[
-    "image validation failed",
-    "not supported",
-    "not implemented",
-    "invalid value",
-    "invalid parameter",
-    "invalid argument",
-    "out of range",
-    "not found",
-];
+pub(crate) fn classify_device_fault(error: &DeviceError) -> DeviceFault {
+    match error {
+        DeviceError::Cancelled(_) => DeviceFault::Cancelled,
+        DeviceError::NotConnected { .. } => DeviceFault::Disconnected,
+        // A frame that fails image validation is the operator's exposure to
+        // fix (saturated, blank), not a fault.
+        DeviceError::NotConfigured { .. }
+        | DeviceError::Unsupported(_)
+        | DeviceError::Rejected(_)
+        | DeviceError::InvalidFrame(_) => DeviceFault::Refused,
+        DeviceError::Timeout(_) | DeviceError::Failed(_) => DeviceFault::Transient,
+    }
+}
 
-pub(crate) fn classify_device_fault(error: &str) -> DeviceFault {
-    let lower = error.to_ascii_lowercase();
-    if lower.contains("cancel") || lower.contains("aborted") {
-        DeviceFault::Cancelled
-    } else if is_device_disconnected_message(error) {
-        DeviceFault::Disconnected
-    } else if REFUSED_MARKERS.iter().any(|marker| lower.contains(marker)) {
-        DeviceFault::Refused
-    } else {
-        DeviceFault::Transient
+/// A device operation that failed, after the retries it had.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DeviceFailure {
+    pub(crate) error: DeviceError,
+    pub(crate) retries: u32,
+}
+
+impl std::fmt::Display for DeviceFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.retries {
+            0 => write!(f, "{}", self.error),
+            1 => write!(f, "{} (after 1 retry)", self.error),
+            n => write!(f, "{} (after {n} retries)", self.error),
+        }
     }
 }
 
@@ -195,9 +197,8 @@ pub(crate) fn classify_device_fault(error: &str) -> DeviceFault {
 pub(crate) enum RetryOutcome {
     /// The backoff has been waited out; run the attempt again.
     Retry,
-    /// Report the failure. Carries the error to report: the device's own text,
-    /// with the retries spent added when there were any.
-    GiveUp(String),
+    /// Report the failure.
+    GiveUp(DeviceFailure),
     /// The run was stopped while waiting to retry.
     Cancelled,
 }
@@ -211,32 +212,22 @@ pub(crate) async fn after_failed_attempt(
     ctx: &InstructionContext,
     device: RetriedDevice,
     retries_done: u32,
-    error: &str,
+    error: DeviceError,
     what: &str,
 ) -> RetryOutcome {
     if ctx.cancellation_token.load(Ordering::Relaxed) {
         return RetryOutcome::Cancelled;
     }
     let budget = device.budget(ctx.run.device_retry.get());
-    let give_up = || {
-        if retries_done == 0 {
-            RetryOutcome::GiveUp(error.to_string())
-        } else {
-            let plural = if retries_done == 1 {
-                "retry"
-            } else {
-                "retries"
-            };
-            RetryOutcome::GiveUp(format!("{error} (after {retries_done} {plural})"))
-        }
-    };
-    if retries_done >= budget {
-        return give_up();
+    let fault = classify_device_fault(&error);
+    if fault == DeviceFault::Cancelled {
+        return RetryOutcome::Cancelled;
     }
-    match classify_device_fault(error) {
-        DeviceFault::Transient => {}
-        DeviceFault::Cancelled => return RetryOutcome::Cancelled,
-        DeviceFault::Disconnected | DeviceFault::Refused => return give_up(),
+    if retries_done >= budget || fault != DeviceFault::Transient {
+        return RetryOutcome::GiveUp(DeviceFailure {
+            error,
+            retries: retries_done,
+        });
     }
 
     let retry = retries_done + 1;
@@ -278,15 +269,13 @@ pub(crate) enum WheelTarget<'a> {
 /// Without it the command's own success is taken, as the capture loop's
 /// per-burst filter set always has.
 ///
-/// The error text is unchanged from the single-attempt path: `Filter change
-/// failed: …` for a refused command, the timeout text for a wheel that did not
-/// arrive, `Operation cancelled` for a Stop.
+/// A Stop fails the move as [`DeviceError::Cancelled`].
 pub(crate) async fn move_filter_wheel(
     ctx: &InstructionContext,
     fw_id: &str,
     target: WheelTarget<'_>,
     arrival_timeout: Option<Duration>,
-) -> Result<i32, String> {
+) -> Result<i32, DeviceFailure> {
     let what = match target {
         WheelTarget::Position(index) => format!("moving to position {index}"),
         WheelTarget::Name(name) => format!("moving to {name}"),
@@ -307,24 +296,28 @@ pub(crate) async fn move_filter_wheel(
                         .filterwheel_set_filter_by_name(fw_id, name)
                         .await
                 }
-            }
-            .map_err(|e| format!("Filter change failed: {}", e))?;
+            }?;
             if let Some(timeout) = arrival_timeout {
                 wait_for_filterwheel_idle(fw_id, position, ctx, timeout).await?;
             }
-            Ok::<i32, String>(position)
+            Ok::<i32, DeviceError>(position)
         }
         .await;
         let error = match attempt {
             Ok(position) => return Ok(position),
             Err(error) => error,
         };
-        match after_failed_attempt(ctx, RetriedDevice::FilterWheel, retries_done, &error, &what)
+        match after_failed_attempt(ctx, RetriedDevice::FilterWheel, retries_done, error, &what)
             .await
         {
             RetryOutcome::Retry => retries_done += 1,
-            RetryOutcome::GiveUp(message) => return Err(message),
-            RetryOutcome::Cancelled => return Err("Operation cancelled".to_string()),
+            RetryOutcome::GiveUp(failure) => return Err(failure),
+            RetryOutcome::Cancelled => {
+                return Err(DeviceFailure {
+                    error: DeviceError::Cancelled("Operation cancelled".to_string()),
+                    retries: retries_done,
+                })
+            }
         }
     }
 }

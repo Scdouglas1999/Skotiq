@@ -39,7 +39,7 @@ pub(crate) trait Focuser: RigDriver {
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError>;
 }
 
-fn move_failed(protocol: &str, device: &str, position: i32, error: SkotiqError) -> String {
+fn move_failed(protocol: &str, device: &str, position: i32, error: &SkotiqError) -> String {
     format!(
         "Failed to move {} focuser {} to position {}: {}",
         protocol, device, position, error
@@ -90,7 +90,7 @@ impl Focuser for VendorFocuser {
                 focuser
                     .move_to(position)
                     .await
-                    .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                    .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
             },
             device_id,
             position,
@@ -99,9 +99,10 @@ impl Focuser for VendorFocuser {
         )
         .await
         .map_err(|e| {
-            DeviceOpError::hardware(
+            DeviceOpError::caused_by(
                 Some(device_id.clone()),
-                move_failed("native", device_id, position, e),
+                move_failed("native", device_id, position, &e),
+                e,
             )
         })
     }
@@ -120,7 +121,7 @@ impl Focuser for VendorFocuser {
             "move_relative",
         )
         .await
-        .map_err(DeviceOpError::driver)
+        .map_err(DeviceOpError::from)
     }
 
     async fn halt(&self) -> Result<(), DeviceOpError> {
@@ -129,7 +130,7 @@ impl Focuser for VendorFocuser {
             .await
             .halt()
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
@@ -138,7 +139,7 @@ impl Focuser for VendorFocuser {
             .await
             .get_position()
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
@@ -147,7 +148,7 @@ impl Focuser for VendorFocuser {
             .await
             .is_moving()
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn is_absolute(&self) -> Result<bool, DeviceOpError> {
@@ -160,7 +161,7 @@ impl Focuser for VendorFocuser {
             .await
             .get_temperature()
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError> {
@@ -223,7 +224,7 @@ impl Focuser for AscomFocuser {
                 focuser
                     .move_to(position)
                     .await
-                    .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                    .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
             },
             device_id,
             position,
@@ -232,9 +233,10 @@ impl Focuser for AscomFocuser {
         )
         .await
         .map_err(|e| {
-            DeviceOpError::hardware(
+            DeviceOpError::caused_by(
                 Some(device_id.clone()),
-                move_failed("ASCOM", device_id, position, e),
+                move_failed("ASCOM", device_id, position, &e),
+                e,
             )
         })
     }
@@ -253,35 +255,32 @@ impl Focuser for AscomFocuser {
             "move_relative",
         )
         .await
-        .map_err(DeviceOpError::driver)
+        .map_err(DeviceOpError::from)
     }
 
     async fn halt(&self) -> Result<(), DeviceOpError> {
         let mut focuser = self.driver.write().await;
-        focuser.halt().await.map_err(DeviceOpError::driver)
+        focuser.halt().await.map_err(DeviceOpError::from)
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
         let focuser = self.driver.read().await;
-        focuser.get_position().await.map_err(DeviceOpError::driver)
+        focuser.get_position().await.map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
         let focuser = self.driver.read().await;
-        focuser.is_moving().await.map_err(DeviceOpError::driver)
+        focuser.is_moving().await.map_err(DeviceOpError::from)
     }
 
     async fn is_absolute(&self) -> Result<bool, DeviceOpError> {
         let focuser = self.driver.read().await;
-        focuser.is_absolute().await.map_err(DeviceOpError::driver)
+        focuser.is_absolute().await.map_err(DeviceOpError::from)
     }
 
     async fn temperature(&self) -> Result<Option<f64>, DeviceOpError> {
         let focuser = self.driver.read().await;
-        focuser
-            .get_temperature()
-            .await
-            .map_err(DeviceOpError::driver)
+        focuser.get_temperature().await.map_err(DeviceOpError::from)
     }
 
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError> {
@@ -338,7 +337,7 @@ impl Focuser for AlpacaFocuserHandle {
                 self.focuser
                     .move_to(position)
                     .await
-                    .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                    .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
             },
             device_id,
             position,
@@ -347,9 +346,10 @@ impl Focuser for AlpacaFocuserHandle {
         )
         .await
         .map_err(|e| {
-            DeviceOpError::hardware(
+            DeviceOpError::caused_by(
                 Some(device_id.clone()),
-                move_failed("Alpaca", device_id, position, e),
+                move_failed("Alpaca", device_id, position, &e),
+                e,
             )
         })
     }
@@ -364,7 +364,7 @@ impl Focuser for AlpacaFocuserHandle {
                 self.focuser
                     .move_to(target_position)
                     .await
-                    .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                    .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
             },
             &self.device_id,
             target_position,
@@ -372,26 +372,23 @@ impl Focuser for AlpacaFocuserHandle {
             1,
         )
         .await
-        .map_err(DeviceOpError::driver)
+        .map_err(DeviceOpError::from)
     }
 
     async fn halt(&self) -> Result<(), DeviceOpError> {
-        self.focuser.halt().await.map_err(DeviceOpError::driver)
+        self.focuser.halt().await.map_err(DeviceOpError::from)
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
-        self.focuser.position().await.map_err(DeviceOpError::driver)
+        self.focuser.position().await.map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-        self.focuser
-            .is_moving()
-            .await
-            .map_err(DeviceOpError::driver)
+        self.focuser.is_moving().await.map_err(DeviceOpError::from)
     }
 
     async fn is_absolute(&self) -> Result<bool, DeviceOpError> {
-        self.focuser.absolute().await.map_err(DeviceOpError::driver)
+        self.focuser.absolute().await.map_err(DeviceOpError::from)
     }
 
     async fn temperature(&self) -> Result<Option<f64>, DeviceOpError> {
@@ -399,7 +396,7 @@ impl Focuser for AlpacaFocuserHandle {
             .temperature()
             .await
             .map(Some)
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn travel(&self) -> Result<(i32, f64), DeviceOpError> {
@@ -462,7 +459,7 @@ impl Focuser for IndiFocuserHandle {
                 self.focuser
                     .move_to(position)
                     .await
-                    .map_err(|e| SkotiqError::OperationFailed(e.to_string()))
+                    .map_err(|e| SkotiqError::from(DeviceOpError::from(e)))
             },
             &self.device_id,
             position,
@@ -471,9 +468,10 @@ impl Focuser for IndiFocuserHandle {
         )
         .await
         .map_err(|e| {
-            DeviceOpError::hardware(
+            DeviceOpError::caused_by(
                 Some(self.device_id.clone()),
-                move_failed("INDI", self.device_name(), position, e),
+                move_failed("INDI", self.device_name(), position, &e),
+                e,
             )
         })
     }
@@ -491,21 +489,21 @@ impl Focuser for IndiFocuserHandle {
             "move_relative",
         )
         .await
-        .map_err(DeviceOpError::driver)
+        .map_err(DeviceOpError::from)
     }
 
     async fn halt(&self) -> Result<(), DeviceOpError> {
         self.focuser
             .abort_motion()
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
         self.focuser
             .get_position()
             .await
-            .map_err(DeviceOpError::driver)
+            .map_err(DeviceOpError::from)
     }
 
     async fn is_moving(&self) -> Result<bool, DeviceOpError> {
@@ -535,7 +533,7 @@ impl Focuser for IndiFocuserHandle {
                     .has_property(self.device_name(), "FOCUS_TEMPERATURE")
                     .await;
                 if has_sensor {
-                    return Err(DeviceOpError::driver(format!(
+                    return Err(DeviceOpError::from(format!(
                         "INDI focuser {} advertises a temperature sensor but the read failed: {}",
                         self.device_name(),
                         e
@@ -606,8 +604,7 @@ impl RigDriver for SimFocuser {
 impl Focuser for SimFocuser {
     async fn move_to(&self, position: i32) -> Result<(), DeviceOpError> {
         sim_faults::check("focuser.move")
-            .await
-            .map_err(DeviceOpError::driver)?;
+            .await?;
         let mut f = get_sim_focuser().write().await;
         if !f.status.connected {
             return Err(sim_not_connected());

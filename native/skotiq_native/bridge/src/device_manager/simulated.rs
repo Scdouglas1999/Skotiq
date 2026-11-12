@@ -429,7 +429,7 @@ impl SafetyMonitorDriver for SimSafetyMonitor {
             if sim_faults::take_unplug(FAULT_KEY).is_some() {
                 get_sim_safety_monitor().write().await.status.connected = false;
             }
-            return Err(refuse(DeviceOpError::driver(e)));
+            return Err(refuse(e));
         }
         let safety = get_sim_safety_monitor().read().await;
         if !safety.status.connected {

@@ -411,6 +411,7 @@ async fn run_autofocus_admitted(
                         "Cannot read the current filter before autofocus: {}",
                         error
                     ))
+                    .caused_by(&error)
                 }
             };
             filter_names = match ctx
@@ -425,6 +426,7 @@ async fn run_autofocus_admitted(
                         "Cannot read filter names before autofocus: {}",
                         error
                     ))
+                    .caused_by(&error)
                 }
             };
             let Some(name) = filter_names.get(position as usize).cloned() else {
@@ -484,6 +486,7 @@ async fn run_autofocus_admitted(
                 "Autofocus is configured to pause guiding, but guider status could not be read: {}",
                 error
             ))
+                .caused_by(&error)
             }
         };
         if guider_status.is_guiding {
@@ -495,7 +498,7 @@ async fn run_autofocus_admitted(
                 return InstructionResult::failure(format!(
                     "Autofocus is configured to pause guiding, but guiding could not be stopped: {}",
                     error
-                ));
+                )).caused_by(&error);
             }
             guiding_was_paused = true;
             if let Some(trigger_state) = &ctx.run.trigger_state {
@@ -1064,7 +1067,8 @@ pub(crate) async fn execute_autofocus_sweep_around(
         Ok(pos) => pos,
         Err(e) => {
             tracing::error!("Autofocus failed: Could not get focuser position: {}", e);
-            return InstructionResult::failure(format!("Failed to get focuser position: {}", e));
+            return InstructionResult::failure(format!("Failed to get focuser position: {}", e))
+                .caused_by(&e);
         }
     };
 
@@ -1133,7 +1137,8 @@ pub(crate) async fn execute_autofocus_sweep_around(
                     return InstructionResult::failure(format!(
                         "Failed to move focuser (backlash): {}",
                         e
-                    ));
+                    ))
+                    .caused_by(&e);
                 }
                 if let Err(e) =
                     wait_for_focuser_idle(&focuser_id, ctx, Duration::from_secs(120)).await
@@ -1148,7 +1153,8 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 .focuser_move_to(&focuser_id, final_pos)
                 .await
             {
-                return InstructionResult::failure(format!("Failed to move focuser: {}", e));
+                return InstructionResult::failure(format!("Failed to move focuser: {}", e))
+                    .caused_by(&e);
             }
         } else {
             tracing::info!("Moving to start position: {}", start_position);
@@ -1158,7 +1164,8 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 .focuser_move_to(&focuser_id, start_position)
                 .await
             {
-                return InstructionResult::failure(format!("Failed to move focuser: {}", e));
+                return InstructionResult::failure(format!("Failed to move focuser: {}", e))
+                    .caused_by(&e);
             }
         }
 
@@ -1254,7 +1261,8 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 .focuser_move_to(&focuser_id, position)
                 .await
             {
-                return InstructionResult::failure(format!("Failed to move focuser: {}", e));
+                return InstructionResult::failure(format!("Failed to move focuser: {}", e))
+                    .caused_by(&e);
             }
 
             if let Err(e) = wait_for_focuser_idle(&focuser_id, ctx, Duration::from_secs(120)).await
@@ -1309,17 +1317,17 @@ pub(crate) async fn execute_autofocus_sweep_around(
                             ctx,
                             RetriedDevice::Camera,
                             camera_retries_done,
-                            &e.to_string(),
+                            e,
                             &format!("on autofocus point {}", point + 1),
                         )
                         .await
                         {
                             RetryOutcome::Retry => camera_retries_done += 1,
-                            RetryOutcome::GiveUp(message) => {
+                            RetryOutcome::GiveUp(failure) => {
                                 return InstructionResult::failure(format!(
-                                    "Autofocus exposure failed: {}",
-                                    message
+                                    "Autofocus exposure failed: {failure}"
                                 ))
+                                .caused_by(&failure.error)
                             }
                             RetryOutcome::Cancelled => {
                                 return ctx.check_cancelled().unwrap_or_else(|| {
@@ -1609,7 +1617,8 @@ pub(crate) async fn execute_autofocus_sweep_around(
             return InstructionResult::failure(format!(
                 "Failed to move focuser (final run-up): {}",
                 e
-            ));
+            ))
+            .caused_by(&e);
         }
         if let Err(e) = wait_for_focuser_idle(&focuser_id, ctx, Duration::from_secs(120)).await {
             return InstructionResult::failure(e);
@@ -1621,7 +1630,8 @@ pub(crate) async fn execute_autofocus_sweep_around(
             .focuser_move_to(&focuser_id, best_position)
             .await
         {
-            return InstructionResult::failure(format!("Failed to move to best focus: {}", e));
+            return InstructionResult::failure(format!("Failed to move to best focus: {}", e))
+                .caused_by(&e);
         }
 
         if let Err(e) = wait_for_focuser_idle(&focuser_id, ctx, Duration::from_secs(120)).await {

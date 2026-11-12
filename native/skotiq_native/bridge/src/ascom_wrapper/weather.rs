@@ -1,25 +1,25 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
+use crate::dispatch::DeviceOpError;
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomObservingConditions;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 
 enum AscomWeatherCommand {
-    Connect(oneshot::Sender<Result<(), String>>),
-    Disconnect(oneshot::Sender<Result<(), String>>),
-    Temperature(oneshot::Sender<Result<f64, String>>),
-    Humidity(oneshot::Sender<Result<f64, String>>),
-    Pressure(oneshot::Sender<Result<f64, String>>),
-    CloudCover(oneshot::Sender<Result<f64, String>>),
-    DewPoint(oneshot::Sender<Result<f64, String>>),
-    WindSpeed(oneshot::Sender<Result<f64, String>>),
-    WindDirection(oneshot::Sender<Result<f64, String>>),
-    SkyQuality(oneshot::Sender<Result<f64, String>>),
-    SkyTemperature(oneshot::Sender<Result<f64, String>>),
-    RainRate(oneshot::Sender<Result<f64, String>>),
+    Connect(oneshot::Sender<Result<(), DeviceOpError>>),
+    Disconnect(oneshot::Sender<Result<(), DeviceOpError>>),
+    Temperature(oneshot::Sender<Result<f64, DeviceOpError>>),
+    Humidity(oneshot::Sender<Result<f64, DeviceOpError>>),
+    Pressure(oneshot::Sender<Result<f64, DeviceOpError>>),
+    CloudCover(oneshot::Sender<Result<f64, DeviceOpError>>),
+    DewPoint(oneshot::Sender<Result<f64, DeviceOpError>>),
+    WindSpeed(oneshot::Sender<Result<f64, DeviceOpError>>),
+    WindDirection(oneshot::Sender<Result<f64, DeviceOpError>>),
+    SkyQuality(oneshot::Sender<Result<f64, DeviceOpError>>),
+    SkyTemperature(oneshot::Sender<Result<f64, DeviceOpError>>),
+    RainRate(oneshot::Sender<Result<f64, DeviceOpError>>),
     /// The heartbeat's liveness read.
-    GetInterfaceVersion(oneshot::Sender<Result<i32, String>>),
+    GetInterfaceVersion(oneshot::Sender<Result<i32, DeviceOpError>>),
 }
 
 pub struct AscomObservingConditionsWrapper {
@@ -42,7 +42,8 @@ impl AscomObservingConditionsWrapper {
                     return Err(format!(
                         "Failed to create ASCOM observing conditions device: {}",
                         error
-                    ));
+                    )
+                    .into());
                 }
             };
 
@@ -63,43 +64,44 @@ impl AscomObservingConditionsWrapper {
                 };
                 match command {
                     AscomWeatherCommand::Connect(reply) => {
-                        let _ = reply.send(weather.connect().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.connect().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::Disconnect(reply) => {
-                        let _ = reply.send(weather.disconnect().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.disconnect().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::Temperature(reply) => {
-                        let _ = reply.send(weather.temperature().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.temperature().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::Humidity(reply) => {
-                        let _ = reply.send(weather.humidity().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.humidity().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::Pressure(reply) => {
-                        let _ = reply.send(weather.pressure().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.pressure().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::CloudCover(reply) => {
-                        let _ = reply.send(weather.cloud_cover().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.cloud_cover().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::DewPoint(reply) => {
-                        let _ = reply.send(weather.dew_point().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.dew_point().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::WindSpeed(reply) => {
-                        let _ = reply.send(weather.wind_speed().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.wind_speed().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::WindDirection(reply) => {
-                        let _ = reply.send(weather.wind_direction().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.wind_direction().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::SkyQuality(reply) => {
-                        let _ = reply.send(weather.sky_quality().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.sky_quality().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::SkyTemperature(reply) => {
-                        let _ = reply.send(weather.sky_temperature().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.sky_temperature().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::RainRate(reply) => {
-                        let _ = reply.send(weather.rain_rate().map_err(|e| e.to_string()));
+                        let _ = reply.send(weather.rain_rate().map_err(DeviceOpError::from));
                     }
                     AscomWeatherCommand::GetInterfaceVersion(reply) => {
-                        let _ = reply.send(weather.interface_version().map_err(|e| e.to_string()));
+                        let _ =
+                            reply.send(weather.interface_version().map_err(DeviceOpError::from));
                     }
                 }
                 PumpOutcome::DidWork
@@ -113,118 +115,111 @@ impl AscomObservingConditionsWrapper {
         })
     }
 
-    async fn recv_with_timeout<T>(
-        rx: oneshot::Receiver<Result<T, String>>,
-        timeout: Duration,
-        operation: &str,
-    ) -> Result<T, String> {
-        match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result,
-            Ok(Err(_)) => Err(format!("Worker thread dead during {}", operation)),
-            Err(_) => Err(format!(
-                "Weather {} timed out after {:?}",
-                operation, timeout
-            )),
-        }
-    }
-
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomWeatherCommand::Connect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await;
+        let result =
+            super::recv_with_timeout("Weather", rx, Timeouts::connection(), "connect").await;
         if result.is_ok() {
             self.connected.store(true, Ordering::SeqCst);
         }
         result
     }
 
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomWeatherCommand::Disconnect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
+        let result =
+            super::recv_with_timeout("Weather", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }
         result
     }
 
-    pub async fn temperature(&self) -> Result<f64, String> {
+    pub async fn temperature(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::Temperature, "temperature")
             .await
     }
 
-    pub async fn humidity(&self) -> Result<f64, String> {
+    pub async fn humidity(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::Humidity, "humidity")
             .await
     }
 
-    pub async fn pressure(&self) -> Result<f64, String> {
+    pub async fn pressure(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::Pressure, "pressure")
             .await
     }
 
-    pub async fn cloud_cover(&self) -> Result<f64, String> {
+    pub async fn cloud_cover(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::CloudCover, "cloud_cover")
             .await
     }
 
-    pub async fn dew_point(&self) -> Result<f64, String> {
+    pub async fn dew_point(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::DewPoint, "dew_point")
             .await
     }
 
-    pub async fn wind_speed(&self) -> Result<f64, String> {
+    pub async fn wind_speed(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::WindSpeed, "wind_speed")
             .await
     }
 
-    pub async fn wind_direction(&self) -> Result<f64, String> {
+    pub async fn wind_direction(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::WindDirection, "wind_direction")
             .await
     }
 
-    pub async fn sky_quality(&self) -> Result<f64, String> {
+    pub async fn sky_quality(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::SkyQuality, "sky_quality")
             .await
     }
 
-    pub async fn sky_temperature(&self) -> Result<f64, String> {
+    pub async fn sky_temperature(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::SkyTemperature, "sky_temperature")
             .await
     }
 
-    pub async fn rain_rate(&self) -> Result<f64, String> {
+    pub async fn rain_rate(&self) -> Result<f64, DeviceOpError> {
         self.read_float(AscomWeatherCommand::RainRate, "rain_rate")
             .await
     }
 
     async fn read_float(
         &self,
-        build_command: impl FnOnce(oneshot::Sender<Result<f64, String>>) -> AscomWeatherCommand,
+        build_command: impl FnOnce(oneshot::Sender<Result<f64, DeviceOpError>>) -> AscomWeatherCommand,
         operation: &str,
-    ) -> Result<f64, String> {
+    ) -> Result<f64, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(build_command(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), operation).await
+        super::recv_with_timeout("Weather", rx, Timeouts::property_read(), operation).await
     }
 
     /// Returns the ASCOM `InterfaceVersion` integer (ASCOM-Common §IAscomDriverV1).
-    pub async fn interface_version(&self) -> Result<i32, String> {
+    pub async fn interface_version(&self) -> Result<i32, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomWeatherCommand::GetInterfaceVersion(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "interface_version").await
+        super::recv_with_timeout(
+            "Weather",
+            rx,
+            Timeouts::property_read(),
+            "interface_version",
+        )
+        .await
     }
 }
 

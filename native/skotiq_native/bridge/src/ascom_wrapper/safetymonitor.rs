@@ -1,14 +1,14 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
+use crate::dispatch::DeviceOpError;
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomSafetyMonitor;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 
 enum AscomSafetyMonitorCommand {
-    Connect(oneshot::Sender<Result<(), String>>),
-    Disconnect(oneshot::Sender<Result<(), String>>),
-    IsSafe(oneshot::Sender<Result<bool, String>>),
+    Connect(oneshot::Sender<Result<(), DeviceOpError>>),
+    Disconnect(oneshot::Sender<Result<(), DeviceOpError>>),
+    IsSafe(oneshot::Sender<Result<bool, DeviceOpError>>),
 }
 
 pub struct AscomSafetyMonitorWrapper {
@@ -28,7 +28,7 @@ impl AscomSafetyMonitorWrapper {
             let mut safety_monitor = match AscomSafetyMonitor::new(&prog_id_clone) {
                 Ok(safety_monitor) => safety_monitor,
                 Err(error) => {
-                    return Err(format!("Failed to create ASCOM safety monitor: {}", error));
+                    return Err(format!("Failed to create ASCOM safety monitor: {}", error).into());
                 }
             };
 
@@ -49,13 +49,14 @@ impl AscomSafetyMonitorWrapper {
                 };
                 match command {
                     AscomSafetyMonitorCommand::Connect(reply) => {
-                        let _ = reply.send(safety_monitor.connect().map_err(|e| e.to_string()));
+                        let _ = reply.send(safety_monitor.connect().map_err(DeviceOpError::from));
                     }
                     AscomSafetyMonitorCommand::Disconnect(reply) => {
-                        let _ = reply.send(safety_monitor.disconnect().map_err(|e| e.to_string()));
+                        let _ =
+                            reply.send(safety_monitor.disconnect().map_err(DeviceOpError::from));
                     }
                     AscomSafetyMonitorCommand::IsSafe(reply) => {
-                        let _ = reply.send(safety_monitor.is_safe().map_err(|e| e.to_string()));
+                        let _ = reply.send(safety_monitor.is_safe().map_err(DeviceOpError::from));
                     }
                 }
                 PumpOutcome::DidWork
@@ -69,53 +70,41 @@ impl AscomSafetyMonitorWrapper {
         })
     }
 
-    async fn recv_with_timeout<T>(
-        rx: oneshot::Receiver<Result<T, String>>,
-        timeout: Duration,
-        operation: &str,
-    ) -> Result<T, String> {
-        match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result,
-            Ok(Err(_)) => Err(format!("Worker thread dead during {}", operation)),
-            Err(_) => Err(format!(
-                "Safety monitor {} timed out after {:?}",
-                operation, timeout
-            )),
-        }
-    }
-
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSafetyMonitorCommand::Connect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await;
+        let result =
+            super::recv_with_timeout("Safety monitor", rx, Timeouts::connection(), "connect").await;
         if result.is_ok() {
             self.connected.store(true, Ordering::SeqCst);
         }
         result
     }
 
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSafetyMonitorCommand::Disconnect(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
+        let result =
+            super::recv_with_timeout("Safety monitor", rx, Timeouts::connection(), "disconnect")
+                .await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }
         result
     }
 
-    pub async fn is_safe(&self) -> Result<bool, String> {
+    pub async fn is_safe(&self) -> Result<bool, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomSafetyMonitorCommand::IsSafe(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "is_safe").await
+        super::recv_with_timeout("Safety monitor", rx, Timeouts::property_read(), "is_safe").await
     }
 }

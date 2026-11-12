@@ -21,6 +21,7 @@ mod listing_order;
 mod mount_home;
 mod mount_ops;
 mod mount_set_park;
+mod protocol_errors;
 mod reconnect_state;
 mod simulator;
 mod switch_ops;

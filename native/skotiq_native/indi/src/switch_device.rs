@@ -224,13 +224,10 @@ impl IndiSwitchDevice {
             .ok()
             .and_then(|i| switches.into_iter().nth(i))
             .ok_or_else(|| {
-                skotiq_device::DriverError::Backend(
-                    format!(
-                        "Switch index {} out of range (device has {} switches)",
-                        index, count
-                    )
-                    .into(),
-                )
+                skotiq_device::DriverError::InvalidParameter(format!(
+                    "Switch index {} out of range (device has {} switches)",
+                    index, count
+                ))
             })
     }
 

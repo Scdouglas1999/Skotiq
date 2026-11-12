@@ -546,7 +546,10 @@ pub async fn execute_flat_wizard(
 
     // A missing camera is surfaced before any other work.
     if ctx.run.rig.camera_id.as_deref().is_none() {
-        return InstructionResult::failure("No camera connected");
+        return InstructionResult::failure_because(
+            "No camera connected",
+            crate::instructions::Setback::Disconnected,
+        );
     }
 
     let borrow_reporter = BorrowedProgressReporter {

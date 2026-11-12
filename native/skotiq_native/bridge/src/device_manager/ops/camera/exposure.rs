@@ -71,12 +71,13 @@ impl DeviceManager {
                         );
                         let mut camera = camera.write().await;
                         return camera.start_exposure(params).await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to start ASCOM camera exposure on {}: {}",
                                     device_id, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -116,15 +117,17 @@ impl DeviceManager {
                     }
                     // Set binning - propagate errors
                     camera.set_bin_x(bin_x).await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!("Failed to set Alpaca camera bin_x: {}", e),
+                            e,
                         )
                     })?;
                     camera.set_bin_y(bin_y).await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!("Failed to set Alpaca camera bin_y: {}", e),
+                            e,
                         )
                     })?;
                     // Alpaca/ASCOM defines NumX/NumY in binned pixels. Changing
@@ -134,15 +137,17 @@ impl DeviceManager {
                     // binning so a 2x2 exposure on an 800x600 sensor requests
                     // 400x300 instead of the invalid 800x600.
                     let sensor_width = camera.camera_x_size().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!("Failed to read Alpaca camera width: {}", e),
+                            e,
                         )
                     })?;
                     let sensor_height = camera.camera_y_size().await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!("Failed to read Alpaca camera height: {}", e),
+                            e,
                         )
                     })?;
                     let full_width = sensor_width
@@ -269,18 +274,20 @@ impl DeviceManager {
                             .set_number(&device_name, "CCD_BINNING", "HOR_BIN", bin_x as f64)
                             .await
                             .map_err(|e| {
-                                DeviceOpError::hardware(
+                                DeviceOpError::caused_by(
                                     Some(device_id.to_string()),
                                     format!("Failed to set INDI camera horizontal binning: {}", e),
+                                    e,
                                 )
                             })?;
                         locked_client
                             .set_number(&device_name, "CCD_BINNING", "VER_BIN", bin_y as f64)
                             .await
                             .map_err(|e| {
-                                DeviceOpError::hardware(
+                                DeviceOpError::caused_by(
                                     Some(device_id.to_string()),
                                     format!("Failed to set INDI camera vertical binning: {}", e),
+                                    e,
                                 )
                             })?;
                         let (frame_x, frame_y, frame_width, frame_height) =
@@ -332,9 +339,10 @@ impl DeviceManager {
                             )
                             .await
                             .map_err(|e| {
-                                DeviceOpError::hardware(
+                                DeviceOpError::caused_by(
                                     Some(device_id.to_string()),
                                     format!("Failed to set INDI camera frame geometry: {}", e),
+                                    e,
                                 )
                             })?;
                         return locked_client
@@ -368,12 +376,13 @@ impl DeviceManager {
                         frame_type,
                     };
                     return camera.start_exposure(params).await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to start native SDK camera exposure on {}: {}",
                                 device_id, e
                             ),
+                            e,
                         )
                     });
                 }
@@ -583,8 +592,7 @@ impl DeviceManager {
             }
             Some(DriverType::Simulator) => {
                 crate::device_manager::ops::sim_gate::require_camera_connected(device_id)
-                    .await
-                    .map_err(DeviceOpError::from)?;
+                    .await?;
                 // Release a caller polling for completion, but remember that the
                 // frame was abandoned: a download afterwards has nothing to
                 // hand back and must say so.

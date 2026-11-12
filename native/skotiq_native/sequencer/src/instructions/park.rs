@@ -66,7 +66,7 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
         .await
         .ok();
     if let Err(e) = ctx.run.device_ops.mount_park(&mount_id).await {
-        return InstructionResult::failure(format!("Park failed: {}", e));
+        return InstructionResult::failure(format!("Park failed: {}", e)).caused_by(&e);
     }
     // A mount stuck at an axis limit takes the park and stays put: move it
     // off the limit and park again.
@@ -84,7 +84,7 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
         crate::limit_backoff::notify(&*ctx.run.device_ops, "park", &freed).await;
         if freed.is_ok() {
             if let Err(e) = ctx.run.device_ops.mount_park(&mount_id).await {
-                return InstructionResult::failure(format!("Park failed: {}", e));
+                return InstructionResult::failure(format!("Park failed: {}", e)).caused_by(&e);
             }
         }
     }
@@ -158,7 +158,7 @@ pub async fn execute_unpark(ctx: &InstructionContext) -> InstructionResult {
 
     match ctx.run.device_ops.mount_unpark(&mount_id).await {
         Ok(_) => InstructionResult::success_with_message("Mount unparked"),
-        Err(e) => InstructionResult::failure(format!("Unpark failed: {}", e)),
+        Err(e) => InstructionResult::failure(format!("Unpark failed: {}", e)).caused_by(&e),
     }
 }
 
@@ -308,7 +308,7 @@ async fn home_mount(
     tracing::info!("Homing mount");
 
     if let Err(e) = ctx.run.device_ops.mount_find_home(&mount_id).await {
-        return InstructionResult::failure(format!("Home failed: {}", e));
+        return InstructionResult::failure(format!("Home failed: {}", e)).caused_by(&e);
     }
     let issued_at = tokio::time::Instant::now();
 

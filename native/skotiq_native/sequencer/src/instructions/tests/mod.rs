@@ -218,9 +218,9 @@ struct ScriptedDomeRotatorOps {
     /// `None` stands in for a rig whose site has not been configured.
     scripted_observer_location: Option<(f64, f64)>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
-    camera_failures: Mutex<std::collections::VecDeque<String>>,
+    camera_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// Errors the next `filterwheel_set_position` calls fail with, one each.
-    filter_set_failures: Mutex<std::collections::VecDeque<String>>,
+    filter_set_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// The next this-many `filterwheel_set_position` calls are accepted and
     /// never carried out: a stalled wheel.
     filter_stalled_moves: AtomicU32,
@@ -319,20 +319,26 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// Fail the next exposures with these errors, one each.
-    fn failing_exposures(self, errors: &[&str]) -> Self {
+    fn failing_exposures<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.camera_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
     /// Fail the next filter-wheel moves with these errors, one each.
-    fn failing_filter_moves(self, errors: &[&str]) -> Self {
+    fn failing_filter_moves<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.filter_set_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
@@ -413,11 +419,14 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// Fail the next camera exposures with these errors, one each.
-    fn failing_next_exposures(self, errors: &[&str]) -> Self {
+    fn failing_next_exposures<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.camera_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
@@ -768,7 +777,7 @@ impl CameraOps for ScriptedDomeRotatorOps {
             return std::future::pending::<DeviceResult<ImageData>>().await;
         }
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
-            return Err(error.into());
+            return Err(error);
         }
         if let Some((position, frame)) = &self.focus_model {
             let at = *position.lock().unwrap();
@@ -896,7 +905,7 @@ impl FilterWheelOps for ScriptedDomeRotatorOps {
     async fn filterwheel_set_position(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.filter_moves.lock().unwrap().push(p);
         if let Some(error) = self.filter_set_failures.lock().unwrap().pop_front() {
-            return Err(error.into());
+            return Err(error);
         }
         let stalled = self
             .filter_stalled_moves
