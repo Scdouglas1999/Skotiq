@@ -343,17 +343,12 @@ pub(crate) async fn get_ascom_capabilities(
         // As with cameras and mounts, prefer the live registered wrapper. A
         // throwaway COM object can share and then tear down the live driver's
         // connection when its probe disconnects.
-        let live_wrapper = {
-            let manager = crate::api::get_device_manager();
-            manager
-                .ascom_filter_wheels
-                .read()
-                .await
-                .get(device_id)
-                .cloned()
-        };
-        if let Some(wrapper) = live_wrapper {
-            let wrapper = wrapper.read().await;
+        let live_wrapper =
+            crate::api::get_device_manager()
+                .handles
+                .concrete::<crate::device_manager::rig::filter_wheel::AscomWheel>(device_id);
+        if let Some(wheel) = live_wrapper {
+            let wrapper = wheel.driver.read().await;
             // A FAILED names read must not masquerade as "this wheel has zero
             // filters". `unwrap_or_default()` here turned any read error into an
             // empty list and hence `position_count: 0`, which is

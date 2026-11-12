@@ -11,6 +11,7 @@ use crate::api::devices::simulation::{
 use crate::device::{DeviceInfo, DeviceType, DomeStatus, ShutterState};
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::ops::sim_gate;
+use crate::device_manager::rig::filter_wheel::SimFilterWheel;
 use crate::dispatch::DeviceOpError;
 use async_trait::async_trait;
 use skotiq_device::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
@@ -24,10 +25,12 @@ fn refuse(error: impl Into<DeviceOpError>) -> DriverError {
     DriverError::Backend(Box::new(error.into()))
 }
 
-/// The handle for a simulated accessory, `None` for the other device types.
-pub(crate) fn accessory_handle(info: &DeviceInfo) -> Option<DeviceHandle> {
+/// The handle for a simulated device, `None` for the device types that have
+/// none.
+pub(crate) fn handle(info: &DeviceInfo) -> Option<DeviceHandle> {
     let device_id = info.id.clone();
     Some(match info.device_type {
+        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(SimFilterWheel)),
         DeviceType::Dome => DeviceHandle::Dome(Arc::new(SimDome { device_id })),
         DeviceType::Rotator => DeviceHandle::Rotator(Arc::new(SimRotator)),
         DeviceType::Switch => DeviceHandle::Switch(Arc::new(SimSwitch)),
@@ -394,8 +397,23 @@ impl AccessoryDriver for SimSafetyMonitor {
         Ok(())
     }
 
+    /// Reads the connection only: an injected `safetymonitor.status` fault is
+    /// for the next safety read, and a heartbeat must not use it up.
     async fn heartbeat(&self) -> Result<(), DriverError> {
-        self.is_safe().await.map(|_| ())
+        if get_sim_safety_monitor().read().await.status.connected {
+            Ok(())
+        } else {
+            Err(self.not_connected())
+        }
+    }
+}
+
+impl SimSafetyMonitor {
+    fn not_connected(&self) -> DriverError {
+        refuse(DeviceOpError::not_connected(
+            Some(self.device_id.clone()),
+            "Simulator safety monitor not connected",
+        ))
     }
 }
 
@@ -413,10 +431,7 @@ impl SafetyMonitorDriver for SimSafetyMonitor {
         }
         let safety = get_sim_safety_monitor().read().await;
         if !safety.status.connected {
-            return Err(refuse(DeviceOpError::not_connected(
-                Some(self.device_id.clone()),
-                "Simulator safety monitor not connected",
-            )));
+            return Err(self.not_connected());
         }
         Ok(safety.status.is_safe)
     }

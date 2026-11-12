@@ -5,12 +5,16 @@
 //! error. Which protocol answers is decided once, at connect.
 
 use crate::device::{DeviceType, DriverType};
+use crate::device_manager::ops::sim_gate;
+use crate::device_manager::rig::filter_wheel::FilterWheel;
+use crate::device_manager::rig::RigDriver;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use skotiq_device::{
     AccessoryDriver, CoverCalibratorDriver, DomeDriver, DriverError, RotatorDriver,
     SafetyMonitorDriver, SwitchDriver, WeatherDriver,
 };
+use std::any::Any;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -22,18 +26,60 @@ pub(crate) enum DeviceHandle {
     Weather(Arc<dyn WeatherDriver>),
     SafetyMonitor(Arc<dyn SafetyMonitorDriver>),
     CoverCalibrator(Arc<dyn CoverCalibratorDriver>),
+    FilterWheel(Arc<dyn FilterWheel>),
+}
+
+/// What a handle is closed and probed through.
+enum Link {
+    Accessory(Arc<dyn AccessoryDriver>),
+    Rig(Arc<dyn RigDriver>),
 }
 
 impl DeviceHandle {
-    pub(crate) fn accessory(&self) -> Arc<dyn AccessoryDriver> {
+    fn link(&self) -> Link {
         match self {
-            DeviceHandle::Dome(d) => d.clone(),
-            DeviceHandle::Rotator(d) => d.clone(),
-            DeviceHandle::Switch(d) => d.clone(),
-            DeviceHandle::Weather(d) => d.clone(),
-            DeviceHandle::SafetyMonitor(d) => d.clone(),
-            DeviceHandle::CoverCalibrator(d) => d.clone(),
+            DeviceHandle::Dome(d) => Link::Accessory(d.clone()),
+            DeviceHandle::Rotator(d) => Link::Accessory(d.clone()),
+            DeviceHandle::Switch(d) => Link::Accessory(d.clone()),
+            DeviceHandle::Weather(d) => Link::Accessory(d.clone()),
+            DeviceHandle::SafetyMonitor(d) => Link::Accessory(d.clone()),
+            DeviceHandle::CoverCalibrator(d) => Link::Accessory(d.clone()),
+            DeviceHandle::FilterWheel(d) => Link::Rig(d.clone()),
         }
+    }
+
+    pub(crate) async fn disconnect(&self) -> Result<(), DriverError> {
+        match self.link() {
+            Link::Accessory(driver) => driver.disconnect().await,
+            Link::Rig(driver) => driver.disconnect().await,
+        }
+    }
+
+    /// One liveness probe; see [`RigDriver::heartbeat`] for the three answers.
+    pub(crate) async fn heartbeat(&self, device_id: &str) -> Result<bool, String> {
+        match self.link() {
+            Link::Accessory(driver) => Ok(match driver.heartbeat().await {
+                Ok(()) => {
+                    tracing::trace!("{} heartbeat: healthy", device_id);
+                    true
+                }
+                Err(e) => {
+                    tracing::debug!("{} heartbeat failed: {}", device_id, e);
+                    false
+                }
+            }),
+            Link::Rig(driver) => driver.heartbeat().await,
+        }
+    }
+
+    /// The driver behind the handle as its concrete type, for the capability
+    /// probes that read what only one protocol's driver offers.
+    fn concrete<T: Any + Send + Sync>(self) -> Option<Arc<T>> {
+        let any: Arc<dyn Any + Send + Sync> = match self {
+            DeviceHandle::FilterWheel(d) => d,
+            _ => return None,
+        };
+        any.downcast().ok()
     }
 }
 
@@ -57,6 +103,11 @@ impl Handles {
             .write()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .insert(device_id.to_string(), handle)
+    }
+
+    /// The driver of `device_id` when it is connected through a `T`.
+    pub(crate) fn concrete<T: Any + Send + Sync>(&self, device_id: &str) -> Option<Arc<T>> {
+        self.get(device_id)?.concrete()
     }
 
     pub(crate) fn remove(&self, device_id: &str) -> Option<DeviceHandle> {
@@ -109,15 +160,28 @@ impl DeviceManager {
             .map(|d| d.info.clone())
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
         self.handles.get(device_id).and_then(pick).ok_or_else(|| {
-            DeviceOpError::not_connected(
-                Some(device_id.to_string()),
-                format!(
+            let noun = device_noun(info.device_type);
+            let detail = match (info.driver_type, info.device_type) {
+                (DriverType::Simulator, DeviceType::FilterWheel) => sim_gate::not_connected(&noun),
+                _ => format!(
                     "{} {} not connected",
                     protocol_label(info.driver_type),
-                    device_noun(info.device_type)
+                    noun
                 ),
-            )
+            };
+            DeviceOpError::not_connected(Some(device_id.to_string()), detail)
         })
+    }
+
+    pub(crate) async fn filter_wheel(
+        &self,
+        device_id: &str,
+    ) -> Result<Arc<dyn FilterWheel>, DeviceOpError> {
+        self.connected(device_id, |h| match h {
+            DeviceHandle::FilterWheel(d) => Some(d),
+            _ => None,
+        })
+        .await
     }
 
     pub(crate) async fn dome(&self, device_id: &str) -> Result<Arc<dyn DomeDriver>, DeviceOpError> {

@@ -167,14 +167,19 @@ pub(crate) fn infer_indi_device_type_from_name_driver(
     None
 }
 
-/// The handle for an INDI accessory, `None` for the other device types.
-fn accessory_handle(
-    device_type: DeviceType,
+/// The handle for an INDI device, `None` for the device types that have none.
+fn handle(
+    info: &DeviceInfo,
     client: Arc<RwLock<skotiq_indi::IndiClient>>,
     device_name: &str,
 ) -> Option<DeviceHandle> {
+    use crate::device_manager::rig::filter_wheel::IndiWheel;
     use skotiq_indi::*;
-    Some(match device_type {
+    Some(match info.device_type {
+        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(IndiWheel::new(
+            &info.id,
+            IndiFilterWheel::new(client, device_name),
+        ))),
         DeviceType::Dome => DeviceHandle::Dome(Arc::new(IndiDome::new(client, device_name))),
         DeviceType::Rotator => {
             DeviceHandle::Rotator(Arc::new(IndiRotator::new(client, device_name)))
@@ -341,7 +346,7 @@ impl DeviceManager {
         }
 
         drop(locked_client);
-        if let Some(handle) = accessory_handle(info.device_type, client, &device_name) {
+        if let Some(handle) = handle(info, client, &device_name) {
             self.handles.insert(&info.id, handle);
         }
 

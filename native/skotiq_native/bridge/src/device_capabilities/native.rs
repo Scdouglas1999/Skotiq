@@ -169,8 +169,11 @@ pub(crate) async fn get_native_capabilities(
             }
         }
         crate::device::DeviceType::FilterWheel => {
-            let native_fws = mgr.native_filter_wheels.read().await;
-            if let Some(fw) = native_fws.get(device_id) {
+            let wheel = mgr
+                .handles
+                .concrete::<crate::device_manager::rig::filter_wheel::VendorFilterWheel>(device_id);
+            if let Some(wheel) = wheel {
+                let fw = wheel.driver.read().await;
                 // Why: vendor SDKs that don't persist filter labels (e.g. ZWO
                 // EFW) return an error here on first connect. Empty vec → UI
                 // renders generic "Filter 1, Filter 2..." labels indexed off

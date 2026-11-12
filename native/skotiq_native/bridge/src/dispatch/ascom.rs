@@ -101,18 +101,22 @@ impl DeviceManager {
             }
             DeviceType::FilterWheel => {
                 use crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper;
+                use crate::device_manager::rig::filter_wheel::AscomWheel;
 
-                disconnect_existing_ascom!(self.ascom_filter_wheels, "filter wheel");
+                self.disconnect_previous_ascom_handle(&info.id, "filter wheel ")
+                    .await;
 
                 let mut fw = AscomFilterWheelWrapper::new(prog_id.to_string())?;
                 fw.connect().await.map_err(|e| e.to_string())?;
 
-                let mut ascom_filter_wheels = self.ascom_filter_wheels.write().await;
-                ascom_filter_wheels.insert(info.id.clone(), Arc::new(RwLock::new(fw)));
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::FilterWheel(Arc::new(AscomWheel::new(&info.id, fw))),
+                );
             }
             DeviceType::Rotator => {
                 use crate::ascom_wrapper::rotator::AscomRotatorWrapper;
-                self.disconnect_previous_ascom_accessory(&info.id).await;
+                self.disconnect_previous_ascom_handle(&info.id, "").await;
                 let rotator = AscomRotatorWrapper::new(prog_id.to_string())?;
                 rotator.connect().await?;
                 self.handles
@@ -120,7 +124,7 @@ impl DeviceManager {
             }
             DeviceType::Dome => {
                 use crate::ascom_wrapper::dome::AscomDomeWrapper;
-                self.disconnect_previous_ascom_accessory(&info.id).await;
+                self.disconnect_previous_ascom_handle(&info.id, "").await;
                 let dome = AscomDomeWrapper::new(prog_id.to_string())?;
                 dome.connect().await?;
                 self.handles
@@ -128,7 +132,7 @@ impl DeviceManager {
             }
             DeviceType::Switch => {
                 use crate::ascom_wrapper::switch::AscomSwitchWrapper;
-                self.disconnect_previous_ascom_accessory(&info.id).await;
+                self.disconnect_previous_ascom_handle(&info.id, "").await;
                 let sw = AscomSwitchWrapper::new(prog_id.to_string())?;
                 sw.connect().await?;
                 self.handles
@@ -136,7 +140,7 @@ impl DeviceManager {
             }
             DeviceType::Weather => {
                 use crate::ascom_wrapper::weather::AscomObservingConditionsWrapper;
-                self.disconnect_previous_ascom_accessory(&info.id).await;
+                self.disconnect_previous_ascom_handle(&info.id, "").await;
                 let weather = AscomObservingConditionsWrapper::new(prog_id.to_string())?;
                 weather.connect().await?;
                 self.handles
@@ -144,7 +148,7 @@ impl DeviceManager {
             }
             DeviceType::SafetyMonitor => {
                 use crate::ascom_wrapper::safetymonitor::AscomSafetyMonitorWrapper;
-                self.disconnect_previous_ascom_accessory(&info.id).await;
+                self.disconnect_previous_ascom_handle(&info.id, "").await;
                 let safety = AscomSafetyMonitorWrapper::new(prog_id.to_string())?;
                 safety.connect().await?;
                 self.handles
@@ -152,7 +156,7 @@ impl DeviceManager {
             }
             DeviceType::CoverCalibrator => {
                 use crate::ascom_wrapper::covercalibrator::AscomCoverCalibratorWrapper;
-                self.disconnect_previous_ascom_accessory(&info.id).await;
+                self.disconnect_previous_ascom_handle(&info.id, "").await;
                 let cover_cal = AscomCoverCalibratorWrapper::new(prog_id.to_string())?;
                 cover_cal.connect().await?;
                 self.handles
@@ -171,18 +175,23 @@ impl DeviceManager {
 
     /// Releases the wrapper a previous connect of `device_id` left behind, so
     /// the COM object is not held twice across a reconnect.
+    ///
+    /// `label` goes into the log line: empty, or a device noun followed by a
+    /// space.
     #[cfg(windows)]
-    async fn disconnect_previous_ascom_accessory(&self, device_id: &str) {
+    async fn disconnect_previous_ascom_handle(&self, device_id: &str, label: &str) {
         let Some(old) = self.handles.remove(device_id) else {
             return;
         };
-        match old.accessory().disconnect().await {
+        match old.disconnect().await {
             Ok(()) => tracing::info!(
-                "Disconnected old ASCOM wrapper for {} before reconnect",
+                "Disconnected old ASCOM {}wrapper for {} before reconnect",
+                label,
                 device_id
             ),
             Err(error) => tracing::warn!(
-                "Failed to disconnect old ASCOM wrapper for {} before reconnect: {}",
+                "Failed to disconnect old ASCOM {}wrapper for {} before reconnect: {}",
+                label,
                 device_id,
                 error
             ),
@@ -265,27 +274,6 @@ impl DeviceManager {
                     }
                 } else {
                     Err(format!("ASCOM focuser {} not found", device_id))
-                }
-            }
-            DeviceType::FilterWheel => {
-                let filter_wheels = self.ascom_filter_wheels.read().await;
-                if let Some(fw) = filter_wheels.get(device_id) {
-                    match fw.read().await.heartbeat().await {
-                        Ok(()) => {
-                            tracing::trace!("ASCOM filter wheel {} heartbeat: healthy", device_id);
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                "ASCOM filter wheel {} heartbeat failed: {:?}",
-                                device_id,
-                                e
-                            );
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("ASCOM filter wheel {} not found", device_id))
                 }
             }
             _ => Err(format!(
