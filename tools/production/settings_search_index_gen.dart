@@ -33,6 +33,7 @@ const _sectionIdsPath =
 const _translationsPath =
     'packages/skotiq_app/lib/localization/skotiq_localizations/translations.dart';
 const _libRoot = 'packages/skotiq_app/lib';
+const _toursPath = 'packages/skotiq_app/lib/tours/tour.dart';
 
 Future<void> main(List<String> args) async {
   final checkOnly = args.contains('--check');
@@ -309,6 +310,65 @@ Map<String, String> _englishStrings(String translationsSource) {
 /// Constructors whose `label:`/`labelText:` names a SETTING rather than an
 /// action. A button's label is a verb ("Delete", "Cancel") and indexing it would
 /// make "delete" match half the app; an input's label is the setting's name.
+/// The guided tours, read from their one declaration in [_toursPath].
+///
+/// Settings > Help lists tours from that data (`for (final tour in
+/// Tour.workflows) ... title: tour.title`), so their visible names appear in
+/// no `title: '...'` a page carries. Without this the search could not find
+/// "Target planning" on the page that shows it.
+class _Tours {
+  _Tours(this.titles, this.workflows);
+
+  /// Tour enum value name -> its title.
+  final Map<String, String> titles;
+
+  /// The tours `Tour.workflows` lists, in order.
+  final List<String> workflows;
+
+  static _Tours parse(String source) {
+    final titles = <String, String>{};
+    final enumBody = RegExp(
+      r'enum Tour \{(.*?)\n  const Tour\(',
+      dotAll: true,
+    ).firstMatch(source)?.group(1);
+    if (enumBody == null) {
+      stderr.writeln('error: could not read the Tour enum in $_toursPath');
+      exit(2);
+    }
+    for (final m in RegExp(
+      r"^  (\w+)\(\s*'[^']*',\s*title:\s*'((?:[^'\\]|\\.)*)'",
+      multiLine: true,
+    ).allMatches(enumBody)) {
+      titles[m.group(1)!] = m.group(2)!;
+    }
+    final list = RegExp(
+      r'static const List<Tour> workflows = \[(.*?)\];',
+      dotAll: true,
+    ).firstMatch(source)?.group(1);
+    final workflows = [
+      for (final m in RegExp(r'\b(\w+)\b').allMatches(list ?? '')) m.group(1)!,
+    ];
+    final unknown = workflows.where((name) => !titles.containsKey(name));
+    if (titles.isEmpty || workflows.isEmpty || unknown.isNotEmpty) {
+      stderr.writeln(
+        'error: could not read the tour titles in $_toursPath '
+        '(${titles.length} titles, workflows $workflows)',
+      );
+      exit(2);
+    }
+    return _Tours(titles, workflows);
+  }
+
+  /// The tour titles a page shows: every tour of `Tour.workflows` when it
+  /// lists them, and each `Tour.<name>.title` it names.
+  List<String> shownBy(String source) => [
+    if (source.contains('Tour.workflows'))
+      for (final name in workflows) titles[name]!,
+    for (final m in RegExp(r'\bTour\.(\w+)\.title\b').allMatches(source))
+      if (titles[m.group(1)!] case final title?) title,
+  ];
+}
+
 final _inputWidget = RegExp(r'(Field|Input|Number|Slider|Dropdown|Picker)$');
 
 /// Constructors whose `title:` is NOT a settings row: a confirmation dialog,
@@ -331,10 +391,11 @@ final _nonRowTitle = RegExp(
 /// description.
 List<String> _titles(
   String source,
-  Map<String, String> english, {
+  Map<String, String> english,
+  _Tours tours, {
   Map<String, String>? rowOf,
 }) {
-  final found = <String>[];
+  final found = <String>[...tours.shownBy(source)];
 
   void addLiteral(RegExp pattern, {bool inputsOnly = false}) {
     for (final m in pattern.allMatches(source)) {
@@ -435,7 +496,8 @@ List<String> _titles(
 List<String> _collect(
   _Library? library,
   _Libraries libraries,
-  Map<String, String> english, {
+  Map<String, String> english,
+  _Tours tours, {
   int depth = 0,
   Set<String>? visited,
   Map<String, String>? rowOf,
@@ -446,7 +508,7 @@ List<String> _collect(
     return const [];
   }
   if (depth == 0) featureRoot = _featureRoot(library.path);
-  final found = _titles(library.source, english, rowOf: rowOf);
+  final found = _titles(library.source, english, tours, rowOf: rowOf);
   // Follow constructor calls that resolve to another page under settings/,
   // excluding the shared row/section components — those are generic chrome and
   // their internal strings are not this page's content.
@@ -464,6 +526,7 @@ List<String> _collect(
         target,
         libraries,
         english,
+        tours,
         depth: depth + 1,
         visited: visited,
         rowOf: rowOf,
@@ -589,6 +652,7 @@ String _generate(String repoRoot) {
     File('$repoRoot/$_sectionIdsPath').readAsStringSync(),
   );
   final roots = widgets.values.toSet();
+  final tours = _Tours.parse(File('$repoRoot/$_toursPath').readAsStringSync());
 
   final missing = <String>[];
   final entries = <String, List<String>>{};
@@ -608,7 +672,7 @@ String _generate(String repoRoot) {
     }
     final rawRowOf = <String, String>{};
     final titles = _clean(
-      _collect(library, libraries, english, rowOf: rawRowOf),
+      _collect(library, libraries, english, tours, rowOf: rawRowOf),
     );
     if (titles.isNotEmpty) entries[key] = titles;
     final sectionRowOf = <String, String>{};

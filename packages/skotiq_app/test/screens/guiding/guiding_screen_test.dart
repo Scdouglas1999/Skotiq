@@ -13,17 +13,10 @@
 //      provider to `true` would silently render the disconnect button
 //      instead, hiding the un-set-up case from new users.
 //   3. shows_connect_button_in_status_bar — independent of state, the
-//      [GuidingTutorialKeys.connectBtn] key must always resolve to exactly
-//      one widget so the tutorial system's anchor lookup keeps working.
+//      [TourTarget.guidingConnectButton.key] key must always resolve to exactly
+//      one widget so the tour overlay can find it.
 //      Pinning the key in a test is the only way to catch a copy/paste
 //      key drift inside the production build.
-//
-// Why we override `tutorialProvider` to disabled: GuidingScreen wraps its
-// body in `ContextualTourPrompt`, which schedules a 500 ms `Future.delayed`
-// in a post-frame callback. Without disabling tutorials the test framework
-// flags the still-pending timer at teardown ("A Timer is still pending even
-// after the widget tree was disposed."). The same trick is used by the
-// analytics-screen tests; see that file for the longer rationale.
 //
 // Why settle: false and fixed-step pumps: GuidingScreen renders status-dot
 // glows and lostLock pulse animations that never settle. A handful of
@@ -36,32 +29,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
 import 'package:skotiq_app/widgets/phd2/guide_controls_panel.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/guiding_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/harness.dart';
-
-/// Test-only TutorialNotifier that reports tutorials disabled so the
-/// `ContextualTourPrompt` short-circuits before scheduling its 500 ms
-/// `Future.delayed`. Without this override the test framework reports a
-/// pending timer at teardown because the prompt is still waiting to fade in.
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    // The disabled notifier never reads from the DAO; if any helper does,
-    // surface it loudly rather than swallow it.
-    throw UnimplementedError(
-      'NoopTutorialProgressDao.${invocation.memberName} called in test',
-    );
-  }
-}
 
 class _BuiltinGuiderConnected extends GuiderStateNotifier {
   _BuiltinGuiderConnected(super.ref) {
@@ -90,9 +61,6 @@ Future<void> _drainAsyncFrames(WidgetTester tester) async {
 
 List<Override> _commonOverrides() {
   return [
-    // Disable tutorials so the ContextualTourPrompt 500 ms delayed-show
-    // timer never schedules.
-    tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
   ];
 }
 
@@ -124,7 +92,7 @@ void main() {
 
     // Status bar is the load-bearing chrome of the screen — its presence
     // (via tutorial key) proves the body rendered past the wrapper.
-    expect(find.byKey(GuidingTutorialKeys.statusBar), findsOneWidget,
+    expect(find.byKey(TourTarget.guidingStatusBar.key), findsOneWidget,
         reason: 'GuidingScreen must render the status bar.');
   });
 
@@ -163,9 +131,9 @@ void main() {
   });
 
   testWidgets(
-      'shows_connect_button_in_status_bar: GuidingTutorialKeys.connectBtn '
+      'shows_connect_button_in_status_bar: TourTarget.guidingConnectButton.key '
       'resolves to exactly one widget', (tester) async {
-    // The tutorial system looks up its anchor via GuidingTutorialKeys.connectBtn;
+    // The tutorial system looks up its anchor via TourTarget.guidingConnectButton.key;
     // a copy/paste key drift inside the production build would silently
     // break the contextual tour for the guiding screen without any compile
     // error. Pinning the key here is the cheapest way to detect that.
@@ -178,15 +146,15 @@ void main() {
     );
     await _drainAsyncFrames(tester);
 
-    expect(find.byKey(GuidingTutorialKeys.connectBtn), findsOneWidget,
+    expect(find.byKey(TourTarget.guidingConnectButton.key), findsOneWidget,
         reason: 'Status-bar Connect/Disconnect button must always carry the '
-            'GuidingTutorialKeys.connectBtn key so the tutorial system can '
+            'TourTarget.guidingConnectButton.key key so the tutorial system can '
             'anchor its "Connect to PHD2" tooltip.');
     // The controls panel and graph also belong to the tutorial system; a
     // regression that nuked one would skip a tour step silently.
-    expect(find.byKey(GuidingTutorialKeys.controls), findsOneWidget,
+    expect(find.byKey(TourTarget.guidingControls.key), findsOneWidget,
         reason: 'Right-side GuideControlsPanel must carry the controls key.');
-    expect(find.byKey(GuidingTutorialKeys.graph), findsOneWidget,
+    expect(find.byKey(TourTarget.guidingGraph.key), findsOneWidget,
         reason: 'Center-panel GuideGraphAdvanced must carry the graph key.');
   });
 

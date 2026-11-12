@@ -33,19 +33,6 @@ void _expectRedNightSafe(Color c, String what) {
       reason: '$what does not keep red dominant');
 }
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
 /// Frames carrying all four measurements, so all four session charts populate.
 List<DbCapturedImage> _frames() => List.generate(
       12,
@@ -79,7 +66,6 @@ Widget _sessionTab(ThemeData theme, List<DbCapturedImage> frames) {
       allSessionsProvider.overrideWith(
         (ref) => Stream.value(const <ImagingSession>[]),
       ),
-      tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
     ],
     child: MaterialApp(
       theme: theme,

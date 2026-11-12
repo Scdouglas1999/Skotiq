@@ -14,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_capture_bar.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/imaging_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/harness.dart';
@@ -117,7 +117,7 @@ void main() {
     expect(toggleSemantics.properties.label, 'Save loop frames');
     expect(toggleSemantics.properties.toggled, isFalse);
 
-    await tester.tap(find.byKey(ImagingTutorialKeys.loopBtn));
+    await tester.tap(find.byKey(TourTarget.imagingLoopButton.key));
     await service.loopStarted.future;
     await tester.pump();
 
@@ -138,7 +138,7 @@ void main() {
     await tester.pump();
     expect(handle.container.read(loopSavesFramesProvider), isTrue);
 
-    await tester.tap(find.byKey(ImagingTutorialKeys.loopBtn));
+    await tester.tap(find.byKey(TourTarget.imagingLoopButton.key));
     await service.loopStarted.future;
     await tester.pump();
 

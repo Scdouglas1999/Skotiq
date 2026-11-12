@@ -8,7 +8,11 @@ import '../tokens/shell_chrome_metrics.dart';
 /// One section of a [SidePanel]'s icon strip.
 @immutable
 class SidePanelSection {
-  const SidePanelSection({required this.icon, required this.tooltip});
+  const SidePanelSection({
+    required this.icon,
+    required this.tooltip,
+    this.buttonKey,
+  });
 
   /// The strip glyph. Lucide only.
   final IconData icon;
@@ -16,6 +20,9 @@ class SidePanelSection {
   /// What the section is, in sentence case. Shown on hover and used as the
   /// strip button's accessible name.
   final String tooltip;
+
+  /// Optional key for the section's strip button (e.g. a tour target).
+  final Key? buttonKey;
 }
 
 /// The right column: 320px by default, with an optional 44px vertical icon
@@ -102,6 +109,7 @@ class SidePanel extends StatelessWidget {
                 for (var i = 0; i < sections!.length; i++) ...<Widget>[
                   if (i > 0) const SizedBox(height: stripGap),
                   SkotiqIconButton(
+                    key: sections![i].buttonKey,
                     icon: sections![i].icon,
                     tooltip: sections![i].tooltip,
                     size: IconButtonSize.strip,

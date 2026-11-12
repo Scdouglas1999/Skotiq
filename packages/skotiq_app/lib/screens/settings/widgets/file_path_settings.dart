@@ -12,7 +12,7 @@ import 'package:path/path.dart' as p;
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/remote_directory_picker_dialog.dart';
-import '../../../widgets/tutorial_keys/settings_keys.dart';
+import '../../../tours/tour_target.dart';
 import 'settings_widgets.dart';
 
 typedef FilePathSettingsPicker = Future<String?> Function(
@@ -314,7 +314,7 @@ class FilePathSettings extends ConsumerWidget {
         final isRemoteMode = ref.watch(isRemoteModeProvider);
         final hostHint = isRemoteMode ? ' (on imaging host)' : '';
         return SettingsPage(
-          key: SettingsTutorialKeys.filePaths,
+          key: TourTarget.settingsFilePaths.key,
           title: 'File paths',
           description: isRemoteMode
               ? 'Storage locations on the connected imaging host'

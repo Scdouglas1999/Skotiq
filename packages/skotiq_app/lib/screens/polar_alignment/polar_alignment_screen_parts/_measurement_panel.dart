@@ -75,7 +75,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
     return Padding(
       padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
       child: Container(
-        key: PolarAlignmentTutorialKeys.imageView,
+        key: TourTarget.polarImageView.key,
         decoration: BoxDecoration(
           color: colors.surfaceAlt,
           borderRadius: SkotiqTokens.borderRadiusInline8,
@@ -197,7 +197,7 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
     final altDir = error != null ? error.altitudeAdjustment : kReadoutUnknown;
 
     return SkotiqCard(
-      key: PolarAlignmentTutorialKeys.adjustment,
+      key: TourTarget.polarAdjustment.key,
       variant: CardVariant.subtle,
       borderRadius: SkotiqTokens.radiusInline8,
       padding: const EdgeInsets.all(16),

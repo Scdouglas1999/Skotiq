@@ -30,9 +30,9 @@ class _SequencerPageHeader extends ConsumerWidget {
   static Key? _buttonKeyFor(SequencerTab tab) {
     switch (tab) {
       case SequencerTab.builder:
-        return SequencerTutorialKeys.tabBuilder;
+        return TourTarget.sequencerTabBuilder.key;
       case SequencerTab.templates:
-        return SequencerTutorialKeys.tabTemplates;
+        return TourTarget.sequencerTabTemplates.key;
       case SequencerTab.sequences:
       case SequencerTab.history:
         return null;
@@ -163,6 +163,7 @@ class _SequencerPageHeader extends ConsumerWidget {
       // green Start next to the error count: it offers the way to the fix.
       return <Widget>[
         SkotiqButton(
+          key: TourTarget.sequencerTransport.key,
           label: 'Fix ${countLabel(errorCount, 'error')}',
           icon: LucideIcons.alertCircle,
           variant: ButtonVariant.secondary,
@@ -173,6 +174,7 @@ class _SequencerPageHeader extends ConsumerWidget {
     if (!executionState.canStop) {
       return <Widget>[
         SkotiqButton(
+          key: TourTarget.sequencerTransport.key,
           label: 'Start',
           icon: LucideIcons.play,
           variant: ButtonVariant.start,
@@ -199,6 +201,7 @@ class _SequencerPageHeader extends ConsumerWidget {
           onPressed: onResume,
         ),
       SkotiqButton(
+        key: TourTarget.sequencerTransport.key,
         label: 'Stop',
         icon: LucideIcons.square,
         variant: ButtonVariant.destructive,

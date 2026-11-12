@@ -91,6 +91,25 @@ void main() {
     );
   }
 
+  // 4c. Help lists the workflow tours from the tour data, not from literal
+  //     titles; each is read from packages/skotiq_app/lib/tours/tour.dart.
+  final help = RegExp(
+    r"'help': \[(.*?)\],",
+    dotAll: true,
+  ).firstMatch(index)?.group(1);
+  for (final title in const [
+    'Equipment setup',
+    'Target planning',
+    'Automated imaging',
+    'Calibration frames',
+    'Advanced features',
+  ]) {
+    _check(
+      'indexes the tour "$title" under Help',
+      help != null && help.contains("'$title'"),
+    );
+  }
+
   // 5. Button verbs must NOT be indexed, or "delete" matches settings pages.
   for (final verb in const [
     "    'Cancel',",

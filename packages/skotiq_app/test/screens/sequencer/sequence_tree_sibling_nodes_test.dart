@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequencer_density.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/tutorial_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -109,7 +109,7 @@ void main() {
       density: SequencerDensity.comfortable,
     );
     expect(tester.takeException(), isNull);
-    expect(find.byKey(SequencerTutorialKeys.captureNode), findsOneWidget);
+    expect(find.byKey(TourTarget.sequencerCaptureNode.key), findsOneWidget);
   });
 
   testWidgets('three same-type siblings all render', (tester) async {
@@ -157,7 +157,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('M31'), findsOneWidget);
     expect(find.text('M42'), findsOneWidget);
-    expect(find.byKey(SequencerTutorialKeys.targetNode), findsOneWidget);
+    expect(find.byKey(TourTarget.sequencerTargetNode.key), findsOneWidget);
   });
 
   testWidgets('deleting the anchor holder hands the anchor to the next node',
@@ -181,7 +181,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Node A'), findsNothing);
     expect(find.text('Node B'), findsOneWidget);
-    expect(find.byKey(SequencerTutorialKeys.captureNode), findsOneWidget);
+    expect(find.byKey(TourTarget.sequencerCaptureNode.key), findsOneWidget);
 
     // The edit opened a drift query stream the CONTAINER holds; closing it is
     // a zero-duration timer that must fire inside the test body, so unmount

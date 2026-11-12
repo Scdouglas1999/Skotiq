@@ -106,7 +106,7 @@ mixin _GuidingDesktopSections
           aspectRatio: 1,
           child: starImage.when(
             data: (image) => GuideStarView(
-              key: GuidingTutorialKeys.starView,
+              key: TourTarget.guidingStarView.key,
               pixels: image.pixels,
               width: image.width,
               height: image.height,
@@ -118,11 +118,11 @@ mixin _GuidingDesktopSections
               statusMessage: 'No star selected',
             ),
             loading: () => GuideStarView(
-              key: GuidingTutorialKeys.starView,
+              key: TourTarget.guidingStarView.key,
               statusMessage: _starViewIdleMessage(),
             ),
             error: (_, __) => GuideStarView(
-              key: GuidingTutorialKeys.starView,
+              key: TourTarget.guidingStarView.key,
               statusMessage: 'Guide star image unavailable',
             ),
           ),
@@ -151,7 +151,7 @@ mixin _GuidingDesktopSections
         child: AspectRatio(
           aspectRatio: 1,
           child: GuideTargetDisplay(
-            key: GuidingTutorialKeys.targetDisplay,
+            key: TourTarget.guidingTargetDisplay.key,
             errorHistory: errorHistory
                 .map(
                   (e) => GuideErrorPoint(
@@ -251,7 +251,7 @@ mixin _GuidingDesktopSections
     double shown(double px) => guideDistance(px, scale).value;
 
     final Widget graph = GuideGraphAdvanced(
-      key: GuidingTutorialKeys.graph,
+      key: TourTarget.guidingGraph.key,
       data: graphData
           .map(
             (p) => GuideDataPoint(
@@ -276,7 +276,7 @@ mixin _GuidingDesktopSections
     );
 
     return SkotiqPanel(
-      key: GuidingTutorialKeys.rmsDisplay,
+      key: TourTarget.guidingRmsDisplay.key,
       padding: showHead
           ? SkotiqTokens.paddingLg
           : (compact ? SkotiqTokens.paddingXs : SkotiqTokens.paddingMd),
@@ -299,7 +299,7 @@ mixin _GuidingDesktopSections
     final isPhd2Guider = guiderId == null || isPhd2DeviceId(guiderId);
 
     final brainButton = SkotiqButton(
-      key: GuidingTutorialKeys.brainBtn,
+      key: TourTarget.guidingBrainButton.key,
       label: isPhd2Guider
           ? (_showBrainPanel ? 'Hide brain settings' : 'Brain settings')
           : 'Guider settings',
@@ -356,7 +356,7 @@ mixin _GuidingDesktopSections
     final controller = ref.read(phd2ControllerProvider);
 
     return GuideControlsPanel(
-      key: GuidingTutorialKeys.controls,
+      key: TourTarget.guidingControls.key,
       state: _mapPhd2State(phd2State),
       isConnected: isConnected,
       onStartGuiding: () => controller.startGuiding(

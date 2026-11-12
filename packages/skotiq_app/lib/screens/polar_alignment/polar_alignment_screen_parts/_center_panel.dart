@@ -137,7 +137,7 @@ extension _CenterPanel on _PolarAlignmentScreenState {
     final phase = state.phase;
 
     return Container(
-      key: PolarAlignmentTutorialKeys.progress,
+      key: TourTarget.polarProgress.key,
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       decoration: BoxDecoration(
         color: colors.surfaceAlt,

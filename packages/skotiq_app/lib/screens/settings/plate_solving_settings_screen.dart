@@ -14,6 +14,7 @@ import 'widgets/admin_only.dart';
 import 'widgets/plate_solve_parameters_section.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/solver_detection_card.dart';
+import '../../tours/tour_target.dart';
 
 enum PlateSolverPathKind {
   astapExecutable,
@@ -324,6 +325,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
   }) {
     final canChoosePath = !hostRefusesAdminOnly(ref);
     return SettingsPage(
+      key: TourTarget.settingsPlateSolving.key,
       hideHeader: false,
       title: 'Plate solving',
       description:

@@ -5,6 +5,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../../../tours/tour_target.dart';
 import '../shell_navigation.dart';
 import 'rig_card.dart';
 import 'window_chrome.dart';
@@ -75,16 +76,12 @@ class SideNavigation extends ConsumerWidget {
   final bool isExpanded;
   final VoidCallback onToggleExpanded;
 
-  /// Tour spotlight keys for the destinations that have one.
-  final Map<AppRoute, GlobalKey> tutorialKeys;
-
   const SideNavigation({
     super.key,
     required this.currentIndex,
     required this.onTabSelected,
     required this.isExpanded,
     required this.onToggleExpanded,
-    this.tutorialKeys = const {},
   });
 
   /// The gap between two groups when the rail is collapsed and there is no
@@ -321,7 +318,7 @@ class SideNavigation extends ConsumerWidget {
       case SideNavTab():
         final destination = ShellNavigation.rail[entry.index];
         final button = NavItem(
-          key: tutorialKeys[destination],
+          key: TourTarget.forDestination(destination)?.key,
           icon: entry.icon,
           label: entry.label,
           isSelected: entry.index == currentIndex,

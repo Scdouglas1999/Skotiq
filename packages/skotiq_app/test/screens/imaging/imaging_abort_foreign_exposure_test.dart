@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/imaging_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../harness/harness.dart';
@@ -86,12 +86,12 @@ void main() {
     await _drain(tester);
 
     expect(
-      find.byKey(ImagingTutorialKeys.abortBtn),
+      find.byKey(TourTarget.imagingAbortButton.key),
       findsOneWidget,
       reason: 'the toolbar offers the abort off the GLOBAL exposure progress',
     );
 
-    await tester.tap(find.byKey(ImagingTutorialKeys.abortBtn));
+    await tester.tap(find.byKey(TourTarget.imagingAbortButton.key));
     await _drain(tester);
 
     expect(
@@ -104,11 +104,11 @@ void main() {
     // a capture it does not own. That flag is only cleared in the capture
     // methods' finally, which never runs here, so latching it would hide the
     // abort for the rest of the session.
-    expect(find.byKey(ImagingTutorialKeys.abortBtn), findsOneWidget);
+    expect(find.byKey(TourTarget.imagingAbortButton.key), findsOneWidget);
 
     // Once the exposure really ends, the button goes away on its own.
     progress.reset();
     await _drain(tester);
-    expect(find.byKey(ImagingTutorialKeys.abortBtn), findsNothing);
+    expect(find.byKey(TourTarget.imagingAbortButton.key), findsNothing);
   });
 }

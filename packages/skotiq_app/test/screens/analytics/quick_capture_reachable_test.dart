@@ -16,20 +16,6 @@ import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart'
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao());
-
-  @override
-  // ignore: invalid_use_of_protected_member
-  TutorialProgress get state => const TutorialProgress(tutorialsEnabled: false);
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
 DbCapturedImage _standalone(int id) => DbCapturedImage(
       id: id,
       filePath: '/tmp/$id.fits',
@@ -70,7 +56,6 @@ Widget _app(AnalyticsTab tab) => ProviderScope(
         allSessionsProvider.overrideWith((ref) => Stream.value([_run(1)])),
         latestScienceSessionProvider.overrideWith((ref) async => 1),
         latestScienceProductSessionProvider.overrideWith((ref) async => 1),
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,

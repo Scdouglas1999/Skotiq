@@ -13,27 +13,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/guiding_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
-
-class _TutorialsDisabledNotifier extends TutorialNotifier {
-  _TutorialsDisabledNotifier() : super(_NoopTutorialProgressDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopTutorialProgressDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    throw UnimplementedError(
-      'NoopTutorialProgressDao.${invocation.memberName} called in test',
-    );
-  }
-}
 
 class _SeededBrainParams extends BrainParamsNotifier {
   _SeededBrainParams(super.ref) {
@@ -112,7 +96,6 @@ void main() {
         size: size,
         settle: false,
         extraOverrides: [
-          tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
         ],
       );
       await _drainAsyncFrames(tester);
@@ -128,12 +111,12 @@ void main() {
           reason: 'No non-overflow exceptions at $name.');
 
       // Status bar (primary status) is always present.
-      expect(find.byKey(GuidingTutorialKeys.statusBar), findsOneWidget,
+      expect(find.byKey(TourTarget.guidingStatusBar.key), findsOneWidget,
           reason: 'Status bar must render at $name.');
 
       // The live guide graph stays mounted in every phone layout/orientation
       // so it keeps streaming when the user switches tabs or rotates.
-      expect(find.byKey(GuidingTutorialKeys.graph), findsOneWidget,
+      expect(find.byKey(TourTarget.guidingGraph.key), findsOneWidget,
           reason: 'Guide graph must stay mounted at $name.');
 
       // The Star/Controls/Settings tabs are reachable via the AdaptiveTabBar
@@ -145,7 +128,7 @@ void main() {
           reason: 'Guiding tabs must use AdaptiveTabBar at $name.');
       // The Star View tab is selected by default; its star image carries the
       // tutorial key, proving the default tab body rendered.
-      expect(find.byKey(GuidingTutorialKeys.starView), findsOneWidget,
+      expect(find.byKey(TourTarget.guidingStarView.key), findsOneWidget,
           reason: 'Default Star View tab body must render at $name.');
     });
   }
@@ -166,7 +149,6 @@ void main() {
         size: size,
         settle: false,
         extraOverrides: [
-          tutorialProvider.overrideWith((ref) => _TutorialsDisabledNotifier()),
           brainParamsProvider.overrideWith(_SeededBrainParams.new),
         ],
       );

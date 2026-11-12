@@ -8,7 +8,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../../../services/push_delivery_targets_provider.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/tutorial_keys/settings_keys.dart';
+import '../../../tours/tour_target.dart';
 import 'admin_only.dart';
 import 'notification_routing_settings.dart';
 import 'settings_widgets.dart';
@@ -281,7 +281,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
 
         return SettingsPage(
           hideHeader: false,
-          key: SettingsTutorialKeys.notifications,
+          key: TourTarget.settingsNotifications.key,
           title: 'Notifications',
           description: 'Configure alerts and notifications',
           children: [

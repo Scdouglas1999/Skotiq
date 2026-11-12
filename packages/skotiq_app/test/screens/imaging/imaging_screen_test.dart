@@ -58,7 +58,7 @@ import 'package:skotiq_app/screens/imaging/widgets/imaging_capture_bar.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_side_panel.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_preview_area.dart';
 import 'package:skotiq_app/screens/imaging/widgets/panel_widgets.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/imaging_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -213,7 +213,7 @@ void main() {
     expect(find.byType(ResizablePanel), findsNothing);
     // The primary capture action is on the sheet, reachable without scrolling
     // or expanding anything (mobile-responsive standard rule 5).
-    expect(find.byKey(ImagingTutorialKeys.snapshotBtn), findsOneWidget,
+    expect(find.byKey(TourTarget.imagingSnapshotButton.key), findsOneWidget,
         reason:
             'On phones the Snapshot button must be visible under the canvas '
             'without opening anything (standard rule 5).');
@@ -317,7 +317,7 @@ void main() {
     await _drainAsyncFrames(tester);
 
     final disconnectedBtn = tester.widget<SkotiqButton>(
-      find.byKey(ImagingTutorialKeys.snapshotBtn),
+      find.byKey(TourTarget.imagingSnapshotButton.key),
     );
     expect(disconnectedBtn.onPressed, isNull,
         reason:
@@ -358,7 +358,7 @@ void main() {
     await _drainAsyncFrames(tester);
 
     final snapshotBtn = tester.widget<SkotiqButton>(
-      find.byKey(ImagingTutorialKeys.snapshotBtn),
+      find.byKey(TourTarget.imagingSnapshotButton.key),
     );
     expect(snapshotBtn.onPressed, isNotNull,
         reason:
@@ -366,7 +366,7 @@ void main() {
             'connected and no capture is in-flight.');
 
     final loopBtn = tester.widget<SkotiqButton>(
-      find.byKey(ImagingTutorialKeys.loopBtn),
+      find.byKey(TourTarget.imagingLoopButton.key),
     );
     expect(loopBtn.onPressed, isNotNull,
         reason:
@@ -398,20 +398,20 @@ void main() {
     );
     await _drainAsyncFrames(tester);
 
-    await tester.tap(find.byKey(ImagingTutorialKeys.snapshotBtn));
+    await tester.tap(find.byKey(TourTarget.imagingSnapshotButton.key));
     await service.previewPublished.future;
     await tester.pump();
 
     expect(find.text('Saving…'), findsOneWidget);
     expect(
       tester
-          .widget<SkotiqButton>(find.byKey(ImagingTutorialKeys.snapshotBtn))
+          .widget<SkotiqButton>(find.byKey(TourTarget.imagingSnapshotButton.key))
           .onPressed,
       isNull,
     );
     expect(
       tester
-          .widget<SkotiqButton>(find.byKey(ImagingTutorialKeys.loopBtn))
+          .widget<SkotiqButton>(find.byKey(TourTarget.imagingLoopButton.key))
           .onPressed,
       isNull,
     );
@@ -421,7 +421,7 @@ void main() {
     expect(find.text('Snapshot'), findsOneWidget);
     expect(
       tester
-          .widget<SkotiqButton>(find.byKey(ImagingTutorialKeys.snapshotBtn))
+          .widget<SkotiqButton>(find.byKey(TourTarget.imagingSnapshotButton.key))
           .onPressed,
       isNotNull,
     );
@@ -452,7 +452,7 @@ void main() {
     );
     await _drainAsyncFrames(tester);
 
-    await tester.tap(find.byKey(ImagingTutorialKeys.loopBtn));
+    await tester.tap(find.byKey(TourTarget.imagingLoopButton.key));
     await service.loopStarted.future;
     expect(handle.container.read(sessionStateProvider).isCapturing, isTrue);
 
@@ -491,7 +491,7 @@ void main() {
     );
     await _drainAsyncFrames(tester);
 
-    expect(find.byKey(ImagingTutorialKeys.statsPanel), findsNothing,
+    expect(find.byKey(TourTarget.imagingStatsPanel.key), findsNothing,
         reason: 'with no frame on screen nothing covers the canvas; the '
             'frame-info pill arrives with the first frame');
     expect(find.text('17.3°C'), findsWidgets,
@@ -688,11 +688,11 @@ void main() {
         //  * Below the shell breakpoint: the controls sheet carries a
         //    full-width Snapshot button.
         //  * Above it: the glass capture bar over the frame carries it.
-        expect(find.byKey(ImagingTutorialKeys.snapshotBtn), findsOneWidget,
+        expect(find.byKey(TourTarget.imagingSnapshotButton.key), findsOneWidget,
             reason: 'Every layout must offer a Snapshot button at $size '
                 '($orientation).');
         final snapshotBtn = tester.widget<SkotiqButton>(
-          find.byKey(ImagingTutorialKeys.snapshotBtn),
+          find.byKey(TourTarget.imagingSnapshotButton.key),
         );
         expect(snapshotBtn.onPressed, isNotNull,
             reason:

@@ -6,7 +6,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../utils/path_tail.dart';
-import '../../widgets/tutorial_keys/flat_wizard_keys.dart';
+import '../../tours/tour_target.dart';
 import 'flat_failure_diagnosis.dart';
 import 'widgets/flat_build_master_step.dart';
 import 'widgets/flat_wizard_split_view.dart';
@@ -71,7 +71,7 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
         // live "Capturing" chip as the header's action. This was a bespoke
         // 'surface' bar with the title folded inline beside the tab strip.
         PageHeader(
-          key: FlatWizardTutorialKeys.tabs,
+          key: TourTarget.flatModeTabs.key,
           icon: LucideIcons.sun,
           title: 'Flat wizard',
           tabs: AnimatedBuilder(
@@ -118,7 +118,7 @@ class _FlatWizardScreenState extends ConsumerState<FlatWizardScreen>
                 child: _ActionButtons(mode: state.mode),
               ),
             ]),
-            previewPanel: FlatPreviewPanel(key: FlatWizardTutorialKeys.preview),
+            previewPanel: FlatPreviewPanel(key: TourTarget.flatPreview.key),
           ),
         ),
       ],

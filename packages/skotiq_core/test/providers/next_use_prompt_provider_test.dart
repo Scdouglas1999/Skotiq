@@ -9,8 +9,6 @@ import 'package:skotiq_core/src/models/readiness/readiness_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/next_use_prompt_provider.dart';
 import 'package:skotiq_core/src/providers/readiness_provider.dart';
-import 'package:skotiq_core/src/providers/tutorial_provider.dart'
-    show tutorialProgressDaoProvider;
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_catalog_sync.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_selection.dart';

@@ -10,7 +10,7 @@ import 'add_target_to_sequence_flow.dart';
 import 'framing_altaz.dart';
 import 'framing_hips_layer_wiring.dart';
 import 'framing_search_provider.dart';
-import '../../widgets/tutorial_keys/framing_keys.dart';
+import '../../tours/tour_target.dart';
 import 'widgets/optical_config_panel.dart';
 import '../../router/app_routes.dart';
 import 'widgets/framing_canvas.dart';
@@ -212,7 +212,7 @@ class _FramingViewState extends ConsumerState<FramingView> {
       children: [
         Positioned.fill(
           child: FramingCanvas(
-            key: FramingTutorialKeys.canvas,
+            key: TourTarget.framingCanvas.key,
             colors: colors,
             framingState: framingState,
             equipmentResult: equipmentResult.valueOrNull,
