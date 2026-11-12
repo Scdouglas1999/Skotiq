@@ -5,6 +5,14 @@ import 'package:skotiq_app/screens/equipment/dialogs/profile_editor_dialog.dart'
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+/// The editor watches the device slots, whose providers hold database query
+/// streams; closing them schedules a zero-length timer that has to run before
+/// the test ends.
+Future<void> _closeEditor(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(milliseconds: 1));
+}
+
 void main() {
   testWidgets('new profile editor exposes its complete single-page form',
       (tester) async {
@@ -34,6 +42,8 @@ void main() {
     expect(find.text('Camera defaults'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
     expect(find.text('Create profile'), findsOneWidget);
+
+    await _closeEditor(tester);
   });
 
   // qa-surfaces S12: a new profile with no camera chosen showed "IMAGE SCALE
@@ -77,5 +87,7 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('3.76'), findsNothing);
+
+    await _closeEditor(tester);
   });
 }

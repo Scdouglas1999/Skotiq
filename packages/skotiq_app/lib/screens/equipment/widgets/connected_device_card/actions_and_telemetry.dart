@@ -4,25 +4,17 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
   /// The actions of a card whose device failed: try it again, or take it off
   /// the screen. A device that is still connecting has none.
   Widget _buildFailedActionsRow() {
-    final slot = ref.watch(widget.type.slot.state);
-    final deviceId = slot.deviceId;
+    final canRetry = _slot.retryDeviceId != null;
     return Row(
       children: [
-        if (deviceId != null)
+        if (canRetry)
           SkotiqButton(
             label: 'Retry',
             icon: LucideIcons.refreshCw,
             size: ButtonSize.small,
             variant: ButtonVariant.secondary,
-            onPressed: _anyCommandInFlight
-                ? null
-                : () => ref
-                    .read(widget.type.slot.notifier)
-                    .connect(
-                      deviceId,
-                      deviceName: slot.deviceName,
-                      maxRetries: 1,
-                    ),
+            isLoading: _deviceCommandInFlight,
+            onPressed: _anyCommandInFlight ? null : _retryConnect,
           ),
         const Spacer(),
         SkotiqButton(
@@ -33,6 +25,26 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
         ),
       ],
     );
+  }
+
+  /// One attempt, no loop: a second failure shows on the card again and the
+  /// user decides what to do next.
+  Future<void> _retryConnect() async {
+    final revision = _beginDeviceCommand();
+    if (revision == null) return;
+    final backend = ref.read(backendProvider);
+    try {
+      await ref.read(deviceServiceProvider).retryConnect(widget.type);
+    } catch (e) {
+      if (mounted) {
+        context.showErrorSnackBar(
+          'The ${widget.type.noun} still did not connect: '
+          '${connectFailureReason(e)}',
+        );
+      }
+    } finally {
+      _finishDeviceCommand(revision, backend);
+    }
   }
 
   /// Let go of a device that failed. A slot the driver no longer holds is

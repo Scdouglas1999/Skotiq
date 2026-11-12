@@ -21,7 +21,6 @@ abstract interface class DeviceConnectionNotifier {
   /// does not throw.
   Future<void> connect(String deviceId, {String? deviceName, int maxRetries});
 
-  Future<void> retryConnection();
   Future<void> disconnect();
   void clearError();
   void setAutoReconnect(bool enabled);
@@ -31,8 +30,9 @@ abstract interface class DeviceConnectionNotifier {
   void setDisconnected();
   void setError(Object error);
 
-  /// A connect attempt on this slot failed with [error]; the slot goes back
-  /// to empty unless the device has a reason to keep showing the failure.
+  /// A connect attempt on this slot failed with [error]. The slot holds no
+  /// device afterwards but shows the failure, naming the device that failed
+  /// so it can be tried again.
   void connectFailed(Object error);
 }
 
@@ -92,12 +92,6 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
   }
 
   @override
-  Future<void> retryConnection() async {
-    final deviceId = state.deviceId;
-    if (deviceId != null) await connect(deviceId);
-  }
-
-  @override
   Future<void> disconnect() async {
     if (state.deviceId == null) return;
     final revision = ++_connectionRevision;
@@ -148,12 +142,22 @@ abstract class DeviceSlotNotifier<S extends DeviceSlotState<S>>
   void setError(Object error) {
     state = state.copyWith(
       connectionState: DeviceConnectionState.error,
-      lastError: DeviceError.fromException(error, deviceId: state.deviceId),
+      lastError: DeviceError.fromException(
+        error,
+        deviceId: state.retryDeviceId,
+      ),
     );
   }
 
   @override
-  void connectFailed(Object error) => setDisconnected();
+  void connectFailed(Object error) {
+    state = _baseline.copyWith(
+      connectionState: DeviceConnectionState.error,
+      deviceName: state.deviceName,
+      autoReconnectEnabled: state.autoReconnectEnabled,
+      lastError: DeviceError.fromException(error, deviceId: state.deviceId),
+    );
+  }
 
   bool _isCurrent(int revision) => mounted && revision == _connectionRevision;
 

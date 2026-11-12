@@ -34,6 +34,14 @@ bool _defaultSwitchOn(WidgetTester tester) => tester
     )
     .value;
 
+/// The editor watches the device slots, whose providers hold database query
+/// streams; closing them schedules a zero-length timer that has to run before
+/// the test ends.
+Future<void> _closeEditor(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(milliseconds: 1));
+}
+
 void main() {
   testWidgets('the Default switch follows a startup change made elsewhere',
       (tester) async {
@@ -98,5 +106,7 @@ void main() {
 
     expect((await dao.getProfileById(1))!.isDefault, isFalse);
     expect((await dao.getProfileById(2))!.isDefault, isTrue);
+
+    await _closeEditor(tester);
   });
 }

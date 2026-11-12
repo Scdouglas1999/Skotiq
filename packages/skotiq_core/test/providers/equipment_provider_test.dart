@@ -158,15 +158,31 @@ void main() {
       expect(updatedState.autoReconnectEnabled, isTrue);
     });
 
-    test('retryConnection calls connect with existing device ID', () async {
+    test('setConnecting records the device id', () async {
       final notifier = container.read(cameraStateProvider.notifier);
 
-      // Set up initial connection state
       notifier.setConnecting('test-camera-id', 'Test Camera');
 
-      // Note: Full retry logic would require mocking the device service
-      // This test just verifies the state is set correctly
       expect(container.read(cameraStateProvider).deviceId, 'test-camera-id');
+    });
+
+    test('a failed connect empties the slot but names the device that '
+        'failed', () {
+      final notifier = container.read(cameraStateProvider.notifier);
+      notifier.setConnecting('test-camera-id', 'Test Camera');
+
+      notifier.connectFailed(Exception('driver refused'));
+
+      final state = container.read(cameraStateProvider);
+      expect(state.connectionState, DeviceConnectionState.error);
+      expect(state.deviceId, isNull);
+      expect(state.deviceName, 'Test Camera');
+      expect(state.retryDeviceId, 'test-camera-id');
+
+      // A driver error that arrives afterwards keeps naming it.
+      notifier.setError(Exception('driver error event'));
+      expect(container.read(cameraStateProvider).retryDeviceId,
+          'test-camera-id');
     });
 
     test('clearError removes error from state', () {

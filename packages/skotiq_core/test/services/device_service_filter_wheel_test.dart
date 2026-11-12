@@ -168,10 +168,10 @@ void main() {
         ),
       );
 
-      expect(
-        container.read(filterWheelStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
+      final wheel = container.read(filterWheelStateProvider);
+      expect(wheel.connectionState, DeviceConnectionState.error);
+      expect(wheel.deviceId, isNull);
+      expect(wheel.lastError?.deviceId, deviceId);
       verify(
         () => mockBackend.disconnectDevice(DeviceType.filterWheel, deviceId),
       ).called(1);

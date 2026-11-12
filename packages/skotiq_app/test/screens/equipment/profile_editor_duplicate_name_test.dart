@@ -72,6 +72,14 @@ Future<SkotiqDatabase> _openEditor(
   return db;
 }
 
+/// The editor watches the device slots, whose providers hold database query
+/// streams; closing them schedules a zero-length timer that has to run before
+/// the test ends.
+Future<void> _closeEditor(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(milliseconds: 1));
+}
+
 void main() {
   testWidgets('a name another profile already carries is refused',
       (tester) async {
@@ -92,6 +100,8 @@ void main() {
       reason:
           'a second "My First Rig" makes every destructive prompt ambiguous',
     );
+
+    await _closeEditor(tester);
   });
 
   testWidgets('the check ignores case and surrounding whitespace',
@@ -104,6 +114,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(await db.equipmentProfilesDao.getAllProfiles(), isEmpty);
+
+    await _closeEditor(tester);
   });
 
   testWidgets('a genuinely new name still saves', (tester) async {
@@ -115,6 +127,8 @@ void main() {
 
     final rows = await db.equipmentProfilesDao.getAllProfiles();
     expect(rows.single.name, 'Travel Rig');
+
+    await _closeEditor(tester);
   });
 
   testWidgets('re-saving a profile under its own name is not a collision',
@@ -132,5 +146,7 @@ void main() {
     // The editor closed on a successful save rather than reporting that the
     // profile collides with itself.
     expect(_saveButton, findsNothing);
+
+    await _closeEditor(tester);
   });
 }

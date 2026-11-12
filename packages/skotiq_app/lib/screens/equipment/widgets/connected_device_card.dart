@@ -90,12 +90,17 @@ class ConnectedDeviceCard extends ConsumerStatefulWidget {
   /// that mount a card on its own.
   final bool sessionOnly;
 
+  /// A line under the device's name for what the card's device brings with
+  /// it, e.g. the built-in guider's guide camera.
+  final String? detail;
+
   const ConnectedDeviceCard({
     super.key,
     required this.type,
     this.onDisconnect,
     this.onSettings,
     this.sessionOnly = false,
+    this.detail,
   });
 
   @override

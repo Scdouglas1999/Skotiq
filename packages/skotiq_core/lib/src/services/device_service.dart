@@ -512,6 +512,11 @@ class DeviceService {
   /// Try again the devices that failed in the last sweep.
   Future<ConnectSweepResult> retryFailedConnects() => _retryFailedConnects();
 
+  /// Try [type]'s device again after it failed: the device its slot holds,
+  /// or the one that last failed to connect there. Throws the failure; the
+  /// slot shows it too.
+  Future<void> retryConnect(DeviceType type) => _retryConnect(type);
+
   Future<DisconnectAllResult> disconnectAll() => _disconnectAll();
 
   /// Why a slew command fails when the backend is swapped while it waits.
