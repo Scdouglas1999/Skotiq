@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -234,9 +233,9 @@ class _RadarTimelineScrubberState extends ConsumerState<RadarTimelineScrubber>
         local.year == now.year;
 
     if (isToday) {
-      return DateFormat('HH:mm').format(local);
+      return ClockFormat.hm(local);
     } else {
-      return DateFormat('MMM d HH:mm').format(local);
+      return ClockFormat.monthDayHm(local);
     }
   }
 

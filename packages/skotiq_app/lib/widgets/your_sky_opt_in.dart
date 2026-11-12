@@ -9,13 +9,14 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// rig's nights of 11.8 to 12.7 GB uncompressed come to 2.7 to 2.9 GB.
 String yourSkyCostText({int limitGb = defaultSkyAtlasLimitGb}) {
   final limit = limitGb > 0
-      ? 'It stops growing at $limitGb GB, which you can change in Settings > '
+      ? 'It stops growing at $limitGb ${ByteFormat.gigaUnit}, which you can change in Settings > '
           'Science.'
       : 'You have set no size limit.';
   return 'Your sky stacks every accepted, plate-solved light frame into a '
       'map of all the sky you have imaged, which First Light and shared '
-      'imaging build on. It uses about 1.5 GB of disk for each target you image '
-      'in a night, 2 to 3 GB on a typical night. $limit';
+      'imaging build on. It uses about 1.5 ${ByteFormat.gigaUnit} of disk for each target '
+      'you image in a night, 2 to 3 ${ByteFormat.gigaUnit} on a typical night. '
+      '$limit';
 }
 
 /// Ask before turning Your Sky on, and turn it on if the user agrees.

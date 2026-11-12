@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../sequencer_screen.dart';
 import 'package:skotiq_app/utils/authority_bound_dialog.dart';

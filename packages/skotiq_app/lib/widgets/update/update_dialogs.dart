@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -7,7 +8,7 @@ class UpdateAvailableDialog extends StatelessWidget {
   final String currentVersion;
   final String newVersion;
   final String? releaseNotes;
-  final int downloadSizeMb;
+  final int downloadSizeBytes;
   final VoidCallback onUpdate;
   final VoidCallback onSkip;
   final VoidCallback onLater;
@@ -22,7 +23,7 @@ class UpdateAvailableDialog extends StatelessWidget {
     required this.currentVersion,
     required this.newVersion,
     this.releaseNotes,
-    required this.downloadSizeMb,
+    required this.downloadSizeBytes,
     required this.onUpdate,
     required this.onSkip,
     required this.onLater,
@@ -34,7 +35,7 @@ class UpdateAvailableDialog extends StatelessWidget {
     required String currentVersion,
     required String newVersion,
     String? releaseNotes,
-    required int downloadSizeMb,
+    required int downloadSizeBytes,
     required VoidCallback onUpdate,
     required VoidCallback onSkip,
     required VoidCallback onLater,
@@ -47,7 +48,7 @@ class UpdateAvailableDialog extends StatelessWidget {
         currentVersion: currentVersion,
         newVersion: newVersion,
         releaseNotes: releaseNotes,
-        downloadSizeMb: downloadSizeMb,
+        downloadSizeBytes: downloadSizeBytes,
         requiresManualUpgrade: requiresManualUpgrade,
         onUpdate: () {
           Navigator.pop(context);
@@ -209,7 +210,7 @@ class UpdateAvailableDialog extends StatelessWidget {
                 ),
                 const SizedBox(width: SkotiqTokens.spaceSm),
                 Text(
-                  'Download size: ~$downloadSizeMb MB',
+                  'Download size: ${ByteFormat.size(downloadSizeBytes)}',
                   style: SkotiqTypography.bodySm.copyWith(
                     color: colors.textSecondary,
                   ),
@@ -256,8 +257,8 @@ class UpdateAvailableDialog extends StatelessWidget {
 class UpdateDownloadDialog extends StatelessWidget {
   final String version;
   final double progress;
-  final int downloadedMb;
-  final int totalMb;
+  final int downloadedBytes;
+  final int totalBytes;
   final String status;
   final VoidCallback? onCancel;
 
@@ -265,8 +266,8 @@ class UpdateDownloadDialog extends StatelessWidget {
     super.key,
     required this.version,
     required this.progress,
-    required this.downloadedMb,
-    required this.totalMb,
+    required this.downloadedBytes,
+    required this.totalBytes,
     required this.status,
     this.onCancel,
   });
@@ -324,7 +325,8 @@ class UpdateDownloadDialog extends StatelessWidget {
                 ),
               ),
               Text(
-                '$percent% ($downloadedMb / $totalMb MB)',
+                '$percent% (${ByteFormat.size(downloadedBytes)} of '
+                '${ByteFormat.size(totalBytes)})',
                 style: SkotiqTypography.bodySm.copyWith(
                   color: colors.textSecondary,
                   fontWeight: FontWeight.w500,

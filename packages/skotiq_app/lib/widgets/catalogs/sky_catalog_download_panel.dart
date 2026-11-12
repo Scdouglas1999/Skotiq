@@ -11,13 +11,13 @@ import '../../screens/settings/settings_sections.dart';
 
 /// The download button's label, with the disk cost in it.
 String skyCatalogDownloadLabel() =>
-    'Download catalogs ($kInstalledCatalogApproxSizeMB MB)';
+    'Download catalogs ($kInstalledCatalogApproxSizeMB ${ByteFormat.megaUnit})';
 
 /// What one download adds, and what it costs on disk.
 String skyCatalogDownloadContents() =>
     'OpenNGC (about ${formatCatalogCount(kInstalledDsoApproxCount)} '
     'deep-sky objects) and the HYG star catalog download together, about '
-    '$kInstalledCatalogApproxSizeMB MB from github.com.';
+    '$kInstalledCatalogApproxSizeMB ${ByteFormat.megaUnit} from github.com.';
 
 /// True while either catalog the one download installs is missing.
 bool skyCatalogsMissing(CatalogState catalogs) =>

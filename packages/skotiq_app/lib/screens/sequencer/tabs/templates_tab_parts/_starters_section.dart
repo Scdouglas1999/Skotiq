@@ -226,7 +226,7 @@ class _StarterCard extends ConsumerWidget {
   }
 
   Future<void> _useStarter(BuildContext context, WidgetRef ref) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final service = ref.read(sampleSequenceServiceProvider);
     final notifier = ref.read(currentSequenceProvider.notifier);
 
@@ -270,7 +270,7 @@ class _StarterCard extends ConsumerWidget {
       );
       if (discard != true ||
           !context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+          host.isStale) {
         return;
       }
       try {

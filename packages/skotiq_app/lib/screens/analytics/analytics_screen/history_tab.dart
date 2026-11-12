@@ -249,10 +249,9 @@ class _QuickCaptureHistoryCard extends StatelessWidget {
               ? sum + image.exposureDuration
               : sum,
     );
-    final format = DateFormat('MMM d, yyyy HH:mm');
     final span = times.first == times.last
-        ? format.format(times.first)
-        : '${format.format(times.first)} – ${DateFormat('HH:mm').format(times.last)}';
+        ? ClockFormat.monthDayYearHm(times.first.toLocal())
+        : '${ClockFormat.monthDayYearHm(times.first.toLocal())} – ${ClockFormat.hm(times.last.toLocal())}';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceMd),

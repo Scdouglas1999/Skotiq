@@ -5,7 +5,6 @@ part of '../science_export_hub.dart';
 extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
   Widget _buildDateFilters(
     SkotiqColors colors,
-    DateFormat dateFormat,
   ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -13,7 +12,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         _DateButton(
           colors: colors,
           label: _startDate != null
-              ? dateFormat.format(_startDate!)
+              ? ClockFormat.date(_startDate!)
               : 'Start Date',
           onTap: () => _pickDate(isStart: true),
         ),
@@ -24,7 +23,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
         ),
         _DateButton(
           colors: colors,
-          label: _endDate != null ? dateFormat.format(_endDate!) : 'End Date',
+          label: _endDate != null ? ClockFormat.date(_endDate!) : 'End Date',
           onTap: () => _pickDate(isStart: false),
         ),
         if (_startDate != null || _endDate != null) ...[
@@ -47,7 +46,7 @@ extension _ScienceExportHubStateHelpers on _ScienceExportHubState {
     final session = sessions.where((s) => s.id == id).firstOrNull;
     if (session == null) return 'Session $id';
     final name = session.name ?? 'Session $id';
-    final date = DateFormat('MMM d').format(session.startTime);
+    final date = ClockFormat.monthDay(session.startTime.toLocal());
     return '$name ($date)';
   }
 

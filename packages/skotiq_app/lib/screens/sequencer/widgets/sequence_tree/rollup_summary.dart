@@ -13,7 +13,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
-import '../../plan_math.dart';
 import '../node_summary.dart';
 
 /// How many child names the generic shape lists before it counts the rest.

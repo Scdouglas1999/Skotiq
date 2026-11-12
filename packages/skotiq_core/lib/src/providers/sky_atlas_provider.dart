@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -66,11 +67,9 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
       final raw = await ref
           .read(settingsDaoProvider)
           .getSetting(skyAtlasLimitSettingKey);
-      return parseSkyAtlasLimitGb(raw) * 1000 * 1000 * 1000;
+      return parseSkyAtlasLimitGb(raw) * ByteFormat.bytesPerGiga;
     },
     onStorageLimitReached: (used, limit) {
-      final usedGb = (used / 1e9).toStringAsFixed(1);
-      final limitGb = (limit / 1e9).toStringAsFixed(0);
       unawaited(
         ref
             .read(notificationServiceProvider)
@@ -78,8 +77,8 @@ final skyAtlasServiceProvider = Provider<SkyAtlasService>((ref) {
               event: NotificationEvent.custom,
               title: 'Your Sky atlas is full',
               message:
-                  'The atlas uses $usedGb GB, its $limitGb GB limit. New '
-                  'frames are not being added; nothing was deleted. Raise the '
+                  'The atlas uses ${ByteFormat.size(used)}, its '
+                  '${ByteFormat.size(limit)} limit. New frames are not being added; nothing was deleted. Raise the '
                   'limit or compress stored tiles in Settings > Science.',
             )
             .then<void>((_) {}, onError: (Object _) {}),

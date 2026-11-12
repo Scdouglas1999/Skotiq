@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -206,7 +207,8 @@ class SkyAtlasService {
     if (!_limitReported) {
       _limitReported = true;
       _logger.warning(
-        'Sky atlas: ${_gb(used)} GB on disk reached the ${_gb(limit)} GB '
+        'Sky atlas: ${ByteFormat.size(used)} on disk reached the '
+        '${ByteFormat.size(limit)} '
         'limit; new frames are not being added.',
         source: _logSource,
       );
@@ -214,8 +216,6 @@ class SkyAtlasService {
     }
     return true;
   }
-
-  static String _gb(int bytes) => (bytes / 1e9).toStringAsFixed(1);
 
   /// Whether the user has Your Sky turned on.
   Future<bool> isEnabled() async {
@@ -272,8 +272,8 @@ class SkyAtlasService {
       _logger.info(
         'Sky atlas: compressed ${outcome.compacted} tile'
         '${outcome.compacted == 1 ? '' : 's'}, '
-        '${_gb(outcome.bytesBefore)} GB to '
-        '${_gb(outcome.bytesAfter)} GB on disk.',
+        '${ByteFormat.size(outcome.bytesBefore)} to '
+        '${ByteFormat.size(outcome.bytesAfter)} on disk.',
         source: _logSource,
       );
       return outcome;

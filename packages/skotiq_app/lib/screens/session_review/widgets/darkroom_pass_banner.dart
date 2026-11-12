@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -156,7 +155,7 @@ class _CompletedPass extends ConsumerWidget {
     final finished = pass.finishedAt;
     final when = finished == null
         ? ''
-        : ' at ${DateFormat('HH:mm').format(finished.toLocal())}';
+        : ' at ${ClockFormat.hm(finished.toLocal())}';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),

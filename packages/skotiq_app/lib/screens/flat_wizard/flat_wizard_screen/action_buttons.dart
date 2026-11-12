@@ -127,7 +127,7 @@ class _ActionButtons extends ConsumerWidget {
   Future<void> _chooseFolder(BuildContext context, WidgetRef ref) async {
     final notifier = ref.read(flatWizardProvider.notifier);
     if (!notifier.reserveStartPrompt()) return;
-    final authority = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
     final settings = ref.read(flatWizardProvider).globalSettings;
     try {
       final result = await SavePathDialog.show(context,
@@ -135,7 +135,7 @@ class _ActionButtons extends ConsumerWidget {
           createDateSubfolder: settings.createDateSubfolder,
           createFilterSubfolders: settings.createFilterSubfolders);
       if (result == null || !context.mounted) return;
-      if (!identical(authority, ref.read(backendProvider))) {
+      if (hostScope.isStale) {
         notifier.setWarningMessage(
             'The imaging host changed. Choose the folder again.');
         return;
@@ -156,7 +156,7 @@ class _ActionButtons extends ConsumerWidget {
     final notifier = ref.read(flatWizardProvider.notifier);
     final state = ref.read(flatWizardProvider);
     if (state.isCapturing || !notifier.reserveStartPrompt()) return;
-    final authority = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
 
     try {
       // Flats default to the capture folder; only a computer with neither
@@ -170,7 +170,7 @@ class _ActionButtons extends ConsumerWidget {
         );
 
         if (result == null || !context.mounted) return;
-        if (!identical(ref.read(backendProvider), authority)) {
+        if (hostScope.isStale) {
           notifier.setWarningMessage(
             'The imaging host changed while choosing the flat-frame folder. '
             'Choose it again for the current host.',
@@ -189,7 +189,7 @@ class _ActionButtons extends ConsumerWidget {
       }
 
       if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
+          hostScope.isStale) {
         return;
       }
 
@@ -199,7 +199,7 @@ class _ActionButtons extends ConsumerWidget {
       notifier.releaseStartPrompt();
       await notifier.runCapture();
     } catch (error) {
-      if (context.mounted && identical(ref.read(backendProvider), authority)) {
+      if (context.mounted && hostScope.isCurrent) {
         notifier.setErrorMessage('Could not start flat capture: ${userFacingError(error)}');
       }
     } finally {

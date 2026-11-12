@@ -104,7 +104,7 @@ void main() {
       );
       expect(
         find.textContaining(
-          'A measurement of 105 steps (measured on 14 Sep 2026 at position '
+          'A measurement of 105 steps (measured on Sep 14, 2026 at position '
           '6620) is on record and is NOT being used.',
         ),
         findsOneWidget,

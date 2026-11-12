@@ -336,12 +336,12 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
           }
 
           Future<void> openSequenceFile() async {
-            final authority = ref.read(backendProvider);
+            final hostScope = ref.backendScope();
             final editorSnapshot = ref.read(currentSequenceProvider);
 
             bool requireCurrentContext() {
               if (!context.mounted) return false;
-              if (identical(ref.read(backendProvider), authority)) return true;
+              if (hostScope.isCurrent) return true;
               context.showWarningSnackBar(
                 'The imaging host changed while the file dialog was open. '
                 'Open the sequence again for the current host.',

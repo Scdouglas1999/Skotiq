@@ -209,7 +209,7 @@ class PassHeader extends StatelessWidget {
       if (ended)
         _Clock(
           label: 'Started',
-          value: DateFormat('MMM d HH:mm').format(tl.startedAt),
+          value: ClockFormat.monthDayHm(tl.startedAt.toLocal()),
         )
       else
         _Clock(

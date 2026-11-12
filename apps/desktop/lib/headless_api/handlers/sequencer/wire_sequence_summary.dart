@@ -201,6 +201,9 @@ class _WireSequenceSummary {
       case 'SciencePhotometry':
         return _asInt(config['count']);
       case 'SmartExposure':
+        // Looping until stopped, the run ignores the plan counts (as
+        // `SequenceNode.framesPerPass` does for the model).
+        if (config['loop_until_stopped'] == true) return 0;
         final plans = config['plans'];
         if (plans is! List) return 0;
         return plans.whereType<Map<String, Object?>>().fold<int>(
@@ -213,7 +216,7 @@ class _WireSequenceSummary {
   }
 
   /// Walk from [nodeId] scaling by the accumulated loop multiplier, mirroring
-  /// `Sequence._countExposures`. Only a `Count` loop multiplies: an unbounded
+  /// `plannedCaptureUnder`. Only a `Count` loop multiplies: an unbounded
   /// loop has no honest denominator, and inventing one would make the progress
   /// bar claim a total the run was never going to reach.
   ///

@@ -90,7 +90,7 @@ class _SessionHistoryCard extends ConsumerWidget {
     );
 
     final dateText = Text(
-      DateFormat('MMM d, yyyy HH:mm').format(session.startTime),
+      ClockFormat.monthDayYearHm(session.startTime.toLocal()),
       style: SkotiqTypography.bodySm.copyWith(
         color: colors.textSecondary,
       ),

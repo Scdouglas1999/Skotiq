@@ -52,6 +52,7 @@ part 'sequence_models/sequence_state.dart';
 part 'sequence_models/sequence_sky_requirement.dart';
 part 'sequence_models/node_kind.dart';
 part 'sequence_models/node_kinds.dart';
+part 'sequence_models/planned_capture.dart';
 part 'sequence_models/wire_tokens.dart';
 
 /// Sequence execution state

@@ -38,7 +38,7 @@ String annotationPngSuggestedName({
   required DateTime capturedAt,
 }) {
   if (sourcePath == null || sourcePath.trim().isEmpty) {
-    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(capturedAt);
+    final timestamp = ClockFormat.fileStamp(capturedAt);
     return 'capture_${timestamp}_annotated.png';
   }
 

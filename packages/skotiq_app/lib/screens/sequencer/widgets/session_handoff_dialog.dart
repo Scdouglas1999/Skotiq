@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -80,7 +79,7 @@ class _SessionHandoffDialogState extends ConsumerState<SessionHandoffDialog> {
   }
 
   String _formatDate(DateTime dt) =>
-      DateFormat('MMM d, yyyy').format(dt.toLocal());
+      ClockFormat.monthDayYear(dt.toLocal());
 
   void _applyAll(SessionHandoffDecision decision) {
     setState(() {

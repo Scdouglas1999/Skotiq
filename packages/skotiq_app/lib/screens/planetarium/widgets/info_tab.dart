@@ -2,7 +2,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -506,7 +505,7 @@ class ImagingHistorySection extends ConsumerWidget {
                 Icon(LucideIcons.clock3, size: 12, color: colors.textMuted),
                 const SizedBox(width: 6),
                 Text(
-                  'Last imaged: ${DateFormat('MMM d, yyyy').format(history.lastImaged!.toLocal())}',
+                  'Last imaged: ${ClockFormat.monthDayYear(history.lastImaged!.toLocal())}',
                   style: TextStyle(
                     fontSize: SkotiqTypography.fontSize11,
                     color: colors.textSecondary,

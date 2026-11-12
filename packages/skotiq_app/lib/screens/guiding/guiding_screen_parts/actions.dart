@@ -169,12 +169,12 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   Future<void> _disconnectActiveGuider() async {
-    final backend = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
     final guiderId = ref.read(guiderStateProvider).deviceId;
     try {
       await ref.read(deviceServiceProvider).disconnect(DeviceType.guider);
       if (!mounted) return;
-      if (!identical(backend, ref.read(backendProvider))) {
+      if (hostScope.isStale) {
         _showActionError(
           'The imaging host changed while disconnecting the guider. '
           'Check Equipment before continuing.',
@@ -247,7 +247,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
   }
 
   Future<void> _clearCalibration() async {
-    final backend = ref.read(backendProvider);
+    final hostScope = ref.backendScope();
     final confirmed = await ConfirmDialog.show(
       context: context,
       title: 'Clear calibration?',
@@ -257,7 +257,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
       isDestructive: true,
     );
     if (!confirmed || !mounted) return;
-    if (!identical(backend, ref.read(backendProvider))) {
+    if (hostScope.isStale) {
       _showActionError(
         'The connected imaging host changed. Calibration was not cleared.',
       );

@@ -224,7 +224,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
       // Prefer the notes the source carried (the GitHub release body) over
       // the terse line baked into the signed manifest.
       releaseNotes: state.releaseNotes ?? manifest.releaseNotes,
-      downloadSizeMb: (manifest.compressedSize / 1024 / 1024).round(),
+      downloadSizeBytes: manifest.compressedSize,
       requiresManualUpgrade: state.requiresManualUpgrade,
       onUpdate: () {
         ref.read(updateProvider.notifier).downloadUpdate();
@@ -287,8 +287,8 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
           return UpdateDownloadDialog(
             version: currentState.availableUpdate?.version ?? '',
             progress: currentState.downloadProgress,
-            downloadedMb: (currentState.downloadedBytes / 1024 / 1024).round(),
-            totalMb: (currentState.totalBytes / 1024 / 1024).round(),
+            downloadedBytes: currentState.downloadedBytes,
+            totalBytes: currentState.totalBytes,
             status: 'Downloading...',
             onCancel: () {
               ref.read(updateProvider.notifier).cancelDownload();

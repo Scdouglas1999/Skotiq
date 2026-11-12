@@ -2,8 +2,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'package:intl/intl.dart';
 
 class InfoRow extends StatelessWidget {
   final String label;
@@ -233,13 +233,13 @@ class DarknessCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Astro Dusk: ${DateFormat('HH:mm').format(twilight.astronomicalDusk!.toLocal())}',
+                'Astro Dusk: ${ClockFormat.hm(twilight.astronomicalDusk!.toLocal())}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize10,
                     color: colors.textMuted),
               ),
               Text(
-                'Astro Dawn: ${DateFormat('HH:mm').format(twilight.astronomicalDawn!.toLocal())}',
+                'Astro Dawn: ${ClockFormat.hm(twilight.astronomicalDawn!.toLocal())}',
                 style: TextStyle(
                     fontSize: SkotiqTypography.fontSize10,
                     color: colors.textMuted),

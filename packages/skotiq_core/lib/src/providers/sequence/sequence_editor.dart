@@ -8,6 +8,7 @@ import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/template_snippet.dart';
 import '../../services/sequence_file_service.dart';
 import '../sequence_provider.dart' show sequenceExecutionStateProvider;
+import 'filter_name_matching.dart';
 import 'sequence_editor_exceptions.dart';
 import 'target_catalog_coordinate_sync.dart';
 import 'sequence_undo_batch.dart';
