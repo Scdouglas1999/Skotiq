@@ -106,35 +106,67 @@ pub fn apply_stretch(image: &ImageData, params: &StretchParams) -> Vec<u8> {
 /// The samples of an image that is not 16-bit, on the 16-bit level scale the
 /// stretch works in; `None` for a 16-bit image, whose bytes are the levels.
 ///
-/// Float samples are ADU, as the integration masters write them, unless every
-/// sample lies in [0, 1]: that is the [0, 1] float convention (PixInsight's),
-/// and it is spread over the full scale.
+/// The scale is chosen from the finite samples' range:
+/// * within [0, 1]: the [0, 1] float convention (PixInsight's), spread over
+///   the full scale;
+/// * within [0, 65535]: ADU, as the integration masters write them, taken as
+///   they are, so a float master shows as its 16-bit twin does;
+/// * anything else (a background-subtracted master with samples below zero, a
+///   32-bit integer or a float file on another scale): the range itself is
+///   spread over the full scale. Clamping instead would flatten everything
+///   below zero or above 65535 into one level.
+///
+/// A sample that is not finite (NaN marks a pixel with no data in some
+/// masters) shows as level 0.
 fn display_levels(image: &ImageData) -> Option<Vec<u16>> {
     let pixel_type = image.pixel_type;
+    if pixel_type == crate::PixelType::U16 {
+        return None;
+    }
     let size = pixel_type.byte_size();
-    let scale = match pixel_type {
-        crate::PixelType::U16 => return None,
-        crate::PixelType::U8 => 257.0,
-        crate::PixelType::U32 => 1.0,
-        crate::PixelType::F32 | crate::PixelType::F64 => {
-            let unit_range = image
-                .data
-                .par_chunks_exact(size)
-                .all(|bytes| !(crate::samples::sample_from_le(bytes, pixel_type) > 1.0));
-            if unit_range {
-                65535.0
-            } else {
-                1.0
-            }
-        }
+    let sample = |bytes: &[u8]| crate::samples::sample_from_le(bytes, pixel_type);
+
+    let (low, high) = image
+        .data
+        .par_chunks_exact(size)
+        .map(sample)
+        .filter(|v| v.is_finite())
+        .fold(
+            || (f64::INFINITY, f64::NEG_INFINITY),
+            |(low, high), v| (low.min(v), high.max(v)),
+        )
+        .reduce(
+            || (f64::INFINITY, f64::NEG_INFINITY),
+            |a, b| (a.0.min(b.0), a.1.max(b.1)),
+        );
+    const FULL_SCALE: f64 = 65535.0;
+    let is_float = matches!(
+        pixel_type,
+        crate::PixelType::F32 | crate::PixelType::F64
+    );
+    let (offset, scale) = if pixel_type == crate::PixelType::U8 {
+        (0.0, 257.0)
+    } else if low > high {
+        // No finite sample at all.
+        (0.0, 0.0)
+    } else if is_float && low >= 0.0 && high <= 1.0 {
+        (0.0, FULL_SCALE)
+    } else if low >= 0.0 && high <= FULL_SCALE {
+        (0.0, 1.0)
+    } else if high > low {
+        (low, FULL_SCALE / (high - low))
+    } else {
+        (low, 0.0)
     };
+
     Some(
         image
             .data
             .par_chunks_exact(size)
             .map(|bytes| {
-                let level = crate::samples::sample_from_le(bytes, pixel_type) * scale;
-                level.round().clamp(0.0, 65535.0) as u16
+                let level = (sample(bytes) - offset) * scale;
+                // `as` saturates and maps NaN to 0.
+                level.round() as u16
             })
             .collect(),
     )
@@ -899,6 +931,71 @@ mod tests {
         let display = apply_stretch(&float_image, &params);
         assert_eq!(display.len(), 64 * 48);
         assert_eq!(display, apply_stretch(&u16_image, &expected));
+    }
+
+    /// A master with samples below zero (background subtracted, or a pedestal
+    /// removed) and holes marked NaN keeps its faint end: the stretch sees the
+    /// same picture as the 16-bit frame it is an offset copy of.
+    #[test]
+    fn float_master_below_zero_with_nan_holes_keeps_its_faint_end() {
+        let (u16_image, _, _) = synthetic_frame_with_stars(64, 48, 6553, 1500, 20);
+        let levels = u16_image.as_u16().unwrap();
+        let low = f32::from(*levels.iter().min().unwrap());
+        let high = f32::from(*levels.iter().max().unwrap());
+        // The background sits below zero; the range keeps its width.
+        let mut shifted: Vec<f32> = levels.iter().map(|&v| f32::from(v) - 7000.0).collect();
+        assert!(low - 7000.0 < 0.0 && high > low);
+        shifted[5] = f32::NAN;
+        let float_image = ImageData::from_f32(64, 48, 1, &shifted);
+
+        let params = auto_stretch_stf(&float_image);
+        let display = apply_stretch(&float_image, &params);
+        assert_eq!(display.len(), 64 * 48);
+        assert_eq!(display[5], 0, "a NaN hole is black");
+
+        // Clamped at zero, most of the background would be one level and the
+        // display two-tone. The stretched picture has the spread of the
+        // 16-bit frame's.
+        let reference = apply_stretch(&u16_image, &auto_stretch_stf(&u16_image));
+        let distinct = |bytes: &[u8]| {
+            let mut seen = [false; 256];
+            bytes.iter().for_each(|&b| seen[b as usize] = true);
+            seen.iter().filter(|&&s| s).count()
+        };
+        assert!(
+            distinct(&display) * 10 >= distinct(&reference) * 8,
+            "{} display levels against {} for the 16-bit frame",
+            distinct(&display),
+            distinct(&reference)
+        );
+    }
+
+    /// Samples on a scale beyond 16 bits (a 32-bit integer file, a float
+    /// master in electrons) are spread over the display range instead of
+    /// saturating.
+    #[test]
+    fn samples_beyond_16_bits_do_not_saturate() {
+        let (u16_image, _, _) = synthetic_frame_with_stars(64, 48, 6553, 1500, 20);
+        let scaled: Vec<f32> = u16_image
+            .as_u16()
+            .unwrap()
+            .iter()
+            .map(|&v| f32::from(v) * 4096.0)
+            .collect();
+        let float_image = ImageData::from_f32(64, 48, 1, &scaled);
+
+        let display = apply_stretch(&float_image, &auto_stretch_stf(&float_image));
+        let white = display.iter().filter(|&&b| b == 255).count();
+        assert!(white * 4 < display.len(), "{white} of {} white", display.len());
+    }
+
+    /// A float image with no finite sample at all displays black rather than
+    /// failing.
+    #[test]
+    fn all_nan_float_image_is_black() {
+        let float_image = ImageData::from_f32(8, 8, 1, &[f32::NAN; 64]);
+        let display = apply_stretch(&float_image, &auto_stretch_stf(&float_image));
+        assert_eq!(display.len(), 64);
     }
 
     /// Float data in [0, 1] is spread over the full scale rather than read as
