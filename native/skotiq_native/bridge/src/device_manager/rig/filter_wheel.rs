@@ -466,3 +466,117 @@ impl FilterWheel for SimFilterWheel {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skotiq_device::{DeviceDriver, Vendor};
+    use std::sync::Arc;
+
+    /// A vendor wheel that accepts a move and stays at slot 1.
+    #[derive(Debug)]
+    struct StuckWheel {
+        connected: bool,
+    }
+
+    #[async_trait]
+    impl DeviceDriver for StuckWheel {
+        fn id(&self) -> &str {
+            "native:test:0"
+        }
+
+        fn name(&self) -> &str {
+            "Stuck wheel"
+        }
+
+        fn vendor(&self) -> Vendor {
+            Vendor::Zwo
+        }
+
+        fn is_connected(&self) -> bool {
+            self.connected
+        }
+
+        async fn connect(&mut self) -> Result<(), DriverError> {
+            self.connected = true;
+            Ok(())
+        }
+
+        async fn disconnect(&mut self) -> Result<(), DriverError> {
+            self.connected = false;
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl FilterWheelDriver for StuckWheel {
+        async fn move_to_position(&mut self, _position: i32) -> Result<(), DriverError> {
+            Ok(())
+        }
+
+        async fn get_position(&self) -> Result<i32, DriverError> {
+            if self.connected {
+                Ok(1)
+            } else {
+                Err(DriverError::NotConnected)
+            }
+        }
+
+        async fn is_moving(&self) -> Result<bool, DriverError> {
+            Ok(false)
+        }
+
+        fn get_filter_count(&self) -> i32 {
+            7
+        }
+
+        async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
+            Ok(Vec::new())
+        }
+
+        async fn set_filter_name(
+            &mut self,
+            _position: i32,
+            _name: String,
+        ) -> Result<(), DriverError> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn a_vendor_wheel_is_read_and_closed_while_a_move_waits_for_arrival() {
+        let wheel = Arc::new(VendorFilterWheel::new(
+            "native:test:0",
+            Box::new(StuckWheel { connected: true }),
+        ));
+        let moving = tokio::spawn({
+            let wheel = wheel.clone();
+            async move { wheel.move_to_slot(3).await }
+        });
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        assert!(
+            !moving.is_finished(),
+            "the move waits for the wheel to arrive"
+        );
+
+        let read = tokio::time::timeout(Duration::from_millis(500), wheel.position()).await;
+        assert!(
+            matches!(read, Ok(Ok(1))),
+            "a read does not wait for the move: {read:?}"
+        );
+        assert_eq!(wheel.heartbeat().await, Ok(true));
+
+        tokio::time::timeout(Duration::from_millis(500), wheel.disconnect())
+            .await
+            .expect("a disconnect does not wait for the move")
+            .expect("disconnect");
+        let ended = tokio::time::timeout(Duration::from_secs(2), moving)
+            .await
+            .expect("the move ends once the wheel is closed")
+            .expect("move task");
+        assert!(
+            matches!(ended, Err(DeviceOpError::NotConnected { .. })),
+            "{ended:?}"
+        );
+    }
+}

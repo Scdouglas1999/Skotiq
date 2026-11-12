@@ -165,17 +165,22 @@ impl DeviceManager {
             .ok_or_else(|| DeviceOpError::device_not_found(device_id))?;
         self.handles.get(device_id).and_then(pick).ok_or_else(|| {
             let noun = device_noun(info.device_type);
-            let detail = match (info.driver_type, info.device_type) {
+            match (info.driver_type, info.device_type) {
+                // The simulated rig devices answer with the simulator's own
+                // sentence, which the FFI edge shows only for an error that
+                // carries no device id.
                 (DriverType::Simulator, DeviceType::FilterWheel | DeviceType::Focuser) => {
-                    sim_gate::not_connected(&noun)
+                    DeviceOpError::not_connected(None, sim_gate::not_connected(&noun))
                 }
-                _ => format!(
-                    "{} {} not connected",
-                    protocol_label(info.driver_type),
-                    noun
+                _ => DeviceOpError::not_connected(
+                    Some(device_id.to_string()),
+                    format!(
+                        "{} {} not connected",
+                        protocol_label(info.driver_type),
+                        noun
+                    ),
                 ),
-            };
-            DeviceOpError::not_connected(Some(device_id.to_string()), detail)
+            }
         })
     }
 
