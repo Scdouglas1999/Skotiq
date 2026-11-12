@@ -73,7 +73,6 @@ mod sdk_contract {
         pub const CANCELS: u32 = 3;
         pub const OPEN: u32 = 4;
         pub const BITS: u32 = 5;
-        pub const BIN: u32 = 6;
         pub const COOLER_WRITES: u32 = 7;
         pub const MANUAL_PWM: u32 = 9;
         pub const DEBAYER: u32 = 10;

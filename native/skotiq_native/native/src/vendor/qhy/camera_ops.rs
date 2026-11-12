@@ -131,7 +131,7 @@ impl CameraDriver for QhyCamera {
         self.connected_handle()?;
         let bin = self.check_bin(params.bin_x, params.bin_y)?;
         let exposure_us = params.duration_secs * 1_000_000.0;
-        if !(exposure_us > 0.0) {
+        if exposure_us.is_nan() || exposure_us <= 0.0 {
             return Err(DriverError::InvalidParameter(format!(
                 "An exposure must be longer than 0 s; {} s was asked",
                 params.duration_secs
