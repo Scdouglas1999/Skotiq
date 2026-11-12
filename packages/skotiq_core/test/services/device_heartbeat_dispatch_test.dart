@@ -346,53 +346,26 @@ void main() {
     verifyNever(() => mockBackend.connectDevice(any(), any()));
   });
 
-  group('DeviceReconnectCoordinator.nativeOwnsReconnect policy table', () {
-    // This table MUST mirror the native source of truth exactly:
-    // `DeviceManager::get_heartbeat_config(device_type)` →
-    // `HeartbeatConfig::for_*()` in
-    // native/skotiq_native/bridge/src/device_manager/. A drift here
-    // re-opens the dual-reconnect race (Dart competes with the native
-    // loop) or strands a device with no reconnect engine at all.
-    const nativeOwned = <DeviceType>{
-      DeviceType.mount, // for_mount: auto_reconnect = true
-      DeviceType.dome, // for_dome: auto_reconnect = true
-      DeviceType.weather, // for_weather: auto_reconnect = true
-      DeviceType.guider, // for_guider: auto_reconnect = true
-      DeviceType.coverCalibrator, // for_cover_calibrator: auto_reconnect = true
-    };
-    const dartOwned = <DeviceType>{
-      DeviceType.camera, // for_camera: auto_reconnect = false
-      DeviceType.focuser, // for_focuser: auto_reconnect = false
-      DeviceType.filterWheel, // for_filter_wheel: auto_reconnect = false
-      DeviceType.rotator, // for_rotator: auto_reconnect = false
-      DeviceType.switch_, // for_switch: auto_reconnect = false
-      // for_safety_monitor: auto_reconnect = false. Its heartbeat never
-      // reports a drop; the environment poll hands a monitor whose reads keep
-      // failing to the Dart coordinator.
-      DeviceType.safetyMonitor,
-    };
-
-    test('every DeviceType is classified exactly once', () {
-      // Guards against a new DeviceType being added without a matching
-      // native-ownership decision (the switch in nativeOwnsReconnect would
-      // fail to compile, but the test also documents the full set).
-      expect(
-        {...nativeOwned, ...dartOwned},
-        DeviceType.values.toSet(),
-        reason: 'all DeviceTypes must appear in exactly one ownership set',
-      );
-      expect(nativeOwned.intersection(dartOwned), isEmpty);
+  // `nativeReconnectedDeviceTypes` is a copy of the native rule
+  // (`policy(type).heartbeat.auto_reconnect` in
+  // native/skotiq_native/bridge/src/device_manager/policy.rs) until the FFI
+  // publishes it. A drift re-opens the dual-reconnect race (Dart competes
+  // with the native loop) or strands a device with no reconnect engine at
+  // all, so this pins the copy: change policy.rs and this list together.
+  test('the native-reconnected device types are the ones policy.rs names', () {
+    expect(nativeReconnectedDeviceTypes, {
+      DeviceType.mount,
+      DeviceType.guider,
+      DeviceType.dome,
+      DeviceType.weather,
+      DeviceType.coverCalibrator,
     });
-
-    for (final type in nativeOwned) {
-      test('${type.name} is native-owned', () {
-        expect(DeviceReconnectCoordinator.nativeOwnsReconnect(type), isTrue);
-      });
-    }
-    for (final type in dartOwned) {
-      test('${type.name} is Dart-owned', () {
-        expect(DeviceReconnectCoordinator.nativeOwnsReconnect(type), isFalse);
-      });
+    for (final type in DeviceType.values) {
+      expect(
+        DeviceReconnectCoordinator.nativeOwnsReconnect(type),
+        nativeReconnectedDeviceTypes.contains(type),
+        reason: '${type.name}: the coordinator reads the one constant',
+      );
     }
   });
 
