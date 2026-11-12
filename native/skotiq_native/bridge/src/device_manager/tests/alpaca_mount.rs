@@ -1,9 +1,12 @@
 //! What an Alpaca telescope declares decides what Skotiq sends it: the frame
-//! it takes coordinates in (`EquatorialSystem`).
+//! it takes coordinates in (`EquatorialSystem`) and when a guide pulse is over
+//! (`IsPulseGuiding`).
 
 use super::*;
 use crate::device_manager::epoch::MountFrame;
+use crate::dispatch::DeviceOpError;
 use std::sync::Mutex as StdMutex;
+use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// A loopback Alpaca telescope. GETs answer from `values` (an absent member
@@ -211,4 +214,66 @@ async fn a_mount_of_date_is_sent_precessed_coordinates() {
         assert!((ra - want_ra).abs() < 1e-6 && (dec - want_dec).abs() < 1e-5);
         assert!((ra - 5.5).abs() * 15.0 * 60.0 > 10.0, "precessed by minutes of arc");
     }
+}
+
+/// An asynchronous `PulseGuide` returns at once; the call returns when
+/// `IsPulseGuiding` reads false, not before the pulse's length has passed.
+#[tokio::test]
+async fn a_pulse_guide_returns_when_the_pulse_is_over() {
+    let fake = fake_telescope(mount_values(Some(1)), Some(4)).await;
+    let manager = build_device_manager();
+    let device_id = connect_fake(&manager, &fake).await;
+
+    let started = Instant::now();
+    manager
+        .mount_pulse_guide(&device_id, "north".to_string(), 300)
+        .await
+        .expect("pulse");
+    let took = started.elapsed();
+    assert!(took >= Duration::from_millis(300), "returned after {took:?}");
+    assert!(
+        took >= Duration::from_millis(300 + 3 * 50),
+        "waited out the reads that still reported the pulse: {took:?}"
+    );
+    assert!(fake
+        .puts
+        .lock()
+        .expect("lock puts")
+        .iter()
+        .any(|put| put.starts_with("pulseguide ") && put.contains("Direction=0") && put.contains("Duration=300")));
+}
+
+/// A driver that cannot report `IsPulseGuiding` is done when the pulse's
+/// length has passed.
+#[tokio::test]
+async fn a_pulse_on_a_driver_without_is_pulse_guiding_lasts_its_length() {
+    let fake = fake_telescope(mount_values(Some(1)), None).await;
+    let manager = build_device_manager();
+    let device_id = connect_fake(&manager, &fake).await;
+
+    let started = Instant::now();
+    manager
+        .mount_pulse_guide(&device_id, "west".to_string(), 250)
+        .await
+        .expect("pulse");
+    let took = started.elapsed();
+    assert!(
+        took >= Duration::from_millis(250) && took < Duration::from_millis(1500),
+        "{took:?}"
+    );
+}
+
+/// A mount that never stops reporting the pulse is a fault the guider hears
+/// about, after the pulse's length and a grace period.
+#[tokio::test]
+async fn a_pulse_that_never_ends_is_a_timeout() {
+    let fake = fake_telescope(mount_values(Some(1)), Some(u32::MAX)).await;
+    let manager = build_device_manager();
+    let device_id = connect_fake(&manager, &fake).await;
+
+    let error = manager
+        .mount_pulse_guide(&device_id, "east".to_string(), 100)
+        .await
+        .expect_err("the pulse never ends");
+    assert!(matches!(error, DeviceOpError::Timeout { .. }), "{error:?}");
 }

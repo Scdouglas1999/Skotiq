@@ -83,6 +83,7 @@ enum AscomMountCommand {
     ),
     GetUtcDate(oneshot::Sender<Result<f64, DriverError>>),
     GetEquatorialSystem(oneshot::Sender<Result<i32, DriverError>>),
+    IsPulseGuiding(oneshot::Sender<Result<bool, DriverError>>),
     SetUtcDate(f64, oneshot::Sender<Result<(), DriverError>>),
     // Version query commands
 }
@@ -532,6 +533,14 @@ impl AscomMountWrapper {
                                 .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
+                    AscomMountCommand::IsPulseGuiding(reply) => {
+                        if let Some(m) = &mut mount {
+                            let _ = reply.send(m.is_pulse_guiding().map_err(super::ascom_error));
+                        } else {
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
+                        }
+                    }
                     AscomMountCommand::GetEquatorialSystem(reply) => {
                         if let Some(m) = &mut mount {
                             let _ = reply.send(m.equatorial_system().map_err(super::ascom_error));
@@ -675,6 +684,13 @@ impl AscomMountWrapper {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetUtcDate(tx)).await?;
         super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_utc_date").await
+    }
+
+    /// `IsPulseGuiding`: whether a guide pulse is still running.
+    pub async fn is_pulse_guiding(&self) -> Result<bool, DriverError> {
+        let (tx, rx) = oneshot::channel();
+        self.enqueue(AscomMountCommand::IsPulseGuiding(tx)).await?;
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "is_pulse_guiding").await
     }
 
     /// `EquatorialSystem`: the frame the driver takes and reports RA/Dec in.
