@@ -1080,10 +1080,10 @@ mod fake_sdk_contract {
 
         let devices = svbony::discover_devices().await.expect("SVBONY discovery");
         assert_eq!(devices.len(), 1);
-        assert_eq!(devices[0].name, "Fake SV605CC");
+        assert_eq!(devices[0].name, "SVBONY SV405CC");
         assert_eq!(
             devices[0].sdk_version.as_deref(),
-            Some("SVBony SDK vfake-svbony-1.0")
+            Some("SVBony SDK vfake-svbony-1.13")
         );
 
         let mut camera = svbony::SvbonyCamera::new(devices[0].camera_id);
@@ -1123,9 +1123,9 @@ mod fake_sdk_contract {
             .download_image()
             .await
             .expect("SVBONY image download");
-        assert_eq!((image.width, image.height), (20, 15));
-        assert_eq!(image.bits_per_pixel, 16);
-        assert_eq!(image.data[0], 3000);
+        assert_eq!((image.width, image.height), (24, 14));
+        assert_eq!(image.bits_per_pixel, 14);
+        assert_eq!(image.data[0], 1001);
         assert_eq!(image.metadata.gain, 44);
         assert_eq!(image.metadata.offset, 7);
         camera.abort_exposure().await.expect("SVBONY abort");
@@ -2129,35 +2129,7 @@ fn write_fixed(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for 
 #[no_mangle] pub unsafe extern "C" fn ArtemisEFWGetPosition(_handle:*mut c_void,pos:*mut c_int,is_moving:*mut bool)->c_int{if !pos.is_null(){*pos=FILTER_POS.load(Ordering::SeqCst);} if !is_moving.is_null(){*is_moving=false;} 0}
 "#;
 
-    const SVBONY_FAKE_SDK: &str = r#"
-#![allow(non_snake_case)]
-use std::ffi::{c_char,c_int,c_long};
-use std::sync::atomic::{AtomicI32,AtomicI64,Ordering};
-static WIDTH:AtomicI32=AtomicI32::new(40); static HEIGHT:AtomicI32=AtomicI32::new(30); static BIN:AtomicI32=AtomicI32::new(1); static IMG_TYPE:AtomicI32=AtomicI32::new(4); static GAIN:AtomicI64=AtomicI64::new(0); static OFFSET:AtomicI64=AtomicI64::new(0); static COOLER:AtomicI64=AtomicI64::new(0); static TARGET_TEMP:AtomicI64=AtomicI64::new(-100);
-#[repr(C)] struct SvbCameraInfo{friendly_name:[c_char;32],camera_sn:[c_char;32],port_type:[c_char;32],device_id:c_int,camera_id:c_int}
-#[repr(C)] struct SvbCameraProperty{max_height:c_long,max_width:c_long,is_color_cam:c_int,bayer_pattern:c_int,supported_bins:[c_int;16],supported_video_format:[c_int;8],pixel_size:f64,mechanical_shutter:c_int,st4_port:c_int,is_cooler_cam:c_int,is_usb3_host:c_int,is_usb3_camera:c_int,elec_per_adu:f32,bit_depth:c_int,is_trigger_cam:c_int}
-#[repr(C)] struct SvbCameraPropertyEx{b_support_pulse_guide:c_int,b_support_control_temp:c_int,output_mode_support:[c_int;8]}
-#[repr(C)] struct SvbControlCaps{name:[c_char;64],description:[c_char;128],max_value:c_long,min_value:c_long,default_value:c_long,is_auto_supported:c_int,is_writable:c_int,control_type:c_int}
-fn write_cstr(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for i in 0..text.len().min(buf.len().saturating_sub(1)){buf[i]=text[i] as c_char;}}
-#[no_mangle] pub extern "C" fn SVBGetNumOfConnectedCameras()->c_int{1}
-#[no_mangle] pub unsafe extern "C" fn SVBGetCameraInfo(info:*mut SvbCameraInfo,index:c_int)->c_int{if info.is_null()||index!=0{return 1;} let mut v:SvbCameraInfo=std::mem::zeroed(); write_cstr(&mut v.friendly_name,b"Fake SV605CC"); write_cstr(&mut v.camera_sn,b"SVB-FAKE-0001"); write_cstr(&mut v.port_type,b"USB3"); v.device_id=0; v.camera_id=0; *info=v; 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetCameraProperty(_id:c_int,prop:*mut SvbCameraProperty)->c_int{if prop.is_null(){return 16;} let mut v:SvbCameraProperty=std::mem::zeroed(); v.max_width=40; v.max_height=30; v.is_color_cam=1; v.bayer_pattern=0; v.supported_bins[0]=1; v.supported_bins[1]=2; v.supported_bins[2]=4; v.supported_video_format[0]=0; v.supported_video_format[1]=4; v.supported_video_format[2]=-1; v.pixel_size=2.9; v.st4_port=1; v.is_cooler_cam=1; v.is_usb3_host=1; v.is_usb3_camera=1; v.elec_per_adu=1.0; v.bit_depth=16; *prop=v; 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetCameraPropertyEx(_id:c_int,prop:*mut SvbCameraPropertyEx)->c_int{if prop.is_null(){return 16;} let mut v:SvbCameraPropertyEx=std::mem::zeroed(); v.b_support_pulse_guide=1; v.b_support_control_temp=1; v.output_mode_support[0]=4; *prop=v; 0}
-#[no_mangle] pub extern "C" fn SVBOpenCamera(id:c_int)->c_int{if id==0{0}else{2}}
-#[no_mangle] pub extern "C" fn SVBCloseCamera(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetNumOfControls(_id:c_int,num:*mut c_int)->c_int{if num.is_null(){return 16;} *num=7; 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetControlCaps(_id:c_int,index:c_int,caps:*mut SvbControlCaps)->c_int{if caps.is_null(){return 16;} let controls=[(0,b"Gain".as_slice(),0,600,0),(1,b"Exposure".as_slice(),1,60_000_000,10_000),(13,b"BlackLevel".as_slice(),0,100,0),(14,b"CoolerEnable".as_slice(),0,1,0),(15,b"TargetTemp".as_slice(),-400,300,-100),(16,b"CurrentTemp".as_slice(),-500,500,-95),(17,b"CoolerPower".as_slice(),0,100,40)]; if index<0||index as usize>=controls.len(){return 1;} let (control_type,name,min,max,default_value)=controls[index as usize]; let mut v:SvbControlCaps=std::mem::zeroed(); write_cstr(&mut v.name,name); write_cstr(&mut v.description,b"Skotiq fake SVBONY control"); v.min_value=min; v.max_value=max; v.default_value=default_value; v.is_writable=1; v.control_type=control_type; *caps=v; 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetControlValue(_id:c_int,ctrl:c_int,value:*mut c_long,is_auto:*mut c_int)->c_int{if value.is_null()||is_auto.is_null(){return 16;} *is_auto=0; let v=match ctrl{0=>GAIN.load(Ordering::SeqCst),1=>10_000,13=>OFFSET.load(Ordering::SeqCst),14=>COOLER.load(Ordering::SeqCst),15=>TARGET_TEMP.load(Ordering::SeqCst),16=>-95,17=>42,_=>return 3}; *value=v as c_long; 0}
-#[no_mangle] pub extern "C" fn SVBSetControlValue(_id:c_int,ctrl:c_int,value:c_long,_is_auto:c_int)->c_int{match ctrl{0=>GAIN.store(value as i64,Ordering::SeqCst),13=>OFFSET.store(value as i64,Ordering::SeqCst),14=>COOLER.store(value as i64,Ordering::SeqCst),15=>TARGET_TEMP.store(value as i64,Ordering::SeqCst),_=>{}} 0}
-#[no_mangle] pub extern "C" fn SVBSetROIFormat(_id:c_int,_x:c_int,_y:c_int,width:c_int,height:c_int,bin:c_int)->c_int{WIDTH.store(width,Ordering::SeqCst); HEIGHT.store(height,Ordering::SeqCst); BIN.store(bin,Ordering::SeqCst); 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetROIFormat(_id:c_int,x:*mut c_int,y:*mut c_int,width:*mut c_int,height:*mut c_int,bin:*mut c_int)->c_int{if !x.is_null(){*x=0;} if !y.is_null(){*y=0;} if !width.is_null(){*width=WIDTH.load(Ordering::SeqCst);} if !height.is_null(){*height=HEIGHT.load(Ordering::SeqCst);} if !bin.is_null(){*bin=BIN.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn SVBSetOutputImageType(_id:c_int,img_type:c_int)->c_int{IMG_TYPE.store(img_type,Ordering::SeqCst); 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetOutputImageType(_id:c_int,img_type:*mut c_int)->c_int{if !img_type.is_null(){*img_type=IMG_TYPE.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn SVBStartVideoCapture(_id:c_int)->c_int{0}
-#[no_mangle] pub extern "C" fn SVBStopVideoCapture(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetVideoData(_id:c_int,buf:*mut u8,buf_size:c_long,_wait_ms:c_int)->c_int{if buf.is_null()||buf_size<0{return 13;} for i in 0..((buf_size as usize)/2){let v=3000u16.wrapping_add(i as u16); *buf.add(i*2)=(v&0xff) as u8; *buf.add(i*2+1)=(v>>8) as u8;} 0}
-#[no_mangle] pub extern "C" fn SVBGetSDKVersion()->*const c_char{b"fake-svbony-1.0\0".as_ptr() as *const c_char}
-"#;
+    const SVBONY_FAKE_SDK: &str = include_str!("fake_sdk/svbony.rs");
 
     const TOUPTEK_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
