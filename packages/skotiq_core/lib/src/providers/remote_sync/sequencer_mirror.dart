@@ -1,122 +1,59 @@
 part of '../remote_sync_handler.dart';
 
+/// Mirror one of the host's sequencer events onto this client's run record.
+///
+/// A host folds its own run's events (the executor attached to the run, or
+/// the always-on pump), so on a host only the library notice is acted on.
 void _applySequencerEvent(
   Object reader,
   SkotiqEvent event, {
   SkotiqBackend? networkBackend,
 }) {
-  final progressNotifier = _read(reader, runRecordProvider.notifier);
-  final data = event.data;
+  if (event.eventType == sequenceUpdatedEventType) {
+    _invalidateSequenceLibrary(
+      reader,
+      sequenceId: event.data['sequenceId'] as int?,
+    );
+    return;
+  }
+  if (networkBackend == null) return;
 
-  // A local [SequenceExecutor] that owns a run (it created the sequence_runs
-  // row, hence a non-null currentRunId) is the authority on lifecycle state:
-  // it publishes `finalizing` on a terminal event and only settles once
-  // durable cleanup succeeds. Writing a settled state from here would race
-  // that transaction, so mirrored lifecycle only drives state when no local
-  // run is owned — i.e. we are watching someone else's run, which is the
-  // whole point of this handler.
-  final executorOwnsRun = _read(reader, runRecordProvider).runId != null;
-
-  // The bare names are what a host actually emits (see
-  // `ffi_backend/event_mapping.dart`); the `Sequence`-prefixed spellings were
-  // the only ones matched here, so a mirrored run stayed `running` on the
-  // phone after the host had finished, failed or been stopped, until the next
-  // status poll or reconnect happened to correct it.
+  final typed = SequencerRunEvent.fromSkotiqEvent(event);
+  if (typed != null) {
+    foldRunEvent(_read(reader, runRecordProvider.notifier), typed);
+  }
   switch (event.eventType) {
-    case 'Started':
-    case 'SequenceStarted':
-      final sequenceName = data['sequence_name'] as String? ?? 'Unknown';
-      progressNotifier.updateProgress(
-        message: 'Started sequence: $sequenceName',
-      );
-      if (executorOwnsRun) break;
-      progressNotifier.setLifecycle(SequenceExecutionState.running);
-      break;
-    case 'Paused':
-    case 'SequencePaused':
-      if (executorOwnsRun) break;
-      progressNotifier.setLifecycle(SequenceExecutionState.paused);
-      break;
-    case 'Resumed':
-    case 'SequenceResumed':
-      if (executorOwnsRun) break;
-      progressNotifier.setLifecycle(SequenceExecutionState.running);
-      break;
-    case 'Stopped':
-    case 'SequenceStopped':
-      if (executorOwnsRun) break;
-      progressNotifier.setLifecycle(SequenceExecutionState.idle);
-      break;
-    case 'Completed':
-    case 'SequenceCompleted':
-      if (executorOwnsRun) break;
-      progressNotifier.setLifecycle(SequenceExecutionState.completed);
-      break;
-    // A terminal failure must mirror through with its reason, or the phone
-    // keeps reporting the state the run held before it died.
-    case 'SequenceFailed':
-      final error = data['error'] as String? ?? 'Unknown error';
-      progressNotifier.updateProgress(message: 'Sequence failed: $error');
-      if (executorOwnsRun) break;
-      progressNotifier.setLifecycle(SequenceExecutionState.failed);
-      break;
     case 'NodeStarted':
-      progressNotifier.updateProgress(
-        currentNodeId: data['node_id'] as String? ?? '',
-        currentNodeName: data['node_type'] as String? ?? '',
-        currentNodeStatus: NodeStatus.running,
-      );
       // A new node/target means the host autopilot's live pick likely changed;
-      // refresh the mirrored preview so the slave's banner tracks the switch
+      // refresh the mirrored preview so the banner here tracks the switch
       // (no-op when the banner isn't mounted — it's autoDispose).
-      if (networkBackend != null) {
-        _invalidate(reader, schedulerPreviewDecisionProvider);
-      }
-      break;
+      _invalidate(reader, schedulerPreviewDecisionProvider);
     case 'ProgressUpdated':
     case 'InstructionProgress':
-      if (networkBackend != null) {
-        unawaited(_refreshSequencerStatus(reader, networkBackend));
-      }
-      break;
-    case sequenceUpdatedEventType:
-      _invalidateSequenceLibrary(
-        reader,
-        sequenceId: data['sequenceId'] as int?,
-      );
-      break;
+      unawaited(_refreshSequencerStatus(reader, networkBackend));
   }
 }
 
+/// Mirror a run-control change the host announced (started, paused, resumed,
+/// stopped, or a state it names). A host's own run state comes from its
+/// executor, so the announcement is acted on only by a linked client.
 void _applySequencerMutationFromHost(
   Object reader,
   String action,
   Map<String, dynamic> data,
 ) {
-  SequenceExecutionState mapped;
-  switch (action) {
-    case HostMutationAction.started:
-      mapped = SequenceExecutionState.running;
-    case HostMutationAction.paused:
-      mapped = SequenceExecutionState.paused;
-    case HostMutationAction.resumed:
-      mapped = SequenceExecutionState.running;
-    case HostMutationAction.stopped:
-      mapped = SequenceExecutionState.idle;
-    default:
-      final rawState = data['state'] as String?;
-      if (rawState == null) {
-        return;
-      }
-      mapped = _mapSequencerState(rawState);
-  }
-
-  _read(reader, runRecordProvider.notifier).setLifecycle(mapped);
-
-  final message = data['message'] as String?;
-  if (message != null) {
-    _read(reader, runRecordProvider.notifier).updateProgress(message: message);
-  }
+  if (_read(reader, backendProvider).remoteHost == null) return;
+  final String? rawState = switch (action) {
+    HostMutationAction.started || HostMutationAction.resumed => 'running',
+    HostMutationAction.paused => 'paused',
+    HostMutationAction.stopped => 'idle',
+    _ => data['state'] as String?,
+  };
+  if (rawState == null) return;
+  _read(
+    reader,
+    runRecordProvider.notifier,
+  ).mirrorHostState(rawState, message: data['message'] as String?);
 }
 
 /// SLAVE apply: mirror the master's OPEN sequence-editor canvas.
@@ -287,9 +224,8 @@ Future<void> _refreshSequencerStatus(
 }
 
 void _applySequencerStatus(Object reader, SequencerStatus status) {
-  final mapped = _mapSequencerState(status.state);
-  _read(reader, runRecordProvider.notifier).setLifecycle(mapped);
-  _read(reader, runRecordProvider.notifier).updateProgress(
+  _read(reader, runRecordProvider.notifier).mirrorHostState(
+    status.state,
     message: status.message,
     currentNodeId: status.currentNodeId,
     currentNodeName: status.currentNodeName,
@@ -311,27 +247,5 @@ void _applySequencerStatus(Object reader, SequencerStatus status) {
   if (status.reportsGuidingStopReason) {
     _read(reader, guidingStopReasonProvider.notifier).state =
         status.guidingStopReason;
-  }
-}
-
-SequenceExecutionState _mapSequencerState(String rawState) {
-  switch (rawState.toLowerCase()) {
-    case 'running':
-      return SequenceExecutionState.running;
-    case 'paused':
-      return SequenceExecutionState.paused;
-    case 'stopping':
-      return SequenceExecutionState.stopping;
-    case 'completed':
-      return SequenceExecutionState.completed;
-    case 'failed':
-    case 'error':
-      return SequenceExecutionState.failed;
-    case 'recovering':
-      return SequenceExecutionState.paused;
-    case 'idle':
-    case 'stopped':
-    default:
-      return SequenceExecutionState.idle;
   }
 }

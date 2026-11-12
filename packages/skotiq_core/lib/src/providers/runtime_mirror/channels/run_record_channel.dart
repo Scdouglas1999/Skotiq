@@ -69,8 +69,6 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null || context.networkBackend == null) return;
-    // A client that started the run has its own executor attached to it.
-    if (context.read(currentRunIdProvider) != null) return;
 
     final terminal = _decodeResult(value['terminal']);
     final rawImagingRun = value['imagingRun'];

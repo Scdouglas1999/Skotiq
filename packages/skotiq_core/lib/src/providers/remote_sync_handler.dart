@@ -48,6 +48,7 @@ import 'scheduler_provider.dart'
         targetConstraintsStreamProvider;
 import 'sequence/remote_sequence_editor_sync.dart'
     show remoteEditorSyncStateProvider, sequenceFingerprint;
+import 'sequence/sequencer_run_event.dart' show SequencerRunEvent;
 import 'sequence_provider.dart';
 import 'ui_notification_provider.dart' show uiNotificationProvider;
 import 'sequence_stats_provider.dart'

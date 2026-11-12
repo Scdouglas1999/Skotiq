@@ -495,15 +495,7 @@ class SequenceExecutor {
   Future<void> _reflectHostRunState(SkotiqBackend backend) async {
     try {
       final status = await backend.sequencerGetStatus();
-      final state = switch (status.state.toLowerCase()) {
-        'running' => SequenceExecutionState.running,
-        'paused' || 'recovering' => SequenceExecutionState.paused,
-        'stopping' => SequenceExecutionState.stopping,
-        'completed' => SequenceExecutionState.completed,
-        'failed' || 'error' => SequenceExecutionState.failed,
-        _ => SequenceExecutionState.idle,
-      };
-      _setExecutionState(state);
+      _ref.read(runRecordProvider.notifier).mirrorHostState(status.state);
     } catch (e) {
       _logger.debug(
         'Could not read the host run state after a command: $e',

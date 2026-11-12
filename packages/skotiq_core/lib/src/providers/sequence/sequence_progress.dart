@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../backend/remote_host.dart';
 import '../../models/backend/event_types.dart';
 import '../../models/backend/sequencer_status.dart' show CheckpointInfo;
 import '../../models/sequence/sequence_models.dart';
@@ -127,7 +128,9 @@ void applySequencerEventToSequenceProviders(
   final event = SequencerRunEvent.fromSkotiqEvent(raw);
   if (event == null) return;
   final run = read(runRecordProvider.notifier);
-  if (!run.eventFoldClaimed) foldRunEvent(run, event);
+  // On a linked client the mirror folds the host's events.
+  final mirrored = read(backendProvider).remoteHost != null;
+  if (!mirrored && !run.eventFoldClaimed) foldRunEvent(run, event);
 
   // A sequence exposes in Rust and surfaces only through events. Leaving the
   // exposing path by any terminal or error must clear the flag: an aborted
@@ -145,8 +148,9 @@ void applySequencerEventToSequenceProviders(
 /// Fold one sequencer event onto the run record: progress, per-step status and
 /// tally, stop authorship, and the lifecycle when no local executor owns it.
 ///
-/// Called once per event, by `RunEventHandler` for a run the executor is
-/// attached to and by [applySequencerEventToSequenceProviders] otherwise.
+/// Called once per event: by `RunEventHandler` for a run the executor is
+/// attached to, by [applySequencerEventToSequenceProviders] for any other
+/// event on a host, and by the remote-sync mirror on a linked client.
 ///
 /// A local executor that owns the run (it opened the `sequence_runs` row, so
 /// the record has a run id) is the authority on its lifecycle: it publishes

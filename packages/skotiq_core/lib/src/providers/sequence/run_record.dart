@@ -133,6 +133,18 @@ class RunRecord {
   }
 }
 
+/// The lifecycle a host's sequencer state string stands for. A host in
+/// recovery reads as paused on a client, which cannot act on the recovery.
+SequenceExecutionState lifecycleOfHostState(String rawState) =>
+    switch (rawState.toLowerCase()) {
+      'running' => SequenceExecutionState.running,
+      'paused' || 'recovering' => SequenceExecutionState.paused,
+      'stopping' => SequenceExecutionState.stopping,
+      'completed' => SequenceExecutionState.completed,
+      'failed' || 'error' => SequenceExecutionState.failed,
+      _ => SequenceExecutionState.idle,
+    };
+
 bool _isLive(SequenceExecutionState state) => switch (state) {
   SequenceExecutionState.running ||
   SequenceExecutionState.paused ||
@@ -146,9 +158,15 @@ final runRecordProvider = StateNotifierProvider<RunRecordNotifier, RunRecord>(
   RunRecordNotifier.new,
 );
 
-/// The writer of [RunRecord]. Callers: `SequenceExecutor` and the event fold
-/// on the host; the remote-sync mirror and the runtime-mirror channels on a
-/// linked client. Nothing else writes run state.
+/// The writer of [RunRecord].
+///
+/// On the host the callers are the event fold (`foldRunEvent`) and
+/// `SequenceExecutor`'s run transaction. On a linked client they are the
+/// mirror: the host's events folded by the remote-sync handler, the host's
+/// status and mutations (`mirrorHostState`), and the two runtime-mirror
+/// channels (`mirrorHostProgress`, `mirrorHostTally`, `mirrorHostRunRecord`).
+/// Recovery shows its phase through `showPhase`. Nothing else writes run
+/// state.
 class RunRecordNotifier extends StateNotifier<RunRecord> {
   /// [_ref] is absent only for a notifier a test builds on its own.
   RunRecordNotifier([this._ref]) : super(const RunRecord());
@@ -428,6 +446,24 @@ class RunRecordNotifier extends StateNotifier<RunRecord> {
       state = state.copyWith(completedImagingRun: run);
 
   // The mirror of the host's record, on a linked client.
+
+  /// Show the state the host reports for its run, with whatever else its
+  /// status or mutation carries.
+  void mirrorHostState(
+    String rawState, {
+    String? message,
+    String? currentNodeId,
+    String? currentNodeName,
+  }) {
+    setLifecycle(lifecycleOfHostState(rawState));
+    if (message != null || currentNodeId != null || currentNodeName != null) {
+      updateProgress(
+        message: message,
+        currentNodeId: currentNodeId,
+        currentNodeName: currentNodeName,
+      );
+    }
+  }
 
   /// Show the host's run progress. The lifecycle phase is kept: lifecycle
   /// events drive that. So is the structured per-step detail, which the wire
