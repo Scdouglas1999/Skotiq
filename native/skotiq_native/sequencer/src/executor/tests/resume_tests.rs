@@ -218,15 +218,15 @@ async fn a_checkpoint_tells_the_app_the_frames_each_step_has() {
         .await
         .expect("resume prepares");
     let mut second = start(second).await;
-    drain(&mut second, None).await;
-    let finished = second
+    drain(&mut second, Some(StopAt::Frame(3))).await;
+    let stopped_again = second
         .executor
         .get_checkpoint_info()
-        .expect("a finished run's checkpoint stays for its report");
+        .expect("the run stopped again keeps its checkpoint");
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(
-        finished.frames_done_by_step.get("frames").copied(),
-        Some(2 * FRAMES),
+        stopped_again.frames_done_by_step.get("frames").copied(),
+        Some(FRAMES + 2 + 3),
         "the continued run adds its frames to those it continued from"
     );
 }
