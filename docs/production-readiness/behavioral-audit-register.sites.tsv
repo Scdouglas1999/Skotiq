@@ -1575,7 +1575,9 @@ packages/skotiq_app/lib/screens/analytics/widgets/photometric_calibration_wizard
 packages/skotiq_app/lib/screens/analytics/widgets/photometric_calibration_wizard/star_matching.dart	_matchesForImage	literal_null_coalesce	1	V0121	final zp = calibration.zeroPoint ?? 0.0;
 packages/skotiq_app/lib/screens/analytics/widgets/photometric_calibration_wizard/star_matching.dart	_matchesForImage	literal_null_coalesce	1	V0121	rotationDegrees: image.solvedRotation ?? 0.0,
 packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart	-	literal_null_coalesce	1	V0002	(targetMap[filterName] ?? 0.0) + image.exposureDuration;
+packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart	_sortProjects	literal_null_coalesce	1	U2-20	final aTime = a.lastImagedAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart	_sortProjects	literal_null_coalesce	1	V0002	final aTime = a.lastSessionAt?.millisecondsSinceEpoch ?? 0;
+packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart	_sortProjects	literal_null_coalesce	1	U2-20	final bTime = b.lastImagedAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel.dart	_sortProjects	literal_null_coalesce	1	V0002	final bTime = b.lastSessionAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_app/lib/screens/analytics/widgets/project_tracking_panel_parts/_headers.dart	build	literal_null_coalesce	1	V0488	final count = countAsync.valueOrNull ?? 0;
 packages/skotiq_app/lib/screens/analytics/widgets/science_analytics_tab.dart	build	literal_null_coalesce	1	V0002	(standaloneAsync.valueOrNull?.isNotEmpty ?? false);
@@ -2687,10 +2689,13 @@ packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	
 packages/skotiq_core/lib/src/models/phd2_models.g.dart	_$Phd2GuideStatsFromJson	literal_null_coalesce	1	V0014	starY: (json['starY'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/models/planning/project.dart	fromJson	literal_null_coalesce	1	V0184	projectId: json['projectId'] as int? ?? 0,
 packages/skotiq_core/lib/src/models/planning/project.dart	fromJson	literal_null_coalesce	1	V0184	targetId: json['targetId'] as int? ?? 0,
+packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	U2-20	(json['allFiltersAccruedSeconds'] as num?)?.toDouble() ?? 0.0,
+packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	U2-20	(json['exposureSeconds'] as num?)?.toDouble() ?? 0.0;
 packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	V0185	capturedFrames: json['capturedFrames'] as int? ?? 0,
 packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	V0185	decDegrees: (json['decDegrees'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	V0185	exposureSeconds: (json['exposureSeconds'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	V0185	filter: json['filter'] as String? ?? '',
+packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	U2-20	final capturedFrames = json['capturedFrames'] as int? ?? 0;
 packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	V0185	goalFrames: json['goalFrames'] as int? ?? 0,
 packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	V0185	raHours: (json['raHours'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/models/planning/project_progress.dart	fromJson	literal_null_coalesce	1	V0185	targetId: json['targetId'] as int? ?? 0,
@@ -3211,7 +3216,9 @@ packages/skotiq_core/lib/src/services/calibration_service.dart	setMasterBiasPath
 packages/skotiq_core/lib/src/services/calibration_service.dart	setMasterFlatPath	literal_null_coalesce	1	V0025	await _saveSetting('calibration.master_flat_path', path ?? '');
 packages/skotiq_core/lib/src/services/camera_temperature_poller.dart	_poll	literal_null_coalesce	1	V0121	final coolerPower = power ?? 0.0;
 packages/skotiq_core/lib/src/services/camera_warmup_controller.dart	start	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_build	literal_null_coalesce	1	U2-20	(targetSecsBySession[id] ?? 0) + frame.exposureDuration;
 packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_build	literal_null_coalesce	1	V0102	meanEffectiveImagingFraction: simpleMean(efficiencyInputs) ?? 0.0,
+packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_build	literal_null_coalesce	1	U2-20	sessionIntegrationSecs: targetSecsBySession[s.id] ?? 0.0,
 packages/skotiq_core/lib/src/services/campaign_rollup_service.dart	_buildFilters	literal_null_coalesce	1	V0102	bucket.labelCounts[raw] = (bucket.labelCounts[raw] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/centering_service.dart	centerOnTarget	empty_catch	1	V0103	} catch (_) {
 packages/skotiq_core/lib/src/services/centering_service.dart	centerOnTarget	literal_null_coalesce	1	V0103	iterations: settledResult?.iterations ?? 0,
@@ -3585,7 +3592,10 @@ packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	P
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	ProfileExportData.fromJson	literal_null_coalesce	1	V0121	apertureMm: data.telescopeAperture ?? 0,
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	ProfileExportData.fromJson	literal_null_coalesce	1	V0121	focalLength: _profileDouble(json['focalLength'], 'focalLength') ?? 0.0,
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	ProfileExportData.fromJson	literal_null_coalesce	1	V0121	focalLengthMm: data.telescopeFocalLength ?? 0,
+packages/skotiq_core/lib/src/services/project_tracking_service.dart	acceptedLightsByFilter	literal_null_coalesce	1	U2-20	bucket.labelCounts[label] = (bucket.labelCounts[label] ?? 0) + 1;
+packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	U2-20	final aLast = a.lastImagedAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	V0025	final aLast = a.lastSessionAt?.millisecondsSinceEpoch ?? 0;
+packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	U2-20	final bLast = b.lastImagedAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	V0025	final bLast = b.lastSessionAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_core/lib/src/services/scheduler/horizon_profile.dart	fromJson	literal_null_coalesce	1	V0191	id: json['id'] as int? ?? 0,
 packages/skotiq_core/lib/src/services/scheduler/horizon_profile.dart	fromJson	literal_null_coalesce	1	V0191	name: json['name'] as String? ?? '',
