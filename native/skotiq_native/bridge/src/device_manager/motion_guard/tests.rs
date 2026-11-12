@@ -348,16 +348,16 @@ fn a_runaway_that_ends_at_home_is_a_lost_position() {
 /// unknown, and the operator's confirmation clears it.
 #[tokio::test]
 async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
-    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
-    use crate::device_manager::ops::{sim_faults, sim_runaway};
+    use crate::simulator::{faults, runaway};
+    use crate::simulator::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
 
     let _serialized = sim_singleton_test_lock().lock().await;
     super::reset_for_tests();
     super::set_config(super::GuardConfig::default());
-    sim_faults::clear_all();
-    sim_runaway::reset();
+    faults::clear_all();
+    runaway::reset();
     let device_id = "sim_mount_runaway_guard";
     get_device_manager()
         .register_device(
@@ -375,7 +375,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
             false,
         )
         .await;
-    crate::api::devices::simulation::cancel_sim_slew().await;
+    crate::simulator::cancel_sim_slew().await;
     {
         let mut mount = get_sim_mount().write().await;
         *mount = SimulatedMount::default();
@@ -396,11 +396,11 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
         }))
         .expect("test site");
     // Idle, so the position rules only start once the fault is recorded.
-    sim_faults::arm(
+    faults::arm(
         "mount.runaway",
-        sim_faults::FaultSpec::new(
-            sim_faults::Trigger::Times(1),
-            sim_faults::Effect::Runaway {
+        faults::FaultSpec::new(
+            faults::Trigger::Times(1),
+            faults::Effect::Runaway {
                 deg_per_sec: 4.7,
                 run_secs: 14.0,
                 blackout_secs: 1.5,
@@ -465,8 +465,8 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
 
     super::response::confirm_rehomed(device_id).expect("the operator can confirm");
     assert!(super::block_reason(device_id).is_none());
-    sim_faults::clear_all();
-    sim_runaway::reset();
+    faults::clear_all();
+    runaway::reset();
     super::reset_for_tests();
 }
 
@@ -474,9 +474,7 @@ async fn the_simulated_runaway_is_caught_and_recovered_end_to_end() {
 /// below the horizon is someone else's business: no fault, no alarm, no stop.
 #[tokio::test]
 async fn idle_motion_from_outside_skotiq_is_left_alone() {
-    let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-        .lock()
-        .await;
+    let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
     super::reset_for_tests();
     super::set_config(super::GuardConfig::default());
     let device_id = "guard_idle_outside_motion";

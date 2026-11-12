@@ -24,13 +24,17 @@ use tokio::sync::RwLock;
 // Sibling-module items via the parent's pub use re-exports.
 use super::super::*;
 use super::*;
+use crate::device_manager::get_device_manager;
 
 /// Get filter wheel status
 pub async fn api_get_filterwheel_status(
     device_id: String,
 ) -> Result<FilterWheelStatus, SkotiqError> {
     let mgr = get_device_manager();
-    let position = poll_filter_wheel_position(mgr, &device_id).await?;
+    let position = mgr
+        .filter_wheel_poll_position(&device_id)
+        .await
+        .map_err(SkotiqError::from)?;
     let is_moving = mgr
         .filter_wheel_poll_is_moving(&device_id, position)
         .await

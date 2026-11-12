@@ -86,63 +86,6 @@ fn default_calibration_pulse_lands_in_the_guiders_usable_band() {
     );
 }
 
-/// Register and connect a simulated mount in the process-wide DeviceManager,
-/// the way discovery plus a connect does for a real one.
-async fn attach_sim_mount(device_id: &str) {
-    let info = DeviceInfo {
-        id: device_id.to_string(),
-        name: "Simulated Mount".to_string(),
-        device_type: DeviceType::Mount,
-        driver_type: DriverType::Simulator,
-        description: "Simulated mount".to_string(),
-        driver_version: "1.0".to_string(),
-        serial_number: None,
-        unique_id: None,
-        display_name: "Simulated Mount".to_string(),
-    };
-    get_device_manager().register_device(info, false).await;
-    get_sim_mount().write().await.status.connected = true;
-}
-
-/// A manual guide nudge must move the field, not just sleep: it silently
-/// regressed to a no-op once before, returning "ok" and leaving the stars
-/// where they were.
-#[tokio::test]
-async fn api_pulse_guide_moves_the_simulated_field() {
-    let _serialized = sim_singleton_test_lock().lock().await;
-    attach_sim_mount("sim_mount_pulse").await;
-    reset_sim_guide_offset().await;
-    let before = *sim_guide_offset().read().await;
-    api_mount_pulse_guide("sim_mount_pulse".to_string(), "east".to_string(), 1000)
-        .await
-        .expect("simulated pulse guide should succeed");
-    let after = *sim_guide_offset().read().await;
-    assert!(
-        after.0 - before.0 > 0.2,
-        "api-layer east pulse moved the field only {:.4}px",
-        after.0 - before.0
-    );
-    reset_sim_guide_offset().await;
-}
-
-/// An unknown direction must be rejected rather than silently sleeping —
-/// and rejected for THAT reason, not because the device is missing.
-#[tokio::test]
-async fn api_pulse_guide_rejects_an_unknown_direction() {
-    attach_sim_mount("sim_mount_direction").await;
-    let result = api_mount_pulse_guide(
-        "sim_mount_direction".to_string(),
-        "widdershins".to_string(),
-        10,
-    )
-    .await;
-    let err = result.expect_err("unknown direction should be an error");
-    assert!(
-        err.to_string().contains("direction: widdershins"),
-        "expected a direction rejection, got: {err}"
-    );
-}
-
 /// A simulated exposure must not report complete before its integration
 /// time has elapsed. The unconditional "yes" this replaces gave a capture
 /// loop nothing to wait on: guiding ran at ~40 fps and pinned nine cores.
@@ -284,7 +227,7 @@ async fn the_guide_camera_exposes_independently_of_the_imaging_camera() {
         .clone();
     assert_eq!((guide.sensor_width, guide.sensor_height), (1280, 960));
     assert!(!guide.can_cool);
-    assert_eq!(imaging.sensor_width, crate::sim_frame::SIM_W as u32);
+    assert_eq!(imaging.sensor_width, crate::simulator::frame::SIM_W as u32);
     assert_eq!(sim_camera_fault_prefix(SIM_GUIDE_CAMERA_ID), "guide_camera");
     assert_eq!(sim_camera_fault_prefix(SIM_IMAGING_CAMERA_ID), "camera");
 }
@@ -293,7 +236,7 @@ async fn the_guide_camera_exposes_independently_of_the_imaging_camera() {
 /// seeing moves the whole field a little from frame to frame.
 #[test]
 fn the_guide_field_follows_the_mount_at_its_own_scale_with_seeing() {
-    use crate::sim_capture::{guide_camera_offset_px, SIM_OFFSET_REFERENCE_ARCSEC_PER_PX};
+    use crate::simulator::capture::{guide_camera_offset_px, SIM_OFFSET_REFERENCE_ARCSEC_PER_PX};
     let scale = 2.5;
     let draws: Vec<(f64, f64)> = (0..400)
         .map(|seed| guide_camera_offset_px((10.0, -4.0), scale, seed))
@@ -305,7 +248,7 @@ fn the_guide_field_follows_the_mount_at_its_own_scale_with_seeing() {
     assert!((mean_x - 10.0 * factor).abs() < 0.05, "{mean_x}");
     assert!((mean_y + 4.0 * factor).abs() < 0.05, "{mean_y}");
     let rms_x = (draws.iter().map(|d| (d.0 - mean_x).powi(2)).sum::<f64>() / n).sqrt();
-    let seeing_px = crate::sim_capture::SIM_GUIDE_SEEING_ARCSEC_RMS / scale;
+    let seeing_px = crate::simulator::capture::SIM_GUIDE_SEEING_ARCSEC_RMS / scale;
     assert!(
         rms_x > 0.6 * seeing_px && rms_x < 1.4 * seeing_px,
         "seeing rms {rms_x} vs {seeing_px}"

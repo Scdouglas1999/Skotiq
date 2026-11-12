@@ -653,7 +653,7 @@ fn no_sky_view_reproduces_the_original_field_byte_for_byte() {
     }
 }
 
-fn sky_view(stars: Vec<crate::sim_sky::SkyStar>) -> SimSkyView {
+fn sky_view(stars: Vec<crate::simulator::sky::SkyStar>) -> SimSkyView {
     SimSkyView {
         centre_ra_deg: 83.822,
         centre_dec_deg: -5.391,
@@ -676,8 +676,8 @@ fn brightest_star_in(buffer: &[u16]) -> (f64, f64) {
     (star.x, star.y)
 }
 
-fn star(ra_deg: f64, dec_deg: f64, mag: f64) -> crate::sim_sky::SkyStar {
-    crate::sim_sky::SkyStar {
+fn star(ra_deg: f64, dec_deg: f64, mag: f64) -> crate::simulator::sky::SkyStar {
+    crate::simulator::sky::SkyStar {
         ra_deg,
         dec_deg,
         mag,
@@ -899,7 +899,7 @@ fn field_radius_covers_the_sensor_diagonal() {
 
 /// A grid of stars spanning the sensor, spaced far enough apart that the
 /// detector resolves them individually.
-fn grid_field(arcsec_per_px: f64) -> Vec<crate::sim_sky::SkyStar> {
+fn grid_field(arcsec_per_px: f64) -> Vec<crate::simulator::sky::SkyStar> {
     let centre_ra: f64 = 83.822;
     let centre_dec: f64 = -5.391;
     let step_deg = 90.0 * arcsec_per_px / 3600.0;

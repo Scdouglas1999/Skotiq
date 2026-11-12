@@ -859,7 +859,7 @@ fn date_obs_without_a_recorded_start_falls_back_to_now() {
 #[tokio::test]
 async fn a_sequence_frame_and_a_manual_capture_take_their_format_from_the_run_config() {
 
-    let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+    let _serialized = crate::simulator::sim_singleton_test_lock()
         .lock()
         .await;
     let handle = skotiq_sequencer::executor_handle();

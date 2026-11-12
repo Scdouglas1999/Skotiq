@@ -3,7 +3,6 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api.dart';
 import 'api/connection.dart';
 import 'api/darkroom/entrypoints.dart';
 import 'api/depthlock.dart';
@@ -15,12 +14,6 @@ import 'api/devices/filter_wheel.dart';
 import 'api/devices/focuser.dart';
 import 'api/devices/mount.dart';
 import 'api/devices/rotator.dart';
-import 'api/devices/simulation/camera.dart';
-import 'api/devices/simulation/environment.dart';
-import 'api/devices/simulation/filter_wheel.dart';
-import 'api/devices/simulation/focuser.dart';
-import 'api/devices/simulation/mount.dart';
-import 'api/devices/simulation/rotator.dart';
 import 'api/devices/switch.dart';
 import 'api/diagnostics.dart';
 import 'api/difference_image.dart';
@@ -861,30 +854,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ShutterStatus dco_decode_shutter_status(dynamic raw);
-
-  @protected
-  SimulatedCamera dco_decode_simulated_camera(dynamic raw);
-
-  @protected
-  SimulatedDome dco_decode_simulated_dome(dynamic raw);
-
-  @protected
-  SimulatedFilterWheel dco_decode_simulated_filter_wheel(dynamic raw);
-
-  @protected
-  SimulatedFocuser dco_decode_simulated_focuser(dynamic raw);
-
-  @protected
-  SimulatedMount dco_decode_simulated_mount(dynamic raw);
-
-  @protected
-  SimulatedRotator dco_decode_simulated_rotator(dynamic raw);
-
-  @protected
-  SimulatedSafetyMonitor dco_decode_simulated_safety_monitor(dynamic raw);
-
-  @protected
-  SimulatedWeather dco_decode_simulated_weather(dynamic raw);
 
   @protected
   SkotiqError dco_decode_skotiq_error(dynamic raw);
@@ -1942,34 +1911,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ShutterStatus sse_decode_shutter_status(SseDeserializer deserializer);
-
-  @protected
-  SimulatedCamera sse_decode_simulated_camera(SseDeserializer deserializer);
-
-  @protected
-  SimulatedDome sse_decode_simulated_dome(SseDeserializer deserializer);
-
-  @protected
-  SimulatedFilterWheel sse_decode_simulated_filter_wheel(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  SimulatedFocuser sse_decode_simulated_focuser(SseDeserializer deserializer);
-
-  @protected
-  SimulatedMount sse_decode_simulated_mount(SseDeserializer deserializer);
-
-  @protected
-  SimulatedRotator sse_decode_simulated_rotator(SseDeserializer deserializer);
-
-  @protected
-  SimulatedSafetyMonitor sse_decode_simulated_safety_monitor(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  SimulatedWeather sse_decode_simulated_weather(SseDeserializer deserializer);
 
   @protected
   SkotiqError sse_decode_skotiq_error(SseDeserializer deserializer);
@@ -6526,74 +6467,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_simulated_camera(
-    SimulatedCamera apiObj,
-    wire_cst_simulated_camera wireObj,
-  ) {
-    cst_api_fill_to_wire_camera_status(apiObj.status, wireObj.status);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_simulated_dome(
-    SimulatedDome apiObj,
-    wire_cst_simulated_dome wireObj,
-  ) {
-    cst_api_fill_to_wire_dome_status(apiObj.status, wireObj.status);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_simulated_filter_wheel(
-    SimulatedFilterWheel apiObj,
-    wire_cst_simulated_filter_wheel wireObj,
-  ) {
-    cst_api_fill_to_wire_filter_wheel_status(apiObj.status, wireObj.status);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_simulated_focuser(
-    SimulatedFocuser apiObj,
-    wire_cst_simulated_focuser wireObj,
-  ) {
-    cst_api_fill_to_wire_focuser_status(apiObj.status, wireObj.status);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_simulated_mount(
-    SimulatedMount apiObj,
-    wire_cst_simulated_mount wireObj,
-  ) {
-    cst_api_fill_to_wire_mount_status(apiObj.status, wireObj.status);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_simulated_rotator(
-    SimulatedRotator apiObj,
-    wire_cst_simulated_rotator wireObj,
-  ) {
-    cst_api_fill_to_wire_rotator_status(apiObj.status, wireObj.status);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_simulated_safety_monitor(
-    SimulatedSafetyMonitor apiObj,
-    wire_cst_simulated_safety_monitor wireObj,
-  ) {
-    cst_api_fill_to_wire_safety_status(apiObj.status, wireObj.status);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_simulated_weather(
-    SimulatedWeather apiObj,
-    wire_cst_simulated_weather wireObj,
-  ) {
-    wireObj.connected = cst_encode_bool(apiObj.connected);
-    cst_api_fill_to_wire_weather_conditions(
-      apiObj.conditions,
-      wireObj.conditions,
-    );
-  }
-
-  @protected
   void cst_api_fill_to_wire_skotiq_error(
     SkotiqError apiObj,
     wire_cst_skotiq_error wireObj,
@@ -8449,51 +8322,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_shutter_status(ShutterStatus self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_simulated_camera(
-    SimulatedCamera self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_simulated_dome(SimulatedDome self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_simulated_filter_wheel(
-    SimulatedFilterWheel self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_simulated_focuser(
-    SimulatedFocuser self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_simulated_mount(
-    SimulatedMount self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_simulated_rotator(
-    SimulatedRotator self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_simulated_safety_monitor(
-    SimulatedSafetyMonitor self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_simulated_weather(
-    SimulatedWeather self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_skotiq_error(SkotiqError self, SseSerializer serializer);
@@ -12277,16 +12105,16 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__api_invalidate_discovery_cache(int port_) {
-    return _wire__crate__api__api_invalidate_discovery_cache(port_);
+  void wire__crate__api__discovery__api_invalidate_discovery_cache(int port_) {
+    return _wire__crate__api__discovery__api_invalidate_discovery_cache(port_);
   }
 
-  late final _wire__crate__api__api_invalidate_discovery_cachePtr =
+  late final _wire__crate__api__discovery__api_invalidate_discovery_cachePtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__api_invalidate_discovery_cache',
+        'frbgen_skotiq_bridge_wire__crate__api__discovery__api_invalidate_discovery_cache',
       );
-  late final _wire__crate__api__api_invalidate_discovery_cache =
-      _wire__crate__api__api_invalidate_discovery_cachePtr
+  late final _wire__crate__api__discovery__api_invalidate_discovery_cache =
+      _wire__crate__api__discovery__api_invalidate_discovery_cachePtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__connection__api_is_device_connected(
@@ -16173,140 +16001,6 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
-
-  void wire__crate__api__devices__simulation__camera__simulated_camera_default(
-    int port_,
-  ) {
-    return _wire__crate__api__devices__simulation__camera__simulated_camera_default(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__camera__simulated_camera_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__simulated_camera_default',
-      );
-  late final _wire__crate__api__devices__simulation__camera__simulated_camera_default =
-      _wire__crate__api__devices__simulation__camera__simulated_camera_defaultPtr
-          .asFunction<void Function(int)>();
-
-  void
-  wire__crate__api__devices__simulation__environment__simulated_dome_default(
-    int port_,
-  ) {
-    return _wire__crate__api__devices__simulation__environment__simulated_dome_default(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__environment__simulated_dome_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_dome_default',
-      );
-  late final _wire__crate__api__devices__simulation__environment__simulated_dome_default =
-      _wire__crate__api__devices__simulation__environment__simulated_dome_defaultPtr
-          .asFunction<void Function(int)>();
-
-  void
-  wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default(
-    int port_,
-  ) {
-    return _wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default',
-      );
-  late final _wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default =
-      _wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_defaultPtr
-          .asFunction<void Function(int)>();
-
-  void
-  wire__crate__api__devices__simulation__focuser__simulated_focuser_default(
-    int port_,
-  ) {
-    return _wire__crate__api__devices__simulation__focuser__simulated_focuser_default(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__focuser__simulated_focuser_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__simulated_focuser_default',
-      );
-  late final _wire__crate__api__devices__simulation__focuser__simulated_focuser_default =
-      _wire__crate__api__devices__simulation__focuser__simulated_focuser_defaultPtr
-          .asFunction<void Function(int)>();
-
-  void wire__crate__api__devices__simulation__mount__simulated_mount_default(
-    int port_,
-  ) {
-    return _wire__crate__api__devices__simulation__mount__simulated_mount_default(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__mount__simulated_mount_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__simulated_mount_default',
-      );
-  late final _wire__crate__api__devices__simulation__mount__simulated_mount_default =
-      _wire__crate__api__devices__simulation__mount__simulated_mount_defaultPtr
-          .asFunction<void Function(int)>();
-
-  void
-  wire__crate__api__devices__simulation__rotator__simulated_rotator_default(
-    int port_,
-  ) {
-    return _wire__crate__api__devices__simulation__rotator__simulated_rotator_default(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__rotator__simulated_rotator_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__simulated_rotator_default',
-      );
-  late final _wire__crate__api__devices__simulation__rotator__simulated_rotator_default =
-      _wire__crate__api__devices__simulation__rotator__simulated_rotator_defaultPtr
-          .asFunction<void Function(int)>();
-
-  void
-  wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default(
-    int port_,
-  ) {
-    return _wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__environment__simulated_safety_monitor_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default',
-      );
-  late final _wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default =
-      _wire__crate__api__devices__simulation__environment__simulated_safety_monitor_defaultPtr
-          .asFunction<void Function(int)>();
-
-  void
-  wire__crate__api__devices__simulation__environment__simulated_weather_default(
-    int port_,
-  ) {
-    return _wire__crate__api__devices__simulation__environment__simulated_weather_default(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__devices__simulation__environment__simulated_weather_defaultPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_weather_default',
-      );
-  late final _wire__crate__api__devices__simulation__environment__simulated_weather_default =
-      _wire__crate__api__devices__simulation__environment__simulated_weather_defaultPtr
-          .asFunction<void Function(int)>();
 
   void wire__crate__api__plate_solve__solve_hints_default(int port_) {
     return _wire__crate__api__plate_solve__solve_hints_default(port_);
@@ -21440,63 +21134,6 @@ final class wire_cst_sequencer_state extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
 }
 
-final class wire_cst_simulated_camera extends ffi.Struct {
-  external wire_cst_camera_status status;
-}
-
-final class wire_cst_simulated_dome extends ffi.Struct {
-  external wire_cst_dome_status status;
-}
-
-final class wire_cst_simulated_filter_wheel extends ffi.Struct {
-  external wire_cst_filter_wheel_status status;
-}
-
-final class wire_cst_simulated_focuser extends ffi.Struct {
-  external wire_cst_focuser_status status;
-}
-
-final class wire_cst_simulated_mount extends ffi.Struct {
-  external wire_cst_mount_status status;
-}
-
-final class wire_cst_simulated_rotator extends ffi.Struct {
-  external wire_cst_rotator_status status;
-}
-
-final class wire_cst_simulated_safety_monitor extends ffi.Struct {
-  external wire_cst_safety_status status;
-}
-
-final class wire_cst_weather_conditions extends ffi.Struct {
-  external ffi.Pointer<ffi.Double> temperature;
-
-  external ffi.Pointer<ffi.Double> humidity;
-
-  external ffi.Pointer<ffi.Double> pressure;
-
-  external ffi.Pointer<ffi.Double> cloud_cover;
-
-  external ffi.Pointer<ffi.Double> dew_point;
-
-  external ffi.Pointer<ffi.Double> wind_speed;
-
-  external ffi.Pointer<ffi.Double> wind_direction;
-
-  external ffi.Pointer<ffi.Double> sky_quality;
-
-  external ffi.Pointer<ffi.Double> sky_temperature;
-
-  external ffi.Pointer<ffi.Double> rain_rate;
-}
-
-final class wire_cst_simulated_weather extends ffi.Struct {
-  @ffi.Bool()
-  external bool connected;
-
-  external wire_cst_weather_conditions conditions;
-}
-
 final class wire_cst_SkotiqError_DeviceNotFound extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
 }
@@ -21828,13 +21465,27 @@ final class wire_cst_star_detection_result_api extends ffi.Struct {
   external double noise;
 }
 
-const int SIM_GUIDE_SENSOR_W = 1280;
+final class wire_cst_weather_conditions extends ffi.Struct {
+  external ffi.Pointer<ffi.Double> temperature;
 
-const int SIM_GUIDE_SENSOR_H = 960;
+  external ffi.Pointer<ffi.Double> humidity;
 
-const double SIM_GUIDE_PIXEL_UM = 3.75;
+  external ffi.Pointer<ffi.Double> pressure;
 
-const double SIM_GUIDE_FOCAL_LENGTH_MM = 240.0;
+  external ffi.Pointer<ffi.Double> cloud_cover;
+
+  external ffi.Pointer<ffi.Double> dew_point;
+
+  external ffi.Pointer<ffi.Double> wind_speed;
+
+  external ffi.Pointer<ffi.Double> wind_direction;
+
+  external ffi.Pointer<ffi.Double> sky_quality;
+
+  external ffi.Pointer<ffi.Double> sky_temperature;
+
+  external ffi.Pointer<ffi.Double> rain_rate;
+}
 
 const int SENSOR_TYPE_RGGB = 2;
 
@@ -21853,3 +21504,11 @@ const int SIM_TRUE_FOCUS = 25075;
 const double SIM_DEFAULT_EXPOSURE_SECS = 10.0;
 
 const int SIM_SKY_STAR_LIMIT = 1500;
+
+const int SIM_GUIDE_SENSOR_W = 1280;
+
+const int SIM_GUIDE_SENSOR_H = 960;
+
+const double SIM_GUIDE_PIXEL_UM = 3.75;
+
+const double SIM_GUIDE_FOCAL_LENGTH_MM = 240.0;

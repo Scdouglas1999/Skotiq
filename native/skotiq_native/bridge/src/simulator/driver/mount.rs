@@ -3,13 +3,13 @@
 //! connect answers exactly as the connected one does, and the simulator's own
 //! gate says whether the mount is connected.
 
-use super::Mount;
-use crate::api::devices::simulation::get_sim_mount;
 use crate::device::*;
 use crate::device_capabilities::DeviceCapabilities;
+use crate::device_manager::rig::mount::Mount;
 use crate::device_manager::rig::RigDriver;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
+use crate::simulator::get_sim_mount;
 use async_trait::async_trait;
 use skotiq_device::DriverError;
 
@@ -41,26 +41,26 @@ impl RigDriver for SimMount {
 #[async_trait]
 impl Mount for SimMount {
     async fn slew(&self, ra: f64, dec: f64) -> Result<(), DeviceOpError> {
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        crate::device_manager::ops::sim_gate::refuse_while_mount_slewing("slew").await?;
+        crate::simulator::gate::require_mount_connected().await?;
+        crate::simulator::gate::refuse_while_mount_slewing("slew").await?;
         // Travels to the target over time rather than teleporting, and
         // records the pier side the mount lands on. See
-        // `simulation::begin_sim_slew`.
-        crate::api::devices::simulation::begin_sim_slew(ra, dec, chrono::Utc::now()).await;
+        // `crate::simulator::begin_sim_slew`.
+        crate::simulator::begin_sim_slew(ra, dec, chrono::Utc::now()).await;
         // Repointing starts a new target: the previous one's accumulated
         // drift does not carry over, and this is what stops a long
         // session leaving the field pinned at its offset clamp.
-        crate::api::devices::simulation::reset_sim_guide_offset().await;
+        crate::simulator::reset_sim_guide_offset().await;
         Ok(())
     }
 
     async fn slew_alt_az(&self, altitude: f64, azimuth: f64) -> Result<(), DeviceOpError> {
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        crate::device_manager::ops::sim_gate::refuse_while_mount_slewing("alt/az slew").await?;
+        crate::simulator::gate::require_mount_connected().await?;
+        crate::simulator::gate::refuse_while_mount_slewing("alt/az slew").await?;
         // Store the equatorial pointing the alt/az slew produced, not the
         // alt/az pair itself: RA/Dec is the simulator's single source of
         // truth and the horizon-frame fields are derived from it on every
-        // read (see `sim_gate::read_mount_status`). Writing alt/az here
+        // read (see `gate::read_mount_status`). Writing alt/az here
         // instead left them frozen at the commanded value while the sky
         // moved on underneath.
         let site = crate::state::get_state()
@@ -80,18 +80,18 @@ impl Mount for SimMount {
             site.longitude,
             now,
         );
-        crate::api::devices::simulation::begin_sim_slew(ra, dec, now).await;
-        crate::api::devices::simulation::reset_sim_guide_offset().await;
+        crate::simulator::begin_sim_slew(ra, dec, now).await;
+        crate::simulator::reset_sim_guide_offset().await;
         Ok(())
     }
 
     async fn abort(&self) -> Result<(), DeviceOpError> {
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
+        crate::simulator::gate::require_mount_connected().await?;
         // Drop the in-flight slew first, or the interpolation would
         // carry the mount on to the target it was just told to stop
         // travelling to.
-        crate::api::devices::simulation::cancel_sim_slew().await;
-        crate::api::devices::simulation::get_sim_mount()
+        crate::simulator::cancel_sim_slew().await;
+        crate::simulator::get_sim_mount()
             .write()
             .await
             .status
@@ -100,11 +100,9 @@ impl Mount for SimMount {
     }
 
     async fn stop(&self) -> Result<(), DeviceOpError> {
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        crate::api::devices::simulation::cancel_sim_slew().await;
-        let mut m = crate::api::devices::simulation::get_sim_mount()
-            .write()
-            .await;
+        crate::simulator::gate::require_mount_connected().await?;
+        crate::simulator::cancel_sim_slew().await;
+        let mut m = crate::simulator::get_sim_mount().write().await;
         m.status.slewing = false;
         m.status.tracking = false;
         Ok(())
@@ -114,13 +112,13 @@ impl Mount for SimMount {
         // See `mount_unpark`: the shared gate, not an inline
         // `connected` read, is what advances the motion and runs the
         // fault injector.
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
+        crate::simulator::gate::require_mount_connected().await?;
         // NOT refused mid-slew: `rate == 0.0` is how the hand-controller
         // buttons STOP an axis, and a stop must never be rejected.
         // The simulator has no axis-rate state model — just record
         // `slewing` so subsequent `mount_get_status` reflects the move
         // command. A real driver wouldn't no-op silently.
-        let m = crate::api::devices::simulation::get_sim_mount();
+        let m = crate::simulator::get_sim_mount();
         let mut m = m.write().await;
         m.status.slewing = rate != 0.0;
         // Driving an axis moves the mount off its home pose.
@@ -131,16 +129,14 @@ impl Mount for SimMount {
     }
 
     async fn park(&self) -> Result<(), DeviceOpError> {
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        crate::device_manager::ops::sim_gate::refuse_while_mount_slewing("park").await?;
+        crate::simulator::gate::require_mount_connected().await?;
+        crate::simulator::gate::refuse_while_mount_slewing("park").await?;
         // Drop the in-flight slew BEFORE writing the park position: a
         // status read landing in between would otherwise advance the
         // abandoned slew straight back over it.
-        crate::api::devices::simulation::cancel_sim_slew().await;
-        let (ra, dec) = crate::api::devices::simulation::sim_park_position();
-        let mut m = crate::api::devices::simulation::get_sim_mount()
-            .write()
-            .await;
+        crate::simulator::cancel_sim_slew().await;
+        let (ra, dec) = crate::simulator::sim_park_position();
+        let mut m = crate::simulator::get_sim_mount().write().await;
         m.status.right_ascension = ra;
         m.status.declination = dec;
         m.status.parked = true;
@@ -151,7 +147,7 @@ impl Mount for SimMount {
         // simulator parks on the same pose it homes to.
         m.status.at_home = Some(false);
         drop(m);
-        crate::api::devices::simulation::reset_sim_guide_offset().await;
+        crate::simulator::reset_sim_guide_offset().await;
         Ok(())
     }
 
@@ -161,65 +157,63 @@ impl Mount for SimMount {
         // injector and advances the in-flight slew, so unpark now sees
         // — and can be made to fail on — the same mount state every
         // other mutating op does.
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        let m = crate::api::devices::simulation::get_sim_mount();
-        let lst = crate::api::devices::simulation::sim_local_sidereal_time(chrono::Utc::now());
+        crate::simulator::gate::require_mount_connected().await?;
+        let m = crate::simulator::get_sim_mount();
+        let lst = crate::simulator::sim_local_sidereal_time(chrono::Utc::now());
         let mut m = m.write().await;
         m.status.parked = false;
-        crate::api::devices::simulation::seed_unknown_pier_side(&mut m.status, lst);
+        crate::simulator::seed_unknown_pier_side(&mut m.status, lst);
         Ok(())
     }
 
     async fn find_home(&self) -> Result<(), DeviceOpError> {
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
+        crate::simulator::gate::require_mount_connected().await?;
         // A real driver refuses FindHome mid-slew; abort first.
-        crate::device_manager::ops::sim_gate::refuse_while_mount_slewing("home").await?;
+        crate::simulator::gate::refuse_while_mount_slewing("home").await?;
         // Travels to the home pose over time and reports AtHome only
         // once it has arrived and settled; see
-        // `simulation::begin_sim_home`.
-        crate::api::devices::simulation::begin_sim_home().await;
-        crate::api::devices::simulation::reset_sim_guide_offset().await;
+        // `crate::simulator::begin_sim_home`.
+        crate::simulator::begin_sim_home().await;
+        crate::simulator::reset_sim_guide_offset().await;
         Ok(())
     }
 
     async fn can_find_home(&self) -> Result<bool, DeviceOpError> {
-        crate::device_manager::ops::sim_gate::read_mount_status().await?;
+        crate::simulator::gate::read_mount_status().await?;
         Ok(true)
     }
 
     async fn set_park(&self) -> Result<(), DeviceOpError> {
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        crate::device_manager::ops::sim_gate::refuse_while_mount_slewing("set park").await?;
+        crate::simulator::gate::require_mount_connected().await?;
+        crate::simulator::gate::refuse_while_mount_slewing("set park").await?;
         let (ra, dec) = {
-            let m = crate::api::devices::simulation::get_sim_mount()
-                .read()
-                .await;
+            let m = crate::simulator::get_sim_mount().read().await;
             (m.status.right_ascension, m.status.declination)
         };
-        crate::api::devices::simulation::set_sim_park_position(ra, dec);
+        crate::simulator::set_sim_park_position(ra, dec);
         Ok(())
     }
 
     async fn can_set_park(&self) -> Result<bool, DeviceOpError> {
-        crate::device_manager::ops::sim_gate::read_mount_status().await?;
+        crate::simulator::gate::read_mount_status().await?;
         Ok(true)
     }
 
     async fn can_park(&self) -> Result<bool, DeviceOpError> {
-        let sim = crate::device_manager::ops::sim_gate::read_mount_status().await?;
+        let sim = crate::simulator::gate::read_mount_status().await?;
         Ok(sim.can_park)
     }
 
     async fn sync(&self, ra: f64, dec: f64) -> Result<(), DeviceOpError> {
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        crate::device_manager::ops::sim_gate::refuse_while_mount_slewing("sync").await?;
+        crate::simulator::gate::require_mount_connected().await?;
+        crate::simulator::gate::refuse_while_mount_slewing("sync").await?;
         // A sync redefines where the mount believes it is pointing
         // without moving it, so any in-flight slew has to be dropped
         // first — otherwise the interpolation would overwrite the
         // synced coordinates on the next status read.
-        crate::api::devices::simulation::cancel_sim_slew().await;
-        crate::device_manager::ops::sim_runaway::clear_physical_pointing();
-        let m = crate::api::devices::simulation::get_sim_mount();
+        crate::simulator::cancel_sim_slew().await;
+        crate::simulator::runaway::clear_physical_pointing();
+        let m = crate::simulator::get_sim_mount();
         let mut m = m.write().await;
         m.status.right_ascension = ra;
         m.status.declination = dec;
@@ -228,25 +222,25 @@ impl Mount for SimMount {
     }
 
     async fn coordinates(&self) -> Result<(f64, f64), DeviceOpError> {
-        let sim = crate::device_manager::ops::sim_gate::read_mount_status().await?;
+        let sim = crate::simulator::gate::read_mount_status().await?;
         Ok((sim.right_ascension, sim.declination))
     }
 
     async fn status(&self) -> Result<MountStatus, DeviceOpError> {
-        crate::device_manager::ops::sim_gate::read_mount_status().await
+        crate::simulator::gate::read_mount_status().await
     }
 
     async fn set_tracking(&self, enabled: bool) -> Result<(), DeviceOpError> {
         // See `mount_unpark`: the shared gate, not an inline
         // `connected` read, is what advances the motion and runs the
         // fault injector.
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        let lst = crate::api::devices::simulation::sim_local_sidereal_time(chrono::Utc::now());
-        let m = crate::api::devices::simulation::get_sim_mount();
+        crate::simulator::gate::require_mount_connected().await?;
+        let lst = crate::simulator::sim_local_sidereal_time(chrono::Utc::now());
+        let m = crate::simulator::get_sim_mount();
         let mut m = m.write().await;
         m.status.tracking = enabled;
         if enabled {
-            crate::api::devices::simulation::seed_unknown_pier_side(&mut m.status, lst);
+            crate::simulator::seed_unknown_pier_side(&mut m.status, lst);
         }
         // Tracking turns the RA axis, which carries the mount off the
         // home pose a FindHome left it in.
@@ -268,8 +262,8 @@ impl Mount for SimMount {
         // response on east axis was too small (0.000px)" and guiding,
         // dithering and the correction loop cannot be exercised
         // without a mount.
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
-        crate::api::devices::simulation::advance_sim_guide_pulse(
+        crate::simulator::gate::require_mount_connected().await?;
+        crate::simulator::advance_sim_guide_pulse(
             match dir {
                 skotiq_device::GuideDirection::North => "north",
                 skotiq_device::GuideDirection::South => "south",
@@ -288,7 +282,7 @@ impl Mount for SimMount {
         // fault injector. It runs before the rate is parsed so a
         // disconnected mount reports being disconnected rather than
         // grading the caller's argument.
-        crate::device_manager::ops::sim_gate::require_mount_connected().await?;
+        crate::simulator::gate::require_mount_connected().await?;
         // The simulated mount advertises `can_set_tracking_rate: true`
         // and reports a rate, so it has to accept one — falling through
         // to the unsupported arm made its own capability report a lie.
@@ -305,13 +299,13 @@ impl Mount for SimMount {
                 )))
             }
         };
-        let m = crate::api::devices::simulation::get_sim_mount();
+        let m = crate::simulator::get_sim_mount();
         m.write().await.status.tracking_rate = Some(rate);
         Ok(())
     }
 
     async fn tracking_rate(&self) -> Result<i32, DeviceOpError> {
-        let sim = crate::device_manager::ops::sim_gate::read_mount_status().await?;
+        let sim = crate::simulator::gate::read_mount_status().await?;
         // Project the singleton's `tracking_rate` Option onto the
         // i32 wire form. None → 0 (Sidereal) is the project-wide
         // default for "rate not declared".

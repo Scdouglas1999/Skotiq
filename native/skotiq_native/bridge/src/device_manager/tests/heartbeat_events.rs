@@ -247,7 +247,7 @@ async fn manual_disconnect_trips_in_flight_reconnect_cancel_token() {
 // the token the disconnect had tripped.
 #[tokio::test]
 async fn requested_connect_after_manual_disconnect_is_not_canceled() {
-    use crate::api::devices::simulation::get_sim_mount;
+    use crate::simulator::get_sim_mount;
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
@@ -294,7 +294,7 @@ async fn requested_connect_after_manual_disconnect_is_not_canceled() {
 #[tokio::test]
 async fn disconnect_during_requested_connect_still_cancels_it() {
     use crate::device_manager::connection::RECONNECT_CANCELED_MSG;
-    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
     let manager = std::sync::Arc::new(build_device_manager());
@@ -311,7 +311,7 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
         display_name: "Simulated Mount".to_string(),
     };
     manager.register_device(info.clone(), false).await;
-    sim_faults::arm(
+    faults::arm(
         "mount.connect",
         FaultSpec::new(Trigger::Times(1), Effect::Delay(300)),
     );
@@ -324,8 +324,8 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
     manager.disconnect_device(device_id).await.unwrap();
 
     let result = connecting.await.unwrap();
-    sim_faults::clear_all();
-    crate::api::devices::simulation::get_sim_mount()
+    faults::clear_all();
+    crate::simulator::get_sim_mount()
         .write()
         .await
         .status
@@ -337,8 +337,8 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
 // probe passes. The failed reads must be what the heartbeat sees.
 #[tokio::test]
 async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
-    use crate::api::devices::simulation::get_sim_mount;
-    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::get_sim_mount;
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
@@ -347,7 +347,7 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
         .register_device(super::build_sim_info(device_id, DeviceType::Mount), false)
         .await;
     manager.connect_device(device_id).await.unwrap();
-    sim_faults::arm(
+    faults::arm(
         "mount.status",
         FaultSpec::new(
             Trigger::Always,
@@ -363,7 +363,7 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
         .expect("three failed reads must count");
     assert!(reason.contains("0x80040401"), "{reason}");
 
-    sim_faults::clear_all();
+    faults::clear_all();
     manager.mount_get_status(device_id).await.unwrap();
     assert_eq!(manager.failing_status_reads(device_id), None);
 
@@ -376,8 +376,8 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
 // "Reconnection attempt N failed" event for the same failure.
 #[tokio::test]
 async fn a_failed_reconnect_attempt_publishes_one_event() {
-    use crate::api::devices::simulation::get_sim_mount;
-    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::get_sim_mount;
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
     use crate::event::{EquipmentEvent, EventPayload};
     use tokio::sync::broadcast::error::TryRecvError;
 
@@ -386,14 +386,14 @@ async fn a_failed_reconnect_attempt_publishes_one_event() {
     let device_id = "sim_mount_1";
     let info = super::build_sim_info(device_id, DeviceType::Mount);
     manager.register_device(info.clone(), true).await;
-    sim_faults::arm(
+    faults::arm(
         "mount.connect",
         FaultSpec::new(Trigger::Always, Effect::Error("unplugged".into())),
     );
     let mut rx = manager.app_state.event_bus.subscribe();
 
     manager.attempt_reconnect(device_id, &info).await;
-    sim_faults::clear_all();
+    faults::clear_all();
 
     let mut errors = Vec::new();
     loop {

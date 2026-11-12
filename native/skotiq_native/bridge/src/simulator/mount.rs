@@ -32,7 +32,7 @@ impl Default for SimulatedMount {
                 declination: 0.0,
                 // The horizon frame is NOT a property of the mount: it needs
                 // an observing site and the current time. Every read goes
-                // through `sim_gate::apply_derived_mount_telemetry`, which
+                // through `gate::apply_derived_mount_telemetry`, which
                 // computes these when a site is configured and sets them to
                 // `None` when there is not — so a stored `Some(0.0)` here was
                 // only ever a stand-in that could leak out as a claim that the
@@ -251,7 +251,7 @@ pub(crate) async fn begin_sim_slew(ra: f64, dec: f64, now: chrono::DateTime<chro
         to_pier != current_pier && current_pier != PierSide::Unknown,
     );
 
-    crate::device_manager::ops::sim_runaway::shift_physical_pointing(from, (ra, dec));
+    crate::simulator::runaway::shift_physical_pointing(from, (ra, dec));
     let start_lag_secs = sim_slew_start_lag_secs();
     *sim_slew().write().await = Some(SimSlew {
         start: std::time::Instant::now(),
@@ -282,7 +282,7 @@ pub(crate) async fn begin_sim_slew(ra: f64, dec: f64, now: chrono::DateTime<chro
 /// motion has finished its settle.
 pub(crate) async fn begin_sim_home() {
     // Homing moves the tube to the pose the mount will report.
-    crate::device_manager::ops::sim_runaway::clear_physical_pointing();
+    crate::simulator::runaway::clear_physical_pointing();
     let (from, current_pier) = {
         let mount = get_sim_mount().read().await;
         (
@@ -366,7 +366,7 @@ pub(crate) async fn cancel_sim_slew() {
 /// Whether a commanded slew — including its [`SIM_SLEW_SETTLE_SECS`] tail — is
 /// still in flight as of the last [`advance_sim_slew`].
 ///
-/// Reads only: callers reach this through `sim_gate::require_mount_connected`,
+/// Reads only: callers reach this through `gate::require_mount_connected`,
 /// which has already advanced the motion under the fault gate. Advancing again
 /// here would let a caller step a mount that `sim_faults` has deliberately
 /// stalled.

@@ -55,7 +55,7 @@ async fn simulated_set_park_moves_the_park_position_but_not_home() {
     })
     .await;
 
-    crate::api::devices::simulation::clear_sim_park_position();
+    crate::simulator::clear_sim_park_position();
     disconnect_sim_mount().await;
 }
 
@@ -82,7 +82,7 @@ async fn set_park_is_refused_while_the_mount_moves() {
     })
     .await;
 
-    crate::api::devices::simulation::clear_sim_park_position();
+    crate::simulator::clear_sim_park_position();
     disconnect_sim_mount().await;
 }
 

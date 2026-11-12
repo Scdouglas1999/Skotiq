@@ -124,7 +124,7 @@ pub struct SimSkyView {
     /// Unbinned plate scale. Binning is applied later, by [`read_out`], because
     /// charge is collected at sensor resolution.
     pub arcsec_per_px: f64,
-    pub stars: Vec<crate::sim_sky::SkyStar>,
+    pub stars: Vec<crate::simulator::sky::SkyStar>,
 }
 
 /// Everything the simulated sensor needs to produce one frame.
@@ -611,7 +611,7 @@ pub fn project_star(
     sky: &SimSkyView,
     sensor_w: f64,
     sensor_h: f64,
-    star: &crate::sim_sky::SkyStar,
+    star: &crate::simulator::sky::SkyStar,
 ) -> Option<(f64, f64)> {
     let scale_rad = (sky.arcsec_per_px / 3600.0).to_radians();
     if !scale_rad.is_finite() || scale_rad <= 0.0 {

@@ -506,9 +506,7 @@ async fn slew_targets_are_compared_in_the_frame_each_mount_reports() {
     // The simulator's frame is process-wide; pin each one under the
     // simulator lock, as the frame tests do.
     let (sim_of_date, sim_j2000) = {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let of_date = {
             let _frame = crate::device_manager::epoch::SimFrameGuard::pin(
                 crate::device_manager::epoch::SimMountFrame::OfDate,

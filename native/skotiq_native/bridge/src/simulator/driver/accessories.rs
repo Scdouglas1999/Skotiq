@@ -9,58 +9,31 @@
 //! share the capability structs are fixed values the capability cache
 //! replaces with live ones on its next read.
 
-use crate::api::devices::simulation::{
-    self as sim, get_sim_cover_calibrator, get_sim_dome, get_sim_rotator, get_sim_safety_monitor,
-    get_sim_switch, get_sim_weather,
-};
-use crate::device::{DeviceInfo, DeviceType, DomeStatus, ShutterState};
+use crate::device::{DomeStatus, ShutterState};
 use crate::device_capabilities::{
     DomeCapabilities, RotatorCapabilities, SafetyMonitorCapabilities, WeatherCapabilities,
 };
 use crate::device_manager::accessory::{Dome, Rotator, SafetyMonitor, Weather};
-use crate::device_manager::handle::DeviceHandle;
-use crate::device_manager::ops::sim_gate;
-use crate::device_manager::rig::camera::SimCamera;
-use crate::device_manager::rig::filter_wheel::SimFilterWheel;
-use crate::device_manager::rig::focuser::SimFocuser;
-use crate::device_manager::rig::mount::SimMount;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
+use crate::simulator::gate;
+use crate::simulator::{
+    self as sim, get_sim_cover_calibrator, get_sim_dome, get_sim_rotator, get_sim_safety_monitor,
+    get_sim_switch, get_sim_weather,
+};
 use async_trait::async_trait;
 use skotiq_device::ascom::{CalibratorStatus, CoverStatus, ShutterStatus};
 use skotiq_device::{
     AccessoryDriver, CoverCalibratorDriver, CoverCalibratorState, DomeDriver, DomeState,
     DriverError, RotatorDriver, SafetyMonitorDriver, SwitchDriver, WeatherDriver, WeatherReadings,
 };
-use std::sync::Arc;
 
 fn refuse(error: impl Into<DeviceOpError>) -> DriverError {
     DriverError::Backend(Box::new(error.into()))
 }
 
-/// The handle for a simulated device, `None` for the device types that have
-/// none.
-pub(crate) fn handle(info: &DeviceInfo) -> Option<DeviceHandle> {
-    let device_id = info.id.clone();
-    Some(match info.device_type {
-        DeviceType::Camera => DeviceHandle::Camera(Arc::new(SimCamera::new(&device_id))),
-        DeviceType::Mount => DeviceHandle::Mount(Arc::new(SimMount::new(&device_id))),
-        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(SimFocuser {})),
-        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(SimFilterWheel {})),
-        DeviceType::Dome => DeviceHandle::Dome(Arc::new(SimDome { device_id })),
-        DeviceType::Rotator => DeviceHandle::Rotator(Arc::new(SimRotator {})),
-        DeviceType::Switch => DeviceHandle::Switch(Arc::new(SimSwitch)),
-        DeviceType::Weather => DeviceHandle::Weather(Arc::new(SimWeather { device_id })),
-        DeviceType::SafetyMonitor => {
-            DeviceHandle::SafetyMonitor(Arc::new(SimSafetyMonitor { device_id }))
-        }
-        DeviceType::CoverCalibrator => DeviceHandle::CoverCalibrator(Arc::new(SimCoverCalibrator)),
-        _ => return None,
-    })
-}
-
-struct SimDome {
-    device_id: String,
+pub(crate) struct SimDome {
+    pub(crate) device_id: String,
 }
 
 impl SimDome {
@@ -224,7 +197,7 @@ impl Dome for SimDome {
 
 /// Written with braces because the binding generator stops on a unit struct
 /// that implements a trait of this crate.
-struct SimRotator {}
+pub(crate) struct SimRotator {}
 
 impl SimRotator {
     /// Applies `change` to the connected rotator's status.
@@ -236,7 +209,7 @@ impl SimRotator {
         if !rotator.status.connected {
             return Err(refuse(DeviceOpError::not_connected(
                 None,
-                sim_gate::not_connected_rotator(),
+                gate::not_connected_rotator(),
             )));
         }
         change(&mut rotator.status);
@@ -244,7 +217,7 @@ impl SimRotator {
     }
 
     async fn read(&self) -> Result<crate::device::RotatorStatus, DriverError> {
-        sim_gate::read_rotator_status().await.map_err(refuse)
+        gate::read_rotator_status().await.map_err(refuse)
     }
 }
 
@@ -305,7 +278,7 @@ impl RotatorDriver for SimRotator {
         if !rotator.status.connected {
             return Err(refuse(DeviceOpError::not_connected(
                 None,
-                sim_gate::not_connected_rotator(),
+                gate::not_connected_rotator(),
             )));
         }
         if rotator.status.can_reverse {
@@ -342,7 +315,7 @@ impl Rotator for SimRotator {
     }
 }
 
-struct SimSwitch;
+pub(crate) struct SimSwitch;
 
 #[async_trait]
 impl AccessoryDriver for SimSwitch {
@@ -412,8 +385,8 @@ impl SwitchDriver for SimSwitch {
     }
 }
 
-struct SimWeather {
-    device_id: String,
+pub(crate) struct SimWeather {
+    pub(crate) device_id: String,
 }
 
 #[async_trait]
@@ -477,8 +450,8 @@ impl Weather for SimWeather {
     }
 }
 
-struct SimSafetyMonitor {
-    device_id: String,
+pub(crate) struct SimSafetyMonitor {
+    pub(crate) device_id: String,
 }
 
 #[async_trait]
@@ -511,11 +484,11 @@ impl SimSafetyMonitor {
 #[async_trait]
 impl SafetyMonitorDriver for SimSafetyMonitor {
     async fn is_safe(&self) -> Result<bool, DriverError> {
-        use crate::device_manager::ops::sim_faults;
+        use crate::simulator::faults;
         const FAULT_KEY: &str = "safetymonitor.status";
-        if let Err(e) = sim_faults::check(FAULT_KEY).await {
+        if let Err(e) = faults::check(FAULT_KEY).await {
             // `unplug`: the monitor's cable or hub dropped.
-            if sim_faults::take_unplug(FAULT_KEY).is_some() {
+            if faults::take_unplug(FAULT_KEY).is_some() {
                 get_sim_safety_monitor().write().await.status.connected = false;
             }
             return Err(refuse(e));
@@ -557,7 +530,7 @@ impl SafetyMonitor for SimSafetyMonitor {
     }
 }
 
-struct SimCoverCalibrator;
+pub(crate) struct SimCoverCalibrator;
 
 #[async_trait]
 impl AccessoryDriver for SimCoverCalibrator {

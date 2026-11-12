@@ -711,14 +711,10 @@ fn simulator_for_type(device_type: DeviceType) -> Option<(&'static str, &'static
 /// The name discovery gives the simulator with [device_id], so a device
 /// reads the same in discovery, the connected list and on a linked client.
 pub(crate) fn simulator_display_name(device_id: &str, device_type: DeviceType) -> Option<String> {
-    if device_type == DeviceType::Camera
-        && crate::api::devices::simulation::is_sim_guide_camera(device_id)
-    {
-        return Some(crate::api::devices::simulation::SIM_GUIDE_CAMERA_NAME.to_string());
+    if device_type == DeviceType::Camera && crate::simulator::is_sim_guide_camera(device_id) {
+        return Some(crate::simulator::SIM_GUIDE_CAMERA_NAME.to_string());
     }
-    if device_type == DeviceType::Camera
-        && device_id == crate::api::devices::simulation::SIM_GUIDE_CAMERA_ID
-    {
+    if device_type == DeviceType::Camera && device_id == crate::simulator::SIM_GUIDE_CAMERA_ID {
         // The imaging camera, re-enumerated at the guide camera's id.
         return simulator_for_type(device_type).map(|(_, name)| name.to_string());
     }
@@ -732,7 +728,7 @@ fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
     };
 
     // The `sim_` prefix is the simulator id convention the native device layer
-    // keys off. Only advertise device types backed by simulation.rs singletons;
+    // keys off. Only advertise device types backed by simulator singletons;
     // a type listed here without one would connect "successfully" and then fail
     // every op, which is worse than not being discovered.
     let simulator = |id: &str, name: &str, serial: String| DeviceInfo {
@@ -750,9 +746,7 @@ fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
     // Each camera's name and serial follow the body, not the id: the bus can
     // re-enumerate them in the other order (see `unplug_sim_camera`).
     if device_type == DeviceType::Camera {
-        use crate::api::devices::simulation::{
-            is_sim_guide_camera, SIM_GUIDE_CAMERA_ID, SIM_GUIDE_CAMERA_NAME,
-        };
+        use crate::simulator::{is_sim_guide_camera, SIM_GUIDE_CAMERA_ID, SIM_GUIDE_CAMERA_NAME};
         return [id, SIM_GUIDE_CAMERA_ID]
             .into_iter()
             .map(|camera_id| {
@@ -1026,7 +1020,7 @@ mod tests {
         assert_eq!(camera_drivers.len(), 5);
 
         // Hardware-like simulator singletons are discoverable for the device
-        // types simulation.rs actually implements.
+        // types the simulator implements.
         assert!(mount_drivers.contains(&DriverType::Simulator));
         assert!(drivers_for_device_type(DeviceType::Focuser).contains(&DriverType::Simulator));
         assert!(drivers_for_device_type(DeviceType::FilterWheel).contains(&DriverType::Simulator));

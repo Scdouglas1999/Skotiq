@@ -1494,7 +1494,7 @@ fn the_guide_scale_uses_the_guide_scope_focal_length() {
 /// imaging camera takes no exposure at all.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera() {
-    use crate::api::devices::simulation::{
+    use crate::simulator::{
         get_sim_camera, get_sim_camera_for, sim_singleton_test_lock, SIM_GUIDE_CAMERA_ID,
         SIM_IMAGING_CAMERA_ID,
     };
@@ -1502,8 +1502,8 @@ async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera(
     let _serial = test_serial().lock().await;
     let _sims = sim_singleton_test_lock().lock().await;
     reset_guider_state().await;
-    crate::device_manager::ops::sim_faults::clear_all();
-    crate::api::devices::simulation::reset_sim_guide_offset().await;
+    crate::simulator::faults::clear_all();
+    crate::simulator::reset_sim_guide_offset().await;
 
     let manager = crate::device_manager::get_device_manager();
     for (id, device_type) in [

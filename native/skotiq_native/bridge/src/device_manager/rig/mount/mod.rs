@@ -13,14 +13,12 @@ mod alpaca;
 #[cfg(windows)]
 mod com;
 mod indi;
-mod sim;
 mod vendor;
 
 pub(crate) use alpaca::AlpacaMount;
 #[cfg(windows)]
 pub(crate) use com::ComMount;
 pub(crate) use indi::IndiMountHandle;
-pub(crate) use sim::SimMount;
 pub(crate) use vendor::VendorMount;
 
 use super::RigDriver;

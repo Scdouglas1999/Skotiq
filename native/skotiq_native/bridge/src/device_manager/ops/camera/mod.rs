@@ -112,11 +112,11 @@ pub(crate) fn parse_fits_card_u32(card: &[u8]) -> Option<u32> {
 }
 
 // The simulated sky and the plate scale it hangs off now live in
-// `crate::sim_capture`, next to the renderer, so the Imaging screen's manual
+// `crate::simulator::capture`, next to the renderer, so the Imaging screen's manual
 // capture and this sequencer download cannot drift apart. Imported here only
 // for the tests below, which pin their behaviour.
 #[cfg(test)]
-use crate::sim_capture::{
+use crate::simulator::capture::{
     sim_plate_scale_arcsec_per_px, sim_sky_view, SIM_DEFAULT_FOCAL_LENGTH_MM,
 };
 
@@ -214,11 +214,9 @@ mod fits_card_tests {
 
 #[cfg(test)]
 mod sim_camera_tests {
-    use crate::api::devices::simulation::{
-        clear_sim_exposure, get_sim_camera, sim_singleton_test_lock,
-    };
     use crate::device::{CameraState, DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
+    use crate::simulator::{clear_sim_exposure, get_sim_camera, sim_singleton_test_lock};
     use skotiq_device::FrameType;
 
     /// `expect_err` on a `Result<ImageData, _>` would dump a whole 1920x1080
@@ -380,12 +378,12 @@ mod sim_camera_tests {
     /// exposure's frame.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn an_abort_during_the_download_leaves_the_next_exposure_its_frame() {
-        use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+        use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
         let _serialized = sim_singleton_test_lock().lock().await;
         let device_id = "sim_camera_abort_in_download";
         attach_sim_camera(device_id).await;
         let mgr = get_device_manager();
-        sim_faults::arm(
+        faults::arm(
             "camera.download",
             FaultSpec::new(Trigger::Times(1), Effect::Delay(600)),
         );
@@ -404,7 +402,7 @@ mod sim_camera_tests {
         let asked = std::time::Instant::now();
         mgr.camera_abort_exposure(device_id).await.unwrap();
         let answer = slow.await.unwrap();
-        sim_faults::clear("camera.download");
+        faults::clear("camera.download");
         assert!(
             asked.elapsed() < std::time::Duration::from_millis(300),
             "the download waited {:?} after the abort",
@@ -446,11 +444,11 @@ mod sim_camera_tests {
 #[cfg(test)]
 mod sim_sky_wiring_tests {
     use super::*;
-    use crate::api::devices::simulation::{
-        clear_sim_exposure, get_sim_camera, get_sim_mount, sim_singleton_test_lock,
-    };
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
+    use crate::simulator::{
+        clear_sim_exposure, get_sim_camera, get_sim_mount, sim_singleton_test_lock,
+    };
     use skotiq_device::FrameType;
 
     /// The declared simulated rig: 3.76 um pixels behind the default 1000 mm
@@ -479,9 +477,9 @@ mod sim_sky_wiring_tests {
         assert!(
             sim_sky_view(
                 3.76,
-                crate::sim_frame::SIM_W,
-                crate::sim_frame::SIM_H,
-                crate::sim_capture::SimOptics::ImagingTrain,
+                crate::simulator::frame::SIM_W,
+                crate::simulator::frame::SIM_H,
+                crate::simulator::capture::SimOptics::ImagingTrain,
             )
             .await
             .is_none(),
@@ -498,9 +496,9 @@ mod sim_sky_wiring_tests {
             assert!(
                 sim_sky_view(
                     bad,
-                    crate::sim_frame::SIM_W,
-                    crate::sim_frame::SIM_H,
-                    crate::sim_capture::SimOptics::ImagingTrain,
+                    crate::simulator::frame::SIM_W,
+                    crate::simulator::frame::SIM_H,
+                    crate::simulator::capture::SimOptics::ImagingTrain,
                 )
                 .await
                 .is_none(),
@@ -543,7 +541,7 @@ mod sim_sky_wiring_tests {
             }
         }
         let catalog = tempfile::TempDir::new().unwrap();
-        crate::sim_sky::astap_integration::write_synthetic_area(
+        crate::simulator::sky::astap_integration::write_synthetic_area(
             &catalog.path().join("d05_0001.1476"),
             &stars,
         );
@@ -551,7 +549,7 @@ mod sim_sky_wiring_tests {
         // Exactly what the Plate Solving settings screen writes. The store is
         // shared and process-lifetime on purpose — see
         // `sim_capture::shared_platesolver_store`.
-        crate::sim_capture::shared_platesolver_store();
+        crate::simulator::capture::shared_platesolver_store();
         let previous = crate::state::get_platesolver_preference().unwrap_or_default();
         crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
             catalog_path: catalog.path().to_string_lossy().to_string(),
@@ -572,7 +570,7 @@ mod sim_sky_wiring_tests {
         }
         // So the field sits where the projection puts it rather than where an
         // earlier test's accumulated drift left it.
-        crate::api::devices::simulation::reset_sim_guide_offset().await;
+        crate::simulator::reset_sim_guide_offset().await;
 
         let device_id = "sim_camera_sky_wiring";
         let info = DeviceInfo {
@@ -652,7 +650,9 @@ mod sim_sky_wiring_tests {
     #[tokio::test]
     #[ignore = "needs astap_cli and a star database; see the doc comment to run it"]
     async fn a_downloaded_simulator_frame_solves_at_the_mounts_pointing() {
-        use crate::sim_sky::astap_integration::{astap_dir, read_crval, write_fits, PIXEL_UM};
+        use crate::simulator::sky::astap_integration::{
+            astap_dir, read_crval, write_fits, PIXEL_UM,
+        };
 
         let _serialized = sim_singleton_test_lock().lock().await;
         let dir = astap_dir();

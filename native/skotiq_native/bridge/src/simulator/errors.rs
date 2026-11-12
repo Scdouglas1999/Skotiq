@@ -16,7 +16,7 @@ pub(crate) enum SimDeviceError {
     /// a read-only channel. Real ASCOM drivers raise `InvalidValueException` /
     /// `MethodNotImplementedException` here rather than quietly clamping.
     InvalidParameter(String),
-    /// An injected driver fault; see [`crate::device_manager::ops::sim_faults`].
+    /// An injected driver fault; see [`crate::simulator::faults`].
     Driver(String),
 }
 
@@ -52,7 +52,7 @@ impl From<SimDeviceError> for crate::dispatch::DeviceOpError {
 /// Consult the fault registry, mapping a fired fault onto [`SimDeviceError`].
 pub(crate) async fn sim_fault(key: &str) -> Result<(), SimDeviceError> {
     use crate::dispatch::DeviceOpError;
-    crate::device_manager::ops::sim_faults::check(key)
+    crate::simulator::faults::check(key)
         .await
         .map_err(|error| match error {
             DeviceOpError::NotConnected { detail, .. } => SimDeviceError::NotConnected(detail),

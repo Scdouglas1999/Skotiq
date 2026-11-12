@@ -36,7 +36,7 @@ async fn disconnected_simulated_mount_refuses_motion_and_status() {
     register_sim_mount(&manager, device_id).await;
 
     {
-        let mount = crate::api::devices::simulation::get_sim_mount();
+        let mount = crate::simulator::get_sim_mount();
         let mut mount = mount.write().await;
         mount.status.connected = false;
         mount.status.right_ascension = 0.0;
@@ -59,7 +59,7 @@ async fn disconnected_simulated_mount_refuses_motion_and_status() {
     );
 
     // And the refused slew must not have moved it.
-    let mount = crate::api::devices::simulation::get_sim_mount()
+    let mount = crate::simulator::get_sim_mount()
         .read()
         .await
         .status
@@ -82,7 +82,7 @@ async fn connected_simulated_mount_accepts_a_slew() {
     register_sim_mount(&manager, device_id).await;
 
     {
-        let mount = crate::api::devices::simulation::get_sim_mount();
+        let mount = crate::simulator::get_sim_mount();
         let mut mount = mount.write().await;
         mount.status.connected = true;
         mount.status.parked = true;
@@ -110,7 +110,7 @@ async fn connected_simulated_mount_accepts_a_slew() {
     assert!((mount.declination - dec_now).abs() < 1e-6);
     assert!(!mount.parked);
 
-    crate::api::devices::simulation::get_sim_mount()
+    crate::simulator::get_sim_mount()
         .write()
         .await
         .status
@@ -170,19 +170,19 @@ async fn test_mount_get_status_uses_ascom_can_park() {
 /// Stop for 18 minutes.
 #[tokio::test]
 async fn a_slow_mount_read_does_not_hold_the_device_table() {
-    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = build_device_manager();
     let device_id = "sim_mount_slow_status";
     register_sim_mount(&manager, device_id).await;
-    crate::api::devices::simulation::get_sim_mount()
+    crate::simulator::get_sim_mount()
         .write()
         .await
         .status
         .connected = true;
-    sim_faults::clear_all();
-    sim_faults::arm(
+    faults::clear_all();
+    faults::arm(
         "mount.status",
         FaultSpec::new(Trigger::Always, Effect::Delay(1500)),
     );
@@ -197,7 +197,7 @@ async fn a_slow_mount_read_does_not_hold_the_device_table() {
         .await
         .is_ok()
     });
-    sim_faults::clear_all();
+    faults::clear_all();
 
     assert!(status.is_ok(), "the delayed status read failed: {status:?}");
     assert!(

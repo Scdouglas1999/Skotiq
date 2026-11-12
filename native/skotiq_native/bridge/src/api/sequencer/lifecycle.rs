@@ -472,9 +472,7 @@ mod executor_site_tests {
     /// once that one holds a site no push takes it away.
     #[tokio::test]
     async fn starting_a_run_seeds_the_site_from_app_settings() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         get_state()
             .set_observer_location(Some(ObserverLocation {
                 latitude: 41.5,
@@ -498,9 +496,7 @@ mod executor_site_tests {
     /// every plan.
     #[tokio::test]
     async fn starting_a_run_announces_the_plan_by_name() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let mut sequence = skotiq_sequencer::SequenceDefinition::new("M 31 mosaic".to_string());
         sequence.nodes.push(skotiq_sequencer::NodeDefinition {
             id: "wait".to_string(),
@@ -541,9 +537,7 @@ mod executor_site_tests {
     /// own, which every client on the wire received.
     #[tokio::test]
     async fn stopping_a_run_announces_stopped_once() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let mut sequence = skotiq_sequencer::SequenceDefinition::new("Long wait".to_string());
         sequence.nodes.push(skotiq_sequencer::NodeDefinition {
             id: "wait".to_string(),
@@ -605,9 +599,7 @@ mod executor_site_tests {
     /// the sequencer is stopped.
     #[tokio::test]
     async fn stopping_with_no_run_still_announces_stopped() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         get_sequence_executor().write().await.reset().await;
         let mut events = get_state().event_bus.subscribe();
 
@@ -632,9 +624,7 @@ mod executor_site_tests {
     /// operator pause twice. With no run there is nothing to pause at all.
     #[tokio::test]
     async fn pause_command_does_not_announce_a_pause_itself() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let mut events = get_state().event_bus.subscribe();
 
         let _ = crate::api::sequencer::api_sequencer_pause().await;

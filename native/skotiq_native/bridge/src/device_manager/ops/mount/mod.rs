@@ -31,9 +31,9 @@ pub(crate) mod status;
 pub(crate) mod tracking;
 #[cfg(test)]
 mod sim_mount_tests {
-    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
     use crate::device::{DeviceInfo, DeviceType, DriverType, PierSide};
     use crate::device_manager::get_device_manager;
+    use crate::simulator::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
     use crate::state::get_state;
     use crate::storage::ObserverLocation;
 
@@ -55,7 +55,7 @@ mod sim_mount_tests {
         // The interpolation cell lives outside `SimulatedMount`, so resetting
         // the struct alone would leave the previous test's slew in flight and
         // this one's first command would be refused as "still moving".
-        crate::api::devices::simulation::cancel_sim_slew().await;
+        crate::simulator::cancel_sim_slew().await;
         let mut mount = get_sim_mount().write().await;
         *mount = SimulatedMount::default();
         mount.status.connected = true;

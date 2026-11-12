@@ -3,12 +3,12 @@
 //! through connect answers exactly as the connected one does, and the
 //! simulator's own gate says whether the camera is connected.
 
-use super::{Camera, ExposureAborts};
-use crate::api::devices::simulation::get_sim_camera_for;
 use crate::device_capabilities::DeviceCapabilities;
+use crate::device_manager::rig::camera::{Camera, ExposureAborts};
 use crate::device_manager::rig::RigDriver;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
+use crate::simulator::get_sim_camera_for;
 use async_trait::async_trait;
 use skotiq_device::{DriverError, ImageData, SubFrame};
 use std::collections::HashMap;
@@ -76,7 +76,7 @@ impl Camera for SimCamera {
         frame_type: skotiq_device::FrameType,
     ) -> Result<(), DeviceOpError> {
         let device_id = self.device_id.as_str();
-        crate::device_manager::ops::sim_gate::require_camera_connected(device_id).await?;
+        crate::simulator::gate::require_camera_connected(device_id).await?;
         // Commit the requested settings to the singleton so the download
         // reports what this exposure was actually taken with. Skipping
         // this made the simulator answer with its defaults (gain 100 /
@@ -90,9 +90,9 @@ impl Camera for SimCamera {
             // duration: the simulator integrates for the time it was
             // asked for, so callers are paced the way real hardware
             // paces them.
-            crate::api::devices::simulation::begin_sim_exposure_for(
+            crate::simulator::begin_sim_exposure_for(
                 device_id,
-                crate::api::devices::simulation::SimExposureRequest {
+                crate::simulator::SimExposureRequest {
                     secs: duration,
                     frame_type,
                     subframe: subframe
@@ -101,7 +101,7 @@ impl Camera for SimCamera {
                 },
             )
             .await;
-            let sim = crate::api::devices::simulation::get_sim_camera_for(device_id);
+            let sim = crate::simulator::get_sim_camera_for(device_id);
             let mut guard = sim.write().await;
             // A camera without the control ignores the request.
             if let Some(g) = gain.filter(|_| guard.status.can_set_gain) {
@@ -124,17 +124,17 @@ impl Camera for SimCamera {
         // camera does (see `SIM_EXPOSURE_START`). Refuse the call when
         // not connected, so callers can distinguish "nothing to expose"
         // from "no camera attached".
-        crate::device_manager::ops::sim_gate::require_camera_connected(device_id).await?;
-        Ok(crate::api::devices::simulation::sim_exposure_is_complete(device_id).await)
+        crate::simulator::gate::require_camera_connected(device_id).await?;
+        Ok(crate::simulator::sim_exposure_is_complete(device_id).await)
     }
 
     async fn stop_exposure(&self) -> Result<(), DeviceOpError> {
         let device_id = self.device_id.as_str();
-        crate::device_manager::ops::sim_gate::require_camera_connected(device_id).await?;
+        crate::simulator::gate::require_camera_connected(device_id).await?;
         // Release a caller polling for completion, but remember that the
         // frame was abandoned: a download afterwards has nothing to
         // hand back and must say so.
-        crate::api::devices::simulation::abort_sim_exposure(device_id).await;
+        crate::simulator::abort_sim_exposure(device_id).await;
         Ok(())
     }
 
@@ -145,37 +145,38 @@ impl Camera for SimCamera {
         // configured via set_gain / set_offset / set_binning /
         // set_cooler, and take the frame geometry from the SAME sensor
         // declaration the camera advertised.
-        let sim = crate::device_manager::ops::sim_gate::read_camera_status(device_id).await?;
-        let request =
-            crate::device_manager::ops::sim_gate::read_camera_last_exposure(device_id).await?;
+        let sim = crate::simulator::gate::read_camera_status(device_id).await?;
+        let request = crate::simulator::gate::read_camera_last_exposure(device_id).await?;
         // Claim the finished frame, which both refuses a download the
         // camera cannot honestly satisfy and returns it to idle so a
         // caller that polls completion afterwards is not told to keep
         // waiting. Ungated, this synthesized a full frame stamped with
         // the requested EXPTIME mid-exposure and after an abort, so a
         // cancelled or raced capture still produced a saved light frame.
-        crate::api::devices::simulation::take_sim_exposure_for_download(device_id)
+        crate::simulator::take_sim_exposure_for_download(device_id)
             .await
             .map_err(|detail| DeviceOpError::hardware(Some(device_id.to_string()), detail))?;
         // Synthetic download: an electron-domain frame whose star PSF
         // tracks focuser defocus, painting the sky the mount is actually
-        // on. `crate::sim_capture` is the single renderer for this path
+        // on. `crate::simulator::capture` is the single renderer for this path
         // and for the Imaging screen's manual capture, so a simulated
         // frame is plate-solvable however it was taken.
-        let frame = crate::sim_capture::render_sim_frame(crate::sim_capture::SimCaptureRequest {
-            exposure_secs: request.secs,
-            sensor_width: sim.sensor_width.max(1),
-            sensor_height: sim.sensor_height.max(1),
-            pixel_size_um: sim.pixel_size_x,
-            gain: sim.gain,
-            offset: sim.offset,
-            bin_x: sim.bin_x.max(1) as u32,
-            bin_y: sim.bin_y.max(1) as u32,
-            subframe: request.subframe,
-            frame_type: request.frame_type,
-            max_adu: sim.max_adu.clamp(1, u32::from(u16::MAX)) as u16,
-            optics: crate::sim_capture::SimOptics::for_camera(device_id),
-        })
+        let frame = crate::simulator::capture::render_sim_frame(
+            crate::simulator::capture::SimCaptureRequest {
+                exposure_secs: request.secs,
+                sensor_width: sim.sensor_width.max(1),
+                sensor_height: sim.sensor_height.max(1),
+                pixel_size_um: sim.pixel_size_x,
+                gain: sim.gain,
+                offset: sim.offset,
+                bin_x: sim.bin_x.max(1) as u32,
+                bin_y: sim.bin_y.max(1) as u32,
+                subframe: request.subframe,
+                frame_type: request.frame_type,
+                max_adu: sim.max_adu.clamp(1, u32::from(u16::MAX)) as u16,
+                optics: crate::simulator::capture::SimOptics::for_camera(device_id),
+            },
+        )
         .await;
         let (width, height) = (frame.width, frame.height);
         Ok(ImageData {
@@ -209,13 +210,13 @@ impl Camera for SimCamera {
 
     async fn capture_preview(&self) -> Result<Vec<u8>, DeviceOpError> {
         Err(DeviceOpError::unsupported(
-            crate::device_manager::ops::sim_gate::unsupported_simulator_device("camera preview"),
+            crate::simulator::gate::unsupported_simulator_device("camera preview"),
         ))
     }
 
     async fn status(&self) -> Result<crate::device::CameraStatus, DeviceOpError> {
         let device_id = self.device_id.as_str();
-        crate::device_manager::ops::sim_gate::read_camera_status(device_id).await
+        crate::simulator::gate::read_camera_status(device_id).await
     }
 
     async fn recommended_settings(
@@ -230,12 +231,12 @@ impl Camera for SimCamera {
         // `camera_download_image` reflects the new gain. A real driver
         // wouldn't silently drop the value; the simulator must not
         // either.
-        let cam = crate::api::devices::simulation::get_sim_camera_for(device_id);
+        let cam = crate::simulator::get_sim_camera_for(device_id);
         let mut cam = cam.write().await;
         if !cam.status.connected {
             return Err(DeviceOpError::not_connected(
                 None,
-                crate::device_manager::ops::sim_gate::not_connected_camera(),
+                crate::simulator::gate::not_connected_camera(),
             ));
         }
         if !cam.status.can_set_gain {
@@ -249,12 +250,12 @@ impl Camera for SimCamera {
 
     async fn set_offset(&self, offset: i32) -> Result<(), DeviceOpError> {
         let device_id = self.device_id.as_str();
-        let cam = crate::api::devices::simulation::get_sim_camera_for(device_id);
+        let cam = crate::simulator::get_sim_camera_for(device_id);
         let mut cam = cam.write().await;
         if !cam.status.connected {
             return Err(DeviceOpError::not_connected(
                 None,
-                crate::device_manager::ops::sim_gate::not_connected_camera(),
+                crate::simulator::gate::not_connected_camera(),
             ));
         }
         if !cam.status.can_set_offset {
@@ -268,12 +269,12 @@ impl Camera for SimCamera {
 
     async fn set_binning(&self, bin_x: i32, bin_y: i32) -> Result<(), DeviceOpError> {
         let device_id = self.device_id.as_str();
-        let cam = crate::api::devices::simulation::get_sim_camera_for(device_id);
+        let cam = crate::simulator::get_sim_camera_for(device_id);
         let mut cam = cam.write().await;
         if !cam.status.connected {
             return Err(DeviceOpError::not_connected(
                 None,
-                crate::device_manager::ops::sim_gate::not_connected_camera(),
+                crate::simulator::gate::not_connected_camera(),
             ));
         }
         cam.status.bin_x = bin_x;
@@ -297,12 +298,12 @@ impl Camera for SimCamera {
         target_temp: Option<f64>,
     ) -> Result<(), DeviceOpError> {
         let device_id = self.device_id.as_str();
-        let cam = crate::api::devices::simulation::get_sim_camera_for(device_id);
+        let cam = crate::simulator::get_sim_camera_for(device_id);
         let mut cam = cam.write().await;
         if !cam.status.connected {
             return Err(DeviceOpError::not_connected(
                 None,
-                crate::device_manager::ops::sim_gate::not_connected_camera(),
+                crate::simulator::gate::not_connected_camera(),
             ));
         }
         cam.status.cooler_on = Some(enabled);

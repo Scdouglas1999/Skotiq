@@ -226,7 +226,7 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_mount};
+        use crate::simulator::{get_sim_camera_for, get_sim_mount};
 
         let connected = match device_type {
             DeviceType::Camera => get_sim_camera_for(device_id).read().await.status.connected,

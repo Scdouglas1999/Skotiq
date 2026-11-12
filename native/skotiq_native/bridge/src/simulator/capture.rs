@@ -5,7 +5,7 @@
 //! There were two simulated-capture paths and only one rendered the sky:
 //!
 //! * the sequencer / DeviceManager download
-//!   (`device_manager::ops::camera`) built a [`crate::sim_frame::SimFrameRequest`]
+//!   (`device_manager::ops::camera`) built a [`crate::simulator::frame::SimFrameRequest`]
 //!   carrying a [`SimSkyView`] and rendered the real catalogue field, while
 //!   * the Imaging screen's manual capture (`api::imaging`) took a
 //!     `device_id.starts_with("sim_")` shortcut into a `rand::thread_rng()`
@@ -24,7 +24,7 @@
 //! frame the Imaging screen gets. `sim_capture_has_no_rival_star_generator` in
 //! this module fails the build if a third path is ever added.
 
-use crate::sim_frame::{
+use crate::simulator::frame::{
     sim_frame_dimensions, sim_sky_field_radius_deg, synthesize_sim_frame, SimFrameRequest,
     SimSkyView, SIM_SKY_STAR_LIMIT,
 };
@@ -69,9 +69,7 @@ pub(crate) async fn sim_sky_view(
         return None;
     }
     let (centre_ra_deg, centre_dec_deg) = {
-        let mount = crate::api::devices::simulation::get_sim_mount()
-            .read()
-            .await;
+        let mount = crate::simulator::get_sim_mount().read().await;
         if !mount.status.connected {
             return None;
         }
@@ -83,11 +81,12 @@ pub(crate) async fn sim_sky_view(
         // exactly the precession offset, as it does on the rig.
         // After a simulated restart the tube points somewhere other than the
         // home position the mount reports (`sim_runaway`).
-        let (pointing_ra, pointing_dec) =
-            crate::device_manager::ops::sim_runaway::physical_pointing()
-                .unwrap_or((mount.status.right_ascension, mount.status.declination));
-        let (ra_hours, dec_deg) = crate::device_manager::epoch::MountFrame::for_driver(crate::device::DriverType::Simulator)
-            .mount_to_j2000(pointing_ra, pointing_dec);
+        let (pointing_ra, pointing_dec) = crate::simulator::runaway::physical_pointing()
+            .unwrap_or((mount.status.right_ascension, mount.status.declination));
+        let (ra_hours, dec_deg) = crate::device_manager::epoch::MountFrame::for_driver(
+            crate::device::DriverType::Simulator,
+        )
+        .mount_to_j2000(pointing_ra, pointing_dec);
         (ra_hours * 15.0, dec_deg)
     };
     if !centre_ra_deg.is_finite() || !centre_dec_deg.is_finite() {
@@ -96,15 +95,13 @@ pub(crate) async fn sim_sky_view(
 
     // Reads the SAME preference the solver reads, so the simulated sky and the
     // catalogue ASTAP matches against are the same data by construction.
-    let index = crate::sim_sky::configured_index()?;
+    let index = crate::simulator::sky::configured_index()?;
 
     // The guide scope rides beside the imaging train, not on its rotator.
     let rotation_deg = if optics == SimOptics::GuideScope {
         0.0
     } else {
-        let rotator = crate::api::devices::simulation::get_sim_rotator()
-            .read()
-            .await;
+        let rotator = crate::simulator::get_sim_rotator().read().await;
         if rotator.status.connected {
             rotator.status.position
         } else {
@@ -173,7 +170,7 @@ async fn sim_guide_focal_length_mm() -> f64 {
         .await
         .and_then(|profile| profile.guide_focal_length_mm)
         .filter(|focal| focal.is_finite() && *focal > 0.0)
-        .unwrap_or(crate::api::devices::simulation::SIM_GUIDE_FOCAL_LENGTH_MM)
+        .unwrap_or(crate::simulator::SIM_GUIDE_FOCAL_LENGTH_MM)
 }
 
 /// The optics a simulated camera looks through.
@@ -187,7 +184,7 @@ pub(crate) enum SimOptics {
 
 impl SimOptics {
     pub(crate) fn for_camera(device_id: &str) -> Self {
-        if crate::api::devices::simulation::is_sim_guide_camera(device_id) {
+        if crate::simulator::is_sim_guide_camera(device_id) {
             Self::GuideScope
         } else {
             Self::ImagingTrain
@@ -257,7 +254,7 @@ pub(crate) struct SimCaptureFrame {
 /// THE simulated-capture entry point. Reads focuser defocus, guide/tracking
 /// offset and mount pointing from the simulator singletons so every caller sees
 /// the same sky, then hands off to the verified renderer in
-/// [`crate::sim_frame`].
+/// [`crate::simulator::frame`].
 pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFrame {
     let guide_scope = request.optics == SimOptics::GuideScope;
     // Star PSF tracks focuser defocus, so an autofocus run measured against
@@ -266,17 +263,12 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
     let focus_position = if guide_scope {
         None
     } else {
-        let focuser = crate::api::devices::simulation::get_sim_focuser()
-            .read()
-            .await;
+        let focuser = crate::simulator::get_sim_focuser().read().await;
         if focuser.status.connected {
             // A cooling tube moves best focus outward (see
             // `SKOTIQ_SIM_NIGHT_COOLING_C_PER_HOUR`); a focuser left where
             // it was is that far out of focus.
-            Some(
-                focuser.status.position
-                    - crate::api::devices::simulation::sim_thermal_focus_shift_steps(),
-            )
+            Some(focuser.status.position - crate::simulator::sim_thermal_focus_shift_steps())
         } else {
             None
         }
@@ -284,21 +276,23 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
     // SKOTIQ_SIM_REPLAY answers lights from a recorded night instead.
     // A recorded night holds imaging frames only, so guide frames are always
     // rendered.
-    if let (Some(replay), FrameType::Light, false) =
-        (crate::sim_replay::armed(), request.frame_type, guide_scope)
-    {
-        let state = crate::sim_replay::RigState {
+    if let (Some(replay), FrameType::Light, false) = (
+        crate::simulator::replay::armed(),
+        request.frame_type,
+        guide_scope,
+    ) {
+        let state = crate::simulator::replay::RigState {
             exposure_s: request.exposure_secs,
             focuser_position: focus_position,
             pointing_deg: sim_pointing_deg().await,
             guiding: sim_rig_is_guiding().await,
         };
-        return crate::sim_replay::capture(replay, &request, &state);
+        return crate::simulator::replay::capture(replay, &request, &state);
     }
     // Star position tracks the simulated mount, so guide pulses and tracking
     // drift are visible to whatever is measuring the frame.
-    let mount_offset = crate::api::devices::simulation::sim_guide_offset_px().await;
-    let seed = crate::api::devices::simulation::next_sim_frame_seed();
+    let mount_offset = crate::simulator::sim_guide_offset_px().await;
+    let seed = crate::simulator::next_sim_frame_seed();
     let (offset_x, offset_y) = if guide_scope {
         guide_camera_offset_px(
             mount_offset,
@@ -341,9 +335,7 @@ pub(crate) async fn render_sim_frame(request: SimCaptureRequest) -> SimCaptureFr
 
 /// Where the simulated mount points, in degrees, when it is connected.
 async fn sim_pointing_deg() -> Option<(f64, f64)> {
-    let mount = crate::api::devices::simulation::get_sim_mount()
-        .read()
-        .await;
+    let mount = crate::simulator::get_sim_mount().read().await;
     mount.status.connected.then(|| {
         (
             mount.status.right_ascension * 15.0,
@@ -392,9 +384,9 @@ mod guard_tests {
     /// The renderer and its catalogue/index code are allowed randomness:
     /// `sim_frame` draws seeded shot/read noise, `sim_sky` is the star source.
     const SANCTIONED: &[&str] = &[
-        "bridge/src/sim_frame/mod.rs",
-        "bridge/src/sim_sky.rs",
-        "bridge/src/sim_capture.rs",
+        "bridge/src/simulator/frame/mod.rs",
+        "bridge/src/simulator/sky.rs",
+        "bridge/src/simulator/capture.rs",
     ];
     /// Generated FFI glue is not hand-written capture code.
     const GENERATED: &[&str] = &["bridge/src/frb_generated.rs"];
@@ -540,7 +532,7 @@ mod guard_tests {
             offenders.is_empty(),
             "a simulated-capture path outside sim_frame/sim_sky/sim_capture is generating \
              its own random star field. Route it through \
-             `crate::sim_capture::render_sim_frame` instead so the frame matches the sky the \
+             `crate::simulator::capture::render_sim_frame` instead so the frame matches the sky the \
              plate solver is matching against.\n  {}",
             offenders.join("\n  ")
         );

@@ -3,7 +3,6 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
-import 'api.dart';
 import 'api/connection.dart';
 import 'api/darkroom/entrypoints.dart';
 import 'api/depthlock.dart';
@@ -15,12 +14,6 @@ import 'api/devices/filter_wheel.dart';
 import 'api/devices/focuser.dart';
 import 'api/devices/mount.dart';
 import 'api/devices/rotator.dart';
-import 'api/devices/simulation/camera.dart';
-import 'api/devices/simulation/environment.dart';
-import 'api/devices/simulation/filter_wheel.dart';
-import 'api/devices/simulation/focuser.dart';
-import 'api/devices/simulation/mount.dart';
-import 'api/devices/simulation/rotator.dart';
 import 'api/devices/switch.dart';
 import 'api/diagnostics.dart';
 import 'api/difference_image.dart';
@@ -124,7 +117,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 99863083;
+  int get rustContentHash => 454717944;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -714,7 +707,7 @@ abstract class RustLibApi extends BaseApi {
     required String argsJson,
   });
 
-  Future<void> crateApiApiInvalidateDiscoveryCache();
+  Future<void> crateApiDiscoveryApiInvalidateDiscoveryCache();
 
   Future<bool> crateApiConnectionApiIsDeviceConnected({
     required DeviceType deviceType,
@@ -1318,29 +1311,6 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
     required int offset,
   });
-
-  Future<SimulatedCamera>
-  crateApiDevicesSimulationCameraSimulatedCameraDefault();
-
-  Future<SimulatedDome>
-  crateApiDevicesSimulationEnvironmentSimulatedDomeDefault();
-
-  Future<SimulatedFilterWheel>
-  crateApiDevicesSimulationFilterWheelSimulatedFilterWheelDefault();
-
-  Future<SimulatedFocuser>
-  crateApiDevicesSimulationFocuserSimulatedFocuserDefault();
-
-  Future<SimulatedMount> crateApiDevicesSimulationMountSimulatedMountDefault();
-
-  Future<SimulatedRotator>
-  crateApiDevicesSimulationRotatorSimulatedRotatorDefault();
-
-  Future<SimulatedSafetyMonitor>
-  crateApiDevicesSimulationEnvironmentSimulatedSafetyMonitorDefault();
-
-  Future<SimulatedWeather>
-  crateApiDevicesSimulationEnvironmentSimulatedWeatherDefault();
 
   Future<SolveHints> crateApiPlateSolveSolveHintsDefault();
 
@@ -5764,24 +5734,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiApiInvalidateDiscoveryCache() {
+  Future<void> crateApiDiscoveryApiInvalidateDiscoveryCache() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
-          return wire.wire__crate__api__api_invalidate_discovery_cache(port_);
+          return wire
+              .wire__crate__api__discovery__api_invalidate_discovery_cache(
+                port_,
+              );
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiApiInvalidateDiscoveryCacheConstMeta,
+        constMeta: kCrateApiDiscoveryApiInvalidateDiscoveryCacheConstMeta,
         argValues: [],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiApiInvalidateDiscoveryCacheConstMeta =>
+  TaskConstMeta get kCrateApiDiscoveryApiInvalidateDiscoveryCacheConstMeta =>
       const TaskConstMeta(
         debugName: "api_invalidate_discovery_cache",
         argNames: [],
@@ -10481,227 +10454,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SimulatedCamera>
-  crateApiDevicesSimulationCameraSimulatedCameraDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__camera__simulated_camera_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_camera,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationCameraSimulatedCameraDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationCameraSimulatedCameraDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_camera_default", argNames: []);
-
-  @override
-  Future<SimulatedDome>
-  crateApiDevicesSimulationEnvironmentSimulatedDomeDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__environment__simulated_dome_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_dome,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationEnvironmentSimulatedDomeDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationEnvironmentSimulatedDomeDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_dome_default", argNames: []);
-
-  @override
-  Future<SimulatedFilterWheel>
-  crateApiDevicesSimulationFilterWheelSimulatedFilterWheelDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_filter_wheel,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationFilterWheelSimulatedFilterWheelDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationFilterWheelSimulatedFilterWheelDefaultConstMeta =>
-      const TaskConstMeta(
-        debugName: "simulated_filter_wheel_default",
-        argNames: [],
-      );
-
-  @override
-  Future<SimulatedFocuser>
-  crateApiDevicesSimulationFocuserSimulatedFocuserDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__focuser__simulated_focuser_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_focuser,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationFocuserSimulatedFocuserDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationFocuserSimulatedFocuserDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_focuser_default", argNames: []);
-
-  @override
-  Future<SimulatedMount> crateApiDevicesSimulationMountSimulatedMountDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__mount__simulated_mount_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_mount,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationMountSimulatedMountDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationMountSimulatedMountDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_mount_default", argNames: []);
-
-  @override
-  Future<SimulatedRotator>
-  crateApiDevicesSimulationRotatorSimulatedRotatorDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__rotator__simulated_rotator_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_rotator,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationRotatorSimulatedRotatorDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationRotatorSimulatedRotatorDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_rotator_default", argNames: []);
-
-  @override
-  Future<SimulatedSafetyMonitor>
-  crateApiDevicesSimulationEnvironmentSimulatedSafetyMonitorDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_safety_monitor,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationEnvironmentSimulatedSafetyMonitorDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationEnvironmentSimulatedSafetyMonitorDefaultConstMeta =>
-      const TaskConstMeta(
-        debugName: "simulated_safety_monitor_default",
-        argNames: [],
-      );
-
-  @override
-  Future<SimulatedWeather>
-  crateApiDevicesSimulationEnvironmentSimulatedWeatherDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__devices__simulation__environment__simulated_weather_default(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_simulated_weather,
-          decodeErrorData: null,
-        ),
-        constMeta:
-            kCrateApiDevicesSimulationEnvironmentSimulatedWeatherDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesSimulationEnvironmentSimulatedWeatherDefaultConstMeta =>
-      const TaskConstMeta(debugName: "simulated_weather_default", argNames: []);
-
-  @override
   Future<SolveHints> crateApiPlateSolveSolveHintsDefault() {
     return handler.executeNormal(
       NormalTask(
@@ -14100,81 +13852,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ShutterStatus dco_decode_shutter_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return ShutterStatus.values[raw as int];
-  }
-
-  @protected
-  SimulatedCamera dco_decode_simulated_camera(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedCamera(status: dco_decode_camera_status(arr[0]));
-  }
-
-  @protected
-  SimulatedDome dco_decode_simulated_dome(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedDome(status: dco_decode_dome_status(arr[0]));
-  }
-
-  @protected
-  SimulatedFilterWheel dco_decode_simulated_filter_wheel(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedFilterWheel(status: dco_decode_filter_wheel_status(arr[0]));
-  }
-
-  @protected
-  SimulatedFocuser dco_decode_simulated_focuser(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedFocuser(status: dco_decode_focuser_status(arr[0]));
-  }
-
-  @protected
-  SimulatedMount dco_decode_simulated_mount(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedMount(status: dco_decode_mount_status(arr[0]));
-  }
-
-  @protected
-  SimulatedRotator dco_decode_simulated_rotator(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedRotator(status: dco_decode_rotator_status(arr[0]));
-  }
-
-  @protected
-  SimulatedSafetyMonitor dco_decode_simulated_safety_monitor(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return SimulatedSafetyMonitor(status: dco_decode_safety_status(arr[0]));
-  }
-
-  @protected
-  SimulatedWeather dco_decode_simulated_weather(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return SimulatedWeather(
-      connected: dco_decode_bool(arr[0]),
-      conditions: dco_decode_weather_conditions(arr[1]),
-    );
   }
 
   @protected
@@ -19256,70 +18933,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  SimulatedCamera sse_decode_simulated_camera(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_camera_status(deserializer);
-    return SimulatedCamera(status: var_status);
-  }
-
-  @protected
-  SimulatedDome sse_decode_simulated_dome(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_dome_status(deserializer);
-    return SimulatedDome(status: var_status);
-  }
-
-  @protected
-  SimulatedFilterWheel sse_decode_simulated_filter_wheel(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_filter_wheel_status(deserializer);
-    return SimulatedFilterWheel(status: var_status);
-  }
-
-  @protected
-  SimulatedFocuser sse_decode_simulated_focuser(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_focuser_status(deserializer);
-    return SimulatedFocuser(status: var_status);
-  }
-
-  @protected
-  SimulatedMount sse_decode_simulated_mount(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_mount_status(deserializer);
-    return SimulatedMount(status: var_status);
-  }
-
-  @protected
-  SimulatedRotator sse_decode_simulated_rotator(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_rotator_status(deserializer);
-    return SimulatedRotator(status: var_status);
-  }
-
-  @protected
-  SimulatedSafetyMonitor sse_decode_simulated_safety_monitor(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_status = sse_decode_safety_status(deserializer);
-    return SimulatedSafetyMonitor(status: var_status);
-  }
-
-  @protected
-  SimulatedWeather sse_decode_simulated_weather(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_connected = sse_decode_bool(deserializer);
-    var var_conditions = sse_decode_weather_conditions(deserializer);
-    return SimulatedWeather(
-      connected: var_connected,
-      conditions: var_conditions,
-    );
-  }
-
-  @protected
   SkotiqError sse_decode_skotiq_error(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -23898,76 +23511,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_shutter_status(ShutterStatus self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_camera(
-    SimulatedCamera self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_camera_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_dome(SimulatedDome self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_dome_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_filter_wheel(
-    SimulatedFilterWheel self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_filter_wheel_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_focuser(
-    SimulatedFocuser self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_focuser_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_mount(
-    SimulatedMount self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_mount_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_rotator(
-    SimulatedRotator self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_rotator_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_safety_monitor(
-    SimulatedSafetyMonitor self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_safety_status(self.status, serializer);
-  }
-
-  @protected
-  void sse_encode_simulated_weather(
-    SimulatedWeather self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_bool(self.connected, serializer);
-    sse_encode_weather_conditions(self.conditions, serializer);
   }
 
   @protected

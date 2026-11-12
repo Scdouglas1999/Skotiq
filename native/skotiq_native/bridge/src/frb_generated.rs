@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 99863083;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 454717944;
 
 // Section: executor
 
@@ -3512,7 +3512,7 @@ fn wire__crate__api__post_session__entrypoints__api_integrate_session_impl(
         },
     )
 }
-fn wire__crate__api__api_invalidate_discovery_cache_impl(
+fn wire__crate__api__discovery__api_invalidate_discovery_cache_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
@@ -3526,7 +3526,7 @@ fn wire__crate__api__api_invalidate_discovery_cache_impl(
                 transform_result_dco::<_, _, ()>(
                     (move || async move {
                         let output_ok = Result::<_, ()>::Ok({
-                            crate::api::api_invalidate_discovery_cache().await;
+                            crate::api::discovery::api_invalidate_discovery_cache().await;
                         })?;
                         Ok(output_ok)
                     })()
@@ -7180,150 +7180,6 @@ fn wire__crate__api__devices__camera__set_camera_offset_impl(
                     })()
                     .await,
                 )
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__camera__simulated_camera_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_camera_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::camera::SimulatedCamera::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__environment__simulated_dome_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_dome_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::environment::SimulatedDome::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "simulated_filter_wheel_default", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {  move |context|  {
-                    transform_result_dco::<_, _, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok(crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel::default())?;   Ok(output_ok)
-                    })())
-                } })
-}
-fn wire__crate__api__devices__simulation__focuser__simulated_focuser_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_focuser_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::focuser::SimulatedFocuser::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__mount__simulated_mount_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_mount_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::mount::SimulatedMount::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__rotator__simulated_rotator_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_rotator_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::rotator::SimulatedRotator::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "simulated_safety_monitor_default", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || {  move |context|  {
-                    transform_result_dco::<_, _, ()>((move ||  {
-                         let output_ok = Result::<_,()>::Ok(crate::api::devices::simulation::environment::SimulatedSafetyMonitor::default())?;   Ok(output_ok)
-                    })())
-                } })
-}
-fn wire__crate__api__devices__simulation__environment__simulated_weather_default_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "simulated_weather_default",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| {
-                transform_result_dco::<_, _, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(
-                        crate::api::devices::simulation::environment::SimulatedWeather::default(),
-                    )?;
-                    Ok(output_ok)
-                })())
             }
         },
     )
@@ -12121,78 +11977,6 @@ impl SseDecode for crate::device_capabilities::types::ShutterStatus {
     }
 }
 
-impl SseDecode for crate::api::devices::simulation::camera::SimulatedCamera {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::CameraStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::camera::SimulatedCamera { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::environment::SimulatedDome {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::DomeStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::environment::SimulatedDome { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::FilterWheelStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-            status: var_status,
-        };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::focuser::SimulatedFocuser {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::FocuserStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::focuser::SimulatedFocuser { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::mount::SimulatedMount {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::MountStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::mount::SimulatedMount { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::rotator::SimulatedRotator {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::RotatorStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::rotator::SimulatedRotator { status: var_status };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_status = <crate::device::SafetyStatus>::sse_decode(deserializer);
-        return crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-            status: var_status,
-        };
-    }
-}
-
-impl SseDecode for crate::api::devices::simulation::environment::SimulatedWeather {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_connected = <bool>::sse_decode(deserializer);
-        let mut var_conditions = <crate::device::WeatherConditions>::sse_decode(deserializer);
-        return crate::api::devices::simulation::environment::SimulatedWeather {
-            connected: var_connected,
-            conditions: var_conditions,
-        };
-    }
-}
-
 impl SseDecode for crate::error::SkotiqError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -16651,160 +16435,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::device_capabilities::types::Shutte
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::camera::SimulatedCamera {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::camera::SimulatedCamera
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::camera::SimulatedCamera>
-    for crate::api::devices::simulation::camera::SimulatedCamera
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::camera::SimulatedCamera {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::environment::SimulatedDome {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::environment::SimulatedDome
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::environment::SimulatedDome>
-    for crate::api::devices::simulation::environment::SimulatedDome
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::environment::SimulatedDome {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel,
-    > for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::focuser::SimulatedFocuser {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::focuser::SimulatedFocuser
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::focuser::SimulatedFocuser>
-    for crate::api::devices::simulation::focuser::SimulatedFocuser
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::focuser::SimulatedFocuser {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::mount::SimulatedMount {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::mount::SimulatedMount
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::mount::SimulatedMount>
-    for crate::api::devices::simulation::mount::SimulatedMount
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::mount::SimulatedMount {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::devices::simulation::rotator::SimulatedRotator {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::rotator::SimulatedRotator
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::devices::simulation::rotator::SimulatedRotator>
-    for crate::api::devices::simulation::rotator::SimulatedRotator
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::rotator::SimulatedRotator {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::api::devices::simulation::environment::SimulatedSafetyMonitor
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.status.into_into_dart().into_dart()].into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::environment::SimulatedSafetyMonitor
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::api::devices::simulation::environment::SimulatedSafetyMonitor,
-    > for crate::api::devices::simulation::environment::SimulatedSafetyMonitor
-{
-    fn into_into_dart(
-        self,
-    ) -> crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart
-    for crate::api::devices::simulation::environment::SimulatedWeather
-{
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.connected.into_into_dart().into_dart(),
-            self.conditions.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::devices::simulation::environment::SimulatedWeather
-{
-}
-impl
-    flutter_rust_bridge::IntoIntoDart<
-        crate::api::devices::simulation::environment::SimulatedWeather,
-    > for crate::api::devices::simulation::environment::SimulatedWeather
-{
-    fn into_into_dart(self) -> crate::api::devices::simulation::environment::SimulatedWeather {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::error::SkotiqError {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -20838,63 +20468,6 @@ impl SseEncode for crate::device_capabilities::types::ShutterStatus {
     }
 }
 
-impl SseEncode for crate::api::devices::simulation::camera::SimulatedCamera {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::CameraStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::environment::SimulatedDome {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::DomeStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::FilterWheelStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::focuser::SimulatedFocuser {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::FocuserStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::mount::SimulatedMount {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::MountStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::rotator::SimulatedRotator {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::RotatorStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::device::SafetyStatus>::sse_encode(self.status, serializer);
-    }
-}
-
-impl SseEncode for crate::api::devices::simulation::environment::SimulatedWeather {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <bool>::sse_encode(self.connected, serializer);
-        <crate::device::WeatherConditions>::sse_encode(self.conditions, serializer);
-    }
-}
-
 impl SseEncode for crate::error::SkotiqError {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -24557,89 +24130,6 @@ mod io {
             }
         }
     }
-    impl CstDecode<crate::api::devices::simulation::camera::SimulatedCamera>
-        for wire_cst_simulated_camera
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::camera::SimulatedCamera {
-            crate::api::devices::simulation::camera::SimulatedCamera {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::environment::SimulatedDome>
-        for wire_cst_simulated_dome
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::environment::SimulatedDome {
-            crate::api::devices::simulation::environment::SimulatedDome {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel>
-        for wire_cst_simulated_filter_wheel
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-            crate::api::devices::simulation::filter_wheel::SimulatedFilterWheel {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::focuser::SimulatedFocuser>
-        for wire_cst_simulated_focuser
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::focuser::SimulatedFocuser {
-            crate::api::devices::simulation::focuser::SimulatedFocuser {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::mount::SimulatedMount>
-        for wire_cst_simulated_mount
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::mount::SimulatedMount {
-            crate::api::devices::simulation::mount::SimulatedMount {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::rotator::SimulatedRotator>
-        for wire_cst_simulated_rotator
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::rotator::SimulatedRotator {
-            crate::api::devices::simulation::rotator::SimulatedRotator {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::environment::SimulatedSafetyMonitor>
-        for wire_cst_simulated_safety_monitor
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(
-            self,
-        ) -> crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-            crate::api::devices::simulation::environment::SimulatedSafetyMonitor {
-                status: self.status.cst_decode(),
-            }
-        }
-    }
-    impl CstDecode<crate::api::devices::simulation::environment::SimulatedWeather>
-        for wire_cst_simulated_weather
-    {
-        // Codec=Cst (C-struct based), see doc to use other codecs
-        fn cst_decode(self) -> crate::api::devices::simulation::environment::SimulatedWeather {
-            crate::api::devices::simulation::environment::SimulatedWeather {
-                connected: self.connected.cst_decode(),
-                conditions: self.conditions.cst_decode(),
-            }
-        }
-    }
     impl CstDecode<crate::error::SkotiqError> for wire_cst_skotiq_error {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::error::SkotiqError {
@@ -26857,103 +26347,6 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
-    impl NewWithNullPtr for wire_cst_simulated_camera {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_camera {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_dome {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_dome {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_filter_wheel {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_filter_wheel {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_focuser {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_focuser {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_mount {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_mount {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_rotator {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_rotator {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_safety_monitor {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                status: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_safety_monitor {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-    impl NewWithNullPtr for wire_cst_simulated_weather {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                connected: Default::default(),
-                conditions: Default::default(),
-            }
-        }
-    }
-    impl Default for wire_cst_simulated_weather {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
     impl NewWithNullPtr for wire_cst_skotiq_error {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -28483,10 +27876,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__api_invalidate_discovery_cache(
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__discovery__api_invalidate_discovery_cache(
         port_: i64,
     ) {
-        wire__crate__api__api_invalidate_discovery_cache_impl(port_)
+        wire__crate__api__discovery__api_invalidate_discovery_cache_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -29906,66 +29299,6 @@ mod io {
         offset: i32,
     ) {
         wire__crate__api__devices__camera__set_camera_offset_impl(port_, device_id, offset)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__simulated_camera_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__camera__simulated_camera_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_dome_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__environment__simulated_dome_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default_impl(
-            port_,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__simulated_focuser_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__focuser__simulated_focuser_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__simulated_mount_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__mount__simulated_mount_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__simulated_rotator_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__rotator__simulated_rotator_default_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default_impl(
-            port_,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_weather_default(
-        port_: i64,
-    ) {
-        wire__crate__api__devices__simulation__environment__simulated_weather_default_impl(port_)
     }
 
     #[unsafe(no_mangle)]
@@ -33044,47 +32377,6 @@ mod io {
         current_target: *mut wire_cst_list_prim_u_8_strict,
         current_filter: *mut wire_cst_list_prim_u_8_strict,
         message: *mut wire_cst_list_prim_u_8_strict,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_camera {
-        status: wire_cst_camera_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_dome {
-        status: wire_cst_dome_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_filter_wheel {
-        status: wire_cst_filter_wheel_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_focuser {
-        status: wire_cst_focuser_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_mount {
-        status: wire_cst_mount_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_rotator {
-        status: wire_cst_rotator_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_safety_monitor {
-        status: wire_cst_safety_status,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_simulated_weather {
-        connected: bool,
-        conditions: wire_cst_weather_conditions,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

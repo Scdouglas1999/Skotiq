@@ -315,10 +315,10 @@ fn polar_globals_test_lock() -> &'static tokio::sync::Mutex<()> {
 /// that RA (several arcminutes in 2026) on every step.
 #[tokio::test]
 async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
-    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
     use crate::device_manager::get_device_manager;
+    use crate::simulator::{get_sim_mount, sim_singleton_test_lock};
 
     let _serialized = sim_singleton_test_lock().lock().await;
     let _globals = polar_globals_test_lock().lock().await;
@@ -340,7 +340,7 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
             false,
         )
         .await;
-    crate::api::devices::simulation::cancel_sim_slew().await;
+    crate::simulator::cancel_sim_slew().await;
 
     // Three hours west of the meridian at Dec 60 of date, like run 1.
     let longitude = -75.3576;
@@ -402,10 +402,10 @@ async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
 /// and off Dec 60 by the precession.
 #[tokio::test]
 async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
-    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::epoch::{SimFrameGuard, SimMountFrame};
     use crate::device_manager::get_device_manager;
+    use crate::simulator::{get_sim_mount, sim_singleton_test_lock};
     use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
 
     let _serialized = sim_singleton_test_lock().lock().await;
@@ -428,7 +428,7 @@ async fn the_pole_region_slew_lands_on_the_meridian_of_date() {
             false,
         )
         .await;
-    crate::api::devices::simulation::cancel_sim_slew().await;
+    crate::simulator::cancel_sim_slew().await;
     {
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;

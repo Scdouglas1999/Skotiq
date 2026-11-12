@@ -840,9 +840,7 @@ mod event_bridge_idempotence_tests {
     #[tokio::test]
     async fn subscribing_again_does_not_add_a_second_event_listener() {
         // Other tests listen to the same executor for their own runs.
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         crate::api::sequencer::wait_for_no_event_listeners().await;
         api_sequencer_subscribe_events()
             .await
@@ -879,9 +877,7 @@ mod terminal_announcement_tests {
 
     /// Sequencer lifecycle events the bridge publishes for `sent`, in order.
     async fn published_for(sent: Vec<ExecutorEvent>) -> Vec<SequencerEvent> {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let mut published = get_state().event_bus.subscribe();
         let (tx, mut rx) = tokio::sync::broadcast::channel(16);
         for event in sent {

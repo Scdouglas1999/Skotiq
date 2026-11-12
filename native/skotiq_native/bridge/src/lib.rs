@@ -73,18 +73,7 @@ mod frame_header;
 mod guider;
 mod hotplug;
 mod last_frame;
-/// THE simulated-capture entry point: the one place a simulated frame is
-/// produced, shared by the sequencer download and the Imaging screen's manual
-/// capture so both see the same sky.
-mod sim_capture;
-/// Synthetic frame generation for the simulator camera (unit-tested against the
-/// real star detector; see the module docs for why that matters).
-mod sim_frame;
-/// `SKOTIQ_SIM_REPLAY`: answer simulated lights with recorded rig frames.
-mod sim_replay;
-/// Real-sky star source for the simulator camera, read out of the plate
-/// solver's own star database so a simulated frame can actually be solved.
-mod sim_sky;
+mod simulator;
 mod stacking_api;
 mod state;
 mod storage;

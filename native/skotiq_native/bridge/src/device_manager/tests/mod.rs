@@ -40,7 +40,7 @@ mod switch_ops;
 /// the SAME lock — two independent mutexes over one shared state exclude
 /// nothing.
 fn simulator_singleton_test_lock() -> &'static Mutex<()> {
-    crate::api::devices::simulation::sim_singleton_test_lock()
+    crate::simulator::sim_singleton_test_lock()
 }
 
 /// Releases a simulated device the way `disconnect_device` releases its
@@ -170,13 +170,13 @@ async fn install_fake_device(manager: &DeviceManager, id: &str, model: &str, ser
 }
 
 // `connect_simulator` / `disconnect_simulator` must flip the matching
-// `simulation.rs` singleton's `connected` flag, and the heartbeat path for
+// simulator singleton's `connected` flag, and the heartbeat path for
 // `DriverType::Simulator` must read that flag rather than report healthy
 // unconditionally — otherwise a "connected" simulator has no driver state
 // behind it.
 //
 // Tests use distinct device_type prefixes to avoid cross-test interference
-// through the process-wide simulation.rs singletons.
+// through the process-wide simulator singletons.
 fn build_sim_info(id: &str, device_type: DeviceType) -> DeviceInfo {
     DeviceInfo {
         id: id.to_string(),

@@ -245,10 +245,12 @@ pub async fn mount_set_time(
 #[cfg(test)]
 mod tests {
     use super::api_mount_set_tracking;
-    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock};
     use crate::api::sequencer::{api_sequencer_start, api_sequencer_stop, get_sequence_executor};
     use crate::device::{DeviceInfo, DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
+    use crate::simulator::{
+        get_sim_mount, reset_sim_guide_offset, sim_guide_offset, sim_singleton_test_lock,
+    };
     use skotiq_sequencer::{
         DelayConfig, ExecutorState, NodeDefinition, NodeType, SequenceDefinition,
     };
@@ -334,5 +336,62 @@ mod tests {
             "the run was not told the stop was the operator's"
         );
         assert!(!get_sim_mount().read().await.status.tracking);
+    }
+
+    /// Register and connect a simulated mount in the process-wide DeviceManager,
+    /// the way discovery plus a connect does for a real one.
+    async fn attach_sim_mount(device_id: &str) {
+        let info = DeviceInfo {
+            id: device_id.to_string(),
+            name: "Simulated Mount".to_string(),
+            device_type: DeviceType::Mount,
+            driver_type: DriverType::Simulator,
+            description: "Simulated mount".to_string(),
+            driver_version: "1.0".to_string(),
+            serial_number: None,
+            unique_id: None,
+            display_name: "Simulated Mount".to_string(),
+        };
+        get_device_manager().register_device(info, false).await;
+        get_sim_mount().write().await.status.connected = true;
+    }
+
+    /// A manual guide nudge must move the field, not just sleep: it silently
+    /// regressed to a no-op once before, returning "ok" and leaving the stars
+    /// where they were.
+    #[tokio::test]
+    async fn api_pulse_guide_moves_the_simulated_field() {
+        let _serialized = sim_singleton_test_lock().lock().await;
+        attach_sim_mount("sim_mount_pulse").await;
+        reset_sim_guide_offset().await;
+        let before = *sim_guide_offset().read().await;
+        super::api_mount_pulse_guide("sim_mount_pulse".to_string(), "east".to_string(), 1000)
+            .await
+            .expect("simulated pulse guide should succeed");
+        let after = *sim_guide_offset().read().await;
+        assert!(
+            after.0 - before.0 > 0.2,
+            "api-layer east pulse moved the field only {:.4}px",
+            after.0 - before.0
+        );
+        reset_sim_guide_offset().await;
+    }
+
+    /// An unknown direction must be rejected rather than silently sleeping —
+    /// and rejected for THAT reason, not because the device is missing.
+    #[tokio::test]
+    async fn api_pulse_guide_rejects_an_unknown_direction() {
+        attach_sim_mount("sim_mount_direction").await;
+        let result = super::api_mount_pulse_guide(
+            "sim_mount_direction".to_string(),
+            "widdershins".to_string(),
+            10,
+        )
+        .await;
+        let err = result.expect_err("unknown direction should be an error");
+        assert!(
+            err.to_string().contains("direction: widdershins"),
+            "expected a direction rejection, got: {err}"
+        );
     }
 }

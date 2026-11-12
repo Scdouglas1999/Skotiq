@@ -196,15 +196,15 @@ impl DeviceManager {
 /// cannot pass against zero discoverable devices.
 #[cfg(test)]
 mod simulator_tests {
-    use crate::api::devices::simulation::{reset_sim_switch, sim_singleton_test_lock};
     use crate::device::{DeviceType, DriverType};
     use crate::device_manager::get_device_manager;
     use crate::device_manager::DeviceManager;
     use crate::discovery::discover_devices;
+    use crate::simulator::{reset_sim_switch, sim_singleton_test_lock};
     use std::sync::Arc;
     use std::time::Duration;
 
-    /// Channel indices of the simulated powerbox, mirroring `simulation.rs`.
+    /// Channel indices of the simulated powerbox, mirroring `simulator::switch`.
     const QUAD_OUTPUT: i32 = 0;
     const DEW_HEATER_A: i32 = 3;
     const INPUT_VOLTAGE: i32 = 5;

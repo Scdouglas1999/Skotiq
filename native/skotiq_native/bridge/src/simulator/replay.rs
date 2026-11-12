@@ -25,7 +25,7 @@
 //! an autofocus and grades as zero stars, which is the honest outcome; a
 //! frame from elsewhere would pass them.
 
-use crate::sim_capture::{SimCaptureFrame, SimCaptureRequest};
+use crate::simulator::capture::{SimCaptureFrame, SimCaptureRequest};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -133,8 +133,8 @@ impl Replay {
         let mut frames = Vec::with_capacity(manifest.frames.len());
         for entry in manifest.frames {
             let path = dir.join(&entry.file);
-            let (image, _) =
-                skotiq_imaging::read_frame(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let (image, _) = skotiq_imaging::read_frame(&path)
+                .map_err(|e| format!("{}: {e}", path.display()))?;
             let data = image
                 .as_u16()
                 .ok_or_else(|| format!("{}: not a 16-bit frame", path.display()))?;
@@ -424,7 +424,7 @@ mod tests {
             subframe,
             frame_type: skotiq_device::FrameType::Light,
             max_adu: 65520,
-            optics: crate::sim_capture::SimOptics::ImagingTrain,
+            optics: crate::simulator::capture::SimOptics::ImagingTrain,
         }
     }
 

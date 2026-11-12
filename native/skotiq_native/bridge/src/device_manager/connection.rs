@@ -763,7 +763,7 @@ impl DeviceManager {
     /// (the `unplug(reorder)` fault), so the identity check runs against the
     /// simulators the same way it does against a ZWO pair.
     async fn simulated_camera_identity(device_id: &str) -> DeviceIdentity {
-        let status = crate::api::devices::simulation::get_sim_camera_for(device_id)
+        let status = crate::simulator::get_sim_camera_for(device_id)
             .read()
             .await
             .status
@@ -830,9 +830,7 @@ impl DeviceManager {
     /// simulator's own gates name it.
     pub(crate) fn sim_fault_prefix(info: &DeviceInfo) -> Option<&'static str> {
         Some(match info.device_type {
-            DeviceType::Camera => {
-                crate::api::devices::simulation::sim_camera_fault_prefix(&info.id)
-            }
+            DeviceType::Camera => crate::simulator::sim_camera_fault_prefix(&info.id),
             DeviceType::Mount => "mount",
             DeviceType::Focuser => "focuser",
             DeviceType::FilterWheel => "filterwheel",
@@ -841,29 +839,11 @@ impl DeviceManager {
         })
     }
 
-    /// Connect to a simulator device.
-    ///
-    /// Sets the matching `simulation.rs` singleton's `connected = true` so
-    /// status accessors, heartbeat checks, and Dart-side `isConnected`
-    /// observers all see a consistent "real" connection state for the
-    /// simulator.
-    ///
-    /// # Behavior
-    ///
-    /// * Validates the device id has the `sim_` prefix (the established
-    ///   convention used by every `device_id.starts_with("sim_")` branch in
-    ///   `bridge::api::devices`). An unrecognized id returns `Err`: a silent
-    ///   fallback would let a typoed sim id appear "connected" with no
-    ///   backing state.
-    /// * Dispatches by `DeviceInfo.device_type`. Device types without a
-    ///   `simulation.rs` singleton (Guider) return
-    ///   `Err` so we never claim "connected"
-    ///   for a simulator backend that doesn't exist. The existing
-    ///   ops-level `DriverType::Simulator => Ok(...)` short-circuits in
-    ///   `device_manager/ops/*` are a separate, known inconsistency.
-    /// * Idempotent: if the singleton is already `connected`, returns `Ok`
-    ///   so the user can re-trigger "Connect" from the UI without spurious
-    ///   errors.
+    /// Connects a simulated device: arms the faults `SKOTIQ_SIM_FAULTS` names,
+    /// lets a `<device>.connect` fault refuse or delay the open, and holds the
+    /// handle the simulator hands back. Connecting a connected simulator is
+    /// `Ok`; an id without the `sim_` prefix and a device type with no
+    /// simulator are errors, so neither ever reads as connected.
     pub(crate) async fn connect_simulator(&self, info: &DeviceInfo) -> Result<(), String> {
         if !info.id.starts_with("sim_") {
             return Err(format!(
@@ -872,69 +852,20 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{
-            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
-            get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
-            get_sim_switch, get_sim_weather,
-        };
-
-        // Arm any faults named by `SKOTIQ_SIM_FAULTS` before the device is
-        // usable, so a drive can inject hardware misbehaviour into a release
-        // build without a rebuild. Idempotent — re-arming the same spec on a
-        // second connect just resets its counters.
-        crate::device_manager::ops::sim_faults::arm_from_env();
-
-        // `<device>.connect`: a simulated device that cannot be opened (a
-        // camera whose USB hub dropped), or opens slowly.
+        crate::simulator::faults::arm_from_env();
         if let Some(prefix) = Self::sim_fault_prefix(info) {
-            crate::device_manager::ops::sim_faults::check(&format!("{prefix}.connect")).await?;
+            crate::simulator::faults::check(&format!("{prefix}.connect")).await?;
         }
 
-        match info.device_type {
-            DeviceType::Camera => {
-                let mut cam = get_sim_camera_for(&info.id).write().await;
-                cam.status.connected = true;
-            }
-            DeviceType::Mount => {
-                let mut mount = get_sim_mount().write().await;
-                mount.status.connected = true;
-            }
-            DeviceType::Focuser => {
-                get_sim_focuser().write().await.status.connected = true;
-            }
-            DeviceType::FilterWheel => {
-                get_sim_filterwheel().write().await.status.connected = true;
-            }
-            DeviceType::Rotator => {
-                let mut rot = get_sim_rotator().write().await;
-                rot.status.connected = true;
-            }
-            DeviceType::Dome => {
-                get_sim_dome().write().await.status.connected = true;
-            }
-            DeviceType::Weather => {
-                get_sim_weather().write().await.connected = true;
-            }
-            DeviceType::SafetyMonitor => {
-                get_sim_safety_monitor().write().await.status.connected = true;
-            }
-            DeviceType::Switch => {
-                get_sim_switch().write().await.connected = true;
-            }
-            DeviceType::CoverCalibrator => {
-                get_sim_cover_calibrator().write().await.connected = true;
-            }
-            other => {
-                return Err(format!(
+        let handle = crate::simulator::driver::connect(info)
+            .await
+            .ok_or_else(|| {
+                format!(
                     "connect_simulator: no simulator implementation for device type {:?} (id '{}')",
-                    other, info.id
-                ));
-            }
-        }
-
-        if let Some(handle) = crate::device_manager::simulated::handle(info) {
-            self.handles.insert(&info.id, handle);
-        }
+                    info.device_type, info.id
+                )
+            })?;
+        self.handles.insert(&info.id, handle);
 
         tracing::info!(
             "Simulator connected: id={} type={:?}",
@@ -955,7 +886,7 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_mount};
+        use crate::simulator::{get_sim_camera_for, get_sim_mount};
 
         match info.device_type {
             DeviceType::Camera => {
@@ -1089,7 +1020,7 @@ impl DeviceManager {
                     record_disconnect!("INDI device", self.release_indi_device(device_id).await);
                 }
                 DriverType::Simulator => {
-                    // Flip the matching `simulation.rs` singleton's `connected`
+                    // Flip the matching simulator singleton's `connected`
                     // bit back to false so the heartbeat loop and any other
                     // observer agrees the simulator is offline. Errors here are
                     // logged but do not block the rest of disconnect cleanup —

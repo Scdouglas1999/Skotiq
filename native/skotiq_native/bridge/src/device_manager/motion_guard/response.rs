@@ -688,7 +688,7 @@ mod hold_tests {
     /// well, so one mount fault logged "Sequence paused" twice.
     #[tokio::test]
     async fn a_mount_fault_hold_puts_one_paused_on_the_wire() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+        let _serialized = crate::simulator::sim_singleton_test_lock()
             .lock()
             .await;
         let mut sequence = skotiq_sequencer::SequenceDefinition::new("Long wait".to_string());

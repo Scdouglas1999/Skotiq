@@ -7,7 +7,6 @@
 use crate::device::{DeviceType, DriverType};
 use crate::device_capabilities::DeviceCapabilities;
 use crate::device_manager::accessory::{self, Dome, Rotator, SafetyMonitor, Weather};
-use crate::device_manager::ops::sim_gate;
 use crate::device_manager::rig::camera::Camera;
 use crate::device_manager::rig::filter_wheel::FilterWheel;
 use crate::device_manager::rig::focuser::Focuser;
@@ -16,6 +15,7 @@ use crate::device_manager::rig::RigDriver;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
+use crate::simulator::gate;
 use skotiq_device::{AccessoryDriver, CoverCalibratorDriver, DriverError, SwitchDriver};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -193,7 +193,7 @@ impl DeviceManager {
         let handle = self.handles.get(device_id).or_else(|| {
             (info.driver_type == DriverType::Simulator
                 && matches!(info.device_type, DeviceType::Camera | DeviceType::Mount))
-            .then(|| crate::device_manager::simulated::handle(&info))
+            .then(|| crate::simulator::driver::handle(&info))
             .flatten()
         });
         handle.and_then(pick).ok_or_else(|| {
@@ -203,7 +203,7 @@ impl DeviceManager {
                 // sentence, which the FFI edge shows only for an error that
                 // carries no device id.
                 (DriverType::Simulator, DeviceType::FilterWheel | DeviceType::Focuser) => {
-                    DeviceOpError::not_connected(None, sim_gate::not_connected(&noun))
+                    DeviceOpError::not_connected(None, gate::not_connected(&noun))
                 }
                 _ => DeviceOpError::not_connected(
                     Some(device_id.to_string()),

@@ -28,14 +28,12 @@ mod alpaca;
 #[cfg(windows)]
 mod com;
 mod indi;
-mod sim;
 mod vendor;
 
 pub(crate) use alpaca::AlpacaCameraHandle;
 #[cfg(windows)]
 pub(crate) use com::ComCamera;
 pub(crate) use indi::IndiCameraHandle;
-pub(crate) use sim::SimCamera;
 pub(crate) use vendor::VendorCamera;
 
 use super::RigDriver;

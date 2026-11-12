@@ -3,7 +3,7 @@
 //! # Why this exists
 //!
 //! The simulators were *only* capable of succeeding. Across 1753 lines,
-//! `api/devices/simulation.rs` contained nine `Err(` returns, and every one of
+//! the simulator contained nine `Err(` returns, and every one of
 //! them was a "you forgot to connect" gate — never a device that connected,
 //! answered, and then misbehaved. Real gear misbehaves constantly: an ASCOM
 //! driver returns `0x80020009` for a property it does not implement, a USB
@@ -20,7 +20,7 @@
 //! # What a fault is
 //!
 //! A [`FaultSpec`] is a (trigger, effect) pair armed against an operation key
-//! such as `"mount.slew"`. The gate helpers in [`super::sim_gate`] consult the
+//! such as `"mount.slew"`. The gate helpers in [`crate::simulator::gate`] consult the
 //! registry before doing their normal work, so arming a fault needs no changes
 //! at any call site.
 //!
@@ -110,7 +110,7 @@ pub enum Effect {
     /// the mount's Dec axis runs on its own at `deg_per_sec` for `run_secs`,
     /// ignoring every stop command, then the mount stops answering for
     /// `blackout_secs` and comes back reporting its home position, tracking.
-    /// Returns `Ok(())`; see [`super::sim_runaway`].
+    /// Returns `Ok(())`; see [`crate::simulator::runaway`].
     Runaway {
         deg_per_sec: f64,
         run_secs: f64,
@@ -120,7 +120,7 @@ pub enum Effect {
     /// Someone outside Skotiq (the mount's own software, a hand controller)
     /// sends the mount to `(ra_hours, dec_deg)` after `delay_secs`: an
     /// ordinary goto at the simulated slew rate that never passes through
-    /// Skotiq's device manager. Returns `Ok(())`; see [`super::sim_runaway`].
+    /// Skotiq's device manager. Returns `Ok(())`; see [`crate::simulator::runaway`].
     ExternalSlew {
         ra_hours: f64,
         dec_deg: f64,
@@ -219,7 +219,7 @@ fn next_unit_f64() -> f64 {
 ///
 /// `key` is `"<device>.<operation>"`, e.g. `"camera.download"`,
 /// `"mount.slew"`, `"filterwheel.set_position"`. Keys are matched exactly; see
-/// [`super::sim_gate`] for the ones the gates consult.
+/// [`crate::simulator::gate`] for the ones the gates consult.
 pub fn arm(key: &str, spec: FaultSpec) {
     let remaining = match spec.trigger {
         Trigger::Times(n) => n,
@@ -256,7 +256,7 @@ pub fn arm(key: &str, spec: FaultSpec) {
 /// the intended target of a headless/bridge arming endpoint. `#[allow(dead_code)]`
 /// rather than deletion because a half-surface is worse than an unused one — a
 /// test that can arm a fault but not clear it leaks state into unrelated tests.
-/// See `sim_gate::require_focuser_connected` for the same precedent.
+/// See `gate::require_focuser_connected` for the same precedent.
 /// Disarm `key` and release any stall latched on it.
 #[allow(dead_code)]
 pub fn clear(key: &str) {
@@ -388,7 +388,7 @@ fn decide(key: &str) -> Decision {
         Effect::Error(message) => Decision::Fail(DeviceOpError::Message(message)),
         Effect::NotConnected => Decision::Fail(DeviceOpError::not_connected(
             None,
-            super::sim_gate::not_connected_injected(key),
+            crate::simulator::gate::not_connected_injected(key),
         )),
         Effect::Delay(ms) => Decision::Sleep(ms),
         Effect::DelayThenError(ms, message) => {
@@ -769,9 +769,7 @@ mod tests {
 
     impl Guard {
         async fn new(keys: &'static [&'static str]) -> Self {
-            let serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-                .lock()
-                .await;
+            let serialized = crate::simulator::sim_singleton_test_lock().lock().await;
             for key in keys {
                 clear(key);
             }

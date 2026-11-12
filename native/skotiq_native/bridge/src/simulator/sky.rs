@@ -2,7 +2,7 @@
 //!
 //! Why this exists
 //! ---------------
-//! [`crate::sim_frame`] paints a pseudo-random Gaussian field and translates it
+//! [`crate::simulator::frame`] paints a pseudo-random Gaussian field and translates it
 //! as a rigid body with the mount's guide offset. It does not render the sky the
 //! mount is pointing at. Plate solving is NOT special-cased for the simulator —
 //! [`crate::api::plate_solve`] shells out to the real ASTAP binary — so under the
@@ -628,7 +628,7 @@ mod tests {
 #[cfg(test)]
 pub(crate) mod astap_integration {
     use super::*;
-    use crate::sim_frame::{
+    use crate::simulator::frame::{
         project_star, sim_sky_field_radius_deg, synthesize_sim_frame, SimFrameRequest, SimSkyView,
         SIM_H, SIM_SKY_STAR_LIMIT, SIM_W,
     };

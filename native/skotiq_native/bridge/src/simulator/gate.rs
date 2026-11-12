@@ -1,7 +1,7 @@
 //! Simulator connection-gate helpers.
 //!
 //! `device_manager::connection::connect_simulator` flips the matching
-//! `simulation.rs` singleton's `connected` flag. Every simulator op goes
+//! simulator singleton's `connected` flag. Every simulator op goes
 //! through one of two policies here so that flag governs what the op answers,
 //! rather than each dispatcher returning a constant a disconnected simulator
 //! has no business producing:
@@ -26,11 +26,9 @@
 //! the message says "connect first" rather than leaving the caller with an
 //! `Ok(0)` it cannot distinguish from a real reading.
 
-use crate::api::devices::simulation::{
-    get_sim_filterwheel, get_sim_focuser, get_sim_mount, get_sim_rotator,
-};
 use crate::device::{CameraStatus, FilterWheelStatus, FocuserStatus, MountStatus, RotatorStatus};
 use crate::dispatch::DeviceOpError;
+use crate::simulator::{get_sim_filterwheel, get_sim_focuser, get_sim_mount, get_sim_rotator};
 
 /// Format the not-connected error message uniformly across all simulator
 /// device types. Keeping the wording centralized means tests can match on
@@ -64,9 +62,9 @@ pub(crate) fn not_connected_injected(key: &str) -> String {
 ///
 /// Every gate below calls this before doing its normal work, which is what lets
 /// a test arm a fault without touching any call site. Keys are the
-/// `"<device>.<operation>"` strings documented on [`sim_faults::arm`].
+/// `"<device>.<operation>"` strings documented on [`faults::arm`].
 async fn faults(key: &str) -> Result<(), DeviceOpError> {
-    super::sim_faults::check(key).await
+    crate::simulator::faults::check(key).await
 }
 
 /// Per-device-type convenience wrappers around `not_connected` for write-side
@@ -100,15 +98,15 @@ pub(crate) fn not_connected_rotator() -> DeviceOpError {
 /// covered by the singleton's defaults and need no special handling at
 /// the call site.
 pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, DeviceOpError> {
-    use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
+    use crate::simulator::{get_sim_camera_for, sim_camera_fault_prefix};
     let prefix = sim_camera_fault_prefix(device_id);
     // Faults are consulted before anything else, including the connected gate,
     // so an armed fault is deterministic for the test that armed it rather than
     // depending on singleton state left behind by an earlier case.
     let key = format!("{prefix}.status");
     if let Err(e) = faults(&key).await {
-        if let Some(reorder) = super::sim_faults::take_unplug(&key) {
-            crate::api::devices::simulation::unplug_sim_camera(device_id, reorder).await;
+        if let Some(reorder) = crate::simulator::faults::take_unplug(&key) {
+            crate::simulator::unplug_sim_camera(device_id, reorder).await;
         }
         return Err(e);
     }
@@ -119,10 +117,10 @@ pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, 
     // A stalled cooler is a real failure mode (the TEC never reaches setpoint
     // and the run silently uses warm darks), so the stall latch suppresses the
     // ramp while leaving every read succeeding.
-    if !super::sim_faults::is_stalled(&format!("{prefix}.cooler")) {
-        crate::api::devices::simulation::advance_sim_cooler(device_id).await;
+    if !crate::simulator::faults::is_stalled(&format!("{prefix}.cooler")) {
+        crate::simulator::advance_sim_cooler(device_id).await;
     }
-    let state = crate::api::devices::simulation::sim_camera_state(device_id).await;
+    let state = crate::simulator::sim_camera_state(device_id).await;
     let cam = get_sim_camera_for(device_id).read().await;
     if !cam.status.connected {
         return Err(not_connected("camera"));
@@ -142,8 +140,8 @@ pub(crate) async fn read_camera_status(device_id: &str) -> Result<CameraStatus, 
 /// constants.
 pub(crate) async fn read_camera_last_exposure(
     device_id: &str,
-) -> Result<crate::api::devices::simulation::SimExposureRequest, DeviceOpError> {
-    use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
+) -> Result<crate::simulator::SimExposureRequest, DeviceOpError> {
+    use crate::simulator::{get_sim_camera_for, sim_camera_fault_prefix};
     // `camera.download` is the highest-value fault key in the file: the INDI
     // BLOB download timeout and the USB camera that stops answering mid-read
     // both land here, and both cost a whole frame on real hardware.
@@ -151,18 +149,16 @@ pub(crate) async fn read_camera_last_exposure(
     if !get_sim_camera_for(device_id).read().await.status.connected {
         return Err(not_connected("camera"));
     }
-    Ok(
-        crate::api::devices::simulation::get_sim_last_exposure_for(device_id)
-            .read()
-            .await
-            .clone(),
-    )
+    Ok(crate::simulator::get_sim_last_exposure_for(device_id)
+        .read()
+        .await
+        .clone())
 }
 
 /// Write-side gate for camera ops: returns `Ok(())` only when the
 /// simulator camera singleton is currently connected.
 pub(crate) async fn require_camera_connected(device_id: &str) -> Result<(), DeviceOpError> {
-    use crate::api::devices::simulation::{get_sim_camera_for, sim_camera_fault_prefix};
+    use crate::simulator::{get_sim_camera_for, sim_camera_fault_prefix};
     faults(&format!("{}.command", sim_camera_fault_prefix(device_id))).await?;
     if !get_sim_camera_for(device_id).read().await.status.connected {
         return Err(not_connected("camera"));
@@ -180,14 +176,14 @@ pub(crate) async fn require_camera_connected(device_id: &str) -> Result<(), Devi
 ///
 /// Pier side is NOT derived: it is mechanical state a slew leaves the mount in,
 /// not a projection of where it is pointing. See
-/// `simulation::pier_side_after_slew_to`.
+/// `crate::simulator::pier_side_after_slew_to`.
 ///
 /// With no site configured there is no honest answer, so the horizon-frame
 /// fields report `Unsupported` and carry `None` instead of a fabricated default.
 pub(crate) async fn read_mount_status() -> Result<MountStatus, DeviceOpError> {
     if let Err(e) = faults("mount.status").await {
         // `unplug`: the mount's cable or hub dropped.
-        if super::sim_faults::take_unplug("mount.status").is_some() {
+        if crate::simulator::faults::take_unplug("mount.status").is_some() {
             get_sim_mount().write().await.status.connected = false;
         }
         return Err(e);
@@ -195,7 +191,7 @@ pub(crate) async fn read_mount_status() -> Result<MountStatus, DeviceOpError> {
     if !get_sim_mount().read().await.status.connected {
         return Err(not_connected("mount"));
     }
-    super::sim_runaway::step().await?;
+    crate::simulator::runaway::step().await?;
     advance_mount_motion().await;
     let mut status = get_sim_mount().read().await.status.clone();
     apply_derived_mount_telemetry(&mut status, observer_site(), chrono::Utc::now());
@@ -204,7 +200,7 @@ pub(crate) async fn read_mount_status() -> Result<MountStatus, DeviceOpError> {
 
 /// Bring an in-flight simulated slew up to the present.
 ///
-/// `simulation::advance_sim_slew` is interpolation, not a motor: nothing runs it
+/// `crate::simulator::advance_sim_slew` is interpolation, not a motor: nothing runs it
 /// on a timer, so the mount is only ever as far along as the last caller that
 /// asked. Both gates in this module run it, which is what makes "where is the
 /// mount right now" the same answer whether the caller is reading status or
@@ -215,10 +211,10 @@ pub(crate) async fn read_mount_status() -> Result<MountStatus, DeviceOpError> {
 /// command) is what makes the app's slew timeout the only thing that can detect
 /// it, exactly as on real hardware.
 async fn advance_mount_motion() {
-    if super::sim_faults::is_stalled("mount.slew") {
+    if crate::simulator::faults::is_stalled("mount.slew") {
         return;
     }
-    crate::api::devices::simulation::advance_sim_slew().await;
+    crate::simulator::advance_sim_slew().await;
 }
 
 /// Configured observer location as `(latitude, longitude)`, if the app has one.
@@ -290,7 +286,7 @@ pub(crate) async fn require_mount_connected() -> Result<(), DeviceOpError> {
     if !get_sim_mount().read().await.status.connected {
         return Err(not_connected("mount"));
     }
-    super::sim_runaway::step().await?;
+    crate::simulator::runaway::step().await?;
     advance_mount_motion().await;
     Ok(())
 }
@@ -314,8 +310,8 @@ pub(crate) async fn refuse_while_mount_slewing(operation: &str) -> Result<(), De
     // goto (including its settle tail) even when a fault has frozen the
     // interpolation, while `status.slewing` also covers a manual axis move,
     // which has no interpolation cell at all.
-    let moving = crate::api::devices::simulation::sim_slew_in_flight().await
-        || get_sim_mount().read().await.status.slewing;
+    let moving =
+        crate::simulator::sim_slew_in_flight().await || get_sim_mount().read().await.status.slewing;
     if moving {
         return Err(DeviceOpError::Message(format!(
             "Simulated mount is slewing and refused {}. Abort the slew or wait for it to finish.",
@@ -334,7 +330,7 @@ pub(crate) async fn read_focuser_status() -> Result<FocuserStatus, DeviceOpError
     }
     let mut status = focuser.status.clone();
     if status.temperature.is_some() {
-        status.temperature = Some(crate::api::devices::simulation::sim_focuser_temperature_c());
+        status.temperature = Some(crate::simulator::sim_focuser_temperature_c());
     }
     Ok(status)
 }
@@ -390,7 +386,7 @@ pub(crate) fn unsupported_simulator_device(kind: &'static str) -> String {
 
 /// End-to-end proof that an armed fault actually reaches the app.
 ///
-/// The registry's own tests ([`super::sim_faults`]) prove the trigger/effect
+/// The registry's own tests ([`crate::simulator::faults`]) prove the trigger/effect
 /// bookkeeping. These prove the part that matters: that a fault armed by key
 /// travels through the real gate a connected simulator uses, and that what comes
 /// back out is a truthful error rather than synthetic data. Without this, the
@@ -398,17 +394,15 @@ pub(crate) fn unsupported_simulator_device(kind: &'static str) -> String {
 #[cfg(test)]
 mod fault_injection_tests {
     use super::*;
-    use crate::api::devices::simulation::get_sim_camera;
-    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::get_sim_camera;
 
     /// The simulator singletons are process-global, so these serialize against
     /// the same lock the other simulator tests use and clear the registry after
     /// themselves — a leaked fault would surface as an unrelated test failing.
     async fn connected_camera() -> tokio::sync::MutexGuard<'static, ()> {
-        let guard = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
-        sim_faults::clear_all();
+        let guard = crate::simulator::sim_singleton_test_lock().lock().await;
+        faults::clear_all();
         get_sim_camera().write().await.status.connected = true;
         guard
     }
@@ -416,7 +410,7 @@ mod fault_injection_tests {
     #[tokio::test]
     async fn an_armed_fault_reaches_the_camera_status_gate() {
         let _guard = connected_camera().await;
-        sim_faults::arm("camera.status", FaultSpec::not_implemented());
+        faults::arm("camera.status", FaultSpec::not_implemented());
 
         let err = read_camera_status("sim_camera_1")
             .await
@@ -427,7 +421,7 @@ mod fault_injection_tests {
              not told something generic: {err}"
         );
 
-        sim_faults::clear_all();
+        faults::clear_all();
         assert!(
             read_camera_status("sim_camera_1").await.is_ok(),
             "clearing the registry must restore normal behaviour"
@@ -440,7 +434,7 @@ mod fault_injection_tests {
     #[tokio::test]
     async fn a_transient_fault_lets_the_retry_through() {
         let _guard = connected_camera().await;
-        sim_faults::arm("camera.status", FaultSpec::transient("USB stall"));
+        faults::arm("camera.status", FaultSpec::transient("USB stall"));
 
         assert!(
             read_camera_status("sim_camera_1").await.is_err(),
@@ -450,7 +444,7 @@ mod fault_injection_tests {
             read_camera_status("sim_camera_1").await.is_ok(),
             "the retry must succeed, or 'retry once' can never be verified"
         );
-        sim_faults::clear_all();
+        faults::clear_all();
     }
 
     /// The failure that actually loses a night: the cooler never reaches
@@ -465,12 +459,12 @@ mod fault_injection_tests {
             cam.status.sensor_temp = Some(20.0);
             cam.status.cooler_on = Some(true);
         }
-        sim_faults::arm(
+        faults::arm(
             "camera.cooler",
             FaultSpec::new(Trigger::Always, Effect::Stall),
         );
         // Latch the stall (the effect arms on first consultation).
-        sim_faults::check("camera.cooler")
+        faults::check("camera.cooler")
             .await
             .expect("stall latching should not fail the status read");
 
@@ -499,7 +493,7 @@ mod fault_injection_tests {
             (sensor - target).abs() > 1.0,
             "the sensor reached setpoint ({sensor}C vs {target}C) despite a stalled cooler"
         );
-        sim_faults::clear_all();
+        faults::clear_all();
     }
 
     /// A disconnect fault has to be distinguishable from an operation failure,
@@ -507,7 +501,7 @@ mod fault_injection_tests {
     #[tokio::test]
     async fn a_mid_session_disconnect_is_reported_as_a_disconnect() {
         let _guard = connected_camera().await;
-        sim_faults::arm(
+        faults::arm(
             "camera.status",
             FaultSpec::new(Trigger::Always, Effect::NotConnected),
         );
@@ -518,7 +512,7 @@ mod fault_injection_tests {
             matches!(err, DeviceOpError::NotConnected { .. }),
             "a lost handle must read as a disconnection: {err:?}"
         );
-        sim_faults::clear_all();
+        faults::clear_all();
     }
 }
 
@@ -527,15 +521,15 @@ mod fault_injection_tests {
 ///
 /// These drive the mount through the device manager rather than calling the
 /// gate directly. The gate, `mount.rs`'s simulator arms and
-/// `simulation::advance_sim_slew` can each be correct on their own and still
+/// `crate::simulator::advance_sim_slew` can each be correct on their own and still
 /// wire up to a mount only ever findable at the two endpoints of a slew, so
 /// only the assembled path proves the behaviour.
 #[cfg(test)]
 mod mount_motion_tests {
-    use crate::api::devices::simulation::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
     use crate::device::{DeviceInfo, DeviceType, DriverType, PierSide};
     use crate::device_manager::get_device_manager;
-    use crate::device_manager::ops::sim_faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+    use crate::simulator::{get_sim_mount, sim_singleton_test_lock, SimulatedMount};
     use crate::state::get_state;
     use crate::storage::ObserverLocation;
     use std::time::Duration;
@@ -562,11 +556,11 @@ mod mount_motion_tests {
                 elevation: 100.0,
             }))
             .expect("test site should be settable");
-        sim_faults::clear_all();
+        faults::clear_all();
         // The interpolation cell lives outside `SimulatedMount`, so resetting
         // the struct alone would leave the previous test's slew in flight and
         // this one's first command would be refused as "still moving".
-        crate::api::devices::simulation::cancel_sim_slew().await;
+        crate::simulator::cancel_sim_slew().await;
         let mut mount = get_sim_mount().write().await;
         *mount = SimulatedMount::default();
         mount.status.connected = true;
@@ -773,7 +767,7 @@ mod mount_motion_tests {
         attach_sim_mount(device_id).await;
         let mgr = get_device_manager();
 
-        sim_faults::arm(
+        faults::arm(
             "mount.command",
             FaultSpec::new(
                 Trigger::Always,
@@ -801,7 +795,7 @@ mod mount_motion_tests {
             );
         }
 
-        sim_faults::clear_all();
+        faults::clear_all();
     }
 
     /// A stalled mount has to be stalled for commands too.
@@ -818,9 +812,9 @@ mod mount_motion_tests {
         attach_sim_mount(device_id).await;
         let mgr = get_device_manager();
 
-        sim_faults::arm("mount.slew", FaultSpec::new(Trigger::Always, Effect::Stall));
+        faults::arm("mount.slew", FaultSpec::new(Trigger::Always, Effect::Stall));
         // The effect latches on first consultation.
-        sim_faults::check("mount.slew")
+        faults::check("mount.slew")
             .await
             .expect("stall latching should not fail the slew command");
 
@@ -835,7 +829,7 @@ mod mount_motion_tests {
              were jammed",
             stopped.right_ascension
         );
-        sim_faults::clear_all();
+        faults::clear_all();
     }
 }
 
@@ -846,7 +840,7 @@ mod tests {
     use chrono::TimeZone;
 
     fn parked_status() -> MountStatus {
-        crate::api::devices::simulation::SimulatedMount::default().status
+        crate::simulator::SimulatedMount::default().status
     }
 
     /// Altitude and azimuth have to follow the mount's own RA/Dec and the clock.
@@ -972,7 +966,7 @@ mod tests {
     /// from the pointing, and never overwrite a side a slew already recorded.
     #[test]
     fn a_mount_that_never_slewed_gets_a_side_once() {
-        use crate::api::devices::simulation::seed_unknown_pier_side;
+        use crate::simulator::seed_unknown_pier_side;
         let now = chrono::Utc.with_ymd_and_hms(2026, 7, 28, 3, 17, 0).unwrap();
         let lst = skotiq_sequencer::meridian::local_sidereal_time(
             skotiq_sequencer::meridian::julian_day(&now),
@@ -984,7 +978,7 @@ mod tests {
         seed_unknown_pier_side(&mut status, Some(lst));
         assert_eq!(
             status.side_of_pier,
-            Some(crate::api::devices::simulation::pier_side_after_slew_to(
+            Some(crate::simulator::pier_side_after_slew_to(
                 status.right_ascension,
                 lst
             ))

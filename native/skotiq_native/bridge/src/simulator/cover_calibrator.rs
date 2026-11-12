@@ -176,7 +176,7 @@ pub(crate) async fn advance_sim_cover_calibrator() {
     // A stalled lid does not move. The command that stalled it still returned
     // `Ok`, so the only evidence is that the state never becomes `Open` — which
     // is precisely the failure mode a real jammed Flip-Flat presents.
-    let stalled = crate::device_manager::ops::sim_faults::is_stalled("covercalibrator.cover");
+    let stalled = crate::simulator::faults::is_stalled("covercalibrator.cover");
     let mut cc = get_sim_cover_calibrator().write().await;
 
     if let Some(travel) = cc.cover_travel {

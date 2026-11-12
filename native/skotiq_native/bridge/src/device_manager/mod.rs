@@ -16,7 +16,6 @@ pub(crate) mod ops;
 pub(crate) mod policy;
 pub(crate) mod read_health;
 pub(crate) mod rig;
-pub(crate) mod simulated;
 
 use crate::device::*;
 use crate::state::SharedAppState;

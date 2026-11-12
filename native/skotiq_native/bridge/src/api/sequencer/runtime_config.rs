@@ -422,9 +422,7 @@ mod tests {
     /// same run state, without a lock at all).
     #[tokio::test]
     async fn status_and_settings_never_wait_on_the_executor() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let held = get_sequence_executor().write().await;
         let answer = std::time::Duration::from_secs(2);
 
@@ -444,9 +442,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_run_config_the_executor_refuses_changes_nothing_and_says_why() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let before = skotiq_sequencer::executor_handle().run_config();
 
         let refused = api_sequencer_apply_run_config(

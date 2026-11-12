@@ -8,10 +8,10 @@
 //! showed the old filter), two would double-log and double-toast.
 
 use super::property;
-use crate::api::devices::simulation as sim;
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::get_device_manager;
 use crate::event::{EquipmentEvent, EventPayload, SkotiqEvent};
+use crate::simulator as sim;
 use crate::state::get_state;
 use tokio::sync::broadcast::error::TryRecvError;
 use tokio::sync::broadcast::Receiver;
@@ -173,14 +173,14 @@ async fn a_failed_filter_move_reports_where_the_wheel_is() {
         .unwrap();
     let mut rx = get_state().event_bus.subscribe();
 
-    super::super::sim_faults::arm(
+    crate::simulator::faults::arm(
         "filterwheel.set_position",
-        super::super::sim_faults::FaultSpec::transient("the wheel jammed"),
+        crate::simulator::faults::FaultSpec::transient("the wheel jammed"),
     );
     let result = get_device_manager()
         .filter_wheel_set_position(WHEEL, 5)
         .await;
-    super::super::sim_faults::clear("filterwheel.set_position");
+    crate::simulator::faults::clear("filterwheel.set_position");
 
     assert!(result.is_err(), "the armed fault must fail the move");
     let events = drain(&mut rx);
