@@ -177,6 +177,12 @@ pub struct SensorInfo {
     pub bit_depth: u32,
     pub color: bool,
     pub bayer_pattern: Option<BayerPattern>,
+    /// Where the sensor stops responding linearly, in container units, when
+    /// the camera records it below `max_adu` (a DSLR's per-ISO saturation
+    /// level, read from its last raw file). Only saturation checks use it;
+    /// full-scale arithmetic (flat targets, gain scaling) keeps `max_adu`.
+    #[serde(default)]
+    pub saturation_adu: Option<u32>,
 }
 
 /// The color filter over a one-shot-color sensor, as it lies at the frame's

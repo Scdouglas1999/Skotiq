@@ -27,7 +27,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": 21.0,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 3651,
+    "saturation_source": "white level (Canon SpecularWhiteLevel 15120 is 14-bit; 3780 at 12 bits, above white)"
    }
   },
   {
@@ -56,7 +58,9 @@
     "offset_time_original": "+00:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": 35.0,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 11892,
+    "saturation_source": "Canon SpecularWhiteLevel"
    }
   },
   {
@@ -85,7 +89,9 @@
     "offset_time_original": "+00:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": 32.0,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 11892,
+    "saturation_source": "Canon SpecularWhiteLevel"
    }
   },
   {
@@ -114,7 +120,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 15872,
+    "saturation_source": "white level"
    }
   },
   {
@@ -143,7 +151,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 16383,
+    "saturation_source": "white level"
    }
   },
   {
@@ -172,7 +182,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 16383,
+    "saturation_source": "white level"
    }
   },
   {
@@ -201,7 +213,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 4095,
+    "saturation_source": "white level (Nikon records none)"
    }
   },
   {
@@ -230,7 +244,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": "-07:00"
+    "maker_note_offset": "-07:00",
+    "saturation_level": 16383,
+    "saturation_source": "white level (Nikon records none)"
    }
   },
   {
@@ -259,7 +275,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": "-07:00"
+    "maker_note_offset": "-07:00",
+    "saturation_level": 16383,
+    "saturation_source": "white level (Nikon records none)"
    }
   },
   {
@@ -288,7 +306,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": 32.0,
     "exif_camera_temperature": 5.0,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 4093,
+    "saturation_source": "Olympus SensorCalibration"
    }
   },
   {
@@ -317,7 +337,9 @@
     "offset_time_original": "-05:00",
     "exif_sensor_temperature": 26.0,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 4095,
+    "saturation_source": "Olympus SensorCalibration"
    }
   },
   {
@@ -346,7 +368,9 @@
     "offset_time_original": "-05:00",
     "exif_sensor_temperature": 27.0,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 4095,
+    "saturation_source": "Olympus SensorCalibration"
    }
   },
   {
@@ -375,7 +399,9 @@
     "offset_time_original": "+01:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 4079,
+    "saturation_source": "Panasonic LinearityLimit 4095 less the 16 ADU LibRaw keeps below it"
    }
   },
   {
@@ -404,7 +430,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 4079,
+    "saturation_source": "Panasonic LinearityLimit 4095 less the 16 ADU LibRaw keeps below it"
    }
   },
   {
@@ -433,7 +461,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": 32.4,
     "exif_camera_temperature": 29.0,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 16316,
+    "saturation_source": "Pentax WhiteLevel"
    }
   },
   {
@@ -462,7 +492,9 @@
     "offset_time_original": null,
     "exif_sensor_temperature": 32.4,
     "exif_camera_temperature": 29.0,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 16316,
+    "saturation_source": "Pentax WhiteLevel"
    }
   },
   {
@@ -491,7 +523,9 @@
     "offset_time_original": "+02:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 15360,
+    "saturation_source": "Sony SR2 WhiteLevel"
    }
   },
   {
@@ -520,7 +554,9 @@
     "offset_time_original": "+02:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 15360,
+    "saturation_source": "Sony SR2 WhiteLevel"
    }
   },
   {
@@ -549,7 +585,9 @@
     "offset_time_original": "+02:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null,
-    "maker_note_offset": null
+    "maker_note_offset": null,
+    "saturation_level": 15360,
+    "saturation_source": "Sony SR2 WhiteLevel"
    }
   }
  ]

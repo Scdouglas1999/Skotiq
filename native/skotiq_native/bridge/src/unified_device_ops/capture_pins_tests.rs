@@ -162,6 +162,7 @@ impl CameraDriver for FixedFrameCamera {
             bit_depth: 16,
             color: self.bayer_pattern.is_some(),
             bayer_pattern: self.bayer_pattern,
+            saturation_adu: None,
         }
     }
 

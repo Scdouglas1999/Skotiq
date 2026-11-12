@@ -311,6 +311,7 @@ impl DeviceDriver for SvbonyCamera {
             bit_depth: bit_depth_u32,
             color: is_color,
             bayer_pattern,
+            saturation_adu: None,
         };
 
         // SAFETY: SvbCameraInfo is `#[repr(C)]` POD; zero-init is the well-defined empty state.

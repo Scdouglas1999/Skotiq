@@ -1788,6 +1788,7 @@ typedef struct wire_cst_camera_status {
   double pixel_size_x;
   double pixel_size_y;
   uint32_t max_adu;
+  uint32_t *saturation_adu;
   bool can_cool;
   bool can_set_gain;
   bool can_set_offset;

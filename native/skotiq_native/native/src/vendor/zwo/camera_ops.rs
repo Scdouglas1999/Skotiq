@@ -812,6 +812,7 @@ impl CameraDriver for ZwoCamera {
                 } else {
                     None
                 },
+                saturation_adu: None,
             }
         } else {
             SensorInfo::default()

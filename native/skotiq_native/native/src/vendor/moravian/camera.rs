@@ -265,6 +265,7 @@ impl DeviceDriver for MoravianCamera {
                 bit_depth: 16,
                 color,
                 bayer_pattern,
+                saturation_adu: None,
             };
 
             self.capabilities = CameraCapabilities {

@@ -67,6 +67,7 @@ fn dump(path: &Path, out_dir: &Path, rgb: bool) -> Result<Value, String> {
         "cfa": frame.cfa.letters(),
         "black_levels": frame.black_levels,
         "white_level": frame.white_level,
+        "saturation_level": frame.saturation_level,
         "bits_per_pixel": frame.bits_per_pixel,
         "metadata": {
             "make": meta.make,

@@ -261,6 +261,7 @@ impl DeviceDriver for AtikCamera {
             bit_depth: 16,
             color: is_color,
             bayer_pattern,
+            saturation_adu: None,
         };
 
         // SAFETY: `props.description` is a 40-byte fixed array of c_char inside the SDK-filled

@@ -138,6 +138,7 @@ impl DeviceManager {
                                 .as_ref()
                                 .map(|c| if c.max_adu == 0 { 65535 } else { c.max_adu })
                                 .unwrap_or(65535),
+                            saturation_adu: None,
                             can_cool: ascom_caps
                                 .as_ref()
                                 .map(|c| c.can_set_ccd_temperature)
@@ -237,6 +238,7 @@ impl DeviceManager {
                         pixel_size_x: sensor.pixel_size_x,
                         pixel_size_y: sensor.pixel_size_y,
                         max_adu: sensor.max_adu as u32,
+                        saturation_adu: None,
                         can_cool: capabilities.can_set_ccd_temperature,
                         can_set_gain: gain.is_some(),
                         can_set_offset: offset.is_some(),
@@ -304,6 +306,7 @@ impl DeviceManager {
                         } else {
                             sensor_info.max_adu
                         },
+                        saturation_adu: sensor_info.saturation_adu,
                         can_cool: capabilities.can_cool,
                         can_set_gain: capabilities.can_set_gain,
                         can_set_offset: capabilities.can_set_offset,
@@ -483,6 +486,7 @@ impl DeviceManager {
                         pixel_size_x,
                         pixel_size_y,
                         max_adu,
+                        saturation_adu: None,
                         can_cool: has_cooler,
                         can_set_gain: has_gain,
                         can_set_offset: has_offset,

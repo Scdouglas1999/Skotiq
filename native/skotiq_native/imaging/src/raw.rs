@@ -49,6 +49,7 @@ struct RawInfoFfi {
     raw_height: c_int,
     raw_bps: c_int,
     white_level: c_uint,
+    linear_max: c_uint,
     filters: c_uint,
     colors: c_int,
     dng_version: c_int,
@@ -165,6 +166,13 @@ impl Maker {
     fn body_temperature_stands_for_sensor(self) -> bool {
         matches!(self, Maker::Canon | Maker::Pentax)
     }
+
+    /// Whether LibRaw's linear maximum for this maker is what the camera
+    /// recorded. For Nikon LibRaw fills in its own estimate (white level /
+    /// 1.07), which real frames exceed.
+    fn records_linear_max(self) -> bool {
+        self != Maker::Nikon
+    }
 }
 
 /// Where a frame's temperature reading comes from.
@@ -214,8 +222,13 @@ pub struct RawFrame {
     pub cfa: ColorFilterArray,
     /// The sensor's bit depth, from its white level.
     pub bits_per_pixel: u32,
-    /// The saturation level: the largest value a pixel can hold.
+    /// The largest value a pixel can hold (LibRaw `color.maximum`).
     pub white_level: u32,
+    /// Where the sensor stops responding linearly: the camera's recorded
+    /// linear maximum when it is below the white level (a Canon CR3 at ISO
+    /// 100 records 11892 in a 16383 container; it varies with the ISO), else
+    /// the white level. Only saturation checks use it.
+    pub saturation_level: u32,
     /// Black level at each position of the filter cell, row-major
     /// (`cfa.cell_size()` squared entries).
     pub black_levels: Vec<u32>,
@@ -237,7 +250,7 @@ impl RawFrame {
         header.set_int("BLKLEVEL", self.black_level() as i64);
         header.set_comment("BLKLEVEL", "camera black level (ADU), not subtracted");
         header.set_int("DATAMAX", self.white_level as i64);
-        header.set_comment("DATAMAX", "camera white (saturation) level (ADU)");
+        header.set_comment("DATAMAX", "camera white level (ADU)");
         header.set_int("BITDEPTH", self.bits_per_pixel as i64);
         header
     }
@@ -523,6 +536,14 @@ fn bits_for_white_level(white_level: u32, raw_bps: c_int) -> u32 {
     }
 }
 
+fn saturation_level(maker: Maker, white_level: u32, linear_max: u32) -> u32 {
+    if maker.records_linear_max() && linear_max > 0 && linear_max < white_level {
+        linear_max
+    } else {
+        white_level
+    }
+}
+
 fn decode(processor: Processor, record: CameraRecord) -> Result<RawFrame, RawError> {
     processor.unpack()?;
     let info = processor.describe()?;
@@ -552,6 +573,11 @@ fn decode(processor: Processor, record: CameraRecord) -> Result<RawFrame, RawErr
         cfa,
         bits_per_pixel: bits_for_white_level(info.white_level, info.raw_bps),
         white_level: info.white_level,
+        saturation_level: saturation_level(
+            Maker::from_make(&text(&info.make)),
+            info.white_level,
+            info.linear_max,
+        ),
         black_levels: info.cfa_black[..cell * cell].to_vec(),
         metadata: metadata_from(&info, record),
     })
@@ -664,6 +690,7 @@ mod tests {
             cfa: ColorFilterArray::parse("RGGB").unwrap(),
             bits_per_pixel: 14,
             white_level: 16383,
+            saturation_level: 11892,
             black_levels: vec![510, 511, 511, 510],
             metadata: RawMetadata {
                 make: "Canon".into(),
@@ -718,6 +745,16 @@ mod tests {
         );
         assert_eq!(capture_time(None, libraw), chrono::DateTime::from_timestamp(libraw, 0));
         assert_eq!(capture_time(None, 0), None);
+    }
+
+    #[test]
+    fn a_recorded_linear_maximum_below_white_is_the_saturation_level() {
+        assert_eq!(saturation_level(Maker::Canon, 16383, 11892), 11892);
+        // Above the white level (a 12-bit Canon) or not recorded: white.
+        assert_eq!(saturation_level(Maker::Canon, 3651, 3780), 3651);
+        assert_eq!(saturation_level(Maker::Sony, 16383, 0), 16383);
+        // LibRaw's own estimate for Nikon is not the camera's.
+        assert_eq!(saturation_level(Maker::Nikon, 4095, 3827), 4095);
     }
 
     #[test]

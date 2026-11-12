@@ -191,6 +191,7 @@ impl DeviceDriver for TouptekCamera {
             bit_depth,
             color: (device_info.model_flags & OGMACAM_FLAG_MONO) == 0,
             bayer_pattern,
+            saturation_adu: None,
         };
         self.name = match serial_number {
             Some(serial) => format!("{} ({})", device_info.name, serial),

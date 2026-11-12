@@ -683,6 +683,7 @@ impl CameraDriver for PlayerOneCamera {
                 } else {
                     None
                 },
+                saturation_adu: None,
             }
         } else {
             SensorInfo::default()

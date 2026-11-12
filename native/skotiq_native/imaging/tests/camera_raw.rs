@@ -370,6 +370,11 @@ fn public_samples_match_independent_readers() {
         check("height", frame.height == want["height"], frame.height.to_string());
         check("filter", frame.cfa.letters() == want["cfa"], frame.cfa.letters());
         check("white level", frame.white_level == want["white_level"], frame.white_level.to_string());
+        check(
+            "saturation level",
+            frame.saturation_level == want["saturation_level"],
+            frame.saturation_level.to_string(),
+        );
         check("mosaic", sha256(&mosaic) == want["mosaic_sha256"], sha256(&mosaic));
         // rawpy reports black by color channel; every position's black must be
         // one of them, and the mean must agree.

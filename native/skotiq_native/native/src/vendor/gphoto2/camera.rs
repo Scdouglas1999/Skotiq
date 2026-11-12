@@ -121,6 +121,9 @@ pub struct GPhoto2Camera {
     /// `None` until the first frame is decoded, when `resolve_max_adu` falls
     /// back to the model-table estimate.
     pub(crate) measured_white_level: Option<u32>,
+    /// The most recently decoded frame's saturation level when the camera
+    /// recorded one below its white level (it varies with the ISO).
+    pub(crate) measured_saturation_level: Option<u32>,
     pub(crate) is_color: bool,
 
     // Camera capabilities (populated on connect)
@@ -201,6 +204,7 @@ impl GPhoto2Camera {
             // and superseded by the decoded frame's real depth.
             bit_depth: 14,
             measured_white_level: None,
+            measured_saturation_level: None,
             is_color: true, // All DSLRs are color
             can_capture: false,
             can_preview: false,
@@ -1132,6 +1136,8 @@ impl GPhoto2Camera {
         // on. The mosaic is right-justified at its native depth, so the white
         // level is the container full scale and must not be scaled up.
         self.adopt_decoded_depth(frame.bits_per_pixel, frame.white_level);
+        self.measured_saturation_level =
+            (frame.saturation_level < frame.white_level).then_some(frame.saturation_level);
 
         tracing::info!(
             "gPhoto2: Decoded RAW mosaic: {}x{}, {}-bit, filter {}, camera: {} {} ({})",

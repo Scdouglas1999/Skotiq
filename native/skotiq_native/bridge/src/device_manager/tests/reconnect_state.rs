@@ -312,6 +312,7 @@ impl skotiq_device::CameraDriver for RecordingCoolerCamera {
             bit_depth: 16,
             color: false,
             bayer_pattern: None,
+            saturation_adu: None,
         }
     }
     async fn get_readout_modes(

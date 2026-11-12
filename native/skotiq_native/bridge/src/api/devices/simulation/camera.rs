@@ -127,6 +127,7 @@ impl Default for SimulatedCamera {
                 pixel_size_x: 3.76,
                 pixel_size_y: 3.76,
                 max_adu: crate::sim_frame::SIM_MAX_ADU as u32,
+                saturation_adu: None,
                 can_cool: true,
                 can_set_gain: true,
                 can_set_offset: true,
