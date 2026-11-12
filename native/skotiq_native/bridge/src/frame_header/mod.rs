@@ -211,9 +211,7 @@ impl FrameHeader {
                 header.set_int("ISOSPEED", gain as i64);
             }
         }
-        // A DSLR or mirrorless body has no offset control: a frame never
-        // records a card its camera cannot have.
-        if let Some(offset) = self.offset.filter(|_| !self.gain_is_iso) {
+        if let Some(offset) = self.offset {
             header.set_int("OFFSET", offset as i64);
         }
         if let Some(temp) = self.ccd_temp {
