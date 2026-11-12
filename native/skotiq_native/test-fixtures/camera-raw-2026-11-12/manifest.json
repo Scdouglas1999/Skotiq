@@ -24,6 +24,7 @@
     "focal_mm": 35.0,
     "lens": "EF-S18-55mm f/3.5-5.6 IS",
     "date_time_original": "2015-09-27T11:17:39",
+    "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": 21.0
    }
@@ -51,6 +52,7 @@
     "focal_mm": 18.0,
     "lens": "EF-M18-150mm f/3.5-6.3 IS STM",
     "date_time_original": "2021-05-10T20:11:06",
+    "offset_time_original": "+00:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": 35.0
    }
@@ -78,6 +80,7 @@
     "focal_mm": 18.0,
     "lens": "EF-M18-150mm f/3.5-6.3 IS STM",
     "date_time_original": "2021-05-10T20:08:34",
+    "offset_time_original": "+00:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": 32.0
    }
@@ -105,6 +108,7 @@
     "focal_mm": 63.0,
     "lens": "GF63mmF2.8 R WR",
     "date_time_original": "2017-05-25T05:26:05",
+    "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -132,6 +136,7 @@
     "focal_mm": 23.0,
     "lens": "XF23mmF1.4 R",
     "date_time_original": "2017-12-29T11:09:16",
+    "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -159,6 +164,7 @@
     "focal_mm": 35.0,
     "lens": "XF35mmF2 R WR",
     "date_time_original": "2018-09-25T16:54:03",
+    "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -186,6 +192,7 @@
     "focal_mm": 30.0,
     "lens": null,
     "date_time_original": "2019-12-25T11:50:21",
+    "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -213,6 +220,7 @@
     "focal_mm": 50.0,
     "lens": null,
     "date_time_original": "2017-01-22T14:18:36",
+    "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -240,6 +248,7 @@
     "focal_mm": 50.0,
     "lens": null,
     "date_time_original": "2017-01-22T14:19:05",
+    "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -267,6 +276,7 @@
     "focal_mm": 58.0,
     "lens": "OLYMPUS M.40-150mm F4.0-5.6 R",
     "date_time_original": "2017-03-18T15:54:01",
+    "offset_time_original": null,
     "exif_sensor_temperature": 32.0,
     "exif_camera_temperature": 5.0
    }
@@ -294,6 +304,7 @@
     "focal_mm": 14.0,
     "lens": "OLYMPUS M.7-14mm F2.8",
     "date_time_original": "2022-03-05T15:47:24",
+    "offset_time_original": "-05:00",
     "exif_sensor_temperature": 26.0,
     "exif_camera_temperature": null
    }
@@ -321,6 +332,7 @@
     "focal_mm": 14.0,
     "lens": "OLYMPUS M.7-14mm F2.8",
     "date_time_original": "2022-03-05T15:47:40",
+    "offset_time_original": "-05:00",
     "exif_sensor_temperature": 27.0,
     "exif_camera_temperature": null
    }
@@ -348,6 +360,7 @@
     "focal_mm": 40.0,
     "lens": null,
     "date_time_original": "2018-05-17T11:50:52",
+    "offset_time_original": "+01:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -375,6 +388,7 @@
     "focal_mm": 35.0,
     "lens": null,
     "date_time_original": "2018-05-10T08:41:30",
+    "offset_time_original": null,
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -402,6 +416,7 @@
     "focal_mm": 90.0,
     "lens": null,
     "date_time_original": "2017-06-05T16:00:39",
+    "offset_time_original": null,
     "exif_sensor_temperature": 32.4,
     "exif_camera_temperature": 29.0
    }
@@ -429,6 +444,7 @@
     "focal_mm": 90.0,
     "lens": null,
     "date_time_original": "2017-06-05T16:01:00",
+    "offset_time_original": null,
     "exif_sensor_temperature": 32.4,
     "exif_camera_temperature": 29.0
    }
@@ -456,6 +472,7 @@
     "focal_mm": 50.0,
     "lens": "FE 50mm F2.5 G",
     "date_time_original": "2023-10-19T16:13:48",
+    "offset_time_original": "+02:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -483,6 +500,7 @@
     "focal_mm": 50.0,
     "lens": "FE 50mm F2.5 G",
     "date_time_original": "2023-10-19T16:15:24",
+    "offset_time_original": "+02:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }
@@ -510,6 +528,7 @@
     "focal_mm": 50.0,
     "lens": "FE 50mm F2.5 G",
     "date_time_original": "2023-10-19T16:12:37",
+    "offset_time_original": "+02:00",
     "exif_sensor_temperature": null,
     "exif_camera_temperature": null
    }

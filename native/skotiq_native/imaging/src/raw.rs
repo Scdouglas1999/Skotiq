@@ -11,6 +11,7 @@
 //! `libraw_shim.c`, which build.rs compiles against the headers of the linked
 //! library, so struct layouts always agree with the library at run time.
 
+use crate::raw_clock::{camera_clock, CameraClock};
 use crate::{ColorFilterArray, FitsHeader, ImageData};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_float, c_int, c_longlong, c_uint, c_ushort, c_void};
@@ -188,8 +189,10 @@ pub struct RawMetadata {
     pub exposure_seconds: Option<f64>,
     pub f_number: Option<f32>,
     pub focal_length_mm: Option<f32>,
-    /// The camera clock read as local time on this computer, as LibRaw reads
-    /// it: right when the camera is set to the local time zone.
+    /// Exact when the camera recorded its UTC offset (EXIF
+    /// `OffsetTimeOriginal`); otherwise the camera clock read as local time on
+    /// this computer, which is right only when the camera is set to this
+    /// computer's time zone.
     pub captured_at: Option<chrono::DateTime<chrono::Utc>>,
     pub temperature: Option<SensorTemperature>,
 }
@@ -448,7 +451,27 @@ fn frame_temperature(maker: Maker, info: &RawInfoFfi) -> Option<SensorTemperatur
         })
 }
 
-fn metadata_from(info: &RawInfoFfi) -> RawMetadata {
+/// The camera's EXIF clock decides; LibRaw's own reading only when the file
+/// holds none this crate can find.
+fn capture_time(
+    clock: Option<CameraClock>,
+    libraw_timestamp: i64,
+) -> Option<chrono::DateTime<chrono::Utc>> {
+    match clock {
+        Some(clock) => clock.utc().or_else(|| {
+            clock
+                .wall
+                .and_local_timezone(chrono::Local)
+                .earliest()
+                .map(|t| t.with_timezone(&chrono::Utc))
+        }),
+        None => (libraw_timestamp > 0)
+            .then(|| chrono::DateTime::from_timestamp(libraw_timestamp, 0))
+            .flatten(),
+    }
+}
+
+fn metadata_from(info: &RawInfoFfi, clock: Option<CameraClock>) -> RawMetadata {
     let make = text(&info.make);
     let maker = Maker::from_make(&make);
     let lens = text(&info.lens);
@@ -463,9 +486,7 @@ fn metadata_from(info: &RawInfoFfi) -> RawMetadata {
             .map(|s| s.to_string().parse::<f64>().unwrap_or(s as f64)),
         f_number: positive(info.aperture),
         focal_length_mm: positive(info.focal_length),
-        captured_at: (info.timestamp > 0)
-            .then(|| chrono::DateTime::from_timestamp(info.timestamp, 0))
-            .flatten(),
+        captured_at: capture_time(clock, info.timestamp),
         temperature: frame_temperature(maker, info),
     }
 }
@@ -496,7 +517,7 @@ fn bits_for_white_level(white_level: u32, raw_bps: c_int) -> u32 {
     }
 }
 
-fn decode(processor: Processor) -> Result<RawFrame, RawError> {
+fn decode(processor: Processor, clock: Option<CameraClock>) -> Result<RawFrame, RawError> {
     processor.unpack()?;
     let info = processor.describe()?;
     let cfa = color_filter_from(&info)?;
@@ -526,18 +547,25 @@ fn decode(processor: Processor) -> Result<RawFrame, RawError> {
         bits_per_pixel: bits_for_white_level(info.white_level, info.raw_bps),
         white_level: info.white_level,
         black_levels: info.cfa_black[..cell * cell].to_vec(),
-        metadata: metadata_from(&info),
+        metadata: metadata_from(&info, clock),
     })
 }
 
 /// Decode a raw file on disk.
 pub fn read_raw_file(path: &Path) -> Result<RawFrame, RawError> {
-    decode(Processor::open_path(path)?)
+    let processor = Processor::open_path(path)?;
+    decode(processor, file_clock(path))
 }
 
 /// Decode a raw file held in memory, as a camera download delivers it.
 pub fn read_raw_bytes(bytes: &[u8]) -> Result<RawFrame, RawError> {
-    decode(Processor::open_bytes(bytes)?)
+    let processor = Processor::open_bytes(bytes)?;
+    decode(processor, camera_clock(&mut std::io::Cursor::new(bytes)))
+}
+
+fn file_clock(path: &Path) -> Option<CameraClock> {
+    let file = std::fs::File::open(path).ok()?;
+    camera_clock(&mut std::io::BufReader::new(file))
 }
 
 /// A raw file's header without decoding the sensor data. The black and white
@@ -550,7 +578,7 @@ pub fn read_raw_header(path: &Path) -> Result<FitsHeader, RawError> {
     let mut header = FitsHeader::new();
     describe_into(
         &mut header,
-        &metadata_from(&info),
+        &metadata_from(&info, file_clock(path)),
         info.width.max(0) as u32,
         info.height.max(0) as u32,
         cfa.as_ref(),
@@ -664,6 +692,22 @@ mod tests {
         for key in ["INSTRUME", "EXPTIME", "GAIN", "CCD-TEMP", "DATE-OBS", "BAYERPAT", "LENS"] {
             assert!(header.get(key).is_none(), "{key}");
         }
+    }
+
+    #[test]
+    fn the_cameras_recorded_offset_decides_the_capture_time() {
+        let wall =
+            chrono::NaiveDateTime::parse_from_str("2023-10-19 16:13:48", "%Y-%m-%d %H:%M:%S")
+                .unwrap();
+        // LibRaw's reading: the same wall clock taken as US Eastern time.
+        let libraw = 1_697_746_428;
+        let clock = CameraClock { wall, offset: chrono::FixedOffset::east_opt(2 * 3600) };
+        assert_eq!(
+            capture_time(Some(clock), libraw).map(|t| t.to_rfc3339()),
+            Some("2023-10-19T14:13:48+00:00".to_string())
+        );
+        assert_eq!(capture_time(None, libraw), chrono::DateTime::from_timestamp(libraw, 0));
+        assert_eq!(capture_time(None, 0), None);
     }
 
     #[test]

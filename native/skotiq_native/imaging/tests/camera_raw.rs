@@ -21,6 +21,11 @@ use std::path::{Path, PathBuf};
 const XTRANS: &str = "GGRGGBGGBGGRBRGRBGGGBGGRGGRGGBRBGBRG";
 const BLACK: u16 = 512;
 const WHITE: u32 = 16383;
+/// The synthetic files' capture time: the camera's wall clock and its UTC
+/// offset as EXIF records them, and the UTC time they mean.
+const CAMERA_CLOCK: &str = "2021:05:10 20:08:34";
+const CAMERA_OFFSET: &str = "+02:00";
+const CAPTURED_UTC: &str = "2021-05-10T18:08:34";
 
 fn level(color: BayerColor) -> u16 {
     match color {
@@ -36,8 +41,35 @@ fn synthetic_pixel(cfa: &ColorFilterArray, x: usize, y: usize) -> u16 {
     BLACK + level(cfa.color_at(x, y)) + ((x + y) % 7) as u16
 }
 
+/// An Exif IFD placed at file offset `at`: DateTimeOriginal and
+/// OffsetTimeOriginal.
+fn exif_ifd(at: usize) -> Vec<u8> {
+    let strings = [
+        (0x9003u16, format!("{CAMERA_CLOCK}\0")),
+        (0x9011, format!("{CAMERA_OFFSET}\0")),
+    ];
+    let mut value_at = at + 2 + strings.len() * 12 + 4;
+    let mut ifd = (strings.len() as u16).to_le_bytes().to_vec();
+    for (tag, text) in &strings {
+        ifd.extend_from_slice(&tag.to_le_bytes());
+        ifd.extend_from_slice(&2u16.to_le_bytes());
+        ifd.extend_from_slice(&(text.len() as u32).to_le_bytes());
+        ifd.extend_from_slice(&(value_at as u32).to_le_bytes());
+        value_at += text.len();
+    }
+    ifd.extend_from_slice(&0u32.to_le_bytes());
+    for (_, text) in &strings {
+        ifd.extend_from_slice(text.as_bytes());
+    }
+    if ifd.len() % 2 == 1 {
+        ifd.push(0);
+    }
+    ifd
+}
+
 /// A minimal uncompressed DNG: one IFD, a 16-bit CFA strip, the filter cell,
-/// black and white level, make and model.
+/// black and white level, make and model, and an Exif IFD with the capture
+/// time.
 fn write_dng(path: &Path, width: usize, height: usize, letters: &str) {
     let cfa = ColorFilterArray::parse(letters).unwrap();
     let cell = cfa.cell_size();
@@ -89,10 +121,13 @@ fn write_dng(path: &Path, width: usize, height: usize, letters: &str) {
         (50721, SRATIONAL, 9, Some(identity)),
         (50778, SHORT, 1, Some(le16(21))),
     ];
-    entries.sort_by_key(|e| e.0);
     let ifd_offset = 8usize;
-    let ifd_len = 2 + entries.len() * 12 + 4;
-    let data_offset = ifd_offset + ifd_len;
+    let ifd_len = 2 + (entries.len() + 1) * 12 + 4;
+    let exif_offset = ifd_offset + ifd_len;
+    entries.push((34665, LONG, 1, Some(le32(exif_offset as u32))));
+    entries.sort_by_key(|e| e.0);
+    let exif = exif_ifd(exif_offset);
+    let data_offset = exif_offset + exif.len();
     let extra_offset = data_offset + data.len();
     let mut ifd = (entries.len() as u16).to_le_bytes().to_vec();
     let mut extra = Vec::new();
@@ -117,6 +152,7 @@ fn write_dng(path: &Path, width: usize, height: usize, letters: &str) {
     let mut file = b"II*\0".to_vec();
     file.extend_from_slice(&(ifd_offset as u32).to_le_bytes());
     file.extend_from_slice(&ifd);
+    file.extend_from_slice(&exif);
     file.extend_from_slice(&data);
     file.extend_from_slice(&extra);
     std::fs::write(path, file).unwrap();
@@ -164,6 +200,8 @@ fn check_synthetic(letters: &str, width: usize, height: usize) {
     assert_eq!(header.get_string("INSTRUME"), Some("Skotiq Synthetic"));
     assert_eq!(header.get_int("BLKLEVEL"), Some(BLACK as i64));
     assert_eq!(header.get_int("DATAMAX"), Some(WHITE as i64));
+    // UTC from the camera's recorded offset, whatever zone this computer is in.
+    assert_eq!(header.get_string("DATE-OBS"), Some(CAPTURED_UTC));
     let only_header = read_frame_header(&path).unwrap();
     assert_eq!(only_header.get_string("BAYERPAT"), Some(letters));
     assert_eq!(only_header.get_int("NAXIS1"), Some(width as i64));
@@ -268,10 +306,24 @@ fn public_samples_match_independent_readers() {
         if let Some(lens) = &meta.lens {
             check("lens", want["lens"] == lens.as_str(), lens.clone());
         }
-        let local = meta
-            .captured_at
-            .map(|t| t.with_timezone(&chrono::Local).format("%Y-%m-%dT%H:%M:%S").to_string());
-        check("time", local.as_deref() == want["date_time_original"].as_str(), format!("{local:?}"));
+        // With a recorded UTC offset the time is exact; without one it is the
+        // camera clock read in this computer's zone.
+        let wall = want["date_time_original"].as_str().unwrap();
+        let (got, expected) = match want["offset_time_original"].as_str() {
+            Some(offset) => (
+                meta.captured_at.map(|t| t.to_rfc3339()),
+                chrono::DateTime::parse_from_rfc3339(&format!("{wall}{offset}"))
+                    .ok()
+                    .map(|t| t.with_timezone(&chrono::Utc).to_rfc3339()),
+            ),
+            None => (
+                meta.captured_at.map(|t| {
+                    t.with_timezone(&chrono::Local).format("%Y-%m-%dT%H:%M:%S").to_string()
+                }),
+                Some(wall.to_string()),
+            ),
+        };
+        check("time", got.is_some() && got == expected, format!("{got:?}, expected {expected:?}"));
         let temperature = meta.temperature;
         let expected_source = if !want["exif_sensor_temperature"].is_null()
             && meta.maker() == skotiq_imaging::Maker::Olympus

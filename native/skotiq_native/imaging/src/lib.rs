@@ -42,6 +42,7 @@ mod phd2;
 mod platesolve;
 mod frame_io;
 mod raw;
+mod raw_clock;
 pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
 pub mod registration; // NEW: High-quality star-based registration
 mod resample;
