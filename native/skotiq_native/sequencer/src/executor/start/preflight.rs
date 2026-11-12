@@ -186,7 +186,7 @@ impl SequenceExecutor {
             .as_ref()
             .is_some_and(|root| tree_contains_centering(&**root));
 
-        if meridian_auto_centers && !tree_centers && !skotiq_imaging::is_solver_available() {
+        if meridian_auto_centers && !tree_centers && !skotiq_platesolve::is_solver_available() {
             // A WARNING, not an error: the run is starting and will very
             // probably finish. Sent as `Error`, this sentence gave a completed
             // 3/3 darks run a "Sequence failed / Sequence aborted" toast, a
@@ -202,7 +202,7 @@ impl SequenceExecutor {
         }
 
         if tree_centers {
-            if !skotiq_imaging::is_solver_available() {
+            if !skotiq_platesolve::is_solver_available() {
                 return Err(
                     "This sequence centers on a target but no plate solver (ASTAP or \
                  solve-field) was found on this system. Install and configure a plate \
@@ -210,7 +210,7 @@ impl SequenceExecutor {
                         .to_string(),
                 );
             }
-            if skotiq_imaging::detect_astap_catalog(None, None).is_none() {
+            if skotiq_platesolve::detect_astap_catalog(None, None).is_none() {
                 tracing::warn!(
                     "Plate-solve preflight: a solver is installed but no ASTAP star catalog was \
                  detected. ASTAP needs a star database installed separately from astap.exe."

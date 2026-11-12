@@ -1,7 +1,7 @@
 //! Pure-function platform-specific path enumeration for plate-solver
 //! detection.
 //!
-//! Split out from `platesolve.rs` so the candidate-path logic can be
+//! Kept apart from the solver driver so the candidate-path logic can be
 //! unit-tested without touching the real filesystem. The `Fs` trait
 //! abstracts path-existence checks; tests inject a synthetic in-memory FS
 //! and assert which candidate the probe selected.
@@ -12,8 +12,7 @@
 
 use std::path::{Path, PathBuf};
 
-/// File-system probe abstraction. The real implementation in
-/// `platesolve.rs` uses `Path::exists()`; tests inject a synthetic FS so the
+/// File-system probe abstraction. The driver uses [`RealFs`]; tests inject a synthetic FS so the
 /// path-enumeration logic can be exercised without writing to disk.
 pub trait Fs {
     fn exists(&self, path: &Path) -> bool;
@@ -220,7 +219,7 @@ pub fn catalog_dir_candidates(inputs: &CatalogSearchInputs<'_>) -> Vec<PathBuf> 
 }
 
 /// Identifying information about a detected ASTAP star catalog. Returned by
-/// the catalog scanner in `platesolve.rs`; lives here so tests can build
+/// the driver's catalog scanner; lives here so tests can build
 /// instances without touching the filesystem.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CatalogInfo {

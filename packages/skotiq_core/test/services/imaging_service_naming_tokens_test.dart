@@ -1,12 +1,9 @@
 // `$SEQUENCE` must mean the sequence, not the target.
 //
-// ImagingService documents its `$VARIABLE` set as "honoured here so that
-// patterns shared between the Dart and Rust capture paths behave identically",
-// and the Rust generator (native/skotiq_native/imaging/src/naming.rs)
-// resolves `$SEQUENCE` to `ctx.sequence`, falling back to the literal
-// "Sequence". The Dart side substituted the TARGET name instead, so one pattern
-// filed sequencer frames under the plan's name and manual frames of the same
-// object under the object's name — in a folder labelled as a sequence.
+// With no sequence, `$SEQUENCE` resolves to the literal "Sequence". The target
+// name there would file sequencer frames under the plan's name and manual
+// frames of the same object under the object's name, in a folder labelled as a
+// sequence.
 
 import 'dart:async';
 import 'dart:io';

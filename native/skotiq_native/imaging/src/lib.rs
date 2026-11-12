@@ -6,10 +6,6 @@
 //! - Image debayering for color cameras
 //! - Image statistics and star detection
 //! - Auto-stretch algorithms
-//! - File naming patterns
-//! - Camera control abstraction
-//! - Plate solving via ASTAP
-//! - PHD2 guiding integration
 //! - Buffer pooling for efficient image capture
 
 pub mod background_extraction; // NEW: DBE/ABE-style background gradient extraction
@@ -34,12 +30,9 @@ pub mod frame_weighting; // NEW: Per-sub quality weighting for batch integration
 pub mod integration; // NEW: Advanced weighted batch integration + pixel rejection
 pub mod master_accumulation; // NEW: Multi-night accumulating master frame
 pub mod mosaic_stitch; // NEW: WCS-driven panel mosaic stitching
-mod naming;
 pub mod normalization; // NEW: Light-frame normalization to a reference (batch integration)
 mod numeric;
 pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
-mod phd2;
-mod platesolve;
 mod frame_io;
 mod raw;
 mod raw_exif;
@@ -77,11 +70,8 @@ pub use frame_weighting::*; // NEW: Export frame-weighting types
 pub use integration::*; // NEW: Export batch-integration types
 pub use master_accumulation::*; // NEW: Export accumulating-master types
 pub use mosaic_stitch::*; // NEW: Export mosaic-stitching types
-pub use naming::*;
 pub use normalization::*; // NEW: Export normalization types
 pub use optimizer::*; // NEW: Export integration-optimizer types
-pub use phd2::*;
-pub use platesolve::*;
 pub use frame_io::*;
 pub use raw::*;
 /// The color-composite stages, under the name the bridge imports them by.
@@ -99,8 +89,6 @@ pub use xisf::{
     read_xisf_unit, ChecksumAlgorithm, XisfCodec, XisfCompression, XisfError, XisfUnit,
     XisfWriteOptions,
 };
-
-use rayon::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PixelType {
@@ -130,23 +118,6 @@ impl PixelType {
             PixelType::F64 => 64,
         }
     }
-}
-
-/// Errors produced by `ImageData` display-conversion routines.
-///
-/// These are typed rather than papered over with a synthetic gray buffer: a
-/// mid-gray image at the display layer is indistinguishable from a failed
-/// capture, so hiding an unsupported channel layout hides debayer and reader
-/// bugs with it. Callers decide how to report the failure (snackbar, log,
-/// abort frame, etc.).
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum ImageDisplayError {
-    /// The image has a channel count the display pipeline does not know how
-    /// to render. Supported layouts are 1 (mono), 3 (RGB), and 4 (RGBA).
-    #[error(
-        "unsupported channel layout for display: a {channels}-channel image; supported counts are 1 (mono), 3 (RGB), and 4 (RGBA)"
-    )]
-    UnsupportedChannelLayout { channels: u32 },
 }
 
 #[derive(Debug, Clone)]
@@ -261,56 +232,6 @@ impl ImageData {
             return apply_stretch_rgb_per_channel(&rgb, self.width, self.height, &r, &g, &b);
         }
         apply_stretch(self, &auto_stretch_stf(self))
-    }
-
-    /// Convert to RGBA for Flutter display.
-    ///
-    /// Handles channel counts of 1 (mono), 3 (RGB), and 4 (RGBA). Any other
-    /// channel count returns `ImageDisplayError::UnsupportedChannelLayout`
-    /// rather than silently producing a mid-gray buffer; a gray frame at the
-    /// display layer is indistinguishable from a failed capture and hides
-    /// real upstream bugs (debayer, reader, calibration).
-    ///
-    /// This is the critical fix for the Fujifilm X-Trans / 3-channel RGB case
-    /// that NINA couldn't handle.
-    pub fn to_rgba(&self) -> Result<Vec<u8>, ImageDisplayError> {
-        let display = self.to_display_u8();
-        let pixels = (self.width as usize) * (self.height as usize);
-
-        match self.channels {
-            1 => {
-                let mut rgba = vec![255u8; pixels * 4];
-                rgba.par_chunks_mut(4 << 12)
-                    .zip(display.par_chunks(1 << 12))
-                    .for_each(|(rgba, gray)| {
-                        for (out, &v) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(gray) {
-                            out[..3].fill(v);
-                        }
-                    });
-                Ok(rgba)
-            }
-            3 => {
-                let mut rgba = vec![255u8; pixels * 4];
-                rgba.par_chunks_mut(4 << 12)
-                    .zip(display.par_chunks(3 << 12))
-                    .for_each(|(rgba, rgb)| {
-                        for (out, rgb) in rgba
-                            .as_chunks_mut::<4>()
-                            .0
-                            .iter_mut()
-                            .zip(rgb.as_chunks::<3>().0)
-                        {
-                            out[..3].copy_from_slice(rgb);
-                        }
-                    });
-                Ok(rgba)
-            }
-            // Already RGBA (some TIFFs, PNGs)
-            4 => Ok(display),
-            // Fail loudly so the caller can surface a real error to the user
-            // instead of displaying a gray placeholder.
-            other => Err(ImageDisplayError::UnsupportedChannelLayout { channels: other }),
-        }
     }
 }
 
@@ -660,99 +581,6 @@ mod tests {
         assert!(display[0] > display[1]);
         assert!(display[0] > display[2]);
         assert!(display[5] >= display[4]);
-    }
-
-    #[test]
-    fn to_rgba_returns_ok_for_supported_mono_layout() {
-        // 2x2 mono u16 image; supported, must not error.
-        let image = ImageData::from_u16(2, 2, 1, &[0, 32768, 32768, 65535]);
-        let rgba = image
-            .to_rgba()
-            .expect("mono (1-channel) layout must be supported");
-        assert_eq!(rgba.len(), 2 * 2 * 4);
-        // Alpha channel must be fully opaque on every pixel.
-        for px in rgba.as_chunks::<4>().0.iter() {
-            assert_eq!(px[3], 255);
-        }
-    }
-
-    #[test]
-    fn to_rgba_returns_ok_for_supported_rgb_layout() {
-        let image = ImageData::from_u16(1, 2, 3, &[65535, 0, 0, 0, 32768, 65535]);
-        let rgba = image
-            .to_rgba()
-            .expect("3-channel RGB layout must be supported");
-        // 1 x 2 pixels x 4 bytes (RGBA).
-        assert_eq!(rgba.len(), 2 * 4);
-    }
-
-    #[test]
-    fn to_rgba_returns_ok_for_supported_rgba_layout() {
-        let image = ImageData {
-            width: 1,
-            height: 1,
-            channels: 4,
-            pixel_type: PixelType::U8,
-            data: vec![10, 20, 30, 200],
-            range: crate::SampleRange::of(PixelType::U8),
-        };
-        let rgba = image
-            .to_rgba()
-            .expect("4-channel RGBA layout must be supported");
-        assert_eq!(rgba, vec![10, 20, 30, 200]);
-    }
-
-    #[test]
-    fn to_rgba_returns_loud_error_on_unsupported_five_channel_layout() {
-        // An unsupported channel count must surface a typed error naming the
-        // count, never a gray buffer indistinguishable from a failed capture.
-        let image = ImageData {
-            width: 4,
-            height: 4,
-            channels: 5,
-            pixel_type: PixelType::U16,
-            data: vec![0u8; 4 * 4 * 5 * 2],
-            range: crate::SampleRange::of(PixelType::U16),
-        };
-
-        let err = image
-            .to_rgba()
-            .expect_err("5-channel layout must surface an error, not a gray fallback");
-
-        assert_eq!(
-            err,
-            ImageDisplayError::UnsupportedChannelLayout { channels: 5 }
-        );
-
-        // The display message must name the offending channel count so it is
-        // useful in a snackbar / log without further inspection.
-        let msg = err.to_string();
-        assert!(
-            msg.contains('5'),
-            "error message must name the channel count, got: {msg}"
-        );
-        assert!(
-            msg.to_lowercase().contains("channel"),
-            "error message must reference channels, got: {msg}"
-        );
-    }
-
-    #[test]
-    fn to_rgba_returns_loud_error_on_zero_channel_layout() {
-        // Degenerate-but-possible case from a corrupt header; must error,
-        // not produce a gray buffer.
-        let image = ImageData {
-            width: 1,
-            height: 1,
-            channels: 0,
-            pixel_type: PixelType::U16,
-            data: vec![],
-            range: crate::SampleRange::of(PixelType::U16),
-        };
-        assert_eq!(
-            image.to_rgba().unwrap_err(),
-            ImageDisplayError::UnsupportedChannelLayout { channels: 0 }
-        );
     }
 
     /// RAII guard so the temp FITS fixture is removed even if an assertion panics.

@@ -38,7 +38,7 @@
 //! ```
 //!
 //! Coefficients are packed **row-major**: the term `(i, j)` lives at index
-//! `i * (order + 1) + j`, matching [`crate::platesolve::PlateSolveResult`] and
+//! `i * (order + 1) + j`, matching [`PlateSolveResult`] and
 //! `gnomonic_projection.dart`. All trig is in radians; the public interface is
 //! degrees in / degrees out and **0-based** pixels (matching the resampler and
 //! [`crate::ImageData`] indexing).
@@ -101,6 +101,54 @@ pub struct SipWcs {
     pub bp_coeffs: Vec<f64>,
 }
 
+/// One solve, referenced at the frame center: `ra`/`dec` are the solution's
+/// reference point (`CRVAL`) with the center pixel as its reference pixel, and
+/// the CD matrix and SIP polynomials are those about that pixel. Every solver
+/// output is brought to this form where it is parsed, so centering, the
+/// frame's WCS ([`crate::SipWcs::from_plate_solve`]) and the app read one
+/// solution.
+#[derive(Debug, Clone, Default)]
+pub struct PlateSolveResult {
+    /// RA of the frame center in degrees
+    pub ra: f64,
+    /// Dec of the frame center in degrees
+    pub dec: f64,
+    /// Image scale in arcsec/pixel
+    pub pixel_scale: f64,
+    /// Rotation angle in degrees (East of North)
+    pub rotation: f64,
+    /// Field width in degrees
+    pub field_width: f64,
+    /// Field height in degrees
+    pub field_height: f64,
+    pub success: bool,
+    pub error: Option<String>,
+    /// Time taken to solve in seconds
+    pub solve_time_secs: f64,
+    /// Raw CD matrix (deg/pixel) as read from the WCS — the full anisotropic
+    /// transform. `pixel_scale`/`rotation` above are the isotropic collapse
+    /// kept for backward compatibility. Zero when no WCS was parsed.
+    pub cd1_1: f64,
+    pub cd1_2: f64,
+    pub cd2_1: f64,
+    pub cd2_2: f64,
+    /// SIP forward distortion order (`A_ORDER`/`B_ORDER`). Zero when absent.
+    pub a_order: u32,
+    pub b_order: u32,
+    /// SIP forward coefficients in row-major `(i, j)` order: the slot for term
+    /// `A_i_j` is at index `i * (order + 1) + j` (likewise `B_i_j`). Empty when
+    /// no SIP keywords were present.
+    pub a_coeffs: Vec<f64>,
+    pub b_coeffs: Vec<f64>,
+    /// SIP inverse distortion order (`AP_ORDER`/`BP_ORDER`). Zero when absent.
+    pub ap_order: u32,
+    pub bp_order: u32,
+    /// SIP inverse coefficients, same row-major `(i, j)` layout as the forward
+    /// terms. Empty when the inverse keywords were not present.
+    pub ap_coeffs: Vec<f64>,
+    pub bp_coeffs: Vec<f64>,
+}
+
 impl SipWcs {
     /// The WCS of a solve of a `width` × `height` frame: the solved position
     /// (the solver's reference point, which the result reports for the
@@ -110,11 +158,7 @@ impl SipWcs {
     ///
     /// `None` for a failed solve, or one whose astrometry cannot be inverted,
     /// so no caller stamps or folds a frame by a projection that is not one.
-    pub fn from_plate_solve(
-        r: &crate::platesolve::PlateSolveResult,
-        width: u32,
-        height: u32,
-    ) -> Option<Self> {
+    pub fn from_plate_solve(r: &PlateSolveResult, width: u32, height: u32) -> Option<Self> {
         if !r.success || width == 0 || height == 0 {
             return None;
         }
@@ -288,7 +332,7 @@ impl SipWcs {
     /// `CRVAL` the sky position this solution gives that pixel.
     ///
     /// A plate solve is reported at the frame center
-    /// ([`crate::platesolve::PlateSolveResult`]); astrometry.net by default
+    /// ([`PlateSolveResult`]); astrometry.net by default
     /// anchors its solution on a matched star pattern anywhere in the frame.
     /// Moving the tangent point is a projective map of the tangent plane, not
     /// a polynomial one, so the CD matrix and the forward SIP polynomials are
@@ -809,7 +853,6 @@ fn normalize_deg(d: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::platesolve::PlateSolveResult;
 
     /// A representative CD matrix: ~2 arcsec/px, ~12° rotation, RA-flipped (the
     /// sign convention of `SipWcs::from_pointing`). Reference pixel at the

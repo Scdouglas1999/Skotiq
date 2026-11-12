@@ -24,6 +24,7 @@ base64.workspace = true
 parking_lot = "0.12"
 libc = "0.2"
 skotiq_imaging = { path = "../imaging" }
+skotiq_platesolve = { path = "../platesolve" }
 
 [dev-dependencies]
 # `test-util` is deliberately excluded from tokio's `full` feature, so the

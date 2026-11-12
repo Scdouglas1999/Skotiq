@@ -1,7 +1,5 @@
-//! Real PHD2 Guiding Integration
-//!
-//! Implements the PHD2 server protocol for communication with PHD2.
-//! PHD2 uses a JSON-RPC style protocol over TCP on port 4400.
+//! PHD2's event server protocol (JSON-RPC over TCP, port 4400 by default),
+//! and finding, launching and probing the PHD2 process.
 //!
 //! Reference: https://github.com/OpenPHDGuiding/phd2/wiki/EventMonitoring
 
