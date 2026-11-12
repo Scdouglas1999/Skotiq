@@ -272,11 +272,11 @@ class DesktopLastGasp {
 
   /// The operator closed the window and the shell let it go.
   ///
-  /// Synchronous by contract — on platforms that end with
+  /// Synchronous by contract — where a close still ends with
   /// `windowManager.destroy()` it follows immediately — so the Darkroom
   /// hand-back this also starts is not awaited here. The paths that can await
-  /// it (the signal paths, and the Linux close, which ends the process itself)
-  /// are the ones that guarantee it; see [handOffDarkroomWork].
+  /// it (the signal paths, and the window close, which ends the process
+  /// itself) are the ones that guarantee it; see [handOffDarkroomWork].
   void recordCleanExit(String reason) {
     if (_shuttingDown) return;
     _write(
