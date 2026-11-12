@@ -408,12 +408,14 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
     get_sim_focuser().write().await.status.connected = true;
     get_sim_filterwheel().write().await.status.connected = true;
     get_sim_rotator().write().await.status.connected = true;
-    // The rotator is read through its driver handle, which only a connect
-    // creates.
-    get_device_manager()
-        .connect_device(rotator_id)
-        .await
-        .expect("connect the simulated rotator");
+    // Focuser, wheel and rotator are read through their driver handles, which
+    // only a connect creates, as the Equipment screen's connect does.
+    for id in [focuser_id, wheel_id, rotator_id] {
+        get_device_manager()
+            .connect_device(id)
+            .await
+            .unwrap_or_else(|e| panic!("connect {id}: {e}"));
+    }
     crate::api::devices::simulation::clear_sim_exposure().await;
 
     let site = (39.9719, -75.3576);
@@ -509,7 +511,9 @@ async fn a_manual_frame_and_a_sequence_frame_carry_the_same_header() {
     get_sim_camera_for(camera_id).write().await.status.connected = false;
     get_sim_focuser().write().await.status.connected = false;
     get_sim_filterwheel().write().await.status.connected = false;
-    let _ = get_device_manager().disconnect_device(rotator_id).await;
+    for id in [focuser_id, wheel_id, rotator_id] {
+        let _ = get_device_manager().disconnect_device(id).await;
+    }
     get_sim_rotator().write().await.status.connected = false;
     for id in [camera_id, focuser_id, wheel_id, rotator_id, mount_id] {
         get_device_manager().unregister_device(id).await;
