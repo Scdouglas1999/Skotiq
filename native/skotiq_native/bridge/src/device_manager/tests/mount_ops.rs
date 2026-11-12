@@ -16,6 +16,7 @@ async fn register_sim_mount(manager: &DeviceManager, device_id: &str) {
             heartbeat_active: false,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
 }
@@ -136,6 +137,7 @@ async fn test_mount_get_status_uses_ascom_can_park() {
             heartbeat_active: false,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
 

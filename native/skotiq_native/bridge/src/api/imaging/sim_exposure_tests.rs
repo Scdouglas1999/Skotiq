@@ -94,11 +94,8 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     {
         // The simulated mount keeps coordinates of date; point it at the
         // grid's J2000 centre the way a slew would.
-        let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
-            crate::device::DriverType::Simulator,
-            ra_hours,
-            dec_deg,
-        );
+        let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(crate::device::DriverType::Simulator)
+            .from_j2000(ra_hours, dec_deg);
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
         mount.status.right_ascension = mount_ra;
@@ -370,11 +367,8 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
     {
         // The simulated mount keeps coordinates of date; point it at the
         // grid's J2000 centre the way a slew would.
-        let (mount_ra, mount_dec) = crate::device_manager::epoch::j2000_to_mount_frame(
-            crate::device::DriverType::Simulator,
-            ra_hours,
-            dec_deg,
-        );
+        let (mount_ra, mount_dec) = crate::device_manager::epoch::MountFrame::for_driver(crate::device::DriverType::Simulator)
+            .from_j2000(ra_hours, dec_deg);
         let mut mount = get_sim_mount().write().await;
         mount.status.connected = true;
         mount.status.right_ascension = mount_ra;

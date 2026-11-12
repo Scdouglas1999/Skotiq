@@ -86,6 +86,8 @@ impl DeviceManager {
                 disconnect_existing_ascom!(self.ascom_mounts, "mount");
                 let mut mount = AscomMountWrapper::new(prog_id.to_string())?;
                 mount.connect().await.map_err(|e| e.to_string())?;
+                self.record_declared_mount_frame(&info.id, mount.equatorial_system().await)
+                    .await;
 
                 let mut ascom_mounts = self.ascom_mounts.write().await;
                 ascom_mounts.insert(info.id.clone(), Arc::new(RwLock::new(mount)));

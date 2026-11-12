@@ -52,8 +52,11 @@ impl DeviceManager {
         // sync and slew feeding the mount from different frames would skew
         // the pointing model by the precession offset on every centering
         // iteration. See `device_manager::epoch`.
-        let (ra, dec) =
-            crate::device_manager::epoch::j2000_to_mount_frame(info.driver_type, ra, dec);
+        let (ra, dec) = self
+            .mount_frame(device_id)
+            .await
+            .ok_or_else(|| DeviceOpError::device_not_found(device_id))?
+            .from_j2000(ra, dec);
 
         match info.driver_type {
             DriverType::Ascom => {

@@ -63,26 +63,17 @@ impl MountOps for UnifiedDeviceOps {
         dec_degrees: f64,
     ) -> DeviceResult<(f64, f64)> {
         // Mirror `DeviceManager::mount_slew`/`mount_sync` exactly — the same
-        // `epoch::j2000_to_mount_frame` decision, simulator frame included:
+        // `DeviceManager::mount_frame` decision, simulator frame included:
         // whatever transform is applied on the way TO the mount has to be
         // applied to a target before it is compared with what the mount reads
         // BACK. If these two ever disagree, a correct slew reports as a miss by
         // the precession offset.
-        let driver_type = get_device_manager()
-            .get_device(mount_id)
-            .await
-            .map(|device| device.info.driver_type);
-
-        Ok(match driver_type {
+        Ok(match get_device_manager().mount_frame(mount_id).await {
             // An unknown device id is not a licence to guess: report the target
             // unchanged and let the caller's own error path say the mount is
             // missing, rather than inventing a precessed position for it.
             None => (ra_hours, dec_degrees),
-            Some(driver_type) => crate::device_manager::epoch::j2000_to_mount_frame(
-                driver_type,
-                ra_hours,
-                dec_degrees,
-            ),
+            Some(frame) => frame.from_j2000(ra_hours, dec_degrees),
         })
     }
 
@@ -92,16 +83,11 @@ impl MountOps for UnifiedDeviceOps {
         ra_hours: f64,
         dec_degrees: f64,
     ) -> DeviceResult<(f64, f64)> {
-        let driver_type = get_device_manager()
-            .get_device(mount_id)
+        let frame = get_device_manager()
+            .mount_frame(mount_id)
             .await
-            .map(|device| device.info.driver_type)
             .ok_or_else(|| format!("mount {mount_id} is not registered"))?;
-        Ok(crate::device_manager::epoch::mount_frame_to_j2000(
-            driver_type,
-            ra_hours,
-            dec_degrees,
-        ))
+        Ok(frame.to_j2000(ra_hours, dec_degrees))
     }
 
     async fn mount_sync(

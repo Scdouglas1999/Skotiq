@@ -57,6 +57,7 @@ async fn register_alpaca_mount(manager: &DeviceManager, device_id: &str, base_ur
             heartbeat_active: false,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
     manager.alpaca_mounts.write().await.insert(

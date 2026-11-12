@@ -147,11 +147,10 @@ impl DeviceManager {
             wait_for_slew_arrival, SlewArrivalTimings, SlewSample,
         };
 
-        let Some(driver_type) = self.registered_driver_type(mount_id).await else {
+        let Some(frame) = self.mount_frame(mount_id).await else {
             return;
         };
-        let target =
-            crate::device_manager::epoch::j2000_to_mount_frame(driver_type, ra_hours, dec_degrees);
+        let target = frame.from_j2000(ra_hours, dec_degrees);
         let app_state: SharedAppState = self.app_state.clone();
         let mount_id = mount_id.to_string();
         // The watch outlives this call, so it reads through the process-wide

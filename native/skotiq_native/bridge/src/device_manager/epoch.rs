@@ -202,42 +202,86 @@ impl Drop for SimFrameGuard {
     }
 }
 
-/// Whether a mount on this driver keeps coordinates of date.
+const J2000_JD: f64 = 2_451_545.0;
+const J2050_JD: f64 = 2_469_807.5;
+/// Besselian 1950.0. Precession alone gives the FK5 mean place at that
+/// equinox, within about an arcsecond of an FK4 B1950 catalog place.
+const B1950_JD: f64 = 2_433_282.423_5;
+
+/// The equatorial frame a mount takes and reports coordinates in.
 ///
 /// The single decision behind the send path (`mount_slew`, `mount_sync`) and
 /// the read-back comparison (`DeviceOps::mount_readback_frame`), so the two
-/// cannot disagree. Every real driver does; the simulator does unless pinned
-/// to J2000.
-pub fn mount_frame_is_of_date(driver_type: crate::device::DriverType) -> bool {
-    match driver_type {
-        crate::device::DriverType::Simulator => sim_mount_frame() == SimMountFrame::OfDate,
-        _ => true,
+/// cannot disagree. A mount's frame is [`DeviceManager::mount_frame`]: what its
+/// ASCOM driver declares as `EquatorialSystem` at connect, otherwise
+/// [`MountFrame::for_driver`].
+///
+/// [`DeviceManager::mount_frame`]: crate::device_manager::DeviceManager::mount_frame
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MountFrame {
+    /// Mean equator and equinox of the moment the coordinates are used.
+    OfDate,
+    /// A fixed mean equinox, as a Julian day.
+    Equinox(f64),
+}
+
+impl MountFrame {
+    pub const J2000: Self = Self::Equinox(J2000_JD);
+
+    /// The frame of a mount whose driver has not said: of date for every real
+    /// driver (INDI EOD, LX200-protocol, OnStep, iOptron), the simulator's
+    /// configured frame for the simulator.
+    pub fn for_driver(driver_type: crate::device::DriverType) -> Self {
+        match driver_type {
+            crate::device::DriverType::Simulator => match sim_mount_frame() {
+                SimMountFrame::OfDate => Self::OfDate,
+                SimMountFrame::J2000 => Self::J2000,
+            },
+            _ => Self::OfDate,
+        }
+    }
+
+    /// The frame an ASCOM `EquatorialSystem` value names (`equTopocentric` 1,
+    /// `equJ2000` 2, `equJ2050` 3, `equB1950` 4). `equOther` (0) and unknown
+    /// values name no frame Skotiq can convert to.
+    pub fn from_equatorial_system(value: i32) -> Option<Self> {
+        match value {
+            1 => Some(Self::OfDate),
+            2 => Some(Self::J2000),
+            3 => Some(Self::Equinox(J2050_JD)),
+            4 => Some(Self::Equinox(B1950_JD)),
+            _ => None,
+        }
+    }
+
+    /// J2000 coordinates expressed in this frame.
+    pub fn from_j2000(self, ra_hours: f64, dec_deg: f64) -> (f64, f64) {
+        match self {
+            Self::OfDate => j2000_to_jnow(ra_hours, dec_deg),
+            Self::Equinox(jd) if jd == J2000_JD => (ra_hours, dec_deg),
+            Self::Equinox(jd) => precess_j2000_to_jd(ra_hours, dec_deg, jd),
+        }
+    }
+
+    /// Coordinates in this frame expressed in J2000.
+    pub fn to_j2000(self, ra_hours: f64, dec_deg: f64) -> (f64, f64) {
+        match self {
+            Self::OfDate => jnow_to_j2000(ra_hours, dec_deg),
+            Self::Equinox(jd) if jd == J2000_JD => (ra_hours, dec_deg),
+            Self::Equinox(jd) => precess_jd_to_j2000(ra_hours, dec_deg, jd),
+        }
     }
 }
 
-/// Express J2000 coordinates in the frame a mount on `driver_type` speaks.
-pub fn j2000_to_mount_frame(
-    driver_type: crate::device::DriverType,
-    ra_hours: f64,
-    dec_deg: f64,
-) -> (f64, f64) {
-    if mount_frame_is_of_date(driver_type) {
-        j2000_to_jnow(ra_hours, dec_deg)
-    } else {
-        (ra_hours, dec_deg)
-    }
-}
-
-/// Express a mount read-back from `driver_type` in J2000.
-pub fn mount_frame_to_j2000(
-    driver_type: crate::device::DriverType,
-    ra_hours: f64,
-    dec_deg: f64,
-) -> (f64, f64) {
-    if mount_frame_is_of_date(driver_type) {
-        jnow_to_j2000(ra_hours, dec_deg)
-    } else {
-        (ra_hours, dec_deg)
+impl std::fmt::Display for MountFrame {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::OfDate => write!(f, "coordinates of date"),
+            Self::Equinox(jd) if jd == J2000_JD => write!(f, "J2000 coordinates"),
+            Self::Equinox(jd) if jd == J2050_JD => write!(f, "J2050 coordinates"),
+            Self::Equinox(jd) if jd == B1950_JD => write!(f, "B1950 coordinates"),
+            Self::Equinox(jd) => write!(f, "coordinates of equinox JD {jd}"),
+        }
     }
 }
 
@@ -324,6 +368,31 @@ mod tests {
         assert_eq!(parse_sim_mount_frame(" J2000 "), Some(SimMountFrame::J2000));
         assert_eq!(parse_sim_mount_frame(""), Some(SimMountFrame::OfDate));
         assert_eq!(parse_sim_mount_frame("b1950"), None);
+    }
+
+    /// What an ASCOM driver declares as `EquatorialSystem` decides the frame,
+    /// and a J2000 mount gets catalog coordinates unchanged.
+    #[test]
+    fn the_declared_equatorial_system_names_the_frame() {
+        assert_eq!(
+            MountFrame::from_equatorial_system(1),
+            Some(MountFrame::OfDate)
+        );
+        assert_eq!(
+            MountFrame::from_equatorial_system(2),
+            Some(MountFrame::J2000)
+        );
+        assert_eq!(MountFrame::from_equatorial_system(0), None);
+        assert_eq!(MountFrame::from_equatorial_system(7), None);
+
+        assert_eq!(MountFrame::J2000.from_j2000(22.7892, 58.1324), (22.7892, 58.1324));
+        assert_eq!(MountFrame::J2000.to_j2000(22.7892, 58.1324), (22.7892, 58.1324));
+
+        let j2050 = MountFrame::from_equatorial_system(3).expect("J2050");
+        let (ra, dec) = j2050.from_j2000(22.7892, 58.1324);
+        assert!((ra - 22.7892).abs() > 0.02, "50 years of precession moves RA");
+        let (ra_back, dec_back) = j2050.to_j2000(ra, dec);
+        assert!((ra_back - 22.7892).abs() < 1e-9 && (dec_back - 58.1324).abs() < 1e-9);
     }
 
     /// RA must stay normalized across the 0h/24h wrap.

@@ -43,6 +43,8 @@ impl DeviceManager {
             DeviceType::Mount => {
                 let telescope = AlpacaTelescope::from_server(&base_url, device_number);
                 telescope.connect().await.map_err(|e| e.to_string())?;
+                self.record_declared_mount_frame(&info.id, telescope.equatorial_system().await)
+                    .await;
                 let mut alpaca_mounts = self.alpaca_mounts.write().await;
                 alpaca_mounts.insert(info.id.clone(), Arc::new(telescope));
             }

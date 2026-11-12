@@ -93,6 +93,7 @@ enum AscomMountCommand {
         oneshot::Sender<Result<(), DriverError>>,
     ),
     GetUtcDate(oneshot::Sender<Result<f64, DriverError>>),
+    GetEquatorialSystem(oneshot::Sender<Result<i32, DriverError>>),
     SetUtcDate(f64, oneshot::Sender<Result<(), DriverError>>),
     // Version query commands
 }
@@ -544,6 +545,14 @@ impl AscomMountWrapper {
                                 .send(Err(DriverError::SdkError("Mount not created".to_string())));
                         }
                     }
+                    AscomMountCommand::GetEquatorialSystem(reply) => {
+                        if let Some(m) = &mut mount {
+                            let _ = reply.send(m.equatorial_system().map_err(super::ascom_error));
+                        } else {
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Mount not created".to_string())));
+                        }
+                    }
                     AscomMountCommand::SetUtcDate(value, reply) => {
                         if let Some(m) = &mut mount {
                             let _ = reply.send(m.set_utc_date(value).map_err(super::ascom_error));
@@ -683,6 +692,15 @@ impl AscomMountWrapper {
         let (tx, rx) = oneshot::channel();
         self.enqueue(AscomMountCommand::GetUtcDate(tx)).await?;
         super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "get_utc_date").await
+    }
+
+    /// `EquatorialSystem`: the frame the driver takes and reports RA/Dec in.
+    pub async fn equatorial_system(&self) -> Result<i32, DriverError> {
+        let (tx, rx) = oneshot::channel();
+        self.enqueue(AscomMountCommand::GetEquatorialSystem(tx))
+            .await?;
+        super::recv_with_timeout("Mount", rx, Timeouts::property_read(), "equatorial_system")
+            .await
     }
 
     pub async fn set_utc_date(&self, utc_date: f64) -> Result<(), DriverError> {
