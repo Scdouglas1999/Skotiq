@@ -24,7 +24,6 @@ use crate::SafetyFailMode;
 use std::collections::HashMap;
 
 impl SequenceExecutor {
-    // Operator settings
 
     /// The current operator settings.
     pub fn run_config(&self) -> RunConfig {
@@ -251,8 +250,6 @@ impl SequenceExecutor {
             what: "integration_carry_over".to_string(),
         });
     }
-
-    // The defect map
 
     /// The defect map applied to lights during capture, loaded by the host;
     /// `None` turns correction off. Applies from the next exposure.

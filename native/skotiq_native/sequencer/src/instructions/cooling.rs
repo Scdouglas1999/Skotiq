@@ -7,7 +7,6 @@ use super::*;
 
 // Camera COOLING/WARMING instructions
 
-/// Execute camera cooling
 pub async fn execute_cool_camera(
     config: &CoolConfig,
     ctx: &InstructionContext,
@@ -74,7 +73,6 @@ pub async fn execute_cool_camera(
         return InstructionResult::success_with_message(msg);
     }
 
-    // Emit initial progress
     if let Some(cb) = progress_callback {
         cb(
             0.0,
@@ -250,7 +248,6 @@ fn cooler_is_faulting(start_temp: f64, current_temp: f64, target_temp: f64) -> b
     }
 }
 
-/// Execute camera warming
 pub async fn execute_warm_camera(
     config: &WarmConfig,
     ctx: &InstructionContext,
@@ -359,7 +356,6 @@ pub async fn execute_warm_camera(
     // at least one iteration. f64 -> u32 saturates per Rust 1.45 spec.
     let steps = (duration_mins * 6.0).max(1.0) as u32;
 
-    // Emit initial progress
     if let Some(cb) = progress_callback {
         cb(
             0.0,
@@ -400,7 +396,6 @@ pub async fn execute_warm_camera(
             tracing::warn!("Failed to update cooler target: {}", e);
         }
 
-        // Emit progress
         if let Some(cb) = progress_callback {
             cb(
                 progress_percent,
@@ -432,7 +427,6 @@ pub async fn execute_warm_camera(
         ));
     }
 
-    // Emit final progress
     if let Some(cb) = progress_callback {
         cb(100.0, "Warmed to ambient".to_string());
     }

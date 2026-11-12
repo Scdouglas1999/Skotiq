@@ -73,9 +73,7 @@ pub(crate) fn plan_shutdown_steps(sequence: &SequenceDefinition) -> Vec<&NodeDef
 /// What the end-of-night sweep already did before the plan's steps run.
 #[derive(Default, Clone, Copy)]
 pub(crate) struct AlreadySafe {
-    /// The guider was stopped.
     pub guiding_stopped: bool,
-    /// The mount was parked.
     pub mount_parked: bool,
     pub cover_closed: bool,
     pub dome_closed: bool,

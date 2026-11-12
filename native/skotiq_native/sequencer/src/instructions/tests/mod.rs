@@ -80,7 +80,6 @@ struct ScriptedDomeRotatorOps {
     mount_slew_targets: Mutex<Vec<(f64, f64)>>,
     /// The (RA degrees, Dec) hint of every plate solve.
     plate_solve_hints: Mutex<Vec<(Option<f64>, Option<f64>)>>,
-    // Camera
     camera_exposure_calls: AtomicU32,
     /// For each `guider_dither`, how many exposures had been started when it
     /// was issued, so a test can tell which frames a dither followed.

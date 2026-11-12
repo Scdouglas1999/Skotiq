@@ -7,8 +7,6 @@ use super::*;
 
 // IMAGE-GRADING helpers (Image Grading)
 
-// DEFECT-MAP helpers
-
 /// Outcome of the per-frame defect-map application step. Threaded into
 /// the FITS HISTORY card emitter so the saved frame carries provenance
 /// of the correction (or its skip reason).

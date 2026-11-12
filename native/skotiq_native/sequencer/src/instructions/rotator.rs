@@ -97,7 +97,6 @@ pub(crate) async fn rotator_move_to_verified(
 
 // Rotator instruction
 
-/// Execute rotator move
 pub async fn execute_rotator_move(
     config: &RotatorConfig,
     ctx: &InstructionContext,
@@ -114,7 +113,6 @@ pub async fn execute_rotator_move(
         config.relative
     );
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, format!("Moving to {:.1}", config.target_angle));
     }

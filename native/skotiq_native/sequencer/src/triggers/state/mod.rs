@@ -702,7 +702,6 @@ impl TriggerState {
         self.tracking.set_expected(expected);
     }
 
-    /// Update dome shutter status
     pub fn update_dome_status(&mut self, status: String) {
         self.telemetry.dome_shutter_status = Some(status);
     }

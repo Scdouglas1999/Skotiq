@@ -7,7 +7,6 @@ use super::*;
 
 // Dither instruction
 
-/// Execute dither
 pub async fn execute_dither(
     config: &DitherConfig,
     ctx: &InstructionContext,

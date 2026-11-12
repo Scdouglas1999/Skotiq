@@ -300,7 +300,6 @@ pub fn grade_frame_with_baselines(
         }
     }
 
-    // Eccentricity.
     if let (Some(threshold), Some(ecc)) = (check.eccentricity_threshold, metrics.eccentricity) {
         if ecc > threshold {
             return FrameGrade::Reject {

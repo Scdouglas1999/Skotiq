@@ -7,7 +7,6 @@ use super::*;
 
 // Notification instruction
 
-/// Execute notification
 pub async fn execute_notification(
     config: &NotificationConfig,
     ctx: &InstructionContext,

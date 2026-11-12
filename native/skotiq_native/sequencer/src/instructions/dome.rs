@@ -137,7 +137,6 @@ async fn expect_shutter_open(ctx: &InstructionContext, open: bool) {
     }
 }
 
-/// Execute open dome
 pub async fn execute_open_dome(
     config: &DomeConfig,
     ctx: &InstructionContext,
@@ -148,7 +147,6 @@ pub async fn execute_open_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Opening dome shutter".to_string());
     }
@@ -181,7 +179,6 @@ pub async fn execute_open_dome(
             Err(failure) => return failure,
         };
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome shutter open".to_string());
     }
@@ -200,7 +197,6 @@ pub async fn execute_open_dome(
     }
 }
 
-/// Execute close dome
 pub async fn execute_close_dome(
     _config: &DomeConfig,
     ctx: &InstructionContext,
@@ -211,7 +207,6 @@ pub async fn execute_close_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Closing dome shutter".to_string());
     }
@@ -241,7 +236,6 @@ pub async fn execute_close_dome(
             Err(failure) => return failure,
         };
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome shutter closed".to_string());
     }
@@ -256,7 +250,6 @@ pub async fn execute_close_dome(
     }
 }
 
-/// Execute park dome
 pub async fn execute_park_dome(
     config: &DomeConfig,
     ctx: &InstructionContext,
@@ -267,7 +260,6 @@ pub async fn execute_park_dome(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Parking dome".to_string());
     }
@@ -312,7 +304,6 @@ pub async fn execute_park_dome(
         return failure;
     }
 
-    // Report completion
     if let Some(cb) = progress_callback {
         cb(100.0, "Dome parked".to_string());
     }

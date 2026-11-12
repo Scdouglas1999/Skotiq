@@ -218,7 +218,6 @@ impl Trigger {
         self.origin
     }
 
-    /// Set cooldown duration
     pub fn with_cooldown(mut self, secs: u64) -> Self {
         self.cooldown_secs = Some(secs);
         self

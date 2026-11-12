@@ -5,8 +5,6 @@
 
 use super::*;
 
-// Slew instruction
-
 /// Default tolerance for slew position validation in degrees (1 arcminute = 1/60 degree)
 pub(crate) const SLEW_POSITION_TOLERANCE_DEG: f64 = 1.0 / 60.0;
 
@@ -62,7 +60,6 @@ pub(crate) fn validate_slew_position(
     Ok(())
 }
 
-/// Execute a slew instruction
 pub async fn execute_slew(
     config: &SlewConfig,
     ctx: &InstructionContext,

@@ -20,7 +20,6 @@ pub trait OperatorNotifyOps: Send + Sync {
         explicit_transports: Option<&[String]>,
     ) -> DeviceResult<()>;
 
-    /// Send polar alignment update
     async fn polar_align_update(
         &self,
         result: &crate::polar_align::PolarAlignResult,

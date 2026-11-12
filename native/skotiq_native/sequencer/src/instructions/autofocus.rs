@@ -1192,7 +1192,6 @@ pub(crate) async fn execute_autofocus_sweep_around(
         let mut paused_duration = Duration::ZERO;
 
         for point in 0..total_points {
-            // Check timeout
             let working_elapsed = af_start_time.elapsed().saturating_sub(paused_duration);
             if working_elapsed > af_timeout {
                 tracing::warn!(

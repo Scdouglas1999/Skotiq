@@ -268,7 +268,6 @@ impl ScriptedDeviceOps {
         *self.sim_mount.lock().unwrap() = Some(mount);
     }
 
-    /// The simulated mount as it is now.
     pub(crate) fn sim_mount(&self) -> Option<SimMount> {
         self.sim_mount.lock().unwrap().clone()
     }

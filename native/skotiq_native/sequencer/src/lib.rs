@@ -131,17 +131,11 @@ pub enum SafetyFailMode {
 /// Status of a node execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeStatus {
-    /// Node has not started
     Pending,
-    /// Node is currently running
     Running,
-    /// Node completed successfully
     Success,
-    /// Node failed
     Failure,
-    /// Node was skipped
     Skipped,
-    /// Node was cancelled
     Cancelled,
 }
 
@@ -452,8 +446,6 @@ impl NodeType {
         )
     }
 }
-
-// Science: SciencePhotometry configuration
 
 /// Configuration for the [`NodeType::SciencePhotometry`] instruction.
 ///
@@ -898,8 +890,6 @@ impl Default for LiveStackingConfig {
         }
     }
 }
-
-// SmartExposure configuration
 
 /// Configuration for the SmartExposure container instruction.
 ///
@@ -1681,7 +1671,6 @@ pub struct FlatWizardConfig {
     pub tolerance_percent: f64,
     /// Where flats are taken from (panel, dawn sky, dusk sky)
     pub panel_location: PanelLocation,
-    /// Filter to use (optional)
     pub filter: Option<String>,
     /// Filter position (0-based index). When specified, used instead of filter name.
     #[serde(default)]
@@ -2831,7 +2820,6 @@ impl Default for CalibratorOnConfig {
     }
 }
 
-/// Loop conditions
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum LoopCondition {
     /// Loop N times (use iterations field)
@@ -2844,7 +2832,6 @@ pub enum LoopCondition {
     AltitudeAbove,
     /// Loop until integration time reached (condition_value = seconds)
     IntegrationTime,
-    /// Loop forever (until stopped)
     Forever,
     /// Loop while sky is dark
     WhileDark,
@@ -2877,17 +2864,14 @@ pub enum LoopCondition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
 pub enum ConditionalCheck {
-    /// Always execute
     Always,
     /// Check if altitude is above threshold
     AltitudeAbove(f64),
-    /// Check if time is after
     TimeAfter(i64),
     /// Check if guiding RMS is below threshold
     GuidingRmsBelow(f64),
     /// Check if HFR is below threshold
     HfrBelow(f64),
-    /// Check if weather is safe
     WeatherSafe,
     /// Check if moon separation is above degrees
     MoonSeparationAbove(f64),
@@ -2923,7 +2907,6 @@ pub enum TriggerType {
     },
     /// Trigger when meridian flip is needed
     MeridianFlip { config: MeridianFlipConfig },
-    /// Trigger when guiding fails
     GuidingFailed {
         rms_threshold: f64,
         duration_secs: f64,
@@ -2936,11 +2919,8 @@ pub enum TriggerType {
     },
     /// Trigger when altitude too low
     AltitudeLimit { min_altitude: f64 },
-    /// Trigger when weather unsafe
     WeatherUnsafe,
-    /// Trigger when temperature changes
     TemperatureShift { degrees: f64 },
-    /// Trigger on filter change
     FilterChange,
     /// Trigger when dawn is approaching (astronomical twilight)
     DawnApproaching { minutes_before: f64 },
@@ -3115,15 +3095,11 @@ pub enum RecoveryAction {
     /// Continue execution (ignore error)
     #[default]
     Continue,
-    /// Pause the sequence
     Pause,
     /// Run autofocus
     Autofocus,
-    /// Skip to next target
     NextTarget,
-    /// Retry the failed node
     Retry { max_attempts: u32 },
-    /// Park and abort
     ParkAndAbort,
     /// Reserved variant — see the enum-level rustdoc. Stored sequences may
     /// still contain this value, so it must round-trip; the executor refuses

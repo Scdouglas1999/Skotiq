@@ -92,7 +92,6 @@ pub trait MountOps: Send + Sync {
         ))
     }
 
-    /// Check if mount is slewing
     async fn mount_is_slewing(&self, mount_id: &str) -> DeviceResult<bool>;
 
     /// One read of a slewing mount for [`crate::slew_arrival`]: its `Slewing`
@@ -105,7 +104,6 @@ pub trait MountOps: Send + Sync {
         }
     }
 
-    /// Check if mount is parked
     async fn mount_is_parked(&self, mount_id: &str) -> DeviceResult<bool>;
 
     /// Check if mount can perform a meridian flip
@@ -115,10 +113,8 @@ pub trait MountOps: Send + Sync {
     /// Get the side of the pier the mount is currently on
     async fn mount_side_of_pier(&self, mount_id: &str) -> DeviceResult<crate::meridian::PierSide>;
 
-    /// Get tracking status
     async fn mount_is_tracking(&self, mount_id: &str) -> DeviceResult<bool>;
 
-    /// Set tracking on/off
     async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()>;
 
     /// Run a mount axis at `rate_deg_per_sec` (0 stops it). Axis 0 is the

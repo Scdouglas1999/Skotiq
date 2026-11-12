@@ -23,7 +23,6 @@ pub struct PlateSolveResult {
 
 #[async_trait]
 pub trait PlateSolveOps: Send + Sync {
-    /// Plate solve an image
     async fn plate_solve(
         &self,
         image_data: &ImageData,

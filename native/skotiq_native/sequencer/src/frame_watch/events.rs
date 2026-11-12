@@ -20,7 +20,6 @@ impl FrameWatchEvent {
         }
     }
 
-    /// The payload as JSON.
     pub fn payload_json(&self) -> String {
         let value = match self {
             FrameWatchEvent::FrameAssessed(f) => serde_json::to_string(f),

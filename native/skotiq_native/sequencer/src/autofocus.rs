@@ -20,7 +20,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Result of an autofocus run
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutofocusResult {
     pub best_position: i32,
@@ -206,7 +205,6 @@ struct NarrowedFit {
     points_used: usize,
 }
 
-/// Autofocus method selection
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AutofocusMethod {
     /// V-curve with bisection search
@@ -217,7 +215,6 @@ pub enum AutofocusMethod {
     Hyperbolic,
 }
 
-/// Configuration for autofocus run
 #[derive(Debug, Clone)]
 pub struct AutofocusConfig {
     pub method: AutofocusMethod,

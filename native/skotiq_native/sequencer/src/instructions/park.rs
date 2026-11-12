@@ -5,8 +5,6 @@
 
 use super::*;
 
-// PARK/UNPARK instructions
-
 /// A park or home is the run's own move, and the stop in tracking it leaves
 /// behind is the run's own too: the loss baseline is disarmed for it, and the
 /// move keeps it from re-arming until the mount is seen tracking afterwards.
@@ -18,7 +16,6 @@ async fn begin_move_that_stops_tracking(ctx: &InstructionContext, what: &str) ->
     motion
 }
 
-/// Execute park
 pub async fn execute_park(ctx: &InstructionContext) -> InstructionResult {
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
@@ -129,7 +126,6 @@ async fn park_mount(ctx: &InstructionContext, mount_id: &str) -> InstructionResu
     }
 }
 
-/// Execute unpark
 pub async fn execute_unpark(ctx: &InstructionContext) -> InstructionResult {
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),

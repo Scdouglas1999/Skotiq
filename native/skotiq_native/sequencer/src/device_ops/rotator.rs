@@ -11,9 +11,7 @@ pub trait RotatorOps: Send + Sync {
     /// Move rotator by relative amount
     async fn rotator_move_relative(&self, rotator_id: &str, delta: f64) -> DeviceResult<()>;
 
-    /// Get current rotator angle
     async fn rotator_get_angle(&self, rotator_id: &str) -> DeviceResult<f64>;
 
-    /// Halt rotator movement
     async fn rotator_halt(&self, rotator_id: &str) -> DeviceResult<()>;
 }

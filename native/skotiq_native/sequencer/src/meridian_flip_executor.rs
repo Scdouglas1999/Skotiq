@@ -70,7 +70,6 @@ fn on_side(side: PierSide, template: &str) -> String {
 /// Result of a meridian flip execution
 #[derive(Debug, Clone)]
 pub enum FlipResult {
-    /// Flip completed successfully
     Success {
         new_pier_side: PierSide,
         duration_secs: f64,
@@ -1956,8 +1955,6 @@ impl MeridianFlipExecutor {
         Ok(())
     }
 
-    // Helper methods
-
     async fn get_pier_side(&self, mount_id: &str) -> Result<PierSide, String> {
         Ok(self.device_ops.mount_side_of_pier(mount_id).await?)
     }
@@ -2430,7 +2427,6 @@ mod tests {
         park_failures_remaining: AtomicI32,
         /// Recorded park calls (for assertions).
         park_calls: AtomicI32,
-        /// Set tracking calls.
         tracking_calls: Mutex<Vec<bool>>,
         /// Phase G dry-run: number of real slew commands issued. A dry-run
         /// must leave this at zero (no mount movement).

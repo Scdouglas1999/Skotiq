@@ -73,7 +73,6 @@ impl std::fmt::Display for PolarAlignError {
 }
 impl std::error::Error for PolarAlignError {}
 
-/// Configuration for an all-sky polar alignment run.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AllSkyPolarAlignConfig {
     pub exposure_time: f64,

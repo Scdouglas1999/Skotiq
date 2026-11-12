@@ -7,7 +7,6 @@ use super::*;
 
 // Delay instruction
 
-/// Execute delay
 pub async fn execute_delay(
     config: &DelayConfig,
     ctx: &crate::node::context::ExecutionContext,
@@ -15,7 +14,6 @@ pub async fn execute_delay(
 ) -> InstructionResult {
     tracing::info!("Delaying for {:.1} seconds", config.seconds);
 
-    // Emit initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, format!("{:.0}s delay", config.seconds));
     }

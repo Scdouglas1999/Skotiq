@@ -87,7 +87,6 @@ pub struct CloudMotionSnapshot {
     pub predicted_arrival_minutes: Option<f64>,
     /// Predicted minutes until a clear opening reaches the user.
     pub predicted_opening_minutes: Option<f64>,
-    /// Predicted duration of the opening (seconds).
     pub predicted_opening_duration_secs: Option<f64>,
     /// (alt_deg, az_deg) of a clear-sky direction; consumed by
     /// `RecoveryAction::SlewToGapAndContinue`.
@@ -155,11 +154,8 @@ pub struct ExecutionContext {
     /// The light filters the current target's exposures use, first use first;
     /// stamped by the TargetHeader, empty outside a target.
     pub target_light_filters: Vec<crate::instructions::PlannedLightFilter>,
-    /// Current filter
     pub current_filter: Option<String>,
-    /// Current binning
     pub current_binning: crate::Binning,
-    /// Cancellation flag
     pub is_cancelled: Arc<AtomicBool>,
     /// Pause flag - set by recovery nodes, cleared by executor on resume
     pub is_paused: Arc<AtomicBool>,
@@ -595,7 +591,6 @@ impl ExecutionContext {
         self.is_cancelled.load(Ordering::Relaxed)
     }
 
-    /// Check if currently paused
     pub fn is_paused(&self) -> bool {
         self.is_paused.load(Ordering::Relaxed)
     }

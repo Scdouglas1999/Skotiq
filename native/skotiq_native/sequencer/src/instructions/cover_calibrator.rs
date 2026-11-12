@@ -18,7 +18,6 @@ pub async fn execute_open_cover(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Opening cover".to_string());
     }
@@ -34,7 +33,6 @@ pub async fn execute_open_cover(
         cb(50.0, "Waiting for cover to open".to_string());
     }
 
-    // Start opening the cover
     if let Err(e) = ctx
         .run
         .device_ops
@@ -49,7 +47,6 @@ pub async fn execute_open_cover(
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_cover_state(&device_id, 3, ctx, timeout).await {
         Ok(_) => {
-            // Report completion
             if let Some(cb) = progress_callback {
                 cb(100.0, "Cover open".to_string());
             }
@@ -70,7 +67,6 @@ pub async fn execute_close_cover(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Closing cover".to_string());
     }
@@ -86,7 +82,6 @@ pub async fn execute_close_cover(
         cb(50.0, "Waiting for cover to close".to_string());
     }
 
-    // Start closing the cover
     if let Err(e) = ctx
         .run
         .device_ops
@@ -101,7 +96,6 @@ pub async fn execute_close_cover(
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_cover_state(&device_id, 1, ctx, timeout).await {
         Ok(_) => {
-            // Report completion
             if let Some(cb) = progress_callback {
                 cb(100.0, "Cover closed".to_string());
             }
@@ -122,7 +116,6 @@ pub async fn execute_calibrator_on(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Turning on calibrator".to_string());
     }
@@ -172,7 +165,6 @@ pub async fn execute_calibrator_on(
                 .cover_calibrator_get_brightness(&device_id)
                 .await
                 .unwrap_or(config.brightness);
-            // Report completion
             if let Some(cb) = progress_callback {
                 cb(
                     100.0,
@@ -199,7 +191,6 @@ pub async fn execute_calibrator_off(
         Err(e) => return e,
     };
 
-    // Report initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Turning off calibrator".to_string());
     }
@@ -230,7 +221,6 @@ pub async fn execute_calibrator_off(
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_calibrator_state(&device_id, 1, ctx, timeout).await {
         Ok(_) => {
-            // Report completion
             if let Some(cb) = progress_callback {
                 cb(100.0, "Calibrator off".to_string());
             }
@@ -260,7 +250,6 @@ pub(crate) async fn wait_for_cover_state(
     };
 
     loop {
-        // Check cancellation
         if ctx.cancellation_token.load(Ordering::Relaxed) {
             // Try to halt cover movement
             if let Err(error) = ctx
@@ -280,7 +269,6 @@ pub(crate) async fn wait_for_cover_state(
             return Err("Operation cancelled".to_string());
         }
 
-        // Check current state
         match ctx
             .run
             .device_ops
@@ -303,7 +291,6 @@ pub(crate) async fn wait_for_cover_state(
             }
         }
 
-        // Check timeout
         if start.elapsed() > timeout {
             return Err(format!(
                 "Cover did not reach {} state within {} seconds",
@@ -337,7 +324,6 @@ pub(crate) async fn wait_for_calibrator_state(
     };
 
     loop {
-        // Check cancellation
         if ctx.cancellation_token.load(Ordering::Relaxed) {
             if let Err(error) = ctx
                 .run
@@ -370,7 +356,6 @@ pub(crate) async fn wait_for_calibrator_state(
             return Err("Operation cancelled".to_string());
         }
 
-        // Check current state
         match ctx
             .run
             .device_ops
@@ -393,7 +378,6 @@ pub(crate) async fn wait_for_calibrator_state(
             }
         }
 
-        // Check timeout
         if start.elapsed() > timeout {
             if let Err(error) = ctx
                 .run

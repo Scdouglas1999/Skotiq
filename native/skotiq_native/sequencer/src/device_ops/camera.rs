@@ -96,7 +96,6 @@ pub trait CameraOps: Send + Sync {
     /// Take one exposure and return the image data.
     async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData>;
 
-    /// Abort current exposure
     async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()>;
 
     /// Set cooler state and target temperature
@@ -107,10 +106,8 @@ pub trait CameraOps: Send + Sync {
         target_temp: f64,
     ) -> DeviceResult<()>;
 
-    /// Get current sensor temperature
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64>;
 
-    /// Get cooler power percentage
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64>;
 
     /// Whether the camera's cooler is switched on, as the driver reports it.

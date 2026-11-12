@@ -1188,7 +1188,6 @@ mod tests {
         warnings: Vec<String>,
         decisions: Vec<String>,
         trigger_state: crate::triggers::TriggerState,
-        /// The cause the recovery ended as.
         ended_as: Option<RecoveryCause>,
     }
 

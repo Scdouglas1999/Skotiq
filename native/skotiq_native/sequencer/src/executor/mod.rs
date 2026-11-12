@@ -138,7 +138,6 @@ pub struct SequenceExecutor {
     pub save_path: Option<std::path::PathBuf>,
     /// Trigger manager for monitoring conditions
     trigger_manager: Arc<RwLock<TriggerManager>>,
-    /// Enable/disable trigger monitoring
     pub triggers_enabled: bool,
     /// Checkpoint manager for crash recovery.
     /// stored behind an `Arc` so the streaming-checkpoint task
@@ -153,7 +152,6 @@ pub struct SequenceExecutor {
     /// Installed by the host via [`Self::set_depth_goal_ops`]; `None` keeps
     /// bound plans count-bounded.
     depth_goal_ops: Option<crate::depth_goal::SharedDepthGoalOps>,
-    /// Current checkpoint being updated
     current_checkpoint: Option<crate::checkpoint::SessionCheckpoint>,
     /// `resume_from_checkpoint` prepared the loaded sequence to resume, and
     /// the next `start()` is that resume. Loading another sequence cancels
@@ -288,12 +286,10 @@ impl SequenceExecutor {
         Ok(custom_branches)
     }
 
-    /// Get the current state
     pub async fn get_state(&self) -> ExecutorState {
         self.run_state.get()
     }
 
-    /// Get the current progress
     pub fn get_progress(&self) -> SequenceProgress {
         self.run_state.progress()
     }
@@ -329,7 +325,6 @@ impl Default for SequenceExecutor {
     }
 }
 
-/// Global executor instance
 static EXECUTOR: std::sync::OnceLock<Arc<RwLock<SequenceExecutor>>> = std::sync::OnceLock::new();
 
 /// Get the global executor instance

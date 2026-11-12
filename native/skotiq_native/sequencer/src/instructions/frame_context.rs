@@ -169,7 +169,6 @@ pub(crate) async fn build_frame_context_for_save(
         _ => ctx.bayer_pattern.clone(),
     };
 
-    // Mosaic panel.
     frame_ctx.mosaic_panel = ctx.mosaic_panel.clone();
 
     // Observer / site.

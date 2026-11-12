@@ -4,7 +4,6 @@ use super::*;
 fn test_executor_state_transitions() {
     let executor = SequenceExecutor::new();
 
-    // Use tokio runtime for async tests
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

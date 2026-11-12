@@ -33,7 +33,6 @@ pub enum ProgressDetail {
         total: u32,
         duration_secs: f64,
     },
-    /// Filter wheel change.
     Filter { name: String, position: Option<i32> },
     /// Slew in progress. Coordinates are reported in the same units as the
     /// rest of the sequencer (RA in hours, Dec in degrees) so the UI can
@@ -65,14 +64,12 @@ pub enum ProgressDetail {
         current_temp_c: Option<f64>,
         target_temp_c: Option<f64>,
     },
-    /// Rotator move.
     Rotator {
         current_angle_deg: Option<f64>,
         target_angle_deg: f64,
     },
     /// Wait / Delay countdown. `remaining_secs` is the time until completion.
     Wait { remaining_secs: f64 },
-    /// Dither in progress.
     Dither {
         pixels: f64,
         settle_pixels: f64,
@@ -91,11 +88,9 @@ pub enum ProgressDetail {
     },
     /// Polar alignment iteration.
     PolarAlignment { step: String },
-    /// Meridian flip phase.
     MeridianFlip { phase: String },
     /// Cover/calibrator open/close/brightness step.
     CoverCalibrator { state: String },
-    /// Temperature compensation step.
     TemperatureCompensation { delta_steps: i32 },
     /// Script / external process step.
     Script { phase: String },

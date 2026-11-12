@@ -23,7 +23,6 @@ pub async fn execute_temperature_compensation(
         Err(e) => return e,
     };
 
-    // Emit initial progress
     if let Some(cb) = progress_callback {
         cb(0.0, "Starting temperature compensation".to_string());
     }
@@ -34,12 +33,10 @@ pub async fn execute_temperature_compensation(
         config.mode
     );
 
-    // Emit progress for reading temperature
     if let Some(cb) = progress_callback {
         cb(10.0, "Reading focuser temperature...".to_string());
     }
 
-    // Get current focuser temperature
     let current_temp = match ctx
         .run
         .device_ops
@@ -62,7 +59,6 @@ pub async fn execute_temperature_compensation(
 
     tracing::info!("Current focuser temperature: {:.2}°C", current_temp);
 
-    // Emit progress with temperature reading
     if let Some(cb) = progress_callback {
         cb(
             20.0,
@@ -82,7 +78,6 @@ pub async fn execute_temperature_compensation(
 
     let mut trigger_state = trigger_state_lock.write().await;
 
-    // Get or set baseline temperature
     let baseline_temp = match trigger_state.latches.baseline_temperature {
         Some(temp) => temp,
         None => {
@@ -99,10 +94,8 @@ pub async fn execute_temperature_compensation(
         }
     };
 
-    // Update current temperature in trigger state
     trigger_state.latches.current_temperature = Some(current_temp);
 
-    // Calculate temperature change
     let temp_delta = current_temp - baseline_temp;
 
     tracing::info!(
@@ -112,7 +105,6 @@ pub async fn execute_temperature_compensation(
         current_temp
     );
 
-    // Emit progress for calculating compensation
     if let Some(cb) = progress_callback {
         cb(
             40.0,
@@ -120,7 +112,6 @@ pub async fn execute_temperature_compensation(
         );
     }
 
-    // Check if temperature change exceeds threshold
     if temp_delta.abs() < config.min_temp_change {
         tracing::debug!(
             "Temperature change ({:.2}°C) below threshold ({:.2}°C), no compensation needed",
@@ -177,7 +168,6 @@ pub async fn execute_temperature_compensation(
 
     tracing::debug!("Current focuser position: {}", current_position);
 
-    // Calculate new position based on mode.
     let new_position = match config.mode {
         CompensationMode::Relative => current_position + position_delta,
         CompensationMode::Absolute => {
@@ -204,7 +194,6 @@ pub async fn execute_temperature_compensation(
         position_delta
     );
 
-    // Emit progress for moving focuser
     if let Some(cb) = progress_callback {
         cb(
             60.0,
@@ -212,7 +201,6 @@ pub async fn execute_temperature_compensation(
         );
     }
 
-    // Check for cancellation
     if let Some(result) = ctx.check_cancelled() {
         return result;
     }
@@ -232,7 +220,6 @@ pub async fn execute_temperature_compensation(
         return stopped;
     }
 
-    // Verify final position
     let final_position = match ctx.run.device_ops.focuser_get_position(&focuser_id).await {
         Ok(pos) => pos,
         Err(e) => {
@@ -261,7 +248,6 @@ pub async fn execute_temperature_compensation(
         tracing::info!("Temperature baseline reset to {:.2}°C", current_temp);
     }
 
-    // Emit final progress
     if let Some(cb) = progress_callback {
         cb(
             100.0,
@@ -644,7 +630,6 @@ async fn tell_once(ctx: &InstructionContext, message: &str) {
     }
 }
 
-/// Configuration for temperature compensation
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TemperatureCompensationConfig {
     /// Thermal coefficient in steps per degree Celsius
@@ -663,7 +648,6 @@ pub struct TemperatureCompensationConfig {
     #[serde(default = "default_min_step_change")]
     pub min_step_change: i32,
 
-    /// Compensation mode
     #[serde(default)]
     pub mode: CompensationMode,
 
@@ -707,7 +691,6 @@ fn default_timeout_secs() -> u32 {
     120
 }
 
-/// Temperature compensation mode
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Default)]
 pub enum CompensationMode {
     /// Move relative to current position based on temp delta

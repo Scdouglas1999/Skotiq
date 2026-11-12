@@ -14,10 +14,8 @@ pub fn calculate_meridian_crossing(
     longitude: f64,
     current_time: DateTime<Utc>,
 ) -> DateTime<Utc> {
-    // Calculate Julian Day for current time
     let jd = julian_day(&current_time);
 
-    // Calculate Local Sidereal Time
     let lst = local_sidereal_time(jd, longitude);
 
     // Target crosses meridian when LST = RA
@@ -141,7 +139,6 @@ pub fn calculate_altitude(
     let lst = local_sidereal_time(jd, longitude);
     let ha = hour_angle(ra_hours, lst);
 
-    // Convert to radians
     let ha_rad = (ha * 15.0).to_radians(); // Convert hours to degrees, then to radians
     let dec_rad = dec_degrees.to_radians();
     let lat_rad = latitude.to_radians();
@@ -206,7 +203,6 @@ pub fn alt_az_to_ra_dec(
     (ra, dec.to_degrees())
 }
 
-/// Calculate Julian Day from UTC DateTime
 pub fn julian_day(dt: &DateTime<Utc>) -> f64 {
     let year = dt.year();
     // Why: `month()` returns u32 in [1, 12]; u32 → i32
@@ -313,7 +309,6 @@ mod tests {
 
     #[test]
     fn test_should_flip_now() {
-        // Create a test time
         let test_time = Utc.with_ymd_and_hms(2025, 3, 15, 0, 0, 0).unwrap();
 
         // For a target at RA = 12h, longitude = -75.0 (Eastern US)

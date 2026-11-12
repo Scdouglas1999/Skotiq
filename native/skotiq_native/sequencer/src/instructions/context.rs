@@ -357,7 +357,6 @@ pub struct LiveConditions {
     pub cloud_motion: Arc<tokio::sync::RwLock<crate::node::context::CloudMotionSnapshot>>,
     /// km/h.
     pub wind_kph: Arc<tokio::sync::RwLock<Option<f64>>>,
-    /// °C.
     pub sensor_temp_c: Arc<tokio::sync::RwLock<Option<f64>>>,
 }
 

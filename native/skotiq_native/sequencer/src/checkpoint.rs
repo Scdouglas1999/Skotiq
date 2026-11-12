@@ -88,11 +88,8 @@ pub struct SessionCheckpoint {
     pub version: u32,
     /// When the checkpoint was created
     pub timestamp: DateTime<Utc>,
-    /// The sequence definition
     pub sequence: SequenceDefinition,
-    /// Status of each node
     pub node_statuses: HashMap<NodeId, NodeStatus>,
-    /// Last completed node ID
     pub last_completed_node: Option<NodeId>,
     /// Current node being executed (if any)
     pub current_node: Option<NodeId>,
@@ -109,9 +106,7 @@ pub struct SessionCheckpoint {
     /// Observer location
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
-    /// Total completed exposures
     pub completed_exposures: u32,
-    /// Total completed integration time
     pub completed_integration_secs: f64,
     /// Whether this checkpoint is from an active session
     pub is_active: bool,
@@ -178,7 +173,6 @@ pub struct SessionCheckpoint {
 pub enum RunEnd {
     /// The operator stopped it.
     Stopped,
-    /// It failed.
     Failed,
     /// A trigger ended it early and put the rig away (dawn, unsafe weather).
     EndedEarly,
@@ -275,7 +269,6 @@ impl SessionCheckpoint {
         self.timestamp = Utc::now();
     }
 
-    /// Set device IDs
     pub fn set_devices(
         &mut self,
         camera: Option<String>,
@@ -297,7 +290,6 @@ impl SessionCheckpoint {
         self.longitude = lon;
     }
 
-    /// Set save path
     pub fn set_save_path(&mut self, path: Option<PathBuf>) {
         self.save_path = path;
     }
@@ -339,7 +331,6 @@ impl SessionCheckpoint {
     }
 }
 
-/// Manager for checkpoint persistence
 pub struct CheckpointManager {
     checkpoint_dir: PathBuf,
     info_cache: Mutex<Option<CachedCheckpointInfo>>,
@@ -356,7 +347,6 @@ impl CheckpointManager {
     const CHECKPOINT_FILENAME: &'static str = "skotiq_session.checkpoint";
     const CHECKPOINT_BACKUP: &'static str = "skotiq_session.checkpoint.bak";
 
-    /// Get the checkpoint directory path
     pub fn checkpoint_dir(&self) -> &Path {
         &self.checkpoint_dir
     }

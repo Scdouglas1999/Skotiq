@@ -20,7 +20,6 @@ pub enum AutofocusProgress {
         total_points: usize,
         position: i32,
     },
-    /// A sweep point was measured.
     PointMeasured(Box<SweepSnapshot>),
     Validating,
     /// The measured points again, each marked with whether the fit uses it.

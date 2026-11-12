@@ -107,7 +107,6 @@ impl TriggerObserverContext {
         alt
     }
 
-    /// Current hour angle in hours.
     pub fn current_hour_angle_hours(&self) -> f64 {
         let lst = local_sidereal_time(&self.now, self.longitude_deg);
         hour_angle(self.target_ra_hours, lst)

@@ -39,7 +39,6 @@ pub async fn execute_script(
         return result;
     }
 
-    // Build the command
     let mut cmd = tokio::process::Command::new(&config.script_path);
     cmd.args(&config.arguments);
 
