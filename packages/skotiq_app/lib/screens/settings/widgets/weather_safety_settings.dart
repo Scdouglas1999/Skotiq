@@ -9,11 +9,8 @@ import 'safety_fail_mode_labels.dart';
 import 'settings_widgets.dart';
 
 class WeatherSafetySettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const WeatherSafetySettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -72,8 +69,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
       return SettingsPage(
         title: l10n.text('weatherSafetyTitle'),
         description: l10n.text('weatherSafetyDescription'),
-        isMobile: widget.isMobile,
-        hideHeader: widget.isMobile,
         children: [
           Padding(
             padding: const EdgeInsets.all(24),
@@ -101,12 +96,9 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
     return SettingsPage(
       title: l10n.text('weatherSafetyTitle'),
       description: l10n.text('weatherSafetyDescription'),
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile,
       children: [
         SettingsSection(
           title: l10n.text('weatherSafetyActions'),
-          isMobile: widget.isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.shield,
@@ -117,11 +109,9 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) =>
                     _updateSettings(weatherSafetyEnabled: value),
               ),
-              isMobile: widget.isMobile,
             ),
             WeatherSafetyPolicyRows(
               masterEnabled: settings.weatherSafetyEnabled,
-              isMobile: widget.isMobile,
             ),
             SettingRow(
               icon: LucideIcons.mapPin,
@@ -139,7 +129,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                     .read(weatherSettingsActionsProvider)
                     .setAutoParkOnUnsafe(value),
               ),
-              isMobile: widget.isMobile,
             ),
             SettingRow(
               icon: LucideIcons.cloud,
@@ -155,7 +144,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                     .read(weatherSettingsActionsProvider)
                     .setDecisionPolicy(forecastHoldsRun: value),
               ),
-              isMobile: widget.isMobile,
             ),
             SettingRow(
               icon: LucideIcons.sparkles,
@@ -171,7 +159,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                     .read(weatherSettingsActionsProvider)
                     .setDecisionPolicy(starEvidenceOverridesForecast: value),
               ),
-              isMobile: widget.isMobile,
             ),
             SettingRow(
               icon: LucideIcons.play,
@@ -184,14 +171,12 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 value: settings.autoResumeEnabled,
                 onChanged: (value) => _updateSettings(autoResumeEnabled: value),
               ),
-              isMobile: widget.isMobile,
               isLast: true,
             ),
           ],
         ),
         SettingsSection(
           title: l10n.text('weatherSafetyHardware'),
-          isMobile: widget.isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.droplets,
@@ -206,7 +191,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) =>
                     _updateSettings(maxHumidityPercent: value),
               ),
-              isMobile: widget.isMobile,
             ),
             SettingRow(
               icon: LucideIcons.wind,
@@ -220,7 +204,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 decimals: 0,
                 onChanged: (value) => _updateSettings(maxWindSpeedKph: value),
               ),
-              isMobile: widget.isMobile,
             ),
             SettingRow(
               icon: LucideIcons.cloud,
@@ -235,14 +218,12 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) =>
                     _updateSettings(maxCloudCoverPercent: value),
               ),
-              isMobile: widget.isMobile,
               isLast: true,
             ),
           ],
         ),
         SettingsSection(
           title: l10n.text('weatherSafetyAlertTiming'),
-          isMobile: widget.isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.radar,
@@ -256,7 +237,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 decimals: 0,
                 onChanged: (value) => _updateSettings(triggerDistanceKm: value),
               ),
-              isMobile: widget.isMobile,
             ),
             SettingRow(
               icon: LucideIcons.timerReset,
@@ -271,7 +251,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) =>
                     _updateSettings(leadTimeMinutes: value.toInt()),
               ),
-              isMobile: widget.isMobile,
               isLast: true,
             ),
           ],
@@ -294,12 +273,9 @@ class WeatherSafetyPolicyRows extends ConsumerWidget {
   /// Weather safety's master switch. When off, nothing here is in force and the
   /// rows say so rather than reading as active protection.
   final bool masterEnabled;
-  final bool isMobile;
-
   const WeatherSafetyPolicyRows({
     super.key,
     required this.masterEnabled,
-    this.isMobile = false,
   });
 
   /// What the safety sources currently read, and — when there are none — what
@@ -353,7 +329,6 @@ class WeatherSafetyPolicyRows extends ConsumerWidget {
             masterEnabled,
           ),
           trailing: const SizedBox.shrink(),
-          isMobile: isMobile,
         ),
         SettingRow(
           icon: LucideIcons.alertTriangle,
@@ -367,7 +342,6 @@ class WeatherSafetyPolicyRows extends ConsumerWidget {
             onChanged: (mode) =>
                 ref.read(appSettingsProvider.notifier).setSafetyFailMode(mode),
           ),
-          isMobile: isMobile,
         ),
       ],
     );

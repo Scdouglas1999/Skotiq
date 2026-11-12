@@ -30,6 +30,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/delivery_settings.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
@@ -965,7 +966,7 @@ void main() {
 
       await pumpAppScreen(
         tester,
-        const DeliverySettings(isMobile: true),
+        const SettingsFormScope(narrow: true, child: DeliverySettings()),
         database: database,
         size: const Size(360, 740),
         extraOverrides: _overrides(),

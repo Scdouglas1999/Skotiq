@@ -1,8 +1,7 @@
 part of '../notification_routing_settings.dart';
 
 class _MqttTransportSection extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _MqttTransportSection({required this.isMobile});
+  const _MqttTransportSection();
 
   @override
   ConsumerState<_MqttTransportSection> createState() =>
@@ -112,7 +111,6 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
               title: 'Password (optional)',
               controller: _pass,
               hasStoredValue: (cfg.password ?? '').isNotEmpty,
-              isMobile: widget.isMobile,
               hint: 'broker password',
               onChanged: (_) => _clearPassword = false,
               onClear: () => setState(() => _clearPassword = true),
@@ -181,7 +179,6 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
         context: context,
         controller: c,
         hint: hint,
-        isMobile: widget.isMobile,
         obscure: obscure,
       ),
     );

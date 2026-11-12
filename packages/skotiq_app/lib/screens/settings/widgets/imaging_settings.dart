@@ -8,9 +8,7 @@ import 'imaging_naming_pattern.dart';
 import 'settings_widgets.dart';
 
 class ImagingSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const ImagingSettings({super.key, this.isMobile = false});
+  const ImagingSettings({super.key});
 
   @override
   ConsumerState<ImagingSettings> createState() => _ImagingSettingsState();
@@ -88,11 +86,8 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -102,12 +97,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
         return SettingsPage(
           title: 'Imaging',
           description: 'Default capture settings',
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             SettingsSection(
               title: 'File format',
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.file,
@@ -118,7 +110,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                     '$kCaptureImageFormat · $kCaptureBitDepth',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.fileText,
@@ -128,13 +119,12 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                   trailing: SettingsTextInput(
                     authoritativeValue: settings.fileNamingPattern,
                     authorityKey: authority,
-                    width: widget.isMobile ? 160 : 220,
+                    width: 220,
+                    narrowWidth: 160,
                     onChanged: _commitPattern,
-                    isMobile: widget.isMobile,
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
-                  stackOnMobile: widget.isMobile,
+                  stackWhenNarrow: true,
                 ),
                 _patternFeedback(settings.fileNamingPattern),
               ],

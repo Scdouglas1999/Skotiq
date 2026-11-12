@@ -1,8 +1,7 @@
 part of '../notification_routing_settings.dart';
 
 class _TelegramTransportSection extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _TelegramTransportSection({required this.isMobile});
+  const _TelegramTransportSection();
 
   @override
   ConsumerState<_TelegramTransportSection> createState() =>
@@ -74,7 +73,6 @@ class _TelegramTransportSectionState
               title: 'Bot token',
               controller: _bot,
               hasStoredValue: cfg.botToken.isNotEmpty,
-              isMobile: widget.isMobile,
               hint: '1234:abcd…',
               onChanged: (_) => _clearBotToken = false,
               onClear: () => setState(() => _clearBotToken = true),
@@ -86,7 +84,6 @@ class _TelegramTransportSectionState
                 context: context,
                 controller: _chat,
                 hint: '@channel or numeric id',
-                isMobile: widget.isMobile,
               ),
             ),
             SettingRow(

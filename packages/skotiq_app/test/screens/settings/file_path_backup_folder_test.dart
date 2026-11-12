@@ -6,6 +6,7 @@
 // anywhere named the directory the bundles were written to — while the
 // retention setting DELETED the oldest bundles out of it.
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/widgets/file_path_settings.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
@@ -29,7 +30,11 @@ Future<HarnessHandle> _pump(
 }) async {
   final handle = await pumpAppScreen(
     tester,
-    const FilePathSettings(embedded: true),
+    const SettingsFormScope(
+      narrow: false,
+      embedded: true,
+      child: FilePathSettings(),
+    ),
     settle: false,
     extraOverrides: [
       appSettingsProvider.overrideWith(_LoadedAppSettings.new),

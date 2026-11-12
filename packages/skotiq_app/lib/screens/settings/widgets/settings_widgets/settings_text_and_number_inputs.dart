@@ -23,13 +23,13 @@ class SettingsValueField<T> extends StatefulWidget {
     this.authorityKey,
     this.hint,
     this.width,
+    this.narrowWidth,
     this.defaultWidth = 160,
-    this.defaultMobileWidth = 140,
+    this.defaultNarrowWidth = 140,
     this.flexible = false,
     this.obscure = false,
     this.keyboardType,
     this.inputFormatters,
-    this.isMobile,
     this.enabled = true,
     this.inputKey,
     this.builder,
@@ -58,8 +58,12 @@ class SettingsValueField<T> extends StatefulWidget {
 
   final String? hint;
   final double? width;
+
+  /// [width] in the narrow layout, where it differs.
+  final double? narrowWidth;
+
   final double defaultWidth;
-  final double defaultMobileWidth;
+  final double defaultNarrowWidth;
 
   /// Let the field take the width its parent offers.
   final bool flexible;
@@ -67,9 +71,6 @@ class SettingsValueField<T> extends StatefulWidget {
   final bool obscure;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
-
-  /// Overrides the enclosing [SettingsFormScope].
-  final bool? isMobile;
 
   final bool enabled;
 
@@ -261,9 +262,10 @@ class _SettingsValueFieldState<T> extends State<SettingsValueField<T>> {
   @override
   Widget build(BuildContext context) {
     final codec = widget.codec;
-    final isMobile = widget.isMobile ?? SettingsFormScope.isMobileOf(context);
-    final designWidth = widget.width ??
-        (isMobile ? widget.defaultMobileWidth : widget.defaultWidth);
+    final narrow = SettingsFormScope.narrowOf(context);
+    final designWidth = narrow
+        ? widget.narrowWidth ?? widget.width ?? widget.defaultNarrowWidth
+        : widget.width ?? widget.defaultWidth;
     final unit = codec.unit;
 
     final builder = widget.builder;
@@ -354,7 +356,9 @@ class SettingsTextInput extends StatelessWidget {
   /// Returns a message for text that must not be saved, or null.
   final String? Function(String text)? validate;
 
-  final bool? isMobile;
+  /// See [SettingsValueField.narrowWidth].
+  final double? narrowWidth;
+
   final bool flexible;
 
   const SettingsTextInput({
@@ -364,12 +368,12 @@ class SettingsTextInput extends StatelessWidget {
     this.authorityKey,
     this.hint,
     this.width,
+    this.narrowWidth,
     this.obscure = false,
     this.keyboardType,
     this.inputFormatters,
     this.onChanged,
     this.validate,
-    this.isMobile,
     this.flexible = false,
   });
 
@@ -383,11 +387,11 @@ class SettingsTextInput extends StatelessWidget {
       authorityKey: authorityKey,
       hint: hint,
       width: width,
+      narrowWidth: narrowWidth,
       obscure: obscure,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       onChanged: onChanged,
-      isMobile: isMobile,
       flexible: flexible,
     );
   }
@@ -413,7 +417,6 @@ class SettingsNumberInput extends StatelessWidget {
   final FutureOr<void> Function(double) onChanged;
 
   final double? width;
-  final bool? isMobile;
   final bool flexible;
 
   /// See [NumberCodec.customParse]. Used by the site latitude and longitude
@@ -431,7 +434,6 @@ class SettingsNumberInput extends StatelessWidget {
     required this.decimals,
     required this.onChanged,
     this.width,
-    this.isMobile,
     this.flexible = false,
     this.parse,
   })  : assert(min <= max),
@@ -454,8 +456,7 @@ class SettingsNumberInput extends StatelessWidget {
       onChanged: onChanged,
       width: width,
       defaultWidth: 120,
-      defaultMobileWidth: 100,
-      isMobile: isMobile,
+      defaultNarrowWidth: 100,
       flexible: flexible,
     );
   }
@@ -505,7 +506,7 @@ class SettingsField<S, T> extends ConsumerWidget {
         hint: field.hint,
         width: width,
         defaultWidth: codec.textAlign == TextAlign.right ? 120 : 160,
-        defaultMobileWidth: codec.textAlign == TextAlign.right ? 100 : 140,
+        defaultNarrowWidth: codec.textAlign == TextAlign.right ? 100 : 140,
         flexible: flexible,
         enabled: enabled,
       );

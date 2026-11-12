@@ -63,9 +63,7 @@ String builtInEventAlertSubtitle(
 }
 
 class NotificationSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const NotificationSettings({super.key, this.isMobile = false});
+  const NotificationSettings({super.key});
 
   @override
   ConsumerState<NotificationSettings> createState() =>
@@ -267,11 +265,8 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
         pushTargetsAsync.valueOrNull ?? PushDeliveryTargets.none;
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -284,6 +279,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
             !pushConfigAsync.hasError;
 
         return SettingsPage(
+          hideHeader: false,
           key: SettingsTutorialKeys.notifications,
           title: 'Notifications',
           description: 'Configure alerts and notifications',
@@ -679,7 +675,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                         authoritativeValue: settings.discordWebhook,
                         authorityKey: authority,
                         hint: 'https://discord.com/api/webhooks/...',
-                        isMobile: widget.isMobile,
                         obscure: true,
                         onChanged: (value) {
                           return ref
@@ -766,9 +761,7 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
               ),
             // The per-event routing matrix and every transport's credentials,
             // on the same page so there is one place for every transport.
-            NotificationRoutingSettings(
-              isMobile: widget.isMobile,
-            ),
+            const NotificationRoutingSettings(),
           ],
         );
       },

@@ -23,11 +23,8 @@ part 'remote_access_settings/tailscale_panel.dart';
 part 'remote_access_settings/status_rows.dart';
 
 class RemoteAccessSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const RemoteAccessSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -203,9 +200,8 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     final l10n = context.l10n;
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: widget.isMobile),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -223,15 +219,12 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
         return SettingsPage(
           title: l10n.text('remoteAccessTitle'),
           description: l10n.text('remoteAccessDescription'),
-          isMobile: widget.isMobile,
-          hideHeader: widget.isMobile,
           children: [
             // Which computer runs the rig comes first: on a linked desktop
             // everything below describes the imaging computer, not this one.
             const LinkedRigPanel(),
             SettingsSection(
               title: l10n.text('remoteAccessWebServer'),
-              isMobile: widget.isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.globe,
@@ -245,7 +238,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                           .setWebServerEnabled(value);
                     },
                   ),
-                  isMobile: widget.isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.hash,
@@ -301,7 +293,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                     ),
                   ),
                   isLast: true,
-                  isMobile: widget.isMobile,
                 ),
               ],
             ),

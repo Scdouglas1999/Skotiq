@@ -13,7 +13,8 @@ import '../../../services/file_download_service.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../accessible_dropdown.dart';
 import 'admin_only.dart';
-import 'settings_widgets.dart' show settingsPagePadding;
+import 'settings_widgets.dart'
+    show SettingsControlBox, SettingsFormScope, settingsPagePaddingOf;
 
 part 'log_viewer_parts/_export_seams.dart';
 part 'log_viewer_parts/_actions.dart';
@@ -21,9 +22,7 @@ part 'log_viewer_parts/_controls.dart';
 
 /// Log viewer settings page with live-tailing, filtering, and export.
 class LogViewer extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const LogViewer({super.key, this.isMobile = false});
+  const LogViewer({super.key});
 
   @override
   ConsumerState<LogViewer> createState() => _LogViewerState();
@@ -208,15 +207,15 @@ class _LogViewerState extends ConsumerState<LogViewer>
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final isMobile = widget.isMobile;
-    final padding = isMobile ? const EdgeInsets.all(16) : settingsPagePadding;
+    // The narrow layout's own header already says "Logs".
+    final narrow = SettingsFormScope.narrowOf(context);
 
     return Padding(
-      padding: padding,
+      padding: settingsPagePaddingOf(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!isMobile) ...[
+          if (!narrow) ...[
             Text(
               'Logs',
               style: SkotiqTypography.sectionTitle.copyWith(
@@ -233,10 +232,10 @@ class _LogViewerState extends ConsumerState<LogViewer>
             const SizedBox(height: 32),
           ],
           // Filter bar
-          _buildFilterBar(colors, isMobile),
+          _buildFilterBar(colors),
           const SizedBox(height: 12),
           // Action buttons
-          _buildActionBar(colors, isMobile),
+          _buildActionBar(colors),
           const SizedBox(height: 12),
           // Log count indicator
           Padding(
@@ -267,8 +266,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
                       padding: const EdgeInsets.all(8),
                       itemCount: _filteredLogs.length,
                       itemBuilder: (context, index) {
-                        return _buildLogEntry(
-                            _filteredLogs[index], colors, isMobile);
+                        return _buildLogEntry(_filteredLogs[index], colors);
                       },
                     ),
             ),
@@ -278,7 +276,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
     );
   }
 
-  Widget _buildFilterBar(SkotiqColors colors, bool isMobile) {
+  Widget _buildFilterBar(SkotiqColors colors) {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -314,8 +312,9 @@ class _LogViewerState extends ConsumerState<LogViewer>
         // Source dropdown
         if (_availableSources.isNotEmpty) _buildSourceDropdown(colors),
         // Search field
-        SizedBox(
-          width: isMobile ? 160 : 200,
+        SettingsControlBox(
+          width: 200,
+          narrowWidth: 160,
           height: 32,
           child: TextField(
             controller: _searchController,
@@ -410,7 +409,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
     );
   }
 
-  Widget _buildActionBar(SkotiqColors colors, bool isMobile) {
+  Widget _buildActionBar(SkotiqColors colors) {
     final isRemote = ref.watch(backendProvider).remoteHost != null;
     return Wrap(
       spacing: 8,
@@ -466,7 +465,7 @@ class _LogViewerState extends ConsumerState<LogViewer>
     );
   }
 
-  Widget _buildLogEntry(LogEntry entry, SkotiqColors colors, bool isMobile) {
+  Widget _buildLogEntry(LogEntry entry, SkotiqColors colors) {
     final levelColor = _levelColor(entry.level);
     final levelLabel = _levelLabel(entry.level);
     final timeStr = ClockFormat.hmsMillis(entry.timestamp);
@@ -523,5 +522,4 @@ class _LogViewerState extends ConsumerState<LogViewer>
       ),
     );
   }
-
 }

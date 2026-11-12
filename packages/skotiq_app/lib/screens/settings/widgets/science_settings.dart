@@ -65,9 +65,7 @@ Object _rowAuthority(Object? backend, int commits) =>
     Object.hash(identityHashCode(backend), commits);
 
 class ScienceSettingsPage extends ConsumerWidget {
-  final bool isMobile;
-
-  const ScienceSettingsPage({super.key, this.isMobile = false});
+  const ScienceSettingsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -75,12 +73,10 @@ class ScienceSettingsPage extends ConsumerWidget {
     final scienceNotifier = ref.read(scienceSettingsProvider.notifier);
 
     return scienceAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: isMobile,
+      loading: () => const SettingsLoadingState(
         message: 'Loading science settings...',
       ),
       error: (error, stack) => SettingsErrorState(
-        isMobile: isMobile,
         error: error,
         onRetry: () => ref.invalidate(scienceSettingsProvider),
       ),
@@ -89,12 +85,9 @@ class ScienceSettingsPage extends ConsumerWidget {
           title: 'Science',
           description:
               'Advanced, informational-only scientific analysis. No frames are auto-deleted.',
-          isMobile: isMobile,
-          hideHeader: isMobile,
           children: [
             SettingsSection(
               title: 'Mode',
-              isMobile: isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.flaskConical,
@@ -106,7 +99,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                     onChanged: (value) =>
                         scienceNotifier.setAdvancedModeEnabled(value),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.layers,
@@ -119,13 +111,11 @@ class ScienceSettingsPage extends ConsumerWidget {
                         scienceNotifier.setOverlayEnabled(value),
                   ),
                   isLast: true,
-                  isMobile: isMobile,
                 ),
               ],
             ),
             SettingsSection(
               title: 'Features',
-              isMobile: isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.activity,
@@ -138,7 +128,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.gauge,
@@ -151,7 +140,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.cloud,
@@ -164,7 +152,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.layoutGrid,
@@ -177,7 +164,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.map,
@@ -190,7 +176,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.layers,
@@ -209,10 +194,8 @@ class ScienceSettingsPage extends ConsumerWidget {
                             false,
                           ),
                   ),
-                  isMobile: isMobile,
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.hardDrive,
                   title: 'Your Sky size limit (GB)',
                   subtitle: 'New frames stop being added to the atlas when it '
@@ -228,7 +211,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _SkyAtlasStorageRow(
-                  isMobile: isMobile,
                   limitGb: science.skyAtlasLimitGb,
                 ),
                 SettingRow(
@@ -242,7 +224,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.slidersHorizontal,
@@ -255,7 +236,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.layoutTemplate,
@@ -269,7 +249,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.boxSelect,
@@ -283,7 +262,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                       value,
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.sliders,
@@ -296,7 +274,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                     value: science.autoFrameGradingEnabled,
                     onChanged: scienceNotifier.setAutoFrameGradingEnabled,
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.fileText,
@@ -311,23 +288,19 @@ class ScienceSettingsPage extends ConsumerWidget {
                     onChanged: scienceNotifier.setFitsHeaderWritebackEnabled,
                   ),
                   isLast: true,
-                  isMobile: isMobile,
                 ),
               ],
             ),
-            SettingsSection(
+            const SettingsSection(
               title: 'Photometric catalog',
-              isMobile: isMobile,
               children: [
-                _ScienceOnlineCatalogRow(isMobile: isMobile),
+                _ScienceOnlineCatalogRow(),
               ],
             ),
             SettingsSection(
               title: 'AAVSO',
-              isMobile: isMobile,
               children: [
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.userCheck,
                   title: 'AAVSO observer code',
                   subtitle: 'Your assigned AAVSO observer initials (1-5 chars, '
@@ -345,10 +318,8 @@ class ScienceSettingsPage extends ConsumerWidget {
             ),
             SettingsSection(
               title: 'Minor Planet Center (MPC)',
-              isMobile: isMobile,
               children: [
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.star,
                   title: 'MPC observatory code',
                   subtitle: 'Your 3-character MPC observatory code (e.g., '
@@ -362,7 +333,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   onCommit: scienceNotifier.setMpcObservatoryCode,
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.bookOpen,
                   title: 'Astrometric catalog',
                   subtitle:
@@ -378,10 +348,8 @@ class ScienceSettingsPage extends ConsumerWidget {
             ),
             SettingsSection(
               title: 'Observer identity',
-              isMobile: isMobile,
               children: [
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.user,
                   title: 'Observer name',
                   subtitle:
@@ -397,10 +365,8 @@ class ScienceSettingsPage extends ConsumerWidget {
             ),
             SettingsSection(
               title: 'Transient Name Server (TNS)',
-              isMobile: isMobile,
               children: [
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.hash,
                   title: 'Bot id',
                   subtitle: 'Your TNS bot id (tns_marker tns_id).',
@@ -415,7 +381,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.bot,
                   title: 'Bot name',
                   subtitle: 'Your TNS bot name (tns_marker name).',
@@ -425,7 +390,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   onCommit: scienceNotifier.setTnsBotName,
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.users,
                   title: 'Reporting group id',
                   subtitle: 'Your TNS reporting_group_id.',
@@ -441,7 +405,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.database,
                   title: 'Data source id',
                   subtitle: 'Your TNS discovery_data_source_id.',
@@ -457,7 +420,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  isMobile: isMobile,
                   icon: LucideIcons.edit3,
                   title: 'Reporter name',
                   subtitle: 'Reporter shown on TNS (falls back to observer '
@@ -468,16 +430,14 @@ class ScienceSettingsPage extends ConsumerWidget {
                   onCommit: scienceNotifier.setTnsReporterName,
                 ),
                 const _TnsApiKeyRow(),
-                _TnsSandboxRow(isMobile: isMobile),
+                const _TnsSandboxRow(),
               ],
             ),
-            SettingsSection(
+            const SettingsSection(
               title: 'Camera',
-              isMobile: isMobile,
               children: [
-                _ScienceCameraAutoRow(isMobile: isMobile),
+                _ScienceCameraAutoRow(),
                 _ScienceCameraValueRow(
-                  isMobile: isMobile,
                   settingKey: 'science.camera.read_noise_e',
                   icon: LucideIcons.zap,
                   title: 'Camera read noise (e⁻)',
@@ -488,7 +448,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   max: 30.0,
                 ),
                 _ScienceCameraValueRow(
-                  isMobile: isMobile,
                   settingKey: 'science.camera.gain_e_per_adu',
                   icon: LucideIcons.activity,
                   title: 'Camera gain (e⁻/ADU)',
@@ -500,7 +459,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   max: 50.0,
                 ),
                 _ScienceCameraValueRow(
-                  isMobile: isMobile,
                   settingKey: 'science.camera.saturation_adu',
                   icon: LucideIcons.sun,
                   title: 'Saturation level (ADU)',
@@ -534,7 +492,6 @@ class ScienceSettingsPage extends ConsumerWidget {
 /// is science-specific — normalisation, per-field validation shown in the
 /// subtitle, and the failure toast.
 class _ScienceTextRow extends ConsumerStatefulWidget {
-  final bool isMobile;
   final IconData icon;
   final String title;
   final String subtitle;
@@ -556,7 +513,6 @@ class _ScienceTextRow extends ConsumerStatefulWidget {
   final String? Function(String value)? validate;
 
   const _ScienceTextRow({
-    required this.isMobile,
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -630,13 +586,11 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
         authorityKey: _rowAuthority(ref.watch(backendProvider), _commits),
         hint: widget.hint,
         width: widget.width,
-        isMobile: widget.isMobile,
         keyboardType: widget.numeric ? TextInputType.number : null,
         inputFormatters: _formatters,
         onChanged: _commit,
       ),
       isLast: widget.isLast,
-      isMobile: widget.isMobile,
     );
   }
 }
@@ -727,7 +681,6 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
         obscure: true,
         onChanged: _commit,
       ),
-      isMobile: false,
     );
   }
 }
@@ -735,8 +688,7 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
 /// Toggle between the TNS production endpoint and the sandbox (for testing —
 /// sandbox submits never create a public AT record).
 class _TnsSandboxRow extends ConsumerWidget {
-  final bool isMobile;
-  const _TnsSandboxRow({required this.isMobile});
+  const _TnsSandboxRow();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -753,7 +705,6 @@ class _TnsSandboxRow extends ConsumerWidget {
             ref.read(scienceSettingsProvider.notifier).setTnsUseSandbox(value),
       ),
       isLast: true,
-      isMobile: isMobile,
     );
   }
 }
@@ -763,8 +714,7 @@ class _TnsSandboxRow extends ConsumerWidget {
 /// fields keep their deep photometry offline, and everything else falls
 /// back to the bundled HYG catalog.
 class _ScienceOnlineCatalogRow extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _ScienceOnlineCatalogRow({this.isMobile = false});
+  const _ScienceOnlineCatalogRow();
 
   @override
   ConsumerState<_ScienceOnlineCatalogRow> createState() =>
@@ -816,7 +766,6 @@ class _ScienceOnlineCatalogRowState
         onChanged: _setEnabled,
       ),
       isLast: true,
-      isMobile: widget.isMobile,
     );
   }
 }
@@ -826,8 +775,7 @@ class _ScienceOnlineCatalogRowState
 /// the connected camera (or active profile); manually editing any of them
 /// flips this off so user values are never silently overwritten.
 class _ScienceCameraAutoRow extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _ScienceCameraAutoRow({this.isMobile = false});
+  const _ScienceCameraAutoRow();
 
   @override
   ConsumerState<_ScienceCameraAutoRow> createState() =>
@@ -880,7 +828,6 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
         value: autoManaged,
         onChanged: _setAutoManaged,
       ),
-      isMobile: widget.isMobile,
     );
   }
 }
@@ -895,7 +842,6 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
 /// these rows have to *say* why an entry is refused, and a digits-only
 /// formatter would swallow the offending text before the row ever sees it.
 class _ScienceCameraValueRow extends ConsumerStatefulWidget {
-  final bool isMobile;
   final String settingKey;
   final IconData icon;
   final String title;
@@ -916,7 +862,6 @@ class _ScienceCameraValueRow extends ConsumerStatefulWidget {
     required this.max,
     this.integer = false,
     this.isLast = false,
-    this.isMobile = false,
   });
 
   @override
@@ -991,12 +936,10 @@ class _ScienceCameraValueRowState
         authoritativeValue: _pendingWrite ?? stored ?? widget.defaultText,
         authorityKey: _rowAuthority(ref.watch(backendProvider), _commits),
         width: 72,
-        isMobile: widget.isMobile,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: _commit,
       ),
       isLast: widget.isLast,
-      isMobile: widget.isMobile,
     );
   }
 }
@@ -1005,10 +948,9 @@ class _ScienceCameraValueRowState
 /// tiles saved by older versions in the compressed format. Hidden on a
 /// companion, whose atlas is on the imaging host.
 class _SkyAtlasStorageRow extends ConsumerStatefulWidget {
-  final bool isMobile;
   final int limitGb;
 
-  const _SkyAtlasStorageRow({required this.isMobile, required this.limitGb});
+  const _SkyAtlasStorageRow({required this.limitGb});
 
   @override
   ConsumerState<_SkyAtlasStorageRow> createState() =>
@@ -1073,7 +1015,6 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
         variant: ButtonVariant.secondary,
         onPressed: _compacting || bytes == null ? null : _compact,
       ),
-      isMobile: widget.isMobile,
     );
   }
 }

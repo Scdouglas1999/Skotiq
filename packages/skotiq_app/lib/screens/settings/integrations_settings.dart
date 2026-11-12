@@ -93,11 +93,8 @@ const String kHomeAssistantPluginId = 'com.skotiq.examples.home_assistant';
 class IntegrationsSettings extends ConsumerWidget {
   const IntegrationsSettings({
     super.key,
-    this.isMobile = false,
     this.testHttpClientFactory,
   });
-
-  final bool isMobile;
 
   /// Optional HTTP client factory used only by the Discord "Test send" path.
   /// Null in production (a real [http.Client] is used). Tests pass a factory
@@ -111,16 +108,13 @@ class IntegrationsSettings extends ConsumerWidget {
     // sequence. A thin client must not register/configure a second local host
     // and imply those changes affect the remote rig.
     if (ref.watch(backendProvider).remoteHost != null) {
-      return SettingsPage(
+      return const SettingsPage(
         title: 'Integrations',
         description:
             'Plugin integrations execute on the connected imaging host.',
-        isMobile: isMobile,
-        hideHeader: isMobile,
         children: [
           SettingsSection(
             title: 'Imaging host',
-            isMobile: isMobile,
             children: [
               SettingRow(
                 icon: LucideIcons.server,
@@ -128,10 +122,9 @@ class IntegrationsSettings extends ConsumerWidget {
                 subtitle: 'Open Skotiq on the rig to enable plugins and enter '
                     'their credentials. Local changes on this client would '
                     'not affect remote sequence execution.',
-                trailing: const Icon(LucideIcons.lock, size: 16),
+                trailing: Icon(LucideIcons.lock, size: 16),
                 isLast: true,
-                isMobile: isMobile,
-                stackOnMobile: true,
+                stackWhenNarrow: true,
               ),
             ],
           ),
@@ -145,17 +138,14 @@ class IntegrationsSettings extends ConsumerWidget {
     final registration = ref.watch(pluginRegistrationProvider);
 
     return registration.when(
-      loading: () => SettingsLoadingState(
-        isMobile: isMobile,
+      loading: () => const SettingsLoadingState(
         message: 'Loading integrations…',
       ),
       error: (error, _) => SettingsErrorState(
-        isMobile: isMobile,
         error: error,
         onRetry: () => ref.invalidate(pluginRegistrationProvider),
       ),
       data: (_) => _IntegrationsBody(
-        isMobile: isMobile,
         testHttpClientFactory: testHttpClientFactory,
       ),
     );
@@ -164,11 +154,9 @@ class IntegrationsSettings extends ConsumerWidget {
 
 class _IntegrationsBody extends ConsumerWidget {
   const _IntegrationsBody({
-    required this.isMobile,
     required this.testHttpClientFactory,
   });
 
-  final bool isMobile;
   final http.Client Function()? testHttpClientFactory;
 
   @override
@@ -184,12 +172,9 @@ class _IntegrationsBody extends ConsumerWidget {
           'Connect Skotiq to outside services. Route observatory events to '
           'chat and push, and manage the bundled plugins that add sequence '
           'nodes for Discord, Pushover, and Home Assistant.',
-      isMobile: isMobile,
-      hideHeader: isMobile,
       children: [
-        _NotificationCrossLinkSection(isMobile: isMobile),
+        const _NotificationCrossLinkSection(),
         _PluginsSection(
-          isMobile: isMobile,
           plugins: plugins,
           enabledSet: enabledSet,
           lastFired: lastFired,

@@ -16,9 +16,7 @@ import 'settings_scope_notice.dart';
 import 'settings_widgets.dart';
 
 class ConnectionSettings extends ConsumerWidget {
-  final bool isMobile;
-
-  const ConnectionSettings({super.key, this.isMobile = false});
+  const ConnectionSettings({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -71,15 +69,12 @@ class ConnectionSettings extends ConsumerWidget {
       key: SettingsTutorialKeys.connection,
       title: 'Connection',
       description: 'Server connection settings',
-      isMobile: isMobile,
-      hideHeader: isMobile,
       children: [
         // This page keeps groups in both places: the link is this
         // computer's, discovery is the imaging host's.
         const SettingsScopeNotice(onHost: false, padding: _groupNoticePadding),
         SettingsSection(
           title: 'Server status',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.server,
@@ -99,7 +94,6 @@ class ConnectionSettings extends ConsumerWidget {
                   ),
                 ),
               ),
-              isMobile: isMobile,
             ),
             if (isNetwork)
               SettingRow(
@@ -112,7 +106,6 @@ class ConnectionSettings extends ConsumerWidget {
                     color: colors.textPrimary,
                   ),
                 ),
-                isMobile: isMobile,
               ),
             SettingRow(
               icon: isNetwork ? LucideIcons.logOut : LucideIcons.logIn,
@@ -125,12 +118,11 @@ class ConnectionSettings extends ConsumerWidget {
                 variant: isNetwork
                     ? ButtonVariant.destructive
                     : ButtonVariant.primary,
-                size: isMobile ? ButtonSize.small : ButtonSize.small,
+                size: ButtonSize.small,
                 onPressed: () =>
                     _handleConnectionAction(context, ref, isNetwork),
               ),
               isLast: !(isDisconnected && canWorkLocally),
-              isMobile: isMobile,
             ),
             // The only way out of a DisconnectedBackend was to relaunch:
             // `useLocalBackend()` had no UI caller anywhere in the app, so a
@@ -138,15 +130,14 @@ class ConnectionSettings extends ConsumerWidget {
             // all. Offer the way back on the platforms whose entry point runs
             // the rig locally — a phone has no local hardware to fall back to.
             if (isDisconnected && canWorkLocally)
-              SettingRow(
+              const SettingRow(
                 icon: LucideIcons.hardDrive,
                 title: 'Work locally',
                 subtitle:
                     'Drive the equipment attached to this computer instead of '
                     'a remote server',
-                trailing: const WorkLocallyButton(),
+                trailing: WorkLocallyButton(),
                 isLast: true,
-                isMobile: isMobile,
               ),
           ],
         ),
@@ -155,7 +146,6 @@ class ConnectionSettings extends ConsumerWidget {
         if (settings != null)
           SettingsSection(
             title: 'Discovery',
-            isMobile: isMobile,
             children: [
               // INDI is a Linux/macOS device-protocol server; on Windows the
               // host/port knob is not applicable, so only offer it off-Windows.
@@ -175,7 +165,6 @@ class ConnectionSettings extends ConsumerWidget {
                       builder: (_) => const IndiServerDialog(),
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
               SettingRow(
                 icon: LucideIcons.radio,
@@ -186,7 +175,6 @@ class ConnectionSettings extends ConsumerWidget {
                   value: settings.indiAutoConnect,
                   onChanged: settingsNotifier.setIndiAutoConnect,
                 ),
-                isMobile: isMobile,
               ),
               // The address row the "configured Alpaca server" below it always
               // referred to. Without it the address was permanently the stored
@@ -207,7 +195,6 @@ class ConnectionSettings extends ConsumerWidget {
                     builder: (_) => const AlpacaServerDialog(),
                   ),
                 ),
-                isMobile: isMobile,
               ),
               SettingRow(
                 icon: LucideIcons.search,
@@ -218,7 +205,6 @@ class ConnectionSettings extends ConsumerWidget {
                   value: settings.alpacaAutoDiscover,
                   onChanged: settingsNotifier.setAlpacaAutoDiscover,
                 ),
-                isMobile: isMobile,
               ),
               SettingRow(
                 icon: LucideIcons.camera,
@@ -232,24 +218,19 @@ class ConnectionSettings extends ConsumerWidget {
                   onChanged: settingsNotifier.setQhyDiscoveryEnabled,
                 ),
                 isLast: true,
-                isMobile: isMobile,
               ),
             ],
           ),
         if (isConnected)
-          SettingsSection(
+          const SettingsSection(
             title: 'Remote features',
-            isMobile: isMobile,
             children: [
               SettingRow(
                 icon: LucideIcons.refreshCw,
                 title: 'Refresh host settings',
                 subtitle: 'Reload this screen from the connected Skotiq host',
-                trailing: _HostSettingsRefreshButton(
-                  isMobile: isMobile,
-                ),
+                trailing: _HostSettingsRefreshButton(),
                 isLast: true,
-                isMobile: isMobile,
               ),
             ],
           ),
@@ -261,11 +242,9 @@ class ConnectionSettings extends ConsumerWidget {
           title: isConnected
               ? 'This device capabilities'
               : 'Platform capabilities',
-          isMobile: isMobile,
           children: [
             _PlatformCapabilityMatrixView(
               report: platformCapabilities,
-              isMobile: isMobile,
               isRemote: isConnected,
             ),
           ],
@@ -375,9 +354,7 @@ String _qhyDiscoverySubtitle({
 }
 
 class _HostSettingsRefreshButton extends ConsumerStatefulWidget {
-  const _HostSettingsRefreshButton({required this.isMobile});
-
-  final bool isMobile;
+  const _HostSettingsRefreshButton();
 
   @override
   ConsumerState<_HostSettingsRefreshButton> createState() =>
@@ -680,12 +657,10 @@ class _ConnectToServerDialogState
 
 class _PlatformCapabilityMatrixView extends StatelessWidget {
   final PlatformCapabilityReport report;
-  final bool isMobile;
   final bool isRemote;
 
   const _PlatformCapabilityMatrixView({
     required this.report,
-    required this.isMobile,
     this.isRemote = false,
   });
 
@@ -693,16 +668,17 @@ class _PlatformCapabilityMatrixView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final platformLabel = _formatPlatform(report.platform);
+    final narrow = SettingsFormScope.narrowOf(context);
 
     return Padding(
-      padding: EdgeInsets.all(isMobile ? 12 : 16),
+      padding: EdgeInsets.all(narrow ? 12 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(LucideIcons.monitor,
-                  size: isMobile ? 16 : 18, color: colors.textSecondary),
+                  size: narrow ? 16 : 18, color: colors.textSecondary),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -732,7 +708,6 @@ class _PlatformCapabilityMatrixView extends StatelessWidget {
             (driver) => _PlatformCapabilityRow(
               driver: driver,
               platform: report.platform,
-              isMobile: isMobile,
             ),
           ),
         ],
@@ -757,12 +732,9 @@ class _PlatformCapabilityMatrixView extends StatelessWidget {
 class _PlatformCapabilityRow extends StatelessWidget {
   final PlatformDriverCapability driver;
   final String platform;
-  final bool isMobile;
-
   const _PlatformCapabilityRow({
     required this.driver,
     required this.platform,
-    required this.isMobile,
   });
 
   @override
@@ -771,18 +743,20 @@ class _PlatformCapabilityRow extends StatelessWidget {
     final status = driver.statusFor(platform);
     final statusColor = _statusColor(colors, status);
     final statusLabel = _statusLabel(status);
+    // Label beside the details where there is room, above them where not.
+    final narrow = SettingsFormScope.narrowOf(context);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(isMobile ? 10 : 12),
+      padding: EdgeInsets.all(narrow ? 10 : 12),
       decoration: BoxDecoration(
         color: colors.well.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
         border: Border.all(color: colors.border.withValues(alpha: 0.6)),
       ),
-      child: isMobile
-          ? _buildMobile(statusColor, statusLabel)
-          : _buildDesktop(statusColor, statusLabel),
+      child: narrow
+          ? _buildStacked(statusColor, statusLabel)
+          : _buildSideBySide(statusColor, statusLabel),
     );
   }
 
@@ -808,7 +782,7 @@ class _PlatformCapabilityRow extends StatelessWidget {
     }
   }
 
-  Widget _buildDesktop(Color statusColor, String statusLabel) {
+  Widget _buildSideBySide(Color statusColor, String statusLabel) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -825,14 +799,13 @@ class _PlatformCapabilityRow extends StatelessWidget {
           child: _DriverDetails(
             driver: driver,
             platform: platform,
-            isMobile: false,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMobile(Color statusColor, String statusLabel) {
+  Widget _buildStacked(Color statusColor, String statusLabel) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -845,7 +818,6 @@ class _PlatformCapabilityRow extends StatelessWidget {
         _DriverDetails(
           driver: driver,
           platform: platform,
-          isMobile: true,
         ),
       ],
     );
@@ -895,12 +867,9 @@ class _DriverLabel extends StatelessWidget {
 class _DriverDetails extends StatelessWidget {
   final PlatformDriverCapability driver;
   final String platform;
-  final bool isMobile;
-
   const _DriverDetails({
     required this.driver,
     required this.platform,
-    required this.isMobile,
   });
 
   @override

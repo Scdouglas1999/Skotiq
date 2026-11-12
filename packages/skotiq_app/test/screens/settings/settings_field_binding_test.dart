@@ -373,11 +373,11 @@ void main() {
     await pumpAppScreen(
       tester,
       SettingsFormScope(
-        isMobile: true,
+        narrow: true,
         child: SettingRow(
           icon: Icons.abc,
           title: 'Stacks on a phone',
-          stackOnMobile: true,
+          stackWhenNarrow: true,
           trailing: SettingsSwitch(value: false, onChanged: (_) {}),
         ),
       ),
