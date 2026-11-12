@@ -2997,15 +2997,15 @@ mod tests {
             Ok(())
         }
 
-        async fn calculate_image_hfr(&self, _image_data: &ImageData) -> DeviceResult<Option<f64>> {
-            Ok(Some(2.0))
-        }
-
-        async fn detect_stars_in_image(
+        async fn measure_light_frame(
             &self,
             _image_data: &ImageData,
-        ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-            Ok(vec![])
+        ) -> DeviceResult<crate::device_ops::LightFrameMeasurement> {
+            Ok(crate::device_ops::LightFrameMeasurement {
+                hfr: Some(2.0),
+                star_count: Some(0),
+                ..Default::default()
+            })
         }
     }
 
