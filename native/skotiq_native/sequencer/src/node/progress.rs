@@ -352,9 +352,10 @@ impl ProgressDetail {
                 attempt,
                 max_attempts,
                 last_separation_arcsec,
-            } => match last_separation_arcsec {
-                Some(sep) => format!("attempt {}/{} sep {:.1}\"", attempt, max_attempts, sep),
-                None => format!("attempt {}/{}", attempt, max_attempts),
+            } => match (attempt, last_separation_arcsec) {
+                (0, Some(sep)) => format!("sep {:.1}\"", sep),
+                (_, Some(sep)) => format!("attempt {}/{} sep {:.1}\"", attempt, max_attempts, sep),
+                (_, None) => format!("attempt {}/{}", attempt, max_attempts),
             },
             ProgressDetail::Autofocus {
                 step,

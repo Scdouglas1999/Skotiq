@@ -113,8 +113,9 @@ async fn a_center_that_does_not_converge_notifies_and_the_run_goes_on() {
 }
 
 /// What the run's status line and the app read from a Center node: the
-/// attempt whose frame is being taken or corrected, and attempt 0 while the
-/// step starts and once it has centered.
+/// attempt whose frame is being taken or corrected with the distance its solve
+/// measured from the target, attempt 0 while the step starts, and the final
+/// distance once it has centered.
 #[tokio::test(start_paused = true)]
 async fn a_center_node_reports_the_attempt_it_is_on() {
     use crate::node::registry::InstructionNode;
@@ -156,12 +157,12 @@ async fn a_center_node_reports_the_attempt_it_is_on() {
         vec![
             "Center: attempt 0/2 (0%)",
             "Center: attempt 1/2 (0%)",
-            "Center: attempt 1/2 (25%)",
-            "Center: attempt 1/2 (38%)",
+            "Center: attempt 1/2 sep 36.0\" (25%)",
+            "Center: attempt 1/2 sep 36.0\" (38%)",
             "Center: attempt 2/2 (50%)",
-            "Center: attempt 2/2 (75%)",
-            "Center: attempt 0/2 (95%)",
-            "Center: attempt 0/2 (100%)",
+            "Center: attempt 2/2 sep 0.0\" (75%)",
+            "Center: sep 0.0\" (95%)",
+            "Center: sep 0.0\" (100%)",
         ]
     );
 }

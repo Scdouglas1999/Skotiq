@@ -52,6 +52,17 @@ impl CenterProgress {
             Self::Starting { .. } | Self::Centered { .. } | Self::Rotating { .. } => None,
         }
     }
+
+    /// How far from the target this step measured the mount pointing.
+    pub fn separation_arcsec(&self) -> Option<f64> {
+        match self {
+            Self::Solved {
+                separation_arcsec, ..
+            }
+            | Self::Centered { separation_arcsec } => Some(*separation_arcsec),
+            _ => None,
+        }
+    }
 }
 
 pub(crate) const CENTER_CORRECTION_SLEW_START_TIMEOUT: Duration = Duration::from_secs(5);

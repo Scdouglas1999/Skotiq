@@ -30,8 +30,19 @@ impl InstructionNode for CenterInstruction {
         let ctx = context.to_instruction_context(node_id).await;
         let progress_cb = context.progress_callback.as_ref();
         let max_attempts = config.max_attempts;
+        // The attempt's solve stays the distance to report while its
+        // correction slew runs; the next attempt's frame has none yet.
+        let separation = parking_lot::Mutex::new(None);
 
         let progress_fn = |percent: f64, progress: &CenterProgress| {
+            match progress {
+                CenterProgress::Capturing { .. } => *separation.lock() = None,
+                _ => {
+                    if let Some(measured) = progress.separation_arcsec() {
+                        *separation.lock() = Some(measured);
+                    }
+                }
+            }
             if let Some(cb) = progress_cb {
                 cb(ProgressUpdate::instruction_progress(
                     node_id.to_string(),
@@ -42,7 +53,7 @@ impl InstructionNode for CenterInstruction {
                         // finishing rather than taking an attempt's frame.
                         attempt: progress.attempt().unwrap_or(0),
                         max_attempts,
-                        last_separation_arcsec: None,
+                        last_separation_arcsec: *separation.lock(),
                     },
                 ));
             }
