@@ -870,6 +870,48 @@ mod tests {
         assert_eq!(position - state.latches.last_applied_filter_offset, 25_025);
     }
 
+    /// The app's idle compensator is this rule written again in Dart
+    /// (`FocusCompensationRule`). Both run every case in this file, so the
+    /// two cannot come apart without a test failing on one side.
+    #[test]
+    fn the_rule_gives_what_the_shared_cases_say() {
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("temperature_compensation_cases.json")).unwrap();
+        for case in cases.as_array().unwrap() {
+            let name = case["name"].as_str().unwrap();
+            let mut compensation = FocusCompensation::new(FocusCompensationSettings {
+                steps_per_degree: case["steps_per_degree"].as_f64().unwrap(),
+                min_steps: case["min_steps"].as_u64().unwrap() as u32,
+            });
+            for (index, op) in case["ops"].as_array().unwrap().iter().enumerate() {
+                let int = |key: &str| op[key].as_i64().unwrap() as i32;
+                match op["op"].as_str().unwrap() {
+                    "shifted_by" => compensation.shifted_by(int("steps")),
+                    "moved_to" => compensation.moved_to(int("target")),
+                    "forget_reference" => compensation.forget_reference(),
+                    "step" => {
+                        let step =
+                            compensation.step(op["temperature"].as_f64().unwrap(), int("position"));
+                        let got = match step {
+                            CompensationStep::TakeReference { moved_from } => {
+                                serde_json::json!({ "kind": "take_reference", "moved_from": moved_from })
+                            }
+                            CompensationStep::Hold => serde_json::json!({ "kind": "hold" }),
+                            CompensationStep::Move { target, owed, .. } => {
+                                serde_json::json!({ "kind": "move", "target": target, "owed": owed })
+                            }
+                            CompensationStep::Refuse { target } => {
+                                serde_json::json!({ "kind": "refuse", "target": target })
+                            }
+                        };
+                        assert_eq!(got, op["expect"], "case '{name}', op {index}");
+                    }
+                    other => panic!("case '{name}': unknown op {other}"),
+                }
+            }
+        }
+    }
+
     #[test]
     fn forgetting_the_reference_measures_from_the_next_reading() {
         let mut compensation = rig_compensation();
