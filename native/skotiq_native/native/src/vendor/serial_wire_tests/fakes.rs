@@ -101,74 +101,169 @@ pub(super) fn synscan(answer_baud: Option<u32>, knobs: Arc<Knobs>) -> Responder 
     })
 }
 
-pub(super) fn ioptron(answer_baud: Option<u32>, knobs: Arc<Knobs>) -> Responder {
+/// Which iOptron command language a fake mount speaks.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum IoptronDialect {
+    /// "iOptron Mount RS-232 Command Language 2014", Version 2.5.
+    V25,
+    /// Version 3.10.
+    V3,
+    /// Firmware from before 2016: answers the model code, not `:GLS#`.
+    Pre2016,
+}
+
+/// `field` is `digits` ASCII digits after an optional sign.
+fn is_number(field: &str, signed: bool, digits: usize) -> bool {
+    let field = if signed {
+        match field.strip_prefix(['+', '-']) {
+            Some(rest) => rest,
+            None => return false,
+        }
+    } else {
+        field
+    };
+    field.len() == digits && field.bytes().all(|b| b.is_ascii_digit())
+}
+
+/// `command` is `prefix`, a number in that shape, and `#`.
+fn takes(command: &str, prefix: &str, signed: bool, digits: usize) -> bool {
+    command
+        .strip_prefix(prefix)
+        .and_then(|rest| rest.strip_suffix('#'))
+        .is_some_and(|field| is_number(field, signed, digits))
+}
+
+/// An iOptron mount as the two command language documents describe it. It
+/// answers only commands in the documented form, with the documented reply
+/// shapes: a query up to `#`, a setting or motion command one digit with no
+/// `#`, the model code four digits with no `#`, pulse guiding nothing.
+pub(super) fn ioptron(
+    dialect: IoptronDialect,
+    model_code: &'static str,
+    answer_baud: Option<u32>,
+    knobs: Arc<Knobs>,
+) -> Responder {
+    use IoptronDialect::*;
+    let v3 = dialect == V3;
     let mut tracking = true;
     let mut slew_polls_left = 0u32;
     let mut parked = false;
-    let mut home = false;
+    let mut at_zero = false;
     let mut rate = '0';
     Box::new(move |command, baud| {
         if answer_baud.is_some_and(|wanted| wanted != baud) {
             return Vec::new();
         }
         let command = text(command);
+        if command == ":MountInfo#" {
+            return model_code.as_bytes().to_vec();
+        }
+        if dialect == Pre2016 {
+            return Vec::new();
+        }
+
+        let ok = || "1".to_string();
         let reply: String = match command.as_str() {
-            ":MountInfo#" => "CEM60#".into(),
-            ":FW1#" => "260525240101#".into(),
-            ":FW2#" => "230201230202#".into(),
-            ":GEC#" => "05300000+20000000#".into(),
-            ":GAC#" => "+45300000180150000#".into(),
-            ":GLS#" => "03154200#".into(),
-            ":AG#" => "0.50#".into(),
-            ":GAS#" => {
-                let slewing = slew_polls_left > 0;
-                slew_polls_left = slew_polls_left.saturating_sub(1);
-                format!(
-                    "{}{}{}0{}{}11#",
-                    if tracking { 1 } else { 0 },
-                    if slewing { 1 } else { 0 },
-                    rate,
-                    if home { 1 } else { 0 },
-                    if parked { 1 } else { 0 },
-                )
+            ":FW1#" => "210607210329#".into(),
+            ":FW2#" => "210105210106#".into(),
+            ":GLS#" => {
+                let system = if parked {
+                    '6'
+                } else if slew_polls_left > 0 {
+                    slew_polls_left -= 1;
+                    '2'
+                } else if tracking {
+                    '1'
+                } else if at_zero {
+                    '7'
+                } else {
+                    '0'
+                };
+                // 75.397448 W, 40.007714 N; GPS fix, 64x arrow speed, time
+                // from GPS, northern hemisphere.
+                let site = if v3 {
+                    "-2714308146802777"
+                } else {
+                    "-271431468028"
+                };
+                format!("{site}2{system}{rate}531#")
             }
-            ":MS#" => {
+            // Dec +20, RA 5.5 h (82.5 deg); v3 adds pier west, counterweight down.
+            ":GEP#" if v3 => "+0720000002970000011#".into(),
+            ":GEC#" if !v3 => "+0720000019800000#".into(),
+            // Alt 45.5, az 180.25.
+            ":GAC#" => "+16380000064890000#".into(),
+            // 2026-09-09 02:30:00 UTC, UTC-5 with daylight saving.
+            ":GUT#" if v3 => "-30010842193000000#".into(),
+            ":GLT#" if !v3 => "-3001260908223000#".into(),
+
+            ":MS1#" if v3 => {
                 if knobs.refuse_goto.load(Ordering::SeqCst) {
-                    "0#".into()
+                    "0".into()
                 } else {
                     slew_polls_left = 2;
-                    home = false;
-                    "1#".into()
+                    tracking = true;
+                    at_zero = false;
+                    ok()
+                }
+            }
+            ":MS#" if !v3 => {
+                if knobs.refuse_goto.load(Ordering::SeqCst) {
+                    "0".into()
+                } else {
+                    slew_polls_left = 2;
+                    tracking = true;
+                    at_zero = false;
+                    ok()
                 }
             }
             ":MH#" => {
                 slew_polls_left = 1;
-                home = true;
-                "1#".into()
+                tracking = false;
+                at_zero = true;
+                ok()
             }
-            ":CM#" => "1#".into(),
+            ":Q#" => {
+                slew_polls_left = 0;
+                ok()
+            }
+            ":CM#" => ok(),
             ":ST0#" => {
                 tracking = false;
-                "1#".into()
+                ok()
             }
             ":ST1#" => {
                 tracking = true;
-                "1#".into()
+                ok()
             }
             ":MP1#" => {
                 parked = true;
-                "1#".into()
+                tracking = false;
+                ok()
             }
             ":MP0#" => {
                 parked = false;
-                "1#".into()
+                ok()
             }
-            ":Q#" => String::new(),
-            other if other.starts_with(":RT") => {
-                rate = other.chars().nth(3).unwrap_or('0');
-                "1#".into()
+            ":RT0#" | ":RT1#" | ":RT2#" | ":RT3#" | ":RT4#" => {
+                rate = command.chars().nth(3).unwrap_or('0');
+                ok()
             }
-            other if other.starts_with(":Sr") || other.starts_with(":Sd") => "1#".into(),
+            ":SDS0#" | ":SDS1#" => ok(),
+
+            other if v3 && takes(other, ":SRA", false, 9) => ok(),
+            other if !v3 && takes(other, ":Sr", false, 8) => ok(),
+            other if takes(other, ":Sd", true, 8) => ok(),
+            other if takes(other, ":SG", true, 3) => ok(),
+            other if takes(other, ":SPA", false, 9) => ok(),
+            other if takes(other, ":SPH", false, 8) => ok(),
+            other if v3 && takes(other, ":SUT", false, 13) => ok(),
+            other if v3 && (takes(other, ":SLO", true, 8) || takes(other, ":SLA", true, 8)) => ok(),
+            other if !v3 && (takes(other, ":Sg", true, 6) || takes(other, ":St", true, 6)) => ok(),
+            other if !v3 && (takes(other, ":SC", false, 6) || takes(other, ":SL", false, 6)) => {
+                ok()
+            }
+            // Pulse guiding answers nothing, in either form.
             _ => String::new(),
         };
         reply.into_bytes()

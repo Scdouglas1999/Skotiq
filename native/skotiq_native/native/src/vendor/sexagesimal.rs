@@ -1,8 +1,8 @@
 //! Sexagesimal arithmetic the serial mount protocols share.
 //!
 //! The protocols differ in how they print a coordinate (LX200 `HH:MM:SS` and
-//! `sDD*MM:SS`, iOptron `HHMMSSss` and `sDDMMSSss` in hundredths) but not in
-//! the arithmetic underneath, which is what lives here.
+//! `sDD*MM:SS`, iOptron a signed count of hundredths of an arc second) but not
+//! in the arithmetic underneath, which is what lives here.
 
 pub(crate) fn hours_to_degrees(hours: f64) -> f64 {
     hours * 15.0

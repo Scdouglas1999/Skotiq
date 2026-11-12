@@ -268,8 +268,8 @@ fn ioptron_quirks() -> Vec<(QuirkMatcher, Vec<Quirk>)> {
         // by anything outside the diagnostics display.
         //
         // CEM/GEM model-specific quirks DEFERRED: same reason as Sky-Watcher —
-        // iOptron mount model is derived from `GET_MOUNT_VERSION` at connect time
-        // but is stored only inside `self.mount_model`; the `name` field used by
+        // iOptron mount model is derived from `:MountInfo#` at connect time
+        // and kept in the driver's session; the `name` field used by
         // quirks lookup is `"iOptron {model} ({port})"` which does happen to
         // include the model substring, but the existing quirk policies
         // (GotoPrecisionArcsec, SyncRequiresAlignment) have no consumers in the

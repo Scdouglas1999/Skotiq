@@ -200,6 +200,14 @@ impl Exchange<'_> {
         self.port.flush().map_err(DriverError::Io)
     }
 
+    /// Drops bytes no command read, such as a reply that arrived after its
+    /// deadline, so the next command cannot take them for its own reply.
+    pub(crate) fn discard_input(&mut self) -> Result<(), DriverError> {
+        self.port
+            .clear(serialport::ClearBuffer::Input)
+            .map_err(|e| DriverError::Io(e.into()))
+    }
+
     /// One byte, or `None` when the read brought nothing yet.
     fn read_byte(&mut self) -> Result<Option<u8>, DriverError> {
         let mut buf = [0u8; 1];
