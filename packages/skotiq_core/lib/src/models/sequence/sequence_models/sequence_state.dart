@@ -489,7 +489,7 @@ abstract class Sequence with _$Sequence {
 /// Progress of sequence execution.
 ///
 /// Phase 3 Step 2 resolved the freezed-incompatibility blocker on this
-/// class by rewriting `SequenceProgressNotifier.updateProgress` to build
+/// class by rewriting `RunRecordNotifier.updateProgress` to build
 /// the next `SequenceProgress` explicitly (no reliance on the pre-freezed
 /// `copyWith(x: x ?? this.x)` quirk). Step 3 then converted this class to
 /// freezed; the rewritten `updateProgress` continues to work because it

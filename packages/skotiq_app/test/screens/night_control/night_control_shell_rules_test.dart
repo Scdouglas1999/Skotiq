@@ -16,8 +16,9 @@ Future<void> _pumpBar(WidgetTester tester, String location) async {
     size: const Size(1000, 400),
     settle: false,
     extraOverrides: [
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.running),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.running)),
+      ),
     ],
   );
   await tester.pump();

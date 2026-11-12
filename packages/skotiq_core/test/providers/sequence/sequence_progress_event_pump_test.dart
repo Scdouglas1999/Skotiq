@@ -46,15 +46,19 @@ void main() {
 
     // A step stopped after 3 of its 4 frames read "Skipped" on the target
     // card although it had run.
-    test('status=skipped records skipped, status=cancelled records cancelled',
-        () {
-      apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'skipped'}));
-      apply(_event('NodeCompleted', {'node_id': 'n2', 'status': 'cancelled'}));
+    test(
+      'status=skipped records skipped, status=cancelled records cancelled',
+      () {
+        apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'skipped'}));
+        apply(
+          _event('NodeCompleted', {'node_id': 'n2', 'status': 'cancelled'}),
+        );
 
-      final statuses = container.read(sequenceProgressProvider).nodeStatuses;
-      expect(statuses['n1'], NodeStatus.skipped);
-      expect(statuses['n2'], NodeStatus.cancelled);
-    });
+        final statuses = container.read(sequenceProgressProvider).nodeStatuses;
+        expect(statuses['n1'], NodeStatus.skipped);
+        expect(statuses['n2'], NodeStatus.cancelled);
+      },
+    );
 
     test('status=failed records failure', () {
       apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'failed'}));
@@ -209,9 +213,10 @@ void main() {
     // broadcast stream, so it must not pre-empt that transaction with a settled
     // state.
     test('terminal events do not settle the state while a run id is set', () {
-      container.read(currentRunIdProvider.notifier).state = 42;
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container.read(runRecordProvider.notifier).setRunId(42);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
 
       apply(_event('Completed'));
       expect(
@@ -233,7 +238,7 @@ void main() {
     });
 
     test('node status is still mirrored for an owned run', () {
-      container.read(currentRunIdProvider.notifier).state = 42;
+      container.read(runRecordProvider.notifier).setRunId(42);
 
       apply(_event('NodeCompleted', {'node_id': 'n1', 'status': 'success'}));
       expect(

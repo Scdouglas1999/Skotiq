@@ -290,7 +290,9 @@ List<Override> nightScreenOverrides(
     // Stopped, so the guide-star poll does not start in a widget test.
     phd2StateProvider.overrideWith((ref) => Phd2State.stopped),
     nightGuideSamplesProvider.overrideWith(_GuideSamples.new),
-    sequenceExecutionStateProvider.overrideWith((ref) => runState),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: runState)),
+    ),
   ];
 }
 

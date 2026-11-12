@@ -232,10 +232,10 @@ void main() {
       ),
       // What this client saw arrive since it restarted: nothing.
       sessionFrames: const [],
+      // The start as a client that missed it records it: when it joined.
+      run: RunRecord(startedAt: now),
       extra: [
         allDbImagesProvider.overrideWith((ref) => Stream.value(rows)),
-        // The start as a client that missed it records it: when it joined.
-        runStartedAtProvider.overrideWith((ref) => now),
       ],
     );
     addTearDown(client.dispose);

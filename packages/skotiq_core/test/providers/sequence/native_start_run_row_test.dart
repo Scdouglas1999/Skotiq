@@ -25,6 +25,16 @@ import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
 
 import '../../mocks/mock_backend.dart';
 
+/// A backend whose unstubbed members answer with a completed `Future<void>`,
+/// so the launch's settings pushes run without stubbing each one.
+class _PermissiveBackend extends MockBackend {
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final result = super.noSuchMethod(invocation);
+    return result ?? Future<void>.value();
+  }
+}
+
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
@@ -62,7 +72,7 @@ void main() {
 
   setUp(() {
     container = null;
-    backend = MockBackend();
+    backend = _PermissiveBackend();
     eventController = StreamController<bridge_event.SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => eventController.stream);
     when(
@@ -89,18 +99,14 @@ void main() {
 
   Future<void> pumpEvents() => Future<void>.delayed(Duration.zero);
 
-  /// What the headless start handler does for a natively-loaded sequence:
-  /// open the run records, then subscribe to the native event stream.
+  /// What the headless start handler does for a natively-loaded sequence.
   Future<int> startNativeRun(
     ProviderContainer container,
     SequenceExecutor executor, {
     String name = 'D1 sim night',
   }) async {
-    final runId = await executor.openRunRecordsForNativeStart(
-      sequenceName: name,
-    );
-    await executor.attachHostListenersForNativeRun();
-    return runId;
+    await executor.startLoadedRun(label: LoadedRunLabel(name: name));
+    return container.read(currentRunIdProvider)!;
   }
 
   test('a native start opens a run row that the run history can see', () async {
@@ -172,12 +178,18 @@ void main() {
   test('a refused start leaves no run claiming to be running', () async {
     final container = buildContainer();
     final executor = container.read(sequenceExecutorProvider);
-    final runId = await startNativeRun(container, executor);
+    when(
+      () => backend.sequencerStart(),
+    ).thenThrow(StateError('Cannot start: no camera is assigned to the run'));
 
-    await executor.discardRunRecordsForRefusedNativeStart(runId);
+    await expectLater(
+      executor.startLoadedRun(label: const LoadedRunLabel(name: 'refused')),
+      throwsA(isA<NativeStartRefused>()),
+    );
 
-    final run = await container.read(sequenceRunsDaoProvider).getRunById(runId);
-    expect(run!.status, 'failed');
+    final run =
+        (await container.read(sequenceRunsDaoProvider).getAllRuns()).single;
+    expect(run.status, 'failed');
     expect(run.endedAt, isNotNull);
     expect(container.read(currentRunIdProvider), isNull);
   });
@@ -187,11 +199,13 @@ void main() {
     final executor = container.read(sequenceExecutorProvider);
     final runId = await startNativeRun(container, executor);
 
-    final again = await executor.openRunRecordsForNativeStart(
-      sequenceName: 'a second load while the first is live',
+    await executor.startLoadedRun(
+      label: const LoadedRunLabel(
+        name: 'a second load while the first is live',
+      ),
     );
 
-    expect(again, runId);
+    expect(container.read(currentRunIdProvider), runId);
     expect(
       (await container.read(sequenceRunsDaoProvider).getAllRuns()).length,
       1,
@@ -212,8 +226,7 @@ void main() {
       await startNativeRun(container, executor, name: name);
       for (var frame = 1; frame <= 3; frame++) {
         clock += 1000;
-        applySequencerEventToSequenceProviders(
-          container.read,
+        eventController.add(
           bridge_event.SkotiqEvent(
             timestamp: clock,
             severity: bridge_event.EventSeverity.info,
@@ -222,6 +235,7 @@ void main() {
             data: {'frame': frame, 'total': 3, 'duration_secs': 4.0},
           ),
         );
+        await pumpEvents();
       }
       eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();

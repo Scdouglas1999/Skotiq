@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/backend/sequencer_status.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/last_ended_run.dart';
+import '../../sequence/run_record.dart';
 import '../../sequence_stats_provider.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
@@ -68,8 +69,6 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null || context.networkBackend == null) return;
-    // A client that started the run has its own executor attached to it.
-    if (context.read(currentRunIdProvider) != null) return;
 
     final terminal = _decodeResult(value['terminal']);
     final rawImagingRun = value['imagingRun'];
@@ -96,12 +95,14 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
       }
     }
 
-    context.read(hostTerminalRunResultProvider.notifier).state = terminal;
-    context.read(completedImagingRunProvider.notifier).state = imagingRun;
-    context.read(lastEndedRunProvider.notifier).mirrorHost(lastEnded);
-    context.read(runStartedAtProvider.notifier).state = jsonInstant(
-      value['runStartedAt'],
-    )?.toLocal();
+    context
+        .read(runRecordProvider.notifier)
+        .mirrorHostRunRecord(
+          terminal: terminal,
+          completedImagingRun: imagingRun,
+          lastEnded: lastEnded,
+          startedAt: jsonInstant(value['runStartedAt'])?.toLocal(),
+        );
   }
 }
 

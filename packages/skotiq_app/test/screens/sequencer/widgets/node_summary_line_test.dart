@@ -40,7 +40,9 @@ Future<void> _pump(
 
   final container = ProviderContainer(overrides: [
     inMemoryDatabaseOverride(),
-    sequenceExecutionStateProvider.overrideWith((ref) => executionState),
+    runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: executionState)),
+    ),
     ...extraOverrides,
   ]);
   addTearDown(container.dispose);

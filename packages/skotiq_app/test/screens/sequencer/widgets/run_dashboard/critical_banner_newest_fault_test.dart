@@ -192,13 +192,13 @@ void main() {
       'also without a Resumed event (a client that joined while paused)',
       () async {
     final container = await wiredContainer();
-    final state = container.read(sequenceExecutionStateProvider.notifier);
-    state.state = SequenceExecutionState.paused;
+    final state = container.read(runRecordProvider.notifier);
+    state.setLifecycle(SequenceExecutionState.paused);
 
     await emit(container, _flipFailed(_t0, _pierError));
     expect(bannerMessages(container), hasLength(1));
 
-    state.state = SequenceExecutionState.running;
+    state.setLifecycle(SequenceExecutionState.running);
     await Future<void>.delayed(Duration.zero);
 
     expect(container.read(runDashboardCriticalEventsProvider), isEmpty);

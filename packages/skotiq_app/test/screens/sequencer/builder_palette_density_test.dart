@@ -30,8 +30,6 @@ import '../../harness/pump_app_screen.dart';
     notifier: notifier,
     overrides: [
       currentSequenceProvider.overrideWith((_) => notifier),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.idle),
       // The ETA column's wall clock would leave a periodic timer behind.
       ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
     ],

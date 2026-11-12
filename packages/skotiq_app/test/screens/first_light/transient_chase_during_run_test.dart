@@ -37,12 +37,6 @@ class _FixedMount extends MountStateNotifier {
   }
 }
 
-class _RunProgress extends SequenceProgressNotifier {
-  _RunProgress(SequenceProgress fixed) {
-    state = fixed;
-  }
-}
-
 const _connected = MountState(
   connectionState: DeviceConnectionState.connected,
   deviceId: 'mount-1',
@@ -86,10 +80,16 @@ Future<void> _pumpCard(
         if (commands != null)
           mountCommandServiceProvider.overrideWithValue(commands),
         mountStateProvider.overrideWith((ref) => _FixedMount(ref, _connected)),
-        sequenceExecutionStateProvider.overrideWith((ref) => runState),
-        sequenceProgressProvider.overrideWith(
-          (ref) => _RunProgress(
-            SequenceProgress(state: runState, currentTarget: runTarget),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(
+            ref,
+            RunRecord(
+              lifecycle: runState,
+              progress: SequenceProgress(
+                state: runState,
+                currentTarget: runTarget,
+              ),
+            ),
           ),
         ),
       ],
@@ -150,8 +150,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Chase this candidate?'), findsOne);
 
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
     await tester.pump();
     await tester.tap(find.text('Slew'));
     await tester.pumpAndSettle();

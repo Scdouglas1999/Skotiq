@@ -1840,7 +1840,7 @@ void main() {
       final c = ProviderContainer();
       addTearDown(c.dispose);
       final stats = SequenceRunStats();
-      c.read(liveSequenceStatsProvider.notifier).state = stats;
+      c.read(runRecordProvider.notifier).setStats(stats);
 
       var notifications = 0;
       c.listen<SequenceRunStats?>(
@@ -1856,7 +1856,7 @@ void main() {
         exposureSecs: 60,
         accepted: true,
       );
-      c.read(liveSequenceStatsProvider.notifier).state = stats;
+      c.read(runRecordProvider.notifier).setStats(stats);
       expect(
         notifications,
         0,
@@ -1866,7 +1866,7 @@ void main() {
       // Re-store a copy(): identity changes, so consumers are notified — and the
       // copy carries the mutated values.
       final snapshot = stats.copy();
-      c.read(liveSequenceStatsProvider.notifier).state = snapshot;
+      c.read(runRecordProvider.notifier).setStats(snapshot);
       expect(notifications, 1, reason: 'copy() changes identity and notifies');
       expect(snapshot.framesCaptured, 1);
       expect(identical(snapshot, stats), isFalse);
@@ -2245,7 +2245,7 @@ void main() {
     // The appliance's canonical flow is POST /api/sequencer/load ->
     // POST /api/sequencer/start, which never calls start(): the handler opens
     // the `imaging_sessions` row itself and reaches this executor only through
-    // attachHostListenersForNativeRun. So nothing on that path clears the per-
+    // startLoadedRun. So nothing on that path clears the per-
     // run finalization latches, and the FIRST night leaves `_settledRunStatus`
     // behind. Reproduced on the release bundle with
     // tools/harness/d1_sim_night/two_nights.sh: night two reached `completed`
@@ -2262,7 +2262,8 @@ void main() {
       await c
           .read(sessionStateProvider.notifier)
           .startSession(targetName: name);
-      await executor.attachHostListenersForNativeRun();
+      when(() => backend.sequencerStart()).thenAnswer((_) async {});
+      await executor.startLoadedRun();
       eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();
       await executor.terminalCleanupSettledForTest;
@@ -2326,7 +2327,7 @@ void main() {
       // A re-attach must not discard that transaction: the run's hardware
       // ending was never fully recorded, and a fresh finalization on top would
       // publish a verdict for a run whose cleanup never finished.
-      await executor.attachHostListenersForNativeRun();
+      await executor.startLoadedRun();
       eventController.add(_sequencerEvent('Completed'));
       await pumpEvents();
       await executor.terminalCleanupSettledForTest;

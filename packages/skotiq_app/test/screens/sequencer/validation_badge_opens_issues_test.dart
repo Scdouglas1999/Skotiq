@@ -63,8 +63,6 @@ void main() {
       size: const Size(1000, 800),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => editor),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
         // The ledger ETA clock is a real periodic stream; in the fake-async
         // zone its timer outlives every pump and fails teardown.
         ledgerClockProvider

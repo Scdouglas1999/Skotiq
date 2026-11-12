@@ -41,7 +41,7 @@ void main() {
         SequenceExecutionState.failed,
       ]) {
         final c = _newContainer();
-        c.read(sequenceExecutionStateProvider.notifier).state = state;
+        c.read(runRecordProvider.notifier).setLifecycle(state);
         expect(
           c.read(canEditSequenceProvider),
           isTrue,
@@ -57,7 +57,7 @@ void main() {
         SequenceExecutionState.stopping,
       ]) {
         final c = _newContainer();
-        c.read(sequenceExecutionStateProvider.notifier).state = state;
+        c.read(runRecordProvider.notifier).setLifecycle(state);
         expect(
           c.read(canEditSequenceProvider),
           isFalse,
@@ -72,8 +72,9 @@ void main() {
       final c = _newContainer();
       final notifier = _notifier(c)..createSequence(name: 'active plan');
       final replacement = Sequence.create(name: 'replacement');
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
 
       expect(
         () => notifier.loadSequence(replacement, discardUnsaved: true),
@@ -89,8 +90,9 @@ void main() {
     test('addNode throws when sequence is running', () {
       final c = _newContainer();
       _notifier(c).createSequence();
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       final n = _notifier(c);
       expect(
         () => n.addNode(_target('M31', id: 'm31')),
@@ -102,8 +104,9 @@ void main() {
       final c = _newContainer();
       _notifier(c).createSequence();
       _notifier(c).addNode(_target('M31', id: 'm31'));
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.paused;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.paused);
       expect(
         () => _notifier(c).removeNode('m31'),
         throwsA(isA<SequenceLockedException>()),
@@ -115,8 +118,9 @@ void main() {
       _notifier(c).createSequence();
       _notifier(c).addTargetHeader(_target('A'));
       _notifier(c).addTargetHeader(_target('B'));
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       expect(
         () => _notifier(c).reorderTargets(0, 1),
         throwsA(isA<SequenceLockedException>()),
@@ -126,8 +130,9 @@ void main() {
     test('thrown exception carries the operation description', () {
       final c = _newContainer();
       _notifier(c).createSequence();
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       try {
         _notifier(c).addNode(_target('M31', id: 'm31'));
         fail('expected SequenceLockedException');
@@ -147,8 +152,9 @@ void main() {
       _notifier(c).createSequence();
       _notifier(c).setName('baseline');
       expect(_notifier(c).canUndo, isTrue);
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       expect(
         () => _notifier(c).undo(),
         throwsA(isA<SequenceLockedException>()),
@@ -162,8 +168,9 @@ void main() {
       // Undo creates a redo entry.
       _notifier(c).undo();
       expect(_notifier(c).canRedo, isTrue);
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       expect(
         () => _notifier(c).redo(),
         throwsA(isA<SequenceLockedException>()),
@@ -174,8 +181,9 @@ void main() {
       final c = _newContainer();
       _notifier(c).createSequence();
       _notifier(c).setName('baseline');
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.paused;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.paused);
       try {
         _notifier(c).undo();
         fail('expected SequenceLockedException');
@@ -191,15 +199,17 @@ void main() {
       final c = _newContainer();
       _notifier(c).createSequence();
       _notifier(c).setName('one');
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       expect(
         () => _notifier(c).undo(),
         throwsA(isA<SequenceLockedException>()),
       );
       // Run terminates -> editing restored.
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.completed;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.completed);
       expect(() => _notifier(c).undo(), returnsNormally);
     });
   });

@@ -71,8 +71,7 @@ void main() {
     container.listen(lastEndedRunProvider, (_, __) {});
     expect(container.read(nightRunPhaseProvider), NightRunPhase.running);
 
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.idle;
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.idle);
     expect(container.read(nightRunPhaseProvider), NightRunPhase.finished);
 
     container.read(currentSequenceProvider.notifier).createSequence(
@@ -102,7 +101,7 @@ void main() {
       expect(container.read(nightHeaderProvider).ending, isNull,
           reason: 'a live run has not ended');
 
-      container.read(sequenceExecutionStateProvider.notifier).state = state;
+      container.read(runRecordProvider.notifier).setLifecycle(state);
       final header = container.read(nightHeaderProvider);
       expect(header.phase, NightRunPhase.finished, reason: '$state');
       expect(header.ending, ending, reason: '$state');
@@ -133,9 +132,8 @@ void main() {
       );
       addTearDown(container.dispose);
       container.listen(lastEndedRunProvider, (_, __) {});
-      container.read(sequenceStopEvidenceProvider.notifier).state = evidence;
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.idle;
+      container.read(runRecordProvider.notifier).setStopEvidence(evidence);
+      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.idle);
       expect(
         container.read(nightHeaderProvider).ending,
         ending,

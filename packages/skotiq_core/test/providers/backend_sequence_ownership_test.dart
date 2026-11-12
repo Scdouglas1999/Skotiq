@@ -6,6 +6,7 @@ import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_executor.dart';
+import 'package:skotiq_core/src/providers/sequence/run_record.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_progress.dart';
 
 import '../mocks/mock_backend.dart';
@@ -41,8 +42,9 @@ void main() {
       final backend = MockBackend();
       final container = _container(backend);
       addTearDown(container.dispose);
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
 
       await expectLater(
         container.read(backendProvider.notifier).disconnect(),
@@ -66,7 +68,7 @@ void main() {
       final backend = MockBackend();
       final container = _container(backend);
       addTearDown(container.dispose);
-      container.read(sequenceLaunchInFlightProvider.notifier).state = true;
+      container.read(runRecordProvider.notifier).setLaunching(true);
 
       await expectLater(
         container.read(backendProvider.notifier).disconnect(),
@@ -90,10 +92,8 @@ void main() {
       final backend = MockBackend();
       final container = _container(backend);
       addTearDown(container.dispose);
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.completed;
-      container.read(sequenceProgressProvider.notifier)
-        ..updateState(SequenceExecutionState.completed)
+      container.read(runRecordProvider.notifier)
+        ..setLifecycle(SequenceExecutionState.completed)
         ..updateProgress(currentNodeId: 'old-node', completedExposures: 12);
 
       await container.read(backendProvider.notifier).disconnect();

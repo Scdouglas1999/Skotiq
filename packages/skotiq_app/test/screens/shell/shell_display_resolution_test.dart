@@ -157,7 +157,7 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 50));
 
-      final progress = handle.container.read(sequenceProgressProvider.notifier);
+      final progress = handle.container.read(runRecordProvider.notifier);
       progress.setTotals(10, 100);
       progress.updateProgress(completedExposures: 3);
       await tester.pump();

@@ -187,7 +187,7 @@ void main() {
       final c = buildContainer(settings: _gradingOn);
       final executor = c.read(sequenceExecutorProvider);
 
-      await executor.seedRuntimeConfigForNativeStart();
+      await executor.startLoadedRun();
 
       expect(
         pushedQualityChecks,
@@ -210,7 +210,7 @@ void main() {
       );
       final executor = c.read(sequenceExecutorProvider);
 
-      await executor.seedRuntimeConfigForNativeStart();
+      await executor.startLoadedRun();
 
       expect(pushedQualityChecks, hasLength(1));
       expect(
@@ -239,8 +239,14 @@ void main() {
         final executor = c.read(sequenceExecutorProvider);
 
         await expectLater(
-          executor.seedRuntimeConfigForNativeStart(),
-          throwsA(isA<StateError>()),
+          executor.startLoadedRun(),
+          throwsA(
+            isA<RunConfigSeedFailed>().having(
+              (e) => e.cause,
+              'cause',
+              isA<StateError>(),
+            ),
+          ),
         );
       },
     );
@@ -284,7 +290,7 @@ void main() {
         final c = buildContainer(settings: _gradingOn);
         final executor = c.read(sequenceExecutorProvider);
 
-        await executor.seedRuntimeConfigForNativeStart();
+        await executor.startLoadedRun();
 
         expect(pushedIntervals, [60]);
         expect(pushedDither, hasLength(1));
@@ -308,7 +314,7 @@ void main() {
         await executor.stop();
         pushedQualityChecks.clear();
 
-        await executor.seedRuntimeConfigForNativeStart();
+        await executor.startLoadedRun();
 
         expect(viaStart, hasLength(1));
         expect(
@@ -325,8 +331,9 @@ void main() {
   group('C. a target dropped by its end_when says so on the run record', () {
     /// What the headless start handler does for a natively-loaded sequence.
     Future<void> startNativeRun(SequenceExecutor executor) async {
-      await executor.openRunRecordsForNativeStart(sequenceName: 'end_when');
-      await executor.attachHostListenersForNativeRun();
+      await executor.startLoadedRun(
+        label: const LoadedRunLabel(name: 'end_when'),
+      );
     }
 
     void emitTriggerFired({

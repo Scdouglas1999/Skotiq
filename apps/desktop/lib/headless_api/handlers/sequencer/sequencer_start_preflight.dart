@@ -1,41 +1,17 @@
 part of '../sequencer_handlers.dart';
 
-/// Host-side pre-flight for the headless `load -> start` path: save-path
-/// restore, the session row, the unassignable-role refusal, wire validation
-/// and native device wiring.
-/// Native executor states that mean a run is still under way. Mirrors the
-/// strings `api/sequencer.rs` serializes.
-const _nativeRunInProgressStates = <String>{
-  'running',
-  'paused',
-  'stopping',
-  'recovering',
-};
+/// Host-side pre-flight for the headless `load -> start` path: the save-path
+/// restore, the unassignable-role refusal, wire validation and native device
+/// wiring. The launch itself is `SequenceExecutor.startLoadedRun`.
+
+/// A refusal the role gate raised inside `SequenceExecutor.startLoadedRun`,
+/// carrying the answer to return.
+class _StartRefused implements Exception {
+  const _StartRefused(this.response);
+  final Response response;
+}
 
 extension _SequencerStartPreflight on SequencerHandlers {
-  /// Open the session row that the headless `load -> start` path never opened.
-  ///
-  /// Without it a night ends with frames on disk and no registered images —
-  /// only the runs that went through `checkpoint/resume` are reviewable.
-  ///
-  /// The cause is that `handleSequencerStart`'s headless branch re-implements a
-  /// subset of what `SequenceExecutor.start()` does — it wires devices into the
-  /// native executor (added when the same seam swallowed the camera) but never
-  /// opened a session and never subscribed to the frame events. This half is
-  /// the session; `attachHostListenersForNativeRun` is the other, and the two
-  /// are called together at the start site. Everything the app offers for
-  /// REVIEWING a night reads the database rather than the directory: the image
-  /// library, session review, analytics, the grader, integration totals, the
-  /// run report. An operator imaging unattended would wake to a full disk and
-  /// an app showing nothing.
-  ///
-  /// Without the row specifically, frames that DO get registered carry a null
-  /// `session_id` and the session counters never advance — the night exists as
-  /// a pile of unattributed rows rather than as a session.
-  ///
-  /// Failure here is deliberately non-fatal. A run that captures frames is
-  /// worth more than a run that refuses to start because its bookkeeping row
-  /// could not be written, and the frames still reach disk either way.
   /// Push the host's configured capture folder into the native executor.
   ///
   /// The native save path is per-process state; `imageOutputPath` is durable.
@@ -79,177 +55,23 @@ extension _SequencerStartPreflight on SequencerHandlers {
     }
   }
 
-  /// Seed the native executor's RuntimeConfig from the operator's settings,
-  /// the third piece of `SequenceExecutor.start()` this branch never mirrored
-  /// (the session row and the run row were the first two).
-  ///
-  /// The bare `load -> start` path hand-copied the simulation mode, the safety
-  /// fail mode, the device ids and the save path, and stopped there. The
-  /// runtime-config push — image grading thresholds, the reject folder, the
-  /// autofocus cadence and the autofocus tuning, the dither config, the
-  /// sequencer's own observer location, the filter focus offsets, the observer
-  /// profile the FITS headers carry — never happened, so every headless night
-  /// ran on the Rust defaults. Grading was the loudest: measured on the
-  /// appliance with `image_grading_enabled=true` and
-  /// `image_grading_star_count_min=100000` persisted AND read back through
-  /// `GET /api/settings`, a 43-star simulated frame graded `pass`, twelve of
-  /// twelve frames were accepted, `Reject/` stayed empty and the run log held
-  /// no `Updating sequencer default_quality_check` line at all. Every master
-  /// the Darkroom then drafted was stacked from ungraded subs.
-  ///
-  /// Unlike the two bookkeeping rows, a failure here REFUSES the start rather
-  /// than proceeding. Those are recoverable after the fact — frames on disk
-  /// can be imported, a run row can be reconstructed. This is not: a night
-  /// that ran with the operator's grading, cadence and reject folder silently
-  /// replaced by library defaults produces subs nothing downstream can tell
-  /// apart from graded ones. Returns null when the run may proceed.
-  Future<Response?> _seedNativeRuntimeConfig() async {
-    try {
-      await container
-          .read(sequenceExecutorProvider)
-          .seedRuntimeConfigForNativeStart();
-      return null;
-    } catch (error) {
-      _logWarning(
-        '[API] POST /api/sequencer/start refused: the run configuration could '
-        'not be pushed to the executor ($error)',
-      );
-      return jsonInternalServerError({
-        'error': 'runtime_config_seed_failed',
-        'message':
-            'This run was not started because your sequencer settings could '
-            'not be applied to the executor: $error. Starting anyway would '
-            'have run the night on library defaults — image grading, the '
-            'reject folder, the autofocus cadence and the dither settings all '
-            'ignored — with nothing on the run record to say so.',
-      });
-    }
-  }
-
-  /// Returns true when a row was opened, so the caller can close it again if
-  /// the native executor then refuses the start.
-  Future<bool> _openSessionRowForNativeRun(SequencerBackend backend) async {
-    final summary = _lastLoadedWire;
-    if (summary == null) {
-      _logInfo(
-        '[API] POST /api/sequencer/start: no loaded-wire summary; skipping the '
-        'session row (frames will be attributed to no session)',
-      );
-      return false;
-    }
-    try {
-      final sessions = container.read(sessionStateProvider.notifier);
-      if (container.read(sessionStateProvider).isActive) {
-        // A session the previous run left open. `SessionService.startSession`
-        // refuses to open a second one, so leaving it would file tonight's
-        // second target under the first target's session — the frames would be
-        // registered, and registered against the wrong night.
-        //
-        // Only safe once the native executor is genuinely idle, which is also
-        // the only case where this start can succeed at all: a busy executor
-        // refuses below with a 409, and ending a live run's session on the way
-        // to that refusal would corrupt the run still in progress.
-        final state = (await backend.sequencerGetStatus()).state;
-        if (_nativeRunInProgressStates.contains(state)) {
-          _logWarning(
-            '[API] POST /api/sequencer/start: a session is open and the native '
-            'executor reports "$state"; leaving the session alone and letting '
-            'the start be refused',
-          );
-          // Not ours to close: the live run owns it.
-          return false;
-        }
-        _logInfo(
-          '[API] POST /api/sequencer/start: closing the session left open by '
-          'the previous run (native executor is "$state")',
-        );
-        await sessions.endSession(status: 'completed');
-      }
-      await sessions.startSession(
-        targetName: summary.name,
-        // Only a single-target sequence gets coordinates, matching
-        // `_startSessionRow`: picking one header out of several would
-        // misrepresent the session.
-        targetRa: summary.singleTargetRaHours,
-        targetDec: summary.singleTargetDecDegrees,
-        profileId: container.read(activeEquipmentProfileProvider)?.id,
-      );
-      sessions.setTotalExposures(summary.totalExposures);
-      return true;
-    } catch (error) {
-      _logWarning(
-        '[API] POST /api/sequencer/start: could not open the session row '
-        '($error); frames will be captured but not registered',
-      );
-      return false;
-    }
-  }
-
-  /// Open the `sequence_runs` row for a headless `load -> start`, the durable
-  /// half of the same omission [_openSessionRowForNativeRun] covers.
-  ///
-  /// `imaging_sessions` records the NIGHT; `sequence_runs` records the RUN —
-  /// its status, its stats JSON, its pause/resume transitions, and the id every
-  /// replay decision row points at. Nothing on this path opened one, so a
-  /// completed headless night left `GET /api/sequence-runs` answering
-  /// `{"items":[],"total":0}` — the record `docs/plans/skotiq_7_0_d1_runbook.md`
-  /// tells an operator to read — and the executor's finalization had no run id
-  /// to write an outcome onto.
-  ///
-  /// Returns the run id, or null when there was nothing to label a run with or
-  /// the write failed. Non-fatal for the same reason as the session row: a
-  /// night that captures frames is worth more than a night refused over a
-  /// bookkeeping row.
-  Future<int?> _openRunRowForNativeRun() async {
-    final summary = _lastLoadedWire;
-    if (summary == null) {
-      _logInfo(
-        '[API] POST /api/sequencer/start: no loaded-wire summary; skipping the '
-        'run row (this run will not appear in the run history)',
-      );
-      return null;
-    }
-    try {
-      return await container
-          .read(sequenceExecutorProvider)
-          .openRunRecordsForNativeStart(sequenceName: summary.name);
-    } catch (error) {
-      _logWarning(
-        '[API] POST /api/sequencer/start: could not open the run row '
-        '($error); the run will not appear in the run history',
-      );
-      return null;
-    }
-  }
-
-  /// Close the rows [_openSessionRowForNativeRun] and [_openRunRowForNativeRun]
-  /// opened for a start the native executor then refused, so a run that never
-  /// began does not appear in `GET /api/sessions` as a night that happened or
-  /// in `GET /api/sequence-runs` as one still running.
-  ///
-  /// Failure here is logged, not raised: the caller is already returning a
-  /// refusal, and replacing an accurate refusal with a bookkeeping error would
-  /// tell the operator the wrong thing about why their run did not start.
-  Future<void> _closeRecordsOpenedForRefusedStart(
-    bool openedSession,
-    int? openedRunId,
-  ) async {
-    if (openedRunId != null) {
-      await container
-          .read(sequenceExecutorProvider)
-          .discardRunRecordsForRefusedNativeStart(openedRunId);
-    }
-    if (!openedSession) return;
-    try {
-      await container
-          .read(sessionStateProvider.notifier)
-          .endSession(status: 'failed');
-    } catch (error) {
-      _logWarning(
-        '[API] POST /api/sequencer/start: the start was refused and the '
-        'session row opened for it could not be closed ($error)',
-      );
-    }
+  /// The answer for a start refused because the operator's settings could not
+  /// be pushed to the executor. A 5xx on purpose: unlike the bookkeeping rows,
+  /// this is not recoverable after the fact, and it is the host that failed.
+  Response _runConfigSeedRefusal(Object error) {
+    _logWarning(
+      '[API] POST /api/sequencer/start refused: the run configuration could '
+      'not be pushed to the executor ($error)',
+    );
+    return jsonInternalServerError({
+      'error': 'runtime_config_seed_failed',
+      'message':
+          'This run was not started because your sequencer settings could '
+          'not be applied to the executor: $error. Starting anyway would '
+          'have run the night on library defaults — image grading, the '
+          'reject folder, the autofocus cadence and the dither settings all '
+          'ignored — with nothing on the run record to say so.',
+    });
   }
 
   /// Refuse a start whose sequence needs a guider, dome or cover calibrator
@@ -330,28 +152,6 @@ extension _SequencerStartPreflight on SequencerHandlers {
           'This sequence needs a ${role.name} at "$nodeName", but none is '
               'connected.',
       };
-
-  /// Subscribe the host to the native run's events — the half of the same
-  /// omission that actually writes the `captured_images` rows. See
-  /// [SequenceExecutor.attachHostListenersForNativeRun] and
-  /// [_openSessionRowForNativeRun].
-  ///
-  /// Non-fatal for the same reason: a night captured but unregistered can be
-  /// imported from the directory afterwards; a night refused cannot be
-  /// recovered at all.
-  Future<void> _attachHostListenersForNativeRun() async {
-    try {
-      await container
-          .read(sequenceExecutorProvider)
-          .attachHostListenersForNativeRun();
-    } catch (error) {
-      _logWarning(
-        '[API] POST /api/sequencer/start: could not subscribe to the run\'s '
-        'frame events ($error); frames will be written to disk but not '
-        'registered in the image library',
-      );
-    }
-  }
 
   /// Run the wire pre-flight and turn any blocking finding into the same 400
   /// body `SequenceValidationException` produces, so both start paths answer a

@@ -258,23 +258,6 @@ extension _SequencerLifecycle on SequencerHandlers {
     final continuesRestore = container
         .read(sequenceExecutorProvider)
         .hasRestoredCheckpoint;
-    // Set immediately before the native `sequencerStart()` await and nowhere
-    // else, so the catch below can tell a refusal raised BY the native
-    // pre-flight from a failure in the setup calls that precede it. Only the
-    // former is an operator-fixable rejection.
-    var nativeStartAttempted = false;
-    // True between opening this start's `imaging_sessions` row and the native
-    // executor accepting the run. A start the executor then REFUSES must not
-    // leave the row behind — a start that answers `409 no_sequence_loaded`
-    // would otherwise strand a session named after an earlier run, zero
-    // exposures, status completed, sitting in `GET /api/sessions` as a night
-    // that never happened. Cleared once `sequencerStart()` returns, because
-    // from then on the run owns the row and finalization closes it.
-    var openedSessionForThisStart = false;
-    // The `sequence_runs.id` this start opened, cleared once the native
-    // executor has accepted the run. Same contract as the session row above:
-    // a refused start must not leave a run in the history that never began.
-    int? openedRunForThisStart;
     try {
       if (hasInEditorSequence || continuesRestore) {
         final executor = container.read(sequenceExecutorProvider);
@@ -314,46 +297,49 @@ extension _SequencerLifecycle on SequencerHandlers {
         // `GET /api/devices/connected` lists the camera the whole time.
         await _wireConnectedDevicesIntoNativeExecutor(backend);
         await _restoreNativeSavePath(backend);
-        // Seed the executor's RuntimeConfig from the operator's settings —
-        // the piece of `SequenceExecutor.start()` this branch never mirrored,
-        // and the third member of the same family as the session row and the
-        // run row above. See [_seedNativeRuntimeConfig].
-        final seedRefusal = await _seedNativeRuntimeConfig();
-        if (seedRefusal != null) return seedRefusal;
-        // Refuse, before anything is opened, a run that needs a guider, dome
-        // or cover calibrator this rig does not have. See
-        // [_refuseUnassignableRoles] — the native pre-flight cannot see these
-        // three, so this is the only gate they have.
-        final roleRefusal = await _refuseUnassignableRoles();
-        if (roleRefusal != null) return roleRefusal;
-        // Give the run the two host-side pieces `executor.start()` would have
-        // set up. Order matters: the session row must exist before the first
-        // frame event arrives, or that frame is stamped with a null
-        // `session_id`. See [_openSessionRowForNativeRun].
-        openedSessionForThisStart = await _openSessionRowForNativeRun(backend);
-        openedRunForThisStart = await _openRunRowForNativeRun();
-        await _attachHostListenersForNativeRun();
-        nativeStartAttempted = true;
-        await backend.sequencerStart();
-        // The run owns the rows from here; nothing below may close them.
-        openedSessionForThisStart = false;
-        openedRunForThisStart = null;
+        // The rest is the executor's one launch for a loaded tree: settings
+        // into the runtime config, the guider/dome/cover gate (the native
+        // pre-flight cannot see those three, so this is the only gate they
+        // have), the session and run rows, the event subscription, the start.
+        final summary = _lastLoadedWire;
+        if (summary == null) {
+          _logInfo(
+            '[API] POST /api/sequencer/start: no loaded-wire summary; the run '
+            'gets no session or run row',
+          );
+        }
+        await container
+            .read(sequenceExecutorProvider)
+            .startLoadedRun(
+              label: summary == null
+                  ? null
+                  : LoadedRunLabel(
+                      name: summary.name,
+                      targetRaHours: summary.singleTargetRaHours,
+                      targetDecDegrees: summary.singleTargetDecDegrees,
+                      totalExposures: summary.totalExposures,
+                    ),
+              admit: () async {
+                final refusal = await _refuseUnassignableRoles();
+                if (refusal != null) throw _StartRefused(refusal);
+              },
+            );
       }
+    } on _StartRefused catch (e) {
+      return e.response;
+    } on RunConfigSeedFailed catch (e) {
+      return _runConfigSeedRefusal(e.cause);
     } on SequenceValidationException catch (e) {
-      await _closeRecordsOpenedForRefusedStart(
-        openedSessionForThisStart,
-        openedRunForThisStart,
-      );
       _logInfo(
         '[API] POST /api/sequencer/start rejected: '
         '${e.result.errorCount} validation errors',
       );
       return jsonBadRequest(e.toJsonBody());
-    } catch (error) {
-      await _closeRecordsOpenedForRefusedStart(
-        openedSessionForThisStart,
-        openedRunForThisStart,
-      );
+    } catch (raised) {
+      // A refusal raised BY the native pre-flight, as opposed to a failure in
+      // the setup calls before it. Only the former is operator-fixable.
+      final nativeStartRefused = raised is NativeStartRefused;
+      final error = raised is NativeStartRefused ? raised.cause : raised;
       // Pressing Start with nothing loaded is an ordinary operator mistake, not
       // a server fault. Every other sequencer verb (pause/resume/stop/skip)
       // already answers cleanly when idle; this one surfaced a 500.
@@ -383,7 +369,7 @@ extension _SequencerLifecycle on SequencerHandlers {
               'or open a sequence in the editor) before starting.',
         });
       }
-      if (nativeStartAttempted) {
+      if (nativeStartRefused) {
         return _nativeStartRefusal(error);
       }
       rethrow;
@@ -698,7 +684,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     // Keep what the start path needs to open a session row. The native
     // executor owns the tree from here on and exposes no way to ask it for the
     // sequence name or its targets, so if this is dropped the headless run has
-    // nothing to label a session with. See [_openSessionRowForNativeRun].
+    // nothing to label a session with. See `SequenceExecutor.startLoadedRun`.
     _lastLoadedWire = _WireSequenceSummary.parse(
       json,
       onError: (error) => _logWarning(

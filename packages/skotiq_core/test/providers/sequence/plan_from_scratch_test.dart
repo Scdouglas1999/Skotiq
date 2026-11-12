@@ -29,17 +29,23 @@ void main() {
   }
 
   List<String> stepsOf(String targetId) => [
-        for (final id in sequence().nodes[targetId]!.childIds)
-          sequence().nodes[id]!.name,
-      ];
+    for (final id in sequence().nodes[targetId]!.childIds)
+      sequence().nodes[id]!.name,
+  ];
 
   setUp(() => selection = null);
 
   group('a new step that aims or readies the rig', () {
     test('goes ahead of the frames when added after them', () {
       editor().createSequence();
-      add(TargetHeaderNode(
-          id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+      add(
+        TargetHeaderNode(
+          id: 't',
+          targetName: 'M34',
+          raHours: 2.7,
+          decDegrees: 42.8,
+        ),
+      );
       add(ExposureNode(name: 'Lights', durationSecs: 60, count: 10));
       add(SlewNode(name: 'Slew'));
       add(StartGuidingNode(name: 'Guide'));
@@ -49,8 +55,14 @@ void main() {
 
     test('goes ahead of a block that holds frames', () {
       editor().createSequence();
-      add(TargetHeaderNode(
-          id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+      add(
+        TargetHeaderNode(
+          id: 't',
+          targetName: 'M34',
+          raHours: 2.7,
+          decDegrees: 42.8,
+        ),
+      );
       final block = InstructionSetNode(name: 'L block');
       add(block);
       selection = block.id;
@@ -63,8 +75,14 @@ void main() {
 
     test('stays where it was added when one already leads the frames', () {
       editor().createSequence();
-      add(TargetHeaderNode(
-          id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+      add(
+        TargetHeaderNode(
+          id: 't',
+          targetName: 'M34',
+          raHours: 2.7,
+          decDegrees: 42.8,
+        ),
+      );
       add(SlewNode(name: 'Slew'));
       add(AutofocusNode(name: 'Focus'));
       add(ExposureNode(name: 'L', durationSecs: 60, count: 10));
@@ -72,16 +90,26 @@ void main() {
       add(ExposureNode(name: 'R', durationSecs: 60, count: 10));
       add(SlewNode(name: 'Next panel'));
 
-      expect(
-        stepsOf('t'),
-        ['Slew', 'Focus', 'L', 'Refocus', 'R', 'Next panel'],
-      );
+      expect(stepsOf('t'), [
+        'Slew',
+        'Focus',
+        'L',
+        'Refocus',
+        'R',
+        'Next panel',
+      ]);
     });
 
     test('stays where it was put when given a position', () {
       editor().createSequence();
-      add(TargetHeaderNode(
-          id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+      add(
+        TargetHeaderNode(
+          id: 't',
+          targetName: 'M34',
+          raHours: 2.7,
+          decDegrees: 42.8,
+        ),
+      );
       add(ExposureNode(name: 'Lights', durationSecs: 60, count: 10));
       editor().insertNewNode(SlewNode(name: 'Slew'), parentId: 't', index: 1);
 
@@ -91,8 +119,14 @@ void main() {
 
   test('a closing step still goes after the frames', () {
     editor().createSequence();
-    add(TargetHeaderNode(
-        id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+    add(
+      TargetHeaderNode(
+        id: 't',
+        targetName: 'M34',
+        raHours: 2.7,
+        decDegrees: 42.8,
+      ),
+    );
     add(ExposureNode(name: 'Lights', durationSecs: 60, count: 10));
     add(ParkNode(name: 'Park'));
 
@@ -101,8 +135,14 @@ void main() {
 
   test('Move up and Move down shift a step among its siblings', () {
     editor().createSequence();
-    add(TargetHeaderNode(
-        id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+    add(
+      TargetHeaderNode(
+        id: 't',
+        targetName: 'M34',
+        raHours: 2.7,
+        decDegrees: 42.8,
+      ),
+    );
     final lights = ExposureNode(name: 'Lights', durationSecs: 60, count: 10);
     add(lights);
     add(ParkNode(name: 'Park'));
@@ -119,7 +159,11 @@ void main() {
     test('takes the name typed for the target', () {
       editor().createSequence();
       final target = TargetHeaderNode(
-          id: 't', targetName: 'New Target', raHours: 0, decDegrees: 0);
+        id: 't',
+        targetName: 'New Target',
+        raHours: 0,
+        decDegrees: 0,
+      );
       add(target);
       for (final typed in ['M', 'M3', 'M34']) {
         final current = sequence().nodes['t']! as TargetHeaderNode;
@@ -137,15 +181,20 @@ void main() {
 
       final renamed = sequence().nodes['f']! as FilterChangeNode;
       editor().updateNode(renamed.copyWith(name: 'Luminance'));
-      editor().updateNode((sequence().nodes['f']! as FilterChangeNode)
-          .copyWith(filterName: 'R'));
+      editor().updateNode(
+        (sequence().nodes['f']! as FilterChangeNode).copyWith(filterName: 'R'),
+      );
       expect(sequence().nodes['f']!.name, 'Luminance');
     });
 
     test('takes the typed name when keystrokes outrun the editor', () {
       editor().createSequence();
       final target = TargetHeaderNode(
-          id: 't', targetName: 'New Target', raHours: 0, decDegrees: 0);
+        id: 't',
+        targetName: 'New Target',
+        raHours: 0,
+        decDegrees: 0,
+      );
       add(target);
       // Each keystroke's closure holds the node as it was drawn: the first
       // copy, before any keystroke landed.
@@ -160,12 +209,15 @@ void main() {
 
     test('keeps a name the operator gave it', () {
       editor().createSequence();
-      add(TargetHeaderNode(
+      add(
+        TargetHeaderNode(
           id: 't',
           name: 'Autumn galaxy',
           targetName: 'M33',
           raHours: 1.56,
-          decDegrees: 30.66));
+          decDegrees: 30.66,
+        ),
+      );
       final current = sequence().nodes['t']! as TargetHeaderNode;
       editor().updateNode(current.copyWith(targetName: 'M31'));
       expect(sequence().nodes['t']!.name, 'Autumn galaxy');
@@ -173,12 +225,19 @@ void main() {
   });
 
   group('the order check', () {
-    List<ValidationIssue> check() => CaptureBeforeAimRule().validate(sequence());
+    List<ValidationIssue> check() =>
+        CaptureBeforeAimRule().validate(sequence());
 
     test('flags a slew that runs after the frames', () {
       editor().createSequence();
-      add(TargetHeaderNode(
-          id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+      add(
+        TargetHeaderNode(
+          id: 't',
+          targetName: 'M34',
+          raHours: 2.7,
+          decDegrees: 42.8,
+        ),
+      );
       add(ExposureNode(name: 'Lights', durationSecs: 60, count: 10));
       final slew = SlewNode(name: 'Slew');
       editor().insertNewNode(slew, parentId: 't', index: 1);
@@ -192,20 +251,35 @@ void main() {
 
     test('accepts a re-center after the target was aimed first', () {
       editor().createSequence();
-      add(TargetHeaderNode(
-          id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+      add(
+        TargetHeaderNode(
+          id: 't',
+          targetName: 'M34',
+          raHours: 2.7,
+          decDegrees: 42.8,
+        ),
+      );
       add(SlewNode(name: 'Slew'));
       add(ExposureNode(name: 'Lights', durationSecs: 60, count: 10));
-      editor().insertNewNode(CenterNode(name: 'Re-center'),
-          parentId: 't', index: 2);
+      editor().insertNewNode(
+        CenterNode(name: 'Re-center'),
+        parentId: 't',
+        index: 2,
+      );
 
       expect(check(), isEmpty);
     });
 
     test('leaves a target that never aims to the mount check', () {
       editor().createSequence();
-      add(TargetHeaderNode(
-          id: 't', targetName: 'M34', raHours: 2.7, decDegrees: 42.8));
+      add(
+        TargetHeaderNode(
+          id: 't',
+          targetName: 'M34',
+          raHours: 2.7,
+          decDegrees: 42.8,
+        ),
+      );
       add(ExposureNode(name: 'Lights', durationSecs: 60, count: 10));
 
       expect(check(), isEmpty);

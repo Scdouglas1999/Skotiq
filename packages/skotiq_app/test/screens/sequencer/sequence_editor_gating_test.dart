@@ -44,7 +44,9 @@ void main() {
       ]) {
         final c = ProviderContainer(overrides: [
           inMemoryDatabaseOverride(),
-          sequenceExecutionStateProvider.overrideWith((ref) => state),
+          runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
+          ),
         ]);
         addTearDown(c.dispose);
         expect(c.read(canEditSequenceProvider), isFalse,
@@ -60,7 +62,9 @@ void main() {
       ]) {
         final c = ProviderContainer(overrides: [
           inMemoryDatabaseOverride(),
-          sequenceExecutionStateProvider.overrideWith((ref) => state),
+          runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
+          ),
         ]);
         addTearDown(c.dispose);
         expect(c.read(canEditSequenceProvider), isTrue,
@@ -81,8 +85,9 @@ void main() {
         ProviderScope(
           overrides: [
             inMemoryDatabaseOverride(),
-            sequenceExecutionStateProvider
-                .overrideWith((ref) => SequenceExecutionState.idle),
+            runRecordProvider.overrideWith(
+              (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.idle)),
+            ),
           ],
           child: MaterialApp(
             theme: SkotiqTheme.dark,
@@ -128,8 +133,9 @@ void main() {
         ProviderScope(
           overrides: [
             inMemoryDatabaseOverride(),
-            sequenceExecutionStateProvider
-                .overrideWith((ref) => SequenceExecutionState.idle),
+            runRecordProvider.overrideWith(
+              (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.idle)),
+            ),
           ],
           child: MaterialApp(
             theme: SkotiqTheme.dark,
@@ -288,8 +294,9 @@ void main() {
     test('canEditSequenceProvider is false while running', () {
       final c = ProviderContainer(overrides: [
         inMemoryDatabaseOverride(),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.running),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.running)),
+        ),
       ]);
       addTearDown(c.dispose);
       expect(c.read(canEditSequenceProvider), isFalse);

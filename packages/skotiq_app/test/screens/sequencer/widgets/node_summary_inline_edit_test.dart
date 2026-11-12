@@ -72,8 +72,7 @@ Future<void> _pumpTreeWithNode(
   // Optionally flip the sequence into a locked execution state AFTER seeding so
   // canEditSequenceProvider reads false for the lock-gate test.
   if (lockAfterSeed != null) {
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        lockAfterSeed;
+    container.read(runRecordProvider.notifier).setLifecycle(lockAfterSeed);
   }
 
   await tester.pumpWidget(

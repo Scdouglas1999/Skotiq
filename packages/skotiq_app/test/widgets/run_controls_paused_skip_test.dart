@@ -55,8 +55,9 @@ void main() {
       size: const Size(1000, 400),
       settle: false,
       extraOverrides: [
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.paused),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.paused)),
+        ),
         sequenceExecutorProvider.overrideWith((ref) {
           executor = _SkipRecordingExecutor(ref);
           return executor;
@@ -93,8 +94,9 @@ void main() {
       size: const Size(430, 400),
       settle: false,
       extraOverrides: [
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.paused),
+        runRecordProvider.overrideWith(
+          (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: SequenceExecutionState.paused)),
+        ),
         sequenceExecutorProvider.overrideWith((ref) {
           executor = _SkipRecordingExecutor(ref);
           return executor;

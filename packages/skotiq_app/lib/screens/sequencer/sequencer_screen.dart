@@ -347,8 +347,10 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
     // The inspector's session memory of last-known per-node progress must
     // fold every progress update whether or not the panel is open — the
     // Activity tab only watches it when built, and a lazily-created
-    // notifier would open on the post-reset empty maps.
-    ref.watch(lastKnownNodeActivityProvider);
+    // notifier would open on the post-reset empty maps. Listened to, not
+    // watched: it changes on every progress event, and watching it rebuilt
+    // the whole screen each time.
+    ref.listen(lastKnownNodeActivityProvider, (_, __) {});
 
     return CallbackShortcuts(
       bindings: {

@@ -14,6 +14,7 @@ import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
 import 'database_provider.dart';
 import 'equipment/device_slots.dart';
+import 'sequence/run_record.dart';
 import 'sequence/sequence_progress.dart';
 import '../services/device_service_lifecycle.dart';
 import '../services/remote_sequence_editor_sync_lifecycle.dart';
@@ -359,9 +360,7 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     // unreachable remote is explicitly abandoned we also clear its last known
     // live state; the remote rig may continue independently, but this client
     // must never offer run controls against the replacement backend.
-    _ref.read(sequenceProgressProvider.notifier).reset();
-    _ref.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.idle;
+    _ref.read(runRecordProvider.notifier).resetForHostChange();
 
     oldBackend.dispose();
     state = newBackend;

@@ -29,9 +29,8 @@
 /// reporting against the node cannot erase the frames it took.
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../models/backend/event_types.dart';
+import 'run_record.dart';
 import 'sequencer_run_event.dart';
 
 /// Frames captured, and frames planned, for one exposure node's current pass.
@@ -57,72 +56,8 @@ class NodeExposureTally {
   String toString() => 'NodeExposureTally($captured/$planned)';
 }
 
-class NodeExposureTallyNotifier
-    extends StateNotifier<Map<String, NodeExposureTally>> {
-  NodeExposureTallyNotifier() : super(const {});
-
-  /// A fresh pass over [nodeId] — a loop's next iteration, or a new run. The
-  /// previous pass's frames are no longer this node's story, and leaving them
-  /// would let a re-run open showing the frames of the run before it.
-  void startNode(String nodeId) {
-    if (!state.containsKey(nodeId)) return;
-    final next = Map<String, NodeExposureTally>.from(state)..remove(nodeId);
-    state = next;
-  }
-
-  /// Record that [nodeId] has captured [captured] of [planned] frames.
-  ///
-  /// Monotonic within a pass: two independent subscribers see every event on a
-  /// desktop host (see `applySequencerEventToNodeExposureTally`), and an
-  /// out-of-order or repeated sighting must never walk the count backwards.
-  ///
-  /// [nodeId] must be the id the EVENT named. There is no inference from the
-  /// run's current node: `ExposureStarted` / `ExposureCompleted` carry no node
-  /// id, and at a burst boundary the current node has already advanced to the
-  /// next one (the waveF log has `NodeStarted` for node 2 logged 53 µs BEFORE
-  /// the final frame of node 1), so crediting the current node is the
-  /// join-by-position mistake with the right id sitting in the other event.
-  void recordFrames(
-    String nodeId, {
-    required int captured,
-    required int planned,
-  }) {
-    if (nodeId.isEmpty || captured < 0 || planned <= 0) return;
-    final current = state[nodeId];
-    final nextCaptured = current == null
-        ? captured
-        : (captured > current.captured ? captured : current.captured);
-    final nextPlanned = planned;
-    if (current != null &&
-        current.captured == nextCaptured &&
-        current.planned == nextPlanned) {
-      return;
-    }
-    state = Map<String, NodeExposureTally>.from(state)
-      ..[nodeId] = NodeExposureTally(
-        captured: nextCaptured,
-        planned: nextPlanned,
-      );
-  }
-
-  /// Show the imaging host's tally on a linked client that does not own the
-  /// run.
-  void mirrorHostTally(Map<String, NodeExposureTally> hostTally) {
-    state = Map<String, NodeExposureTally>.unmodifiable(hostTally);
-  }
-
-  void reset() {
-    if (state.isEmpty) return;
-    state = const {};
-  }
-}
-
 /// Per-node captured-frame tally, keyed by node id.
-final nodeExposureTallyProvider =
-    StateNotifierProvider<
-      NodeExposureTallyNotifier,
-      Map<String, NodeExposureTally>
-    >((ref) => NodeExposureTallyNotifier());
+final nodeExposureTallyProvider = runRecordProvider.select((run) => run.tally);
 
 /// Fold ONE sequencer event into the per-node exposure tally.
 ///
@@ -130,7 +65,7 @@ final nodeExposureTallyProvider =
 /// tests all go through it, so a test cannot pass against an event shape
 /// production does not handle.
 void applySequencerEventToNodeExposureTally(
-  NodeExposureTallyNotifier tally,
+  RunRecordNotifier tally,
   SkotiqEvent event,
 ) {
   final typed = SequencerRunEvent.fromSkotiqEvent(event);
@@ -144,7 +79,7 @@ void applySequencerEventToNodeExposureTally(
 /// to the current node credits the next node with the previous node's last
 /// frame when `NodeStarted` overtakes it.
 void applyRunEventToNodeExposureTally(
-  NodeExposureTallyNotifier tally,
+  RunRecordNotifier tally,
   SequencerRunEvent event,
 ) {
   switch (event) {

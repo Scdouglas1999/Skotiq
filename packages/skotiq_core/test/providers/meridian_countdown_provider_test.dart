@@ -22,8 +22,7 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/meridian_countdown_provider.dart';
-import 'package:skotiq_core/src/providers/sequence_provider.dart'
-    show sequenceExecutionStateProvider;
+import 'package:skotiq_core/src/providers/sequence/run_record.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart'
     show AppSettingsState, AppSettingsNotifier, appSettingsProvider;
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -44,7 +43,10 @@ MountState _mountAtHourAngle(
   String? sideOfPier = 'east',
   DateTime? nowUtc,
 }) {
-  final lst = AstronomyCalculations.localSiderealTime(nowUtc ?? _fixedNowUtc, _longitude);
+  final lst = AstronomyCalculations.localSiderealTime(
+    nowUtc ?? _fixedNowUtc,
+    _longitude,
+  );
   var ra = lst - haHours;
   while (ra < 0) {
     ra += 24.0;
@@ -488,7 +490,9 @@ void main() {
               AppSettingsState(latitude: latitude, longitude: longitude),
             ),
           ),
-          sequenceExecutionStateProvider.overrideWith((ref) => execState),
+          runRecordProvider.overrideWith(
+            (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: execState)),
+          ),
         ],
       );
     }
