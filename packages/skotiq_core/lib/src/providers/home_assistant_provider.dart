@@ -20,6 +20,7 @@ import '../models/backend/host_mutation_event.dart';
 import '../models/notification/transport_configs.dart';
 import '../services/home_assistant/home_assistant_discovery_config.dart';
 import '../services/home_assistant/home_assistant_discovery_service.dart';
+import '../services/home_assistant/home_assistant_host_settings.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import '../settings/store_settings.dart';
@@ -62,40 +63,6 @@ final homeAssistantConfigProvider =
       HomeAssistantConfigNotifier,
       HomeAssistantDiscoveryConfig
     >(HomeAssistantConfigNotifier.new);
-
-/// Sanitized host-owned Home Assistant configuration shown to a remote
-/// controller. Broker passwords never cross back to the client; only their
-/// presence is disclosed so the UI can offer an explicit replacement field.
-class HomeAssistantHostSettings {
-  final HomeAssistantDiscoveryConfig config;
-  final MqttTransportConfig broker;
-  final bool brokerPasswordConfigured;
-
-  const HomeAssistantHostSettings({
-    required this.config,
-    required this.broker,
-    required this.brokerPasswordConfigured,
-  });
-
-  factory HomeAssistantHostSettings.fromJson(Map<String, dynamic> json) {
-    final configJson = json['config'];
-    final brokerJson = json['broker'];
-    if (configJson is! Map<String, dynamic> ||
-        brokerJson is! Map<String, dynamic>) {
-      throw const FormatException(
-        'Malformed Home Assistant host settings response',
-      );
-    }
-    return HomeAssistantHostSettings(
-      config: HomeAssistantDiscoveryConfig.fromJson(configJson),
-      broker: MqttTransportConfig.fromJson(
-        brokerJson,
-      ).copyWith(clearPassword: true),
-      brokerPasswordConfigured:
-          json['brokerPasswordConfigured'] as bool? ?? false,
-    );
-  }
-}
 
 /// Imaging-host Home Assistant snapshot for remote settings screens.
 ///

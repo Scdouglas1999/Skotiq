@@ -574,6 +574,7 @@ export 'src/providers/notification_router_provider.dart';
 //     MQTT broker.
 export 'src/services/home_assistant/home_assistant_discovery_config.dart';
 export 'src/services/home_assistant/home_assistant_discovery_service.dart';
+export 'src/services/home_assistant/home_assistant_host_settings.dart';
 export 'src/services/home_assistant/ha_discovery_payloads.dart';
 export 'src/providers/home_assistant_provider.dart';
 export 'src/services/critical_alert_player.dart';
