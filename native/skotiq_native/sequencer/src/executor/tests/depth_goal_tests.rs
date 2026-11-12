@@ -27,6 +27,8 @@ struct RecordingOps {
     total_exposures: Arc<AtomicU32>,
     /// Exposures by filter and dithers, in the order they ran.
     timeline: Mutex<Vec<String>>,
+    /// The rig has no guider: every dither is refused as not configured.
+    guider_absent: bool,
 }
 
 impl RecordingOps {
@@ -37,7 +39,13 @@ impl RecordingOps {
             exposures_by_filter: Mutex::new(HashMap::new()),
             total_exposures,
             timeline: Mutex::new(Vec::new()),
+            guider_absent: false,
         }
+    }
+
+    fn without_guider(mut self) -> Self {
+        self.guider_absent = true;
+        self
     }
 
     fn timeline(&self) -> String {
@@ -132,6 +140,9 @@ impl GuiderOps for RecordingOps {
         ra_only: bool,
     ) -> DeviceResult<()> {
         self.timeline.lock().unwrap().push("dither".to_string());
+        if self.guider_absent {
+            return Err(crate::device_ops::DeviceError::NO_GUIDER);
+        }
         self.inner
             .guider_dither(pixels, settle_pixels, settle_time, settle_timeout, ra_only)
             .await
@@ -672,6 +683,27 @@ async fn a_node_without_a_cadence_leaves_dithering_to_the_trigger() {
     assert!(frames_before_dither >= 5, "{timeline}");
     // The trigger's dither is reported for the run's count like a node's.
     assert_eq!(outcome.dithers_reported, vec![String::new()]);
+}
+
+/// A rig with no guider at all (a dark run, say) keeps the shipped Dither
+/// Interval trigger. Each time it falls due the dither is refused as not
+/// configured, and the interval restarts as if it had run: one attempt per
+/// interval, never one per frame, and no dither counted.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn without_a_guider_the_dither_interval_restarts_instead_of_firing_every_frame() {
+    let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))).without_guider());
+    let sequence = with_sub_length(two_filter_sequence(6, 6, None, true), 1.2);
+    let outcome = run(sequence, ops.clone(), None).await;
+
+    assert_eq!(outcome.state, ExecutorState::Completed);
+    let timeline = ops.timeline();
+    assert_eq!(
+        timeline.split_whitespace().filter(|step| *step != "dither").count(),
+        12,
+        "{timeline}"
+    );
+    assert_eq!(timeline.matches("dither").count(), 2, "{timeline}");
+    assert!(outcome.dithers_reported.is_empty());
 }
 
 fn exposure_node(id: &str, count: u32, dither_every: Option<u32>) -> crate::NodeDefinition {
