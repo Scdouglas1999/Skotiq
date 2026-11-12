@@ -6,6 +6,7 @@
 //! ASCOM enumerations ([`types`]); the transport crates generate their
 //! wrapper functions from the member lists.
 
+pub mod camera;
 mod errors;
 pub mod interfaces;
 pub mod members;

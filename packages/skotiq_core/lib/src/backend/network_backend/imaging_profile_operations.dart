@@ -1177,17 +1177,6 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> setCaptureFileFormat({
-    required String format,
-    required String xisfCompression,
-    required bool xisfChecksums,
-  }) async {
-    throw UnsupportedError(
-      'The host sets its own capture file format from its settings.',
-    );
-  }
-
-  @override
   Future<String> saveFitsFromLastCapture({
     required String deviceId,
     required String filePath,

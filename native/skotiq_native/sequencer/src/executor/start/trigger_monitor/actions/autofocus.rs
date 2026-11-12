@@ -281,7 +281,7 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         ),
         AutofocusOutcome::Unmeasurable => String::new(),
     };
-    let notice = crate::instructions::record_autofocus_failed_continuing(
+    let mut line = crate::instructions::record_autofocus_failed_continuing(
         af_ctx,
         &format!("Autofocus trigger '{trigger_name}'"),
         serde_json::json!({
@@ -292,9 +292,9 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         position_before_af,
     )
     .await;
-    let message = format!("{notice}{focus_note}");
-    tracing::warn!("{}", message);
-    run.warning(message);
+    line.message.push_str(&focus_note);
+    tracing::warn!("{}", line.message);
+    run.send(line.into_event());
 }
 
 #[cfg(test)]

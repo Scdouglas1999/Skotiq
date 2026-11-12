@@ -6,23 +6,15 @@ import '../../services/phd2_probe.dart';
 
 /// Role interface covering guiding operations.
 ///
-/// What this role owns:
-///   * Direct PHD2 control (connect, start, stop, dither, parameters,
-///     calibration, lock position, find-star, etc.).
-///   * The driver-agnostic `guider*` abstraction routed by device id (so
-///     future non-PHD2 guiders can land without changing service-layer code).
-///   * Built-in guider configuration get/set (the FFI-only built-in guider).
+/// Guiding goes through one family, `guider*`, which the host answers with
+/// the guider its profile names (PHD2 or the built-in multi-star guider). The
+/// `phd2*` members are what only PHD2 has: its connection, its guide
+/// algorithm settings and its calibration store. The built-in guider's own
+/// settings are `builtinGuider*`.
 ///
-/// What this role deliberately does NOT own:
-///   * Pulse-guiding the mount — that lives in [DeviceBackend] because it is
-///     a mount-driver primitive used by autofocus, manual jog, and PHD2-style
-///     calibration alike.
-///   * Plate solving — see [ImagingBackend].
-///   * Auto-dithering during a sequence — the sequencer drives that through
-///     [SequencerBackend.sequencerUpdateDitherConfig]; the guider role is the
-///     transport.
+/// Pulse-guiding the mount belongs to [DeviceBackend]; dithering during a
+/// run is the sequencer's, which drives the same guider.
 abstract class GuidingBackend {
-
   /// Probe whether a PHD2 instance is reachable on the given host/port.
   ///
   /// Used by the onboarding "Test connection" step before any device is paired.
@@ -50,26 +42,6 @@ abstract class GuidingBackend {
 
   Future<void> phd2Disconnect();
 
-  Future<void> phd2StartGuiding({
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  });
-
-  Future<void> phd2StopGuiding();
-
-  Future<void> phd2Dither({
-    double amount = 5.0,
-    bool raOnly = false,
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  });
-
-  Future<Phd2Status> phd2GetStatus();
-
-  Future<Phd2StarImage> phd2GetStarImage({int size = 50});
-
   Future<List<String>> phd2GetAlgoParamNames({required String axis});
 
   Future<double> phd2GetAlgoParam({required String axis, required String name});
@@ -80,46 +52,23 @@ abstract class GuidingBackend {
     required double value,
   });
 
-  Future<void> phd2SetPaused(bool paused);
-
+  /// Clear PHD2's stored calibration: `mount`, `ao` or `both`.
   Future<void> phd2ClearCalibration({String which = 'both'});
 
-  /// Flip calibration (after meridian flip)
+  /// Flip PHD2's calibration after a meridian flip.
   Future<void> phd2FlipCalibration();
 
-  Future<Phd2CalibrationData> phd2GetCalibrationData();
-
-  Future<(double, double)> phd2FindStar();
-
-  Future<void> phd2SetLockPosition({
-    required double x,
-    required double y,
-    bool exact = false,
-  });
-
-  Future<(double, double)> phd2GetLockPosition();
-
-  /// Start looping exposures (without guiding)
-  Future<void> phd2Loop();
-
-  Future<void> phd2DeselectStar();
-
-  /// Start guiding using the connected guider
-  ///
-  /// Routes to appropriate implementation (PHD2, or future guider types) based
-  /// on the device ID. This abstraction allows future guider implementations
-  /// to be added without changing service-level code.
+  /// Start guiding and wait for the guider to settle.
   Future<void> guiderStartGuiding({
-    required String deviceId,
     double settlePixels = 1.0,
     double settleTime = 10.0,
     double settleTimeout = 60.0,
   });
 
-  Future<void> guiderStopGuiding({required String deviceId});
+  Future<void> guiderStopGuiding();
 
+  /// Dither and wait for the guider to settle.
   Future<void> guiderDither({
-    required String deviceId,
     double amount = 5.0,
     bool raOnly = false,
     double settlePixels = 1.0,
@@ -128,32 +77,32 @@ abstract class GuidingBackend {
   });
 
   /// Start guide-camera looping without issuing guide corrections.
-  Future<void> guiderLoop({required String deviceId});
+  Future<void> guiderLoop();
 
-  Future<(double, double)> guiderFindStar({required String deviceId});
+  /// Hold guide corrections while the guider keeps its star, or resume them.
+  Future<void> guiderSetPaused(bool paused);
+
+  Future<(double, double)> guiderFindStar();
 
   Future<void> guiderSetLockPosition({
-    required String deviceId,
     required double x,
     required double y,
     bool exact = false,
   });
 
-  Future<(double, double)> guiderGetLockPosition({required String deviceId});
+  Future<(double, double)> guiderGetLockPosition();
 
-  Future<void> guiderDeselectStar({required String deviceId});
+  Future<void> guiderDeselectStar();
 
-  Future<Phd2StarImage> guiderGetStarImage({
-    required String deviceId,
-    int size = 50,
-  });
+  Future<Phd2StarImage> guiderGetStarImage({int size = 50});
 
   /// The guider's state, guide error and pixel scale, and for the built-in
-  /// multi-star guider the stars it tracks.
-  Future<Phd2Status> guiderGetStatus({required String deviceId});
+  /// multi-star guider the stars it tracks. [Phd2Status.deviceId] names the
+  /// guider that answered.
+  Future<Phd2Status> guiderGetStatus();
 
-  /// The guider's calibration, in the shape PHD2 reports it.
-  Future<Phd2CalibrationData> guiderGetCalibration({required String deviceId});
+  /// The guider's calibration of the mount.
+  Future<Phd2CalibrationData> guiderGetCalibration();
 
   Future<BuiltinGuiderConfig> builtinGuiderGetConfig();
 

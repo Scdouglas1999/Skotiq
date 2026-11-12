@@ -1084,12 +1084,11 @@ impl MeridianFlipExecutor {
             serde_json::json!({ "target_name": ctx.target_name }),
         );
         tracing::warn!("[MERIDIAN] {}", continuation.operator_message);
-        self.run.emit_decision(continuation.decision);
-        self.say(continuation.operator_message.clone());
+        let (decision, line) = continuation.split();
+        self.run.emit_decision(decision);
+        self.say(line.message.clone());
         if let Some(tx) = &self.run.event_tx {
-            let _ = tx.send(ExecutorEvent::Warning {
-                message: continuation.operator_message,
-            });
+            let _ = tx.send(line.into_event());
         }
     }
 
@@ -4479,7 +4478,9 @@ mod tests {
         assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let ExecutorEvent::Warning { message } = event {
+            if let ExecutorEvent::Warning { message }
+            | ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }
@@ -4633,7 +4634,9 @@ mod tests {
             assert!(ts.read().await.meridian.has_flipped());
             let mut warned = false;
             while let Ok(event) = rx.try_recv() {
-                if let ExecutorEvent::Warning { message } = event {
+                if let ExecutorEvent::Warning { message }
+                | ExecutorEvent::NoticedWarning { message, .. } = event
+                {
                     warned |= message.contains("After the meridian flip");
                 }
             }
@@ -4761,7 +4764,9 @@ mod tests {
         );
         let mut warnings = Vec::new();
         while let Ok(event) = rx.try_recv() {
-            if let ExecutorEvent::Warning { message } = event {
+            if let ExecutorEvent::Warning { message }
+            | ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }
@@ -4904,6 +4909,7 @@ mod tests {
         assert!(ts.read().await.guiding.resume_pending());
         let warned = std::iter::from_fn(|| rx.try_recv().ok()).any(|event| {
             matches!(event, ExecutorEvent::Warning { message }
+            | ExecutorEvent::NoticedWarning { message, .. }
                 if message.contains("After the meridian flip")
                     && message.contains("The run continues"))
         });

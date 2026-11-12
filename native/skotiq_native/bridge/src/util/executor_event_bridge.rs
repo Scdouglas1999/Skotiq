@@ -114,6 +114,7 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
     let (severity, message) = match event {
         ExecutorEvent::Error { message } => (EventSeverity::Error, message),
         ExecutorEvent::Warning { message }
+        | ExecutorEvent::NoticedWarning { message, .. }
         | ExecutorEvent::StepProblem { message }
         | ExecutorEvent::RunHeld { message } => (EventSeverity::Warning, message),
         ExecutorEvent::SequenceFailed { error } => (EventSeverity::Error, error),
@@ -157,9 +158,12 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
     state.publish_event(create_event_auto_id(
         severity,
         EventCategory::Sequencer,
+        // No decision row goes out from a one-shot operation, so nothing here
+        // is announced elsewhere.
         EventPayload::Sequencer(SequencerEvent::Error {
             message,
             kind: SequencerErrorKind::Standalone,
+            notice: None,
         }),
     ));
 }

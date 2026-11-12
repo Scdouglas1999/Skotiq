@@ -67,8 +67,12 @@ crate::load_vendor_sdk! {
             => unsafe extern "C" fn(QhyCamHandle) -> c_uint,
     },
     optional_symbols: {
-        // Older QHY SDK builds do not export this.
+        // Older QHY SDK builds do not export these.
         get_sdk_version: b"GetQHYCCDSDKVersion\0" => GetQhyccdSdkVersion,
+        control_shutter: b"ControlQHYCCDShutter\0"
+            => unsafe extern "C" fn(QhyCamHandle, u8) -> c_uint,
+        set_debayer: b"SetQHYCCDDebayerOnOff\0"
+            => unsafe extern "C" fn(QhyCamHandle, bool) -> c_uint,
     }
 }
 
@@ -93,8 +97,6 @@ pub struct QhyDiscoveryConfig {
     pub enabled: bool,
     /// Timeout for discovery operations in milliseconds
     pub timeout_ms: u64,
-    /// Whether to use catch_unwind for crash protection
-    pub catch_panics: bool,
 }
 
 impl Default for QhyDiscoveryConfig {
@@ -102,7 +104,6 @@ impl Default for QhyDiscoveryConfig {
         Self {
             enabled: true,
             timeout_ms: DEFAULT_DISCOVERY_TIMEOUT_MS,
-            catch_panics: true,
         }
     }
 }
@@ -143,7 +144,6 @@ pub(crate) fn get_discovery_config() -> QhyDiscoveryConfig {
     QhyDiscoveryConfig {
         enabled: is_qhy_discovery_enabled(),
         timeout_ms,
-        catch_panics: true,
     }
 }
 
@@ -227,25 +227,26 @@ pub(crate) fn sdk_version_from_sdk(sdk: &QhySdk) -> Option<String> {
     }
 }
 
-/// QHY SDK error codes (from qhyccdstruct.h)
-/// These error codes are returned by QHYCCD SDK functions.
-#[repr(u32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
-pub(crate) enum QhyError {
-    Success = 0,
-    Error = 0xFFFFFFFF,
-    ReadDirectly = 0x2001,
-    ReadOpenMem = 0x2002,
-    ReadError = 0x2003,
-    InitResource = 0x0001,
-    ReleaseResource = 0x0002,
-    InitCamera = 0x0003,
-    CloseCamera = 0x0004,
-    InitClass = 0x0005,
-    SetFWError = 0x0006,
-    SetHDR = 0x0007,
-    GetMemLength = 0x0008,
+/// Return codes from `qhyccderr.h`. Everything else in that header (the
+/// `-4 .. -25` family) sits inside `#if 0`; the SDK answers a failure with
+/// `QHYCCD_ERROR`.
+pub(crate) const QHYCCD_SUCCESS: c_uint = 0;
+pub(crate) const QHYCCD_ERROR: c_uint = 0xFFFF_FFFF;
+/// Old CCD and A-series cameras: read the frame right after starting it.
+pub(crate) const QHYCCD_READ_DIRECTLY: c_uint = 0x2001;
+/// Some cameras need 200 ms after a bin change.
+pub(crate) const QHYCCD_DELAY_200MS: c_uint = 0x2000;
+/// `QHYCCD_ERROR_DEVICELOSE` (-3).
+pub(crate) const QHYCCD_ERROR_DEVICELOSE: c_uint = 0xFFFF_FFFD;
+
+/// The value `GetQHYCCDParam` returns, as a `double`, for a control the
+/// camera cannot read: `QHYCCD_ERROR` widened.
+pub(crate) const QHYCCD_ERROR_VALUE: f64 = QHYCCD_ERROR as f64;
+
+/// A `GetQHYCCDParam` reading, or `None` when the SDK answered with its error
+/// value instead of a reading.
+pub(crate) fn param_value(raw: f64) -> Option<f64> {
+    (raw.is_finite() && raw != QHYCCD_ERROR_VALUE).then_some(raw)
 }
 
 /// Full-scale ADU of the delivered pixel container for a QHY camera.
@@ -304,72 +305,17 @@ pub(crate) fn container_max_adu(
     }
 }
 
-/// Check QHY error and convert to DriverError with detailed error mapping
-pub(crate) fn check_qhy_error(code: c_uint, operation: &str) -> Result<(), DriverError> {
+/// An SDK return code as a driver result. `what` names the request in the
+/// user's words ("set the gain to 120").
+pub(crate) fn check_qhy_error(code: c_uint, what: &str) -> Result<(), DriverError> {
     match code {
-        0 => Ok(()), // QHYCCD_SUCCESS
-
-        // Initialization errors
-        0x0001 => Err(DriverError::SdkError(format!(
-            "{}: Failed to initialize QHYCCD resources - SDK may not be properly installed",
-            operation
+        QHYCCD_SUCCESS => Ok(()),
+        QHYCCD_ERROR_DEVICELOSE => Err(DriverError::Disconnected),
+        QHYCCD_ERROR => Err(DriverError::SdkError(format!(
+            "The QHY camera did not {what}. If it keeps happening, check the camera's USB cable and its 12 V power."
         ))),
-        0x0002 => Err(DriverError::SdkError(format!(
-            "{}: Failed to release QHYCCD resources",
-            operation
-        ))),
-        0x0003 => Err(DriverError::SdkError(format!(
-            "{}: Failed to initialize camera - check USB connection",
-            operation
-        ))),
-        0x0004 => Err(DriverError::Disconnected),
-        0x0005 => Err(DriverError::SdkError(format!(
-            "{}: Failed to initialize camera class",
-            operation
-        ))),
-        0x0006 => Err(DriverError::SdkError(format!(
-            "{}: Filter wheel operation failed",
-            operation
-        ))),
-        0x0007 => Err(DriverError::SdkError(format!(
-            "{}: HDR mode setting failed",
-            operation
-        ))),
-        0x0008 => Err(DriverError::SdkError(format!(
-            "{}: Failed to get memory length for image buffer",
-            operation
-        ))),
-
-        // Read errors
-        0x2001 => Err(DriverError::SdkError(format!(
-            "{}: Direct read failed",
-            operation
-        ))),
-        0x2002 => Err(DriverError::SdkError(format!(
-            "{}: Memory open read failed",
-            operation
-        ))),
-        0x2003 => Err(DriverError::SdkError(format!(
-            "{}: Read operation failed - check USB connection",
-            operation
-        ))),
-
-        // Timeout (common error)
-        11 => Err(DriverError::Timeout(format!(
-            "{}: Operation timed out - exposure may be in progress or camera unresponsive",
-            operation
-        ))),
-
-        // Generic error (0xFFFFFFFF)
-        0xFFFFFFFF => Err(DriverError::SdkError(format!(
-            "{}: General error - camera may be in use by another application or disconnected",
-            operation
-        ))),
-
-        // Unknown error
-        _ => Err(DriverError::SdkError(format!(
-            "{}: Unknown QHY error code 0x{:X}",
-            operation, code
+        other => Err(DriverError::SdkError(format!(
+            "The QHY camera did not {what} (SDK code 0x{other:X})."
         ))),
     }
 }

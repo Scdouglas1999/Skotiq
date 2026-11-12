@@ -51,6 +51,7 @@ const Set<String> _addedSinceBase = {
   'camera_file_saving',
   'xisf_compression',
   'xisf_checksums',
+  'recovery_park_and_close_when_gives_up',
 };
 
 /// Wire fields of settings declared after the base build; the base wire form

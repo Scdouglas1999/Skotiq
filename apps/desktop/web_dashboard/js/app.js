@@ -1877,7 +1877,7 @@
 
   async function fetchGuidingStatus() {
     try {
-      const status = await api.phd2GetStatus();
+      const status = await api.guiderGetStatus();
       state.guidingStatus = status;
       renderGuidingPanel();
       markPanelFresh('guiding');
@@ -2696,7 +2696,7 @@
 
   async function handleGuideStart() {
     try {
-      await api.phd2StartGuiding();
+      await api.guiderStartGuiding();
       addLogEntry('guiding', 'Guiding started');
       showToast('Guiding started');
     } catch (e) {
@@ -2706,7 +2706,7 @@
 
   async function handleGuideStop() {
     try {
-      await api.phd2StopGuiding();
+      await api.guiderStopGuiding();
       addLogEntry('guiding', 'Guiding stopped');
     } catch (e) {
       showToast('Guide stop failed: ' + e.message, 'error');
@@ -2729,7 +2729,7 @@
       (document.getElementById('guide-dither-amount') || {}).value,
     );
     try {
-      await api.phd2Dither(isFinite(amount) ? amount : 5.0);
+      await api.guiderDither(isFinite(amount) ? amount : 5.0);
       addLogEntry('guiding', 'Dither requested');
       showToast('Dither sent');
     } catch (e) {
@@ -2741,18 +2741,18 @@
     const g = state.guidingStatus;
     const paused = g && (g.paused === true || String(g.state || '').toLowerCase() === 'paused');
     try {
-      await api.phd2SetPaused(!paused);
-      addLogEntry('guiding', paused ? 'Guiding resumed (PHD2)' : 'Guiding paused (PHD2)');
-      showToast(paused ? 'PHD2 resumed' : 'PHD2 paused');
+      await api.guiderSetPaused(!paused);
+      addLogEntry('guiding', paused ? 'Guiding resumed' : 'Guiding paused');
+      showToast(paused ? 'Guiding resumed' : 'Guiding paused');
       await refreshGuidingStatus();
     } catch (e) {
-      showToast('PHD2 pause toggle failed: ' + e.message, 'error');
+      showToast((paused ? 'Resume' : 'Pause') + ' failed: ' + e.message, 'error');
     }
   }
 
   async function refreshGuidingStatus() {
     try {
-      const status = await api.phd2GetStatus();
+      const status = await api.guiderGetStatus();
       state.guidingStatus = status;
       renderGuidingPanel();
       markPanelFresh('guiding');
@@ -4226,10 +4226,10 @@
 
     // RMS values. Two corrections live here:
     //
-    //  * The key is `rmsRa`, not `rmsRA` (GET /api/phd2/status). The capitalised
+    //  * The key is `rmsRa`, not `rmsRA` (GET /api/guider/status). The capitalised
     //    spelling matched nothing, so the RA row never left "--" even while
     //    guiding.
-    //  * A disconnected PHD2 reports 0.0 for all three. Rendering that gave a
+    //  * A disconnected guider reports 0.0 for all three. Rendering that gave a
     //    dead guider a flawless 0.00" RMS — the most reassuring possible
     //    reading of no data at all. Only a connected guider's numbers show.
     const connected = g.connected === true;

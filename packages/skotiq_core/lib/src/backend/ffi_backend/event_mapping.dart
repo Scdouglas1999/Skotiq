@@ -281,8 +281,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
           'message': equipmentEvent.message,
         },
       );
-    }
-    else if (equipmentEvent is bridge.EquipmentEvent_MountSlewStarted) {
+    } else if (equipmentEvent is bridge.EquipmentEvent_MountSlewStarted) {
       return (
         'MountSlewStarted',
         {'ra': equipmentEvent.ra, 'dec': equipmentEvent.dec},
@@ -302,8 +301,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
       return ('MountParkCompleted', {});
     } else if (equipmentEvent is bridge.EquipmentEvent_MountUnparked) {
       return ('MountUnparked', {});
-    }
-    else if (equipmentEvent is bridge.EquipmentEvent_FocuserMoveStarted) {
+    } else if (equipmentEvent is bridge.EquipmentEvent_FocuserMoveStarted) {
       return (
         'FocuserMoveStarted',
         {
@@ -325,8 +323,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         'FocuserTemperatureChanged',
         {'temperature': equipmentEvent.temperature},
       );
-    }
-    else if (equipmentEvent is bridge.EquipmentEvent_FilterChanging) {
+    } else if (equipmentEvent is bridge.EquipmentEvent_FilterChanging) {
       return (
         'FilterChanging',
         {
@@ -346,8 +343,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
           'filter_name': equipmentEvent.filterName,
         },
       );
-    }
-    else if (equipmentEvent is bridge.EquipmentEvent_RotatorMoveStarted) {
+    } else if (equipmentEvent is bridge.EquipmentEvent_RotatorMoveStarted) {
       return (
         'RotatorMoveStarted',
         {
@@ -360,8 +356,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         'RotatorMoveCompleted',
         {'device_id': equipmentEvent.deviceId, 'angle': equipmentEvent.angle},
       );
-    }
-    else if (equipmentEvent is bridge.EquipmentEvent_CameraCoolingStarted) {
+    } else if (equipmentEvent is bridge.EquipmentEvent_CameraCoolingStarted) {
       return (
         'CameraCoolingStarted',
         {
@@ -637,6 +632,7 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         {
           'message': sequencerEvent.message,
           kSequencerErrorKindKey: sequencerEvent.kind.wireName,
+          kSequencerNoticeKey: sequencerEvent.notice?.wireName,
         },
       );
     } else if (sequencerEvent is bridge.SequencerEvent_MeridianFlipOutcome) {
@@ -945,40 +941,21 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
         ),
       );
     }
-    // Replay Debug — `SequencerEvent_DecisionLogged` is the
-    // typed payload from the Rust bridge. The Dart class is generated
-    // on FRB regen (the Rust side already declares the variant in
-    // `bridge/src/event.rs`); until that regen lands, we fall back to
-    // detecting the variant by reflective discriminant + string
-    // matching the runtime type name. Once the freezed class is in
-    // place, this whole `if` chain can be replaced with a direct
-    // `sequencerEvent is bridge.SequencerEvent_DecisionLogged` check
-    // (see the FrameAccepted / FrameRejected branches above). The
-    // runtime contract — the Rust side emits a struct with the same
-    // field names — does not change.
-    final eventTypeName = sequencerEvent.runtimeType.toString();
-    if (eventTypeName.contains('DecisionLogged')) {
-      // Use `dynamic` so the runtime-shape access compiles even
-      // before the freezed class is generated. Every field is
-      // documented in `bridge/src/event.rs::SequencerEvent::DecisionLogged`.
-      final dynamic d = sequencerEvent;
-      try {
-        return (
-          'DecisionLogged',
-          {
-            'timestamp_iso': d.timestampIso as String,
-            'category': d.category as String,
-            'summary': d.summary as String,
-            'details_json': d.detailsJson as String,
-            'node_id': d.nodeId as String?,
-            'sequence_run_id': d.sequenceRunId as int?,
-          },
-        );
-      } catch (_) {
-        // Fall through to the unknown-variant fallback below; the
-        // dynamic lookup can only fail if the generated class shape
-        // unexpectedly diverges from the Rust struct.
-      }
+    // Replay Debug: every decision row, persisted by the decision recorder and
+    // read by the notification router.
+    if (sequencerEvent is bridge.SequencerEvent_DecisionLogged) {
+      return (
+        'DecisionLogged',
+        {
+          'timestamp_iso': sequencerEvent.timestampIso,
+          'category': sequencerEvent.category,
+          'summary': sequencerEvent.summary,
+          'details_json': sequencerEvent.detailsJson,
+          'node_id': sequencerEvent.nodeId,
+          'sequence_run_id': sequencerEvent.sequenceRunId,
+          kSequencerNoticeKey: sequencerEvent.notice?.wireName,
+        },
+      );
     }
 
     // A variant with no case above is still an ordinary event of a real night —

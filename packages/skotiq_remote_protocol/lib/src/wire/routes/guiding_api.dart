@@ -19,37 +19,6 @@ enum GuidingApi implements ApiEndpoint {
       rate: ApiRateTier.control,
     ),
   ),
-  phd2StartGuiding(
-    ApiRoute.post(
-      '/api/phd2/start-guiding',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  phd2StopGuiding(
-    ApiRoute.post(
-      '/api/phd2/stop-guiding',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  phd2Dither(
-    ApiRoute.post(
-      '/api/phd2/dither',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  phd2GetStatus(
-    ApiRoute.get('/api/phd2/status', resource: ApiResource.guiding),
-  ),
-  phd2SetPaused(
-    ApiRoute.post(
-      '/api/phd2/pause',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
   phd2ClearCalibration(
     ApiRoute.post(
       '/api/phd2/clear-calibration',
@@ -63,47 +32,6 @@ enum GuidingApi implements ApiEndpoint {
       resource: ApiResource.guiding,
       rate: ApiRateTier.control,
     ),
-  ),
-  phd2GetCalibrationData(
-    ApiRoute.post(
-      '/api/phd2/get-calibration-data',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  phd2FindStar(
-    ApiRoute.post(
-      '/api/phd2/find-star',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  phd2SetLockPosition(
-    ApiRoute.post(
-      '/api/phd2/set-lock-position',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  phd2GetLockPosition(
-    ApiRoute.get('/api/phd2/lock-position', resource: ApiResource.guiding),
-  ),
-  phd2Loop(
-    ApiRoute.post(
-      '/api/phd2/loop',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  phd2DeselectStar(
-    ApiRoute.post(
-      '/api/phd2/deselect-star',
-      resource: ApiResource.guiding,
-      rate: ApiRateTier.control,
-    ),
-  ),
-  phd2GetStarImage(
-    ApiRoute.get('/api/phd2/star-image', resource: ApiResource.guiding),
   ),
   phd2GetAlgoParamNames(
     ApiRoute.get('/api/phd2/algo-params', resource: ApiResource.guiding),
@@ -142,6 +70,13 @@ enum GuidingApi implements ApiEndpoint {
   guiderLoop(
     ApiRoute.post(
       '/api/guider/loop',
+      resource: ApiResource.guiding,
+      rate: ApiRateTier.control,
+    ),
+  ),
+  guiderSetPaused(
+    ApiRoute.post(
+      '/api/guider/pause',
       resource: ApiResource.guiding,
       rate: ApiRateTier.control,
     ),

@@ -357,10 +357,11 @@ async fn sim_pointing_deg() -> Option<(f64, f64)> {
 
 /// Whether the rig's active guider reports guiding. No guider is not guiding.
 async fn sim_rig_is_guiding() -> bool {
-    let Some(guider_id) = crate::api::phd2::get_active_guider_id_for_ops().await else {
+    let Ok(Some(guider)) = crate::guider::Guider::active().await else {
         return false;
     };
-    crate::api::phd2::api_guider_get_status(guider_id)
+    guider
+        .status()
         .await
         .is_ok_and(|status| status.state == "Guiding")
 }

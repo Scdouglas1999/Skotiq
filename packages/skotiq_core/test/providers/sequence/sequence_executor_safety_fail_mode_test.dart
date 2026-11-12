@@ -14,6 +14,7 @@
 // `_effectiveSafetyFailMode` computation.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -109,10 +110,11 @@ void main() {
     when(
       () => backend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
-    when(() => backend.sequencerSetSafetyFailMode(any())).thenAnswer((
-      inv,
-    ) async {
-      pushedModes.add(inv.positionalArguments.first as String);
+    when(() => backend.sequencerApplyRunConfig(any())).thenAnswer((inv) async {
+      final config =
+          jsonDecode(inv.positionalArguments.first as String)
+              as Map<String, dynamic>;
+      pushedModes.add(config['safety_fail_mode'] as String);
     });
     when(() => backend.getCheckpointInfo()).thenAnswer(
       (_) async => CheckpointInfo(
@@ -171,7 +173,7 @@ void main() {
       );
       expect(
         pushedModes,
-        everyElement('fail_open'),
+        everyElement('FailOpen'),
         reason:
             'with weather safety disabled and no safety monitor on the rig, '
             'pushing fail_closed arms the always-on WeatherUnsafe trigger and '
@@ -190,7 +192,7 @@ void main() {
     await executor.start();
 
     expect(pushedModes, isNotEmpty);
-    expect(pushedModes, everyElement('fail_open'));
+    expect(pushedModes, everyElement('FailOpen'));
 
     await executor.stop();
   });
@@ -206,7 +208,7 @@ void main() {
 
       expect(
         pushedModes,
-        contains('fail_closed'),
+        contains('FailClosed'),
         reason:
             'the guard must only relax the mode while the operator has opted '
             'out of weather safety — it is not a blanket downgrade',
@@ -225,7 +227,7 @@ void main() {
 
       await executor.start();
 
-      expect(pushedModes, contains('fail_closed'));
+      expect(pushedModes, contains('FailClosed'));
 
       await executor.stop();
     },

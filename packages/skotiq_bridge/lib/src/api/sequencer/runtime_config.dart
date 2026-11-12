@@ -7,9 +7,6 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_run_config`, `camera_file_saving`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
-
 /// Set simulation mode (use mock devices instead of real hardware)
 Future<void> apiSequencerSetSimulationMode({required bool enabled}) => RustLib
     .instance
@@ -26,7 +23,6 @@ Future<void> apiSequencerSetDevices({
   String? filterwheelId,
   String? rotatorId,
   List<String>? filterNames,
-  Map<String, int>? filterFocusOffsets,
 }) => RustLib.instance.api.crateApiSequencerRuntimeConfigApiSequencerSetDevices(
   cameraId: cameraId,
   mountId: mountId,
@@ -34,28 +30,7 @@ Future<void> apiSequencerSetDevices({
   filterwheelId: filterwheelId,
   rotatorId: rotatorId,
   filterNames: filterNames,
-  filterFocusOffsets: filterFocusOffsets,
 );
-
-/// Set the safety fail mode for the sequencer.
-/// This determines behavior when safety devices fail or are unavailable:
-/// - "fail_closed": Treat unavailable safety data as unsafe
-/// - "fail_open": Treat unavailable safety data as safe
-/// - "warn_only": Preserve the previous safety state and emit a warning event
-Future<void> apiSequencerSetSafetyFailMode({required String mode}) => RustLib
-    .instance
-    .api
-    .crateApiSequencerRuntimeConfigApiSequencerSetSafetyFailMode(mode: mode);
-
-/// Set the safety/humidity polling interval for the sequencer.
-/// Must be between 5 seconds and 3600 seconds. The executor applies the
-/// update live without restarting the current sequence.
-Future<void> apiSequencerSetSafetyCheckIntervalSeconds({
-  required int seconds,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerSetSafetyCheckIntervalSeconds(
-      seconds: seconds,
-    );
 
 /// Set the save path for sequencer images.
 /// This is the base directory where captured images will be saved.
@@ -63,57 +38,16 @@ Future<void> apiSequencerSetSafetyCheckIntervalSeconds({
 Future<void> apiSequencerSetSavePath({String? path}) => RustLib.instance.api
     .crateApiSequencerRuntimeConfigApiSequencerSetSavePath(path: path);
 
-/// Update dither configuration at runtime while a sequence is running or paused.
-/// The updated values are stored on the executor and will be used by subsequent
-/// trigger-initiated dithers and checkpoint resumes.
-Future<void> apiSequencerUpdateDitherConfig({
-  required double pixels,
-  required double settlePixels,
-  required double settleTime,
-  required double settleTimeout,
-  required bool raOnly,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateDitherConfig(
-      pixels: pixels,
-      settlePixels: settlePixels,
-      settleTime: settleTime,
-      settleTimeout: settleTimeout,
-      raOnly: raOnly,
-    );
-
-/// Push the operator's meridian-flip settings onto the standard
-/// `meridian_flip` trigger.
-///
-/// `config_json` is a serialised `MeridianFlipConfig` — the SAME shape the Dart
-/// side already builds for a `MeridianFlipNode`, so there is exactly one
-/// wire format for meridian settings and one place to keep in sync.
-///
-/// Why JSON rather than a typed FRB struct: `MeridianFlipConfig` has 21 fields
-/// including a `Vec<f64>` retry ladder and two enums, and every one of them is
-/// already covered by the serde contract the sequence JSON uses. Mirroring it
-/// as an FRB struct would duplicate that contract and give it two places to
-/// drift.
-///
-/// Without this call the trigger keeps `MeridianFlipConfig::default()` for the
-/// whole run and the user's Settings → Meridian Flip panel is inert on the
-/// trigger path.
-Future<void> apiSequencerUpdateMeridianFlipConfig({
-  required String configJson,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateMeridianFlipConfig(
+/// Replace the operator's sequencer settings: `config_json` is a whole
+/// `skotiq_sequencer::RunConfig` as JSON, built by the app from its settings.
+/// Each section that differs from the current settings takes effect and is
+/// announced once; a value the executor refuses changes nothing and the error
+/// says why. Never waits on the executor: the settings have their own lock.
+Future<void> apiSequencerApplyRunConfig({required String configJson}) => RustLib
+    .instance
+    .api
+    .crateApiSequencerRuntimeConfigApiSequencerApplyRunConfig(
       configJson: configJson,
-    );
-
-/// Update observer location at runtime while a sequence is running or paused.
-/// Updates the executor's stored latitude/longitude so altitude-based triggers
-/// use the correct location on their next evaluation.
-Future<void> apiSequencerUpdateLocation({
-  double? latitude,
-  double? longitude,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateLocation(
-      latitude: latitude,
-      longitude: longitude,
     );
 
 /// stage per-target / per-filter carry-over integration so the
@@ -133,113 +67,6 @@ Future<void> apiSequencerUpdatePendingIntegrationCarryOver({
 }) => RustLib.instance.api
     .crateApiSequencerRuntimeConfigApiSequencerUpdatePendingIntegrationCarryOver(
       carryOver: carryOver,
-    );
-
-/// Update filter focus offsets at runtime while a sequence is running or paused.
-/// Updates the executor's stored offsets so subsequent filter changes apply
-/// the correct focus compensation.
-Future<void> apiSequencerUpdateFilterOffsets({
-  required Map<String, int> offsets,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateFilterOffsets(
-      offsets: offsets,
-    );
-
-/// update the autofocus-interval trigger cadence at runtime.
-/// The default in `default_autofocus_interval_frames()` is 25 frames; this
-/// is wrong for both very-short (5 s) and very-long (5 min) subs, so the UI
-/// must let the user override it. `every_n_frames == 0` is rejected because
-/// the trigger evaluator disables the periodic AF when the cadence is zero,
-/// which would silently turn AF off.
-Future<void> apiSequencerUpdateAutofocusInterval({required int everyNFrames}) =>
-    RustLib.instance.api
-        .crateApiSequencerRuntimeConfigApiSequencerUpdateAutofocusInterval(
-          everyNFrames: everyNFrames,
-        );
-
-/// Push the operator's autofocus settings so trigger-fired refocus uses them.
-///
-/// A sequence without an Autofocus node — which is exactly the sequence whose
-/// interval trigger fires unattended — otherwise refocuses on library defaults,
-/// ignoring the operator's step size, exposure, backlash, failure tolerance and
-/// failure action. An Autofocus node still wins at `start()`: a node is a
-/// per-sequence decision, this is the global one.
-///
-/// Takes the same JSON shape the sequence's Autofocus node carries, so the
-/// Dart side has exactly one serializer to keep correct.
-Future<void> apiSequencerUpdateAutofocusConfig({required String configJson}) =>
-    RustLib.instance.api
-        .crateApiSequencerRuntimeConfigApiSequencerUpdateAutofocusConfig(
-          configJson: configJson,
-        );
-
-/// update the global default image-grading thresholds at runtime.
-///
-/// All fields are optional; when `enabled` is `false` an `ImageQualityCheck`
-/// is NOT constructed (grading disabled globally — per-node `quality_check`
-/// on TakeExposure still wins). The Dart `enableImageGrading` toggle on
-/// app settings drives this directly.
-///
-/// A star-count floor also arms the star-count drop check at
-/// [`skotiq_sequencer::quality::DEFAULT_STAR_COUNT_DROP_PERCENT`]: both grade
-/// the same count, and the drop is the one that scales to the field.
-Future<void> apiSequencerUpdateDefaultQualityCheck({
-  double? hfrThreshold,
-  double? hfrBaselinePercent,
-  double? eccentricityThreshold,
-  int? starCountMin,
-  required int maxConsecutiveRejects,
-  required bool enabled,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateDefaultQualityCheck(
-      hfrThreshold: hfrThreshold,
-      hfrBaselinePercent: hfrBaselinePercent,
-      eccentricityThreshold: eccentricityThreshold,
-      starCountMin: starCountMin,
-      maxConsecutiveRejects: maxConsecutiveRejects,
-      enabled: enabled,
-    );
-
-/// What a frame from a camera that delivers its own file (a DSLR's raw file)
-/// is saved as: `converted` (FITS, the default), `camera` (the camera's file
-/// as delivered) or `both`. Read by every save, a run's and a manual
-/// capture's.
-Future<void> apiSequencerSetCameraFileSaving({required String saving}) =>
-    RustLib.instance.api
-        .crateApiSequencerRuntimeConfigApiSequencerSetCameraFileSaving(
-          saving: saving,
-        );
-
-/// update the reject-folder override at runtime. Empty string =>
-/// None (i.e. fall back to `<save_path>/Reject/`).
-Future<void> apiSequencerUpdateRejectFolderPath({String? path}) => RustLib
-    .instance
-    .api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateRejectFolderPath(
-      path: path,
-    );
-
-/// Push observer / equipment identification to the executor so the next FITS
-/// save stamps real keywords (OBSERVER, TELESCOP, FOCALLEN, APTDIA, INSTRUME,
-/// SITEELEV). Every field is optional so a headless / no-profile run omits the
-/// keyword instead of emitting a sentinel.
-Future<void> apiSequencerUpdateObserverProfile({
-  String? observerName,
-  double? siteElevationM,
-  String? cameraMake,
-  String? cameraModel,
-  String? telescopeName,
-  double? telescopeFocalLengthMm,
-  double? telescopeApertureMm,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateObserverProfile(
-      observerName: observerName,
-      siteElevationM: siteElevationM,
-      cameraMake: cameraMake,
-      cameraModel: cameraModel,
-      telescopeName: telescopeName,
-      telescopeFocalLengthMm: telescopeFocalLengthMm,
-      telescopeApertureMm: telescopeApertureMm,
     );
 
 /// Push the latest cloud-motion analyzer reading into the executor.
@@ -306,15 +133,6 @@ Future<void> apiSequencerSetWeatherOperatorClear({
       reason: reason,
     );
 
-/// How long the sky must read safe, without a break, before a run held for
-/// weather images again: the operator's "required safe duration".
-Future<void> apiSequencerSetWeatherResumeAfterSafeSecs({
-  required int seconds,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerSetWeatherResumeAfterSafeSecs(
-      seconds: seconds,
-    );
-
 /// JSON-serialised cloud-motion snapshot for the run
 /// dashboard. Returns `Ok(None)` when no data has been pushed yet.
 Future<String?> apiSequencerGetCloudMotionJson() => RustLib.instance.api
@@ -330,48 +148,6 @@ Future<void> apiSequencerUpdateSkyBrightness({double? mag}) => RustLib
     .api
     .crateApiSequencerRuntimeConfigApiSequencerUpdateSkyBrightness(mag: mag);
 
-/// Push the global default sky-brightness adaptive-exposure config to the
-/// executor. Per-node `ExposureConfig.adaptive_exposure` still wins; this
-/// is the runtime fallback applied to TakeExposure nodes that have no
-/// own block.
-///
-/// Pass `enabled = false` to disable the feature globally. The per-filter
-/// maps are flattened into parallel arrays because FRB cannot bridge
-/// `HashMap<String, T>` directly — Dart serialises its own filter map to
-/// the (`*_filters`, `*_values`) pair shape.
-Future<void> apiSequencerUpdateDefaultAdaptiveExposure({
-  required bool enabled,
-  required double targetSnr,
-  required double referenceSkyBrightnessMag,
-  required double minExposureSecs,
-  required double maxExposureSecs,
-  required List<String> perFilterEnabledKeys,
-  required List<bool> perFilterEnabledValues,
-  required List<String> perFilterMinKeys,
-  required List<double> perFilterMinValues,
-  required List<String> perFilterMaxKeys,
-  required List<double> perFilterMaxValues,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateDefaultAdaptiveExposure(
-      enabled: enabled,
-      targetSnr: targetSnr,
-      referenceSkyBrightnessMag: referenceSkyBrightnessMag,
-      minExposureSecs: minExposureSecs,
-      maxExposureSecs: maxExposureSecs,
-      perFilterEnabledKeys: perFilterEnabledKeys,
-      perFilterEnabledValues: perFilterEnabledValues,
-      perFilterMinKeys: perFilterMinKeys,
-      perFilterMinValues: perFilterMinValues,
-      perFilterMaxKeys: perFilterMaxKeys,
-      perFilterMaxValues: perFilterMaxValues,
-    );
-
-/// disable the global default adaptive-exposure config
-/// (push `None`). Convenience entry-point so the Dart side doesn't have
-/// to pass a sentinel struct just to disable.
-Future<void> apiSequencerClearDefaultAdaptiveExposure() => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerClearDefaultAdaptiveExposure();
-
 /// Operator pressed "Try Now" on the Run Dashboard banner — punch through
 /// the wait timer and force the next recovery attempt immediately. No-op
 /// when the executor is not currently in `Recovering`.
@@ -383,21 +159,6 @@ Future<void> apiSequencerRecoveryTryNow() => RustLib.instance.api
 /// `Recovering`.
 Future<void> apiSequencerRecoveryAbort() => RustLib.instance.api
     .crateApiSequencerRuntimeConfigApiSequencerRecoveryAbort();
-
-/// Push updated recovery defaults into the executor's runtime config. The
-/// next recovery entry uses these values; an in-flight loop continues with
-/// the values that were live when it entered.
-///
-/// Validation here matches the gate the Rust sequencer applies internally:
-/// both `retry_interval_secs` and `max_duration_secs` must be > 0. We
-/// surface a structured InvalidParameter error so the Dart settings page
-/// can render a precise validation message instead of "unknown error".
-Future<void> apiSequencerUpdateRecoveryConfig({
-  required RecoveryConfigUpdate update,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerUpdateRecoveryConfig(
-      update: update,
-    );
 
 /// JSON-serialised snapshot of the current in-flight `RecoveryContext`.
 /// Returns `None` when the executor is not currently in `Recovering`.
@@ -429,16 +190,6 @@ Future<void> apiSequencerSetActiveSequenceRunId({
     .crateApiSequencerRuntimeConfigApiSequencerSetActiveSequenceRunId(
       sequenceRunId: sequenceRunId,
     );
-
-/// Replay Debug — runtime toggle for decision emission. When
-/// `enabled = false`, the executor short-circuits all decision sends
-/// (no channel publish, no allocation) so power users who don't want
-/// the replay log can opt out. Defaults to ON.
-Future<void> apiSequencerSetDecisionLoggingEnabled({required bool enabled}) =>
-    RustLib.instance.api
-        .crateApiSequencerRuntimeConfigApiSequencerSetDecisionLoggingEnabled(
-          enabled: enabled,
-        );
 
 /// Push the latest composite sky-conditions score to the executor. All
 /// fields are optional because the Dart composer may not have every axis
@@ -479,96 +230,3 @@ Future<void> apiSequencerUpdateConditionsScore({
 /// Returns `Ok(None)` when no telemetry has been pushed since startup.
 Future<String?> apiSequencerGetAdaptiveSwapJson() => RustLib.instance.api
     .crateApiSequencerRuntimeConfigApiSequencerGetAdaptiveSwapJson();
-
-/// Set whether quality problems the sequencer judges stop the run: the
-/// operator's "Stop the run for quality problems" setting, off by default.
-/// Off, guiding RMS over the Guiding Failure limit, a Center or DriftLimit
-/// recenter that cannot solve or converge, a StartGuiding calibration or RMS
-/// check, a dither that does not settle and the post-flip recenter and
-/// guiding checks notify the operator and the run keeps imaging. On, each of
-/// them stops the run as it used to. Takes effect on a running sequence at
-/// its next decision.
-Future<void> apiSequencerSetStopOnQualityProblems({
-  required bool stopOnQualityProblems,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerSetStopOnQualityProblems(
-      stopOnQualityProblems: stopOnQualityProblems,
-    );
-
-/// Set whether the standard weather and dawn triggers may park the mount and
-/// close the cover and dome: the operator's "Park on unsafe weather" and
-/// "Park before dawn" settings. Both default to parking. With one off, the
-/// trigger still stops the run exposing (weather) or ends it (dawn), without
-/// moving or closing anything. Takes effect on a running sequence at once.
-Future<void> apiSequencerSetParkPolicy({
-  required bool parkOnUnsafeWeather,
-  required bool parkBeforeDawn,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerSetParkPolicy(
-      parkOnUnsafeWeather: parkOnUnsafeWeather,
-      parkBeforeDawn: parkBeforeDawn,
-    );
-
-/// Set how many times the sequencer retries a failed camera exposure and a
-/// failed filter-wheel move before the failure counts: the operator's "Camera
-/// retries" and "Filter wheel retries" settings, 3 each by default, 0 for a
-/// single attempt. Only faults that can clear are retried (a failed download,
-/// a timeout, a driver error); Stop, a device that reports itself not
-/// connected and a refused request are not. Takes effect on the next attempt
-/// of a running sequence.
-Future<void> apiSequencerSetDeviceRetries({
-  required int cameraRetries,
-  required int filterWheelRetries,
-}) => RustLib.instance.api
-    .crateApiSequencerRuntimeConfigApiSequencerSetDeviceRetries(
-      cameraRetries: cameraRetries,
-      filterWheelRetries: filterWheelRetries,
-    );
-
-/// User-tunable recovery defaults pushed from the Settings > Recovery Mode
-/// page. Field-for-field mirror of
-/// `skotiq_sequencer::recovery::RecoveryRuntimeConfig` so the FRB wire
-/// shape stays stable across regen cycles.
-class RecoveryConfigUpdate {
-  final double retryIntervalSecs;
-  final double maxDurationSecs;
-  final bool stopTrackingDuringRecovery;
-  final bool abortOnMeridian;
-  final bool audibleAlertWhenEntered;
-
-  /// Off by default. See
-  /// `RecoveryRuntimeConfig::park_and_close_when_recovery_gives_up` for why
-  /// this is an explicit operator decision and never an inference.
-  final bool parkAndCloseWhenRecoveryGivesUp;
-
-  const RecoveryConfigUpdate({
-    required this.retryIntervalSecs,
-    required this.maxDurationSecs,
-    required this.stopTrackingDuringRecovery,
-    required this.abortOnMeridian,
-    required this.audibleAlertWhenEntered,
-    required this.parkAndCloseWhenRecoveryGivesUp,
-  });
-
-  @override
-  int get hashCode =>
-      retryIntervalSecs.hashCode ^
-      maxDurationSecs.hashCode ^
-      stopTrackingDuringRecovery.hashCode ^
-      abortOnMeridian.hashCode ^
-      audibleAlertWhenEntered.hashCode ^
-      parkAndCloseWhenRecoveryGivesUp.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RecoveryConfigUpdate &&
-          runtimeType == other.runtimeType &&
-          retryIntervalSecs == other.retryIntervalSecs &&
-          maxDurationSecs == other.maxDurationSecs &&
-          stopTrackingDuringRecovery == other.stopTrackingDuringRecovery &&
-          abortOnMeridian == other.abortOnMeridian &&
-          audibleAlertWhenEntered == other.audibleAlertWhenEntered &&
-          parkAndCloseWhenRecoveryGivesUp ==
-              other.parkAndCloseWhenRecoveryGivesUp;
-}

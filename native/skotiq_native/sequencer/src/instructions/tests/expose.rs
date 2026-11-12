@@ -289,7 +289,7 @@ mod light_frame_grading {
         frame_type: &str,
         metrics: (f64, usize, f64),
         check: crate::quality::ImageQualityCheck,
-    ) -> Result<(), (String, Option<f64>, Option<u32>)> {
+    ) -> Result<(), (crate::quality::RejectReason, Option<f64>, Option<u32>)> {
         let scratch = scratch_dir("light-grading");
         let ops = Arc::new(
             ScriptedDomeRotatorOps::new()
@@ -351,7 +351,10 @@ mod light_frame_grading {
         .await
         .expect_err("a 5 px frame against a 3 px limit must be rejected");
         assert_eq!(hfr, Some(5.0));
-        assert!(reason.contains("HFR"), "{reason}");
+        assert!(
+            matches!(reason, crate::quality::RejectReason::HfrAboveLimit { .. }),
+            "{reason:?}"
+        );
     }
 
     #[tokio::test]
@@ -375,7 +378,10 @@ mod light_frame_grading {
         )
         .await
         .expect_err("0.8 eccentricity against a 0.5 limit must be rejected");
-        assert!(reason.contains("eccentricity"), "{reason}");
+        assert!(
+            matches!(reason, crate::quality::RejectReason::Eccentricity { .. }),
+            "{reason:?}"
+        );
     }
 
     /// The burst counts its own rejected frames, which the node credits the
@@ -483,7 +489,7 @@ mod light_frame_grading {
         let rejects = run(400, 1, baselines.clone()).await;
         assert_eq!(rejects.len(), 1, "{rejects:?}");
         assert!(
-            rejects[0].starts_with("star count 400 is 20%"),
+            rejects[0].to_string().starts_with("star count 400 is 20%"),
             "{rejects:?}"
         );
         assert!(run(1500, 1, baselines).await.is_empty());
@@ -527,7 +533,9 @@ mod in_burst_dither_failure {
         let result = execute_exposure(&config, &ctx, |_, _, _| {}).await;
         let mut warnings = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let crate::executor::ExecutorEvent::Warning { message } = event {
+            if let crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warnings.push(message);
             }
         }
@@ -852,7 +860,9 @@ async fn a_frame_exposing_when_tracking_stops_is_rejected_with_the_reason() {
     assert_eq!(rejected_files, 1);
     let mut warned = false;
     while let Ok(event) = rx.try_recv() {
-        if let crate::executor::ExecutorEvent::Warning { message } = event {
+        if let crate::executor::ExecutorEvent::Warning { message }
+        | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+        {
             warned |= message.contains("stopped tracking during this exposure");
         }
     }
@@ -934,7 +944,9 @@ async fn a_frame_that_loses_tracking_halfway_through_is_rejected_with_the_reason
         };
         let mut warned = false;
         while let Ok(event) = rx.try_recv() {
-            if let crate::executor::ExecutorEvent::Warning { message } = event {
+            if let crate::executor::ExecutorEvent::Warning { message }
+            | crate::executor::ExecutorEvent::NoticedWarning { message, .. } = event
+            {
                 warned |= message.contains(expected_reason);
             }
         }

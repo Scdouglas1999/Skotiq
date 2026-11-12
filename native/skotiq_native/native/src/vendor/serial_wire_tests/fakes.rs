@@ -383,6 +383,7 @@ pub(super) fn ioptron(
                 ok()
             }
             ":SDS0#" | ":SDS1#" => ok(),
+            ":SHE0#" | ":SHE1#" => ok(),
 
             other if v3 && takes(other, ":SRA", false, 9) => ok(),
             other if !v3 && takes(other, ":Sr", false, 8) => ok(),
@@ -523,6 +524,8 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
                         }
                         // OnStep sends the bare status digit.
                         OnStep | Nyx => "6",
+                        // Gemini Level 4: 6 is "Outside Limits".
+                        Losmandy => "6Outside limits#",
                         _ => "2Below limit#",
                     }
                     .into()

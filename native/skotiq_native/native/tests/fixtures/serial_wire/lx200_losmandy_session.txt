@@ -39,8 +39,8 @@ call slew_to_coordinates(1.25, -85.5) [mount refuses]
 > :Sd-85*30:00#
 < 1
 > :MS#
-< 2Below limit#
-  -> Err(SdkError("Slew refused: target is below the altitude limit (Below limit)"))
+< 6Outside limits#
+  -> Err(SdkError("Slew refused: target is outside the mount's limits (Outside limits)"))
 call is_slewing
   -> Ok(false)
 call sync_to_coordinates(5.5123, -20.2512)

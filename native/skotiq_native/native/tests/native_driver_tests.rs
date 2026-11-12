@@ -1105,10 +1105,10 @@ mod fake_sdk_contract {
 
         let devices = svbony::discover_devices().await.expect("SVBONY discovery");
         assert_eq!(devices.len(), 1);
-        assert_eq!(devices[0].name, "Fake SV605CC");
+        assert_eq!(devices[0].name, "SVBONY SV405CC");
         assert_eq!(
             devices[0].sdk_version.as_deref(),
-            Some("SVBony SDK vfake-svbony-1.0")
+            Some("SVBony SDK vfake-svbony-1.13")
         );
 
         let mut camera = svbony::SvbonyCamera::new(devices[0].camera_id);
@@ -1148,9 +1148,9 @@ mod fake_sdk_contract {
             .download_image()
             .await
             .expect("SVBONY image download");
-        assert_eq!((image.width, image.height), (20, 15));
-        assert_eq!(image.bits_per_pixel, 16);
-        assert_eq!(image.data[0], 3000);
+        assert_eq!((image.width, image.height), (24, 14));
+        assert_eq!(image.bits_per_pixel, 14);
+        assert_eq!(image.data[0], 1001);
         assert_eq!(image.metadata.gain, 44);
         assert_eq!(image.metadata.offset, 7);
         camera.abort_exposure().await.expect("SVBONY abort");
@@ -1743,9 +1743,9 @@ mod fake_sdk_contract {
     async fn test_moravian_fake_sdk_shim_exercises_camera_model_and_edge_flows() {
         let shim_dir = build_single_fake_sdk(
             "moravian",
-            "moravian_fake.rs",
-            "gxccd.dll",
-            MORAVIAN_FAKE_SDK,
+            "moravian_cxusb_fake.rs",
+            "cXusb.dll",
+            MORAVIAN_CXUSB_FAKE_SDK,
         );
         let old_path = env::var("PATH").unwrap_or_default();
         let old_begin_error = env::var("SK_MORAVIAN_BEGIN_ERROR").ok();
@@ -1756,10 +1756,12 @@ mod fake_sdk_contract {
             .await
             .expect("Moravian discovery");
         assert_eq!(devices.len(), 2);
-        assert_eq!(devices[0].name, "Moravian C3-61000 Pro");
-        assert_eq!(devices[1].name, "Moravian G1-1600");
+        assert_eq!(devices[0].name, "C3-61000 Pro");
+        assert_eq!(devices[1].name, "C1-3000");
 
-        let mut cooled = moravian::MoravianCamera::new(devices[0].camera_id);
+        assert_eq!(devices[0].address(), "cx:1");
+        let mut cooled =
+            moravian::MoravianCamera::from_address(&devices[0].address()).expect("a cXusb address");
         cooled.connect().await.expect("Moravian cooled connect");
         assert!(cooled.capabilities().can_cool);
         assert!(cooled.capabilities().can_set_binning);
@@ -1817,7 +1819,8 @@ mod fake_sdk_contract {
             .await
             .expect("Moravian cooled disconnect");
 
-        let mut color = moravian::MoravianCamera::new(devices[1].camera_id);
+        let mut color =
+            moravian::MoravianCamera::from_address(&devices[1].address()).expect("a cXusb address");
         color.connect().await.expect("Moravian color connect");
         assert!(!color.capabilities().can_cool);
         assert!(color.get_sensor_info().color);
@@ -2381,15 +2384,15 @@ unsafe fn write_cstr(buf:*mut c_char,text:&[u8]){for i in 0..256{*buf.add(i)=0;}
 #[no_mangle] pub extern "C" fn SetQHYCCDStreamMode(_handle:*mut c_void,_mode:c_uint)->c_uint{0}
 #[no_mangle] pub extern "C" fn InitQHYCCD(_handle:*mut c_void)->c_uint{0}
 #[no_mangle] pub unsafe extern "C" fn GetQHYCCDChipInfo(_handle:*mut c_void,chip_w:*mut c_double,chip_h:*mut c_double,img_w:*mut c_uint,img_h:*mut c_uint,pixel_w:*mut c_double,pixel_h:*mut c_double,bpp:*mut c_uint)->c_uint{let kind=CAMERA_KIND.load(Ordering::SeqCst); if !chip_w.is_null(){*chip_w=if kind==1{23.5}else{5.6};} if !chip_h.is_null(){*chip_h=if kind==1{15.7}else{3.2};} if !img_w.is_null(){*img_w=WIDTH.load(Ordering::SeqCst);} if !img_h.is_null(){*img_h=HEIGHT.load(Ordering::SeqCst);} if !pixel_w.is_null(){*pixel_w=if kind==1{3.76}else{2.9};} if !pixel_h.is_null(){*pixel_h=if kind==1{3.76}else{2.9};} if !bpp.is_null(){*bpp=16;} 0}
-#[no_mangle] pub extern "C" fn IsQHYCCDControlAvailable(_handle:*mut c_void,control:c_int)->c_uint{let kind=CAMERA_KIND.load(Ordering::SeqCst); match control{18|19=>if kind==1{0}else{1},59=>if kind==2{0}else{1},21|22|23|24|35=>0,_=>0}}
+#[no_mangle] pub extern "C" fn IsQHYCCDControlAvailable(_handle:*mut c_void,control:c_int)->c_uint{let kind=CAMERA_KIND.load(Ordering::SeqCst); match control{18|19=>if kind==1{0}else{1},20=>if kind==2{3}else{u32::MAX},59=>if kind==2{0}else{1},21|22|23|24|35=>0,_=>0}}
 #[no_mangle] pub unsafe extern "C" fn GetQHYCCDEffectiveArea(_handle:*mut c_void,x:*mut c_uint,y:*mut c_uint,w:*mut c_uint,h:*mut c_uint)->c_uint{if !x.is_null(){*x=0;} if !y.is_null(){*y=0;} if !w.is_null(){*w=WIDTH.load(Ordering::SeqCst);} if !h.is_null(){*h=HEIGHT.load(Ordering::SeqCst);} 0}
 #[no_mangle] pub extern "C" fn SetQHYCCDParam(_handle:*mut c_void,control:c_int,value:c_double)->c_uint{match control{6=>set_f64(&GAIN_BITS,value),7=>set_f64(&OFFSET_BITS,value),17=>CFW_POS.store((value as i32)-48,Ordering::SeqCst),18=>set_f64(&COOLER_BITS,value),_=>{}} 0}
 #[no_mangle] pub extern "C" fn GetQHYCCDParam(_handle:*mut c_void,control:c_int)->c_double{match control{6=>get_f64(&GAIN_BITS),7=>get_f64(&OFFSET_BITS),12=>40.0,14=>-9.25,15=>35.0,17=>(CFW_POS.load(Ordering::SeqCst)+48) as f64,18=>get_f64(&COOLER_BITS),20=>4.0,44=>7.0,62=>23.0,63=>900.0,_=>0.0}}
-#[no_mangle] pub unsafe extern "C" fn GetQHYCCDParamMinMaxStep(_handle:*mut c_void,_control:c_int,min:*mut c_double,max:*mut c_double,step:*mut c_double)->c_uint{if !min.is_null(){*min=0.0;} if !max.is_null(){*max=600.0;} if !step.is_null(){*step=1.0;} 0}
+#[no_mangle] pub unsafe extern "C" fn GetQHYCCDParamMinMaxStep(_handle:*mut c_void,control:c_int,min:*mut c_double,max:*mut c_double,step:*mut c_double)->c_uint{let (lo,hi)=if control==8{(1.0,3_600_000_000.0)}else{(0.0,600.0)}; if !min.is_null(){*min=lo;} if !max.is_null(){*max=hi;} if !step.is_null(){*step=1.0;} 0}
 #[no_mangle] pub extern "C" fn SetQHYCCDResolution(_handle:*mut c_void,_x:c_uint,_y:c_uint,width:c_uint,height:c_uint)->c_uint{if width==0||height==0{return 1;} WIDTH.store(width,Ordering::SeqCst); HEIGHT.store(height,Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn SetQHYCCDBinMode(_handle:*mut c_void,bin_x:c_uint,bin_y:c_uint)->c_uint{if bin_x==0||bin_x!=bin_y{return 1;} BIN.store(bin_x,Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn SetQHYCCDBitsMode(_handle:*mut c_void,_bits:c_uint)->c_uint{0}
-#[no_mangle] pub extern "C" fn ExpQHYCCDSingleFrame(_handle:*mut c_void)->c_uint{if std::env::var("SK_QHY_EXPOSURE_ERROR").is_ok(){99}else{0}}
+#[no_mangle] pub extern "C" fn ExpQHYCCDSingleFrame(_handle:*mut c_void)->c_uint{if std::env::var("SK_QHY_EXPOSURE_ERROR").is_ok(){u32::MAX}else{0}}
 #[no_mangle] pub unsafe extern "C" fn GetQHYCCDSingleFrame(_handle:*mut c_void,width:*mut c_uint,height:*mut c_uint,bpp:*mut c_uint,channels:*mut c_uint,buf:*mut u8)->c_uint{let w=WIDTH.load(Ordering::SeqCst); let h=HEIGHT.load(Ordering::SeqCst); if !width.is_null(){*width=w;} if !height.is_null(){*height=h;} if !bpp.is_null(){*bpp=16;} if !channels.is_null(){*channels=1;} if buf.is_null(){return 1;} for i in 0..((w*h) as usize){let v=6000u16.wrapping_add(i as u16); *buf.add(i*2)=(v&0xff) as u8; *buf.add(i*2+1)=(v>>8) as u8;} 0}
 #[no_mangle] pub extern "C" fn CancelQHYCCDExposingAndReadout(_handle:*mut c_void)->c_uint{0}
 #[no_mangle] pub extern "C" fn GetQHYCCDMemLength(_handle:*mut c_void)->c_uint{WIDTH.load(Ordering::SeqCst)*HEIGHT.load(Ordering::SeqCst)*2}
@@ -2404,7 +2407,7 @@ unsafe fn write_cstr(buf:*mut c_char,text:&[u8]){for i in 0..256{*buf.add(i)=0;}
 #![allow(non_snake_case)]
 use std::ffi::{c_char,c_float,c_int,c_void};
 use std::sync::atomic::{AtomicI32,Ordering};
-static GAIN:AtomicI32=AtomicI32::new(0); static OFFSET:AtomicI32=AtomicI32::new(0); static BIN_X:AtomicI32=AtomicI32::new(1); static BIN_Y:AtomicI32=AtomicI32::new(1); static SETPOINT:AtomicI32=AtomicI32::new(-1000); static FILTER_POS:AtomicI32=AtomicI32::new(0);
+static GAIN:AtomicI32=AtomicI32::new(0); static OFFSET:AtomicI32=AtomicI32::new(0); static BIN_X:AtomicI32=AtomicI32::new(1); static BIN_Y:AtomicI32=AtomicI32::new(1); static SETPOINT:AtomicI32=AtomicI32::new(-1000); static FILTER_POS:AtomicI32=AtomicI32::new(0); static COOLING_ON:AtomicI32=AtomicI32::new(0);
 static mut IMAGE:[u8;384]=[0;384];
 #[repr(C)] struct ArtemisProperties{protocol:c_int,pixels_x:c_int,pixels_y:c_int,pixel_microns_x:c_float,pixel_microns_y:c_float,ccd_flags:c_int,camera_flags:c_int,description:[c_char;40],manufacturer:[c_char;40]}
 // SAFETY: callers pass buffers of >=100 bytes per the fake SDK contract.
@@ -2433,9 +2436,9 @@ fn write_fixed(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for 
 #[no_mangle] pub unsafe extern "C" fn ArtemisGetImageData(_handle:*mut c_void,x:*mut c_int,y:*mut c_int,w:*mut c_int,h:*mut c_int,binx:*mut c_int,biny:*mut c_int)->c_int{if !x.is_null(){*x=0;} if !y.is_null(){*y=0;} if !w.is_null(){*w=16;} if !h.is_null(){*h=12;} if !binx.is_null(){*binx=BIN_X.load(Ordering::SeqCst);} if !biny.is_null(){*biny=BIN_Y.load(Ordering::SeqCst);} for i in 0..192{let v=2000u16.wrapping_add(i as u16); IMAGE[i*2]=(v&0xff) as u8; IMAGE[i*2+1]=(v>>8) as u8;} 0}
 // SAFETY: IMAGE is a static test buffer; tests are single-threaded over this fake SDK.
 #[no_mangle] pub extern "C" fn ArtemisImageBuffer(_handle:*mut c_void)->*mut c_void{unsafe{IMAGE.as_mut_ptr() as *mut c_void}}
-#[no_mangle] pub extern "C" fn ArtemisSetCooling(_handle:*mut c_void,setpoint:c_int)->c_int{SETPOINT.store(setpoint,Ordering::SeqCst);0}
-#[no_mangle] pub unsafe extern "C" fn ArtemisCoolingInfo(_handle:*mut c_void,flags:*mut c_int,level:*mut c_int,minlvl:*mut c_int,maxlvl:*mut c_int,setpoint:*mut c_int)->c_int{if !flags.is_null(){*flags=1;} if !level.is_null(){*level=35;} if !minlvl.is_null(){*minlvl=0;} if !maxlvl.is_null(){*maxlvl=100;} if !setpoint.is_null(){*setpoint=SETPOINT.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn ArtemisCoolerWarmUp(_handle:*mut c_void)->c_int{0}
+#[no_mangle] pub extern "C" fn ArtemisSetCooling(_handle:*mut c_void,setpoint:c_int)->c_int{SETPOINT.store(setpoint,Ordering::SeqCst); COOLING_ON.store(64,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn ArtemisCoolingInfo(_handle:*mut c_void,flags:*mut c_int,level:*mut c_int,minlvl:*mut c_int,maxlvl:*mut c_int,setpoint:*mut c_int)->c_int{if !flags.is_null(){*flags=1|16|COOLING_ON.load(Ordering::SeqCst);} if !level.is_null(){*level=35;} if !minlvl.is_null(){*minlvl=0;} if !maxlvl.is_null(){*maxlvl=100;} if !setpoint.is_null(){*setpoint=SETPOINT.load(Ordering::SeqCst);} 0}
+#[no_mangle] pub extern "C" fn ArtemisCoolerWarmUp(_handle:*mut c_void)->c_int{COOLING_ON.store(0,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn ArtemisTemperatureSensorInfo(_handle:*mut c_void,_sensor:c_int,temp:*mut c_int)->c_int{if !temp.is_null(){*temp=-950;} 0}
 #[no_mangle] pub extern "C" fn ArtemisSetGain(_handle:*mut c_void,_preview:c_int,gain:c_int,offset:c_int)->c_int{GAIN.store(gain,Ordering::SeqCst); OFFSET.store(offset,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn ArtemisGetGain(_handle:*mut c_void,_preview:c_int,gain:*mut c_int,offset:*mut c_int)->c_int{if !gain.is_null(){*gain=GAIN.load(Ordering::SeqCst);} if !offset.is_null(){*offset=OFFSET.load(Ordering::SeqCst);} 0}
@@ -2452,35 +2455,7 @@ fn write_fixed(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for 
 #[no_mangle] pub unsafe extern "C" fn ArtemisEFWGetPosition(_handle:*mut c_void,pos:*mut c_int,is_moving:*mut bool)->c_int{if !pos.is_null(){*pos=FILTER_POS.load(Ordering::SeqCst);} if !is_moving.is_null(){*is_moving=false;} 0}
 "#;
 
-    const SVBONY_FAKE_SDK: &str = r#"
-#![allow(non_snake_case)]
-use std::ffi::{c_char,c_int,c_long};
-use std::sync::atomic::{AtomicI32,AtomicI64,Ordering};
-static WIDTH:AtomicI32=AtomicI32::new(40); static HEIGHT:AtomicI32=AtomicI32::new(30); static BIN:AtomicI32=AtomicI32::new(1); static IMG_TYPE:AtomicI32=AtomicI32::new(4); static GAIN:AtomicI64=AtomicI64::new(0); static OFFSET:AtomicI64=AtomicI64::new(0); static COOLER:AtomicI64=AtomicI64::new(0); static TARGET_TEMP:AtomicI64=AtomicI64::new(-100);
-#[repr(C)] struct SvbCameraInfo{friendly_name:[c_char;32],camera_sn:[c_char;32],port_type:[c_char;32],device_id:c_int,camera_id:c_int}
-#[repr(C)] struct SvbCameraProperty{max_height:c_long,max_width:c_long,is_color_cam:c_int,bayer_pattern:c_int,supported_bins:[c_int;16],supported_video_format:[c_int;8],pixel_size:f64,mechanical_shutter:c_int,st4_port:c_int,is_cooler_cam:c_int,is_usb3_host:c_int,is_usb3_camera:c_int,elec_per_adu:f32,bit_depth:c_int,is_trigger_cam:c_int}
-#[repr(C)] struct SvbCameraPropertyEx{b_support_pulse_guide:c_int,b_support_control_temp:c_int,output_mode_support:[c_int;8]}
-#[repr(C)] struct SvbControlCaps{name:[c_char;64],description:[c_char;128],max_value:c_long,min_value:c_long,default_value:c_long,is_auto_supported:c_int,is_writable:c_int,control_type:c_int}
-fn write_cstr(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for i in 0..text.len().min(buf.len().saturating_sub(1)){buf[i]=text[i] as c_char;}}
-#[no_mangle] pub extern "C" fn SVBGetNumOfConnectedCameras()->c_int{1}
-#[no_mangle] pub unsafe extern "C" fn SVBGetCameraInfo(info:*mut SvbCameraInfo,index:c_int)->c_int{if info.is_null()||index!=0{return 1;} let mut v:SvbCameraInfo=std::mem::zeroed(); write_cstr(&mut v.friendly_name,b"Fake SV605CC"); write_cstr(&mut v.camera_sn,b"SVB-FAKE-0001"); write_cstr(&mut v.port_type,b"USB3"); v.device_id=0; v.camera_id=0; *info=v; 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetCameraProperty(_id:c_int,prop:*mut SvbCameraProperty)->c_int{if prop.is_null(){return 16;} let mut v:SvbCameraProperty=std::mem::zeroed(); v.max_width=40; v.max_height=30; v.is_color_cam=1; v.bayer_pattern=0; v.supported_bins[0]=1; v.supported_bins[1]=2; v.supported_bins[2]=4; v.supported_video_format[0]=0; v.supported_video_format[1]=4; v.supported_video_format[2]=-1; v.pixel_size=2.9; v.st4_port=1; v.is_cooler_cam=1; v.is_usb3_host=1; v.is_usb3_camera=1; v.elec_per_adu=1.0; v.bit_depth=16; *prop=v; 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetCameraPropertyEx(_id:c_int,prop:*mut SvbCameraPropertyEx)->c_int{if prop.is_null(){return 16;} let mut v:SvbCameraPropertyEx=std::mem::zeroed(); v.b_support_pulse_guide=1; v.b_support_control_temp=1; v.output_mode_support[0]=4; *prop=v; 0}
-#[no_mangle] pub extern "C" fn SVBOpenCamera(id:c_int)->c_int{if id==0{0}else{2}}
-#[no_mangle] pub extern "C" fn SVBCloseCamera(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetNumOfControls(_id:c_int,num:*mut c_int)->c_int{if num.is_null(){return 16;} *num=7; 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetControlCaps(_id:c_int,index:c_int,caps:*mut SvbControlCaps)->c_int{if caps.is_null(){return 16;} let controls=[(0,b"Gain".as_slice(),0,600,0),(1,b"Exposure".as_slice(),1,60_000_000,10_000),(13,b"BlackLevel".as_slice(),0,100,0),(14,b"CoolerEnable".as_slice(),0,1,0),(15,b"TargetTemp".as_slice(),-400,300,-100),(16,b"CurrentTemp".as_slice(),-500,500,-95),(17,b"CoolerPower".as_slice(),0,100,40)]; if index<0||index as usize>=controls.len(){return 1;} let (control_type,name,min,max,default_value)=controls[index as usize]; let mut v:SvbControlCaps=std::mem::zeroed(); write_cstr(&mut v.name,name); write_cstr(&mut v.description,b"Skotiq fake SVBONY control"); v.min_value=min; v.max_value=max; v.default_value=default_value; v.is_writable=1; v.control_type=control_type; *caps=v; 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetControlValue(_id:c_int,ctrl:c_int,value:*mut c_long,is_auto:*mut c_int)->c_int{if value.is_null()||is_auto.is_null(){return 16;} *is_auto=0; let v=match ctrl{0=>GAIN.load(Ordering::SeqCst),1=>10_000,13=>OFFSET.load(Ordering::SeqCst),14=>COOLER.load(Ordering::SeqCst),15=>TARGET_TEMP.load(Ordering::SeqCst),16=>-95,17=>42,_=>return 3}; *value=v as c_long; 0}
-#[no_mangle] pub extern "C" fn SVBSetControlValue(_id:c_int,ctrl:c_int,value:c_long,_is_auto:c_int)->c_int{match ctrl{0=>GAIN.store(value as i64,Ordering::SeqCst),13=>OFFSET.store(value as i64,Ordering::SeqCst),14=>COOLER.store(value as i64,Ordering::SeqCst),15=>TARGET_TEMP.store(value as i64,Ordering::SeqCst),_=>{}} 0}
-#[no_mangle] pub extern "C" fn SVBSetROIFormat(_id:c_int,_x:c_int,_y:c_int,width:c_int,height:c_int,bin:c_int)->c_int{WIDTH.store(width,Ordering::SeqCst); HEIGHT.store(height,Ordering::SeqCst); BIN.store(bin,Ordering::SeqCst); 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetROIFormat(_id:c_int,x:*mut c_int,y:*mut c_int,width:*mut c_int,height:*mut c_int,bin:*mut c_int)->c_int{if !x.is_null(){*x=0;} if !y.is_null(){*y=0;} if !width.is_null(){*width=WIDTH.load(Ordering::SeqCst);} if !height.is_null(){*height=HEIGHT.load(Ordering::SeqCst);} if !bin.is_null(){*bin=BIN.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn SVBSetOutputImageType(_id:c_int,img_type:c_int)->c_int{IMG_TYPE.store(img_type,Ordering::SeqCst); 0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetOutputImageType(_id:c_int,img_type:*mut c_int)->c_int{if !img_type.is_null(){*img_type=IMG_TYPE.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn SVBStartVideoCapture(_id:c_int)->c_int{0}
-#[no_mangle] pub extern "C" fn SVBStopVideoCapture(_id:c_int)->c_int{0}
-#[no_mangle] pub unsafe extern "C" fn SVBGetVideoData(_id:c_int,buf:*mut u8,buf_size:c_long,_wait_ms:c_int)->c_int{if buf.is_null()||buf_size<0{return 13;} for i in 0..((buf_size as usize)/2){let v=3000u16.wrapping_add(i as u16); *buf.add(i*2)=(v&0xff) as u8; *buf.add(i*2+1)=(v>>8) as u8;} 0}
-#[no_mangle] pub extern "C" fn SVBGetSDKVersion()->*const c_char{b"fake-svbony-1.0\0".as_ptr() as *const c_char}
-"#;
+    const SVBONY_FAKE_SDK: &str = include_str!("fake_sdk/svbony.rs");
 
     const TOUPTEK_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
@@ -2655,6 +2630,8 @@ macro_rules! live{()=>{if env("SK_FLI_UNPLUGGED"){return ENODEV;}}}
 #[no_mangle] pub extern "C" fn FLIEndExposure(_dev:c_long)->c_long{live!(); 0}
 "#;
 
+    /// libgxccd, for the Linux session harness: tests/fake_sdk_linux/build_fakes.py reads it as text.
+    #[allow(dead_code)]
     const MORAVIAN_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
 use std::ffi::{c_char,c_double,c_float,c_int,c_void};
@@ -2666,10 +2643,10 @@ unsafe fn put(buf:*mut c_char,size:usize,text:&[u8])->c_int{if buf.is_null()||si
 #[no_mangle] pub unsafe extern "C" fn gxccd_enumerate_usb(callback:EnumCallback){callback(1); callback(2);}
 #[no_mangle] pub extern "C" fn gxccd_initialize_usb(camera_id:c_int)->PCCamera{if camera_id==1||camera_id==2{camera_id as usize as PCCamera}else{std::ptr::null_mut()}}
 #[no_mangle] pub extern "C" fn gxccd_release(_camera:PCCamera){}
-#[no_mangle] pub unsafe extern "C" fn gxccd_get_boolean_parameter(camera:PCCamera,index:c_int,value:*mut GxBool)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{1=>1,3=>cooled as GxBool,4=>cooled as GxBool,7=>1,13=>cooled as GxBool,128=>(!cooled) as GxBool,129|130=>0,131=>0,132=>(!cooled) as GxBool,_=>0}; 0}
-#[no_mangle] pub unsafe extern "C" fn gxccd_get_integer_parameter(camera:PCCamera,index:c_int,value:*mut c_int)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{1=>if cooled{72}else{48},2=>if cooled{54}else{32},3|4=>3760,5|6=>if cooled{4}else{2},7=>2,17=>if cooled{65535}else{4095},_=>return -1}; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_boolean_parameter(camera:PCCamera,index:c_int,value:*mut GxBool)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{0=>1,1=>1,3=>cooled as GxBool,4=>cooled as GxBool,7=>1,13=>cooled as GxBool,128=>(!cooled) as GxBool,129|130=>0,131=>0,132=>(!cooled) as GxBool,_=>0}; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_integer_parameter(camera:PCCamera,index:c_int,value:*mut c_int)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{1=>if cooled{72}else{48},2=>if cooled{54}else{32},3|4=>3760,5|6=>if cooled{4}else{2},7=>2,12=>0,16=>if cooled{100}else{0},17=>if cooled{65535}else{4095},_=>return -1}; 0}
 #[no_mangle] pub unsafe extern "C" fn gxccd_get_string_parameter(camera:PCCamera,index:c_int,buf:*mut c_char,size:usize)->c_int{let cooled=id_of(camera)==1; match index{0=>put(buf,size,if cooled{b"Moravian C3-61000 Pro"}else{b"Moravian G1-1600"}),2=>put(buf,size,if cooled{b"MOR-COOLED-0001"}else{b"MOR-COLOR-0002"}),_=>-1}}
-#[no_mangle] pub unsafe extern "C" fn gxccd_get_value(camera:PCCamera,index:c_int,value:*mut c_float)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{0=>-9.5,11=>if cooled{41.0}else{return -1},_=>return -1}; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_value(camera:PCCamera,index:c_int,value:*mut c_float)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{0=>-9.5,11=>if cooled{0.41}else{return -1},_=>return -1}; 0}
 #[no_mangle] pub extern "C" fn gxccd_set_temperature(camera:PCCamera,temp:c_float)->c_int{if id_of(camera)!=1{return -1;} TARGET_1.store(temp as i32,Ordering::SeqCst); 0}
 #[no_mangle] pub extern "C" fn gxccd_set_binning(camera:PCCamera,x:c_int,y:c_int)->c_int{let max=if id_of(camera)==1{4}else{2}; if x<1||y<1||x>max||y>max{-1}else{0}}
 #[no_mangle] pub extern "C" fn gxccd_set_gain(camera:PCCamera,_gain:u16)->c_int{if id_of(camera)==1{0}else{-1}}
@@ -2680,6 +2657,33 @@ unsafe fn put(buf:*mut c_char,size:usize,text:&[u8])->c_int{if buf.is_null()||si
 #[no_mangle] pub unsafe extern "C" fn gxccd_image_ready(_camera:PCCamera,ready:*mut GxBool)->c_int{if ready.is_null(){return -1;} *ready=1; 0}
 #[no_mangle] pub unsafe extern "C" fn gxccd_read_image(_camera:PCCamera,buf:*mut c_void,size:usize)->c_int{if buf.is_null(){return -1;} let out=buf as *mut u8; for i in 0..(size/2){let v=9000u16.wrapping_add((i as u16).wrapping_mul(7)); *out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;} 0}
 #[no_mangle] pub unsafe extern "C" fn gxccd_get_last_error(_camera:PCCamera,buf:*mut c_char,size:usize){put(buf,size,b"fake gxccd error");}
+"#;
+
+    /// The same two cameras through the Windows driver API (cxusb.h): one-byte
+    /// TRUE on success, string lengths passed as the highest index.
+    const MORAVIAN_CXUSB_FAKE_SDK: &str = r#"
+#![allow(non_snake_case)]
+use std::ffi::{c_char,c_double,c_float,c_int,c_void};
+type B=u8; type PCCamera=*mut c_void; type EnumCallback=unsafe extern "C" fn(u32);
+fn id_of(camera:PCCamera)->usize{camera as usize}
+unsafe fn put(buf:*mut c_char,high:u32,text:&[u8])->B{if buf.is_null(){return 0;} let size=high as usize+1; for i in 0..size{*buf.add(i)=0;} for i in 0..text.len().min(size-1){*buf.add(i)=text[i] as c_char;} 1}
+#[no_mangle] pub unsafe extern "C" fn Enumerate(callback:EnumCallback){callback(1); callback(2);}
+#[no_mangle] pub extern "C" fn Initialize(id:u32)->PCCamera{if id==1||id==2{id as usize as PCCamera}else{usize::MAX as PCCamera}}
+#[no_mangle] pub extern "C" fn Release(_camera:PCCamera){}
+#[no_mangle] pub unsafe extern "C" fn GetBooleanParameter(camera:PCCamera,index:u32,value:*mut B)->B{if value.is_null(){return 0;} let cooled=id_of(camera)==1; *value=match index{0=>1,1=>1,3=>cooled as B,4=>cooled as B,7=>1,128=>(!cooled) as B,129|130=>0,131=>0,132=>(!cooled) as B,_=>return 0}; 1}
+#[no_mangle] pub unsafe extern "C" fn GetIntegerParameter(camera:PCCamera,index:u32,value:*mut c_int)->B{if value.is_null(){return 0;} let cooled=id_of(camera)==1; *value=match index{1=>if cooled{72}else{48},2=>if cooled{54}else{32},3|4=>3760,5|6=>if cooled{4}else{2},12=>0,16=>if cooled{100}else{0},17=>if cooled{65535}else{4095},_=>return 0}; 1}
+#[no_mangle] pub unsafe extern "C" fn GetStringParameter(camera:PCCamera,index:u32,high:u32,buf:*mut c_char)->B{let cooled=id_of(camera)==1; match index{0=>put(buf,high,if cooled{b"C3-61000 Pro"}else{b"C1-3000"}),2=>put(buf,high,if cooled{b"MOR-COOLED-0001"}else{b"MOR-COLOR-0002"}),_=>0}}
+#[no_mangle] pub unsafe extern "C" fn GetValue(camera:PCCamera,index:u32,value:*mut c_float)->B{if value.is_null(){return 0;} let cooled=id_of(camera)==1; *value=match index{0=>-9.5,11=>if cooled{0.41}else{return 0},_=>return 0}; 1}
+#[no_mangle] pub unsafe extern "C" fn GetLastErrorString(_camera:PCCamera,high:u32,buf:*mut c_char){put(buf,high,b"fake cxusb error");}
+#[no_mangle] pub extern "C" fn SetTemperature(camera:PCCamera,_temp:c_float)->B{(id_of(camera)==1) as B}
+#[no_mangle] pub extern "C" fn SetBinning(camera:PCCamera,x:u32,y:u32)->B{let max=if id_of(camera)==1{4}else{2}; (x>=1&&y>=1&&x<=max&&y<=max) as B}
+#[no_mangle] pub extern "C" fn SetGain(camera:PCCamera,_gain:u32)->B{(id_of(camera)==1) as B}
+#[no_mangle] pub extern "C" fn SetReadMode(_camera:PCCamera,mode:u32)->B{(mode<=1) as B}
+#[no_mangle] pub unsafe extern "C" fn EnumerateReadModes(_camera:PCCamera,index:u32,high:u32,buf:*mut c_char)->B{match index{0=>put(buf,high,b"Normal"),1=>put(buf,high,b"Low noise"),_=>0}}
+#[no_mangle] pub extern "C" fn StartExposure(_camera:PCCamera,exp_time:c_double,_use_shutter:B,x:c_int,y:c_int,w:c_int,d:c_int)->B{(!(exp_time<0.0||x<0||y<0||w<=0||d<=0||std::env::var("SK_MORAVIAN_BEGIN_ERROR").is_ok())) as B}
+#[no_mangle] pub extern "C" fn AbortExposure(_camera:PCCamera,_download:B)->B{1}
+#[no_mangle] pub unsafe extern "C" fn ImageReady(_camera:PCCamera,ready:*mut B)->B{if ready.is_null(){return 0;} *ready=1; 1}
+#[no_mangle] pub unsafe extern "C" fn ReadImage(_camera:PCCamera,len:u32,buf:*mut c_void)->B{if buf.is_null(){return 0;} let out=buf as *mut u8; for i in 0..(len as usize/2){let v=9000u16.wrapping_add((i as u16).wrapping_mul(7)); *out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;} 1}
 "#;
 
     const FUJIFILM_FAKE_SDK: &str = r#"

@@ -124,8 +124,8 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     }
   }
 
-  /// Every minute: re-send the last verdict and the safe period to the
-  /// sequencer, and refresh a forecast that has gone quiet. The sequencer
+  /// Every minute: re-send the last verdict to the sequencer, and refresh a
+  /// forecast that has gone quiet. The sequencer
   /// treats a verdict nobody refreshes as missing data, so the app keeps it
   /// fresh whether or not anything changed.
   void _startVerdictHeartbeat() {
@@ -144,16 +144,6 @@ extension _WeatherSafetyExecutorPush on WeatherSafetyNotifier {
     final last = _lastVerdict;
     if (last != null) {
       await _pushWeatherVerdict(last.unsafe, advisory: last.advisory);
-    }
-    final resumeAfter = _lastResumeAfterSecs;
-    if (resumeAfter != null && mounted) {
-      try {
-        await _ref
-            .read(backendProvider)
-            .sequencerSetWeatherResumeAfterSafeSecs(resumeAfter);
-      } catch (_) {
-        // No live executor; sent again next minute.
-      }
     }
     if (!mounted) return;
     final settings = _ref.read(weatherSettingsDataProvider).valueOrNull;

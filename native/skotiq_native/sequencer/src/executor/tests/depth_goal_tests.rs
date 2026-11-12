@@ -321,7 +321,9 @@ async fn run(
                 completion,
                 ..
             } => completions.push((filter_name, completion)),
-            ExecutorEvent::Warning { message } if message.contains("DepthLock") => {
+            ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. }
+                if message.contains("DepthLock") =>
+            {
                 warnings.push(message)
             }
             _ => {}

@@ -4,7 +4,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: false, can_set_offset: false, can_set_binning: false, can_subframe: false, has_shutter: false, has_guider_port: false, max_bin_x: 0, max_bin_y: 0, supports_readout_modes: false }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None, saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)
@@ -75,7 +75,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: true, can_set_offset: true, can_set_binning: true, can_subframe: true, has_shutter: false, has_guider_port: false, max_bin_x: 4, max_bin_y: 4, supports_readout_modes: true }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 65535, bit_depth: 16, color: false, bayer_pattern: None }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 65535, bit_depth: 16, color: false, bayer_pattern: None, saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)
@@ -132,7 +132,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: false, can_set_offset: false, can_set_binning: false, can_subframe: false, has_shutter: false, has_guider_port: false, max_bin_x: 0, max_bin_y: 0, supports_readout_modes: false }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None, saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)
@@ -189,7 +189,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: false, can_set_offset: false, can_set_binning: false, can_subframe: false, has_shutter: false, has_guider_port: false, max_bin_x: 0, max_bin_y: 0, supports_readout_modes: false }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None, saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)
@@ -232,7 +232,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: false, can_set_offset: false, can_set_binning: false, can_subframe: false, has_shutter: false, has_guider_port: false, max_bin_x: 0, max_bin_y: 0, supports_readout_modes: false }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None, saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)
@@ -289,7 +289,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: false, can_set_offset: false, can_set_binning: false, can_subframe: false, has_shutter: false, has_guider_port: false, max_bin_x: 0, max_bin_y: 0, supports_readout_modes: false }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None, saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)
@@ -360,7 +360,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: false, can_set_offset: false, can_set_binning: false, can_subframe: false, has_shutter: false, has_guider_port: false, max_bin_x: 0, max_bin_y: 0, supports_readout_modes: false }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None, saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)
@@ -403,7 +403,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: false, can_set_offset: false, can_set_binning: false, can_subframe: false, has_shutter: false, has_guider_port: false, max_bin_x: 0, max_bin_y: 0, supports_readout_modes: false }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 0, bit_depth: 0, color: false, bayer_pattern: None, saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)
@@ -446,7 +446,7 @@
   serial_number = None
   disconnect = Ok(())
   capabilities = CameraCapabilities { can_cool: false, can_set_gain: true, can_set_offset: false, can_set_binning: false, can_subframe: false, has_shutter: true, has_guider_port: false, max_bin_x: 1, max_bin_y: 1, supports_readout_modes: false }
-  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 16383, bit_depth: 14, color: true, bayer_pattern: Some(Rggb) }
+  get_sensor_info = SensorInfo { width: 0, height: 0, pixel_size_x: 0.0, pixel_size_y: 0.0, max_adu: 16383, bit_depth: 14, color: true, bayer_pattern: Some(Rggb), saturation_adu: None }
   get_status = Err(NotConnected)
   start_exposure = Err(NotConnected)
   start_exposure(bin 0) = Err(NotConnected)

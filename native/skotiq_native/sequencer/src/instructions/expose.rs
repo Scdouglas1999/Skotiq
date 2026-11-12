@@ -789,7 +789,7 @@ async fn take_burst(
             } else {
                 (crate::quality::FrameGrade::Pass, base_path.clone(), false)
             };
-            let (grade, save_dir, was_graded) = match untracked_reason.clone() {
+            let (grade, save_dir, was_graded) = match untracked_reason {
                 Some(reason) => (
                     crate::quality::FrameGrade::Reject {
                         reason,
@@ -1267,7 +1267,7 @@ async fn recenter_after_mount_fault(
 async fn untracked_exposure_reason(
     ctx: &InstructionContext,
     started: chrono::DateTime<chrono::Utc>,
-) -> Option<String> {
+) -> Option<crate::quality::RejectReason> {
     let trigger_state = ctx.run.trigger_state.as_ref()?;
     if trigger_state
         .read()
@@ -1276,9 +1276,7 @@ async fn untracked_exposure_reason(
         .mount_fault_at
         .is_some_and(|at| at >= started.timestamp())
     {
-        return Some(
-            "the mount moved on its own or lost its position during this exposure".to_string(),
-        );
+        return Some(crate::quality::RejectReason::MountMoved);
     }
     let (limit_hold, lost_since_start, expected, run_owns_tracking) = {
         let state = trigger_state.read().await;
@@ -1293,7 +1291,7 @@ async fn untracked_exposure_reason(
         )
     };
     if limit_hold || lost_since_start {
-        return Some("the mount stopped tracking during this exposure".to_string());
+        return Some(crate::quality::RejectReason::TrackingStopped);
     }
     // The monitor polls on its own cadence; a stop in the last seconds of the
     // frame is read from the mount directly.
@@ -1303,7 +1301,7 @@ async fn untracked_exposure_reason(
                 ctx.run.device_ops.mount_is_tracking(mount_id).await,
                 Ok(false)
             ) {
-                return Some("the mount was not tracking at the end of this exposure".to_string());
+                return Some(crate::quality::RejectReason::NotTrackingAtEnd);
             }
         }
     }

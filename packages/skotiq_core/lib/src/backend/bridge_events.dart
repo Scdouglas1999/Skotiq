@@ -149,6 +149,7 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         SequencerEvent_ExposureCompleted,
         SequencerEvent_Error,
         SequencerErrorKind,
+        SequencerNotice,
         SequencerEvent_TriggerFired,
         SequencerEvent_MeridianFlipOutcome,
         SequencerEvent_InstructionProgress,

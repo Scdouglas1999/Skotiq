@@ -106,6 +106,9 @@ mod commands {
     pub const SET_UTC_OFFSET: &str = ":SG";
     /// The offset written with `:SG` already carries daylight saving time.
     pub const DAYLIGHT_SAVING_OFF: &str = ":SDS0#";
+
+    pub const SET_SOUTHERN_HEMISPHERE: &str = ":SHE0#";
+    pub const SET_NORTHERN_HEMISPHERE: &str = ":SHE1#";
 }
 
 /// The command language a mount speaks.
@@ -586,7 +589,9 @@ const V3_MODELS: &[(&str, &str)] = &[
     ("0036", "HAE29C EQ"),
     ("0037", "HAE29C-EC EQ"),
     ("0038", "HAE29C AA"),
-    ("0039", "HAE29C-EC EQ"),
+    // INDI repeats 0037's "HAE29C-EC EQ" here. Every other dual-mode block
+    // runs EQ, EC EQ, AA, EC AA, and an alt-az mount must not be pulse guided.
+    ("0039", "HAE29C-EC AA"),
     ("0040", "CEM40"),
     ("0041", "CEM40-EC"),
     ("0043", "GEM45"),
@@ -645,6 +650,15 @@ fn is_alt_az(model: &str) -> bool {
     model.ends_with(" AA")
         || model.contains("AZ Mount")
         || (model.starts_with("HAZ") && !model.ends_with(" EQ"))
+}
+
+/// v2.5 gives `:MP1#`, `:MP0#`, `:SPA` and `:SPH` only to the CEM60, CEM40,
+/// iEQ45 Pro and iEQ30 Pro (INDI adds the GEM45, which came after the
+/// document). These are the v2.5 models it leaves out; v3.10 has no such limit.
+const V25_CODES_WITHOUT_PARK: &[&str] = &["0010", "0011", "0025", "0026", "5010", "5035"];
+
+fn parks(dialect: Dialect, code: &str) -> bool {
+    dialect == Dialect::V3 || !V25_CODES_WITHOUT_PARK.contains(&code)
 }
 
 /// Four digits, the whole of a `:MountInfo#` reply.
@@ -738,6 +752,7 @@ fn read_model_code(io: &mut Exchange<'_>) -> Result<String, DriverError> {
 struct Session {
     dialect: Dialect,
     alt_az: bool,
+    parks: bool,
 }
 
 pub struct IOptronMount {
@@ -768,6 +783,16 @@ impl IOptronMount {
             baud_rate: baud_rate.unwrap_or(IOPTRON_BAUD_RATE),
             link: SerialLink::new(),
             session: Mutex::new(None),
+        }
+    }
+
+    /// The session of a mount that has the park commands.
+    fn parking_session(&self) -> Result<Session, DriverError> {
+        let session = self.session()?;
+        if session.parks {
+            Ok(session)
+        } else {
+            Err(DriverError::NotSupported)
         }
     }
 
@@ -965,6 +990,7 @@ impl DeviceDriver for IOptronMount {
         *self.session.lock().unwrap_or_else(|e| e.into_inner()) = Some(Session {
             dialect,
             alt_az: is_alt_az(&model),
+            parks: parks(dialect, &code),
         });
         Ok(())
     }
@@ -1039,7 +1065,7 @@ impl MountDriver for IOptronMount {
     }
 
     async fn park(&mut self) -> Result<(), DriverError> {
-        self.session()?;
+        self.parking_session()?;
 
         tracing::info!("Parking mount");
         self.command_ok(commands::PARK, "park")
@@ -1060,11 +1086,11 @@ impl MountDriver for IOptronMount {
     }
 
     fn can_set_park(&self) -> bool {
-        true
+        self.session().map_or(true, |session| session.parks)
     }
 
     async fn set_park(&mut self) -> Result<(), DriverError> {
-        self.session()?;
+        self.parking_session()?;
 
         let (altitude, azimuth) = parse_alt_az(&self.query(commands::GET_ALT_AZ)?)?;
         if altitude < 0.0 {
@@ -1093,7 +1119,7 @@ impl MountDriver for IOptronMount {
     }
 
     async fn unpark(&mut self) -> Result<(), DriverError> {
-        self.session()?;
+        self.parking_session()?;
 
         tracing::info!("Unparking mount");
         self.command_ok(commands::UNPARK, "unpark")
@@ -1104,6 +1130,7 @@ impl MountDriver for IOptronMount {
     }
 
     async fn is_parked(&self) -> Result<bool, DriverError> {
+        self.parking_session()?;
         Ok(self.status()?.system == SystemStatus::Parked)
     }
 
@@ -1218,7 +1245,23 @@ impl MountDriver for IOptronMount {
             latitude
         );
         self.command_ok(&longitude, "take the site longitude")?;
-        self.command_ok(&latitude, "take the site latitude")
+        self.command_ok(&latitude, "take the site latitude")?;
+
+        // The mount keeps its hemisphere apart from the latitude, and both
+        // documents give `:SHE` to set it. The site is written either way.
+        let hemisphere = if site.latitude_deg < 0.0 {
+            commands::SET_SOUTHERN_HEMISPHERE
+        } else {
+            commands::SET_NORTHERN_HEMISPHERE
+        };
+        if let Err(e) = self.command_ok(hemisphere, "set its hemisphere") {
+            tracing::warn!(
+                "iOptron {}: the site was written but the hemisphere was not: {}. Set the hemisphere at the hand controller.",
+                self.port_name,
+                e
+            );
+        }
+        Ok(())
     }
 
     async fn get_clock(&self) -> Result<MountClock, DriverError> {

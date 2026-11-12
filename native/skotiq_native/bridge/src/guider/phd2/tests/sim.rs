@@ -11,6 +11,7 @@
 use super::super::*;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex as StdMutex;
 use std::time::Instant as StdInstant;
 
@@ -317,7 +318,7 @@ async fn connect(config: SimConfig) -> (Arc<Sim>, Arc<AtomicBool>) {
         }
         thread_done.store(true, Ordering::SeqCst);
     });
-    api_phd2_connect(Some("127.0.0.1".into()), Some(port))
+    super::super::connect(Some("127.0.0.1".into()), Some(port))
         .await
         .expect("the PHD2 stand-in accepts the connect");
     let sim = rx.recv().unwrap();
@@ -327,7 +328,7 @@ async fn connect(config: SimConfig) -> (Arc<Sim>, Arc<AtomicBool>) {
 
 /// Disconnect and stop the stand-in's frame clock.
 async fn finish(done: Arc<AtomicBool>) {
-    let _ = api_phd2_disconnect().await;
+    let _ = disconnect().await;
     done.store(true, Ordering::SeqCst);
 }
 
@@ -360,13 +361,13 @@ async fn a_restart_while_phd2_is_inside_a_guide_pulse_waits_for_the_capture_to_e
     // recovery attempt does when its own deadline passes.
     let started = tokio::time::timeout(
         Duration::from_millis(400),
-        api_phd2_start_guiding(2.0, 10.0, 120.0),
+        start_guiding(2.0, 10.0, 120.0),
     )
     .await;
     assert!(started.is_err(), "the first guide must still be settling");
 
-    let selected = select_fresh_guide_star(PHD2_DEVICE_ID, None).await;
-    let restarted = api_phd2_start_guiding(2.0, 0.1, 1.0).await;
+    let selected = select_fresh_star(None).await;
+    let restarted = start_guiding(2.0, 0.1, 1.0).await;
 
     let (methods, stale, refused) = snapshot(&sim);
     finish(done).await;
@@ -394,7 +395,7 @@ async fn a_frame_already_exposing_when_capture_stops_is_not_fresh() {
     .await;
     // Let the looping capture produce an image to be stale.
     tokio::time::sleep(Duration::from_millis(250)).await;
-    let selected = select_fresh_guide_star(PHD2_DEVICE_ID, None).await;
+    let selected = select_fresh_star(None).await;
     let (methods, stale, _) = snapshot(&sim);
     finish(done).await;
     assert_eq!(selected.ok(), Some(FRESH_STAR), "{methods:?}");
@@ -411,7 +412,7 @@ async fn an_unanswered_exposure_query_falls_back_to_a_default_exposure() {
         ..SimConfig::default()
     })
     .await;
-    let selected = select_fresh_guide_star(PHD2_DEVICE_ID, None).await;
+    let selected = select_fresh_star(None).await;
     finish(done).await;
     assert_eq!(selected.ok(), Some(FRESH_STAR));
 }
@@ -433,7 +434,7 @@ async fn a_star_far_fainter_than_the_runs_guide_star_is_refused() {
             snr: 230.0,
             star_mass: 750_000.0,
         }));
-    let selected = select_fresh_guide_star(PHD2_DEVICE_ID, Some(floor)).await;
+    let selected = select_fresh_star(Some(floor)).await;
     let (methods, _, _) = snapshot(&sim);
     finish(done).await;
     let error = selected
@@ -457,7 +458,7 @@ async fn a_star_like_the_runs_guide_star_is_accepted() {
             snr: 238.5,
             star_mass: 741_004.0,
         }));
-    let selected = select_fresh_guide_star(PHD2_DEVICE_ID, Some(floor)).await;
+    let selected = select_fresh_star(Some(floor)).await;
     finish(done).await;
     assert_eq!(selected.ok(), Some(FRESH_STAR));
 }
@@ -473,7 +474,7 @@ async fn a_settle_timeout_leaves_a_guiding_phd2_guiding() {
         ..SimConfig::default()
     })
     .await;
-    let started = api_phd2_start_guiding(2.0, 0.1, 1.0).await;
+    let started = start_guiding(2.0, 0.1, 1.0).await;
     let (methods, _, _) = snapshot(&sim);
     finish(done).await;
     assert!(started.is_ok(), "{started:?}");
@@ -495,7 +496,7 @@ async fn a_start_waits_for_calibration_before_its_settle() {
         ..SimConfig::default()
     })
     .await;
-    let started = api_phd2_start_guiding(2.0, 0.1, 1.0).await;
+    let started = start_guiding(2.0, 0.1, 1.0).await;
     finish(done).await;
     assert!(started.is_ok(), "{started:?}");
 }
@@ -510,9 +511,9 @@ async fn a_stop_ends_a_settle_wait_at_once() {
     })
     .await;
     let began = StdInstant::now();
-    let (started, stopped) = tokio::join!(api_phd2_start_guiding(2.0, 10.0, 120.0), async {
+    let (started, stopped) = tokio::join!(start_guiding(2.0, 10.0, 120.0), async {
         tokio::time::sleep(Duration::from_millis(300)).await;
-        api_phd2_stop_guiding().await
+        stop_guiding().await
     });
     let elapsed = began.elapsed();
     finish(done).await;
@@ -533,12 +534,12 @@ async fn a_dither_during_a_restart_waits_for_its_settle() {
     .await;
     let (restarted, dithered) = tokio::join!(
         async {
-            select_fresh_guide_star(PHD2_DEVICE_ID, None).await?;
-            api_phd2_start_guiding(2.0, 0.1, 5.0).await
+            select_fresh_star(None).await?;
+            start_guiding(2.0, 0.1, 5.0).await
         },
         async {
             tokio::time::sleep(Duration::from_millis(50)).await;
-            api_phd2_dither(3.0, 0, 2.0, 0.1, 5.0).await
+            dither(3.0, false, 2.0, 0.1, 5.0).await
         }
     );
     let (methods, _, refused) = snapshot(&sim);
@@ -559,7 +560,7 @@ async fn an_acknowledged_stop_that_never_finishes_is_an_error() {
         ..SimConfig::default()
     })
     .await;
-    let result = api_phd2_stop_guiding().await;
+    let result = stop_guiding().await;
     finish(done).await;
     assert!(
         result.is_err(),

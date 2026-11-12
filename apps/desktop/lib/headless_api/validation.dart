@@ -63,6 +63,7 @@ String _cleanBackendErrorMessage(bridge_error.SkotiqError e) {
     operationFailed: (v) => v.field0,
     notSupported: (v) => scoped(v.operation, v.deviceId),
     deviceBusy: (v) => '${v.deviceId} is busy: ${v.currentOperation}',
+    invalidState: (v) => v.field0,
     // Imaging
     imageError: (v) => v.field0,
     cameraError: (v) => v.field0,
@@ -153,6 +154,7 @@ int _httpStatusForBackendError(bridge_error.SkotiqError e) {
     invalidDeviceId: (_) => 400,
     parameterOutOfRange: (_) => 400,
     deviceBusy: (_) => 409,
+    invalidState: (_) => 409,
     resourceExhausted: (_) => 409,
     timeout: (_) => 504,
     deviceTimeout: (_) => 504,

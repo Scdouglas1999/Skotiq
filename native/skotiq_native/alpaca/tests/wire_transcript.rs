@@ -50,9 +50,9 @@ enum Mode {
     WrongType,
     /// `Connected` reads false this many times before reading true.
     ConnectedReadsFalse(u32),
-    /// `imagearrayvariant` answers with an `application/imagebytes` payload.
+    /// `imagearray` answers with an `application/imagebytes` payload.
     ImageBytes,
-    /// `imagearrayvariant` answers with an ImageBytes payload carrying an error.
+    /// `imagearray` answers with an ImageBytes payload carrying an error.
     ImageBytesError,
 }
 
@@ -385,7 +385,7 @@ fn build_reply(
         ok_put_value(endpoint)
     };
 
-    if endpoint == "imagearrayvariant" {
+    if endpoint == "imagearray" {
         match mode {
             Mode::ImageBytes => {
                 return http_reply(
@@ -588,8 +588,12 @@ fn ok_get_value(device_type: &str, endpoint: &str) -> Value {
         (_, "lastexposurestarttime") => json!("2026-11-10T01:02:03"),
         (_, "lastexposureduration") => json!(1.5),
         (_, "hasshutter") => json!(false),
+        (_, "gains") => json!(["ISO 100", "ISO 200", "ISO 400"]),
+        (_, "offsets") => json!(["Low", "High"]),
+        (_, "setccdtemperature") => json!(-10.0),
+        (_, "exposuremin") => json!(0.001),
+        (_, "exposuremax") => json!(3600.0),
         (_, "imagearray") => json!([[10, 20], [30, 40]]),
-        (_, "imagearrayvariant") => json!([[10, 20], [30, 40]]),
         (_, "canwrite") => json!(true),
         (_, other) if other.starts_with("can") => json!(true),
         (_, other) => panic!("no scripted value for {device_type}/{other}"),
@@ -1139,6 +1143,7 @@ async fn camera_wire_transcript() {
         "set_bin_y" => |d| d.set_bin_y(2),
         "can_set_ccd_temperature" => |d| d.can_set_ccd_temperature(),
         "ccd_temperature" [rep] => |d| d.ccd_temperature(),
+        "ccd_temperature_setpoint" => |d| d.ccd_temperature_setpoint(),
         "set_ccd_temperature" [rep] => |d| d.set_ccd_temperature(-10.0),
         "set_ccd_temperature(fraction)" => |d| d.set_ccd_temperature(-12.5),
         "cooler_on" => |d| d.cooler_on(),
@@ -1150,16 +1155,21 @@ async fn camera_wire_transcript() {
         "set_gain" [rep] => |d| d.set_gain(139),
         "gain_min" => |d| d.gain_min(),
         "gain_max" => |d| d.gain_max(),
+        "gains" => |d| d.gains(),
         "offset" => |d| d.offset(),
         "set_offset" => |d| d.set_offset(21),
         "offset_min" => |d| d.offset_min(),
         "offset_max" => |d| d.offset_max(),
+        "offsets" => |d| d.offsets(),
+        "controls" [par] => |d| async move { Ok::<_, skotiq_alpaca::AlpacaError>(d.controls().await) },
         "bayer_offset_x" => |d| d.bayer_offset_x(),
         "bayer_offset_y" => |d| d.bayer_offset_y(),
         "camera_state" [rep] => |d| d.camera_state(),
         "image_ready" => |d| d.image_ready(),
         "is_pulse_guiding" => |d| d.is_pulse_guiding(),
         "percent_completed" => |d| d.percent_completed(),
+        "exposure_min" => |d| d.exposure_min(),
+        "exposure_max" => |d| d.exposure_max(),
         "start_exposure(light)" [rep] => |d| d.start_exposure(120.0, true),
         "start_exposure(dark)" => |d| d.start_exposure(0.001, false),
         "abort_exposure" => |d| d.abort_exposure(),
@@ -1183,7 +1193,6 @@ async fn camera_wire_transcript() {
         "can_pulse_guide" => |d| d.can_pulse_guide(),
         "can_fast_readout" => |d| d.can_fast_readout(),
         "has_shutter" => |d| d.has_shutter(),
-        "image_array" => |d| d.image_array(),
         "pulse_guide" => |d| d.pulse_guide(3, 500),
         "download_image_data" [rep] => |d| d.download_image_data(),
         "download_image_array_full" => |d| async move {

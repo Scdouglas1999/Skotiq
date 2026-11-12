@@ -68,7 +68,7 @@ void main() {
       () => backend.connectionState,
     ).thenReturn(BackendConnectionState.connected);
     when(() => backend.isAuthTokenRejected).thenReturn(false);
-    when(() => backend.phd2GetStatus()).thenAnswer((_) async {
+    when(() => backend.guiderGetStatus()).thenAnswer((_) async {
       statusReads++;
       await Future<void>.delayed(const Duration(milliseconds: 100));
       return kPhd2DisconnectedStatus;
@@ -94,9 +94,7 @@ void main() {
       final host = _MockHostBackend();
       final hostEvents = StreamController<SkotiqEvent>.broadcast();
       when(() => host.eventStream).thenAnswer((_) => hostEvents.stream);
-      when(
-        () => host.guiderGetStatus(deviceId: any(named: 'deviceId')),
-      ).thenAnswer((_) async {
+      when(() => host.guiderGetStatus()).thenAnswer((_) async {
         statusReads++;
         await Future<void>.delayed(const Duration(milliseconds: 100));
         return kPhd2DisconnectedStatus;
@@ -128,7 +126,7 @@ void main() {
       async.elapse(const Duration(seconds: 10));
       // One read in flight absorbs the burst; at most one follow-up.
       expect(statusReads, inInclusiveRange(1, 2));
-      verifyNever(() => backend.phd2GetStatus());
+      verifyNever(() => backend.guiderGetStatus());
       hostContainer.dispose();
       companion.dispose();
       unawaited(hostEvents.close());

@@ -441,19 +441,13 @@ pub(crate) fn auto_reject(sub_count: usize, low: f64, high: f64) -> Reject {
     }
 }
 
-/// Read one keyword out of an [`ImageReadResult::header`] map.
-///
-/// That map is built with `format!("{:?}")`, so string values arrive wrapped in
-/// escaped quotes (`FILTER` reads back as `"\"L\""`) and everything is padded
-/// per the FITS fixed-format rules. Strip both, and treat an empty or FITS-null
-/// (`""`) result as absent rather than writing a blank card onto the master.
-pub(crate) fn header_string(
-    header: &std::collections::HashMap<String, String>,
-    key: &str,
-) -> Option<String> {
-    let raw = header.get(key)?.trim();
-    let unquoted = raw.trim_matches('"').trim();
-    (!unquoted.is_empty()).then(|| unquoted.to_string())
+/// One keyword of a frame's header as trimmed text, whatever its value type;
+/// an empty value counts as absent rather than writing a blank card onto the
+/// master.
+pub(crate) fn header_string(header: &FitsHeader, key: &str) -> Option<String> {
+    let text = header.get(key)?.to_header_string();
+    let text = text.trim();
+    (!text.is_empty()).then(|| text.to_string())
 }
 
 /// Observation metadata carried from the constituent lights onto the master.
@@ -489,7 +483,7 @@ pub(crate) struct MasterProvenance {
 /// rejected frame cannot contribute a filter name or drag `DATE-OBS` earlier
 /// than the data that actually went in.
 pub(crate) fn collect_master_provenance(
-    headers: &[std::collections::HashMap<String, String>],
+    headers: &[FitsHeader],
     exposures: &[f64],
 ) -> MasterProvenance {
     let first = |key: &str| headers.iter().find_map(|h| header_string(h, key));
