@@ -116,7 +116,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
     // look at them.
     final tabIndex = ref.watch(equipmentTabIndexProvider);
     // Drives whether "Disconnect all" exists at all (see the header actions).
-    final anythingConnected = equipmentConnectedCount(ref) > 0;
+    final anythingConnected = ref.watch(rigDevicesProvider).connected > 0;
     // The profile's devices that are not up: "Connect all" is then the next
     // thing to do, and the header's one primary action.
     final activeProfile = ref.watch(activeEquipmentProfileProvider);

@@ -144,8 +144,16 @@ ProviderContainer _container({
       offlineProfileDeviceNamesProvider.overrideWithValue(
         offlineProfileDevices,
       ),
-      assignedProfileDeviceTypesProvider.overrideWithValue(
-        assignedProfileSlots,
+      rigDevicesProvider.overrideWithValue(
+        RigDevices([
+          for (final type in assignedProfileSlots)
+            RigDevice(
+              type: type,
+              assigned: true,
+              connected: false,
+              sessionOnly: false,
+            ),
+        ]),
       ),
       cameraStateProvider.overrideWith(
         (ref) =>
