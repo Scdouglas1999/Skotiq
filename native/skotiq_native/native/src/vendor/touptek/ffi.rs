@@ -81,6 +81,8 @@ pub(crate) const OGMACAM_E_NOTIMPL: i32 = 0x8000_4001_u32 as i32;
 // Pull-mode event codes delivered to the StartPullModeWithCallback callback.
 // A software-triggered frame arrives as EVENT_IMAGE (live image), pulled with bStill = 0.
 pub(crate) const OGMACAM_EVENT_IMAGE: c_uint = 0x0004;
+/// The triggered frame failed (bad frame data or a timeout); no image follows.
+pub(crate) const OGMACAM_EVENT_TRIGGERFAIL: c_uint = 0x0007;
 pub(crate) const OGMACAM_EVENT_ERROR: c_uint = 0x0080;
 pub(crate) const OGMACAM_EVENT_DISCONNECTED: c_uint = 0x0081;
 pub(crate) const OGMACAM_EVENT_NOFRAMETIMEOUT: c_uint = 0x0082;
@@ -248,7 +250,8 @@ pub(crate) type OgmacamVersion = unsafe extern "system" fn() -> *const c_char;
 pub(crate) struct TouptekEventState {
     /// Set true on EVENT_IMAGE — a software-triggered frame is ready to pull.
     pub(crate) image_ready: AtomicBool,
-    /// The EVENT_ERROR or EVENT_NOFRAMETIMEOUT code that ended this exposure, 0 if none.
+    /// The EVENT_ERROR, EVENT_TRIGGERFAIL or EVENT_NOFRAMETIMEOUT code that ended this
+    /// exposure, 0 if none.
     pub(crate) fault: AtomicU32,
     /// Set on EVENT_DISCONNECTED and never cleared: the handle is dead until reconnect.
     pub(crate) disconnected: AtomicBool,
@@ -288,7 +291,7 @@ pub(crate) unsafe extern "system" fn touptek_event_callback(n_event: c_uint, ctx
     let state = unsafe { &*(ctx as *const TouptekEventState) };
     match n_event {
         OGMACAM_EVENT_IMAGE => state.image_ready.store(true, Ordering::SeqCst),
-        OGMACAM_EVENT_ERROR | OGMACAM_EVENT_NOFRAMETIMEOUT => {
+        OGMACAM_EVENT_ERROR | OGMACAM_EVENT_TRIGGERFAIL | OGMACAM_EVENT_NOFRAMETIMEOUT => {
             state.fault.store(n_event, Ordering::SeqCst);
         }
         OGMACAM_EVENT_DISCONNECTED => state.disconnected.store(true, Ordering::SeqCst),

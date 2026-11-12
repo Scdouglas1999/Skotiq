@@ -222,7 +222,11 @@ fn touptek_event_callback_sets_flags_by_event_and_guards_null() {
     assert_eq!(state.fault.load(Ordering::SeqCst), 0);
 
     // A fault records which one it was; the next exposure starts clean.
-    for event in [OGMACAM_EVENT_ERROR, OGMACAM_EVENT_NOFRAMETIMEOUT] {
+    for event in [
+        OGMACAM_EVENT_ERROR,
+        OGMACAM_EVENT_TRIGGERFAIL,
+        OGMACAM_EVENT_NOFRAMETIMEOUT,
+    ] {
         let s = Box::new(TouptekEventState::new());
         let c = &*s as *const TouptekEventState as *mut c_void;
         // SAFETY: `c` points to the live `s` box.

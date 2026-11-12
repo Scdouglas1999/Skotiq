@@ -44,6 +44,7 @@ struct Fake {
     get: unsafe extern "C" fn(c_int, *const c_char) -> c_int,
     log: unsafe extern "C" fn() -> *const c_char,
     clear_log: unsafe extern "C" fn(),
+    fire: unsafe extern "C" fn(c_uint),
     pixel: unsafe extern "C" fn(c_uint, c_uint, c_int) -> c_uint,
 }
 
@@ -59,6 +60,7 @@ fn fake() -> &'static Fake {
             get: *lib.get(b"FakeToup_get\0").unwrap(),
             log: *lib.get(b"FakeToup_log\0").unwrap(),
             clear_log: *lib.get(b"FakeToup_clear_log\0").unwrap(),
+            fire: *lib.get(b"FakeToup_fire\0").unwrap(),
             pixel: *lib.get(b"FakeToup_sensor_pixel\0").unwrap(),
             _lib: lib,
         }
@@ -94,6 +96,9 @@ impl Fake {
     }
     fn clear_log(&self) {
         unsafe { (self.clear_log)() }
+    }
+    fn fire(&self, event: u32) {
+        unsafe { (self.fire)(event) }
     }
     fn pixel(&self, row: u32, col: u32, bits: i32) -> u16 {
         unsafe { (self.pixel)(row, col, bits) as u16 }
@@ -404,3 +409,18 @@ fn discovery_lists_only_cameras() {
 /// SDK manual) ends the exposure at once instead of after the frame timeout.
 #[test]
 #[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
+fn a_failed_trigger_fails_the_exposure_at_once() {
+    let fake = fake();
+    let cam = fake.camera(COOLED_MONO_12, 64, 48, 12);
+    fake.set(cam, "auto_frames", 0);
+    run(async {
+        let mut camera = connected().await;
+        camera.start_exposure(exposure(1, None)).await.unwrap();
+        fake.fire(0x0007);
+        let started = std::time::Instant::now();
+        assert!(camera.is_exposure_complete().await.unwrap());
+        assert!(camera.download_image().await.is_err());
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
+        camera.disconnect().await.unwrap();
+    });
+}

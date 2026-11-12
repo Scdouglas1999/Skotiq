@@ -780,6 +780,14 @@ impl CameraDriver for TouptekCamera {
                         self.core.name
                     )));
                 }
+                OGMACAM_EVENT_TRIGGERFAIL => {
+                    self.core.state = CameraState::Idle;
+                    self.core.exposure_started_at = None;
+                    return Err(DriverError::SdkError(format!(
+                        "{} could not read out the frame (bad frame data or a timeout); check its USB cable and power",
+                        self.core.name
+                    )));
+                }
                 _ => {
                     self.core.state = CameraState::Idle;
                     self.core.exposure_started_at = None;
