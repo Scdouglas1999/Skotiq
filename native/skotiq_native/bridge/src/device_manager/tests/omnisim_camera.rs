@@ -48,6 +48,7 @@ async fn connected_camera(manager: &DeviceManager, base_url: &str) -> String {
             last_error: None,
             reconnect_attempts: 0,
             auto_reconnect: false,
+            declared_mount_frame: None,
             last_successful_comm: None,
             heartbeat_deferred_at: None,
             heartbeat_active: false,
