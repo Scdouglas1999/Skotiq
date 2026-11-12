@@ -65,12 +65,12 @@ class DatabaseRepairAtNextStart extends DatabaseHealthOutcome {
   @override
   DatabaseHealthNotice get notice => DatabaseHealthNotice(
     title: 'Database needs repair',
+    // The advice comes first: a toast shows three lines.
     message:
-        'Skotiq found damage in its database that it cannot repair while it '
-        'is running. The next time it starts it checks the database again; '
-        'if the damage is still there, it sets the file aside (it is kept on '
-        'disk) and starts with a new, empty database. Back up the folder '
-        '$databaseDirectory before you restart Skotiq.',
+        'Back up the database folder before you restart Skotiq. It found '
+        'damage it cannot repair while running; the next start checks again '
+        'and, if the damage is still there, sets the file aside (kept on '
+        'disk) and starts with an empty database. Folder: $databaseDirectory',
     severity: EventSeverity.warning,
   );
 }

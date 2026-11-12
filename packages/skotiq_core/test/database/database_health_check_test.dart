@@ -211,7 +211,8 @@ void main() {
 
       final notice = repair.notice;
       expect(notice.title, 'Database needs repair');
-      expect(notice.message, contains('Back up the folder ${tempDir.path}'));
+      expect(notice.message, startsWith('Back up the database folder'));
+      expect(notice.message, endsWith('Folder: ${tempDir.path}'));
       expect(notice.severity, EventSeverity.warning);
 
       final report = await runIntegrityCheckAndRecover(dbFile);

@@ -329,20 +329,17 @@ Future<void> _checkDatabaseInBackground(HostStartup host) async {
   if (notice == null) return;
   host.container.read(hostMutationEventHubProvider).announce(notice.toEvent());
   if (host.kind == HostKind.gui) {
-    final toasts = host.container.read(uiNotificationProvider.notifier);
-    switch (notice.severity) {
-      case EventSeverity.info:
-        toasts.showSuccess(notice.message, title: notice.title);
-      case EventSeverity.warning:
-      case EventSeverity.error:
-      case EventSeverity.critical:
-        // It asks for something before the next restart, so it stays up
-        // long enough to be read in full.
-        toasts.showWarning(
-          notice.message,
-          title: notice.title,
-          duration: const Duration(seconds: 30),
-        );
+    switch (outcome) {
+      case DatabaseIndexRepaired():
+        host.container
+            .read(uiNotificationProvider.notifier)
+            .showSuccess(notice.message, title: notice.title);
+      case DatabaseRepairAtNextStart():
+        // It asks for something before the next restart: a dialog.
+        host.container.read(databaseRepairNoticeProvider.notifier).state =
+            notice;
+      case DatabaseHealthy() || DatabaseNotChecked():
+        break;
     }
   }
 }
