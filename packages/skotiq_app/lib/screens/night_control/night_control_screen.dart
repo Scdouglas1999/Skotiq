@@ -21,6 +21,7 @@ import 'panel/guide/night_guide_tab.dart';
 import 'panel/mount/night_mount_tab.dart';
 import 'panel/night_right_panel.dart';
 import 'panel/solve/night_solve_tab.dart';
+import 'panel/solve/recent_solves_provider.dart';
 import 'run_warnings_banner.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 
@@ -34,6 +35,8 @@ class NightControlScreen extends ConsumerWidget {
     // Snapshot and Loop on the Camera tab use the manual exposure settings,
     // which follow the active profile only while this sync is watched.
     ref.watch(syncExposureFromProfileProvider);
+    // A run's solves are gathered while Tonight is up, whichever tab shows.
+    ref.watch(nightRecentSolvesProvider);
 
     return const Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -54,6 +54,14 @@ impl InstructionNode for CenterInstruction {
                         attempt: progress.attempt().unwrap_or(0),
                         max_attempts,
                         last_separation_arcsec: *separation.lock(),
+                        solved_ra_hours: match progress {
+                            CenterProgress::Solved { ra_hours, .. } => Some(*ra_hours),
+                            _ => None,
+                        },
+                        solved_dec_degrees: match progress {
+                            CenterProgress::Solved { dec_degrees, .. } => Some(*dec_degrees),
+                            _ => None,
+                        },
                     },
                 ));
             }

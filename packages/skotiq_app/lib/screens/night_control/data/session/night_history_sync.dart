@@ -68,6 +68,7 @@ Map<String, dynamic> encodeNightHistory({
           'offsetArcsec': finite(s.offsetArcsec),
           'iterations': s.iterations,
           'durationMs': s.duration?.inMilliseconds,
+          if (s.byRun) 'byRun': true,
         },
     ],
   };
@@ -165,6 +166,7 @@ class NightHistory {
               offsetArcsec: number(s['offsetArcsec']),
               iterations: (s['iterations'] as num?)?.toInt(),
               duration: duration(s['durationMs']),
+              byRun: s['byRun'] == true,
             ),
       ],
     );
