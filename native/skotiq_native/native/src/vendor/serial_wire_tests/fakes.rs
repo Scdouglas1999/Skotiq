@@ -523,6 +523,8 @@ pub(super) fn lx200(flavor: Lx200Flavor, answer_baud: Option<u32>, knobs: Arc<Kn
                         }
                         // OnStep sends the bare status digit.
                         OnStep | Nyx => "6",
+                        // Gemini Level 4: 6 is "Outside Limits".
+                        Losmandy => "6Outside limits#",
                         _ => "2Below limit#",
                     }
                     .into()

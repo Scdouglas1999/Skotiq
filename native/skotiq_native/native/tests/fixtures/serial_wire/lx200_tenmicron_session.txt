@@ -138,7 +138,7 @@ call get_site
 call set_site(40.007714, -75.397448)
 > :St+40*00#
 < 1
-> :Sg075*24#
+> :Sg+075*24#
 < 1
   -> Ok(())
 call get_clock
