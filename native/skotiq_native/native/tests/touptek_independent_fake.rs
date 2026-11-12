@@ -320,9 +320,6 @@ fn the_offset_is_the_black_level() {
     });
 }
 
-/// An aborted exposure leaves no frame behind: the next exposure delivers its own.
-#[test]
-#[ignore = "needs the independent fake SDK on LD_LIBRARY_PATH"]
 /// A camera another program left in trigger cancel mode 1 outputs the cancelled
 /// frame after its readout (toupcam.h OPTION_TRIGGER_CANCEL_MODE); that frame
 /// must not be delivered as the next exposure.
