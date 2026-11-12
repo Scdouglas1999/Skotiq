@@ -11,20 +11,29 @@ pub(crate) enum GainControl {
     /// ArtemisSetGain / ArtemisGetGain, which only the Sony scientific
     /// cameras implement.
     Sdk,
-    /// Camera specific options (Horizon, ACIS, Apx): a custom gain and offset
-    /// inside the ranges the camera reports, and on most models factory
+    /// Camera specific options (Horizon, ACIS, Apx, TE): a custom gain and
+    /// offset inside the ranges the camera reports, and on most models factory
     /// presets that take their place while one is selected. The camera keeps
     /// all of it across power cycles.
     Options {
-        gain: (u16, u16),
+        /// `None` on a TE camera in a low-noise readout: ADC1 has no gain.
+        gain: Option<(u16, u16)>,
         offset: (u16, u16),
+        /// The custom offset, or the ADC1 offset of a TE camera in a
+        /// low-noise readout.
+        offset_id: u16,
         presets: bool,
     },
 }
 
 impl GainControl {
-    pub(crate) fn is_settable(self) -> bool {
-        !matches!(self, GainControl::None)
+    /// Whether the camera takes a gain (or, with `offset`, an offset).
+    pub(crate) fn takes(self, offset: bool) -> bool {
+        match self {
+            GainControl::None => false,
+            GainControl::Sdk => true,
+            GainControl::Options { .. } => self.range(offset).is_some(),
+        }
     }
 
     fn range(self, offset: bool) -> Option<(u16, u16)> {
@@ -33,7 +42,13 @@ impl GainControl {
                 gain,
                 offset: offsets,
                 ..
-            } => Some(if offset { offsets } else { gain }),
+            } => {
+                if offset {
+                    Some(offsets)
+                } else {
+                    gain
+                }
+            }
             _ => None,
         }
     }
@@ -105,8 +120,9 @@ impl<'a> Options<'a> {
         check_artemis_error(result, &format!("set camera option {id} to {value}"))
     }
 
-    /// Minimum, maximum and current value of the custom gain or offset.
-    fn custom(&self, id: u16) -> Result<(u16, u16, u16), DriverError> {
+    /// Minimum, maximum and current value of an option that reports all
+    /// three (custom gain and offset, the TE readout mode and ADC1 offset).
+    fn bounded(&self, id: u16) -> Result<(u16, u16, u16), DriverError> {
         let d = self.read::<6>(id)?;
         Ok((
             u16::from_le_bytes([d[0], d[1]]),
@@ -119,13 +135,27 @@ impl<'a> Options<'a> {
 /// Which gain control a freshly opened camera has.
 pub(crate) fn detect(sdk: &AtikSdk, handle: ArtemisHandle) -> Result<GainControl, DriverError> {
     if let Some(options) = Options::of(sdk, handle) {
-        if options.has(ID_GO_CUSTOM_GAIN) && options.has(ID_GO_CUSTOM_OFFSET) {
-            let (gain_min, gain_max, _) = options.custom(ID_GO_CUSTOM_GAIN)?;
-            let (offset_min, offset_max, _) = options.custom(ID_GO_CUSTOM_OFFSET)?;
+        let presets = options.has(ID_GO_PRESET_MODE);
+        let adc1 = options.has(ID_READOUT_MODE_TE)
+            && options.bounded(ID_READOUT_MODE_TE)?.2 != READOUT_MODE_TE_PREVIEW;
+        if adc1 {
+            if options.has(ID_ADC1_OFFSET_TE) {
+                let (offset_min, offset_max, _) = options.bounded(ID_ADC1_OFFSET_TE)?;
+                return Ok(GainControl::Options {
+                    gain: None,
+                    offset: (offset_min, offset_max),
+                    offset_id: ID_ADC1_OFFSET_TE,
+                    presets,
+                });
+            }
+        } else if options.has(ID_GO_CUSTOM_GAIN) && options.has(ID_GO_CUSTOM_OFFSET) {
+            let (gain_min, gain_max, _) = options.bounded(ID_GO_CUSTOM_GAIN)?;
+            let (offset_min, offset_max, _) = options.bounded(ID_GO_CUSTOM_OFFSET)?;
             return Ok(GainControl::Options {
-                gain: (gain_min, gain_max),
+                gain: Some((gain_min, gain_max)),
                 offset: (offset_min, offset_max),
-                presets: options.has(ID_GO_PRESET_MODE),
+                offset_id: ID_GO_CUSTOM_OFFSET,
+                presets,
             });
         }
     }
@@ -154,7 +184,12 @@ pub(crate) fn effective(
             check_artemis_error(result, "read gain and offset")?;
             Ok((gain, offset))
         }
-        GainControl::Options { presets, .. } => {
+        GainControl::Options {
+            gain,
+            offset_id,
+            presets,
+            ..
+        } => {
             let options = Options::of(sdk, handle).ok_or(DriverError::NotSupported)?;
             let preset = if presets {
                 options.read_u16(ID_GO_PRESET_MODE)?
@@ -162,8 +197,11 @@ pub(crate) fn effective(
                 0
             };
             if preset == 0 {
-                let (_, _, gain) = options.custom(ID_GO_CUSTOM_GAIN)?;
-                let (_, _, offset) = options.custom(ID_GO_CUSTOM_OFFSET)?;
+                let gain = match gain {
+                    Some(_) => options.bounded(ID_GO_CUSTOM_GAIN)?.2,
+                    None => 0,
+                };
+                let (_, _, offset) = options.bounded(offset_id)?;
                 Ok((gain.into(), offset.into()))
             } else {
                 let d = options.read::<5>(ID_GO_PRESET_LOW + preset - 1)?;
@@ -201,10 +239,10 @@ pub(crate) fn set(
             check_artemis_error(result, &format!("set the {what} to {value}"))?;
             effective(sdk, handle, control)
         }
-        GainControl::Options { presets, .. } => {
-            let (min, max) = control
-                .range(is_offset)
-                .expect("an options control has ranges");
+        GainControl::Options {
+            offset_id, presets, ..
+        } => {
+            let (min, max) = control.range(is_offset).ok_or(DriverError::NotSupported)?;
             let requested = u16::try_from(value)
                 .ok()
                 .filter(|v| (min..=max).contains(v))
@@ -225,7 +263,7 @@ pub(crate) fn set(
                 }
             }
             let id = if is_offset {
-                ID_GO_CUSTOM_OFFSET
+                offset_id
             } else {
                 ID_GO_CUSTOM_GAIN
             };

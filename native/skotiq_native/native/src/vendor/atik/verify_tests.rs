@@ -962,6 +962,66 @@ fn a_ccd_has_no_gain_and_a_sony_scientific_body_takes_it_through_set_gain() {
     assert_eq!(last_exposure().offset, Some(7));
 }
 
+/// TE guide: in the two ADC1 readout modes the offset is ID_ADC1OffsetTE and
+/// there is no gain; the custom gain and offset belong to the preview mode.
+#[test]
+fn a_te_camera_in_its_low_noise_readout_takes_offset_through_adc1() {
+    let sdk = install(vec![cam(Family::Te)]);
+    let mut camera = opened(&sdk, Some("S1"));
+
+    let mut params = exposure(FrameType::Light);
+    params.offset = Some(300);
+    let image = expose(&sdk, &mut camera, params);
+
+    assert_eq!(
+        last_exposure().offset,
+        Some(300),
+        "the offset the sensor was read with"
+    );
+    assert_eq!(image.metadata.offset, 300);
+}
+
+#[test]
+fn a_te_camera_in_its_low_noise_readout_does_not_claim_a_gain() {
+    let sdk = install(vec![cam(Family::Te)]);
+    let mut camera = opened(&sdk, Some("S1"));
+    assert!(!camera.core.capabilities.can_set_gain);
+    assert!(camera.core.capabilities.can_set_offset);
+    assert_eq!(camera.facts.gain.gain_range(), None);
+    assert_eq!(camera.facts.gain.offset_range(), Some((0, 4095)));
+    assert_eq!((camera.core.gain, camera.core.offset), (0, 1000));
+
+    let mut params = exposure(FrameType::Light);
+    params.gain = Some(40);
+    let image = expose(&sdk, &mut camera, params);
+
+    assert_eq!(last_exposure().gain, None);
+    assert_eq!(device(0).custom_gain.2, 5, "the ADC2 gain was left alone");
+    assert_ne!(
+        image.metadata.gain, 40,
+        "the frame records a gain that was not applied"
+    );
+}
+
+#[test]
+fn a_te_camera_in_its_preview_readout_takes_the_custom_gain_and_offset() {
+    let mut te = cam(Family::Te);
+    te.te_readout = 2;
+    let sdk = install(vec![te]);
+    let mut camera = opened(&sdk, Some("S1"));
+    assert_eq!(camera.facts.gain.gain_range(), Some((0, 63)));
+    assert_eq!(camera.facts.gain.offset_range(), Some((0, 255)));
+
+    let mut params = exposure(FrameType::Light);
+    params.gain = Some(40);
+    params.offset = Some(200);
+    let image = expose(&sdk, &mut camera, params);
+
+    assert_eq!(last_exposure().gain, Some(40));
+    assert_eq!(last_exposure().offset, Some(200));
+    assert_eq!((image.metadata.gain, image.metadata.offset), (40, 200));
+}
+
 #[test]
 fn pad_data_sets_the_full_scale_of_the_12_bit_cameras() {
     for (pad, max_adu) in [(true, 0xFFF0), (false, 0x0FFF)] {

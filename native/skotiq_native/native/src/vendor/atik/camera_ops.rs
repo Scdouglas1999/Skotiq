@@ -54,7 +54,7 @@ impl AtikCamera {
         }
         for (value, is_offset) in [(params.gain, false), (params.offset, true)] {
             let Some(value) = value else { continue };
-            if self.facts.gain.is_settable() {
+            if self.facts.gain.takes(is_offset) {
                 self.apply_gain(sdk, value, is_offset)?;
             } else {
                 tracing::debug!(
@@ -426,7 +426,7 @@ impl CameraDriver for AtikCamera {
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        if !self.facts.gain.is_settable() {
+        if !self.facts.gain.takes(false) {
             return Err(DriverError::NotSupported);
         }
         let sdk = AtikSdk::lock().await?;
@@ -439,7 +439,7 @@ impl CameraDriver for AtikCamera {
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        if !self.facts.gain.is_settable() {
+        if !self.facts.gain.takes(true) {
             return Err(DriverError::NotSupported);
         }
         let sdk = AtikSdk::lock().await?;
