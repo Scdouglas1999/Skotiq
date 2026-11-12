@@ -22,6 +22,8 @@ use std::time::Duration;
 use tokio::sync::Notify;
 
 mod discovery;
+#[cfg(all(test, target_os = "linux"))]
+mod doc_fake_tests;
 mod mount;
 mod mount_ops;
 mod protocol;

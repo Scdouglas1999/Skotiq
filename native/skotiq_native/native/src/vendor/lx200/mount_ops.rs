@@ -191,31 +191,41 @@ impl MountDriver for Lx200Mount {
             return Ok(is_parked);
         }
 
-        // 2) Meade firmware (LX200GPS / LX200ACF / RCX400) exposes park
-        //    via :GW#. Older Classic firmware ignores or echoes garbage —
-        //    we accept telemetry only when the response shape is one we
-        //    recognise; otherwise we fall through to the persisted cache.
+        // 2) Meade `:GW#` carries no park flag, only whether the mount
+        //    tracks. A tracking mount is not parked; one that does not track
+        //    is parked if we parked it. A mount that answers in the
+        //    documented shape and was never parked by us reads unparked, as
+        //    it always has. Any other answer falls through to the cache.
         if matches!(self.mount_type, Lx200MountType::Meade) {
             if let Ok(status) = self.send_command(commands::MEADE_GET_STATUS) {
-                if let Some(is_parked) = parse_meade_gw_park(&status) {
-                    *self
-                        .park_state
-                        .lock()
-                        .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? =
-                        Some(is_parked);
-                    if let Err(e) = write_persisted_park_state(&self.device_id, is_parked) {
-                        tracing::warn!(
-                            "Persist Meade park telemetry failed for {}: {}",
-                            self.device_id,
-                            e
-                        );
+                match parse_meade_gw_tracking(&status) {
+                    Some(true) => {
+                        *self
+                            .park_state
+                            .lock()
+                            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? =
+                            Some(false);
+                        if let Err(e) = write_persisted_park_state(&self.device_id, false) {
+                            tracing::warn!(
+                                "Persist Meade park telemetry failed for {}: {}",
+                                self.device_id,
+                                e
+                            );
+                        }
+                        return Ok(false);
                     }
-                    return Ok(is_parked);
+                    Some(false) => {
+                        let cached = *self
+                            .park_state
+                            .lock()
+                            .map_err(|_| DriverError::SdkError("Lock poisoned".into()))?;
+                        return Ok(cached.unwrap_or(false));
+                    }
+                    None => tracing::debug!(
+                        "Meade :GW# response {:?} is not <mount><tracking><alignment> — falling back to local cache",
+                        status
+                    ),
                 }
-                tracing::debug!(
-                    "Meade :GW# response {:?} did not encode park state — falling back to local cache",
-                    status
-                );
             }
             // Fall through to persisted-state path on serial error or
             // unparseable response. A connection-level failure has already
@@ -462,23 +472,31 @@ impl MountDriver for Lx200Mount {
             )));
         }
 
-        // Seconds and a signed longitude only where the firmware is known to
-        // take them (OnStep, the NYX-101). The Meade command set is `sDD*MM`
-        // and an unsigned `DDD*MM`.
-        let (lat, lon) = if self.mount_type.is_onstep() {
-            (
+        // Seconds only where the firmware is known to take them (OnStep, the
+        // NYX-101). The Meade command set is `sDD*MM` and an unsigned
+        // `DDD*MM`; 10Micron documents `:SgsDDD*MM#` with east negative
+        // (protocol 2.14.11), so it gets the sign rather than 0-360.
+        let (lat, lon) = match self.mount_type {
+            Lx200MountType::OnStep => (
                 format_dms(site.latitude_deg, 2, true),
                 format_dms(
                     east_positive_to_lx200_longitude(site.longitude_deg),
                     3,
                     true,
                 ),
-            )
-        } else {
-            (
+            ),
+            Lx200MountType::TenMicron => (
+                format_dms(site.latitude_deg, 2, false),
+                format_dms(
+                    east_positive_to_lx200_longitude(site.longitude_deg),
+                    3,
+                    false,
+                ),
+            ),
+            Lx200MountType::Meade | Lx200MountType::Losmandy | Lx200MountType::Generic => (
                 format_dms(site.latitude_deg, 2, false),
                 format_meade_longitude(site.longitude_deg),
-            )
+            ),
         };
         tracing::info!(
             "Writing site to mount: lat {} lon {} (east-positive {:.4})",

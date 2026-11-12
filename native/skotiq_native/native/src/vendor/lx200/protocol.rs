@@ -336,6 +336,21 @@ impl Lx200MountType {
     /// OnStep way names the real reason on OnStep-derived mounts that are not
     /// recognized as OnStep.
     pub(crate) fn slew_refusal_reason(&self, code: char) -> String {
+        // Losmandy Gemini Level 4 serial commands, `:MS#`.
+        if matches!(self, Lx200MountType::Losmandy) {
+            let gemini = match code {
+                '1' => Some("target is below the horizon"),
+                '2' => Some("no target is selected"),
+                '3' => Some("the mount is under manual control"),
+                '4' => Some("the target position is unreachable"),
+                '5' => Some("the mount is not aligned"),
+                '6' => Some("target is outside the mount's limits"),
+                _ => None,
+            };
+            if let Some(reason) = gemini {
+                return reason.to_string();
+            }
+        }
         match code {
             '1' => "target is below the horizon",
             '2' if self.is_onstep() => "target is above the overhead limit",
@@ -557,47 +572,24 @@ pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Resul
     Ok(())
 }
 
-/// Parse a Meade `:GW#` response. Returns `Some(true)` if the firmware
-/// reports parked, `Some(false)` if it reports a non-parked alignment mode,
-/// and `None` if the response shape is unrecognised (older LX200 firmware,
-/// echo-only stub, garbage). The caller treats `None` as "no telemetry".
+/// Whether a Meade `:GW#` reply says the mount is tracking, or `None` when
+/// the reply is not in the documented shape.
 ///
-/// Meade Telescope Serial Command Protocol rev L (LX200GPS / LX200ACF /
-/// RCX400) defines position 0 as the alignment mode: `A` Alt-Az,
-/// `P` Polar/Parked, `L` Land, `G` German equatorial. On parked firmware,
-/// `P` in position 0 with `T`/`N` tracking-off in position 1 is the parked
-/// signal. On Polar-aligned-but-tracking firmware, `P` appears with `T`
-/// tracking on; we disambiguate using position 1 `N` (not tracking) plus
-/// position 2 == `0` (no alignment progress, mount idle).
-pub(crate) fn parse_meade_gw_park(response: &str) -> Option<bool> {
-    let s = response.trim().trim_end_matches('#');
-    let bytes = s.as_bytes();
-    if bytes.is_empty() {
+/// Meade Telescope Serial Command Protocol 2010.10: `:GW#` answers
+/// `<mount><tracking><alignment>#`, mount `A` alt-az, `P` equatorially
+/// mounted (a fork on a wedge), `G` German equatorial; tracking `T` or `N`.
+/// `L` (land, after `:AL#`) is read as well. Nothing in it says parked: `P`
+/// is the mount type, so reading `PN` as parked put every wedge-mounted
+/// Meade with tracking off into "parked".
+pub(crate) fn parse_meade_gw_tracking(response: &str) -> Option<bool> {
+    let bytes = response.trim().trim_end_matches('#').as_bytes();
+    if !matches!(bytes.first(), Some(b'A' | b'P' | b'G' | b'L')) {
         return None;
     }
-
-    // Position 0 must be a recognised alignment mode for us to trust the
-    // response at all. If the byte is something else we do not know what
-    // firmware variant this is, so we return None (NotSupported upstream).
-    let mode = bytes[0];
-    if !matches!(mode, b'A' | b'P' | b'L' | b'G') {
-        return None;
-    }
-
-    // If position 1 exists, it should be tracking on/off. Anything else =
-    // unknown firmware shape.
-    let tracking = bytes.get(1).copied();
-    match tracking {
-        Some(b'T') => Some(false), // tracking on → not parked
-        Some(b'N') => {
-            // Tracking off + Polar-mode position 0 == parked on the Meade
-            // firmwares that report park via :GW#. On other firmwares we
-            // see N with non-P mode (e.g., AN0# = Alt-Az, not tracking,
-            // not aligned) — that is "idle but not parked".
-            Some(mode == b'P')
-        }
-        Some(_) => None,
-        None => None,
+    match bytes.get(1) {
+        Some(b'T') => Some(true),
+        Some(b'N') => Some(false),
+        _ => None,
     }
 }
 
@@ -698,6 +690,36 @@ mod slew_ack_tests {
         assert!(slew_refusal_message(&Lx200MountType::OnStep, '2', "").contains("overhead"));
         assert!(slew_refusal_message(&Lx200MountType::Meade, '2', "").contains("below"));
     }
+
+    /// Gemini numbers its refusals its own way: 4 is an unreachable
+    /// position, not a parked mount, and 3 manual control, not standby.
+    #[test]
+    fn gemini_codes_read_as_gemini_documents_them() {
+        let gemini = Lx200MountType::Losmandy;
+        assert!(slew_refusal_message(&gemini, '2', "").contains("no target"));
+        assert!(slew_refusal_message(&gemini, '3', "").contains("manual control"));
+        assert!(slew_refusal_message(&gemini, '4', "").contains("unreachable"));
+        assert!(slew_refusal_message(&gemini, '5', "").contains("not aligned"));
+        assert!(slew_refusal_message(&gemini, '1', "").contains("below the horizon"));
+    }
+}
+
+#[cfg(test)]
+mod meade_gw_tests {
+    use super::*;
+
+    /// `P` is an equatorially mounted scope (Meade protocol 2010.10), so
+    /// `:GW#` tells tracking, never park.
+    #[test]
+    fn gw_reads_tracking_for_every_mount_letter() {
+        assert_eq!(parse_meade_gw_tracking("PN1#"), Some(false));
+        assert_eq!(parse_meade_gw_tracking("PT1#"), Some(true));
+        assert_eq!(parse_meade_gw_tracking("AN0#"), Some(false));
+        assert_eq!(parse_meade_gw_tracking("GT3#"), Some(true));
+        assert_eq!(parse_meade_gw_tracking(""), None);
+        assert_eq!(parse_meade_gw_tracking("1#"), None);
+        assert_eq!(parse_meade_gw_tracking("PX1#"), None);
+    }
 }
 
 /// LX200 reports longitude WEST-positive. Every other part of this app (and
@@ -758,8 +780,8 @@ pub(crate) fn format_dms(value: f64, degree_width: usize, with_seconds: bool) ->
 /// counted 0-360 westward. The Meade command set defines no sign for this
 /// field, and handsets that read it by position refuse `+075*24`.
 pub(crate) fn format_meade_longitude(east_positive: f64) -> String {
-    let west_arcmin = to_units(east_positive_to_lx200_longitude(east_positive), 60)
-        .rem_euclid(360 * 60);
+    let west_arcmin =
+        to_units(east_positive_to_lx200_longitude(east_positive), 60).rem_euclid(360 * 60);
     let (degrees, minutes, _) = split_units(west_arcmin, 60);
     format!("{:03}*{:02}", degrees, minutes)
 }
@@ -1008,7 +1030,10 @@ mod site_tests {
     fn rejects_nonsense_rather_than_guessing_a_site() {
         assert!(parse_sexagesimal("").is_err());
         assert!(parse_sexagesimal("#").is_err());
-        assert!(parse_sexagesimal("+40*99#").is_err(), "99 arcminutes is not a site");
+        assert!(
+            parse_sexagesimal("+40*99#").is_err(),
+            "99 arcminutes is not a site"
+        );
         assert!(parse_sexagesimal("garbage#").is_err());
     }
 
@@ -1099,7 +1124,10 @@ mod site_tests {
     fn coordinates_parse_with_every_separator_firmware_sends() {
         let close = |text: &str, want: f64| {
             let got = parse_sexagesimal(text).unwrap_or_else(|e| panic!("{text:?}: {e}"));
-            assert!((got - want).abs() < 1e-6, "{text:?} read as {got}, want {want}");
+            assert!(
+                (got - want).abs() < 1e-6,
+                "{text:?} read as {got}, want {want}"
+            );
         };
         close("+20*30'36#", 20.51);
         close("-05*30'00#", -5.5);
