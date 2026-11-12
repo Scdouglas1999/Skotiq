@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 504193357;
+  int get rustContentHash => 765458045;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -941,6 +941,13 @@ abstract class RustLibApi extends BaseApi {
 
   Future<FitsLinearReadResult> crateApiImagingApiReadFitsLinearData({
     required String filePath,
+  });
+
+  Future<Float64List> crateApiImagingApiReadFrameCutouts({
+    required String filePath,
+    required List<int> centersX,
+    required List<int> centersY,
+    required int half,
   });
 
   Future<String> crateApiFinishingEnhanceApiReduceStarsPreview({
@@ -7807,6 +7814,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_read_fits_linear_data",
         argNames: ["filePath"],
+      );
+
+  @override
+  Future<Float64List> crateApiImagingApiReadFrameCutouts({
+    required String filePath,
+    required List<int> centersX,
+    required List<int> centersY,
+    required int half,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(filePath);
+          var arg1 = cst_encode_list_prim_i_32_loose(centersX);
+          var arg2 = cst_encode_list_prim_i_32_loose(centersY);
+          var arg3 = cst_encode_u_32(half);
+          return wire.wire__crate__api__imaging__api_read_frame_cutouts(
+            port_,
+            arg0,
+            arg1,
+            arg2,
+            arg3,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_prim_f_64_strict,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiImagingApiReadFrameCutoutsConstMeta,
+        argValues: [filePath, centersX, centersY, half],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiImagingApiReadFrameCutoutsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_read_frame_cutouts",
+        argNames: ["filePath", "centersX", "centersY", "half"],
       );
 
   @override
@@ -14754,6 +14800,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<int> dco_decode_list_prim_i_32_loose(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as List<int>;
+  }
+
+  @protected
   Int32List dco_decode_list_prim_i_32_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as Int32List;
@@ -19259,6 +19311,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getFloat64List(len_);
+  }
+
+  @protected
+  List<int> sse_decode_list_prim_i_32_loose(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var len_ = sse_decode_i_32(deserializer);
+    return deserializer.buffer.getInt32List(len_);
   }
 
   @protected
@@ -24205,6 +24264,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.length, serializer);
     serializer.buffer.putFloat64List(self);
+  }
+
+  @protected
+  void sse_encode_list_prim_i_32_loose(
+    List<int> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    serializer.buffer.putInt32List(
+      self is Int32List ? self : Int32List.fromList(self),
+    );
   }
 
   @protected

@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
-/// Minimal FITS *primary-HDU header* reader used by the Calibration Library
-/// for metadata enrichment (camera / gain / temperature / filter / exposure
-/// of master files whose DB rows lack those columns).
+/// Minimal header reader for FITS (*primary HDU*) and XISF frames, used by the
+/// Calibration Library for metadata enrichment (camera / gain / temperature /
+/// filter / exposure of master files whose DB rows lack those columns). An
+/// XISF frame's FITS keywords carry the same value text as FITS cards, and its
+/// geometry gives NAXIS1/NAXIS2, so callers read both formats alike.
 ///
 /// Deliberately tiny: it reads 2880-byte header blocks until the `END` card,
 /// never touches pixel data (so a multi-hundred-MB master costs a few KB of
@@ -31,6 +35,12 @@ class FitsHeaderReader {
   Future<Map<String, String>> readPrimaryHeader(String path) async {
     final raf = await File(path).open();
     try {
+      final signature = await raf.read(16);
+      if (signature.length == 16 &&
+          String.fromCharCodes(signature, 0, 8) == 'XISF0100') {
+        return await _readXisfKeywords(raf, signature, path);
+      }
+      await raf.setPosition(0);
       final headers = <String, String>{};
       var sawSimple = false;
       for (var block = 0; block < maxBlocks; block++) {
@@ -71,6 +81,68 @@ class FitsHeaderReader {
       await raf.close();
     }
   }
+
+  /// The largest XISF header read here; real headers are kilobytes.
+  static const int maxXisfHeader = 16 << 20;
+
+  /// The FITSKeyword elements of the first image of a monolithic XISF file,
+  /// as name → value text, plus NAXIS1/NAXIS2 from its geometry.
+  static Future<Map<String, String>> _readXisfKeywords(
+    RandomAccessFile raf,
+    Uint8List signature,
+    String path,
+  ) async {
+    final length = ByteData.sublistView(
+      signature,
+      8,
+      12,
+    ).getUint32(0, Endian.little);
+    if (length > maxXisfHeader) {
+      throw FormatException('XISF header of $path is $length bytes long');
+    }
+    final xml = utf8.decode(await raf.read(length), allowMalformed: true);
+    final image = RegExp(r'<Image\b[^>]*>').firstMatch(xml);
+    if (image == null) {
+      throw FormatException('XISF file $path holds no image');
+    }
+    final end = xml.indexOf('</Image>', image.end);
+    final body = xml.substring(image.end, end < 0 ? xml.length : end);
+    final headers = <String, String>{};
+    final geometry = _xmlAttribute(image.group(0)!, 'geometry')?.split(':');
+    if (geometry != null && geometry.length >= 3) {
+      headers['NAXIS1'] = geometry[0].trim();
+      headers['NAXIS2'] = geometry[1].trim();
+    }
+    for (final element in RegExp(r'<FITSKeyword\b[^>]*>').allMatches(body)) {
+      final tag = element.group(0)!;
+      final name = _xmlAttribute(tag, 'name')?.trim().toUpperCase();
+      if (name == null || name.isEmpty) continue;
+      if (name == 'COMMENT' || name == 'HISTORY') continue;
+      headers[name] = (_xmlAttribute(tag, 'value') ?? '').trim();
+    }
+    return headers;
+  }
+
+  static String? _xmlAttribute(String tag, String name) {
+    final match = RegExp(
+      '\\b$name\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')',
+    ).firstMatch(tag);
+    final raw = match?.group(1) ?? match?.group(2);
+    return raw == null ? null : _xmlUnescape(raw);
+  }
+
+  static String _xmlUnescape(String text) => text
+      .replaceAllMapped(
+        RegExp(r'&#(x?)([0-9a-fA-F]+);'),
+        (m) => String.fromCharCode(
+          int.parse(m.group(2)!, radix: m.group(1)!.isEmpty ? 10 : 16),
+        ),
+      )
+      .replaceAll('&quot;', '"')
+      .replaceAll('&apos;', "'")
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&amp;', '&');
 
   /// String value of [key]: strips the FITS single-quote convention
   /// (`'ASI2600MC '` → `ASI2600MC`, with `''` un-escaped to `'`).

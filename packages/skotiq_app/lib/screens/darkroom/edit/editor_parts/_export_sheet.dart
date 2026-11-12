@@ -1028,7 +1028,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       case _DarkroomStageDomain.linear:
         return 'The ${_stageLabel()} is still linear ADU and has no display '
             'mapping, so quantizing it into 8 or 16 bits would show almost '
-            'nothing. Export FITS to keep the linear pixels, or switch on the '
+            'nothing. Export FITS or XISF to keep the linear pixels, or switch on the '
             'auto stretch below to render the 8/16-bit files through the '
             'engine\'s own transfer.';
       case _DarkroomStageDomain.undetermined:

@@ -556,6 +556,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Float64List dco_decode_list_prim_f_64_strict(dynamic raw);
 
   @protected
+  List<int> dco_decode_list_prim_i_32_loose(dynamic raw);
+
+  @protected
   Int32List dco_decode_list_prim_i_32_strict(dynamic raw);
 
   @protected
@@ -1560,6 +1563,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Float64List sse_decode_list_prim_f_64_strict(SseDeserializer deserializer);
+
+  @protected
+  List<int> sse_decode_list_prim_i_32_loose(SseDeserializer deserializer);
 
   @protected
   Int32List sse_decode_list_prim_i_32_strict(SseDeserializer deserializer);
@@ -2786,6 +2792,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ans = wire.cst_new_list_prim_f_64_strict(raw.length);
+    ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_prim_i_32_loose> cst_encode_list_prim_i_32_loose(
+    List<int> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_prim_i_32_loose(raw.length);
     ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
     return ans;
   }
@@ -7966,6 +7982,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_f_64_strict(
     Float64List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_i_32_loose(
+    List<int> self,
     SseSerializer serializer,
   );
 
@@ -13790,6 +13812,48 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__imaging__api_read_frame_cutouts(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
+    ffi.Pointer<wire_cst_list_prim_i_32_loose> centers_x,
+    ffi.Pointer<wire_cst_list_prim_i_32_loose> centers_y,
+    int half,
+  ) {
+    return _wire__crate__api__imaging__api_read_frame_cutouts(
+      port_,
+      file_path,
+      centers_x,
+      centers_y,
+      half,
+    );
+  }
+
+  late final _wire__crate__api__imaging__api_read_frame_cutoutsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_i_32_loose>,
+            ffi.Pointer<wire_cst_list_prim_i_32_loose>,
+            ffi.Uint32,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_frame_cutouts',
+      );
+  late final _wire__crate__api__imaging__api_read_frame_cutouts =
+      _wire__crate__api__imaging__api_read_frame_cutoutsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_i_32_loose>,
+              ffi.Pointer<wire_cst_list_prim_i_32_loose>,
+              int,
+            )
+          >();
+
   void wire__crate__api__finishing_enhance__api_reduce_stars_preview(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
@@ -18830,6 +18894,21 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_prim_f_64_strict = _cst_new_list_prim_f_64_strictPtr
       .asFunction<ffi.Pointer<wire_cst_list_prim_f_64_strict> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_prim_i_32_loose> cst_new_list_prim_i_32_loose(
+    int len,
+  ) {
+    return _cst_new_list_prim_i_32_loose(len);
+  }
+
+  late final _cst_new_list_prim_i_32_loosePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_prim_i_32_loose> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_prim_i_32_loose');
+  late final _cst_new_list_prim_i_32_loose = _cst_new_list_prim_i_32_loosePtr
+      .asFunction<ffi.Pointer<wire_cst_list_prim_i_32_loose> Function(int)>();
+
   ffi.Pointer<wire_cst_list_prim_i_32_strict> cst_new_list_prim_i_32_strict(
     int len,
   ) {
@@ -19332,6 +19411,13 @@ final class wire_cst_plate_solver_config_payload extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> catalog_path;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> solver_choice;
+}
+
+final class wire_cst_list_prim_i_32_loose extends ffi.Struct {
+  external ffi.Pointer<ffi.Int32> ptr;
+
+  @ffi.Int32()
+  external int len;
 }
 
 final class wire_cst_autofocus_config_api extends ffi.Struct {

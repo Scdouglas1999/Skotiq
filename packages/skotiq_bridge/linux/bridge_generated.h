@@ -206,6 +206,11 @@ typedef struct wire_cst_plate_solver_config_payload {
   struct wire_cst_list_prim_u_8_strict *solver_choice;
 } wire_cst_plate_solver_config_payload;
 
+typedef struct wire_cst_list_prim_i_32_loose {
+  int32_t *ptr;
+  int32_t len;
+} wire_cst_list_prim_i_32_loose;
+
 typedef struct wire_cst_autofocus_config_api {
   double exposure_time;
   int32_t step_size;
@@ -3154,6 +3159,12 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_fits_file(int64_t 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_fits_linear_data(int64_t port_,
                                                                                struct wire_cst_list_prim_u_8_strict *file_path);
 
+void frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_frame_cutouts(int64_t port_,
+                                                                            struct wire_cst_list_prim_u_8_strict *file_path,
+                                                                            struct wire_cst_list_prim_i_32_loose *centers_x,
+                                                                            struct wire_cst_list_prim_i_32_loose *centers_y,
+                                                                            uint32_t half);
+
 void frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_reduce_stars_preview(int64_t port_,
                                                                                         struct wire_cst_list_prim_u_8_strict *args_json);
 
@@ -3842,6 +3853,8 @@ struct wire_cst_list_prim_f_64_loose *frbgen_skotiq_bridge_cst_new_list_prim_f_6
 
 struct wire_cst_list_prim_f_64_strict *frbgen_skotiq_bridge_cst_new_list_prim_f_64_strict(int32_t len);
 
+struct wire_cst_list_prim_i_32_loose *frbgen_skotiq_bridge_cst_new_list_prim_i_32_loose(int32_t len);
+
 struct wire_cst_list_prim_i_32_strict *frbgen_skotiq_bridge_cst_new_list_prim_i_32_strict(int32_t len);
 
 struct wire_cst_list_prim_u_16_loose *frbgen_skotiq_bridge_cst_new_list_prim_u_16_loose(int32_t len);
@@ -3948,6 +3961,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_mount_guard_status);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_f_64_loose);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_f_64_strict);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_i_32_loose);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_i_32_strict);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_u_16_loose);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_prim_u_16_strict);
@@ -4141,6 +4155,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_plan_focuser_backlash_calibration);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_fits_file);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_fits_linear_data);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_frame_cutouts);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_autofocus);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_run_focuser_backlash_calibration);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_fits_file);

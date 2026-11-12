@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 504193357;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 765458045;
 
 // Section: executor
 
@@ -4925,6 +4925,42 @@ fn wire__crate__api__imaging__api_read_fits_linear_data_impl(
                     (move || async move {
                         let output_ok =
                             crate::api::imaging::api_read_fits_linear_data(api_file_path).await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__imaging__api_read_frame_cutouts_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    file_path: impl CstDecode<String>,
+    centers_x: impl CstDecode<Vec<i32>>,
+    centers_y: impl CstDecode<Vec<i32>>,
+    half: impl CstDecode<u32>,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_read_frame_cutouts",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let api_file_path = file_path.cst_decode();
+            let api_centers_x = centers_x.cst_decode();
+            let api_centers_y = centers_y.cst_decode();
+            let api_half = half.cst_decode();
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok = crate::api::imaging::api_read_frame_cutouts(
+                            api_file_path,
+                            api_centers_x,
+                            api_centers_y,
+                            api_half,
+                        )
+                        .await?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -24335,6 +24371,15 @@ mod io {
             }
         }
     }
+    impl CstDecode<Vec<i32>> for *mut wire_cst_list_prim_i_32_loose {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<i32> {
+            unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            }
+        }
+    }
     impl CstDecode<Vec<i32>> for *mut wire_cst_list_prim_i_32_strict {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<i32> {
@@ -29975,6 +30020,19 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_frame_cutouts(
+        port_: i64,
+        file_path: *mut wire_cst_list_prim_u_8_strict,
+        centers_x: *mut wire_cst_list_prim_i_32_loose,
+        centers_y: *mut wire_cst_list_prim_i_32_loose,
+        half: u32,
+    ) {
+        wire__crate__api__imaging__api_read_frame_cutouts_impl(
+            port_, file_path, centers_x, centers_y, half,
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_reduce_stars_preview(
         port_: i64,
         args_json: *mut wire_cst_list_prim_u_8_strict,
@@ -32091,6 +32149,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_prim_i_32_loose(
+        len: i32,
+    ) -> *mut wire_cst_list_prim_i_32_loose {
+        let ans = wire_cst_list_prim_i_32_loose {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(Default::default(), len),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(ans)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_prim_i_32_strict(
         len: i32,
     ) -> *mut wire_cst_list_prim_i_32_strict {
@@ -33615,6 +33684,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_prim_f_64_strict {
         ptr: *mut f64,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_prim_i_32_loose {
+        ptr: *mut i32,
         len: i32,
     }
     #[repr(C)]

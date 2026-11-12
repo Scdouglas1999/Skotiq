@@ -31,7 +31,8 @@ Future<_StubAppSettingsNotifier> _pump(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('FITS is the archive format a fresh install shows, with no XISF '
+  testWidgets(
+      'FITS is the archive format a fresh install shows, with no XISF '
       'options', (tester) async {
     await _pump(tester, const AppSettingsState());
 

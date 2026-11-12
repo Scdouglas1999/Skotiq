@@ -44,9 +44,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
   /// A pattern persisted before this validation existed (or written by a
   /// remote host) is reported the same way, rather than sitting silently in
   /// the field until the first exposure of the night fails.
-  Widget _patternFeedback(String savedPattern) {
+  Widget _patternFeedback(String savedPattern, String extension) {
     final colors = SkotiqColors.of(context);
-    final saved = checkNamingPattern(savedPattern);
+    final saved = checkNamingPattern(savedPattern, extension: extension);
     final error = _patternError ?? saved.error;
     if (error != null) {
       return Padding(
@@ -94,9 +94,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
         title: 'Archive format',
         subtitle: isXisf
             ? 'Lossless $kCaptureBitDepth XISF, the format PixInsight works in; '
-                  'keywords and sky position land where PixInsight reads them'
+                'keywords and sky position land where PixInsight reads them'
             : 'Lossless $kCaptureBitDepth FITS, which every astronomy program '
-                  'opens',
+                'opens',
         trailing: SettingsDropdown(
           key: const Key('imaging.archiveFormat'),
           value: format,
@@ -184,7 +184,12 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                   isMobile: widget.isMobile,
                   stackOnMobile: widget.isMobile,
                 ),
-                _patternFeedback(settings.fileNamingPattern),
+                _patternFeedback(
+                  settings.fileNamingPattern,
+                  ImageFileFormatSettingsX.fromSettings(
+                    normalizeCaptureImageFormat(settings.imageFormat),
+                  ).extension,
+                ),
               ],
             ),
           ],

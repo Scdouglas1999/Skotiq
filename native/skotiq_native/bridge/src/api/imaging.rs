@@ -1641,6 +1641,50 @@ pub async fn api_update_frame_cards(
     .map_err(|e| SkotiqError::ImageError(format!("Could not update the frame's metadata: {e}")))
 }
 
+/// Square cutouts of a mono frame file, `2 * half + 1` pixels on a side,
+/// centered on each (`centers_x[i]`, `centers_y[i]`) (0-based, row 0 = first
+/// stored row), concatenated in that order. A center whose cutout leaves the
+/// image is refused.
+pub async fn api_read_frame_cutouts(
+    file_path: String,
+    centers_x: Vec<i32>,
+    centers_y: Vec<i32>,
+    half: u32,
+) -> Result<Vec<f64>, SkotiqError> {
+    tokio::task::spawn_blocking(move || {
+        let (image, _) = skotiq_imaging::read_frame(std::path::Path::new(&file_path))
+            .map_err(|e| SkotiqError::ImageError(format!("Failed to read the image: {e}")))?;
+        if image.channels != 1 {
+            return Err(SkotiqError::InvalidParameter(
+                "cutouts are taken from single-channel frames".to_string(),
+            ));
+        }
+        let (w, h, half) = (image.width as i64, image.height as i64, i64::from(half));
+        let size = image.pixel_type.byte_size();
+        let mut out = Vec::with_capacity(centers_x.len() * ((2 * half + 1) * (2 * half + 1)) as usize);
+        for (&cx, &cy) in centers_x.iter().zip(&centers_y) {
+            let (cx, cy) = (i64::from(cx), i64::from(cy));
+            if cx - half < 0 || cy - half < 0 || cx + half >= w || cy + half >= h {
+                return Err(SkotiqError::InvalidParameter(format!(
+                    "a cutout at ({cx}, {cy}) leaves the {w}x{h} image"
+                )));
+            }
+            for y in cy - half..=cy + half {
+                for x in cx - half..=cx + half {
+                    let at = ((y * w + x) as usize) * size;
+                    out.push(skotiq_imaging::samples::sample_from_le(
+                        &image.data[at..at + size],
+                        image.pixel_type,
+                    ));
+                }
+            }
+        }
+        Ok(out)
+    })
+    .await
+    .map_err(|e| SkotiqError::OperationFailed(format!("Task join error: {e}")))?
+}
+
 /// Set the file format captured frames are saved in: `format` is `FITS` or
 /// `XISF`; `xisf_compression` names an XISF codec as its `compression`
 /// attribute does (`zstd+sh`, `lz4`, ...) or `none`.

@@ -316,6 +316,22 @@ Future<void> apiUpdateFrameCards({
   cards: cards,
 );
 
+/// Square cutouts of a mono frame file, `2 * half + 1` pixels on a side,
+/// centered on each (`centers_x[i]`, `centers_y[i]`) (0-based, row 0 = first
+/// stored row), concatenated in that order. A center whose cutout leaves the
+/// image is refused.
+Future<Float64List> apiReadFrameCutouts({
+  required String filePath,
+  required List<int> centersX,
+  required List<int> centersY,
+  required int half,
+}) => RustLib.instance.api.crateApiImagingApiReadFrameCutouts(
+  filePath: filePath,
+  centersX: centersX,
+  centersY: centersY,
+  half: half,
+);
+
 /// Set the file format captured frames are saved in: `format` is `FITS` or
 /// `XISF`; `xisf_compression` names an XISF codec as its `compression`
 /// attribute does (`zstd+sh`, `lz4`, ...) or `none`.
