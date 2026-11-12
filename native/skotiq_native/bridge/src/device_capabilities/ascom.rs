@@ -274,16 +274,14 @@ pub(crate) async fn get_ascom_capabilities(
         // wrapper. A throwaway COM object for the same ProgID is not an
         // independent client: ASCOM local servers commonly share `Connected`
         // state, so a probe that connects or disconnects its own object mutates
-        // the live session. The "we don't have a wrapper yet" comment that used
-        // to justify the throwaway here was stale — `DeviceManager` has held
-        // `ascom_focusers` (populated on connect, see
-        // `device_manager::connection`) for as long as the other typed maps.
-        let live_wrapper = {
-            let manager = crate::api::get_device_manager();
-            manager.ascom_focusers.read().await.get(device_id).cloned()
-        };
-        let readings = if let Some(wrapper) = live_wrapper {
-            wrapper
+        // the live session.
+        let live_wrapper =
+            crate::api::get_device_manager()
+                .handles
+                .concrete::<crate::device_manager::rig::focuser::AscomFocuser>(device_id);
+        let readings = if let Some(focuser) = live_wrapper {
+            focuser
+                .driver
                 .read()
                 .await
                 .capability_readings()

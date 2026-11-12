@@ -174,8 +174,14 @@ fn handle(
     device_name: &str,
 ) -> Option<DeviceHandle> {
     use crate::device_manager::rig::filter_wheel::IndiWheel;
+    use crate::device_manager::rig::focuser::IndiFocuserHandle;
     use skotiq_indi::*;
     Some(match info.device_type {
+        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(IndiFocuserHandle::new(
+            &info.id,
+            client,
+            device_name,
+        ))),
         DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(IndiWheel::new(
             &info.id,
             IndiFilterWheel::new(client, device_name),

@@ -84,14 +84,10 @@ fn build_device_manager() -> DeviceManager {
         ascom_cameras: RwLock::new(HashMap::new()),
         #[cfg(windows)]
         ascom_mounts: RwLock::new(HashMap::new()),
-        #[cfg(windows)]
-        ascom_focusers: RwLock::new(HashMap::new()),
         indi_clients: RwLock::new(HashMap::new()),
         alpaca_cameras: RwLock::new(HashMap::new()),
         alpaca_mounts: RwLock::new(HashMap::new()),
-        alpaca_focusers: RwLock::new(HashMap::new()),
         native_cameras: RwLock::new(HashMap::new()),
-        native_focusers: RwLock::new(HashMap::new()),
         native_mounts: RwLock::new(HashMap::new()),
         heartbeat_tasks: RwLock::new(HashMap::new()),
         reconnect_cancel_tokens: RwLock::new(HashMap::new()),

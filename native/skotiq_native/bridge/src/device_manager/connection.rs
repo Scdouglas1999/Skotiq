@@ -946,8 +946,7 @@ impl DeviceManager {
                 mount.status.connected = true;
             }
             DeviceType::Focuser => {
-                let mut focuser = get_sim_focuser().write().await;
-                focuser.status.connected = true;
+                get_sim_focuser().write().await.status.connected = true;
             }
             DeviceType::FilterWheel => {
                 get_sim_filterwheel().write().await.status.connected = true;
@@ -1002,7 +1001,7 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_focuser, get_sim_mount};
+        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_mount};
 
         match info.device_type {
             DeviceType::Camera => {
@@ -1013,13 +1012,10 @@ impl DeviceManager {
                 let mut mount = get_sim_mount().write().await;
                 mount.status.connected = false;
             }
-            DeviceType::Focuser => {
-                let mut focuser = get_sim_focuser().write().await;
-                focuser.status.connected = false;
-            }
             // Connected through a handle and closed through it; without
             // one there is nothing to release.
-            DeviceType::FilterWheel
+            DeviceType::Focuser
+            | DeviceType::FilterWheel
             | DeviceType::Rotator
             | DeviceType::Dome
             | DeviceType::Weather
@@ -1150,15 +1146,10 @@ impl DeviceManager {
                                 record_disconnect!("Native mount", mount.disconnect().await);
                             }
                         }
-                        DeviceType::Focuser => {
-                            let mut focusers = self.native_focusers.write().await;
-                            if let Some(mut focuser) = focusers.remove(device_id) {
-                                record_disconnect!("Native focuser", focuser.disconnect().await);
-                            }
-                        }
                         // These have a handle when a native driver connected
                         // them, or no native driver at all.
-                        DeviceType::FilterWheel
+                        DeviceType::Focuser
+                        | DeviceType::FilterWheel
                         | DeviceType::Rotator
                         | DeviceType::Dome
                         | DeviceType::Weather
@@ -1183,12 +1174,6 @@ impl DeviceManager {
                                 record_disconnect!("Alpaca mount", mount.disconnect().await);
                             }
                         }
-                        DeviceType::Focuser => {
-                            let mut focusers = self.alpaca_focusers.write().await;
-                            if let Some(focuser) = focusers.remove(device_id) {
-                                record_disconnect!("Alpaca focuser", focuser.disconnect().await);
-                            }
-                        }
                         // The other types are released through their handle above;
                         // Alpaca guiders are not managed here.
                         _ => {}
@@ -1210,13 +1195,6 @@ impl DeviceManager {
                             if let Some(mount) = mounts.remove(device_id) {
                                 let mut m = mount.write().await;
                                 record_disconnect!("ASCOM mount", m.disconnect().await);
-                            }
-                        }
-                        DeviceType::Focuser => {
-                            let mut focusers = self.ascom_focusers.write().await;
-                            if let Some(focuser) = focusers.remove(device_id) {
-                                let mut f = focuser.write().await;
-                                record_disconnect!("ASCOM focuser", f.disconnect().await);
                             }
                         }
                         _ => {}

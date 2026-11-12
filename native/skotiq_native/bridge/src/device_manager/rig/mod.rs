@@ -29,6 +29,7 @@
 //! driver answers that it is not connected (see [`closed`]).
 
 pub(crate) mod filter_wheel;
+pub(crate) mod focuser;
 
 use async_trait::async_trait;
 use skotiq_device::DriverError;

@@ -234,12 +234,11 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_focuser, get_sim_mount};
+        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_mount};
 
         let connected = match device_type {
             DeviceType::Camera => get_sim_camera_for(device_id).read().await.status.connected,
             DeviceType::Mount => get_sim_mount().read().await.status.connected,
-            DeviceType::Focuser => get_sim_focuser().read().await.status.connected,
             other => {
                 return Err(format!(
                     "simulator health check: no simulator implementation for device type {:?} (id '{}')",

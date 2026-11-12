@@ -7,6 +7,7 @@
 use crate::device::{DeviceType, DriverType};
 use crate::device_manager::ops::sim_gate;
 use crate::device_manager::rig::filter_wheel::FilterWheel;
+use crate::device_manager::rig::focuser::Focuser;
 use crate::device_manager::rig::RigDriver;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
@@ -27,6 +28,7 @@ pub(crate) enum DeviceHandle {
     SafetyMonitor(Arc<dyn SafetyMonitorDriver>),
     CoverCalibrator(Arc<dyn CoverCalibratorDriver>),
     FilterWheel(Arc<dyn FilterWheel>),
+    Focuser(Arc<dyn Focuser>),
 }
 
 /// What a handle is closed and probed through.
@@ -45,6 +47,7 @@ impl DeviceHandle {
             DeviceHandle::SafetyMonitor(d) => Link::Accessory(d.clone()),
             DeviceHandle::CoverCalibrator(d) => Link::Accessory(d.clone()),
             DeviceHandle::FilterWheel(d) => Link::Rig(d.clone()),
+            DeviceHandle::Focuser(d) => Link::Rig(d.clone()),
         }
     }
 
@@ -77,6 +80,7 @@ impl DeviceHandle {
     fn concrete<T: Any + Send + Sync>(self) -> Option<Arc<T>> {
         let any: Arc<dyn Any + Send + Sync> = match self {
             DeviceHandle::FilterWheel(d) => d,
+            DeviceHandle::Focuser(d) => d,
             _ => return None,
         };
         any.downcast().ok()
@@ -162,7 +166,9 @@ impl DeviceManager {
         self.handles.get(device_id).and_then(pick).ok_or_else(|| {
             let noun = device_noun(info.device_type);
             let detail = match (info.driver_type, info.device_type) {
-                (DriverType::Simulator, DeviceType::FilterWheel) => sim_gate::not_connected(&noun),
+                (DriverType::Simulator, DeviceType::FilterWheel | DeviceType::Focuser) => {
+                    sim_gate::not_connected(&noun)
+                }
                 _ => format!(
                     "{} {} not connected",
                     protocol_label(info.driver_type),
@@ -171,6 +177,14 @@ impl DeviceManager {
             };
             DeviceOpError::not_connected(Some(device_id.to_string()), detail)
         })
+    }
+
+    pub(crate) async fn focuser(&self, device_id: &str) -> Result<Arc<dyn Focuser>, DeviceOpError> {
+        self.connected(device_id, |h| match h {
+            DeviceHandle::Focuser(d) => Some(d),
+            _ => None,
+        })
+        .await
     }
 
     pub(crate) async fn filter_wheel(

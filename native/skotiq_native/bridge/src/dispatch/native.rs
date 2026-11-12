@@ -8,9 +8,10 @@
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::filter_wheel::VendorFilterWheel;
+use crate::device_manager::rig::focuser::VendorFocuser;
 use crate::device_manager::DeviceManager;
 #[allow(unused_imports)] // Trait methods on `dyn Native*` handles require these in scope.
-use skotiq_device::{CameraDriver, DeviceDriver, FocuserDriver, MountDriver};
+use skotiq_device::{CameraDriver, DeviceDriver, MountDriver};
 use skotiq_native::catalog::{self, NativeHandle, OpenRequest};
 use std::sync::Arc;
 
@@ -68,10 +69,10 @@ impl DeviceManager {
             }
             (NativeHandle::Focuser(mut focuser), _) => {
                 focuser.connect().await.map_err(|e| e.to_string())?;
-                self.native_focusers
-                    .write()
-                    .await
-                    .insert(info.id.clone(), focuser);
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Focuser(Arc::new(VendorFocuser::new(&info.id, focuser))),
+                );
                 tracing::info!("Connected to native focuser: {}", info.name);
             }
             (NativeHandle::FilterWheel(mut filterwheel), _) => {
@@ -174,25 +175,6 @@ impl DeviceManager {
                     .await
                     .map(|_| true)
                     .map_err(|e| format!("Native mount liveness probe failed: {}", e))
-            }
-            DeviceType::Focuser => {
-                // Single probe; the retry for transient focuser/wheel failures
-                // lives in the perform_health_check wrapper (driver parity).
-                let focusers = self.native_focusers.read().await;
-                let focuser = focusers.get(device_id).ok_or_else(|| {
-                    format!(
-                        "Native focuser {} not registered in device manager",
-                        device_id
-                    )
-                })?;
-                if !focuser.is_connected() {
-                    return Ok(false);
-                }
-                focuser
-                    .get_position()
-                    .await
-                    .map(|_| true)
-                    .map_err(|e| format!("Native focuser liveness probe failed: {}", e))
             }
             other => {
                 let devices = self.native_devices.read().await;

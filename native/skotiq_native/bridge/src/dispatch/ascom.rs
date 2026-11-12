@@ -92,12 +92,16 @@ impl DeviceManager {
             }
             DeviceType::Focuser => {
                 use crate::ascom_wrapper::focuser::AscomFocuserWrapper;
-                disconnect_existing_ascom!(self.ascom_focusers, "focuser");
+                use crate::device_manager::rig::focuser::AscomFocuser;
+                self.disconnect_previous_ascom_handle(&info.id, "focuser ")
+                    .await;
                 let mut focuser = AscomFocuserWrapper::new(prog_id.to_string())?;
                 focuser.connect().await.map_err(|e| e.to_string())?;
 
-                let mut ascom_focusers = self.ascom_focusers.write().await;
-                ascom_focusers.insert(info.id.clone(), Arc::new(RwLock::new(focuser)));
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Focuser(Arc::new(AscomFocuser::new(&info.id, focuser))),
+                );
             }
             DeviceType::FilterWheel => {
                 use crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper;
@@ -251,29 +255,6 @@ impl DeviceManager {
                     }
                 } else {
                     Err(format!("ASCOM mount {} not found", device_id))
-                }
-            }
-            DeviceType::Focuser => {
-                // Single probe; the retry for transient focuser/wheel failures
-                // lives in the perform_health_check wrapper (driver parity).
-                let focusers = self.ascom_focusers.read().await;
-                if let Some(focuser) = focusers.get(device_id) {
-                    match focuser.read().await.heartbeat().await {
-                        Ok(()) => {
-                            tracing::trace!("ASCOM focuser {} heartbeat: healthy", device_id);
-                            Ok(true)
-                        }
-                        Err(e) => {
-                            tracing::debug!(
-                                "ASCOM focuser {} heartbeat failed: {:?}",
-                                device_id,
-                                e
-                            );
-                            Ok(false)
-                        }
-                    }
-                } else {
-                    Err(format!("ASCOM focuser {} not found", device_id))
                 }
             }
             _ => Err(format!(
