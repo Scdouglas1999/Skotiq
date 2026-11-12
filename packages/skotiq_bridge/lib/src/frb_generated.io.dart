@@ -9411,33 +9411,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__finishing_combine__api_combine_channels(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
-  ) {
-    return _wire__crate__api__finishing_combine__api_combine_channels(
-      port_,
-      args_json,
-    );
-  }
-
-  late final _wire__crate__api__finishing_combine__api_combine_channelsPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__finishing_combine__api_combine_channels',
-      );
-  late final _wire__crate__api__finishing_combine__api_combine_channels =
-      _wire__crate__api__finishing_combine__api_combine_channelsPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
   void wire__crate__api__imaging__api_compute_fits_quality_maps(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,

@@ -30,8 +30,7 @@ import '../route_table.dart';
 ///
 /// The handlers forward to the same native bridge free functions
 /// (`apiIntegrateSession`, `apiAnalyzeNight`, `apiBuildMasterFlat`,
-/// `apiColorCalibrate`, `apiExtractBackground`, `apiCombineChannels`,
-/// `apiDrizzleIntegrate`) that [BridgePostSessionSeam] wraps, so the host result
+/// `apiColorCalibrate`, `apiExtractBackground`, `apiDrizzleIntegrate`) that [BridgePostSessionSeam] wraps, so the host result
 /// is byte-for-byte identical whether the op was driven locally or remotely.
 ///
 /// Mosaic stitching (`api_stitch_mosaic`) is intentionally NOT exposed here; it
@@ -48,7 +47,6 @@ class PostSessionHandlers implements RouteSource {
     PostSessionApi.colorCalibrate: handleColorCalibrate,
     PostSessionApi.detectStars: handleDetectStars,
     PostSessionApi.extractBackground: handleExtractBackground,
-    PostSessionApi.combineChannels: handleCombineChannels,
     PostSessionApi.masterAccumulate: handleMasterAccumulate,
   };
 
@@ -441,22 +439,6 @@ class PostSessionHandlers implements RouteSource {
     final argsJson = _encodeArgs(args);
     return _startJob('post-session.extract-background', () async {
       final out = await bridge.apiExtractBackground(argsJson: argsJson);
-      return _decodeObject(out);
-    });
-  }
-
-  // Combine channels — linearly combine single-channel narrowband masters into
-  // an RGB composite. Wraps `api_combine_channels`.
-
-  /// POST /api/post-session/combine-channels
-  /// Body: the `CombineChannelsArgs` JSON shape (host paths). Returns `{jobId}`;
-  /// the job result is the `{outputPath}` envelope.
-  Future<Response> handleCombineChannels(Request request) async {
-    _logInfo('[API] POST /api/post-session/combine-channels');
-    final args = await readJsonObject(request);
-    final argsJson = _encodeArgs(args);
-    return _startJob('post-session.combine-channels', () async {
-      final out = await bridge.apiCombineChannels(argsJson: argsJson);
       return _decodeObject(out);
     });
   }

@@ -1,5 +1,3 @@
-
-
 /// Post-session processing passes run by a linked imaging host on its own
 /// files.
 ///
@@ -15,10 +13,6 @@ abstract interface class HostPostSession {
   );
 
   Future<Map<String, dynamic>> postSessionColorCalibrate(
-    Map<String, dynamic> args,
-  );
-
-  Future<Map<String, dynamic>> postSessionCombineChannels(
     Map<String, dynamic> args,
   );
 

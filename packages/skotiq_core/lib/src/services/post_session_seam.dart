@@ -109,10 +109,6 @@ abstract class PostSessionSeam {
   /// channels}`).
   Future<Map<String, dynamic>> drizzleIntegrate(Map<String, dynamic> args);
 
-  /// Linearly combine single-channel narrowband masters into an RGB composite.
-  /// Wraps `apiCombineChannels`; returns the written composite's `outputPath`.
-  Future<String> combineChannels(Map<String, dynamic> args);
-
   // Mosaic M2 — panel-mosaic stitching.
   //
   // Wraps the `api_stitch_mosaic` FFI. JSON-in / typed-out, the same thin
@@ -315,16 +311,6 @@ class BridgePostSessionSeam implements PostSessionSeam {
     }
     final out = await bridge.apiDrizzleIntegrate(argsJson: jsonEncode(args));
     return _decodeObject(out);
-  }
-
-  @override
-  Future<String> combineChannels(Map<String, dynamic> args) async {
-    final remote = _remote;
-    if (remote != null) {
-      return _outputPathFromMap(await remote.postSessionCombineChannels(args));
-    }
-    final out = await bridge.apiCombineChannels(argsJson: jsonEncode(args));
-    return _decodeOutputPath(out);
   }
 
   @override

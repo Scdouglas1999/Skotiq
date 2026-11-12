@@ -2593,9 +2593,6 @@ void frbgen_skotiq_bridge_wire__crate__api__imaging__api_clear_device_image(int6
 void frbgen_skotiq_bridge_wire__crate__api__finishing_analyze__api_color_calibrate(int64_t port_,
                                                                                    struct wire_cst_list_prim_u_8_strict *args_json);
 
-void frbgen_skotiq_bridge_wire__crate__api__finishing_combine__api_combine_channels(int64_t port_,
-                                                                                    struct wire_cst_list_prim_u_8_strict *args_json);
-
 void frbgen_skotiq_bridge_wire__crate__api__imaging__api_compute_fits_quality_maps(int64_t port_,
                                                                                    struct wire_cst_list_prim_u_8_strict *file_path,
                                                                                    uint32_t grid_rows,
@@ -4112,7 +4109,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_analyze__api_analyze_night);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_analyze__api_color_calibrate);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_analyze__api_detect_stars_photometry);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_combine__api_combine_channels);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_combine__api_drizzle_integrate);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_deconvolve_preview);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_extract_background);
