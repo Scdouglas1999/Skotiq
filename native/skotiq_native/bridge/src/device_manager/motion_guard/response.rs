@@ -732,7 +732,12 @@ mod hold_tests {
                 paused += 1;
             }
         }
-        get_sequence_executor().write().await.stop().await.ok();
+        get_sequence_executor()
+            .write()
+            .await
+            .stop()
+            .await
+            .expect("the held run stops");
         bridge.abort();
 
         assert!(first && second, "the run was held both times");

@@ -114,7 +114,8 @@ mod tests {
             .expect("sequence loads");
         let mut events = executor.subscribe();
         executor.start().await.expect("run starts");
-        let _ = announced(&mut events, std::time::Duration::from_millis(300)).await;
+        // What the start announced is not under test.
+        announced(&mut events, std::time::Duration::from_millis(300)).await;
 
         let held = executor
             .hold_for_mount_fault("the mount moved on its own")
