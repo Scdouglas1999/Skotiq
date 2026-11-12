@@ -40,7 +40,7 @@ ProjectProgress _project(int id, String name, DateTime lastImagedAt) {
       totalPlannedSubs: 0,
       capturedSubs: 0,
       totalIntegrationSecs: 0,
-      goalIntegrationSecs: 3600,
+      goalIntegrationSecs: 0,
       createdAt: created,
       updatedAt: created,
       isFavorite: false,
@@ -49,7 +49,7 @@ ProjectProgress _project(int id, String name, DateTime lastImagedAt) {
     acceptedFrames: 0,
     integratedSecs: 0,
     filters: const [],
-    goalIntegrationSecs: 3600,
+    goal: const TargetGoal(goalSecs: 3600, doneSecs: 0, allFilters: false),
     lastImagedAt: lastImagedAt,
   );
 }

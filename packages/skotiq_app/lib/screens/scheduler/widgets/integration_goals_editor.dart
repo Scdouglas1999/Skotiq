@@ -264,6 +264,13 @@ class _IntegrationGoalsEditorState
     // Watched only in that branch: the wheel provider drags the live device /
     // profile graph in behind it, and a profile that already names filters has
     // no question to answer.
+    final oldTotalGoalSecs = ref
+            .watch(allDbTargetsProvider)
+            .valueOrNull
+            ?.where((t) => t.id == widget.targetId)
+            .firstOrNull
+            ?.goalIntegrationSecs ??
+        0.0;
     final wheelOnlineWithNoSlots = widget.availableFilters.isEmpty &&
         ref.watch(filterWheelStateProvider).connectionState ==
             DeviceConnectionState.connected;
@@ -315,7 +322,17 @@ class _IntegrationGoalsEditorState
           data: (progress) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (progress.isEmpty)
+              if (progress.isEmpty && oldTotalGoalSecs > 0)
+                SkotiqPanel(
+                    padding: SkotiqTokens.paddingMd,
+                    child: Text(
+                      'Current goal: ${DurationFormat.decimalHours(oldTotalGoalSecs)} '
+                      'over all filters, set before per-filter goals. Adding a '
+                      'filter goal below replaces it.',
+                      style: SkotiqTypography.caption
+                          .copyWith(color: colors.textSecondary),
+                    ))
+              else if (progress.isEmpty)
                 SkotiqPanel(
                     padding: SkotiqTokens.paddingMd,
                     child: Text(

@@ -350,5 +350,23 @@ void main() {
       expect(rollup.totalCapturedIntegrationSecs, 12);
       expect(rollup.filters.single.capturedFrames, 3);
     });
+
+    test('a target with only the old hours goal shows it over all filters',
+        () async {
+      final t = await createTarget('M101');
+      await targetsDao.updateProgress(t, goalIntegrationSecs: 36000);
+      final sId = await insertSession(
+        targetId: t,
+        name: 'M101 night',
+        startTime: DateTime.utc(2026, 4, 1, 22),
+      );
+      await insertLight(sessionId: sId, targetId: t, filter: 'L');
+
+      final rollup = await service.buildForTarget(t);
+      expect(rollup.allFiltersGoalSecs, 36000);
+      expect(rollup.totalGoalIntegrationSecs, 36000);
+      expect(rollup.totalPercentComplete, closeTo(60 / 36000, 1e-9));
+      expect(rollup.isComplete, isFalse);
+    });
   });
 }

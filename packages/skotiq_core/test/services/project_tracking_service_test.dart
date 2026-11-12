@@ -140,4 +140,37 @@ void main() {
     expect(progress.filters, isEmpty);
     expect(progress.lastImagedAt, isNull);
   });
+
+  // Owner rule: a goal set in the old Analytics hours dialog must not start
+  // reading "Not set" once goals moved to per-filter integration goals.
+  test('a target with only the old hours goal keeps it as a goal over all '
+      'filters', () {
+    final legacy = _target(1, 'M101').copyWith(goalIntegrationSecs: 36000);
+    final progress = service
+        .summarize(
+          targets: [legacy],
+          sessions: const [],
+          frames: [
+            _frame(1, sessionId: 11, filter: 'L'),
+            _frame(2, sessionId: 11, filter: 'R'),
+          ],
+          goals: const [],
+        )
+        .single;
+    expect(progress.isTracked, isTrue);
+    expect(progress.goal.allFilters, isTrue);
+    expect(progress.goalIntegrationSecs, 36000);
+    expect(progress.remainingSecs, 36000 - 600);
+
+    final withFilterGoal = service
+        .summarize(
+          targets: [legacy],
+          sessions: const [],
+          frames: const [],
+          goals: [_goal('L', 300, 10)],
+        )
+        .single;
+    expect(withFilterGoal.goal.allFilters, isFalse);
+    expect(withFilterGoal.goalIntegrationSecs, 3000);
+  });
 }

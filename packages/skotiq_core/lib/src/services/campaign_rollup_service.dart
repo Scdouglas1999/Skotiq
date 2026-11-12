@@ -4,6 +4,7 @@ import '../database/database.dart';
 import '../models/campaign_rollup.dart';
 import 'project_tracking_service.dart';
 import 'scheduler/integration_goal_service.dart';
+import '../models/scheduler/integration_goal.dart';
 
 /// Builds a multi-night [CampaignRollup] for one target (Feature B).
 ///
@@ -91,8 +92,15 @@ class CampaignRollupService {
         .where((i) => i.frameType.toLowerCase() == 'light')
         .toList(growable: false);
 
+    final accepted = acceptedLightsByFilter(lightFrames);
+    final goals = await _goalService.listForTarget(target.id);
+    final goal = TargetGoal.of(
+      accepted: accepted,
+      goals: goals,
+      oldTotalGoalSecs: target.goalIntegrationSecs,
+    );
     final filters = [
-      for (final f in acceptedLightsByFilter(lightFrames))
+      for (final f in accepted)
         CampaignFilterRollup(
           filter: f.filter,
           capturedFrames: f.frames,
@@ -104,7 +112,7 @@ class CampaignRollupService {
     ];
     // Honor goals even when no light frames have been captured yet so the
     // UI can show a 0% progress bar for the new campaign.
-    await _attachGoalsToFilters(filters, target.id);
+    _attachGoalsToFilters(filters, goals);
 
     final targetSecsBySession = <int, double>{};
     for (final frame in lightFrames) {
@@ -192,6 +200,7 @@ class CampaignRollupService {
       firstSessionAt: firstAt,
       lastSessionAt: lastAt,
       totalCapturedIntegrationSecs: totalCapturedSecs,
+      allFiltersGoalSecs: goal.allFilters ? goal.goalSecs : null,
       meanSessionHfr: weightedMean(hfrInputs),
       meanSessionSeeing: simpleMean(seeingInputs),
       meanEffectiveImagingFraction: simpleMean(efficiencyInputs) ?? 0.0,
@@ -202,11 +211,10 @@ class CampaignRollupService {
   /// Merge integration-goal rows into the per-filter list. Goals that have
   /// no captured frames yet are appended as zero-frame rows so the panel
   /// can show the goal even before the first night.
-  Future<void> _attachGoalsToFilters(
+  void _attachGoalsToFilters(
     List<CampaignFilterRollup> filters,
-    int targetId,
-  ) async {
-    final goals = await _goalService.listForTarget(targetId);
+    List<IntegrationGoal> goals,
+  ) {
     if (goals.isEmpty) return;
     final byKey = <String, CampaignFilterRollup>{
       for (final f in filters) f.filter.toLowerCase(): f,

@@ -160,6 +160,10 @@ class CampaignRollup {
   /// includes rejected frames in some older code paths).
   final double totalCapturedIntegrationSecs;
 
+  /// The target's old single goal over every filter, seconds, when it has no
+  /// per-filter goals; null otherwise (see `TargetGoal`).
+  final double? allFiltersGoalSecs;
+
   /// Mean HFR across the target's sessions, weighted by frame count. Null
   /// when no session recorded an HFR for this target.
   final double? meanSessionHfr;
@@ -183,6 +187,7 @@ class CampaignRollup {
     required this.firstSessionAt,
     required this.lastSessionAt,
     required this.totalCapturedIntegrationSecs,
+    this.allFiltersGoalSecs,
     required this.meanSessionHfr,
     required this.meanSessionSeeing,
     required this.meanEffectiveImagingFraction,
@@ -196,6 +201,10 @@ class CampaignRollup {
 
   /// True when every filter goal is met (and at least one goal exists).
   bool get isComplete {
+    final allFiltersGoal = allFiltersGoalSecs;
+    if (!hasGoals && allFiltersGoal != null) {
+      return totalCapturedIntegrationSecs >= allFiltersGoal;
+    }
     if (!hasGoals) return false;
     return filters
         .where((f) => f.hasGoal)
@@ -206,7 +215,7 @@ class CampaignRollup {
   /// or none of the goals have an exposure (no captured frames either).
   double? get totalGoalIntegrationSecs {
     final goaled = filters.where((f) => f.hasGoal);
-    if (goaled.isEmpty) return null;
+    if (goaled.isEmpty) return allFiltersGoalSecs;
     var sum = 0.0;
     var any = false;
     for (final f in goaled) {
@@ -239,6 +248,7 @@ class CampaignRollup {
     'firstSessionAt': firstSessionAt?.toIso8601String(),
     'lastSessionAt': lastSessionAt?.toIso8601String(),
     'totalCapturedIntegrationSecs': totalCapturedIntegrationSecs,
+    'allFiltersGoalSecs': allFiltersGoalSecs,
     'totalGoalIntegrationSecs': totalGoalIntegrationSecs,
     'totalPercentComplete': totalPercentComplete,
     'meanSessionHfr': meanSessionHfr,

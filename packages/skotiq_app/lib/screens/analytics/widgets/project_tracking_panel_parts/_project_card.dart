@@ -128,7 +128,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
               ),
               _MetricChip(
                 icon: LucideIcons.target,
-                label: 'Goal',
+                label: progress.goal.allFilters ? 'Goal (all filters)' : 'Goal',
                 value: progress.isTracked
                     ? DurationFormat.decimalHours(progress.goalIntegrationSecs)
                     : 'Not set',

@@ -31,7 +31,7 @@ ProjectProgress _project() {
       totalPlannedSubs: 0,
       capturedSubs: 0,
       totalIntegrationSecs: 0,
-      goalIntegrationSecs: 3600,
+      goalIntegrationSecs: 0,
       createdAt: now,
       updatedAt: now,
       isFavorite: false,
@@ -40,7 +40,7 @@ ProjectProgress _project() {
     acceptedFrames: 0,
     integratedSecs: 0,
     filters: const [],
-    goalIntegrationSecs: 3600,
+    goal: const TargetGoal(goalSecs: 3600, doneSecs: 0, allFilters: false),
     lastImagedAt: null,
   );
 }

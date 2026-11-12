@@ -98,20 +98,33 @@ class ProjectTargetProgress extends Equatable {
   /// Per-filter progress lines, in scheduler order (priority DESC, filter ASC).
   final List<FilterProgressLine> filters;
 
+  /// The target's old single goal over every filter, in seconds, when it has
+  /// no per-filter goal; null otherwise (see `TargetGoal`).
+  final double? allFiltersGoalSeconds;
+
+  /// Accepted light seconds in every filter, counted toward
+  /// [allFiltersGoalSeconds].
+  final double allFiltersAccruedSeconds;
+
   const ProjectTargetProgress({
     required this.targetId,
     required this.targetName,
     required this.raHours,
     required this.decDegrees,
     required this.filters,
+    this.allFiltersGoalSeconds,
+    this.allFiltersAccruedSeconds = 0.0,
   });
 
   /// Integration seconds already on disk, summed across filters.
-  double get accruedSeconds =>
-      filters.fold(0.0, (sum, f) => sum + f.accruedSeconds);
+  double get accruedSeconds => allFiltersGoalSeconds != null
+      ? allFiltersAccruedSeconds
+      : filters.fold(0.0, (sum, f) => sum + f.accruedSeconds);
 
   /// Integration seconds required to satisfy every filter goal.
-  double get goalSeconds => filters.fold(0.0, (sum, f) => sum + f.goalSeconds);
+  double get goalSeconds =>
+      allFiltersGoalSeconds ??
+      filters.fold(0.0, (sum, f) => sum + f.goalSeconds);
 
   /// Outstanding integration seconds, clamped to zero on overshoot.
   double get remainingSeconds {
@@ -139,6 +152,8 @@ class ProjectTargetProgress extends Equatable {
     'raHours': raHours,
     'decDegrees': decDegrees,
     'filters': filters.map((f) => f.toJson()).toList(),
+    'allFiltersGoalSeconds': allFiltersGoalSeconds,
+    'allFiltersAccruedSeconds': allFiltersAccruedSeconds,
     'accruedSeconds': accruedSeconds,
     'goalSeconds': goalSeconds,
     'remainingSeconds': remainingSeconds,
@@ -164,6 +179,10 @@ class ProjectTargetProgress extends Equatable {
       raHours: (json['raHours'] as num?)?.toDouble() ?? 0.0,
       decDegrees: (json['decDegrees'] as num?)?.toDouble() ?? 0.0,
       filters: filters,
+      allFiltersGoalSeconds: (json['allFiltersGoalSeconds'] as num?)
+          ?.toDouble(),
+      allFiltersAccruedSeconds:
+          (json['allFiltersAccruedSeconds'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -174,6 +193,8 @@ class ProjectTargetProgress extends Equatable {
     raHours,
     decDegrees,
     filters,
+    allFiltersGoalSeconds,
+    allFiltersAccruedSeconds,
   ];
 }
 

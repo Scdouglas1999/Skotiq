@@ -221,6 +221,7 @@ class _Body extends StatelessWidget {
                     pct: totalPct,
                     captured: rollup.totalCapturedIntegrationSecs,
                     goal: rollup.totalGoalIntegrationSecs ?? 0,
+                    allFilters: rollup.allFiltersGoalSecs != null,
                     colors: colors,
                     isComplete: rollup.isComplete,
                   ),
@@ -376,12 +377,14 @@ class _OverallProgress extends StatelessWidget {
   final double captured;
   final double goal;
   final bool isComplete;
+  final bool allFilters;
   final SkotiqColors colors;
 
   const _OverallProgress({
     required this.pct,
     required this.captured,
     required this.goal,
+    required this.allFilters,
     required this.isComplete,
     required this.colors,
   });
@@ -435,7 +438,9 @@ class _OverallProgress extends StatelessWidget {
             // the session rows below now use that same word for every frame the
             // session took, so one card would read "Captured 0.0h" over
             // "0.17h captured".
-            'Accepted ${DurationFormat.decimalHours(captured)} of ${DurationFormat.decimalHours(goal)} goal | Remaining: ${DurationFormat.decimalHours(remaining)}',
+            'Accepted ${DurationFormat.decimalHours(captured)} of ${DurationFormat.decimalHours(goal)} goal'
+            '${allFilters ? ' (all filters)' : ''}'
+            ' | Remaining: ${DurationFormat.decimalHours(remaining)}',
             style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
           ),
         ],

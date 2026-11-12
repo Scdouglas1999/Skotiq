@@ -8,6 +8,7 @@ import '../../models/planning/project.dart';
 import '../../models/planning/project_progress.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
+import '../project_tracking_service.dart';
 import '../scheduler/integration_goal_service.dart';
 import '../../backend/remote_host.dart';
 
@@ -275,6 +276,13 @@ class ProjectService {
         );
       }
 
+      final goal = TargetGoal.of(
+        accepted: acceptedLightsByFilter(
+          await _db.imagesDao.getImagesForTarget(targetId),
+        ),
+        goals: goals,
+        oldTotalGoalSecs: targetRow.goalIntegrationSecs,
+      );
       targetProgress.add(
         ProjectTargetProgress(
           targetId: targetId,
@@ -282,6 +290,8 @@ class ProjectService {
           raHours: targetRow.ra,
           decDegrees: targetRow.dec,
           filters: lines,
+          allFiltersGoalSeconds: goal.allFilters ? goal.goalSecs : null,
+          allFiltersAccruedSeconds: goal.allFilters ? goal.doneSecs : 0.0,
         ),
       );
     }

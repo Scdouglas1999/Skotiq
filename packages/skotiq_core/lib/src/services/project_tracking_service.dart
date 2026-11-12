@@ -61,6 +61,69 @@ Set<int> targetSessionIds(
     if (session.targetId == targetId) session.id,
 };
 
+/// A target's integration goal, in seconds, and how much of it is done.
+///
+/// The goal is the target's per-filter integration goals (frames x exposure),
+/// the ones Plan and the Scheduler write. A target set up before those existed
+/// may carry only the old single hours goal (`targets.goal_integration_secs`);
+/// with no per-filter goal it still counts, as one goal over all filters, so a
+/// goal the user set does not turn into "Not set".
+class TargetGoal {
+  const TargetGoal({
+    required this.goalSecs,
+    required this.doneSecs,
+    required this.allFilters,
+  });
+
+  static const none = TargetGoal(goalSecs: 0, doneSecs: 0, allFilters: false);
+
+  factory TargetGoal.of({
+    required List<FilterIntegration> accepted,
+    required Iterable<IntegrationGoal> goals,
+    required double oldTotalGoalSecs,
+  }) {
+    final acceptedSecs = accepted.fold(0.0, (sum, f) => sum + f.seconds);
+    final perFilterGoalSecs = goals.fold(
+      0.0,
+      (sum, g) => sum + g.frameCount * g.exposureSeconds,
+    );
+    if (perFilterGoalSecs > 0) {
+      return TargetGoal(
+        goalSecs: perFilterGoalSecs,
+        doneSecs: acceptedSecs,
+        allFilters: false,
+      );
+    }
+    if (oldTotalGoalSecs > 0) {
+      return TargetGoal(
+        goalSecs: oldTotalGoalSecs,
+        doneSecs: acceptedSecs,
+        allFilters: true,
+      );
+    }
+    return none;
+  }
+
+  /// Seconds the goal asks for; 0 when the target has none.
+  final double goalSecs;
+
+  /// Accepted seconds counted toward it.
+  final double doneSecs;
+
+  /// True when the goal is the old single total over every filter.
+  final bool allFilters;
+
+  bool get isSet => goalSecs > 0;
+
+  double get completionFraction =>
+      isSet ? (doneSecs / goalSecs).clamp(0.0, 1.0) : 0.0;
+
+  double get remainingSecs =>
+      isSet ? (goalSecs - doneSecs).clamp(0.0, double.infinity) : 0.0;
+
+  bool get isComplete => isSet && doneSecs >= goalSecs;
+}
+
 bool _isAcceptedLight(db.CapturedImage frame) =>
     frame.frameType.toLowerCase() == 'light' && frame.isAccepted;
 
@@ -80,9 +143,8 @@ class ProjectProgress {
   /// [integratedSecs] by filter.
   final List<FilterIntegration> filters;
 
-  /// The target's integration goals (frames x exposure, every filter), the
-  /// goals the Plan project editor and the Scheduler write. Zero when none.
-  final double goalIntegrationSecs;
+  /// The target's goal ([TargetGoal]).
+  final TargetGoal goal;
 
   /// When the newest of the target's light frames was taken.
   final DateTime? lastImagedAt;
@@ -93,26 +155,15 @@ class ProjectProgress {
     required this.acceptedFrames,
     required this.integratedSecs,
     required this.filters,
-    required this.goalIntegrationSecs,
+    required this.goal,
     required this.lastImagedAt,
   });
 
-  double get completionFraction {
-    if (goalIntegrationSecs <= 0) {
-      return 0.0;
-    }
-    return (integratedSecs / goalIntegrationSecs).clamp(0.0, 1.0);
-  }
-
-  double get remainingSecs {
-    if (goalIntegrationSecs <= 0) {
-      return 0.0;
-    }
-    return (goalIntegrationSecs - integratedSecs).clamp(0.0, double.infinity);
-  }
-
-  bool get isTracked => goalIntegrationSecs > 0.0;
-  bool get isCompleted => isTracked && integratedSecs >= goalIntegrationSecs;
+  double get goalIntegrationSecs => goal.goalSecs;
+  double get completionFraction => goal.completionFraction;
+  double get remainingSecs => goal.remainingSecs;
+  bool get isTracked => goal.isSet;
+  bool get isCompleted => goal.isComplete;
   bool get hasAnyProgress => integratedSecs > 0.0 || acceptedFrames > 0;
 }
 
@@ -136,11 +187,9 @@ class ProjectTrackingService {
       if (targetId == null) continue;
       framesByTarget.putIfAbsent(targetId, () => []).add(frame);
     }
-    final goalSecsByTarget = <int, double>{};
+    final goalsByTarget = <int, List<IntegrationGoal>>{};
     for (final goal in goals) {
-      goalSecsByTarget[goal.targetId] =
-          (goalSecsByTarget[goal.targetId] ?? 0) +
-          goal.frameCount * goal.exposureSeconds;
+      goalsByTarget.putIfAbsent(goal.targetId, () => []).add(goal);
     }
 
     final progress = <ProjectProgress>[];
@@ -165,7 +214,11 @@ class ProjectTrackingService {
           acceptedFrames: filters.fold(0, (sum, f) => sum + f.frames),
           integratedSecs: filters.fold(0.0, (sum, f) => sum + f.seconds),
           filters: filters,
-          goalIntegrationSecs: goalSecsByTarget[target.id] ?? 0.0,
+          goal: TargetGoal.of(
+            accepted: filters,
+            goals: goalsByTarget[target.id] ?? const [],
+            oldTotalGoalSecs: target.goalIntegrationSecs,
+          ),
           lastImagedAt: lastImagedAt,
         ),
       );
