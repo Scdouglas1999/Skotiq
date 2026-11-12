@@ -306,6 +306,20 @@ fn the_astrometric_solution_is_the_wcs_the_app_reads() {
             "{name}"
         );
         assert_eq!(solution("ReferenceImageCoordinates"), vec![2048.0, 1536.0], "{name}");
+        // PixInsight 1.9.4 reads only the earlier `PCL:` ids; without them it
+        // falls back to the keywords, and reads every form but CD wrong.
+        for id in [
+            "ProjectionSystem",
+            "ReferenceCelestialCoordinates",
+            "ReferenceImageCoordinates",
+            "LinearTransformationMatrix",
+        ] {
+            assert_eq!(
+                image.property(&format!("PCL:AstrometricSolution:{id}")),
+                image.property(&format!("AstrometricSolution:{id}")),
+                "{name}: {id}"
+            );
+        }
 
         let mut bare = image.clone();
         bare.fits_keywords.clear();

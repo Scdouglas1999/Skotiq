@@ -384,6 +384,11 @@ fn frame_type_card(image_type: &str) -> String {
 
 /// The header's WCS, as the first layer of an XISF astrometric solution.
 ///
+/// The geometry is written under the standard ids and again under
+/// PixInsight's earlier `PCL:` ids: PixInsight 1.9.4 reads only the latter,
+/// and without them falls back to the FITS keywords, which it reads right
+/// only in CD form. A newer reader takes the standard block first.
+///
 /// SIP distortion has no place in that layer (the standard's distortion
 /// layer is a spline model), so a distorted solution is written as its
 /// linear part, which is what PixInsight then uses; the SIP cards stay
@@ -404,32 +409,37 @@ fn cards_to_solution(header: &FitsHeader, properties: &mut Vec<XisfProperty>) {
         wcs.crpix1 + FITS_TO_XISF_PIXEL,
         wcs.crpix2 + FITS_TO_XISF_PIXEL,
     ];
-    let mut push = |id: &str, value: PropertyValue| {
-        properties.push(XisfProperty::new(format!("{SOLUTION}{id}"), value));
-    };
-    push("Version", PropertyValue::String("1.0".into()));
-    push("ProjectionSystem", PropertyValue::String(projection.into()));
-    push(
-        "ReferenceCelestialCoordinates",
-        PropertyValue::f64_vector(&[wcs.crval1, wcs.crval2]),
-    );
-    push("ReferenceImageCoordinates", PropertyValue::f64_vector(&reference));
-    push(
-        "LinearTransformationMatrix",
-        PropertyValue::f64_matrix(2, 2, &[wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2]),
-    );
+    let mut geometry = vec![
+        ("ProjectionSystem", PropertyValue::String(projection.into())),
+        (
+            "ReferenceCelestialCoordinates",
+            PropertyValue::f64_vector(&[wcs.crval1, wcs.crval2]),
+        ),
+        ("ReferenceImageCoordinates", PropertyValue::f64_vector(&reference)),
+        (
+            "LinearTransformationMatrix",
+            PropertyValue::f64_matrix(2, 2, &[wcs.cd1_1, wcs.cd1_2, wcs.cd2_1, wcs.cd2_2]),
+        ),
+    ];
     if let (Some(lon), Some(lat)) = (header.get_float("LONPOLE"), header.get_float("LATPOLE")) {
-        push(
+        geometry.push((
             "CelestialPoleNativeCoordinates",
             PropertyValue::f64_vector(&[lon, lat]),
-        );
+        ));
     }
-    if let Some(system) = header
+    let system = header
         .get_string("RADESYS")
         .map(str::trim)
-        .filter(|s| *s == "ICRS" || *s == "GCRS")
-    {
-        push("CelestialReferenceSystem", PropertyValue::String(system.into()));
+        .filter(|s| *s == "ICRS" || *s == "GCRS");
+
+    let standard = std::iter::once(("Version", PropertyValue::String("1.0".into())))
+        .chain(geometry.iter().cloned())
+        .chain(system.map(|s| ("CelestialReferenceSystem", PropertyValue::String(s.into()))));
+    for (id, value) in standard {
+        properties.push(XisfProperty::new(format!("{SOLUTION}{id}"), value));
+    }
+    for (id, value) in geometry {
+        properties.push(XisfProperty::new(format!("{LEGACY_SOLUTION}{id}"), value));
     }
     properties.push(XisfProperty::new(
         "Observation:Center:RA",
