@@ -3,6 +3,8 @@
 // from (c4386947c): calibration (dark library, defect map), meridian flip,
 // polar alignment, the active planning project, the decision log, Science,
 // transient alerts, notification routing, flats and the capture settings.
+// The notification transports' rows were recorded the same way from the build
+// they were moved from (c4637e7f5).
 //
 // `test/fixtures/settings/base_feature_settings.json` was produced by that
 // build with `SKOTIQ_STORE_PINS_UPDATE=1`: for each feature, what it read from
@@ -22,6 +24,7 @@ import 'package:skotiq_core/src/models/defect_map.dart';
 import 'package:skotiq_core/src/models/meridian_flip_settings.dart';
 import 'package:skotiq_core/src/models/polar_alignment_config.dart';
 import 'package:skotiq_core/src/models/notification/notification_categories.dart';
+import 'package:skotiq_core/src/models/notification/transport_configs.dart';
 import 'package:skotiq_core/src/models/science/science_models.dart';
 import 'package:skotiq_core/src/providers/dark_library_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
@@ -35,6 +38,7 @@ import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/providers/replay_debug_provider.dart';
 import 'package:skotiq_core/src/providers/science_provider.dart';
+import 'package:skotiq_core/src/services/notification/secrets_store.dart';
 import 'package:skotiq_core/src/services/calibration_service.dart'
     show CalibrationSettings;
 import 'package:skotiq_core/src/settings/store_settings.dart';
@@ -790,6 +794,125 @@ final _probes = <_Probe>[
       },
     },
   ),
+  _transport(
+    'email transport',
+    row: 'notification_transport_email',
+    load: (c) => c.read(emailTransportConfigProvider.future),
+    stored:
+        '{"smtpHost":"smtp.example.org","smtpPort":465,"username":"rig",'
+        '"password":"","useTls":true,"fromAddress":"rig@example.org",'
+        '"toAddress":"me@example.org"}',
+    withPlaintextSecret:
+        '{"smtpHost":"smtp.example.org","smtpPort":465,"username":"rig",'
+        '"password":"hunter2","useTls":false,"fromAddress":"rig@example.org",'
+        '"toAddress":"me@example.org"}',
+    save: (c) async {
+      final config = await c.read(emailTransportConfigProvider.future);
+      await c
+          .read(emailTransportConfigProvider.notifier)
+          .save(
+            config.copyWith(
+              smtpHost: 'mail.example.net',
+              password: 'secret',
+              toAddress: 'you@example.net',
+            ),
+          );
+    },
+  ),
+  _transport(
+    'webhook transport',
+    row: 'notification_transport_webhookGeneric',
+    load: (c) => c.read(webhookTransportConfigProvider.future),
+    stored: '{"url":"","headers":{},"bodyTemplate":"{{title}}"}',
+    withPlaintextSecret:
+        '{"url":"https://hooks.example.org/rig",'
+        '"headers":{"Authorization":"Bearer abc"},"bodyTemplate":null}',
+    save: (c) async {
+      final config = await c.read(webhookTransportConfigProvider.future);
+      await c
+          .read(webhookTransportConfigProvider.notifier)
+          .save(
+            config.copyWith(
+              url: 'https://hooks.example.net/n',
+              headers: const {'X-Token': 't'},
+              bodyTemplate: '{{body}}',
+            ),
+          );
+    },
+  ),
+  _transport(
+    'pushover transport',
+    row: 'notification_transport_pushover',
+    alsoWrites: const ['pushover_key', 'pushover_user'],
+    load: (c) => c.read(pushoverTransportConfigProvider.future),
+    stored: '{"apiToken":"","userKey":"","device":"phone","priority":1}',
+    withPlaintextSecret:
+        '{"apiToken":"tok","userKey":"usr","device":null,"priority":-1}',
+    save: (c) async {
+      final config = await c.read(pushoverTransportConfigProvider.future);
+      await c
+          .read(pushoverTransportConfigProvider.notifier)
+          .save(
+            config.copyWith(apiToken: 'a', userKey: 'u', priority: 2),
+          );
+    },
+  ),
+  _transport(
+    'telegram transport',
+    row: 'notification_transport_telegram',
+    load: (c) => c.read(telegramTransportConfigProvider.future),
+    stored: '{"botToken":"","chatId":"-100","disableNotification":true}',
+    withPlaintextSecret:
+        '{"botToken":"123:abc","chatId":"42","disableNotification":false}',
+    save: (c) async {
+      final config = await c.read(telegramTransportConfigProvider.future);
+      await c
+          .read(telegramTransportConfigProvider.notifier)
+          .save(config.copyWith(botToken: '9:z', chatId: '7'));
+    },
+  ),
+  _transport(
+    'discord transport',
+    row: 'notification_transport_discord',
+    alsoWrites: const ['discord_webhook'],
+    load: (c) => c.read(discordTransportConfigProvider.future),
+    stored:
+        '{"webhookUrl":"","username":"Rig",'
+        '"avatarUrl":"https://example.com/a.png"}',
+    withPlaintextSecret:
+        '{"webhookUrl":"https://discord.com/api/webhooks/1/abc",'
+        '"username":null,"avatarUrl":null}',
+    save: (c) async {
+      final config = await c.read(discordTransportConfigProvider.future);
+      await c
+          .read(discordTransportConfigProvider.notifier)
+          .save(
+            config.copyWith(
+              webhookUrl: 'https://discord.com/api/webhooks/2/def',
+              username: 'Scope',
+            ),
+          );
+    },
+  ),
+  _transport(
+    'mqtt transport',
+    row: 'notification_transport_mqtt',
+    load: (c) => c.read(mqttTransportConfigProvider.future),
+    stored:
+        '{"host":"broker.local","port":8883,"username":"rig","password":null,'
+        '"topic":"rig/n","qos":2,"retain":true,"useTls":true,'
+        '"clientId":"scope"}',
+    withPlaintextSecret:
+        '{"host":"broker.local","port":1883,"username":"rig",'
+        '"password":"pw","topic":"rig/n","qos":1,"retain":false,'
+        '"useTls":false,"clientId":"scope"}',
+    save: (c) async {
+      final config = await c.read(mqttTransportConfigProvider.future);
+      await c
+          .read(mqttTransportConfigProvider.notifier)
+          .save(config.copyWith(host: 'mqtt.example.net', password: 'pw2'));
+    },
+  ),
   _Probe(
     name: 'flat settings',
     keys: const ['flat_wizard_global_settings'],
@@ -854,6 +977,36 @@ final _probes = <_Probe>[
     },
   ),
 ];
+
+/// A notification transport's settings row, read and saved through its config
+/// provider, with its secrets in a keyring of the probe's own.
+_Probe _transport(
+  String name, {
+  required String row,
+  required Future<NotificationTransportConfig> Function(ProviderContainer c)
+  load,
+  required String stored,
+  required String withPlaintextSecret,
+  required Future<void> Function(ProviderContainer c) save,
+  List<String> alsoWrites = const [],
+}) => _Probe(
+  name: name,
+  keys: [row, 'notification_secrets_migrated_v2', ...alsoWrites],
+  read: (c) async => (await load(c)).toJson(),
+  rowSets: {
+    'stored': {row: stored, 'notification_secrets_migrated_v2': 'true'},
+    'secret in the row': {row: withPlaintextSecret},
+    'empty': {row: ''},
+    'null text': {row: 'null'},
+    'not json': {row: 'everything'},
+  },
+  writes: {'save': save},
+  overrides: [
+    secretsStoreProvider.overrideWith(
+      (ref) => SecretsStore(InMemorySecureKeyValueStore()),
+    ),
+  ],
+);
 
 Future<Map<String, Object?>> _runProbe(_Probe probe) async {
   Future<T> withStore<T>(
@@ -1037,7 +1190,8 @@ void main() {
 ///     strictly read setting (the base threw ArgumentError);
 ///   * an empty row of a JSON document or an optional text means nothing is
 ///     saved (the base kept empty grading rules as an empty string, and
-///     failed on an empty notification routing document).
+///     failed on an empty notification routing document or transport
+///     config).
 const Map<String, Object?> _changedOnPurpose = {
   'connect the equipment at start': {
     'reads': {'missing': false},
@@ -1067,6 +1221,24 @@ const Map<String, Object?> _changedOnPurpose = {
     },
   },
   'notification routing': {
+    'reads': {'empty': _SameAs('missing')},
+  },
+  'email transport': {
+    'reads': {'empty': _SameAs('missing')},
+  },
+  'webhook transport': {
+    'reads': {'empty': _SameAs('missing')},
+  },
+  'pushover transport': {
+    'reads': {'empty': _SameAs('missing')},
+  },
+  'telegram transport': {
+    'reads': {'empty': _SameAs('missing')},
+  },
+  'discord transport': {
+    'reads': {'empty': _SameAs('missing')},
+  },
+  'mqtt transport': {
     'reads': {'empty': _SameAs('missing')},
   },
 };
