@@ -18,7 +18,10 @@
  *                           FLIGetCoolerPower -EFAULT.
  *   camera  "/dev/fliusb0"  MaxCam knowndev CCD47-10: pixel 0.0 (table row 15),
  *                           visible (8,0)-(1064,1027), status UNKNOWN.
- *   focuser "FLI-0201"      extent 7000, position 3000, no external probe.
+ *   focuser "FLI-0201"      extent 7000, position 3000, no external probe;
+ *                           a 0-step move stops it at once.
+ *   focuser "FLI-0202"      coasts 400 ms after a 0-step move.
+ *   focuser "FLI-0203"      ignores a 0-step move, 1 step per ms.
  *   wheel   "FLI-0301"      CFW-1-7, 7 slots, position -1 until first move.
  *   wheel   "FLI-0302"      CFW-4-5 (newer firmware reads the slot from the
  *                           wheel, libfli-filter-focuser.c:1683): 5 slots,
@@ -82,23 +85,33 @@ struct device {
   /* focuser */
   long position, extent, target;
   double move_start;
+  double speed;  /* steps per millisecond */
+  long halt_ms;  /* after a 0-step move: 0 stops at once, > 0 coasts this long, < 0 ignores it */
   /* wheel */
   long slot, slots;
 };
 
+#define CAMERA(f, m, sn, k, ulx, uly, lrx, lry, pitch)                                  \
+  {.file = f, .model = m, .serial = sn, .type = FLIDEVICE_CAMERA, .kind = k,             \
+   .vis = {ulx, uly, lrx, lry}, .pixel = pitch, .hbin = 1, .vbin = 1, .expose_start = -1, \
+   .setpoint = 25.0, .move_start = -1}
+#define FOCUSER_(f, sn, pos, ext, v, halt)                                                  \
+  {.file = f, .model = "PDF", .serial = sn, .type = FLIDEVICE_FOCUSER, .kind = FOCUSER,   \
+   .expose_start = -1, .position = pos, .extent = ext, .target = pos, .move_start = -1,   \
+   .speed = v, .halt_ms = halt}
+#define WHEEL_(f, m, sn, first, n)                                                         \
+  {.file = f, .model = m, .serial = sn, .type = FLIDEVICE_FILTERWHEEL, .kind = WHEEL,     \
+   .expose_start = -1, .move_start = -1, .slot = first, .slots = n}
+
 static struct device devices[] = {
-  {"FLI-0101", "PL09000", "PL0123456", FLIDEVICE_CAMERA, PROLINE,
-   {20, 4, 3076, 3060}, 12e-6, 1, 1, {0}, 0, 0, 0, -1, 0, 25.0},
-  {"FLI-0102", "KAF-1300C0-2", "", FLIDEVICE_CAMERA, MAXCAM,
-   {4, 2, 1284, 1026}, 20.0, 1, 1, {0}, 0, 0, 0, -1, 0, 25.0},
-  {"/dev/fliusb0", "CCD47-10", "", FLIDEVICE_CAMERA, MAXCAM,
-   {8, 0, 1064, 1027}, 0.0, 1, 1, {0}, 0, 0, 0, -1, 0, 25.0},
-  {"FLI-0201", "PDF", "PDF0001", FLIDEVICE_FOCUSER, FOCUSER,
-   {0}, 0, 0, 0, {0}, 0, 0, 0, -1, 0, 0, 3000, 7000, 3000, -1},
-  {"FLI-0301", "CFW-1-7", "CFW0001", FLIDEVICE_FILTERWHEEL, WHEEL,
-   {0}, 0, 0, 0, {0}, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, -1, 7},
-  {"FLI-0302", "CFW-4-5", "CFW0002", FLIDEVICE_FILTERWHEEL, WHEEL,
-   {0}, 0, 0, 0, {0}, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0xff, 5},
+  CAMERA("FLI-0101", "PL09000", "PL0123456", PROLINE, 20, 4, 3076, 3060, 12e-6),
+  CAMERA("FLI-0102", "KAF-1300C0-2", "", MAXCAM, 4, 2, 1284, 1026, 20.0),
+  CAMERA("/dev/fliusb0", "CCD47-10", "", MAXCAM, 8, 0, 1064, 1027, 0.0),
+  FOCUSER_("FLI-0201", "PDF0001", 3000, 7000, 10.0, 0),
+  FOCUSER_("FLI-0202", "PDF0002", 0, 7000, 2.0, 400),
+  FOCUSER_("FLI-0203", "PDF0003", 0, 7000, 1.0, -1),
+  WHEEL_("FLI-0301", "CFW-1-7", "CFW0001", -1, 7),
+  WHEEL_("FLI-0302", "CFW-4-5", "CFW0002", 0xff, 5),
 };
 #define NDEV ((long)(sizeof(devices) / sizeof(devices[0])))
 #define DEV(d) (&devices[(d)])
@@ -386,22 +399,19 @@ long FLIListNext(flidomain_t *domain, char *file, size_t fl, char *name, size_t 
   return list_step(domain, file, fl, name, nl);
 }
 
-/* Focuser: relative signed steps (libfli-filter-focuser.c:926), 100 steps per
- * 10 ms in this model. */
-static void focuser_update(struct device *d) {
-  if (d->move_start < 0) return;
-  long done = (long)((now_ms() - d->move_start) * 10.0);
+/* Focuser: relative signed steps (libfli-filter-focuser.c:926). A 0-step
+ * move is the halt on old firmware (:940); on newer firmware it is a move of
+ * 0 steps (:1045), modeled per device by halt_ms. FLIStepMotor sends the same
+ * command and then polls the steps left until 0 with no time limit (:1085). */
+static long focuser_current(struct device *d) {
+  if (d->move_start < 0) return d->position;
+  long done = (long)((now_ms() - d->move_start) * d->speed);
   long dist = labs(d->target - d->position);
   if (done >= dist) {
     d->position = d->target;
     d->move_start = -1;
+    return d->position;
   }
-}
-
-static long focuser_current(struct device *d) {
-  focuser_update(d);
-  if (d->move_start < 0) return d->position;
-  long done = (long)((now_ms() - d->move_start) * 10.0);
   return d->target > d->position ? d->position + done : d->position - done;
 }
 
@@ -409,25 +419,28 @@ long FLIStepMotorAsync(flidev_t dev, long steps) {
   CHK(dev);
   struct device *d = DEV(dev);
   logf_("FLIStepMotorAsync %ld", steps);
-  d->position = focuser_current(d);
-  d->target = d->position + steps;
+  long cur = focuser_current(d);
+  if (steps == 0) {
+    if (d->move_start < 0 || d->halt_ms < 0) return 0;
+    long dir = d->target > cur ? 1 : -1;
+    d->position = cur;
+    d->target = cur + (d->halt_ms > 0 ? dir * (long)(d->speed * d->halt_ms) : 0);
+    d->move_start = d->halt_ms > 0 ? now_ms() : -1;
+    return 0;
+  }
+  d->position = cur;
+  d->target = cur + steps;
   d->move_start = now_ms();
   return 0;
 }
 
 long FLIStepMotor(flidev_t dev, long steps) {
   CHK(dev);
-  struct device *d = DEV(dev);
   logf_("FLIStepMotor %ld", steps);
-  d->position = focuser_current(d);
-  if (steps == 0) { /* halt on old firmware (libfli-filter-focuser.c:940) */
-    d->target = d->position;
-    d->move_start = -1;
-    return 0;
-  }
-  d->position += steps;
-  d->target = d->position;
-  d->move_start = -1;
+  long r = FLIStepMotorAsync(dev, steps);
+  if (r) return r;
+  struct device *d = DEV(dev);
+  while (labs(d->target - focuser_current(d)) != 0) usleep(10000);
   return 0;
 }
 

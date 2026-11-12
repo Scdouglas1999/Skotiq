@@ -14,7 +14,7 @@
 use skotiq_device::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver};
 use skotiq_device::{ExposureParams, FrameType, ImageData, SubFrame};
 use skotiq_native::vendor::fli::{FliCamera, FliFilterWheel, FliFocuser};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn log() -> Vec<String> {
     let path = std::env::var("FLI_MODEL_LOG").expect("FLI_MODEL_LOG");
@@ -37,7 +37,12 @@ fn calls(name: &str) -> Vec<String> {
         .collect()
 }
 
-fn params(duration_secs: f64, bin: i32, subframe: Option<SubFrame>, kind: FrameType) -> ExposureParams {
+fn params(
+    duration_secs: f64,
+    bin: i32,
+    subframe: Option<SubFrame>,
+    kind: FrameType,
+) -> ExposureParams {
     ExposureParams {
         duration_secs,
         gain: None,
@@ -91,11 +96,22 @@ async fn a_proline_opens_by_its_list_name_and_reports_microns_and_its_visible_si
 async fn a_binned_subframe_asks_for_the_documented_area_and_reads_those_pixels() {
     let mut camera = camera("FLI-0101").await;
     clear_log();
-    let sub = SubFrame { start_x: 100, start_y: 50, width: 200, height: 100 };
+    let sub = SubFrame {
+        start_x: 100,
+        start_y: 50,
+        width: 200,
+        height: 100,
+    };
     let frame = take(&mut camera, params(0.05, 2, Some(sub), FrameType::Light)).await;
     let lines = log();
-    let hbin = lines.iter().position(|l| l == "FLISetHBin 2").expect("hbin");
-    let vbin = lines.iter().position(|l| l == "FLISetVBin 2").expect("vbin");
+    let hbin = lines
+        .iter()
+        .position(|l| l == "FLISetHBin 2")
+        .expect("hbin");
+    let vbin = lines
+        .iter()
+        .position(|l| l == "FLISetVBin 2")
+        .expect("vbin");
     let area = lines
         .iter()
         .position(|l| l.starts_with("FLISetImageArea 120 54 220 104"))
@@ -149,7 +165,10 @@ async fn a_camera_without_a_status_is_not_ready_before_its_exposure_ends() {
     assert!(camera.is_exposure_complete().await.expect("poll"));
     let frame = camera.download_image().await.expect("download");
     assert_eq!((frame.width, frame.height), (1280, 1024));
-    assert_eq!(frame.data[1], 5, "row starts at visible x 4, pixel 1 is x 5");
+    assert_eq!(
+        frame.data[1], 5,
+        "row starts at visible x 4, pixel 1 is x 5"
+    );
 }
 
 /// FLIGetCoolerPower is -EFAULT on a MaxCam (libfli-camera-usb.c:2529); the
@@ -163,14 +182,21 @@ async fn the_cooler_takes_set_points_and_a_missing_power_reading_is_not_a_failur
     assert_eq!(status.cooler_power, None);
     assert_eq!(status.sensor_temp, Some(-5.5));
     let mut proline = camera("FLI-0101").await;
-    assert_eq!(proline.get_status().await.expect("status").cooler_power, Some(42.0));
+    assert_eq!(
+        proline.get_status().await.expect("status").cooler_power,
+        Some(42.0)
+    );
     clear_log();
     proline.set_cooler(true, Some(-20.0)).await.expect("on");
     proline.set_cooler(false, None).await.expect("off");
     proline.set_cooler(true, None).await.expect("on again");
     assert_eq!(
         calls("FLISetTemperature"),
-        ["FLISetTemperature -20.00", "FLISetTemperature 40.00", "FLISetTemperature -20.00"]
+        [
+            "FLISetTemperature -20.00",
+            "FLISetTemperature 40.00",
+            "FLISetTemperature -20.00"
+        ]
     );
 }
 
@@ -197,16 +223,24 @@ async fn a_failed_download_cancels_the_frame_and_the_next_one_works() {
 }
 
 /// The Linux kernel driver names devices /dev/fliusbN; the id carries it with
-/// '/' replaced. libfli's knowndev table has a 0.0 pixel pitch for CCD47-10.
+/// '/' replaced. libfli's knowndev table has a 0.0 pixel pitch for CCD47-10:
+/// the camera connects and its pitch reads as unknown (0.0, which no frame
+/// header or solver hint takes).
 #[tokio::test]
 #[ignore = "needs the libfli model on LD_LIBRARY_PATH (see the file header)"]
-async fn a_kernel_driver_device_opens_from_its_id() {
+async fn a_kernel_driver_device_with_no_pitch_opens_from_its_id() {
     clear_log();
     let mut camera = FliCamera::new("_dev_fliusb0".to_string());
-    let result = camera.connect().await;
+    camera
+        .connect()
+        .await
+        .expect("a body with no pitch still connects");
     assert!(calls("FLIOpen").contains(&"FLIOpen /dev/fliusb0 0x102".to_string()));
-    // Recorded, not asserted: whether a body libfli knows no pitch for connects.
-    eprintln!("CCD47-10 connect: {result:?}");
+    let info = camera.get_sensor_info();
+    assert_eq!((info.pixel_size_x, info.pixel_size_y), (0.0, 0.0));
+    assert_eq!((info.width, info.height), (1056, 1027));
+    let frame = take(&mut camera, params(0.01, 2, None, FrameType::Light)).await;
+    assert_eq!((frame.width, frame.height), (528, 513));
 }
 
 /// libfli-filter-focuser.c fli_stepmotor takes signed relative steps; the
@@ -239,7 +273,10 @@ async fn the_wheel_moves_to_zero_based_slots_and_names_them() {
     let mut wheel = FliFilterWheel::new("FLI-0301".to_string());
     wheel.connect().await.expect("connect");
     assert_eq!(wheel.get_filter_count(), 7);
-    eprintln!("position before the first move: {:?}", wheel.get_position().await);
+    eprintln!(
+        "position before the first move: {:?}",
+        wheel.get_position().await
+    );
     clear_log();
     wheel.move_to_position(3).await.expect("move");
     assert_eq!(calls("FLISetFilterPos"), ["FLISetFilterPos 3"]);
@@ -262,4 +299,79 @@ async fn a_wheel_that_has_not_found_a_slot_reports_an_unknown_position() {
     assert_eq!(wheel.get_position().await.expect("pos"), -1);
     wheel.move_to_position(4).await.expect("move");
     assert_eq!(wheel.get_position().await.expect("pos"), 4);
+}
+
+async fn focuser(path: &str) -> FliFocuser {
+    let mut focuser = FliFocuser::new(path.to_string());
+    focuser.connect().await.expect("connect");
+    focuser
+}
+
+/// The halt is the non-waiting 0-step move (libfli-filter-focuser.c
+/// fli_stepmotor), and the driver then reads the steps left until none are.
+#[tokio::test]
+#[ignore = "needs the libfli model on LD_LIBRARY_PATH (see the file header)"]
+async fn a_halt_stops_the_focuser_where_it_is() {
+    let mut focuser = focuser("FLI-0201").await;
+    focuser.move_to(0).await.expect("move");
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    clear_log();
+    focuser.halt().await.expect("halt");
+    assert_eq!(calls("FLIStepMotor"), ["FLIStepMotorAsync 0"]);
+    assert!(!focuser.is_moving().await.expect("moving"));
+    let stopped = focuser.get_position().await.expect("pos");
+    assert!(stopped > 0 && stopped < 3000, "stopped at {stopped}");
+    focuser.move_to(3000).await.expect("back");
+}
+
+/// While a halted focuser coasts to rest, the other FLI devices are not held
+/// up: libfli's blocking FLIStepMotor would keep the SDK lock for the coast.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "needs the libfli model on LD_LIBRARY_PATH (see the file header)"]
+async fn a_coasting_focuser_does_not_hold_up_the_camera() {
+    let camera = camera("FLI-0101").await;
+    let mut focuser = focuser("FLI-0202").await;
+    focuser.move_to(7000).await.expect("move");
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let status = tokio::spawn(async move {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let started = Instant::now();
+        camera.get_status().await.expect("status");
+        started.elapsed()
+    });
+    let started = Instant::now();
+    focuser.halt().await.expect("halt");
+    let halt_took = started.elapsed();
+    let status_took = status.await.expect("status task");
+    assert!(
+        halt_took >= Duration::from_millis(350),
+        "halt returned before the focuser stopped: {halt_took:?}"
+    );
+    assert!(
+        status_took < Duration::from_millis(100),
+        "the camera waited {status_took:?} on the halt"
+    );
+    assert!(!focuser.is_moving().await.expect("moving"));
+    focuser.move_to(0).await.expect("back");
+}
+
+/// A focuser that does not stop within the halt's time limit is reported in
+/// words, with the steps it still had to go.
+#[tokio::test]
+#[ignore = "needs the libfli model on LD_LIBRARY_PATH (see the file header)"]
+async fn a_focuser_that_will_not_stop_is_reported_after_the_time_limit() {
+    let mut focuser = focuser("FLI-0203").await;
+    focuser.move_to(7000).await.expect("move");
+    let started = Instant::now();
+    let error = focuser.halt().await.expect_err("it keeps moving");
+    let took = started.elapsed();
+    assert!(
+        took >= Duration::from_secs(5) && took < Duration::from_secs(6),
+        "{took:?}"
+    );
+    let text = error.to_string();
+    assert!(
+        text.contains("was told to stop but was still moving 5 s later"),
+        "{text}"
+    );
 }

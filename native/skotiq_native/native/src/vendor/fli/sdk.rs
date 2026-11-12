@@ -65,7 +65,6 @@ pub(crate) type FLISetFilterPos = unsafe extern "C" fn(dev: FliDev, filter: c_lo
 pub(crate) type FLIGetFilterPos = unsafe extern "C" fn(dev: FliDev, filter: *mut c_long) -> c_long;
 pub(crate) type FLIGetFilterCount =
     unsafe extern "C" fn(dev: FliDev, filter: *mut c_long) -> c_long;
-pub(crate) type FLIStepMotor = unsafe extern "C" fn(dev: FliDev, steps: c_long) -> c_long;
 pub(crate) type FLIStepMotorAsync = unsafe extern "C" fn(dev: FliDev, steps: c_long) -> c_long;
 pub(crate) type FLIGetStepperPosition =
     unsafe extern "C" fn(dev: FliDev, position: *mut c_long) -> c_long;
@@ -147,7 +146,6 @@ crate::load_vendor_sdk! {
         set_filter_pos: b"FLISetFilterPos\0" => FLISetFilterPos,
         get_filter_pos: b"FLIGetFilterPos\0" => FLIGetFilterPos,
         get_filter_count: b"FLIGetFilterCount\0" => FLIGetFilterCount,
-        step_motor: b"FLIStepMotor\0" => FLIStepMotor,
         step_motor_async: b"FLIStepMotorAsync\0" => FLIStepMotorAsync,
         get_stepper_position: b"FLIGetStepperPosition\0" => FLIGetStepperPosition,
         get_steps_remaining: b"FLIGetStepsRemaining\0" => FLIGetStepsRemaining,
