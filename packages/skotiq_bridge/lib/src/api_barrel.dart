@@ -14,6 +14,7 @@ export 'api/devices/environment.dart';
 export 'api/devices/filter_wheel.dart';
 export 'api/devices/focuser.dart';
 export 'api/devices/mount.dart';
+export 'api/devices/rotator.dart';
 export 'api/devices/simulation/camera.dart';
 export 'api/devices/simulation/environment.dart';
 export 'api/devices/simulation/filter_wheel.dart';
