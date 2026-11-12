@@ -1,8 +1,8 @@
 //! Sexagesimal arithmetic the serial mount protocols share.
 //!
 //! The protocols differ in how they print a coordinate (LX200 `HH:MM:SS` and
-//! `sDD*MM:SS`, iOptron `HHMMSSss` and `sDDMMSSss` in hundredths) but not in
-//! the arithmetic underneath, which is what lives here.
+//! `sDD*MM:SS`, iOptron a signed count of hundredths of an arc second) but not
+//! in the arithmetic underneath, which is what lives here.
 
 /// Takes a leading `+` or `-` off `text`. An unsigned value is positive.
 pub(crate) fn split_sign(text: &str) -> (f64, &str) {
