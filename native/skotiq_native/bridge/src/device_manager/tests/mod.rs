@@ -23,6 +23,7 @@ mod listing_order;
 mod mount_home;
 mod mount_ops;
 mod mount_set_park;
+mod omnisim;
 mod native_camera_probe;
 mod native_mount_probe;
 mod omnisim_camera;

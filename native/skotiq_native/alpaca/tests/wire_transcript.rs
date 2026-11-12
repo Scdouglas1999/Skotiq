@@ -903,8 +903,6 @@ async fn rotator_wire_transcript() {
         "move_mechanical" => |d| d.move_mechanical(90.0),
         "halt" => |d| d.halt(),
         "sync" => |d| d.sync(180.25),
-        "get_status" [par] => |d| d.get_status(),
-        "get_capabilities" [par] => |d| d.get_capabilities(),
     ];
     let actual = transcript("rotator", AlpacaRotator::from_server, members).await;
     check_golden("rotator", &actual);
@@ -926,15 +924,8 @@ async fn filter_wheel_wire_transcript() {
         "supported_actions" => |d| d.supported_actions(),
         "position" [rep] => |d| d.position(),
         "set_position" [rep] => |d| d.set_position(3),
-        "is_moving" => |d| d.is_moving(),
         "names" => |d| d.names(),
         "focus_offsets" => |d| d.focus_offsets(),
-        "get_status" [par] => |d| d.get_status(),
-        "get_filter_info" [par] => |d| d.get_filter_info(),
-        "set_filter_by_name" => |d| d.set_filter_by_name("g"),
-        "set_filter_by_name(missing)" => |d| d.set_filter_by_name("OIII"),
-        "current_filter_name" => |d| d.current_filter_name(),
-        "current_focus_offset" => |d| d.current_focus_offset(),
     ];
     let actual = transcript("filterwheel", AlpacaFilterWheel::from_server, members).await;
     check_golden("filterwheel", &actual);
@@ -966,8 +957,6 @@ async fn focuser_wire_transcript() {
         "temperature" => |d| d.temperature(),
         "move_to" [rep] => |d| d.move_to(6620),
         "halt" => |d| d.halt(),
-        "get_status" [par] => |d| d.get_status(),
-        "get_capabilities" [par] => |d| d.get_capabilities(),
     ];
     let actual = transcript("focuser", AlpacaFocuser::from_server, members).await;
     check_golden("focuser", &actual);

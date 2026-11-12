@@ -97,7 +97,9 @@ macro_rules! ascom_cover_calibrator_members {
     };
 }
 
-/// `IRotatorV3`
+/// `IRotatorV4`. A move may block until done (V3 and before) or return as it
+/// starts (V4), so it waits the long timeout and is sent once: resending a
+/// relative `Move` whose reply was lost would turn the rotator twice.
 #[macro_export]
 macro_rules! ascom_rotator_members {
     ($callback:ident) => {
@@ -110,16 +112,16 @@ macro_rules! ascom_rotator_members {
             get can_reverse() -> bool = "CanReverse";
             get reverse() -> bool = "Reverse";
             set set_reverse(reverse: bool) = "Reverse";
-            call move_relative(offset: f64 = "Position") = "Move";
-            call move_absolute(position: f64 = "Position") = "MoveAbsolute";
-            call move_mechanical(position: f64 = "Position") = "MoveMechanical";
+            call move_relative(offset: f64 = "Position") = "Move" [long];
+            call move_absolute(position: f64 = "Position") = "MoveAbsolute" [long];
+            call move_mechanical(position: f64 = "Position") = "MoveMechanical" [long];
             call halt() = "Halt";
             call sync(position: f64 = "Position") = "Sync";
         }
     };
 }
 
-/// `IFilterWheelV2`
+/// `IFilterWheelV3`
 #[macro_export]
 macro_rules! ascom_filter_wheel_members {
     ($callback:ident) => {
@@ -132,7 +134,7 @@ macro_rules! ascom_filter_wheel_members {
     };
 }
 
-/// `IFocuserV3`
+/// `IFocuserV4`
 #[macro_export]
 macro_rules! ascom_focuser_members {
     ($callback:ident) => {

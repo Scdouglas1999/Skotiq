@@ -16,6 +16,17 @@ pub async fn api_get_rotator_status(device_id: String) -> Result<RotatorStatus, 
         .rotator_is_moving(&device_id)
         .await
         .map_err(SkotiqError::from)?;
+    let mechanical_position = match mgr.rotator_get_mechanical_position(&device_id).await {
+        Ok(angle) => angle,
+        Err(e) => {
+            tracing::warn!(
+                "Failed to read the mechanical angle of rotator {}: {}. Showing the sky angle.",
+                device_id,
+                e
+            );
+            position
+        }
+    };
     let can_reverse = match api_get_rotator_capabilities(device_id.clone()).await {
         Ok(caps) => caps.can_reverse,
         Err(e) => {
@@ -32,7 +43,7 @@ pub async fn api_get_rotator_status(device_id: String) -> Result<RotatorStatus, 
         connected: true,
         position,
         moving: is_moving,
-        mechanical_position: position,
+        mechanical_position,
         is_moving,
         can_reverse,
     })
