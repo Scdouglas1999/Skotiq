@@ -56,13 +56,12 @@ pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
         .await
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start sequence: {}", e)))?;
 
-    // Publish event
+    // A run starts only with a plan loaded.
+    let sequence_name = executor.sequence_name().unwrap_or_default().to_string();
     get_state().publish_event(create_event_auto_id(
         EventSeverity::Info,
         EventCategory::Sequencer,
-        EventPayload::Sequencer(SequencerEvent::Started {
-            sequence_name: "Sequence".to_string(),
-        }),
+        EventPayload::Sequencer(SequencerEvent::Started { sequence_name }),
     ));
 
     Ok(())
@@ -482,6 +481,49 @@ mod executor_site_tests {
             "the run started with no observing site even though app settings had one"
         );
     }
+    /// The run's start names the plan it runs; the app shows "Started
+    /// sequence: <name>" and used to show "Started sequence: Sequence" for
+    /// every plan.
+    #[tokio::test]
+    async fn starting_a_run_announces_the_plan_by_name() {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        let mut sequence = skotiq_sequencer::SequenceDefinition::new("M 31 mosaic".to_string());
+        sequence.nodes.push(skotiq_sequencer::NodeDefinition {
+            id: "wait".to_string(),
+            name: "Wait".to_string(),
+            node_type: skotiq_sequencer::NodeType::Delay(skotiq_sequencer::DelayConfig {
+                seconds: 0.01,
+            }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        {
+            let mut executor = get_sequence_executor().write().await;
+            executor.set_device_ops(std::sync::Arc::new(
+                skotiq_sequencer::device_ops::NullDeviceOps,
+            ));
+            executor.load_sequence(sequence).expect("sequence loads");
+        }
+        let mut events = get_state().event_bus.subscribe();
+
+        api_sequencer_start().await.expect("run starts");
+        get_sequence_executor().write().await.stop().await.ok();
+
+        let mut started = Vec::new();
+        while let Ok(event) = events.try_recv() {
+            if let crate::event::EventPayload::Sequencer(crate::event::SequencerEvent::Started {
+                sequence_name,
+            }) = event.payload
+            {
+                started.push(sequence_name);
+            }
+        }
+        assert_eq!(started, vec!["M 31 mosaic".to_string()]);
+    }
+
     /// The run announces its own pause when its state turns Paused, so the
     /// Pause command must not announce one as well: the log showed every
     /// operator pause twice. With no run there is nothing to pause at all.
