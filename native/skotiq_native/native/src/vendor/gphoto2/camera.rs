@@ -129,9 +129,11 @@ pub struct GPhoto2Camera {
     pub(crate) can_configure: bool,
     pub(crate) can_bulb: bool,
 
-    // Available ISO values (populated on connect)
-    pub(crate) iso_values: Vec<String>,
-    pub(crate) current_iso_index: i32,
+    /// The ISO speeds the body offers, lowest first (read on connect).
+    pub(crate) iso_speeds: Vec<IsoChoice>,
+    /// The ISO the body is set to, as the frame records it in GAIN.
+    pub(crate) current_iso: i32,
+    pub(crate) long_exposure_nr: LongExposureNoiseReduction,
 
     // Available shutter speed values (populated on connect)
     pub(crate) shutter_speed_values: Vec<String>,
@@ -146,7 +148,6 @@ pub struct GPhoto2Camera {
 
     pub(crate) exposure_state: ExposureState,
     pub(crate) exposure_time: f64,
-    pub(crate) current_gain: i32,   // Maps to ISO index
     pub(crate) current_offset: i32, // Not used for DSLRs, always 0
 
     // Last captured file path on camera (for download)
@@ -206,14 +207,14 @@ impl GPhoto2Camera {
             can_preview: false,
             can_configure: false,
             can_bulb: false,
-            iso_values: Vec::new(),
-            current_iso_index: 0,
+            iso_speeds: Vec::new(),
+            current_iso: 0,
+            long_exposure_nr: LongExposureNoiseReduction::NotApplicable,
             shutter_speed_values: Vec::new(),
             bulb_widget: None,
             raw_format: None,
             exposure_state: ExposureState::Idle,
             exposure_time: 0.0,
-            current_gain: 0,
             current_offset: 0,
             last_capture_path: None,
             last_raw_data: None,
@@ -444,52 +445,8 @@ impl GPhoto2Camera {
             }
         }
 
-        match self.get_config_choices(sdk, "iso") {
-            Ok(isos) => {
-                tracing::info!("gPhoto2: Available ISO values: {:?}", isos);
-                self.iso_values = isos;
-            }
-            Err(e) => {
-                tracing::warn!("gPhoto2: Could not read ISO values: {}", e);
-                // Use a reasonable default set
-                self.iso_values = vec![
-                    "100".to_string(),
-                    "200".to_string(),
-                    "400".to_string(),
-                    "800".to_string(),
-                    "1600".to_string(),
-                    "3200".to_string(),
-                    "6400".to_string(),
-                ];
-            }
-        }
-
-        // Get current ISO and map to gain index
-        match self.get_config_value_str(sdk, "iso") {
-            Ok(current_iso) => {
-                // Why: if the reported ISO does not
-                // appear in the enumerated `iso_values` table (e.g. a
-                // firmware-defined "Hi 1" string that libgphoto2 surfaces
-                // but our parser hasn't mapped yet), fall back to index 0
-                // which is the lowest legal ISO for the camera. The
-                // subsequent set-gain call will then move the camera to a
-                // known-good ISO before exposure.
-                self.current_iso_index = self
-                    .iso_values
-                    .iter()
-                    .position(|v| v == &current_iso)
-                    .unwrap_or(0) as i32;
-                self.current_gain = self.current_iso_index;
-                tracing::info!(
-                    "gPhoto2: Current ISO: {} (index {})",
-                    current_iso,
-                    self.current_iso_index
-                );
-            }
-            Err(e) => {
-                tracing::warn!("gPhoto2: Could not read current ISO: {}", e);
-            }
-        }
+        self.read_iso_speeds(sdk);
+        self.long_exposure_nr = self.switch_off_long_exposure_nr(sdk);
 
         match self.get_config_choices(sdk, "shutterspeed") {
             Ok(speeds) => {
@@ -522,6 +479,130 @@ impl GPhoto2Camera {
         self.detect_sensor_dimensions();
 
         Ok(())
+    }
+
+    /// Read the ISO speeds the body offers and the one it is set to. Runs
+    /// under the SDK lock the caller already holds.
+    fn read_iso_speeds(&mut self, sdk: &GPhoto2Sdk) {
+        match self.get_config_choices(sdk, "iso") {
+            Ok(choices) => {
+                self.iso_speeds = iso_choices(&choices);
+                let skipped: Vec<&String> = choices
+                    .iter()
+                    .filter(|c| !self.iso_speeds.iter().any(|s| &s.choice == *c))
+                    .collect();
+                tracing::info!(
+                    "gPhoto2: ISO speeds {:?}; not offered as a number: {:?}",
+                    self.iso_speeds.iter().map(|s| s.speed).collect::<Vec<_>>(),
+                    skipped
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "gPhoto2: Could not read the camera's ISO speeds ({}); ISO cannot be set from Skotiq",
+                    e
+                );
+                self.iso_speeds.clear();
+            }
+        }
+
+        let current = self.get_config_value_str(sdk, "iso");
+        match current.as_ref().ok().and_then(|v| v.trim().parse::<i32>().ok()) {
+            Some(iso) => self.current_iso = iso,
+            None => {
+                // Auto ISO or a step name: the next exposure sets a speed of
+                // its own, and until then the lowest one stands in.
+                self.current_iso = self.iso_speeds.first().map_or(0, |s| s.speed);
+                tracing::info!(
+                    "gPhoto2: camera ISO reads {:?}, which is not a speed; frames record ISO {} until one is set",
+                    current,
+                    self.current_iso
+                );
+            }
+        }
+    }
+
+    /// Set the offered ISO speed nearest to `requested` and record what the
+    /// body took. Runs under the SDK lock the caller already holds.
+    pub(crate) fn apply_iso(&mut self, sdk: &GPhoto2Sdk, requested: i32) -> Result<(), DriverError> {
+        let Some(chosen) = nearest_iso(&self.iso_speeds, requested).cloned() else {
+            return Err(DriverError::NotSupported);
+        };
+        if chosen.speed != requested {
+            tracing::info!(
+                "gPhoto2: ISO {} is not one of the camera's speeds; using ISO {}",
+                requested,
+                chosen.speed
+            );
+        }
+        self.set_config_value_str(sdk, "iso", &chosen.choice)?;
+        self.current_iso = chosen.speed;
+        Ok(())
+    }
+
+    /// The body's whole configuration tree. Runs under the SDK lock the
+    /// caller already holds.
+    pub(crate) fn read_config_tree(&self, sdk: &GPhoto2Sdk) -> Result<ConfigWidget, DriverError> {
+        // SAFETY: `gp_camera`/`gp_context` are valid non-null post-connect.
+        // `root` is a stack out-pointer, freed after the snapshot is copied out;
+        // every child pointer and string read below is owned by that tree and
+        // only borrowed while it is alive.
+        unsafe {
+            let mut root: *mut CameraWidget = std::ptr::null_mut();
+            let ret = (sdk.camera_get_config)(self.gp_camera, &mut root, self.gp_context);
+            check_gp_error(ret, "get_config")?;
+            let tree = snapshot_widget(sdk, root);
+            (sdk.widget_free)(root);
+            Ok(tree)
+        }
+    }
+
+    /// Turn the body's long exposure noise reduction off if it shows the
+    /// setting, and say where it stands. Runs under the SDK lock the caller
+    /// already holds.
+    fn switch_off_long_exposure_nr(&self, sdk: &GPhoto2Sdk) -> LongExposureNoiseReduction {
+        let tree = match self.read_config_tree(sdk) {
+            Ok(tree) => tree,
+            Err(e) => {
+                tracing::warn!("gPhoto2: could not read the camera's settings: {}", e);
+                return LongExposureNoiseReduction::Unreachable;
+            }
+        };
+        let Some(widget) = long_exposure_nr_widget(&tree) else {
+            tracing::info!(
+                "gPhoto2: {} shows no long exposure noise reduction setting",
+                self.model_name
+            );
+            return LongExposureNoiseReduction::Unreachable;
+        };
+        let name = widget.name.clone();
+        let result = match noise_reduction_off(widget) {
+            NoiseReductionOff::AlreadyOff => return LongExposureNoiseReduction::Off,
+            NoiseReductionOff::Choose(choice) => self.set_config_value_str(sdk, &name, &choice),
+            NoiseReductionOff::ClearToggle => self.set_config_value_toggle(sdk, &name, false),
+            NoiseReductionOff::NoOffChoice => Err(DriverError::NotSupported),
+        };
+        let now_off = result.is_ok()
+            && self
+                .read_config_tree(sdk)
+                .ok()
+                .and_then(|tree| long_exposure_nr_widget(&tree).map(reads_off))
+                .unwrap_or(false);
+        if now_off {
+            tracing::warn!(
+                "gPhoto2: turned the camera's long exposure noise reduction ('{}') off. With it on, \
+                 the camera shoots and subtracts its own dark after every frame.",
+                name
+            );
+            LongExposureNoiseReduction::Off
+        } else {
+            tracing::warn!(
+                "gPhoto2: the camera's long exposure noise reduction ('{}') is on and could not be turned off: {:?}",
+                name,
+                result.err()
+            );
+            LongExposureNoiseReduction::StaysOn
+        }
     }
 
     /// Return the widget type (`CameraWidgetType` discriminant) for a config
@@ -1159,7 +1240,7 @@ impl GPhoto2Camera {
             bayer_pattern,
             metadata: ImageMetadata {
                 exposure_time: self.exposure_time,
-                gain: self.current_gain,
+                gain: self.current_iso,
                 offset: self.current_offset,
                 bin_x: 1,
                 bin_y: 1,
@@ -1170,12 +1251,6 @@ impl GPhoto2Camera {
                 vendor_data: VendorFeatures {
                     custom_data: {
                         let mut map = std::collections::HashMap::new();
-                        if let Some(iso_str) = self.iso_values.get(self.current_gain as usize) {
-                            map.insert(
-                                "iso".to_string(),
-                                serde_json::Value::String(iso_str.clone()),
-                            );
-                        }
                         map.insert(
                             "camera_model".to_string(),
                             serde_json::Value::String(self.model_name.clone()),
@@ -1205,5 +1280,85 @@ impl GPhoto2Camera {
                 }),
             },
         })
+    }
+}
+
+fn widget_kind(code: c_int) -> CameraWidgetType {
+    match code {
+        0 => CameraWidgetType::Window,
+        1 => CameraWidgetType::Section,
+        2 => CameraWidgetType::Text,
+        3 => CameraWidgetType::Range,
+        4 => CameraWidgetType::Toggle,
+        5 => CameraWidgetType::Radio,
+        6 => CameraWidgetType::Menu,
+        7 => CameraWidgetType::Button,
+        _ => CameraWidgetType::Date,
+    }
+}
+
+/// Copy a widget and its children out of a libgphoto2 configuration tree.
+///
+/// # Safety
+/// `widget` is a live widget of a tree the caller frees afterwards, and the
+/// caller holds the SDK lock.
+unsafe fn snapshot_widget(sdk: &GPhoto2Sdk, widget: *mut CameraWidget) -> ConfigWidget {
+    let text = |ptr: *const c_char| {
+        if ptr.is_null() {
+            String::new()
+        } else {
+            CStr::from_ptr(ptr).to_string_lossy().into_owned()
+        }
+    };
+    let mut name_ptr: *const c_char = std::ptr::null();
+    let mut label_ptr: *const c_char = std::ptr::null();
+    (sdk.widget_get_name)(widget, &mut name_ptr);
+    (sdk.widget_get_label)(widget, &mut label_ptr);
+    let mut code: c_int = -1;
+    (sdk.widget_get_type)(widget, &mut code);
+    let kind = widget_kind(code);
+
+    let value = match kind {
+        CameraWidgetType::Text | CameraWidgetType::Radio | CameraWidgetType::Menu => {
+            let mut value_ptr: *const c_char = std::ptr::null();
+            let ret = (sdk.widget_get_value)(
+                widget,
+                &mut value_ptr as *mut *const c_char as *mut c_void,
+            );
+            (ret >= GP_OK && !value_ptr.is_null()).then(|| text(value_ptr))
+        }
+        CameraWidgetType::Toggle => {
+            let mut on: c_int = 0;
+            let ret = (sdk.widget_get_value)(widget, &mut on as *mut c_int as *mut c_void);
+            (ret >= GP_OK).then(|| on.to_string())
+        }
+        _ => None,
+    };
+
+    let mut choices = Vec::new();
+    if matches!(kind, CameraWidgetType::Radio | CameraWidgetType::Menu) {
+        for i in 0..(sdk.widget_count_choices)(widget).max(0) {
+            let mut choice_ptr: *const c_char = std::ptr::null();
+            if (sdk.widget_get_choice)(widget, i, &mut choice_ptr) >= GP_OK && !choice_ptr.is_null() {
+                choices.push(text(choice_ptr));
+            }
+        }
+    }
+
+    let mut children = Vec::new();
+    for i in 0..(sdk.widget_count_children)(widget).max(0) {
+        let mut child: *mut CameraWidget = std::ptr::null_mut();
+        if (sdk.widget_get_child)(widget, i, &mut child) >= GP_OK && !child.is_null() {
+            children.push(snapshot_widget(sdk, child));
+        }
+    }
+
+    ConfigWidget {
+        name: text(name_ptr),
+        label: text(label_ptr),
+        kind,
+        value,
+        choices,
+        children,
     }
 }
