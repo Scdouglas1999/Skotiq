@@ -81,9 +81,7 @@
 
 ## camera.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.is_connected [http 400]
 > GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -159,9 +157,7 @@
 
 ## camera.name [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.name [http 400]
 > GET /api/v1/camera/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -189,9 +185,7 @@
 
 ## camera.description [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.description [http 400]
 > GET /api/v1/camera/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -219,9 +213,7 @@
 
 ## camera.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.driver_version [http 400]
 > GET /api/v1/camera/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -249,9 +241,7 @@
 
 ## camera.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.driver_info [http 400]
 > GET /api/v1/camera/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -279,9 +269,7 @@
 
 ## camera.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.interface_version [http 400]
 > GET /api/v1/camera/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -309,9 +297,7 @@
 
 ## camera.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.supported_actions [http 400]
 > GET /api/v1/camera/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -339,9 +325,7 @@
 
 ## camera.camera_x_size [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.camera_x_size [http 400]
 > GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=0]
@@ -369,9 +353,7 @@
 
 ## camera.camera_y_size [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.camera_y_size [http 400]
 > GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=0]
@@ -399,9 +381,7 @@
 
 ## camera.pixel_size_x [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.pixel_size_x [http 400]
 > GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=0]
@@ -429,9 +409,7 @@
 
 ## camera.pixel_size_y [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.pixel_size_y [http 400]
 > GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=0]
@@ -459,9 +437,7 @@
 
 ## camera.max_adu [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.max_adu [http 400]
 > GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=0]
@@ -489,9 +465,7 @@
 
 ## camera.sensor_type [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.sensor_type [http 400]
 > GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=0]
@@ -519,9 +493,7 @@
 
 ## camera.sensor_name [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.sensor_name [http 400]
 > GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=0]
@@ -549,9 +521,7 @@
 
 ## camera.max_bin_x [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.max_bin_x [http 400]
 > GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=0]
@@ -579,9 +549,7 @@
 
 ## camera.max_bin_y [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.max_bin_y [http 400]
 > GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=0]
@@ -609,9 +577,7 @@
 
 ## camera.bin_x [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.bin_x [http 400]
 > GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=0]
@@ -639,9 +605,7 @@
 
 ## camera.bin_y [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.bin_y [http 400]
 > GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=0]
@@ -725,9 +689,7 @@
 
 ## camera.can_set_ccd_temperature [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.can_set_ccd_temperature [http 400]
 > GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=0]
@@ -755,9 +717,7 @@
 
 ## camera.ccd_temperature [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.ccd_temperature [http 400]
 > GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
@@ -801,9 +761,7 @@
 
 ## camera.ccd_temperature [ascom 0x40C without Value]
 > GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## camera.ccd_temperature [ascom 0x500]
 > GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
@@ -827,9 +785,35 @@
 
 ## camera.ccd_temperature [wrong value type]
 > GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected f64)
+
+## camera.ccd_temperature_setpoint [ok]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Ok(-10.0)
+
+## camera.ccd_temperature_setpoint [ascom 0x400]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.ccd_temperature_setpoint [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.ccd_temperature_setpoint [http 400]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.ccd_temperature_setpoint [http 500]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.ccd_temperature_setpoint [malformed json]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/setccdtemperature query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## camera.set_ccd_temperature [ok]
 > PUT /api/v1/camera/#/setccdtemperature query[] form[ClientID=<id>&ClientTransactionID=0&SetCCDTemperature=-10]
@@ -949,9 +933,7 @@
 
 ## camera.cooler_on [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.cooler_on [http 400]
 > GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=0]
@@ -1007,9 +989,7 @@
 
 ## camera.cooler_power [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.cooler_power [http 400]
 > GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=0]
@@ -1037,9 +1017,7 @@
 
 ## camera.heat_sink_temperature [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.heat_sink_temperature [http 400]
 > GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=0]
@@ -1067,9 +1045,7 @@
 
 ## camera.can_get_cooler_power [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.can_get_cooler_power [http 400]
 > GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=0]
@@ -1097,9 +1073,7 @@
 
 ## camera.gain [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.gain [http 400]
 > GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
@@ -1143,9 +1117,7 @@
 
 ## camera.gain [ascom 0x40C without Value]
 > GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## camera.gain [ascom 0x500]
 > GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
@@ -1169,9 +1141,7 @@
 
 ## camera.gain [wrong value type]
 > GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## camera.set_gain [ok]
 > PUT /api/v1/camera/#/gain query[] form[ClientID=<id>&ClientTransactionID=0&Gain=139]
@@ -1263,9 +1233,7 @@
 
 ## camera.gain_min [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.gain_min [http 400]
 > GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=0]
@@ -1293,9 +1261,7 @@
 
 ## camera.gain_max [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.gain_max [http 400]
 > GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=0]
@@ -1313,6 +1279,34 @@
 > GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
+## camera.gains [ok]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["ISO 100", "ISO 200", "ISO 400"])
+
+## camera.gains [ascom 0x400]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.gains [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.gains [http 400]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.gains [http 500]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.gains [malformed json]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
 ## camera.offset [ok]
 > GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
 = Ok(21)
@@ -1323,9 +1317,7 @@
 
 ## camera.offset [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.offset [http 400]
 > GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=0]
@@ -1381,9 +1373,7 @@
 
 ## camera.offset_min [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.offset_min [http 400]
 > GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=0]
@@ -1411,9 +1401,7 @@
 
 ## camera.offset_max [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.offset_max [http 400]
 > GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=0]
@@ -1431,6 +1419,132 @@
 > GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
+## camera.offsets [ok]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=0]
+= Ok(["Low", "High"])
+
+## camera.offsets [ascom 0x400]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.offsets [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.offsets [http 400]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.offsets [http 500]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.offsets [malformed json]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.controls [ok]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraControls { gain: Named(["ISO 100", "ISO 200", "ISO 400"]), offset: Named(["Low", "High"]) })
+
+## camera.controls [ascom 0x400]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraControls { gain: Absent, offset: Absent })
+
+## camera.controls [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraControls { gain: Value { range: None }, offset: Value { range: None } })
+
+## camera.controls [http 400]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraControls { gain: Value { range: None }, offset: Value { range: None } })
+
+## camera.controls [http 500]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraControls { gain: Value { range: None }, offset: Value { range: None } })
+
+## camera.controls [malformed json]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gainmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/gains query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmax query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsetmin query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+> GET /api/v1/camera/#/offsets query[ClientID=<id>&ClientTransactionID=<txn>]
+= Ok(CameraControls { gain: Value { range: None }, offset: Value { range: None } })
+
 ## camera.bayer_offset_x [ok]
 > GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
 = Ok(0)
@@ -1441,9 +1555,7 @@
 
 ## camera.bayer_offset_x [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.bayer_offset_x [http 400]
 > GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=0]
@@ -1471,9 +1583,7 @@
 
 ## camera.bayer_offset_y [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.bayer_offset_y [http 400]
 > GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=0]
@@ -1501,9 +1611,7 @@
 
 ## camera.camera_state [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.camera_state [http 400]
 > GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
@@ -1547,9 +1655,7 @@
 
 ## camera.camera_state [ascom 0x40C without Value]
 > GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## camera.camera_state [ascom 0x500]
 > GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
@@ -1573,9 +1679,7 @@
 
 ## camera.camera_state [wrong value type]
 > GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## camera.image_ready [ok]
 > GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
@@ -1587,9 +1691,7 @@
 
 ## camera.image_ready [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.image_ready [http 400]
 > GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=0]
@@ -1617,9 +1719,7 @@
 
 ## camera.is_pulse_guiding [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.is_pulse_guiding [http 400]
 > GET /api/v1/camera/#/ispulseguiding query[ClientID=<id>&ClientTransactionID=0]
@@ -1647,9 +1747,7 @@
 
 ## camera.percent_completed [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.percent_completed [http 400]
 > GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
@@ -1665,6 +1763,62 @@
 > GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.exposure_min [ok]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=0]
+= Ok(0.001)
+
+## camera.exposure_min [ascom 0x400]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.exposure_min [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.exposure_min [http 400]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.exposure_min [http 500]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.exposure_min [malformed json]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/exposuremin query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+
+## camera.exposure_max [ok]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=0]
+= Ok(3600.0)
+
+## camera.exposure_max [ascom 0x400]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1024: Property or method is not implemented)
+
+## camera.exposure_max [ascom 0x4FF without Value]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=0]
+= Err(Device error 1279: Unspecified driver fault)
+
+## camera.exposure_max [http 400]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=0]
+= Err(HTTP error 400: Method not implemented)
+
+## camera.exposure_max [http 500]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=2]
+= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+
+## camera.exposure_max [malformed json]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=0]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=1]
+> GET /api/v1/camera/#/exposuremax query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## camera.start_exposure(light) [ok]
@@ -1841,9 +1995,7 @@
 
 ## camera.readout_mode [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.readout_mode [http 400]
 > GET /api/v1/camera/#/readoutmode query[ClientID=<id>&ClientTransactionID=0]
@@ -1899,9 +2051,7 @@
 
 ## camera.readout_modes [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.readout_modes [http 400]
 > GET /api/v1/camera/#/readoutmodes query[ClientID=<id>&ClientTransactionID=0]
@@ -1929,9 +2079,7 @@
 
 ## camera.start_x [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.start_x [http 400]
 > GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=0]
@@ -1959,9 +2107,7 @@
 
 ## camera.start_y [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.start_y [http 400]
 > GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=0]
@@ -1989,9 +2135,7 @@
 
 ## camera.num_x [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.num_x [http 400]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
@@ -2019,9 +2163,7 @@
 
 ## camera.num_y [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.num_y [http 400]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=0]
@@ -2161,9 +2303,7 @@
 
 ## camera.last_exposure_start_time [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.last_exposure_start_time [http 400]
 > GET /api/v1/camera/#/lastexposurestarttime query[ClientID=<id>&ClientTransactionID=0]
@@ -2191,9 +2331,7 @@
 
 ## camera.last_exposure_duration [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.last_exposure_duration [http 400]
 > GET /api/v1/camera/#/lastexposureduration query[ClientID=<id>&ClientTransactionID=0]
@@ -2221,9 +2359,7 @@
 
 ## camera.can_abort_exposure [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.can_abort_exposure [http 400]
 > GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=0]
@@ -2251,9 +2387,7 @@
 
 ## camera.can_stop_exposure [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.can_stop_exposure [http 400]
 > GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=0]
@@ -2281,9 +2415,7 @@
 
 ## camera.can_asymmetric_bin [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.can_asymmetric_bin [http 400]
 > GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=0]
@@ -2311,9 +2443,7 @@
 
 ## camera.can_pulse_guide [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.can_pulse_guide [http 400]
 > GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=0]
@@ -2341,9 +2471,7 @@
 
 ## camera.can_fast_readout [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.can_fast_readout [http 400]
 > GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=0]
@@ -2371,9 +2499,7 @@
 
 ## camera.has_shutter [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.has_shutter [http 400]
 > GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
@@ -2389,40 +2515,6 @@
 > GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=1]
 > GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## camera.image_array [ok]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: sequence, expected a string at line 1 column 91)
-
-## camera.image_array [ascom 0x400]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: sequence, expected a string at line 1 column 131)
-
-## camera.image_array [ascom 0x4FF without Value]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## camera.image_array [http 400]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
-= Err(HTTP error 400: Method not implemented)
-
-## camera.image_array [http 500]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## camera.image_array [malformed json]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## camera.pulse_guide [ok]
@@ -2456,8 +2548,8 @@
 ## camera.download_image_data [ok]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
-= Ok((2, 2, [10, 20, 30, 40]))
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Ok((2, 2, [10, 30, 20, 40]))
 
 ## camera.download_image_data [ascom 0x400]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
@@ -2465,9 +2557,7 @@
 
 ## camera.download_image_data [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Operation failed: Device error 1279: Unspecified driver fault)
 
 ## camera.download_image_data [http 400]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
@@ -2511,9 +2601,7 @@
 
 ## camera.download_image_data [ascom 0x40C without Value]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Operation failed: Device error 1036: Action not implemented)
 
 ## camera.download_image_data [ascom 0x500]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
@@ -2537,27 +2625,25 @@
 
 ## camera.download_image_data [wrong value type]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Operation failed: Parse error: invalid type: map, expected i32)
 
 ## camera.download_image_data [imagebytes]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
-= Ok((2, 2, [10, 30, 20, 40]))
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Ok((2, 2, [10, 20, 30, 40]))
 
 ## camera.download_image_data [imagebytes error]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
 = Err(Device error 1035: No image is ready)
 
 ## camera.download_image_array_full [ok]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
-= Ok((2, 2, 1, [10, 20, 30, 40], Int32))
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Ok((2, 2, 1, [10, 30, 20, 40], Int32))
 
 ## camera.download_image_array_full [ascom 0x400]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
@@ -2565,9 +2651,7 @@
 
 ## camera.download_image_array_full [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=2]
-= Err(Operation failed: Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Operation failed: Device error 1279: Unspecified driver fault)
 
 ## camera.download_image_array_full [http 400]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
@@ -2588,13 +2672,13 @@
 ## camera.download_image_array_full [imagebytes]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
-= Ok((2, 2, 1, [10, 30, 20, 40], Int32))
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+= Ok((2, 2, 1, [10, 20, 30, 40], Int32))
 
 ## camera.download_image_array_full [imagebytes error]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=0]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/camera/#/imagearrayvariant query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
+> GET /api/v1/camera/#/imagearray query[ClientID=<id>&ClientTransactionID=2] accept[application/imagebytes, application/json;q=0.9]
 = Err(Device error 1035: No image is ready)
 
 ## camera.get_status [ok]
@@ -2623,33 +2707,15 @@
 
 ## camera.get_status [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.get_status [http 400]
 > GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -2751,36 +2817,16 @@
 
 ## camera.get_capabilities [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/canasymmetricbin query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canfastreadout query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/cangetcoolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canpulseguide query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/cansetccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/canstopexposure query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/hasshutter query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/maxbinx query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/maxbiny query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.get_capabilities [http 400]
 > GET /api/v1/camera/#/canabortexposure query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -2887,33 +2933,15 @@
 
 ## camera.get_sensor_info [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/bayeroffsety query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cameraxsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/cameraysize query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/maxadu query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/pixelsizex query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/pixelsizey query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/sensorname query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/sensortype query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.get_sensor_info [http 400]
 > GET /api/v1/camera/#/bayeroffsetx query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -3003,18 +3031,10 @@
 
 ## camera.get_subframe [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.get_subframe [http 400]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -3093,54 +3113,22 @@
 
 ## camera.get_full_status [ascom 0x4FF without Value]
 > GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/biny query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/camerastate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/ccdtemperature query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/cooleron query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/coolerpower query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/gain query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/heatsinktemperature query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/imageready query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/numx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/numy query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/offset query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/percentcompleted query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/startx query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/camera/#/starty query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## camera.get_full_status [http 400]
 > GET /api/v1/camera/#/binx query[ClientID=<id>&ClientTransactionID=<txn>]

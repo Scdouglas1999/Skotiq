@@ -53,8 +53,9 @@ impl DeviceManager {
                     // Same as the INDI path below: record a failed read as UNKNOWN
                     // rather than 0, so it cannot outrank the configured gain and
                     // mislabel the frame's FITS header.
+                    let controls = camera.controls().await;
                     let gain = match camera.gain().await {
-                        Ok(g) => g,
+                        Ok(g) => controls.gain.from_wire(g),
                         Err(e) => {
                             warn!(
                                 "Failed to read camera gain for {}: {}. Recording it as \
@@ -65,7 +66,7 @@ impl DeviceManager {
                         }
                     };
                     let offset = match camera.offset().await {
-                        Ok(o) => o,
+                        Ok(o) => controls.offset.from_wire(o),
                         Err(e) => {
                             warn!(
                                 "Failed to read camera offset for {}: {}. Recording it as \

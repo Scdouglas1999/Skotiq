@@ -8,6 +8,7 @@ use image_array::*;
 use image_bytes::*;
 
 use crate::AlpacaError;
+use skotiq_device::ascom::camera::{CameraControl, CameraControls, Probe};
 use skotiq_device::ascom::{CameraState, SensorType};
 use std::time::Duration;
 
@@ -131,9 +132,9 @@ impl ImageArrayElementType {
 /// Result of a successful Alpaca image-array download.
 ///
 /// `pixels` is laid out **planar**: `[plane_0_pixels..., plane_1_pixels..., ...]`,
-/// each plane stored row-major (`y * width + x`). For rank-2 monochrome,
-/// `planes == 1` and the layout is identical to the historical `Vec<u16>`
-/// produced by `download_image_data_typed`.
+/// each plane stored row-major (`y * width + x`), the layout of `ImageData`.
+/// The wire carries the ASCOM array `[x][y]` (height changing fastest); the
+/// decoders reorder it.
 #[derive(Debug, Clone)]
 pub struct ImageArrayResult {
     pub width: u32,
@@ -143,16 +144,47 @@ pub struct ImageArrayResult {
     pub element_type: ImageArrayElementType,
 }
 
-alpaca_device!(AlpacaCamera, Camera);
+alpaca_device!(AlpacaCamera, Camera, {
+    controls: std::sync::OnceLock<CameraControls>,
+});
 
 impl AlpacaCamera {
     skotiq_device::ascom_camera_members!(alpaca_member);
 
-    // - Value: 2D/3D array of i32 pixel values
-    // - Type: data type (1=Int16, 2=Int32, 3=Double, etc.)
-    // - Rank: 2 for mono, 3 for color
-    pub async fn image_array(&self) -> Result<String, AlpacaError> {
-        self.client.get("imagearray").await
+    /// How this camera offers gain and offset, read once per connection (a
+    /// wrapper is made for each connect).
+    pub async fn controls(&self) -> CameraControls {
+        if let Some(controls) = self.controls.get() {
+            return controls.clone();
+        }
+        fn probe<T>(read: Result<T, AlpacaError>) -> Probe<T> {
+            Probe::from(read.map_err(skotiq_device::DriverError::from))
+        }
+        let (gain, gains, gain_min, gain_max, offset, offsets, offset_min, offset_max) = tokio::join!(
+            self.gain(),
+            self.gains(),
+            self.gain_min(),
+            self.gain_max(),
+            self.offset(),
+            self.offsets(),
+            self.offset_min(),
+            self.offset_max(),
+        );
+        let controls = CameraControls {
+            gain: CameraControl::detect(
+                probe(gain),
+                probe(gains),
+                probe(gain_min),
+                probe(gain_max),
+            ),
+            offset: CameraControl::detect(
+                probe(offset),
+                probe(offsets),
+                probe(offset_min),
+                probe(offset_max),
+            ),
+        };
+        self.controls.get_or_init(|| controls).clone()
     }
 
     /// Get comprehensive camera status in a single parallel query

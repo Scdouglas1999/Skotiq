@@ -285,8 +285,8 @@ macro_rules! ascom_telescope_members {
     };
 }
 
-/// `ICameraV3`. `ImageArray` is transferred by hand-written code in each
-/// transport.
+/// `ICameraV4`. `ImageArray` is transferred by hand-written code in each
+/// transport; what the members mean is decided in [`super::camera`].
 #[macro_export]
 macro_rules! ascom_camera_members {
     ($callback:ident) => {
@@ -311,6 +311,7 @@ macro_rules! ascom_camera_members {
             get can_set_ccd_temperature() -> bool = "CanSetCCDTemperature";
             get can_get_cooler_power() -> bool = "CanGetCoolerPower";
             get ccd_temperature() -> f64 = "CCDTemperature";
+            get ccd_temperature_setpoint() -> f64 = "SetCCDTemperature";
             set set_ccd_temperature(temp: f64) = "SetCCDTemperature";
             get cooler_on() -> bool = "CoolerOn";
             set set_cooler_on(on: bool) = "CoolerOn";
@@ -321,15 +322,19 @@ macro_rules! ascom_camera_members {
             set set_gain(gain: i32) = "Gain";
             get gain_min() -> i32 = "GainMin";
             get gain_max() -> i32 = "GainMax";
+            get gains() -> Vec<String> = "Gains";
             get offset() -> i32 = "Offset";
             set set_offset(offset: i32) = "Offset";
             get offset_min() -> i32 = "OffsetMin";
             get offset_max() -> i32 = "OffsetMax";
+            get offsets() -> Vec<String> = "Offsets";
 
             get camera_state() -> i32 as $crate::ascom::CameraState = "CameraState";
             get image_ready() -> bool = "ImageReady";
             get is_pulse_guiding() -> bool = "IsPulseGuiding";
             get percent_completed() -> i32 = "PercentCompleted";
+            get exposure_min() -> f64 = "ExposureMin";
+            get exposure_max() -> f64 = "ExposureMax";
             call start_exposure(duration: f64 = "Duration", light: bool = "Light") = "StartExposure";
             call abort_exposure() = "AbortExposure";
             call stop_exposure() = "StopExposure";
