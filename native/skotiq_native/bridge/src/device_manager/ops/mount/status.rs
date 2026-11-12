@@ -428,7 +428,7 @@ impl DeviceManager {
                     }
 
                     // get_side_of_pier on `MountDriver` returns Unknown rather than Err
-                    // for unsupported mounts (e.g. SkyWatcher), so distinguish here:
+                    // for some unsupported mounts, so distinguish here:
                     // Unknown → Unsupported availability; East/West → Available.
                     let side_of_pier_opt = match mount.get_side_of_pier().await {
                         Ok(skotiq_device::PierSide::Unknown) => {
@@ -466,7 +466,7 @@ impl DeviceManager {
                     };
 
                     // Native drivers report Err(NotSupported) explicitly for alt/az and
-                    // sidereal time on protocols that lack them (e.g. SkyWatcher, LX200).
+                    // sidereal time on protocols that lack them (e.g. LX200).
                     let alt_az_pair = Self::availability_from_native_result(
                         mount.get_alt_az().await,
                         // Use ALTITUDE as primary key; AZIMUTH mirror is set below.

@@ -10,7 +10,8 @@
 use crate::vendor::lx200::Lx200MountType;
 use crate::vendor::serial_link::sanitize_port_name;
 use skotiq_device::{
-    CameraDriver, DeviceKind, DriverError, FilterWheelDriver, FocuserDriver, MountDriver, Vendor,
+    CameraDriver, DeviceKind, DriverError, FilterWheelDriver, FocuserDriver, MountDriver,
+    SiteSource, Vendor,
 };
 use std::future::Future;
 use std::pin::Pin;
@@ -47,12 +48,14 @@ pub enum Discover {
 }
 
 /// What opening a device needs besides its family.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OpenRequest<'a> {
     /// The part of the id after the family token.
     pub address: &'a str,
     /// The device's registered name.
     pub name: &'a str,
+    /// The application's observing site, for mounts that keep none.
+    pub site: SiteSource,
 }
 
 /// A driver for one device, not yet connected.
@@ -136,6 +139,7 @@ impl Family {
             Open::Now(open) => open(&OpenRequest {
                 address,
                 name: request.name,
+                site: request.site.clone(),
             }),
             Open::AfterDiscovery(open) => open(address.to_string(), request.name.to_string()).await,
             Open::NotOnThisPlatform(why) => Err(BadAddress(why.to_string())),
@@ -869,7 +873,7 @@ pub static FAMILIES: &[Family] = &[
         open: Open::Now(|r| {
             let (port, baud) = port_and_baud(r.address)?;
             Ok(NativeHandle::Mount(Box::new(
-                crate::vendor::skywatcher::SkyWatcherMount::new_serial(port, baud),
+                crate::vendor::skywatcher::SkyWatcherMount::new_serial(port, baud, r.site.clone()),
             )))
         }),
     },
@@ -1187,6 +1191,7 @@ mod tests {
                 .open(OpenRequest {
                     address,
                     name: "EAF",
+                    site: std::sync::Arc::new(|| None),
                 })
                 .await
                 .unwrap();
@@ -1196,6 +1201,7 @@ mod tests {
             .open(OpenRequest {
                 address: "x",
                 name: "EAF",
+                site: std::sync::Arc::new(|| None),
             })
             .await
             .err()
