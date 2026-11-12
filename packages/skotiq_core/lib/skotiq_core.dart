@@ -271,10 +271,13 @@ export 'src/providers/runtime_mirror/channels/centering_channels.dart';
 export 'src/providers/runtime_mirror/channels/cooler_reading_channel.dart';
 export 'src/providers/runtime_mirror/channels/end_of_night_channel.dart';
 export 'src/providers/runtime_mirror/channels/current_frame_channel.dart';
+export 'src/providers/runtime_mirror/channels/device_slot_channel.dart';
 export 'src/providers/runtime_mirror/channels/environment_channel.dart';
 export 'src/providers/runtime_mirror/channels/frame_solve_channel.dart';
 export 'src/providers/runtime_mirror/channels/framing_geometry_channel.dart';
 export 'src/providers/runtime_mirror/channels/framing_target_channel.dart';
+export 'src/providers/runtime_mirror/channels/guider_status_channel.dart';
+export 'src/providers/runtime_mirror/channels/open_plan_channel.dart';
 export 'src/providers/runtime_mirror/channels/live_broadcast_channel.dart';
 export 'src/providers/runtime_mirror/channels/manual_action_channel.dart';
 export 'src/providers/runtime_mirror/channels/notice_acks_channel.dart';
@@ -390,6 +393,7 @@ export 'src/providers/async_scope.dart';
 // isCriticalEvent, skotiqEventDisplayTitle/Detail) flows through unprefixed.
 export 'src/backend/bridge_events.dart'
     hide SkotiqEvent, EventCategory, EventSeverity;
+export 'src/backend/sequencer_error_kind.dart';
 // Per-frame capture truth carried on FrameAccepted/FrameRejected. Exported so
 // the surfaces that persist or assert on a sequenced frame read the event's
 // key names from one place rather than re-spelling them.

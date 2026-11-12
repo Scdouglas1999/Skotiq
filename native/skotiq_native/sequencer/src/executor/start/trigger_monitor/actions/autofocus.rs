@@ -183,7 +183,7 @@ async fn skip_impossible_autofocus(trigger_name: &str, missing: &str, rig: &Rig,
         .write()
         .await
         .clear_autofocus_invalidation();
-    run.error(format!(
+    run.step_problem(format!(
         "Trigger '{trigger_name}' asked for an autofocus but {missing} \
          configured for this run. The refocus was skipped and imaging \
          continues — focus is not being corrected automatically."
@@ -271,7 +271,7 @@ async fn judge_failed_sweep(sweep: FailedSweep<'_>) {
         run.pause(Some(
             "Paused: autofocus left the guider stopped".to_string(),
         ));
-        run.error(hold.operator_message);
+        run.held(hold.operator_message);
         return;
     }
 

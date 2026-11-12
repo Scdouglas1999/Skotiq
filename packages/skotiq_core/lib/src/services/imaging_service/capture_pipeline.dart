@@ -332,17 +332,10 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           source: 'ImagingService',
         );
 
-        // FITS DATE-OBS means the START of the observation, and every
-        // photometry, occultation and astrometry tool reads it that way. The
-        // bridge reports when the frame finished downloading, so stamping that
-        // straight into the header made DATE-OBS late by exactly EXPTIME on
-        // every frame the app has ever written (measured: a 30 s exposure
-        // starting 14:04:37 recorded 14:05:09).
-        //
-        // Derived from the camera's own timestamp rather than the host clock on
-        // purpose. The hardware instant is the authoritative one, its timezone
-        // handling is pinned by tests, and using `DateTime.now()` here instead
-        // both bypassed that and left the file disagreeing with the database.
+        // The frame's timestamp is the end of the exposure as the camera layer
+        // recorded it (start plus the commanded time), so this is the start
+        // the host writes as DATE-OBS. The file name and the database row use
+        // it, so they agree with the header.
         final observationStartedAt = captureTimestamp.subtract(
           Duration(microseconds: (settings.exposureTime * 1e6).round()),
         );
@@ -495,11 +488,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             backend: backend,
             deviceId: deviceId,
             filePath: savedFilePath,
-            width: capturedImage.width,
-            height: capturedImage.height,
-            capturedImage: capturedImage,
             exposureSettings: settings,
-            appSettings: appSettings,
             targetName: targetName,
             timestamp: observationStartedAt,
           );

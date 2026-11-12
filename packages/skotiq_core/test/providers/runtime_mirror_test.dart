@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+
+import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart'
     show capturePreviewPublisherProvider;
 
@@ -52,6 +54,7 @@ PlateSolveResult _solve({double ra = 83.82, double dec = -5.39}) =>
   ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
   final container = ProviderContainer(
     overrides: [
+      inMemoryDatabaseOverride(),
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
@@ -77,6 +80,7 @@ _MockNetworkBackend _clientBackend() {
 
 ProviderContainer _client(_MockNetworkBackend backend) => ProviderContainer(
   overrides: [
+    inMemoryDatabaseOverride(),
     backendProvider.overrideWith((ref) => _FixedBackendNotifier(ref, backend)),
   ],
 );
@@ -686,6 +690,7 @@ void main() {
     var solves = 0;
     final client = ProviderContainer(
       overrides: [
+        inMemoryDatabaseOverride(),
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, backend),
         ),

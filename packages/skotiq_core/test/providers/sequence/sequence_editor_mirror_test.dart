@@ -2,12 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skotiq_core/skotiq_core.dart';
+import '../../harness/host_open_plan.dart';
 import '../../harness/in_memory_database.dart';
 
-/// Live MASTER -> SLAVE mirroring of the OPEN sequencer editor canvas via the
-/// [HostMutationEntity.sequenceEditor] host-mutation and the slave-side
-/// `_applySequenceEditorMirror` apply branch (reached through the public
-/// [applyRemoteSyncEvent] entrypoint).
+/// What a linked client does with the plan open in the host's editor, as the
+/// `openPlan` runtime channel delivers it.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -43,22 +42,11 @@ void main() {
     return seq;
   }
 
-  SkotiqEvent editorMirrorEvent({
+  Map<String, dynamic> hostDocument({
     required SequenceFileService fileService,
     required Sequence sequence,
     required bool isDirty,
-  }) {
-    return buildHostMutationEvent(
-      entityType: HostMutationEntity.sequenceEditor,
-      action: HostMutationAction.updated,
-      entityId: sequence.databaseId?.toString(),
-      extra: {
-        'sequence': fileService.sequenceToMap(sequence),
-        if (sequence.databaseId != null) 'databaseId': sequence.databaseId,
-        'isDirty': isDirty,
-      },
-    );
-  }
+  }) => openPlanDocument(fileService, sequence, unsaved: isDirty);
 
   test(
     'sequenceToMap -> parseFromMap round-trips the working sequence losslessly',
@@ -91,9 +79,9 @@ void main() {
       final fileService = container.read(sequenceFileServiceProvider);
       final mirrored = buildSequence(name: 'From Master', databaseId: 7);
 
-      await applyRemoteSyncEvent(
+      showHostOpenPlan(
         container,
-        editorMirrorEvent(
+        hostDocument(
           fileService: fileService,
           sequence: mirrored,
           isDirty: true,
@@ -128,9 +116,9 @@ void main() {
       final fileService = container.read(sequenceFileServiceProvider);
       final masterPush = buildSequence(name: 'Master Push', databaseId: 99);
 
-      await applyRemoteSyncEvent(
+      showHostOpenPlan(
         container,
-        editorMirrorEvent(
+        hostDocument(
           fileService: fileService,
           sequence: masterPush,
           isDirty: false,
@@ -155,13 +143,7 @@ void main() {
     expect(container.read(currentSequenceProvider), isNotNull);
     expect(editor.isDirty, isFalse);
 
-    await applyRemoteSyncEvent(
-      container,
-      buildHostMutationEvent(
-        entityType: HostMutationEntity.sequenceEditor,
-        action: HostMutationAction.cleared,
-      ),
-    );
+    showHostOpenPlan(container, null);
 
     expect(container.read(currentSequenceProvider), isNull);
   });
@@ -177,13 +159,7 @@ void main() {
     editor.setName('Dirty On Slave (touched)');
     expect(editor.isDirty, isTrue);
 
-    await applyRemoteSyncEvent(
-      container,
-      buildHostMutationEvent(
-        entityType: HostMutationEntity.sequenceEditor,
-        action: HostMutationAction.cleared,
-      ),
-    );
+    showHostOpenPlan(container, null);
 
     final current = container.read(currentSequenceProvider);
     expect(current, isNotNull);
@@ -203,9 +179,9 @@ void main() {
       expect(container.read(currentSequenceProvider), isNull);
 
       final fileService = container.read(sequenceFileServiceProvider);
-      await applyRemoteSyncEvent(
+      showHostOpenPlan(
         container,
-        editorMirrorEvent(
+        hostDocument(
           fileService: fileService,
           sequence: buildSequence(name: 'QA M45 long', databaseId: 3),
           isDirty: false,

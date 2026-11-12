@@ -32,9 +32,10 @@ Map<String, dynamic> _property(
 };
 
 /// The host's native `DeviceManager` publishes every device state change
-/// whoever made it (`state_events.rs`). These are the slave-side checks that
-/// the events in that shape land in the same providers the host's own
-/// `DeviceService` writes, so a slave and its host show one state.
+/// whoever made it (`state_events.rs`). These check that the events in that
+/// shape land in the device slots through the appliers the host's
+/// `DeviceService` uses; a linked client takes the slots from the host's
+/// device channels.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -67,10 +68,19 @@ void main() {
     backend.dispose();
   });
 
-  Future<void> mirror(SkotiqEvent event) =>
-      applyRemoteSyncEvent(container, event, networkBackend: backend);
+  // As the host's `DeviceService` applies an equipment event.
+  Future<void> mirror(SkotiqEvent event) async {
+    switch (event.eventType) {
+      case 'PropertyChanged':
+        applyDevicePropertyChange(container, event.data);
+      case 'CameraSettingsChanged':
+        applyCameraSettings(container, event.data);
+      default:
+        applyDeviceStateEvent(container, event.eventType, event.data);
+    }
+  }
 
-  test('a host filter move moves the slave wheel', () async {
+  test('a host filter move moves the wheel', () async {
     await mirror(
       _equipment('FilterChanging', {
         'from_position': 1,
@@ -90,7 +100,7 @@ void main() {
     expect(wheel.currentPosition, 3);
   });
 
-  test('a host focuser move moves the slave focuser', () async {
+  test('a host focuser move moves the focuser', () async {
     await mirror(_equipment('FocuserMoveStarted', {'target_position': 26000}));
     expect(container.read(focuserStateProvider).isMoving, isTrue);
 
@@ -101,7 +111,7 @@ void main() {
     expect(focuser.position, 25995);
   });
 
-  test('camera gain, offset and binning reach the slave', () async {
+  test('camera gain, offset and binning reach the cards', () async {
     await mirror(
       _equipment(
         'PropertyChanged',
@@ -127,7 +137,7 @@ void main() {
     expect(camera.binning, '2x2');
   });
 
-  test('the camera\'s full settings reach the slave in one event', () async {
+  test('the camera\'s full settings reach the card in one event', () async {
     await mirror(
       _equipment('CameraSettingsChanged', {
         'device_id': 'sim_camera_1',
@@ -157,7 +167,7 @@ void main() {
     expect(container.read(cameraStateProvider).gain, 100);
   });
 
-  test('renamed slots reach the slave', () async {
+  test('renamed slots reach the cards', () async {
     await mirror(
       _equipment(
         'PropertyChanged',
@@ -264,7 +274,7 @@ void main() {
     });
   });
 
-  test('the camera temperature the host read reaches the slave', () async {
+  test('the camera temperature the host read reaches the card', () async {
     await mirror(
       _equipment('CameraTemperatureChanged', {
         'device_id': 'sim_camera_1',

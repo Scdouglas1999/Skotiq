@@ -21,7 +21,9 @@
 /// wire format is unchanged.
 library;
 
+import '../../backend/bridge_events.dart' show SequencerErrorKind;
 import '../../backend/frame_capture_metadata.dart';
+import '../../backend/sequencer_error_kind.dart';
 import '../../errors/error_text.dart';
 import '../../models/backend/event_types.dart';
 import '../../models/sequence/instruction_progress_detail.dart';
@@ -272,20 +274,23 @@ final class TargetCompleted extends SequencerRunEvent {
   final String? targetName;
 }
 
-/// The native `Error` event. The executor uses one payload for faults and
-/// advisories and tells them apart by severity, so [isAdvisory] is what
-/// decides whether this is a fault.
+/// The native `Error` event. One payload carries faults, pauses and notes;
+/// [kind] is the host's statement of which this one is.
 final class SequencerError extends SequencerRunEvent {
   const SequencerError({
     required super.eventType,
     required super.timestamp,
     required super.severity,
+    required this.kind,
     this.message,
   });
 
   final String? message;
+  final SequencerErrorKind kind;
 
-  bool get isAdvisory => severity == EventSeverity.warning;
+  /// A note or a problem the run carried on through: a warning on the run,
+  /// never a fault of it.
+  bool get isAdvisory => kind.runContinues;
 }
 
 final class InstructionProgress extends SequencerRunEvent {
@@ -825,6 +830,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         eventType: type,
         timestamp: ts,
         severity: sev,
+        kind: sequencerErrorKindOf(event),
         message: d.string('message'),
       );
 

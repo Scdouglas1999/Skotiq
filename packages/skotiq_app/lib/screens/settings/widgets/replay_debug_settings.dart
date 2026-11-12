@@ -30,11 +30,8 @@ import '../../../utils/confirm_dialog.dart';
 import 'settings_widgets.dart';
 
 class ReplayDebugSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
   const ReplayDebugSettings({
     super.key,
-    this.isMobile = false,
   });
 
   @override
@@ -74,17 +71,15 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final isMobile = widget.isMobile;
     final isRemote = ref.watch(isRemoteModeProvider);
     final enabledAsync = ref.watch(replayDebugEnabledProvider);
     final retentionAsync = ref.watch(replayDebugRetentionDaysProvider);
 
     if (enabledAsync.isLoading || retentionAsync.isLoading) {
-      return SettingsLoadingState(isMobile: isMobile);
+      return const SettingsLoadingState();
     }
     if (enabledAsync.hasError) {
       return SettingsErrorState(
-        isMobile: isMobile,
         error: enabledAsync.error!,
         onRetry: () => ref
             .read(replayDebugSettingsControllerProvider)
@@ -93,7 +88,6 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
     }
     if (retentionAsync.hasError) {
       return SettingsErrorState(
-        isMobile: isMobile,
         error: retentionAsync.error!,
         onRetry: () => ref
             .read(replayDebugSettingsControllerProvider)
@@ -118,12 +112,9 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
           : 'How long Skotiq keeps the record of every decision a run '
               'made, so you can replay a night afterwards. Older entries are '
               'removed automatically, once a day.',
-      isMobile: isMobile,
-      hideHeader: isMobile,
       children: [
         SettingsSection(
           title: 'Logging',
-          isMobile: isMobile,
           children: [
             _row(
               icon: LucideIcons.history,
@@ -190,7 +181,6 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
         ),
         SettingsSection(
           title: 'Maintenance',
-          isMobile: isMobile,
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -286,7 +276,9 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
     } catch (error) {
       if (mounted && _isCurrentClear(generation, authority)) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not clear replay history: ${userFacingError(error)}')),
+          SnackBar(
+              content: Text(
+                  'Could not clear replay history: ${userFacingError(error)}')),
         );
       }
     } finally {
@@ -309,13 +301,12 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
     required Widget trailing,
     bool isLast = false,
   }) {
-    if (widget.isMobile) {
+    if (SettingsFormScope.narrowOf(context)) {
       return SettingRow(
         icon: icon,
         title: title,
         subtitle: subtitle,
         trailing: trailing,
-        isMobile: true,
       );
     }
     return Padding(

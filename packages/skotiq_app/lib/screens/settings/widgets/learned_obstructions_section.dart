@@ -12,9 +12,7 @@ import 'settings_widgets.dart';
 /// when, and on which target, with a remove per point and a clear for the
 /// site. Planning treats each as blocked sky a few degrees either side of it.
 class LearnedObstructionsSection extends ConsumerWidget {
-  const LearnedObstructionsSection({super.key, this.isMobile = false});
-
-  final bool isMobile;
+  const LearnedObstructionsSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,7 +44,6 @@ class LearnedObstructionsSection extends ConsumerWidget {
     if (site == null) {
       return SettingsSection(
         title: 'Learned obstructions',
-        isMobile: isMobile,
         children: [
           intro,
           note('Set the site location to see the obstructions learned here.'),
@@ -57,13 +54,14 @@ class LearnedObstructionsSection extends ConsumerWidget {
     return settingsAsync.when(
       loading: () => SettingsSection(
         title: 'Learned obstructions',
-        isMobile: isMobile,
         children: [intro, note('Loading learned obstructions...')],
       ),
       error: (e, _) => SettingsSection(
         title: 'Learned obstructions',
-        isMobile: isMobile,
-        children: [intro, note('Could not read the learned obstructions: ${userFacingError(e)}')],
+        children: [
+          intro,
+          note('Could not read the learned obstructions: ${userFacingError(e)}')
+        ],
       ),
       data: (settings) {
         final points = settings
@@ -72,7 +70,6 @@ class LearnedObstructionsSection extends ConsumerWidget {
           ..sort((a, b) => a.azimuthDeg.compareTo(b.azimuthDeg));
         return SettingsSection(
           title: 'Learned obstructions',
-          isMobile: isMobile,
           children: [
             intro,
             if (points.isEmpty)
@@ -96,7 +93,6 @@ class LearnedObstructionsSection extends ConsumerWidget {
                       onPressed: () => _remove(context, ref, point),
                     ),
                   ),
-                  isMobile: isMobile,
                 ),
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -138,7 +134,8 @@ class LearnedObstructionsSection extends ConsumerWidget {
           .removeLearnedPoint(point);
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Could not remove the obstruction: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not remove the obstruction: ${userFacingError(e)}');
       }
     }
   }
@@ -166,7 +163,8 @@ class LearnedObstructionsSection extends ConsumerWidget {
           .clearLearnedPointsForSite(latitude, longitude);
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnackBar('Could not clear the obstructions: ${userFacingError(e)}');
+        context.showErrorSnackBar(
+            'Could not clear the obstructions: ${userFacingError(e)}');
       }
     }
   }

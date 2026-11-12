@@ -152,6 +152,56 @@ void main() {
     expect(rig.device.moves.last, 6006);
   });
 
+  // Changing filter by hand between runs moves the focuser by the filters'
+  // offset. That read as "something else moved the focuser", so the
+  // reference was taken again and the correction still under the smallest
+  // move was dropped at every change (the run's rule was fixed in 94b249898;
+  // the app's idle copy was not).
+  test('a filter focus offset keeps the correction owed', () async {
+    final rig = await _rig();
+    await rig.read(14.7); // 3.6 → 4 owed, under the smallest move
+    expect(rig.device.moves, isEmpty);
+
+    // What DeviceService does around an offset move of +30. The focuser's
+    // readings during the move (its arrival included) are not judged.
+    final idle = rig.container.read(idleFocusCompensationProvider);
+    idle.beginOffsetMove();
+    rig.focuser.updatePosition(5030);
+    await Future<void>.delayed(Duration.zero);
+    idle.endOffsetMove(appliedSteps: 30);
+    await rig.read(14.75);
+    expect(rig.device.moves, isEmpty, reason: 'still under 5 owed, from 5030');
+
+    await rig.read(14.6); // 4.8 → 5 owed since the reference
+    expect(rig.device.moves, <int>[5035]);
+    expect(
+      rig.container.read(focuserTempCompensationBaselineProvider)!.position,
+      5030,
+      reason: 'the reference moved with the offset and was not taken again',
+    );
+    expect(
+      rig.container.read(focuserTempCompensationBaselineProvider)!.temperature,
+      15.0,
+    );
+  });
+
+  test('an offset move that failed leaves the judging to the next reading', () async {
+    final rig = await _rig();
+    final idle = rig.container.read(idleFocusCompensationProvider);
+    idle.beginOffsetMove();
+    rig.focuser.updatePosition(5017); // stalled part-way
+    await Future<void>.delayed(Duration.zero);
+    idle.endOffsetMove(appliedSteps: 0);
+
+    await rig.read(14.9);
+    expect(rig.device.moves, isEmpty);
+    expect(
+      rig.container.read(focuserTempCompensationBaselineProvider)!.position,
+      5017,
+      reason: 'the focuser is not where compensation left it: a new reference',
+    );
+  });
+
   test('nothing moves while an autofocus started elsewhere runs', () async {
     final rig = await _rig(autofocusRunning: true);
     await rig.read(10.0);

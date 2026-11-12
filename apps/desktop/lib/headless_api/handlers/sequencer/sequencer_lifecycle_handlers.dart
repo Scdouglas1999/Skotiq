@@ -114,43 +114,29 @@ extension _SequencerLifecycle on SequencerHandlers {
 
   /// GET /api/sequencer/editor-sequence.
   ///
-  /// G2 (remote hydration): return the master's currently-open editor sequence
-  /// in the SAME payload shape the live editor mirror broadcasts over the WS
-  /// `/events` stream (see `master_sequence_editor_mirror.dart` ->
-  /// `emitSnapshot`), so a slave connecting mid-session can seed its sequencer
-  /// canvas without waiting for the master's next edit. Returns
-  /// `{open: false}` when nothing is open in the editor.
+  /// The plan open in this host's editor, or `{open: false}`. Linked clients
+  /// follow the plan through the `openPlan` runtime channel; this is for the
+  /// dashboard, scripts and clients older than the channel.
   Future<Response> _handleSequencerEditorSequence(Request request) async {
     final sequence = container.read(currentSequenceProvider);
     if (sequence == null) {
       return jsonOk({'open': false});
     }
-    final Map<String, dynamic> sequenceMap;
+    final Map<String, dynamic> document;
     try {
-      sequenceMap = container
-          .read(sequenceFileServiceProvider)
-          .sequenceToMap(sequence);
+      document = openPlanDocument(
+        container.read(sequenceFileServiceProvider),
+        sequence,
+        unsaved: container.read(currentSequenceProvider.notifier).isDirty,
+        owner: container.read(activePlanOwnerProvider),
+      );
     } catch (e) {
-      // Mirror the live emitter's behavior: a serialization failure must not
-      // crash the GET — report "nothing to seed" and let the slave fall back to
-      // the next live mirror frame.
       _logInfo(
         '[API] GET /api/sequencer/editor-sequence: serialize failed: $e',
       );
       return jsonOk({'open': false});
     }
-    final isDirty = container.read(currentSequenceProvider.notifier).isDirty;
-    final owner = container.read(activePlanOwnerProvider);
-    return jsonOk({
-      'open': true,
-      'sequence': sequenceMap,
-      if (sequence.databaseId != null) 'databaseId': sequence.databaseId,
-      'isDirty': isDirty,
-      // Who owns the open plan (manual vs autopilot/Smart Night/mosaic). Lets a
-      // slave seeding mid-session learn the owner on connect. Additive; an older
-      // slave ignores it.
-      'activePlanOwner': owner.wireValue,
-    });
+    return jsonOk({'open': true, ...document});
   }
 
   /// PUT /api/sequencer/editor-sequence.

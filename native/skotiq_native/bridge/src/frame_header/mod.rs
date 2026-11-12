@@ -1,11 +1,13 @@
-//! The FITS header of every frame Skotiq saves: sequenced frames, Imaging
-//! screen captures and the temporary frames handed to the plate solver all
-//! get their cards from [`FrameHeader::fits_header`].
+//! The FITS header of every frame Skotiq saves. A sequence's frame and a
+//! manual capture both arrive as a `FrameContext` filled by the sequencer's
+//! `sample_frame_context`, so their cards differ only in the ones that tie a
+//! frame to a run; the temporary frame handed to the plate solver is built
+//! here directly. All of them get their cards from
+//! [`FrameHeader::fits_header`].
 //!
 //! A frame records what is known about it: an optional field that is `None`
 //! leaves its keyword out rather than writing a placeholder.
 
-use crate::api::imaging::FitsWriteHeader;
 use crate::error::SkotiqError;
 use skotiq_imaging::{
     calculate_airmass, validate_fits_header, validate_image, write_fits, FitsHeader, ImageData,
@@ -29,9 +31,9 @@ pub(crate) struct FrameHeader {
     /// Hours.
     pub ra: Option<f64>,
     pub dec: Option<f64>,
-    /// `ra`/`dec` are J2000, and `EQUINOX`/`RADESYS` say so. A pointing read
-    /// straight off a mount is in the mount's own frame, often of date, and is
-    /// written without them.
+    /// `ra`/`dec` are J2000, and `EQUINOX`/`RADESYS` say so. Every saved
+    /// frame's are; the plate solver's temporary frame carries a search hint
+    /// and is written without them.
     pub pointing_is_j2000: bool,
     pub altitude: Option<f64>,
     pub telescope: Option<String>,
@@ -152,7 +154,7 @@ impl FrameHeader {
             plate_solve_rotation_deg: ctx.plate_solve_rotation_deg,
             bayer_pattern: ctx.bayer_pattern.clone(),
             session_id: Some(ctx.session_id.clone()).filter(|s| !s.is_empty()),
-            frame_index: Some(ctx.frame_index),
+            frame_index: Some(ctx.frame_index).filter(|index| *index > 0),
             total_planned_frames: ctx.total_planned_frames,
             mosaic_name: ctx.mosaic_panel.as_ref().map(|p| p.mosaic_name.clone()),
             mosaic_panel_index: ctx.mosaic_panel.as_ref().map(|p| p.panel_index),
@@ -438,9 +440,9 @@ fn set_pointing_keywords(header: &mut FitsHeader, ra_hours: Option<f64>, dec_deg
     }
 }
 
-/// The UTC instant a `DATE-OBS` text names: the sequencer writes it without a
-/// zone (`2026-11-11T07:12:06`), the Imaging screen as Dart's ISO-8601 UTC
-/// (`2026-11-11T07:12:06.250Z`).
+/// The UTC instant a `DATE-OBS` text names. A saved frame's has no zone
+/// (`2026-11-11T07:12:06`), as the FITS standard writes it; the plate
+/// solver's temporary frame is stamped in RFC 3339.
 fn parse_date_obs(date_obs: &str) -> Option<chrono::NaiveDateTime> {
     chrono::NaiveDateTime::parse_from_str(date_obs, "%Y-%m-%dT%H:%M:%S%.f")
         .ok()
@@ -520,51 +522,6 @@ fn set_horizon_keywords(header: &mut FitsHeader, altitude_degrees: Option<f64>) 
             e
         ),
     }
-}
-
-impl From<FitsWriteHeader> for FrameHeader {
-    /// What the Imaging screen knows about a manual capture. Its pointing is
-    /// the mount's own report, in the mount's frame.
-    fn from(header: FitsWriteHeader) -> Self {
-        Self {
-            object_name: header.object_name,
-            exposure_time: header.exposure_time,
-            capture_timestamp: header.capture_timestamp,
-            frame_type: header.frame_type,
-            filter: header.filter,
-            gain: header.gain,
-            offset: header.offset,
-            ccd_temp: header.ccd_temp,
-            ra: header.ra,
-            dec: header.dec,
-            pointing_is_j2000: false,
-            altitude: header.altitude,
-            telescope: header.telescope,
-            instrument: header.instrument,
-            observer: header.observer,
-            bin_x: header.bin_x,
-            bin_y: header.bin_y,
-            focal_length: header.focal_length,
-            aperture: header.aperture,
-            pixel_size_x: header.pixel_size_x,
-            pixel_size_y: header.pixel_size_y,
-            site_latitude: header.site_latitude,
-            site_longitude: header.site_longitude,
-            site_elevation: header.site_elevation,
-            ..Self::default()
-        }
-    }
-}
-
-/// The `BAYERPAT` spelling of a sensor's colour filter pattern.
-pub(crate) fn bayerpat(pattern: skotiq_device::BayerPattern) -> String {
-    match pattern {
-        skotiq_device::BayerPattern::Rggb => "RGGB",
-        skotiq_device::BayerPattern::Grbg => "GRBG",
-        skotiq_device::BayerPattern::Gbrg => "GBRG",
-        skotiq_device::BayerPattern::Bggr => "BGGR",
-    }
-    .to_string()
 }
 
 /// Write a 16-bit mono frame and its header to `file_path`, creating the

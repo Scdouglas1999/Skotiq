@@ -2,8 +2,8 @@
 //!
 //! The sequence goldens pin what every sequenced frame on disk looks like (key,
 //! value text, order), so a change to the header builder that moves one byte
-//! of a sequence frame fails here. The manual goldens pin what an Imaging
-//! screen capture carries. The rig test reproduces a real
+//! of a sequence frame fails here. The manual golden pins what a manual
+//! capture carries when no device of the rig answers. The rig test reproduces a real
 //! header from the owner's rig (run `refactor1`, 2026-11-11, frame
 //! `untangle baseline field_L_0012.fits`): all 45 keys, in order, with the
 //! value text the app's header reader returned for it.
@@ -191,52 +191,13 @@ async fn a_photometry_frame_writes_these_cards() {
     assert_cards(&path, SEQUENCE_PHOTOMETRY);
 }
 
-/// What the Imaging screen sends for a manual capture, every field set; the
-/// timestamp is Dart's `DateTime.toUtc().toIso8601String()`.
-fn full_manual_header() -> crate::api::FitsWriteHeader {
-    crate::api::FitsWriteHeader {
-        object_name: Some("M31".to_string()),
-        exposure_time: 60.0,
-        capture_timestamp: "2026-03-14T03:21:09.250Z".to_string(),
-        frame_type: "Light".to_string(),
-        filter: Some("Ha".to_string()),
-        gain: Some(100),
-        offset: Some(50),
-        ccd_temp: Some(-10.5),
-        ra: Some(0.7125),
-        dec: Some(41.27),
-        altitude: Some(55.25),
-        telescope: Some("Askar 65PHQ".to_string()),
-        instrument: Some("ZWO ASI2600MM Pro".to_string()),
-        observer: Some("Test Observer".to_string()),
-        bin_x: 2,
-        bin_y: 2,
-        focal_length: Some(416.0),
-        aperture: Some(65.0),
-        pixel_size_x: Some(3.76),
-        pixel_size_y: Some(3.76),
-        site_latitude: Some(40.7128),
-        site_longitude: Some(-74.0060),
-        site_elevation: Some(50.0),
-    }
-}
-
+/// A manual capture on a rig with nothing but the camera's frame to go on:
+/// the devices it names are not connected, so their cards are left out and
+/// the save still succeeds. The cards that tie a frame to a run are absent,
+/// and the color pattern comes from the frame.
 #[tokio::test]
-async fn a_manual_frame_writes_these_cards() {
-    let scratch = Scratch::new("manual_full");
-    let path = scratch.file("frame.fits");
-    crate::api::api_save_fits_file(path.clone(), 8, 8, vec![1000; 64], full_manual_header())
-        .await
-        .expect("manual save");
-
-    assert_cards(&path, MANUAL_FULL);
-}
-
-/// A manual capture saved from the store also records the sensor's colour
-/// filter, which only the camera knows.
-#[tokio::test]
-async fn a_manual_color_frame_saved_from_the_store_names_its_bayer_pattern() {
-    let device_id = "golden_last_capture_color";
+async fn a_manual_frame_with_no_rig_connected_writes_these_cards() {
+    let device_id = "golden_last_capture_no_rig";
     crate::last_frame::store(
         device_id,
         crate::last_frame::RawFrame {
@@ -244,29 +205,67 @@ async fn a_manual_color_frame_saved_from_the_store_names_its_bayer_pattern() {
             height: 8,
             data: vec![1000; 64],
             bayer_pattern: Some(skotiq_device::BayerPattern::Gbrg),
+            exposure: crate::last_frame::ExposureRecord {
+                started_at: at("2026-03-14T03:21:09.250Z"),
+                exposure_secs: 60.0,
+                gain: Some(100),
+                offset: Some(50),
+                temperature: Some(-10.5),
+                bits_per_pixel: 16,
+            },
         },
         60.0,
     )
     .await
     .expect("store frame");
-    let scratch = Scratch::new("manual_color");
+    let scratch = Scratch::new("manual_no_rig");
     let path = scratch.file("frame.fits");
     let saved = crate::api::api_save_fits_from_last_capture(
         device_id.to_string(),
         path.clone(),
-        full_manual_header(),
+        crate::api::FitsWriteHeader {
+            object_name: Some("M31".to_string()),
+            exposure_time: 60.0,
+            frame_type: "Light".to_string(),
+            filter: Some("Ha".to_string()),
+            gain: Some(90),
+            offset: Some(40),
+            bin_x: 2,
+            bin_y: 2,
+            telescope: Some("Askar 65PHQ".to_string()),
+            instrument: Some("ZWO ASI2600MM Pro".to_string()),
+            observer: Some("Test Observer".to_string()),
+            focal_length: Some(416.0),
+            aperture: Some(65.0),
+            site_latitude: Some(40.7128),
+            site_longitude: Some(-74.0060),
+            site_elevation: Some(50.0),
+            mount_id: Some("golden_absent_mount".to_string()),
+            focuser_id: Some("golden_absent_focuser".to_string()),
+            filter_wheel_id: Some("golden_absent_wheel".to_string()),
+            rotator_id: Some("golden_absent_rotator".to_string()),
+        },
     )
     .await;
     crate::last_frame::clear(device_id).await;
     saved.expect("save from last capture");
 
-    let mut expected = MANUAL_FULL.to_vec();
-    let after = expected
-        .iter()
-        .position(|card| card.starts_with("YPIXSZ"))
-        .unwrap();
-    expected.insert(after + 1, "BAYERPAT= 'GBRG    '");
-    assert_cards(&path, &expected);
+    // The device manager is the process's: a mount another test left
+    // connected is read for the pointing, as it would be in the app, so the
+    // pointing cards are not this test's to pin.
+    let pointing = [
+        "RA", "OBJCTRA", "DEC", "OBJCTDEC", "OBJCTALT", "AIRMASS", "EQUINOX", "RADESYS",
+    ];
+    let actual: Vec<String> = header_cards(&path)
+        .into_iter()
+        .filter(|card| !pointing.contains(&card[..card.len().min(8)].trim_end()))
+        .collect();
+    assert_eq!(
+        actual,
+        MANUAL_NO_RIG,
+        "header cards differ.\n--- actual\n{}",
+        actual.join("\n")
+    );
 }
 
 /// The values of the rig frame, as `F-sequence.json` recorded them.
@@ -473,7 +472,8 @@ const SEQUENCE_PHOTOMETRY: &[&str] = &[
     "SNR     =       1.8050000000E2",
     "END",
 ];
-const MANUAL_FULL: &[&str] = &[
+
+const MANUAL_NO_RIG: &[&str] = &[
     "SIMPLE  =                    T",
     "BITPIX  =                   16",
     "NAXIS   =                    2",
@@ -482,9 +482,9 @@ const MANUAL_FULL: &[&str] = &[
     "BZERO   =                32768",
     "BSCALE  =                    1",
     "EXPTIME =                 60.0",
-    "DATE-OBS= '2026-03-14T03:21:09.250Z'",
-    "DATE-END= '2026-03-14T03:22:09.250'",
-    "MJD-OBS =       6.1113139690E4",
+    "DATE-OBS= '2026-03-14T03:21:09'",
+    "DATE-END= '2026-03-14T03:22:09.000'",
+    "MJD-OBS =       6.1113139687E4",
     "IMAGETYP= 'Light   '",
     "OBJECT  = 'M31     '",
     "FILTER  = 'Ha      '",
@@ -493,10 +493,7 @@ const MANUAL_FULL: &[&str] = &[
     "CCD-TEMP=      -1.0500000000E1",
     "XBINNING=                    2",
     "YBINNING=                    2",
-    "PIXSIZE1=       3.7600000000E0",
-    "XPIXSZ  =       7.5200000000E0",
-    "PIXSIZE2=       3.7600000000E0",
-    "YPIXSZ  =       7.5200000000E0",
+    "BAYERPAT= 'GBRG    '",
     "FOCALLEN=                416.0",
     "APTDIA  =                 65.0",
     "TELESCOP= 'Askar 65PHQ'",
@@ -505,11 +502,5 @@ const MANUAL_FULL: &[&str] = &[
     "SITELAT =       4.0712800000E1",
     "SITELONG=      -7.4006000000E1",
     "SITEELEV=                 50.0",
-    "RA      =       1.0687500000E1",
-    "OBJCTRA = '00 42 45.00'",
-    "DEC     =       4.1270000000E1",
-    "OBJCTDEC= '+41 16 12.00'",
-    "OBJCTALT=       5.5250000000E1",
-    "AIRMASS =       1.2161798597E0",
     "END",
 ];

@@ -116,6 +116,15 @@ mixin _NetworkBackendRemoteOperations on _NetworkBackendTransport {
     if (jobId == null || jobId.isEmpty) return response;
 
     final job = await awaitJobCompletion(jobId, timeout: timeout);
+    return finishedJobResult(job, operation: operation);
+  }
+
+  /// The result of a job that reached its end, or the error its end is.
+  Map<String, dynamic> finishedJobResult(
+    RemoteJob job, {
+    required String operation,
+  }) {
+    final jobId = job.jobId;
     if (job.state == 'cancelled') {
       throw ImagingException(
         message: '$operation cancelled',

@@ -142,14 +142,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _selectSection(
     SettingsSectionId section, {
-    required bool isMobile,
+    required bool openDetail,
     String? rowTitle,
   }) {
     _highlightTimer?.cancel();
     setState(() {
       _selected = section;
       _highlightRow = rowTitle;
-      if (isMobile) _mobileShowingDetail = true;
+      if (openDetail) _mobileShowingDetail = true;
     });
     if (rowTitle == null) return;
     // The tint is a pointer, not a state: leaving it on would make the row look
@@ -269,7 +269,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         results: _searchResults(groups),
         onQueryChanged: (value) => setState(() => _query = value),
         onSectionTap: (key, rowTitle) =>
-            _selectSection(key, isMobile: true, rowTitle: rowTitle),
+            _selectSection(key, openDetail: true, rowTitle: rowTitle),
         colors: colors,
         title: context.l10n.text('settingsTitle'),
       );
@@ -325,7 +325,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 SettingsScopeNotice.forSection(section.id),
                 Expanded(
                   child: SettingsFormScope(
-                    isMobile: true,
+                    narrow: true,
                     authority: ref.watch(backendProvider),
                     child: SettingsRowHighlight(
                       rowTitle: _highlightRow,
@@ -363,7 +363,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               variant: ButtonVariant.ghost,
               size: ButtonSize.small,
               onPressed: () =>
-                  _selectSection(SettingsSectionId.backup, isMobile: false),
+                  _selectSection(SettingsSectionId.backup, openDetail: false),
             ),
           ],
         ),
@@ -385,7 +385,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 }),
                 onSelect: (key, rowTitle) => _selectSection(
                   key,
-                  isMobile: false,
+                  openDetail: false,
                   rowTitle: rowTitle,
                 ),
               ),
@@ -397,7 +397,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     SettingsScopeNotice.forSection(_selected),
                     Expanded(
                       child: SettingsFormScope(
-                        isMobile: false,
+                        narrow: false,
                         authority: ref.watch(backendProvider),
                         child: SettingsRowHighlight(
                           rowTitle: _highlightRow,

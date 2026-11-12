@@ -19,9 +19,7 @@ final endOfNightSettingsProvider = FutureProvider.autoDispose<EonSettings>(
 );
 
 class EndOfNightCalibrationSettings extends ConsumerStatefulWidget {
-  const EndOfNightCalibrationSettings({super.key, this.isMobile = false});
-
-  final bool isMobile;
+  const EndOfNightCalibrationSettings({super.key});
 
   static const title = 'End-of-night calibration';
   static const description =
@@ -65,13 +63,12 @@ class _EndOfNightCalibrationSettingsState
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = widget.isMobile;
     if (ref.watch(isRemoteClientProvider)) {
-      return SettingsPage(
+      return const SettingsPage(
+        hideHeader: false,
         title: EndOfNightCalibrationSettings.title,
         description: EndOfNightCalibrationSettings.description,
-        isMobile: isMobile,
-        children: const [
+        children: [
           EmptyState(
             icon: LucideIcons.server,
             title: 'End-of-night calibration runs on the imaging host',
@@ -84,26 +81,24 @@ class _EndOfNightCalibrationSettingsState
     }
     final settings = ref.watch(endOfNightSettingsProvider);
     return switch (settings) {
-      AsyncData(:final value) => _page(value, isMobile),
+      AsyncData(:final value) => _page(value),
       AsyncError(:final error) => SettingsErrorState(
           error: error,
-          isMobile: isMobile,
           onRetry: () => ref.invalidate(endOfNightSettingsProvider),
         ),
-      _ => SettingsLoadingState(isMobile: isMobile),
+      _ => const SettingsLoadingState(),
     };
   }
 
-  Widget _page(EonSettings s, bool isMobile) {
+  Widget _page(EonSettings s) {
     return SettingsPage(
+      hideHeader: false,
       title: EndOfNightCalibrationSettings.title,
       description: EndOfNightCalibrationSettings.description,
-      isMobile: isMobile,
       children: [
         const _EndOfNightStatusCard(),
         SettingsSection(
           title: 'When imaging ends',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.moonStar,
@@ -116,7 +111,6 @@ class _EndOfNightCalibrationSettingsState
                 value: s.enabled,
                 onChanged: (v) => _save(s.copyWith(enabled: v)),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.home,
@@ -127,12 +121,10 @@ class _EndOfNightCalibrationSettingsState
                 value: s.mountAction.name,
                 items: const ['home', 'park', 'leave'],
                 itemLabels: const ['Send home', 'Park', 'Leave it'],
-                isMobile: isMobile,
                 onChanged: (v) =>
                     _save(s.copyWith(mountAction: EonMountAction.parse(v))),
               ),
-              isMobile: isMobile,
-              stackOnMobile: true,
+              stackWhenNarrow: true,
             ),
             SettingRow(
               icon: LucideIcons.thermometerSnowflake,
@@ -144,13 +136,11 @@ class _EndOfNightCalibrationSettingsState
                 onChanged: (v) => _save(s.copyWith(warmUp: v)),
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
         SettingsSection(
           title: 'Frames',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.layers,
@@ -165,10 +155,8 @@ class _EndOfNightCalibrationSettingsState
                 min: EonSettings.minCount.toDouble(),
                 max: EonSettings.maxCount.toDouble(),
                 decimals: 0,
-                isMobile: isMobile,
                 onChanged: (v) => _save(s.copyWith(darkCount: v.round())),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.layers,
@@ -182,17 +170,14 @@ class _EndOfNightCalibrationSettingsState
                 min: EonSettings.minCount.toDouble(),
                 max: EonSettings.maxCount.toDouble(),
                 decimals: 0,
-                isMobile: isMobile,
                 onChanged: (v) => _save(s.copyWith(biasCount: v.round())),
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
         SettingsSection(
           title: 'Blocking the light',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.circleSlash,
@@ -205,13 +190,11 @@ class _EndOfNightCalibrationSettingsState
                 value: s.noDarkSlot.wireValue,
                 items: const ['ask', 'skip'],
                 itemLabels: const ['Ask me to cap it', 'Skip them'],
-                isMobile: isMobile,
                 onChanged: (v) => _save(
                   s.copyWith(noDarkSlot: EonNoDarkSlotPolicy.parse(v)),
                 ),
               ),
-              isMobile: isMobile,
-              stackOnMobile: true,
+              stackWhenNarrow: true,
             ),
             SettingRow(
               icon: LucideIcons.timer,
@@ -226,11 +209,9 @@ class _EndOfNightCalibrationSettingsState
                 min: 1,
                 max: 240,
                 decimals: 0,
-                isMobile: isMobile,
                 onChanged: (v) => _save(s.copyWith(capWaitMinutes: v.round())),
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),

@@ -34,9 +34,7 @@ const List<String> _uiScaleLabels = [
 ];
 
 class AppearanceSettings extends ConsumerWidget {
-  final bool isMobile;
-
-  const AppearanceSettings({super.key, this.isMobile = false});
+  const AppearanceSettings({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,9 +43,8 @@ class AppearanceSettings extends ConsumerWidget {
     final glanceMode = ref.watch(glanceModeProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(isMobile: isMobile),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -64,12 +61,9 @@ class AppearanceSettings extends ConsumerWidget {
           // night is the mode nobody guesses the reason for.
           description: 'Theme, accent and density. Red night keeps every pixel '
               'on the red axis so your dark adaptation survives.',
-          isMobile: isMobile,
-          hideHeader: isMobile,
           children: [
             SettingsSection(
               title: 'Theme',
-              isMobile: isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.moon,
@@ -85,8 +79,7 @@ class AppearanceSettings extends ConsumerWidget {
                   // split of an 880 px page leaves 412 and drops Red night onto
                   // a second row.
                   controlFlex: 2,
-                  isMobile: isMobile,
-                  stackOnMobile: isMobile,
+                  stackWhenNarrow: true,
                 ),
                 // In red night the swatch row was two defects at once. The
                 // picker is INERT — `resolveSkotiqThemeData` returns the
@@ -97,14 +90,13 @@ class AppearanceSettings extends ConsumerWidget {
                 // was the thing that ruined your dark adaptation. State the
                 // scope instead of rendering a control that does nothing.
                 if (mode == AppThemeMode.redNight)
-                  SettingRow(
+                  const SettingRow(
                     icon: LucideIcons.palette,
                     title: 'Accent',
                     subtitle: 'Red night is monochrome red, so the accent has '
                         'no effect while it is selected. Your accent applies '
                         'again on the Dark and Light themes.',
-                    trailing: const SizedBox.shrink(),
-                    isMobile: isMobile,
+                    trailing: SizedBox.shrink(),
                   )
                 else
                   SettingRow(
@@ -120,16 +112,13 @@ class AppearanceSettings extends ConsumerWidget {
                       onColorSelected: (color) => ref
                           .read(appSettingsProvider.notifier)
                           .setAccentColor(color),
-                      isMobile: isMobile,
                     ),
-                    isMobile: isMobile,
-                    stackOnMobile: isMobile,
+                    stackWhenNarrow: true,
                   ),
               ],
             ),
             SettingsSection(
               title: 'Display',
-              isMobile: isMobile,
               children: [
                 SettingRow(
                   icon: LucideIcons.type,
@@ -141,9 +130,7 @@ class AppearanceSettings extends ConsumerWidget {
                     onChanged: (value) => ref
                         .read(appSettingsProvider.notifier)
                         .setFontSize(value),
-                    isMobile: isMobile,
                   ),
-                  isMobile: isMobile,
                 ),
                 SettingRow(
                   icon: LucideIcons.zoomIn,
@@ -158,9 +145,7 @@ class AppearanceSettings extends ConsumerWidget {
                     onChanged: (value) => ref
                         .read(appSettingsProvider.notifier)
                         .setUiScale(value),
-                    isMobile: isMobile,
                   ),
-                  isMobile: isMobile,
                 ),
                 // `sidebar_collapsed` is intentionally non-remotable (host-only);
                 // hide the row over a remote session so it can't throw.
@@ -174,7 +159,6 @@ class AppearanceSettings extends ConsumerWidget {
                           .read(appSettingsProvider.notifier)
                           .setSidebarCollapsed(value),
                     ),
-                    isMobile: isMobile,
                   ),
                 // Moved off the dashboard (06 §Settings): it is a display
                 // preference, and it applied to the sequencer run panels too,
@@ -190,7 +174,6 @@ class AppearanceSettings extends ConsumerWidget {
                     onChanged: (value) =>
                         ref.read(glanceModeProvider.notifier).setEnabled(value),
                   ),
-                  isMobile: isMobile,
                 ),
               ],
             ),

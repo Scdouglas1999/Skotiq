@@ -11,6 +11,7 @@ import '../../../models/sequence/sequence_models.dart';
 import '../../../models/settings/app_settings.dart'
     show ObserverLocation, SafetyFailMode;
 import '../../../models/weather/weather_settings.dart' show WeatherSettings;
+import '../../../services/frame_identity.dart';
 import '../../../services/logging_service.dart';
 import '../../../services/session_handoff_service.dart'
     show SessionCarryOver, SessionHandoffDecision;
@@ -685,66 +686,24 @@ class RuntimeConfigSync {
     await _backend.sequencerUpdateFilterOffsets(offsets);
   }
 
-  /// Push the FITS observer profile: the observer name and site elevation
-  /// from app settings, the rest from the active equipment profile. Missing
-  /// values are omitted, never sent as sentinels. Throws on a failed push.
+  /// Push the FITS observer profile (see [FrameIdentity]). Missing values
+  /// are omitted, never sent as sentinels. Throws on a failed push.
   Future<void> _pushObserverProfile() async {
-    final settings = _ref.read(appSettingsProvider).valueOrNull;
-    final profile = _ref.read(activeEquipmentProfileProvider);
-
-    // The profile's camera name is a display label ("ZWO ASI2600MM Pro"):
-    // make is the first word, model the rest; one word is a model alone.
-    String? cameraMake;
-    String? cameraModel;
-    final rawCameraName = profile?.cameraName?.trim();
-    if (rawCameraName != null && rawCameraName.isNotEmpty) {
-      final spaceIdx = rawCameraName.indexOf(' ');
-      if (spaceIdx > 0) {
-        cameraMake = rawCameraName.substring(0, spaceIdx).trim();
-        cameraModel = rawCameraName.substring(spaceIdx + 1).trim();
-      } else {
-        cameraModel = rawCameraName;
-      }
-    }
-
-    // The dedicated telescope fields first, then the generic optics fields a
-    // profile built through them carries; 0 means not configured.
-    double? focalLength;
-    double? aperture;
-    if (profile != null) {
-      final tfl = profile.telescopeFocalLength;
-      final fl = profile.focalLength;
-      if (tfl != null && tfl > 0) {
-        focalLength = tfl;
-      } else if (fl > 0) {
-        focalLength = fl;
-      }
-      final ta = profile.telescopeAperture;
-      final ap = profile.aperture;
-      if (ta != null && ta > 0) {
-        aperture = ta;
-      } else if (ap > 0) {
-        aperture = ap;
-      }
-    }
-
+    final identity = FrameIdentity.read(_ref);
+    final (cameraMake, cameraModel) = identity.cameraMakeAndModel;
     await _backend.sequencerUpdateObserverProfile(
-      observerName: (settings == null || settings.observerName.isEmpty)
-          ? null
-          : settings.observerName,
-      siteElevationM: (settings != null && settings.elevation > 0)
-          ? settings.elevation
-          : null,
+      observerName: identity.observerName,
+      siteElevationM: identity.siteElevationM,
       cameraMake: cameraMake,
       cameraModel: cameraModel,
-      telescopeName: profile?.telescopeName,
-      telescopeFocalLengthMm: focalLength,
-      telescopeApertureMm: aperture,
+      telescopeName: identity.telescopeName,
+      telescopeFocalLengthMm: identity.focalLengthMm,
+      telescopeApertureMm: identity.apertureMm,
     );
     _logger().debug(
-      'Pushed observer_profile: observer=${settings?.observerName}, '
-      'telescope=${profile?.telescopeName}, camera=$cameraMake $cameraModel, '
-      'focal=${focalLength}mm, aperture=${aperture}mm',
+      'Pushed observer_profile: observer=${identity.observerName}, '
+      'telescope=${identity.telescopeName}, camera=${identity.cameraName}, '
+      'focal=${identity.focalLengthMm}mm, aperture=${identity.apertureMm}mm',
       source: 'SequenceExecutor',
     );
   }

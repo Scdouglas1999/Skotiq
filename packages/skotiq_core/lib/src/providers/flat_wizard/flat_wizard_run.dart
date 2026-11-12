@@ -4,7 +4,6 @@ part of '../flat_wizard_provider.dart';
 
 /// The capture lifecycle for [FlatWizardNotifier].
 extension FlatWizardRun on FlatWizardNotifier {
-
   /// Run the full flat-capture lifecycle for the current mode: per-filter
   /// calibration, frame capture, FITS save, and history recording.
   ///
@@ -203,7 +202,10 @@ extension FlatWizardRun on FlatWizardNotifier {
       final paths = host != null ? hostPathContext(savePath) : p.context;
       var baseSavePath = savePath;
       if (runSettings.createDateSubfolder) {
-        baseSavePath = paths.join(baseSavePath, ClockFormat.date(DateTime.now()));
+        baseSavePath = paths.join(
+          baseSavePath,
+          ClockFormat.date(DateTime.now()),
+        );
       }
       final createOutputLocally = host == null;
       await prepareFlatOutputDirectory(
@@ -530,11 +532,12 @@ extension FlatWizardRun on FlatWizardNotifier {
             await backend.saveFitsFromLastCapture(
               deviceId: cameraId,
               filePath: filePath,
-              headerData: FitsWriteHeader(
-                frameType: 'FLAT',
+              headerData: await manualFrameHeader(
+                ref,
+                frameType: FrameType.flat.imageType,
                 filter: filterSetting.filterName,
                 exposureTime: frameExposure,
-                captureTimestamp: captureTime.toUtc().toIso8601String(),
+                startedAtUtc: captureTime,
                 gain: config.gain,
                 offset: config.offset,
                 binX: config.binX,

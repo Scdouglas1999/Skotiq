@@ -37,7 +37,31 @@ fn app_built_plan(loop_passes: u32) -> SequenceDefinition {
             horizon_profile: None,
         }),
         enabled: true,
-        children: vec!["wait".to_string()],
+        children: vec![
+            "wait".to_string(),
+            "notify".to_string(),
+            "script".to_string(),
+        ],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "notify".to_string(),
+        name: "Tell me it started".to_string(),
+        node_type: NodeType::Notification(crate::NotificationConfig {
+            title: "Imaging started".to_string(),
+            message: "The darks are running".to_string(),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    // Disabled, so no script runs in a test; what a resume does with it is
+    // read from the tree in `a_resume_runs_a_finished_script_step_again`.
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "script".to_string(),
+        name: "Open the roof".to_string(),
+        node_type: NodeType::RunScript(crate::ScriptConfig::default()),
+        enabled: false,
+        children: vec![],
     });
     sequence.nodes.push(crate::NodeDefinition {
         id: "wait".to_string(),
@@ -94,6 +118,18 @@ enum StopAt {
 /// Count what the run did until it reached a terminal state: frames
 /// completed, and how often the wait step started.
 async fn drain(leg: &mut Leg, stop: Option<StopAt>) -> (u32, u32) {
+    let (frames, waits, _) = drain_counting_notifications(leg, stop).await;
+    (frames, waits)
+}
+
+/// [`drain`], with how often the notification step ran.
+async fn drain_counting_notifications(leg: &mut Leg, stop: Option<StopAt>) -> (u32, u32, u32) {
+    let mut notified = 0;
+    let (frames, waits) = drain_inner(leg, stop, &mut notified).await;
+    (frames, waits, notified)
+}
+
+async fn drain_inner(leg: &mut Leg, stop: Option<StopAt>, notified: &mut u32) -> (u32, u32) {
     let mut frames = 0;
     let mut waits = 0;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
@@ -108,6 +144,7 @@ async fn drain(leg: &mut Leg, stop: Option<StopAt>) -> (u32, u32) {
                     leg.executor.stop().await.expect("stop is accepted");
                 }
             }
+            Ok(ExecutorEvent::NodeStarted { id, .. }) if id == "notify" => *notified += 1,
             Ok(ExecutorEvent::NodeStarted { id, .. }) if id == "wait" => {
                 waits += 1;
                 if matches!(stop, Some(StopAt::Wait(at)) if at == waits) {
@@ -184,6 +221,87 @@ async fn a_status_from_an_earlier_pass_does_not_count_on_resume() {
     assert_eq!((frames_before, waits_before), (FRAMES, 2));
     assert_eq!(frames_after, FRAMES);
     assert_eq!(waits_after, 1);
+}
+
+/// A plan stopped in its burst had already sent its notification. The resume
+/// prepared the rig again and sent "Imaging started" a second time.
+#[tokio::test]
+async fn a_resume_does_not_send_a_finished_notification_again() {
+    let dir = std::env::temp_dir().join(format!("sk-resume-notify-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let mut first = executor_for(&dir);
+    first
+        .load_sequence(app_built_plan(1))
+        .expect("sequence loads");
+    let mut first = start(first).await;
+    let (_, _, sent_before) =
+        drain_counting_notifications(&mut first, Some(StopAt::Frame(3))).await;
+    drop(first);
+
+    let mut second = executor_for(&dir);
+    second
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+    let mut second = start(second).await;
+    let (frames_after, waits_after, sent_after) =
+        drain_counting_notifications(&mut second, None).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(sent_before, 1);
+    assert_eq!(sent_after, 0, "the notification is not sent a second time");
+    assert_eq!(waits_after, 1, "the rig is still prepared again");
+    assert_eq!(frames_after, FRAMES - 3);
+}
+
+/// Stop, Restore progress and Start without closing the app: the executor is
+/// still in its Cancelled state when the resume is prepared. The start then
+/// recycled the executor and wiped what the resume had marked, so the whole
+/// plan ran again (22 frames for an 18-frame plan on the simulator).
+#[tokio::test]
+async fn a_resume_in_the_same_launch_continues_too() {
+    let dir = std::env::temp_dir().join(format!("sk-resume-same-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let mut executor = executor_for(&dir);
+    executor
+        .load_sequence(app_built_plan(2))
+        .expect("sequence loads");
+    let mut leg = start(executor).await;
+    let (frames_before, _, sent_before) =
+        drain_counting_notifications(&mut leg, Some(StopAt::Frame(FRAMES + 2))).await;
+    assert_eq!(leg.executor.get_state().await, ExecutorState::Cancelled);
+
+    leg.executor
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+    leg.executor.start().await.expect("the resumed run starts");
+    let (frames_after, waits_after, sent_after) =
+        drain_counting_notifications(&mut leg, None).await;
+    let _ = std::fs::remove_dir_all(&dir);
+
+    assert_eq!(frames_before, FRAMES + 2);
+    assert_eq!(frames_after, FRAMES - 2, "only the frames still owed");
+    assert_eq!(waits_after, 1, "the rig is prepared again");
+    assert_eq!((sent_before, sent_after), (2, 0));
+}
+
+/// A script may have opened the roof the stop closed, and the steps after it
+/// move the mount, so a finished Run Script step is not kept by a resume.
+#[test]
+fn a_resume_runs_a_finished_script_step_again() {
+    let mut executor = SequenceExecutor::new();
+    executor
+        .load_sequence(app_built_plan(1))
+        .expect("sequence loads");
+    let root = executor.root_node.as_ref().expect("the plan has a tree");
+    let kept = crate::node::resume::kept_on_resume(root.as_ref());
+    assert!(kept.contains("notify"));
+    assert!(kept.contains("frames"));
+    assert!(!kept.contains("script"));
+    assert!(!kept.contains("wait"));
 }
 
 /// What the app reads to show a restored run's progress before and while it

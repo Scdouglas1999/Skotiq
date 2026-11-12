@@ -79,7 +79,7 @@ pub(in super::super) async fn retry(
                     trigger_name
                 );
                 run.pause(Some(format!("Paused: {} fired", trigger_name)));
-                run.error(format!(
+                run.held(format!(
                     "Trigger '{}' fired and automatic recovery is not \
                      available. The run is paused — no further frames will \
                      be taken until you resume.",
@@ -110,7 +110,7 @@ pub(in super::super) async fn retry(
             max_attempts
         );
         run.pause(Some(format!("Paused: {} kept firing", trigger_name)));
-        run.error(format!(
+        run.held(format!(
             "Trigger '{}' fired more than the {} times allowed; sequence \
              paused",
             trigger_name, max_attempts

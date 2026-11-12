@@ -12,9 +12,7 @@ import 'admin_only.dart';
 import 'settings_widgets.dart';
 
 class Phd2GuidingSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const Phd2GuidingSettings({super.key, this.isMobile = false});
+  const Phd2GuidingSettings({super.key});
 
   @override
   ConsumerState<Phd2GuidingSettings> createState() =>
@@ -250,11 +248,8 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
 
     return settingsAsync.when(
-      loading: () => SettingsLoadingState(
-        isMobile: widget.isMobile,
-      ),
+      loading: () => const SettingsLoadingState(),
       error: (error, stack) => SettingsErrorState(
-        isMobile: widget.isMobile,
         error: error,
         onRetry: () => ref.invalidate(appSettingsProvider),
       ),
@@ -262,6 +257,7 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
         final authority = ref.watch(backendProvider);
 
         return SettingsPage(
+          hideHeader: false,
           title: 'PHD2 guiding',
           description: 'Configure PHD2 guiding software connection',
           children: [

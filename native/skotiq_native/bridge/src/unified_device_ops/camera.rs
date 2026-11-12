@@ -50,6 +50,8 @@ impl CameraOps for UnifiedDeviceOps {
             },
         );
 
+        let started_at = chrono::Utc::now();
+
         // Start the exposure. gain/offset are Option<i32>; None means "use the
         // camera's current value, don't change it" and is threaded through to
         // each driver branch so the setter is genuinely skipped — an
@@ -212,6 +214,19 @@ impl CameraOps for UnifiedDeviceOps {
                 return Err(error);
             }
         }
+        let exposure_secs = if native_image.metadata.exposure_time > 0.0 {
+            native_image.metadata.exposure_time
+        } else {
+            duration_secs
+        };
+        // A gain or offset the driver could not read arrives as a placeholder
+        // (Alpaca, INDI); as `None` the commanded value stands in for it.
+        let gain = crate::device_manager::ops::camera::camera_setting_or_unknown(
+            native_image.metadata.gain,
+        );
+        let offset = crate::device_manager::ops::camera::camera_setting_or_unknown(
+            native_image.metadata.offset,
+        );
         // The display, statistics and stars are ready in the store before the
         // exposure is announced complete, so whoever reacts to the event finds them.
         if let Err(e) = crate::last_frame::store(
@@ -221,6 +236,14 @@ impl CameraOps for UnifiedDeviceOps {
                 height: native_image.height,
                 data: native_image.data.clone(),
                 bayer_pattern: native_image.bayer_pattern,
+                exposure: crate::last_frame::ExposureRecord {
+                    started_at,
+                    exposure_secs,
+                    gain,
+                    offset,
+                    temperature: native_image.metadata.temperature,
+                    bits_per_pixel: native_image.bits_per_pixel,
+                },
             },
             duration_secs,
         )
@@ -230,19 +253,8 @@ impl CameraOps for UnifiedDeviceOps {
             return Err(e.to_string().into());
         }
 
-        // The sequencer's ImageData names the colour filter by its offset.
-        let (sensor_type, bayer_offset) = match native_image.bayer_pattern {
-            Some(pattern) => {
-                let offset = match pattern {
-                    skotiq_device::BayerPattern::Rggb => (0, 0),
-                    skotiq_device::BayerPattern::Grbg => (1, 0),
-                    skotiq_device::BayerPattern::Gbrg => (0, 1),
-                    skotiq_device::BayerPattern::Bggr => (1, 1),
-                };
-                (Some("Color".to_string()), Some(offset))
-            }
-            None => (Some("Monochrome".to_string()), None),
-        };
+        let (sensor_type, bayer_offset) =
+            crate::last_frame::sensor_type_and_offset(native_image.bayer_pattern);
 
         exposure.end(true, EventSeverity::Info);
 
@@ -261,23 +273,9 @@ impl CameraOps for UnifiedDeviceOps {
             height: native_image.height,
             data: native_image.data,
             bits_per_pixel: native_image.bits_per_pixel,
-            exposure_secs: if native_image.metadata.exposure_time > 0.0 {
-                native_image.metadata.exposure_time
-            } else {
-                duration_secs
-            },
-            // Blindly wrapping in Some() meant an unreadable gain/offset (which
-            // the Alpaca/INDI paths recorded as a placeholder) presented as a real
-            // measurement and short-circuited `image_data.gain.or(config.gain)`
-            // downstream, so the placeholder beat the operator's configured value
-            // and was written into the frame's FITS header. Mapping the
-            // unknown marker back to None restores the intended fallback.
-            gain: crate::device_manager::ops::camera::camera_setting_or_unknown(
-                native_image.metadata.gain,
-            ),
-            offset: crate::device_manager::ops::camera::camera_setting_or_unknown(
-                native_image.metadata.offset,
-            ),
+            exposure_secs,
+            gain,
+            offset,
             temperature: native_image.metadata.temperature,
             filter: None,
             timestamp: native_image.metadata.timestamp.timestamp(),
@@ -340,6 +338,13 @@ impl CameraOps for UnifiedDeviceOps {
             .await
             .map_err(|e| format!("Failed to get camera status: {}", e))?;
         Ok(Some(status.cooler_on))
+    }
+
+    async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
+        let status = api_get_camera_status(camera_id.to_string())
+            .await
+            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+        Ok(status.target_temp.filter(|_| status.cooler_on))
     }
 
     async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {

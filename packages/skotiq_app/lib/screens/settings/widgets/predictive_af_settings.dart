@@ -26,16 +26,8 @@ import 'settings_widgets.dart';
 /// the confidence thresholds, the drift-detection knobs, and a viewer that
 /// lists every persisted per-filter model with re-train / export actions.
 class PredictiveAfSettingsPage extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view / header (embedded in a
-  /// merged section's single outer scroll).
-  final bool embedded;
-
   const PredictiveAfSettingsPage({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   @override
@@ -162,9 +154,6 @@ class _PredictiveAfSettingsPageState
       description:
           'Learn per-filter focus/temperature slope across sessions and skip '
           'manual autofocus when the model is confident.',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile || widget.embedded,
-      scrollable: !widget.embedded,
       children: [
         if (_latestDriftWarning != null)
           _DriftWarningBanner(
@@ -218,7 +207,6 @@ class _PredictiveAfSettingsPageState
     return [
       SettingsSection(
         title: 'Gates',
-        isMobile: widget.isMobile,
         children: [
           _settingRow(
             icon: LucideIcons.brainCircuit,
@@ -333,7 +321,6 @@ class _PredictiveAfSettingsPageState
       ),
       SettingsSection(
         title: 'Learned models',
-        isMobile: widget.isMobile,
         children: [
           _ModelViewer(
             controller: controller,
@@ -353,13 +340,12 @@ class _PredictiveAfSettingsPageState
     required Widget trailing,
     bool isLast = false,
   }) {
-    if (widget.isMobile) {
+    if (SettingsFormScope.narrowOf(context)) {
       return SettingRow(
         icon: icon,
         title: title,
         subtitle: subtitle,
         trailing: trailing,
-        isMobile: true,
       );
     }
     return Padding(
@@ -480,7 +466,9 @@ class _ModelViewer extends StatelessWidget {
                   } catch (error) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Re-train failed: ${userFacingError(error)}')),
+                        SnackBar(
+                            content: Text(
+                                'Re-train failed: ${userFacingError(error)}')),
                       );
                     }
                   }
@@ -504,7 +492,9 @@ class _ModelViewer extends StatelessWidget {
                   } catch (error) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Export failed: ${userFacingError(error)}')),
+                        SnackBar(
+                            content: Text(
+                                'Export failed: ${userFacingError(error)}')),
                       );
                     }
                   }
@@ -741,7 +731,6 @@ class _ModelRowState extends State<_ModelRow> {
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
-
 }
 
 /// Inline scatter plot for the per-filter sample window. Light-weight

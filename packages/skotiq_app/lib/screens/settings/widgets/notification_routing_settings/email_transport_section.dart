@@ -1,8 +1,7 @@
 part of '../notification_routing_settings.dart';
 
 class _EmailTransportSection extends ConsumerStatefulWidget {
-  final bool isMobile;
-  const _EmailTransportSection({required this.isMobile});
+  const _EmailTransportSection();
 
   @override
   ConsumerState<_EmailTransportSection> createState() =>
@@ -112,7 +111,6 @@ class _EmailTransportSectionState
               subtitle: 'Stored securely in the OS keyring.',
               controller: _pass,
               hasStoredValue: cfg.password.isNotEmpty,
-              isMobile: widget.isMobile,
               hint: 'app password / SMTP password',
               onChanged: (_) => _clearPassword = false,
               onClear: () => setState(() => _clearPassword = true),
@@ -163,7 +161,6 @@ class _EmailTransportSectionState
         context: context,
         controller: c,
         hint: hint ?? '',
-        isMobile: widget.isMobile,
         obscure: obscure,
       ),
     );

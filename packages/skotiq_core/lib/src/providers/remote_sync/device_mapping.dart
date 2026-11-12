@@ -99,12 +99,3 @@ bool _isHostGuideCamera(Object reader, DeviceType? type, String? deviceId) =>
       _read(reader, activeEquipmentProfileProvider),
       deviceId,
     );
-
-void _applyConnectedDevice(Object reader, DeviceInfo device) {
-  if (_isHostGuideCamera(reader, device.deviceType, device.id)) return;
-  final notifier = readDeviceConnectionNotifier(reader, device.deviceType);
-  if (!_isDeviceAlreadyConnected(reader, device.deviceType, device.id)) {
-    notifier.setConnecting(device.id, device.name);
-  }
-  notifier.setConnected();
-}

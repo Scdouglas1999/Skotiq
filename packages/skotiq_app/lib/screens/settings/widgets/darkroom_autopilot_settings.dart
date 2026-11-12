@@ -8,9 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// opening this entry goes there. The pointer stays on screen in case
 /// navigation is not available, so the entry is never a dead end.
 class DarkroomAutopilotSettings extends StatefulWidget {
-  const DarkroomAutopilotSettings({super.key, this.isMobile = false});
-
-  final bool isMobile;
+  const DarkroomAutopilotSettings({super.key});
 
   @override
   State<DarkroomAutopilotSettings> createState() =>

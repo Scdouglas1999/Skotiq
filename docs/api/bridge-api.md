@@ -421,16 +421,18 @@ Read an XISF file.
 Future<XisfReadResult> apiReadXisfFile({required String filePath})
 ```
 
-### `apiSaveFitsFile`
+### `apiSaveFitsFromLastCapture`
 
-Save image data to FITS file.
+Save the camera's last frame as FITS. The pixels stay on the Rust side. The
+header is the one a sequence's frame gets, without the cards that tie a frame
+to a run: `headerData` carries what was commanded, the observer, site and
+optics, and the ids of the rig's devices, and the devices are read when the
+file is written.
 
 ```dart
-Future<void> apiSaveFitsFile({
+Future<void> apiSaveFitsFromLastCapture({
+  required String deviceId,
   required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
   required FitsWriteHeader headerData,
 })
 ```

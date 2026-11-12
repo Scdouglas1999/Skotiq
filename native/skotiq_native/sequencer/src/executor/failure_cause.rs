@@ -292,6 +292,36 @@ mod tests {
         assert!(report.cascade[1].starts_with("Change Filter: "));
     }
 
+    /// A recovery that could not restore tracking, then a slew refused an
+    /// hour later with no step finishing in between: the run failed on the
+    /// slew. The problem it carried on through and the reason it was once
+    /// paused are not candidates.
+    #[test]
+    fn a_problem_the_run_survived_is_not_the_reason_it_later_failed() {
+        let report = drain(
+            vec![
+                ExecutorEvent::StepProblem {
+                    message: "Recovery after recovery but tracking could not be re-enabled"
+                        .to_string(),
+                },
+                ExecutorEvent::RunHeld {
+                    message: "DriftLimit recenter failed: no stars".to_string(),
+                },
+                ExecutorEvent::InstructionFailed {
+                    node_name: "Slew".to_string(),
+                    message: "Slew refused: target below horizon".to_string(),
+                },
+            ],
+            None,
+        );
+
+        assert_eq!(
+            report.cause.as_deref(),
+            Some("Slew: Slew refused: target below horizon")
+        );
+        assert_eq!(report.cascade.len(), 1);
+    }
+
     #[test]
     fn the_first_fault_wins_over_later_ones() {
         let report = drain(

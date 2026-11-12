@@ -318,6 +318,8 @@ impl Run {
                             judged.store(true, Ordering::SeqCst);
                         }
                         Ok(ExecutorEvent::Error { message })
+                        | Ok(ExecutorEvent::RunHeld { message })
+                        | Ok(ExecutorEvent::StepProblem { message })
                         | Ok(ExecutorEvent::Warning { message }) => {
                             messages.lock().unwrap().push(message);
                         }

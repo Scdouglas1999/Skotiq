@@ -136,6 +136,15 @@ class ImagingHandlers implements RouteSource {
               'Plate-solve cancellation requested by client',
             );
           }
+          // A job whose work failed ends `failed`: the job's state is what
+          // the job list, the failure notices and the clients go by.
+          if (!solve.success) {
+            throw JobFailedException(
+              code: 'plate_solve_failed',
+              message: solve.error ?? 'The solver found no solution.',
+              details: _plateSolveJson(solve),
+            );
+          }
           return _plateSolveJson(solve);
         },
       );

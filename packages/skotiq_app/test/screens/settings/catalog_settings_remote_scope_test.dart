@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_app/screens/settings/catalog_settings_screen.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -38,7 +39,9 @@ Future<void> _pump(WidgetTester tester, {SkotiqBackend? backend}) async {
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
-        home: const Scaffold(body: CatalogSettingsScreen(isMobile: true)),
+        home: const Scaffold(
+            body: SettingsFormScope(
+                narrow: true, child: CatalogSettingsScreen())),
       ),
     ),
   );

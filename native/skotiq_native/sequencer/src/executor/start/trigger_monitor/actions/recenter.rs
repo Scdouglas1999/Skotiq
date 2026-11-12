@@ -108,7 +108,7 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
             result.message
         );
         run.pause(None);
-        run.error(format!(
+        run.held(format!(
             "DriftLimit recenter failed: {}",
             result.message.unwrap_or_default()
         ));

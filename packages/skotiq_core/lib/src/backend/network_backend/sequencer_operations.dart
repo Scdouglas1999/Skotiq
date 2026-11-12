@@ -42,6 +42,19 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
     required Duration timeout,
   });
 
+  /// Implemented by [_NetworkBackendRemoteOperations].
+  Future<RemoteJob> awaitJobCompletion(
+    String jobId, {
+    Duration timeout,
+    Duration pollInterval,
+  });
+
+  /// Implemented by [_NetworkBackendRemoteOperations].
+  Map<String, dynamic> finishedJobResult(
+    RemoteJob job, {
+    required String operation,
+  });
+
   @override
   Future<PlateSolveResult> plateSolve({
     required String imagePath,
@@ -57,11 +70,23 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       if (fovDegrees != null) 'fov': fovDegrees,
       if (timeoutSeconds != null) 'timeoutSeconds': timeoutSeconds,
     });
-    final response = await awaitJobResultOrLegacy(
-      start,
-      operation: 'plate solve',
-      timeout: Duration(seconds: (timeoutSeconds ?? 300) + 30),
-    );
+    final jobId = start['jobId'] as String?;
+    final Map<String, dynamic> response;
+    if (jobId == null || jobId.isEmpty) {
+      // A host that solved before answering sent the result itself.
+      response = start;
+    } else {
+      final job = await awaitJobCompletion(
+        jobId,
+        timeout: Duration(seconds: (timeoutSeconds ?? 300) + 30),
+      );
+      // A solve that found nothing ends its job `failed`, with the result
+      // the solver gave (and its reason) as the failure's details. That is
+      // an answer for the caller, not a broken request.
+      response =
+          _unsolvedPlateSolve(job) ??
+          finishedJobResult(job, operation: 'plate solve');
+    }
 
     // CD matrix + SIP distortion terms are enriched by the master
     // (`ImagingHandlers._plateSolveJson`). Tolerate their absence so an older
@@ -100,6 +125,17 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       sipApCoeffs: sipCoeffs('sipApCoeffs'),
       sipBpCoeffs: sipCoeffs('sipBpCoeffs'),
     );
+  }
+
+  /// The solver's own result for a plate-solve job that ended `failed`
+  /// because no solution was found, or null for any other outcome.
+  static Map<String, dynamic>? _unsolvedPlateSolve(RemoteJob job) {
+    final error = job.error;
+    if (job.state != 'failed' || error?['code'] != 'plate_solve_failed') {
+      return null;
+    }
+    final details = error?['details'];
+    return details is Map ? Map<String, dynamic>.from(details) : null;
   }
 
   // Plate solver setup
@@ -521,33 +557,6 @@ mixin _NetworkBackendSequencerOperations on _NetworkBackendTransport {
       if (error.httpStatus == 404) return null;
       rethrow;
     }
-  }
-
-  /// G2 (remote-only): fetch the master's currently-open editor sequence so a
-  /// slave connecting mid-session can seed its sequencer canvas immediately
-  /// instead of waiting for the master's next edit-triggered mirror frame.
-  ///
-  /// Returns the same payload shape the live editor mirror broadcasts over the
-  /// WS `/events` stream (`{sequence, databaseId?, isDirty}`), suitable for
-  /// feeding straight into `_applySequenceEditorMirror`. Returns `null` when no
-  /// sequence is open host-side (`{open: false}`) or the endpoint is missing on
-  /// an older headless host. Not part of the abstract backend — only a
-  /// NetworkBackend slave ever calls this.
-  Future<Map<String, dynamic>?> getOpenEditorSequence() async {
-    final response = await _get('sequencer/editor-sequence');
-    if (response['open'] != true) return null;
-    final sequence = response['sequence'];
-    if (sequence is! Map) return null;
-    return <String, dynamic>{
-      'sequence': Map<String, dynamic>.from(sequence),
-      if (response['databaseId'] is int) 'databaseId': response['databaseId'],
-      'isDirty': response['isDirty'] == true,
-      // Carry the active-plan owner through to _applySequenceEditorMirror so a
-      // mid-session slave learns who owns the host's plan on connect. Absent on
-      // an older host -> parsed back to manual by ActivePlanOwnerWire.fromWire.
-      if (response['activePlanOwner'] != null)
-        'activePlanOwner': response['activePlanOwner'],
-    };
   }
 
   /// Remote-only: put this client's open plan into the host's sequence
