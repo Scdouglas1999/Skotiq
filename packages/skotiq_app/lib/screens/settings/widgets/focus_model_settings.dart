@@ -17,16 +17,8 @@ import 'settings_widgets.dart';
 /// temp-comp is healthy from Settings. Remote-only — the live, backend-aware
 /// view lives on Imaging → Focus (`FocusModelCurveCard`).
 class FocusModelSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  /// When true, render without an own scroll view / header (embedded in a
-  /// merged section). Same contract as [PredictiveAfSettingsPage].
-  final bool embedded;
-
   const FocusModelSettings({
     super.key,
-    this.isMobile = false,
-    this.embedded = false,
   });
 
   @override
@@ -108,14 +100,10 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   }
 
   bool _isCurrentLoad(RemoteHost backend, int generation) =>
-      mounted &&
-      generation == _loadGeneration &&
-      identical(_backend, backend);
+      mounted && generation == _loadGeneration && identical(_backend, backend);
 
   bool _isCurrentClear(RemoteHost backend, Object token) =>
-      mounted &&
-      identical(_clearToken, token) &&
-      identical(_backend, backend);
+      mounted && identical(_clearToken, token) && identical(_backend, backend);
 
   Future<void> _clear() async {
     if (_loading || _clearToken != null || _clearConfirmationOpen) return;
@@ -174,9 +162,6 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     return SettingsPage(
       title: 'Focus model',
       description: 'Temperature-compensation focus model on the connected rig',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile || widget.embedded,
-      scrollable: !widget.embedded,
       children: [
         if (backend == null)
           _info(colors, LucideIcons.info,

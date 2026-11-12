@@ -21,9 +21,7 @@ import '../../../router/app_routes.dart';
 /// planetarium catalogs — this page ships on desktop too, so nothing here may
 /// assume the client is a phone.
 class RigCatalogSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const RigCatalogSettings({super.key, this.isMobile = false});
+  const RigCatalogSettings({super.key});
 
   @override
   ConsumerState<RigCatalogSettings> createState() => _RigCatalogSettingsState();
@@ -123,14 +121,10 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
   }
 
   bool _isCurrentLoad(RemoteHost backend, int generation) =>
-      mounted &&
-      generation == _loadGeneration &&
-      identical(_backend, backend);
+      mounted && generation == _loadGeneration && identical(_backend, backend);
 
   bool _isCurrentAction(RemoteHost backend, Object token) =>
-      mounted &&
-      identical(_actionToken, token) &&
-      identical(_backend, backend);
+      mounted && identical(_actionToken, token) && identical(_backend, backend);
 
   Future<void> _run({
     required String actionLabel,
@@ -222,7 +216,8 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
       successMessageOverride: () => note,
       action: (backend) async {
         note = null;
-        final results = await backend.catalogs.verifyCatalog(name: catalog.name);
+        final results =
+            await backend.catalogs.verifyCatalog(name: catalog.name);
         final result = results[catalog.name];
         if (result == null) {
           throw StateError('the appliance returned no verification result');
@@ -333,12 +328,10 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
     return SettingsPage(
       title: 'Appliance catalogs',
       description: 'Download and verify the rig\'s plate-solve / star catalogs',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile,
       children: [
         if (backend == null)
           // Give the disconnected state a direct path to connection setup.
-          _NotConnected(colors: colors, isMobile: widget.isMobile)
+          _NotConnected(colors: colors)
         else ...[
           if (_adminOnlyRefused) ...[
             const AdminOnlyBanner(
@@ -539,9 +532,7 @@ class _RigCatalogSettingsState extends ConsumerState<RigCatalogSettings> {
 /// platform-neutral terms and offers the one action that can satisfy it.
 class _NotConnected extends StatelessWidget {
   final SkotiqColors colors;
-  final bool isMobile;
-
-  const _NotConnected({required this.colors, required this.isMobile});
+  const _NotConnected({required this.colors});
 
   @override
   Widget build(BuildContext context) {

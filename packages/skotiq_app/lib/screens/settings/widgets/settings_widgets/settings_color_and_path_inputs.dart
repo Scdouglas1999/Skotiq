@@ -48,8 +48,6 @@ class SettingsColorPicker extends StatefulWidget {
 
   /// Unused: the swatches are the same size on every layout. Accepted so
   /// existing call sites keep compiling.
-  final bool? isMobile;
-
   /// The swatches to offer, as `(hex, name)`. Defaults to the dark set; the
   /// Appearance page passes the set for the theme actually in force.
   final List<(String, String)>? swatches;
@@ -58,7 +56,6 @@ class SettingsColorPicker extends StatefulWidget {
     super.key,
     required this.selectedColor,
     required this.onColorSelected,
-    this.isMobile,
     this.swatches,
   });
 
@@ -247,11 +244,9 @@ class SettingsPathInput extends StatefulWidget {
   /// case the field snaps back to [path] on the next build.
   final FutureOr<void> Function(String)? onPathEntered;
 
-  /// Overrides the enclosing [SettingsFormScope].
-  final bool? isMobile;
-
-  /// If true, use flexible width (useful for stacked mobile layouts)
-  final bool flexible;
+  /// Take the full width of the row in the narrow layout, for a row that
+  /// stacks there.
+  final bool fillWhenNarrow;
 
   /// Identity of the backend/host that owns [onBrowse]. A changed identity
   /// invalidates an in-flight picker and immediately unlocks this control.
@@ -262,8 +257,7 @@ class SettingsPathInput extends StatefulWidget {
     required this.path,
     required this.onBrowse,
     this.onPathEntered,
-    this.isMobile,
-    this.flexible = false,
+    this.fillWhenNarrow = false,
     this.authorityKey,
   });
 
@@ -377,7 +371,9 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
     } catch (error) {
       if (mounted && generation == _browseGeneration) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not update this path: ${userFacingError(error)}')),
+          SnackBar(
+              content: Text(
+                  'Could not update this path: ${userFacingError(error)}')),
         );
       }
     } finally {
@@ -390,15 +386,15 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final isMobile = widget.isMobile ?? SettingsFormScope.isMobileOf(context);
+    final narrow = SettingsFormScope.narrowOf(context);
 
     final textStyle =
-        (isMobile ? SkotiqTypography.caption : SkotiqTypography.captionSm)
+        (narrow ? SkotiqTypography.caption : SkotiqTypography.captionSm)
             .copyWith(
       color: widget.path.isEmpty ? colors.textMuted : colors.textPrimary,
     );
     final verticalPadding =
-        isMobile ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm;
+        narrow ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm;
 
     Widget pathContainer = _editable
         ? Container(
@@ -444,7 +440,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
             ),
           );
 
-    final designWidth = isMobile ? 140.0 : 180.0;
+    final designWidth = narrow ? 140.0 : 180.0;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -453,7 +449,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
         // narrower than the design width can afford, fall back to the
         // flexible layout (path shrinks, button stays) instead of holding a
         // fixed 180 px box and overflowing.
-        final flexible = widget.flexible ||
+        final flexible = (narrow && widget.fillWhenNarrow) ||
             (constraints.hasBoundedWidth &&
                 constraints.maxWidth <
                     designWidth + _browseButtonAllowance + _spaceSm);
@@ -462,7 +458,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
           pathContainer,
           designWidth,
           flexible,
-          isMobile,
+          narrow,
         );
       },
     );
@@ -477,7 +473,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
     Widget pathContainer,
     double designWidth,
     bool flexible,
-    bool isMobile,
+    bool narrow,
   ) {
     if (!flexible) {
       pathContainer = SizedBox(
@@ -495,7 +491,7 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
           onTap: _browsing ? null : _browse,
           child: Container(
             padding: EdgeInsets.all(
-                isMobile ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm),
+                narrow ? SkotiqTokens.spaceSm : SkotiqTokens.radiusSm),
             decoration: BoxDecoration(
               color: colors.well,
               borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
@@ -504,16 +500,15 @@ class _SettingsPathInputState extends State<SettingsPathInput> {
             child: _browsing
                 ? SizedBox.square(
                     dimension:
-                        isMobile ? SkotiqTokens.iconSm : SkotiqTokens.iconXs,
+                        narrow ? SkotiqTokens.iconSm : SkotiqTokens.iconXs,
                     child: SkotiqSpinner(
-                        size: isMobile
-                            ? SkotiqTokens.iconSm
-                            : SkotiqTokens.iconXs,
+                        size:
+                            narrow ? SkotiqTokens.iconSm : SkotiqTokens.iconXs,
                         color: colors.primary),
                   )
                 : Icon(
                     LucideIcons.folderOpen,
-                    size: isMobile ? SkotiqTokens.iconSm : SkotiqTokens.iconXs,
+                    size: narrow ? SkotiqTokens.iconSm : SkotiqTokens.iconXs,
                     color: colors.textSecondary,
                   ),
           ),

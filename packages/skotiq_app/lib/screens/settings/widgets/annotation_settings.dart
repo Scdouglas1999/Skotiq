@@ -7,9 +7,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'settings_widgets.dart';
 
 class AnnotationSettingsPage extends ConsumerWidget {
-  final bool isMobile;
-
-  const AnnotationSettingsPage({super.key, this.isMobile = false});
+  const AnnotationSettingsPage({super.key});
 
   SettingsPage _authorityState({
     required BuildContext context,
@@ -20,8 +18,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
     return SettingsPage(
       title: 'Annotations',
       description: 'Configure object annotations on captured images',
-      isMobile: isMobile,
-      hideHeader: isMobile,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 24),
@@ -132,13 +128,10 @@ class AnnotationSettingsPage extends ConsumerWidget {
     return SettingsPage(
       title: 'Annotations',
       description: 'Configure object annotations on captured images',
-      isMobile: isMobile,
-      hideHeader: isMobile,
       children: [
         // Display Settings
         SettingsSection(
           title: 'Display',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.eye,
@@ -148,7 +141,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 value: settings.enabled,
                 onChanged: (value) => settingsNotifier.setEnabled(value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.tag,
@@ -158,7 +150,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 value: settings.showLabels,
                 onChanged: (value) => settingsNotifier.setShowLabels(value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.hash,
@@ -168,7 +159,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 value: settings.showMagnitudes,
                 onChanged: (value) => settingsNotifier.setShowMagnitudes(value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.listTree,
@@ -182,10 +172,8 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 format: (value) => value.toInt().toString(),
                 onChanged: (value) =>
                     settingsNotifier.setMaxObjectsToDisplay(value.toInt()),
-                isMobile: isMobile,
               ),
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
             SettingRow(
               icon: LucideIcons.grid,
@@ -206,16 +194,14 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: settingsNotifier.setGridType,
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
-        SizedBox(height: isMobile ? 16 : 20),
+        const SettingsGap(),
 
         // Magnitude Filtering
         SettingsSection(
           title: 'Magnitude filter',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.sunDim,
@@ -228,10 +214,8 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 divisions: 30,
                 format: (value) => value.toStringAsFixed(1),
                 onChanged: (value) => settingsNotifier.setMinMagnitude(value),
-                isMobile: isMobile,
               ),
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
             SettingRow(
               icon: LucideIcons.sunMedium,
@@ -245,20 +229,17 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 format: (value) => value.toStringAsFixed(1),
                 onChanged: (value) =>
                     settingsNotifier.setMagnitudeCutoff(value),
-                isMobile: isMobile,
               ),
               isLast: true,
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
           ],
         ),
-        SizedBox(height: isMobile ? 16 : 20),
+        const SettingsGap(),
 
         // Object Types
         SettingsSection(
           title: 'Object types',
-          isMobile: isMobile,
           children: [
             ObjectTypeToggle(
               title: 'Galaxies',
@@ -268,7 +249,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                   .contains(AnnotationObjectFilter.galaxies),
               onChanged: (value) => settingsNotifier
                   .toggleObjectType(AnnotationObjectFilter.galaxies),
-              isMobile: isMobile,
             ),
             ObjectTypeToggle(
               title: 'Nebulae',
@@ -278,7 +258,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                   .contains(AnnotationObjectFilter.nebulae),
               onChanged: (value) => settingsNotifier
                   .toggleObjectType(AnnotationObjectFilter.nebulae),
-              isMobile: isMobile,
             ),
             ObjectTypeToggle(
               title: 'Star clusters',
@@ -288,7 +267,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                   .contains(AnnotationObjectFilter.starClusters),
               onChanged: (value) => settingsNotifier
                   .toggleObjectType(AnnotationObjectFilter.starClusters),
-              isMobile: isMobile,
             ),
             ObjectTypeToggle(
               title: 'Planetary nebulae',
@@ -298,7 +276,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                   .contains(AnnotationObjectFilter.planetaryNebulae),
               onChanged: (value) => settingsNotifier
                   .toggleObjectType(AnnotationObjectFilter.planetaryNebulae),
-              isMobile: isMobile,
             ),
             ObjectTypeToggle(
               title: 'Stars',
@@ -308,7 +285,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                   settings.visibleTypes.contains(AnnotationObjectFilter.stars),
               onChanged: (value) => settingsNotifier
                   .toggleObjectType(AnnotationObjectFilter.stars),
-              isMobile: isMobile,
             ),
             ObjectTypeToggle(
               title: 'Other objects',
@@ -319,16 +295,14 @@ class AnnotationSettingsPage extends ConsumerWidget {
               onChanged: (value) => settingsNotifier
                   .toggleObjectType(AnnotationObjectFilter.other),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
-        SizedBox(height: isMobile ? 16 : 20),
+        const SettingsGap(),
 
         // Fade Effects
         SettingsSection(
           title: 'Fade effects',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.mousePointer,
@@ -339,7 +313,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) =>
                     settingsNotifier.setFadeWhenNotHovering(value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.sun,
@@ -352,10 +325,8 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 divisions: 14,
                 format: (value) => '${(value * 100).toInt()}%',
                 onChanged: (value) => settingsNotifier.setHoverOpacity(value),
-                isMobile: isMobile,
               ),
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
             SettingRow(
               icon: LucideIcons.moon,
@@ -368,10 +339,8 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 divisions: 10,
                 format: (value) => '${(value * 100).toInt()}%',
                 onChanged: (value) => settingsNotifier.setIdleOpacity(value),
-                isMobile: isMobile,
               ),
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
             SettingRow(
               icon: LucideIcons.timer,
@@ -385,20 +354,17 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 format: (value) => '${value.toInt()}ms',
                 onChanged: (value) =>
                     settingsNotifier.setFadeAnimationMs(value.toInt()),
-                isMobile: isMobile,
               ),
               isLast: true,
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
           ],
         ),
-        SizedBox(height: isMobile ? 16 : 20),
+        const SettingsGap(),
 
         // Click to Identify
         SettingsSection(
           title: 'Click to identify',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.mousePointerClick,
@@ -409,7 +375,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) =>
                     settingsNotifier.setClickToIdentify(value),
               ),
-              isMobile: isMobile,
             ),
             SettingRow(
               icon: LucideIcons.crosshair,
@@ -423,20 +388,17 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 format: (value) => '${value.toInt()}"',
                 onChanged: (value) =>
                     settingsNotifier.setClickSearchRadius(value),
-                isMobile: isMobile,
               ),
               isLast: true,
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
           ],
         ),
-        SizedBox(height: isMobile ? 16 : 20),
+        const SettingsGap(),
 
         // Marker Styles
         SettingsSection(
           title: 'Marker styles',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.pencil,
@@ -449,10 +411,8 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 divisions: 7,
                 format: (value) => value.toStringAsFixed(1),
                 onChanged: (value) => markerNotifier.setStrokeWidth(value),
-                isMobile: isMobile,
               ),
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
             SettingRow(
               icon: LucideIcons.type,
@@ -465,10 +425,8 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 divisions: 10,
                 format: (value) => '${value.toInt()}px',
                 onChanged: (value) => markerNotifier.setLabelFontSize(value),
-                isMobile: isMobile,
               ),
-              isMobile: isMobile,
-              stackOnMobile: isMobile,
+              stackWhenNarrow: true,
             ),
             SettingRow(
               icon: LucideIcons.scaling,
@@ -479,16 +437,14 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) => markerNotifier.setScaleBySize(value),
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),
-        SizedBox(height: isMobile ? 16 : 20),
+        const SettingsGap(),
 
         // Automation
         SettingsSection(
           title: 'Automation',
-          isMobile: isMobile,
           children: [
             SettingRow(
               icon: LucideIcons.zap,
@@ -499,7 +455,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) => settingsNotifier.setAutoAnnotate(value),
               ),
               isLast: true,
-              isMobile: isMobile,
             ),
           ],
         ),

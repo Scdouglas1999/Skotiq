@@ -105,7 +105,7 @@ void main() {
       (tester) async {
     await pumpAppScreen(
       tester,
-      const SequencerSettings(isMobile: true),
+      const SettingsFormScope(narrow: true, child: SequencerSettings()),
       size: const Size(360, 2400),
     );
     await tester.pumpAndSettle();

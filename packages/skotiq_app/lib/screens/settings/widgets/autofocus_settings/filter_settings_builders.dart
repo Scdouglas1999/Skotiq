@@ -13,18 +13,16 @@ extension _AutofocusFilterSettingsBuilders on _AutofocusSettingsState {
         filterWheelState.connectionState == DeviceConnectionState.connected;
 
     if (!isConnected || filterNames.isEmpty) {
-      return SettingsSection(
+      return const SettingsSection(
         title: 'Autofocus filter settings',
-        isMobile: widget.isMobile,
         children: [
           SettingRow(
             icon: LucideIcons.info,
             title: 'No filter wheel connected',
             subtitle:
                 'Connect a filter wheel to configure per-filter autofocus settings.',
-            trailing: const SizedBox.shrink(),
+            trailing: SizedBox.shrink(),
             isLast: true,
-            isMobile: widget.isMobile,
           ),
         ],
       );
@@ -37,9 +35,8 @@ extension _AutofocusFilterSettingsBuilders on _AutofocusSettingsState {
 
     return SettingsSection(
       title: 'Autofocus filter settings',
-      isMobile: widget.isMobile,
       children: [
-        if (widget.isMobile)
+        if (SettingsFormScope.narrowOf(context))
           ..._buildFilterSettingsMobile(
               filterNames, filterSettingsMap, notifier, settings)
         else
@@ -175,10 +172,8 @@ extension _AutofocusFilterSettingsBuilders on _AutofocusSettingsState {
               value == 'Current filter' ? '' : value,
             );
           },
-          isMobile: true,
         ),
         isLast: true,
-        isMobile: true,
       ),
     );
 

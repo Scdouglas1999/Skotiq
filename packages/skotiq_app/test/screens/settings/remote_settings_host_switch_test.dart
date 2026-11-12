@@ -265,7 +265,8 @@ void main() {
       _app(
         initialBackend: hostA,
         receiveNotifier: (value) => notifier = value,
-        child: const FocusModelSettings(isMobile: true),
+        child:
+            const SettingsFormScope(narrow: true, child: FocusModelSettings()),
       ),
     );
     await tester.pump();
@@ -311,7 +312,8 @@ void main() {
       _app(
         initialBackend: hostA,
         receiveNotifier: (value) => notifier = value,
-        child: const RigCatalogSettings(isMobile: true),
+        child:
+            const SettingsFormScope(narrow: true, child: RigCatalogSettings()),
       ),
     );
     await tester.pump();
@@ -362,7 +364,7 @@ void main() {
       _app(
         initialBackend: hostA,
         receiveNotifier: (value) => notifier = value,
-        child: const LogViewer(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: LogViewer()),
       ),
     );
     await tester.pump();
@@ -402,7 +404,7 @@ void main() {
       _app(
         initialBackend: hostA,
         receiveNotifier: (value) => notifier = value,
-        child: const LogViewer(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: LogViewer()),
       ),
     );
     await tester.pump();
@@ -455,7 +457,7 @@ void main() {
       _app(
         initialBackend: hostA,
         receiveNotifier: (value) => notifier = value,
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();
@@ -502,7 +504,7 @@ void main() {
       _app(
         initialBackend: backend,
         receiveNotifier: (_) {},
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();
@@ -545,7 +547,7 @@ void main() {
       _app(
         initialBackend: backend,
         receiveNotifier: (_) {},
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();
@@ -589,7 +591,7 @@ void main() {
       _app(
         initialBackend: backend,
         receiveNotifier: (_) {},
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();
@@ -627,7 +629,7 @@ void main() {
       _app(
         initialBackend: backend,
         receiveNotifier: (_) {},
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();
@@ -682,7 +684,7 @@ void main() {
       _app(
         initialBackend: backend,
         receiveNotifier: (_) {},
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();
@@ -730,7 +732,7 @@ void main() {
       _app(
         initialBackend: backend,
         receiveNotifier: (_) {},
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();
@@ -776,7 +778,7 @@ void main() {
       _app(
         initialBackend: backend,
         receiveNotifier: (_) {},
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();
@@ -821,7 +823,7 @@ void main() {
       _app(
         initialBackend: backend,
         receiveNotifier: (_) {},
-        child: const UpdateSettings(isMobile: true),
+        child: const SettingsFormScope(narrow: true, child: UpdateSettings()),
       ),
     );
     await tester.pump();

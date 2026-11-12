@@ -20,9 +20,7 @@ import 'settings_widgets.dart';
 /// off-network. The local copy's own update check lives in Settings > About
 /// (`_SoftwareUpdateCard`); this page has never had anything to do with it.
 class UpdateSettings extends ConsumerStatefulWidget {
-  final bool isMobile;
-
-  const UpdateSettings({super.key, this.isMobile = false});
+  const UpdateSettings({super.key});
 
   @override
   ConsumerState<UpdateSettings> createState() => _UpdateSettingsState();
@@ -160,9 +158,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
   }
 
   bool _isCurrentLoad(RemoteHost backend, int generation) =>
-      mounted &&
-      generation == _loadGeneration &&
-      identical(_backend, backend);
+      mounted && generation == _loadGeneration && identical(_backend, backend);
 
   Future<void> _refreshStatusOnly() async {
     final backend = _backend;
@@ -391,8 +387,6 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
     return SettingsPage(
       title: 'Appliance updates',
       description: 'Check for, stage, and apply updates to the connected rig',
-      isMobile: widget.isMobile,
-      hideHeader: widget.isMobile,
       children: [
         if (backend == null)
           _InfoCard(

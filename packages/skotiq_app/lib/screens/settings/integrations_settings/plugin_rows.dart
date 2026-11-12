@@ -3,15 +3,12 @@ part of '../integrations_settings.dart';
 /// Top section: the honest "Discord fires on events" answer — a cross-link to
 /// the notification router, which owns the event→transport routing.
 class _NotificationCrossLinkSection extends StatelessWidget {
-  const _NotificationCrossLinkSection({required this.isMobile});
-
-  final bool isMobile;
+  const _NotificationCrossLinkSection();
 
   @override
   Widget build(BuildContext context) {
     return SettingsSection(
       title: 'Notifications & events',
-      isMobile: isMobile,
       children: [
         SettingRow(
           icon: LucideIcons.bellRing,
@@ -19,14 +16,13 @@ class _NotificationCrossLinkSection extends StatelessWidget {
           subtitle:
               'Route sequence-complete, safety, and guiding-lost alerts to '
               'Discord, Pushover, email…',
-          isMobile: isMobile,
           isLast: true,
-          stackOnMobile: true,
+          stackWhenNarrow: true,
           trailing: SkotiqButton(
             label: 'Open Notification Routing',
             icon: LucideIcons.arrowUpRight,
             variant: ButtonVariant.secondary,
-            size: isMobile ? ButtonSize.small : ButtonSize.medium,
+            size: settingsActionButtonSize(context),
             onPressed: () =>
                 openSettings(context, SettingsSectionId.notifications),
           ),
@@ -39,14 +35,12 @@ class _NotificationCrossLinkSection extends StatelessWidget {
 /// The bundled-plugin list section.
 class _PluginsSection extends ConsumerWidget {
   const _PluginsSection({
-    required this.isMobile,
     required this.plugins,
     required this.enabledSet,
     required this.lastFired,
     required this.testHttpClientFactory,
   });
 
-  final bool isMobile;
   final List<PluginInfo> plugins;
   final AsyncValue<Set<String>> enabledSet;
   final PluginLastFired lastFired;
@@ -72,12 +66,10 @@ class _PluginsSection extends ConsumerWidget {
 
     return SettingsSection(
       title: 'Plugins',
-      isMobile: isMobile,
       children: [
         for (var i = 0; i < plugins.length; i++)
           _PluginRow(
             plugin: plugins[i],
-            isMobile: isMobile,
             isLast: i == plugins.length - 1,
             enabledSet: enabledSet,
             lastFiredAt: lastFired[plugins[i].id],
@@ -98,7 +90,6 @@ bool _pluginIsConfigurable(String pluginId) {
 class _PluginRow extends ConsumerWidget {
   const _PluginRow({
     required this.plugin,
-    required this.isMobile,
     required this.isLast,
     required this.enabledSet,
     required this.lastFiredAt,
@@ -106,7 +97,6 @@ class _PluginRow extends ConsumerWidget {
   });
 
   final PluginInfo plugin;
-  final bool isMobile;
   final bool isLast;
   final AsyncValue<Set<String>> enabledSet;
   final DateTime? lastFiredAt;
@@ -128,9 +118,8 @@ class _PluginRow extends ConsumerWidget {
       icon: hasError ? LucideIcons.alertTriangle : LucideIcons.puzzle,
       iconColor: hasError ? colors.error : null,
       title: plugin.name,
-      isMobile: isMobile,
       isLast: isLast,
-      stackOnMobile: true,
+      stackWhenNarrow: true,
       // The plugin description is the row subtitle; the status pill (enabled /
       // error / last-fired), the optional Configure button, and the switch all
       // live in the trailing cluster.
@@ -319,4 +308,3 @@ class _PluginStatusPill extends StatelessWidget {
     );
   }
 }
-
