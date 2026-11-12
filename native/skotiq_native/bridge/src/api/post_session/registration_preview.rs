@@ -480,7 +480,7 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
         return Err("the pre-pass needs at least one light".into());
     }
     let total = lights.len() as u32;
-    let cancel = RunCancelToken::register(&args.run_id)?;
+    let cancel = RUNS.register(&args.run_id)?;
     let config = build_registration_config(&args.settings.align)?;
     let known: Vec<Option<Result<Registered, String>>> = lights
         .iter()
@@ -537,7 +537,12 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
             })
             .collect()
     });
-    cancel.check("framing", Some(done.load(Ordering::Relaxed)), Some(total))?;
+    check_stage(
+        &cancel,
+        "framing",
+        Some(done.load(Ordering::Relaxed)),
+        Some(total),
+    )?;
     drop(reference);
 
     let mut frames = Vec::with_capacity(lights.len());

@@ -16,48 +16,14 @@
 //! master sits beside it would misdescribe what is on disk.
 
 use super::*;
-use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
-
-/// Upper bound on tracked run ids.
-///
-/// A live run removes itself when it finishes, so this only bounds the pre-armed
-/// entries a caller can create by cancelling runs that never start. Past the
-/// cap, cancelling an unknown id is an explicit error rather than an unbounded
-/// leak.
-const MAX_TRACKED_RUNS: usize = 32;
+use crate::run_cancel::CancelRegistry;
+pub(crate) use crate::run_cancel::CancelToken;
 
 /// The `kind` discriminator every cancelled post-session call carries.
 pub(crate) const CANCELLED_KIND: &str = "cancelled";
 
-/// One tracked run id: its cancellation flag, plus whether a call is currently
-/// executing under it.
-///
-/// The two are separate because a cancellation may be **pre-armed** — requested
-/// before the run reaches Rust — and a pre-arm must be distinguishable from a
-/// run in flight.
-struct RunEntry {
-    cancel: AtomicBool,
-    live: AtomicBool,
-}
-
-/// Cancellation state for in-flight (and pre-armed) post-session runs.
-///
-/// A `BTreeMap` keeps the key order fixed; nothing here touches pixels, but the
-/// same no-`HashMap`-ordering rule keeps status output and eviction stable.
-static CANCEL_REGISTRY: OnceLock<Mutex<BTreeMap<String, Arc<RunEntry>>>> = OnceLock::new();
-
-/// The registry, taking the lock and recovering it if a panic poisoned it: the
-/// contents are two atomics with no invariant to break, and refusing to unlock
-/// would make every later run unstoppable.
-fn registry() -> MutexGuard<'static, BTreeMap<String, Arc<RunEntry>>> {
-    let lock = CANCEL_REGISTRY.get_or_init(|| Mutex::new(BTreeMap::new()));
-    match lock.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    }
-}
+/// The cancellation flags of post-session runs, keyed by run id.
+pub(crate) static RUNS: CancelRegistry = CancelRegistry::new("post-session run");
 
 /// The typed outcome a cancelled run returns as its `Err` payload: the JSON
 /// encoding of this struct, so a caller decodes it instead of matching on prose.
@@ -76,110 +42,28 @@ pub(crate) struct CancelledOutcome {
     pub(crate) frames_total: Option<u32>,
 }
 
-/// A run's cancellation flag, held for the run's lifetime.
-///
-/// Dropping the token releases the run id, so a later run may reuse it and a
-/// later cancellation starts from a clean flag.
-#[flutter_rust_bridge::frb(ignore)]
-pub(crate) struct RunCancelToken {
-    /// `None` for a run with no run id — never cancellable.
-    run_id: Option<String>,
-    entry: Option<Arc<RunEntry>>,
-}
-
-impl RunCancelToken {
-    /// Claim `run_id` for this call and take its flag. A blank id yields an
-    /// inert token: a caller that supplies no id has no handle to cancel by.
-    ///
-    /// A pre-armed flag is adopted as-is, so a run whose cancellation arrived
-    /// first stops at its very first check instead of running to completion.
-    /// A run id already in flight is refused — two concurrent runs sharing one
-    /// id could not be cancelled independently, and the first to finish would
-    /// release the other's flag.
-    pub(crate) fn register(run_id: &str) -> Result<Self, String> {
-        let id = run_id.trim();
-        if id.is_empty() {
-            return Ok(Self {
-                run_id: None,
-                entry: None,
-            });
-        }
-        let mut map = registry();
-        let entry = match map.get(id) {
-            Some(existing) => {
-                if existing.live.load(Ordering::Relaxed) {
-                    return Err(format!("post-session run '{id}' is already in flight"));
-                }
-                existing.clone()
-            }
-            None => {
-                if map.len() >= MAX_TRACKED_RUNS {
-                    return Err(format!(
-                        "cannot track run '{id}': {MAX_TRACKED_RUNS} post-session run ids are already tracked"
-                    ));
-                }
-                let entry = Arc::new(RunEntry {
-                    cancel: AtomicBool::new(false),
-                    live: AtomicBool::new(false),
-                });
-                map.insert(id.to_string(), entry.clone());
-                entry
-            }
-        };
-        entry.live.store(true, Ordering::Relaxed);
-        Ok(Self {
-            run_id: Some(id.to_string()),
-            entry: Some(entry),
-        })
+/// `Err` carrying the encoded [`CancelledOutcome`] when the run holding
+/// `token` has been cancelled, `Ok(())` otherwise. Called at every stage
+/// boundary and inside the per-frame loops.
+pub(crate) fn check_stage(
+    token: &CancelToken,
+    stage: &str,
+    frames_done: Option<u32>,
+    frames_total: Option<u32>,
+) -> Result<(), String> {
+    if !token.is_cancelled() {
+        return Ok(());
     }
-
-    /// The run id this token answers for, or `""` when the run is untracked.
-    pub(crate) fn run_id(&self) -> &str {
-        self.run_id.as_deref().unwrap_or("")
-    }
-
-    /// Whether cancellation has been requested for this run.
-    pub(crate) fn is_cancelled(&self) -> bool {
-        self.entry
-            .as_ref()
-            .is_some_and(|e| e.cancel.load(Ordering::Relaxed))
-    }
-
-    /// `Err` carrying the encoded [`CancelledOutcome`] when this run has been
-    /// cancelled, `Ok(())` otherwise. Called at every stage boundary and inside
-    /// the per-frame loops.
-    pub(crate) fn check(
-        &self,
-        stage: &str,
-        frames_done: Option<u32>,
-        frames_total: Option<u32>,
-    ) -> Result<(), String> {
-        if !self.is_cancelled() {
-            return Ok(());
-        }
-        let outcome = CancelledOutcome {
-            kind: CANCELLED_KIND.to_string(),
-            run_id: self.run_id().to_string(),
-            stage: stage.to_string(),
-            frames_done,
-            frames_total,
-        };
-        // The encoding cannot fail for this shape; if it somehow did, the run
-        // must still stop, so fall back to the discriminator alone.
-        Err(serde_json::to_string(&outcome).unwrap_or_else(|_| CANCELLED_KIND.to_string()))
-    }
-}
-
-impl Drop for RunCancelToken {
-    fn drop(&mut self) {
-        let Some(id) = self.run_id.as_deref() else {
-            return;
-        };
-        if let Some(entry) = self.entry.as_ref() {
-            entry.live.store(false, Ordering::Relaxed);
-        }
-        registry().remove(id);
-    }
+    let outcome = CancelledOutcome {
+        kind: CANCELLED_KIND.to_string(),
+        run_id: token.id().to_string(),
+        stage: stage.to_string(),
+        frames_done,
+        frames_total,
+    };
+    // The encoding cannot fail for this shape; if it somehow did, the run
+    // must still stop, so fall back to the discriminator alone.
+    Err(serde_json::to_string(&outcome).unwrap_or_else(|_| CANCELLED_KIND.to_string()))
 }
 
 /// Request for [`api_post_session_cancel`].
@@ -221,46 +105,10 @@ pub(crate) fn post_session_cancel(
         "" => "cancel",
         other => other,
     };
-    let mut map = registry();
-    let live = map.get(id).is_some_and(|e| e.live.load(Ordering::Relaxed));
-
-    let cancel_requested = match op {
-        "cancel" => {
-            let entry = match map.get(id) {
-                Some(existing) => existing.clone(),
-                None => {
-                    if map.len() >= MAX_TRACKED_RUNS {
-                        return Err(format!(
-                            "cannot pre-arm cancellation for '{id}': {MAX_TRACKED_RUNS} run ids are already tracked"
-                        ));
-                    }
-                    // Pre-arm: safing can fire before the run reaches Rust, and
-                    // a request that lands in that window must still be honoured.
-                    let entry = Arc::new(RunEntry {
-                        cancel: AtomicBool::new(false),
-                        live: AtomicBool::new(false),
-                    });
-                    map.insert(id.to_string(), entry.clone());
-                    entry
-                }
-            };
-            entry.cancel.store(true, Ordering::Relaxed);
-            true
-        }
-        "status" => map
-            .get(id)
-            .is_some_and(|e| e.cancel.load(Ordering::Relaxed)),
-        "clear" => {
-            // Only a pre-arm may be dropped. Clearing a live run's flag would
-            // silently resurrect a run the operator already stopped.
-            if live {
-                return Err(format!(
-                    "run '{id}' is in flight; clear only drops a pre-armed cancellation"
-                ));
-            }
-            map.remove(id);
-            false
-        }
+    let state = match op {
+        "cancel" => RUNS.request_cancel(id)?,
+        "status" => RUNS.status(id),
+        "clear" => RUNS.clear(id)?,
         other => {
             return Err(format!(
                 "unknown cancel op '{other}'; expected cancel/status/clear"
@@ -271,7 +119,7 @@ pub(crate) fn post_session_cancel(
     Ok(PostSessionCancelResult {
         run_id: id.to_string(),
         op: op.to_string(),
-        running: live,
-        cancel_requested,
+        running: state.running,
+        cancel_requested: state.cancel_requested,
     })
 }

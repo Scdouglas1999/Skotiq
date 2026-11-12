@@ -1605,9 +1605,9 @@ fn cancel_surface_rejects_bad_requests() {
 /// run may not claim the same id and release the first one's flag.
 #[test]
 fn a_live_run_owns_its_id() {
-    let token = RunCancelToken::register("owned-run").expect("register");
+    let token = RUNS.register("owned-run").expect("register");
     assert!(
-        RunCancelToken::register("owned-run").is_err(),
+        RUNS.register("owned-run").is_err(),
         "two runs sharing one id could not be cancelled independently"
     );
     assert!(
@@ -1621,8 +1621,7 @@ fn a_live_run_owns_its_id() {
     api_post_session_cancel(serde_json::json!({ "runId": "owned-run" }).to_string())
         .expect("cancel");
     assert!(token.is_cancelled());
-    let err = token
-        .check("registering", Some(3), Some(9))
+    let err = check_stage(&token, "registering", Some(3), Some(9))
         .expect_err("a cancelled token must stop the caller");
     let outcome = decode_cancelled(&err);
     assert_eq!(outcome.stage, "registering");
@@ -1631,18 +1630,45 @@ fn a_live_run_owns_its_id() {
 
     drop(token);
     // Dropping the token releases the id for reuse.
-    let reused = RunCancelToken::register("owned-run").expect("id is free again");
+    let reused = RUNS.register("owned-run").expect("id is free again");
     assert!(!reused.is_cancelled(), "a fresh run starts uncancelled");
+}
+
+/// Cancels for runs that never start (safing fires for a queued job, or races
+/// a run's own end) leave pre-arms nothing claims. A registry full of them is
+/// never a reason to refuse a run or a later cancel.
+#[test]
+fn late_cancels_for_runs_that_never_start_do_not_block_a_new_run() {
+    let flood: Vec<String> = (0..40).map(|i| format!("post-session-flood-{i}")).collect();
+    for id in flood.iter().take(32) {
+        api_post_session_cancel(serde_json::json!({ "runId": id }).to_string())
+            .expect("a cancel for a run that never started is accepted");
+    }
+
+    let fresh = RUNS
+        .register("post-session-flood-fresh")
+        .expect("a new run is not refused by the cancel registry");
+    assert!(!fresh.is_cancelled());
+    for id in flood.iter().skip(32) {
+        api_post_session_cancel(serde_json::json!({ "runId": id }).to_string())
+            .expect("a late cancel is still accepted once the registry is full");
+    }
+
+    drop(fresh);
+    for id in &flood {
+        let _ =
+            api_post_session_cancel(serde_json::json!({ "op": "clear", "runId": id }).to_string());
+    }
 }
 
 /// A run with no run id is simply not cancellable, and says so rather than
 /// pretending a handle exists.
 #[test]
 fn a_run_without_a_run_id_is_not_cancellable() {
-    let token = RunCancelToken::register("").expect("an id-less run still runs");
-    assert_eq!(token.run_id(), "");
+    let token = RUNS.register("").expect("an id-less run still runs");
+    assert_eq!(token.id(), "");
     assert!(!token.is_cancelled());
-    assert!(token.check("calibrating", None, None).is_ok());
+    assert!(check_stage(&token, "calibrating", None, None).is_ok());
 }
 
 // Multi-night calibration record

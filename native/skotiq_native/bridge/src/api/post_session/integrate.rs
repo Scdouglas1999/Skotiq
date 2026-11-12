@@ -25,8 +25,8 @@ pub(crate) fn integrate_session(
     // cancellation id: a mismatched request is never a run.
     let exposures = exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
 
-    let cancel = RunCancelToken::register(&args.run_id)?;
-    cancel.check("calibrating", None, None)?;
+    let cancel = RUNS.register(&args.run_id)?;
+    check_stage(&cancel, "calibrating", None, None)?;
     let run_id = args.run_id.clone();
 
     // Load calibration masters once (shared across all lights).
@@ -65,7 +65,7 @@ pub(crate) fn integrate_session(
     );
     let mut loaded: Vec<LoadedLight> = Vec::with_capacity(args.light_paths.len());
     for (i, path) in args.light_paths.iter().enumerate() {
-        cancel.check("calibrating", Some(i as u32), Some(total_lights))?;
+        check_stage(&cancel, "calibrating", Some(i as u32), Some(total_lights))?;
         let read =
             read_image(Path::new(path)).map_err(|e| format!("failed to read '{path}': {e}"))?;
         let source_header = read.header;
@@ -118,7 +118,7 @@ pub(crate) fn integrate_session(
     // Choose the reference frame.
     // The registration config is built first: reference choice must consult the
     // same star detector the registration will use.
-    cancel.check("reference", None, None)?;
+    check_stage(&cancel, "reference", None, None)?;
     let reg_cfg = build_registration_config(&args.settings.align)?;
     let q_cfg = FrameQualityConfig::default();
     emit_pass_telemetry(&run_id, "reference_choosing", serde_json::json!({}));
@@ -205,7 +205,7 @@ pub(crate) fn integrate_session(
         // Registering one full-sensor frame is the pipeline's longest
         // uninterruptible step, so the flag is read before each one rather than
         // only at the phase boundary.
-        cancel.check("registering", Some(i as u32), Some(total_lights))?;
+        check_stage(&cancel, "registering", Some(i as u32), Some(total_lights))?;
         // Register phase spans 0.20..0.60; emit per frame (cheap), never per
         // pixel. Emitted at the top so both the reference (`continue`) and the
         // matched branches report uniform per-frame progress.
@@ -309,7 +309,7 @@ pub(crate) fn integrate_session(
         return Err("no subs could be registered + measured; nothing to integrate".to_string());
     }
 
-    cancel.check("weighting", None, None)?;
+    check_stage(&cancel, "weighting", None, None)?;
     emit_integration_progress("weighting", FRACTION_WEIGHT, None, None);
     let weights: Vec<f64> = if args.settings.weighting.enabled {
         let qualities: Vec<FrameQuality> = accepted_idx
@@ -354,7 +354,7 @@ pub(crate) fn integrate_session(
             .map(|ch| extract_channel(&ref_pixels, locations, chan, ch))
             .collect();
         for (pos, &i) in accepted_idx.iter().enumerate() {
-            cancel.check("normalizing", Some(pos as u32), Some(norm_total))?;
+            check_stage(&cancel, "normalizing", Some(pos as u32), Some(norm_total))?;
             // Normalize phase spans 0.62..0.80; emit per accepted sub (cheap),
             // emitted at the top so the reference (`continue`) frame still
             // advances the bar.
@@ -438,7 +438,7 @@ pub(crate) fn integrate_session(
     // `integrate_frames` has no inner progress callback, so bracket it: 0.80
     // before, 0.92 after. It is also the last point a cancellation can be
     // honoured cheaply — the combine itself runs to completion once entered.
-    cancel.check("integrating", None, None)?;
+    check_stage(&cancel, "integrating", None, None)?;
     emit_integration_progress("integrating", FRACTION_INTEGRATE, None, None);
     emit_pass_telemetry(
         &run_id,
@@ -465,7 +465,7 @@ pub(crate) fn integrate_session(
     // Write the master FITS. This is the last cancellation point: past the
     // write the master exists, and a run that reported itself cancelled while a
     // complete master sat on disk would misdescribe it.
-    cancel.check("writing", None, None)?;
+    check_stage(&cancel, "writing", None, None)?;
     emit_integration_progress("writing", FRACTION_WRITE, None, None);
     let master_path = Path::new(&args.output.master_fits_path);
     ensure_parent_dir(master_path)?;

@@ -729,8 +729,8 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         }
     }
 
-    let cancel = RunCancelToken::register(&args.run_id)?;
-    cancel.check("calibrating", None, None)?;
+    let cancel = RUNS.register(&args.run_id)?;
+    check_stage(&cancel, "calibrating", None, None)?;
     let mut cache = MasterCache::default();
 
     if args.validate_flats {
@@ -811,7 +811,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     let mut chosen = None;
     let mut first_refusal: Option<String> = None;
     for reference in candidates {
-        cancel.check("reference", None, None)?;
+        check_stage(&cancel, "reference", None, None)?;
         let refusal = (|| -> Result<_, String> {
             let masters = cache.masters(&reference.calibration)?;
             let light = calibrated_light(&reference.path, None, &reference.calibration, &masters)
@@ -979,7 +979,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
             dark_scale: None,
         };
         for light in &group.lights {
-            cancel.check("registering", Some(done), Some(total as u32))?;
+            check_stage(&cancel, "registering", Some(done), Some(total as u32))?;
             emit_integration_progress(
                 "registering",
                 FRACTION_INTEGRATE * done as f32 / total as f32,
@@ -1158,7 +1158,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
                 let band_rows =
                     (budget / 4 / (ow as usize * (chan + 1) * 16)).clamp(1, oh as usize);
                 for y0 in (0..oh as usize).step_by(band_rows) {
-                    cancel.check("drizzling", Some(done), Some(total as u32))?;
+                    check_stage(&cancel, "drizzling", Some(done), Some(total as u32))?;
                     let band = drizzle_frame_rows(
                         &frame,
                         gw,
@@ -1197,7 +1197,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
         summary.skipped = skipped.len() - skipped_before;
         groups.push(summary);
     }
-    cancel.check("integrating", Some(done), Some(total as u32))?;
+    check_stage(&cancel, "integrating", Some(done), Some(total as u32))?;
 
     if accepted.is_empty() {
         let outcome = NoSubsIntegrated {
@@ -1413,7 +1413,7 @@ fn integrate_spool(
     weights: &[f64],
     reject: Reject,
     budget: usize,
-    cancel: &RunCancelToken,
+    cancel: &CancelToken,
     progress: (u32, usize),
 ) -> Result<Integrated, String> {
     let (width, height, channels) = spool.geometry();
@@ -1440,7 +1440,12 @@ fn integrate_spool(
     let mut y0 = 0;
     while y0 < height {
         let band = rows.min(height - y0);
-        cancel.check("integrating", Some(progress.0), Some(progress.1 as u32))?;
+        check_stage(
+            cancel,
+            "integrating",
+            Some(progress.0),
+            Some(progress.1 as u32),
+        )?;
         emit_integration_progress(
             "integrating",
             FRACTION_INTEGRATE

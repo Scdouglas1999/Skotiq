@@ -73,6 +73,7 @@ mod frame_header;
 mod guider;
 mod hotplug;
 mod last_frame;
+mod run_cancel;
 mod simulator;
 mod stacking_api;
 mod state;

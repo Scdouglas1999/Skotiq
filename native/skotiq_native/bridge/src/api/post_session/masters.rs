@@ -404,7 +404,7 @@ struct FoldOutcome {
 fn fold_into(
     open: &mut OpenMaster,
     args: &MasterAddArgs,
-    cancel: Option<&RunCancelToken>,
+    cancel: Option<&CancelToken>,
 ) -> Result<FoldOutcome, String> {
     let exposures = exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
     let geom = open.master.geometry.clone();
@@ -428,7 +428,7 @@ fn fold_into(
     let fold_total = args.light_paths.len() as u32;
     for (i, path) in args.light_paths.iter().enumerate() {
         if let Some(cancel) = cancel {
-            cancel.check("registering", Some(i as u32), Some(fold_total))?;
+            check_stage(cancel, "registering", Some(i as u32), Some(fold_total))?;
         }
         let exposure = (exposures[i] > 0.0).then_some(exposures[i]);
         let calibrated = calibrate_for_fold(path, exposure, &args.calibration, &masters)?;
@@ -511,7 +511,7 @@ fn fold_into(
     // Last cancellation point: a committed fold must never be reported as
     // cancelled.
     if let Some(cancel) = cancel {
-        cancel.check("integrating", None, None)?;
+        check_stage(cancel, "integrating", None, None)?;
     }
     let report = open
         .master
@@ -553,8 +553,8 @@ pub(crate) fn master_add(args_json: &str) -> Result<MasterAccumulateResult, Stri
     // at finalize, so a short list must not be back-filled with zeros.
     exposures_per_light(&args.exposures_sec, args.light_paths.len())?;
 
-    let cancel = RunCancelToken::register(&args.run_id)?;
-    cancel.check("calibrating", None, None)?;
+    let cancel = RUNS.register(&args.run_id)?;
+    check_stage(&cancel, "calibrating", None, None)?;
 
     // What the calibration masters for this fold actually are, measured against
     // the fold's anchor sub.

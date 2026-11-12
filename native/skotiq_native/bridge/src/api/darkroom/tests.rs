@@ -11,11 +11,11 @@ use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData};
 
 use super::export::recipe_from_history;
 use super::schema::{example_params, ParamKind, OP_DOCS};
-use super::state::MAX_TRACKED_RENDERS;
 use super::{
     api_darkroom_cancel, api_darkroom_registry, api_darkroom_render_export,
     api_darkroom_render_preview, api_darkroom_validate,
 };
+use crate::run_cancel::MAX_TRACKED as MAX_TRACKED_RENDERS;
 
 // ---------------------------------------------------------------------------
 // Synthetic master

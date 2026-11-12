@@ -37,7 +37,8 @@ use skotiq_imaging::recipe::{
 
 use super::args::{CancelledRender, CatalogStarArgs};
 use super::catalog::SuppliedCatalog;
-use super::state::{base_pyramid, registry, render_cache, LoadedMaster, RenderCancelToken};
+use super::state::{base_pyramid, registry, render_cache, LoadedMaster};
+use crate::run_cancel::CancelToken;
 
 /// How a render's samples become 8-bit RGBA.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,20 +89,17 @@ pub(crate) fn parse_recipe(recipe_json: &str) -> Result<Recipe, String> {
 /// The identity travels back to the caller because the render it is about to
 /// run has to key its step boundaries on the master it actually read, not on the
 /// `baseMasterRef` the recipe was authored with.
-pub(crate) fn load_pyramid(
-    master_path: &str,
-    token: &RenderCancelToken,
-) -> Result<LoadedMaster, String> {
+pub(crate) fn load_pyramid(master_path: &str, token: &CancelToken) -> Result<LoadedMaster, String> {
     let path = master_path.trim();
     if path.is_empty() {
         return Err("masterPath is required to render".to_string());
     }
     if token.is_cancelled() {
-        return Err(CancelledRender::err(token.render_id(), "read"));
+        return Err(CancelledRender::err(token.id(), "read"));
     }
     let master = base_pyramid(std::path::Path::new(path))?;
     if token.is_cancelled() {
-        return Err(CancelledRender::err(token.render_id(), "pyramid"));
+        return Err(CancelledRender::err(token.id(), "pyramid"));
     }
     Ok(master)
 }
@@ -143,7 +141,7 @@ pub(crate) fn build_context(
     recipe: &Recipe,
     base: &OpImage,
     level: u32,
-    token: &RenderCancelToken,
+    token: &CancelToken,
     catalog_stars: &[CatalogStarArgs],
 ) -> Result<(OpContext, usize), String> {
     let mut ctx = OpContext::new().with_cancel(token.flag()).at_level(level);
@@ -168,13 +166,13 @@ pub(crate) fn run_render(
     base: &Arc<OpImage>,
     ctx: &OpContext,
     options: RenderOptions,
-    token: &RenderCancelToken,
+    token: &CancelToken,
 ) -> Result<RenderOutput, String> {
     let registry = registry()?;
     let mut cache = render_cache();
     match render(recipe, base, registry, &mut cache, ctx, options) {
         Ok(output) => Ok(output),
-        Err(RecipeError::Cancelled) => Err(CancelledRender::err(token.render_id(), "render")),
+        Err(RecipeError::Cancelled) => Err(CancelledRender::err(token.id(), "render")),
         Err(other) => Err(other.to_string()),
     }
 }
@@ -259,7 +257,7 @@ pub(crate) fn encode_preview(
     output: &RenderOutput,
     encoding: PreviewEncoding,
     ctx: &OpContext,
-    token: &RenderCancelToken,
+    token: &CancelToken,
     measure_only: bool,
 ) -> Result<EncodedPreview, String> {
     let registry = registry()?;
@@ -276,7 +274,7 @@ pub(crate) fn encode_preview(
     };
 
     if token.is_cancelled() {
-        return Err(CancelledRender::err(token.render_id(), "encode"));
+        return Err(CancelledRender::err(token.id(), "encode"));
     }
 
     if measure_only {
