@@ -282,7 +282,7 @@ fn delivery_puts_every_master_on_the_luminance_grid_and_writes_planar_rgb() {
         .into_iter()
         .max_by(|a, b| a.2.total_cmp(&b.2))
         .unwrap();
-    let samples = rgb.as_f32().unwrap();
+    let samples = rgb.samples_f32();
     let at = |x: f64, y: f64, c: usize| {
         samples[((y.round() as usize) * W as usize + x.round() as usize) * 3 + c] as f64
     };

@@ -531,6 +531,11 @@ pub enum RecipeError {
 /// The image an operation reads and writes: linear-or-stretched F32 samples plus
 /// the FITS header they came with.
 ///
+/// The samples are the source's numbers as it stores them, and a recipe's
+/// parameters (a stretch's black and white points) are in those units, so a
+/// recipe saved against a master keeps meaning the same thing. The source's
+/// sample range rides along for the export of a still-linear render.
+///
 /// Samples are row-major and channel-interleaved, matching [`ImageData`]: index
 /// `(y * width + x) * channels + c`. The header travels with the pixels through
 /// the whole stack so astrometry, `DATE-OBS`, `EXPTIME`, `FILTER` and `OBJECT`
@@ -543,6 +548,7 @@ pub struct OpImage {
     channels: u32,
     data: Vec<f32>,
     header: FitsHeader,
+    range: crate::SampleRange,
 }
 
 impl OpImage {
@@ -574,15 +580,14 @@ impl OpImage {
             channels,
             data,
             header,
+            range: crate::SampleRange::ADU,
         })
     }
 
     /// Read an [`ImageData`] as a render input.
     ///
-    /// Samples carry over in 16-bit ADU: a `U16` sample as its value, an `F32`
-    /// sample through the image's sample range, so a 16-bit master, an ADU
-    /// float master and a `[0, 1]` float master of the same exposure hold the
-    /// same numbers. Any other pixel type is
+    /// `F32` samples carry over verbatim and `U16` samples as their ADU value,
+    /// with the image's sample range kept beside them. Any other pixel type is
     /// [`OpError::UnsupportedPixelType`] — silently reinterpreting the bytes is
     /// how a `U16` reader once ate an `F32` master.
     pub fn from_image_data(image: &ImageData, header: FitsHeader) -> Result<Self, OpError> {
@@ -590,15 +595,29 @@ impl OpImage {
             return Err(OpError::EmptyImage);
         }
         let data: Vec<f32> = match image.pixel_type {
-            PixelType::F32 | PixelType::U16 => image.samples_f32(),
+            PixelType::F32 | PixelType::U16 => image.stored_f32(),
             other => return Err(OpError::UnsupportedPixelType { found: other }),
         };
-        Self::new(image.width, image.height, image.channels, data, header)
+        Ok(Self::new(image.width, image.height, image.channels, data, header)?
+            .with_range(image.range))
     }
 
-    /// Write the samples back out as an `F32` [`ImageData`].
+    /// Write the samples back out as an `F32` [`ImageData`] in the range the
+    /// source had. A render that left the linear stage is display-referred;
+    /// its exporter declares that.
     pub fn to_image_data(&self) -> ImageData {
         ImageData::from_f32(self.width, self.height, self.channels, &self.data)
+            .with_range(self.range)
+    }
+
+    /// The sample range of the source these samples came from.
+    pub fn range(&self) -> crate::SampleRange {
+        self.range
+    }
+
+    pub fn with_range(mut self, range: crate::SampleRange) -> Self {
+        self.range = range;
+        self
     }
 
     pub fn width(&self) -> u32 {
@@ -653,13 +672,14 @@ impl OpImage {
 
     /// A new image with the same geometry and header and different samples.
     pub fn with_data(&self, data: Vec<f32>) -> Result<Self, OpError> {
-        Self::new(
+        Ok(Self::new(
             self.width,
             self.height,
             self.channels,
             data,
             self.header.clone(),
-        )
+        )?
+        .with_range(self.range))
     }
 
     /// A new image with different geometry, carrying this header forward with
@@ -685,7 +705,7 @@ impl OpImage {
         if header.get("NAXIS3").is_some() {
             header.set_int("NAXIS3", channels as i64);
         }
-        Self::new(width, height, channels, data, header)
+        Ok(Self::new(width, height, channels, data, header)?.with_range(self.range))
     }
 
     /// Move the WCS reference pixel by a crop origin of `(dx, dy)` pixels, so a

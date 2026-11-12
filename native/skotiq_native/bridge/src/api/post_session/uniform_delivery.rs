@@ -128,7 +128,7 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
                 "masters must be built on the same reference grid before common cropping".into(),
             );
         }
-        let counts = image_to_f64(&coverage);
+        let counts = coverage.stored_f64();
         for (i, values) in counts.chunks(size.2 as usize).enumerate() {
             mask[i] &= values.iter().all(|&v| v == count as f64);
         }

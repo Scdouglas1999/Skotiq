@@ -215,9 +215,12 @@ impl ImageData {
         )
     }
 
-    /// The samples of an `F32` image in 16-bit ADU; `None` for another type.
+    /// The samples of an `F32` image as it stores them, whatever its sample
+    /// range; `None` for another type. For data that is not brightness (a
+    /// coverage or weight map) and for tests; an algorithm reads
+    /// [`ImageData::samples_f32`].
     pub fn as_f32(&self) -> Option<Vec<f32>> {
-        (self.pixel_type == PixelType::F32).then(|| self.samples_f32())
+        (self.pixel_type == PixelType::F32).then(|| self.stored_f32())
     }
 
     pub fn from_u16(width: u32, height: u32, channels: u32, data: &[u16]) -> Self {

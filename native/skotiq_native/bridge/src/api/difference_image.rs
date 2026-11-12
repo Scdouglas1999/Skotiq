@@ -193,12 +193,9 @@ fn crop_stamp(img: &ImageData, cx: f64, cy: f64, half: i64) -> Option<ImageData>
             }
         }
     }
-    Some(ImageData::from_f32(
-        cw as u32,
-        crh as u32,
-        img.channels,
-        &out,
-    ))
+    Some(
+        ImageData::from_f32(cw as u32, crh as u32, img.channels, &out).with_range(img.range),
+    )
 }
 
 /// One residual candidate in the FFI result. `catalogMatch` is always `null` here;

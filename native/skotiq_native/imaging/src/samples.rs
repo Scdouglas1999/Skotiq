@@ -74,7 +74,10 @@ impl ImageData {
         samples
     }
 
-    fn stored_f64(&self) -> Vec<f64> {
+    /// Every sample as the image stores it, not taken to ADU: for data that
+    /// is not brightness (a coverage or weight map holds counts) and for a
+    /// stage whose parameters are in the image's own units.
+    pub fn stored_f64(&self) -> Vec<f64> {
         match self.pixel_type {
             PixelType::U8 => self.data.par_iter().map(|&v| f64::from(v)).collect(),
             PixelType::U16 => self
@@ -121,7 +124,8 @@ impl ImageData {
         samples
     }
 
-    fn stored_f32(&self) -> Vec<f32> {
+    /// [`ImageData::stored_f64`] as `f32`.
+    pub fn stored_f32(&self) -> Vec<f32> {
         match self.pixel_type {
             PixelType::U8 => self.data.par_iter().map(|&v| f32::from(v)).collect(),
             PixelType::U16 => self
