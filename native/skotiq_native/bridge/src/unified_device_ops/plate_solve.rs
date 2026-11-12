@@ -28,8 +28,6 @@ impl PlateSolveOps for UnifiedDeviceOps {
         // production solve path writes.
         let scale = crate::api::plate_solve::gather_solve_hints().await;
         scale.log_scale("Plate solve");
-        let focal_length_mm = scale.hints.focal_length_mm;
-        let pixel_size = scale.hints.pixel_size_um;
         let binning = scale.hints.binning;
         // The header is written for ASTAP to read; the same number also goes
         // out as an explicit `-fov` argument, because a header card is a hope
@@ -40,23 +38,9 @@ impl PlateSolveOps for UnifiedDeviceOps {
             .or_else(|| scale.arcsec_per_px());
 
         let header = crate::frame_header::FrameHeader {
-            object_name: Some("Plate Solve".to_string()),
-            exposure_time: image_data.exposure_secs,
-            capture_timestamp: chrono::Utc::now()
-                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
-            frame_type: "Light".to_string(),
-            filter: image_data.filter.clone(),
-            gain: image_data.gain,
-            offset: image_data.offset,
-            ccd_temp: image_data.temperature,
             ra: hint_ra.map(|r| r / 15.0),
             dec: hint_dec,
-            bin_x: binning.0,
-            bin_y: binning.1,
-            focal_length: focal_length_mm,
-            pixel_size_x: pixel_size.map(|(x, _)| x),
-            pixel_size_y: pixel_size.map(|(_, y)| y),
-            ..Default::default()
+            ..scale.hints.solve_frame_header(image_data)
         };
 
         crate::frame_header::write_capture_frame(

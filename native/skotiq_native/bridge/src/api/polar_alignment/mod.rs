@@ -14,9 +14,6 @@
 //   value — SAFE narrowing from default isize repr.
 // - **Step size f64 → i32** (line 401): bounded by mount slew step (≤ 90°
 //   typical); used only in a display string, not a hardware command.
-// - **RGBA u8 → u32/u16 luminance** (lines 775, 785): u8 → u32 is exact
-//   widening; the average of three u8 values is ≤ 255 so `as u16 * 256`
-//   stays well inside u16. SAFE.
 use crate::device::*;
 use crate::device_manager::DeviceManager;
 use crate::error::*;
