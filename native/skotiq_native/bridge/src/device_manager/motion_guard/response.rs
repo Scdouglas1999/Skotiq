@@ -674,3 +674,68 @@ async fn auto_recover(device_id: &str) -> Result<(), String> {
         .map_err(|e| format!("The run did not resume: {e}"))?;
     Ok(())
 }
+
+#[cfg(test)]
+mod hold_tests {
+    use super::hold_run_or_stop_guiding;
+    use crate::api::get_state;
+    use crate::api::sequencer::{
+        api_sequencer_start, get_sequence_executor, run_sequencer_event_loop,
+    };
+    use crate::event::{EventPayload, SequencerEvent};
+
+    /// The guard asks the run to pause and the run announces it when its
+    /// state turns Paused. The guard used to publish a Paused of its own as
+    /// well, so one mount fault logged "Sequence paused" twice.
+    #[tokio::test]
+    async fn a_mount_fault_hold_puts_one_paused_on_the_wire() {
+        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
+            .lock()
+            .await;
+        let mut sequence = skotiq_sequencer::SequenceDefinition::new("Long wait".to_string());
+        sequence.nodes.push(skotiq_sequencer::NodeDefinition {
+            id: "wait".to_string(),
+            name: "Wait".to_string(),
+            node_type: skotiq_sequencer::NodeType::Delay(skotiq_sequencer::DelayConfig {
+                seconds: 120.0,
+            }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        crate::api::sequencer::wait_for_no_event_listeners().await;
+        let mut run_events = {
+            let mut executor = get_sequence_executor().write().await;
+            executor.set_device_ops(std::sync::Arc::new(
+                skotiq_sequencer::device_ops::NullDeviceOps,
+            ));
+            executor.load_sequence(sequence).expect("sequence loads");
+            executor.subscribe()
+        };
+        let bridge = tokio::spawn(async move {
+            run_sequencer_event_loop(&mut run_events, get_state()).await;
+        });
+        api_sequencer_start().await.expect("run starts");
+        let mut events = get_state().event_bus.subscribe();
+
+        let first = hold_run_or_stop_guiding("the mount moved on its own").await;
+        let second = hold_run_or_stop_guiding("the mount lost its position").await;
+
+        let mut paused = 0;
+        while let Ok(Ok(event)) =
+            tokio::time::timeout(std::time::Duration::from_millis(500), events.recv()).await
+        {
+            if matches!(
+                event.payload,
+                EventPayload::Sequencer(SequencerEvent::Paused)
+            ) {
+                paused += 1;
+            }
+        }
+        get_sequence_executor().write().await.stop().await.ok();
+        bridge.abort();
+
+        assert!(first && second, "the run was held both times");
+        assert_eq!(paused, 1, "one fault is one Paused on the wire");
+    }
+}
