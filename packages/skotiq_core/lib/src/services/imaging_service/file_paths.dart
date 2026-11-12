@@ -9,8 +9,7 @@ extension _ImagingServiceFilePaths on ImagingService {
   /// is appended from [NamingPattern.format]). The default pattern
   /// `$TARGET/$FRAMETYPE/$TARGET_$FILTER_$EXPTIME_$FRAMENUM` therefore yields
   /// e.g. `M31/Light/M31_L_120.0_0001.fits` under the configured base
-  /// directory. This matches the convention implemented by the Rust
-  /// `FilenameGenerator` in `native/skotiq_native/imaging/src/naming.rs`.
+  /// directory.
   ///
   /// All `$VARIABLE` tokens are validated against [_patternVariables]; an
   /// unknown token raises an [Exception] rather than leaving `$BANANA` in the

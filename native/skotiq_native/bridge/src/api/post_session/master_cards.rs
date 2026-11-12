@@ -108,7 +108,7 @@ pub(crate) fn attach_wcs(
             inherited: true,
         });
     }
-    let solver = skotiq_imaging::AstapSolver::with_default_config()?;
+    let solver = skotiq_platesolve::AstapSolver::with_default_config()?;
     let hint = |key: &str| header.get_float(key);
     let result = solver.solve(master_path, hint("RA"), hint("DEC"), None);
     if !result.success || result.cd1_1 == 0.0 {

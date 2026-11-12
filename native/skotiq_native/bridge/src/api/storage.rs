@@ -92,7 +92,7 @@ pub fn api_init_settings_storage(storage_path: String) -> Result<(), SkotiqError
     // paths immediately — without waiting for the UI to call
     // api_platesolve_set_config.
     if let Ok(pref) = crate::state::get_platesolver_preference() {
-        skotiq_imaging::set_solver_preference(
+        skotiq_platesolve::set_solver_preference(
             if pref.astap_path.is_empty() {
                 None
             } else {

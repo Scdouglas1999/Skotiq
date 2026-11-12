@@ -371,12 +371,10 @@ class ImagingService {
 
   /// All naming-pattern variables this service recognises.
   ///
-  /// Keep this in sync with [NamingPattern.availableVariables],
-  /// `docs/features/settings.md`, and the documentation in
-  /// `native/skotiq_native/imaging/src/naming.rs`. The settings UI
-  /// surfaces a shorter subset (`$TARGET, $FILTER, $DATE, $SEQ, $EXPOSURE`),
-  /// but the full set is honoured here so that patterns shared between the
-  /// Dart and Rust capture paths behave identically.
+  /// Keep this in sync with [NamingPattern.availableVariables] and
+  /// `docs/features/settings.md`. The settings UI surfaces a shorter subset
+  /// (`$TARGET, $FILTER, $DATE, $SEQ, $EXPOSURE`), but the full set is
+  /// honoured here.
   static const Set<String> _patternVariables = {
     r'$TARGET',
     r'$FILTER',
@@ -626,12 +624,10 @@ class ImagingService {
       r'$BINNING': '${exposureSettings.binningX}x${exposureSettings.binningY}',
       r'$CAMERA': camera,
       r'$TELESCOPE': telescope,
-      // The sequence this frame belongs to, matching `$SEQUENCE` in the Rust
-      // FilenameGenerator (naming.rs), whose no-sequence value is the literal
-      // "Sequence". Nothing on this path — manual Snapshot, Loop, plate-solve
-      // frame — belongs to a sequence, so substituting the TARGET here labelled
-      // a plain target folder as a sequence and made the same pattern produce
-      // two different trees depending on which capture path wrote the frame.
+      // The sequence this frame belongs to; with no sequence the value is the
+      // literal "Sequence". Nothing on this path (manual Snapshot, Loop,
+      // plate-solve frame) belongs to a sequence, and the target name would
+      // label a plain target folder as a sequence.
       r'$SEQUENCE': 'Sequence',
       r'$SESSION': dateStr.replaceAll('-', ''),
     };

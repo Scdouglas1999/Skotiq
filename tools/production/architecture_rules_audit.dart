@@ -180,12 +180,14 @@ const _externalWorkspacePackages = {'skotiq_relay'};
 const _rustCrates = <String, Set<String>>{
   'skotiq_device': {},
   'skotiq_imaging': {},
+  'skotiq_phd2': {},
   'skotiq_updater': {},
+  'skotiq_platesolve': {'skotiq_imaging'},
   'skotiq_alpaca': {'skotiq_device'},
   'skotiq_ascom': {'skotiq_device'},
   'skotiq_indi': {'skotiq_device'},
   'skotiq_native': {'skotiq_device', 'skotiq_imaging'},
-  'skotiq_sequencer': {'skotiq_device', 'skotiq_imaging'},
+  'skotiq_sequencer': {'skotiq_device', 'skotiq_imaging', 'skotiq_platesolve'},
   'skotiq_bridge': {
     'skotiq_alpaca',
     'skotiq_ascom',
@@ -193,6 +195,8 @@ const _rustCrates = <String, Set<String>>{
     'skotiq_imaging',
     'skotiq_indi',
     'skotiq_native',
+    'skotiq_phd2',
+    'skotiq_platesolve',
     'skotiq_sequencer',
   },
 };

@@ -79,7 +79,7 @@ void main() {
     /// whole header as one enormous "line", so only `SIMPLE` is ever inspected
     /// and `CRVAL1` is invisible: ASTAP solves, the parse reports the solution
     /// as missing, and the caller counts a successful solve as a failed one.
-    /// `native/.../imaging/src/platesolve.rs` already carries this fix; this
+    /// `native/.../platesolve/src/lib.rs` already carries this fix; this
     /// pins the Dart fallback to the same contract.
     String card(String content) => content.padRight(80).substring(0, 80);
 

@@ -2105,6 +2105,8 @@ dependencies = [
  "skotiq_imaging",
  "skotiq_indi",
  "skotiq_native",
+ "skotiq_phd2",
+ "skotiq_platesolve",
  "skotiq_sequencer",
  "tempfile",
  "thiserror",
@@ -2185,6 +2187,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "skotiq_phd2"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
+name = "skotiq_platesolve"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "skotiq_imaging",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "skotiq_sequencer"
 version = "0.1.0"
 dependencies = [
@@ -2201,6 +2222,7 @@ dependencies = [
  "serde_json",
  "skotiq_device",
  "skotiq_imaging",
+ "skotiq_platesolve",
  "thiserror",
  "tokio",
  "tracing",

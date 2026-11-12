@@ -47,7 +47,6 @@ dark_240s.fits/median_hfr 669b18c6d2d9c95b
 dark_240s.fits/read_fits.header 914b0cda30bfbcff
 dark_240s.fits/read_fits.pixels 11ead0d63f58beda
 dark_240s.fits/registrable_star_count 0000000000000000
-dark_240s.fits/rgba b0ae5ba731812be9
 dark_240s.fits/star_crops 09612b07b5ecb5a5
 dark_240s.fits/stats a03777f04f2f974a
 dark_240s.fits/stf 16ca833e5b024271
@@ -64,7 +63,6 @@ defocus_R06.fits/median_hfr 97005b308ae166d5
 defocus_R06.fits/read_fits.header 1893ea2d01c2a432
 defocus_R06.fits/read_fits.pixels 64debad6d4ff1061
 defocus_R06.fits/registrable_star_count 0000000000000018
-defocus_R06.fits/rgba 105341cf51879b33
 defocus_R06.fits/star_crops 5626c39abdbcf7c9
 defocus_R06.fits/stats e1f2b84f6aa1b423
 defocus_R06.fits/stf b50e0a969b5bf945
@@ -81,7 +79,6 @@ defocus_R12.fits/median_hfr f8d3a629585ecf7f
 defocus_R12.fits/read_fits.header 4f21ba450e1b432f
 defocus_R12.fits/read_fits.pixels a2b688cf53a9a47f
 defocus_R12.fits/registrable_star_count 000000000000000d
-defocus_R12.fits/rgba 7e60a9c0e4465543
 defocus_R12.fits/star_crops 6d84194e39fafdf0
 defocus_R12.fits/stats 7b7e2c697cbd34a1
 defocus_R12.fits/stf b50e0a969b5bf945
@@ -98,7 +95,6 @@ defocus_R20.fits/median_hfr dfbd90c34c9e92da
 defocus_R20.fits/read_fits.header 477c5f4879d38582
 defocus_R20.fits/read_fits.pixels dcc68bc843914d08
 defocus_R20.fits/registrable_star_count 0000000000000005
-defocus_R20.fits/rgba a884005808ab4666
 defocus_R20.fits/star_crops e0a5ee4fcd0ff3c2
 defocus_R20.fits/stats ae9d0ed8ab1ee777
 defocus_R20.fits/stf b50e0a969b5bf945
@@ -111,7 +107,6 @@ display/f32.stf b4352a95d02a5442
 display/rgb.auto_stretch.linked 55d41feed033440b
 display/rgb.auto_stretch.unlinked 8bab0cf7da147c82
 display/rgb.display_u8 9afd6dc4aeff20d3
-display/rgb.rgba b79c26d46582cfad
 drizzle/default d22540a028582748
 finishing/background.mono_f32 f182d8ffe16f663e
 finishing/background.mono_f32.model 322d7d333a0a0324
@@ -153,7 +148,6 @@ focused_L.fits/median_hfr d98bfe1b91b4b410
 focused_L.fits/read_fits.header 1e5a2a0a0bf49810
 focused_L.fits/read_fits.pixels dfc72438c0ad2b4d
 focused_L.fits/registrable_star_count 0000000000000030
-focused_L.fits/rgba 014aea7f37227b66
 focused_L.fits/star_crops 0232016f33e1e4dc
 focused_L.fits/stats 4b923445dc8df047
 focused_L.fits/stf e5f3bcb6749c6b6d
@@ -170,7 +164,6 @@ focused_L_0005.fits/median_hfr 7e214e6e73062629
 focused_L_0005.fits/read_fits.header 6759b63024cdae1b
 focused_L_0005.fits/read_fits.pixels bf02db60e2272a70
 focused_L_0005.fits/registrable_star_count 00000000000000c1
-focused_L_0005.fits/rgba d46f5a116b546afc
 focused_L_0005.fits/star_crops c36070c557d29fde
 focused_L_0005.fits/stats d14b9b708c018122
 focused_L_0005.fits/stf 377ccd48bc5424ea
@@ -187,7 +180,6 @@ focused_L_0006.fits/median_hfr 891fa079bd3465fe
 focused_L_0006.fits/read_fits.header 00472d85663640ec
 focused_L_0006.fits/read_fits.pixels ce6725092c124d4a
 focused_L_0006.fits/registrable_star_count 00000000000000c6
-focused_L_0006.fits/rgba a5d16b49825f765b
 focused_L_0006.fits/star_crops a16761eb9b052d05
 focused_L_0006.fits/stats 6fec33e8457afdc5
 focused_L_0006.fits/stf d411e145209e31e9
@@ -252,7 +244,6 @@ landed_from_above_L_0003.fits/median_hfr d0a86acaff4f3c8d
 landed_from_above_L_0003.fits/read_fits.header 0a04661ac5976b6b
 landed_from_above_L_0003.fits/read_fits.pixels c95b9182011a29b8
 landed_from_above_L_0003.fits/registrable_star_count 0000000000000045
-landed_from_above_L_0003.fits/rgba c643ce20877d540c
 landed_from_above_L_0003.fits/star_crops 439d9aa146004a30
 landed_from_above_L_0003.fits/stats dbe88f792f11c444
 landed_from_above_L_0003.fits/stf d84fdaa639942bd0
@@ -281,7 +272,6 @@ no_stars_L.fits/median_hfr 669b18c6d2d9c95b
 no_stars_L.fits/read_fits.header ca55fbea689bcbc4
 no_stars_L.fits/read_fits.pixels 95a654f14d5b34ad
 no_stars_L.fits/registrable_star_count 0000000000000000
-no_stars_L.fits/rgba fea00167c27caf50
 no_stars_L.fits/star_crops 09612b07b5ecb5a5
 no_stars_L.fits/stats e78329966dcb65ab
 no_stars_L.fits/stf 26fd268ec8d3ee31
@@ -350,7 +340,6 @@ trailed_Ha_0001_001.fits/median_hfr e995bdd021e46923
 trailed_Ha_0001_001.fits/read_fits.header f47738df75dfe055
 trailed_Ha_0001_001.fits/read_fits.pixels 34d0f329da7b492c
 trailed_Ha_0001_001.fits/registrable_star_count 00000000000000ff
-trailed_Ha_0001_001.fits/rgba 4ef1785aaff562cf
 trailed_Ha_0001_001.fits/star_crops 3e03a86fd5af4490
 trailed_Ha_0001_001.fits/stats 8de2f690c6856736
 trailed_Ha_0001_001.fits/stf 42191d81b65496cf
@@ -367,7 +356,6 @@ trailed_OIII_0001.fits/median_hfr 8f805e2184248c5e
 trailed_OIII_0001.fits/read_fits.header 473a8f5da52ca3e6
 trailed_OIII_0001.fits/read_fits.pixels ff095a702ccc2b26
 trailed_OIII_0001.fits/registrable_star_count 0000000000000121
-trailed_OIII_0001.fits/rgba 5e3d24a3f90a7b2e
 trailed_OIII_0001.fits/star_crops 634d9a25d20b2113
 trailed_OIII_0001.fits/stats 9b0a52d205c8cba9
 trailed_OIII_0001.fits/stf 39fa3839bd9f2f26
@@ -384,7 +372,6 @@ trailed_R.fits/median_hfr 669b18c6d2d9c95b
 trailed_R.fits/read_fits.header 4c7f55cf5ba6a3b8
 trailed_R.fits/read_fits.pixels 6973bd7b9311dd4e
 trailed_R.fits/registrable_star_count 0000000000000000
-trailed_R.fits/rgba b3b72bf67648dc7f
 trailed_R.fits/star_crops 09612b07b5ecb5a5
 trailed_R.fits/stats ad6236d539754b4f
 trailed_R.fits/stf ea7972e824c65ddf
@@ -401,7 +388,6 @@ trailed_SII_0001_001.fits/median_hfr 8299cdc5d04be459
 trailed_SII_0001_001.fits/read_fits.header ca70b4ae15aab7dc
 trailed_SII_0001_001.fits/read_fits.pixels 930d5ac87f8d0158
 trailed_SII_0001_001.fits/registrable_star_count 0000000000000150
-trailed_SII_0001_001.fits/rgba aa779f0f5ea57931
 trailed_SII_0001_001.fits/star_crops b92745ef2b75c9cb
 trailed_SII_0001_001.fits/stats d4ea45b78696feb5
 trailed_SII_0001_001.fits/stf 39fa3839bd9f2f26
@@ -418,7 +404,6 @@ trailed_round_G.fits/median_hfr 14023a8540a08d50
 trailed_round_G.fits/read_fits.header 46f63a3114cf4571
 trailed_round_G.fits/read_fits.pixels 7b45baf628e3e620
 trailed_round_G.fits/registrable_star_count 0000000000000009
-trailed_round_G.fits/rgba ae2ef8cfc86fed43
 trailed_round_G.fits/star_crops ae699bddf754d1b2
 trailed_round_G.fits/stats de4418e44d3a2f27
 trailed_round_G.fits/stf 47178af7118d0e2a
