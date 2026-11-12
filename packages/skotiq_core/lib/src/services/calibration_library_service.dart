@@ -18,7 +18,7 @@ import '../models/calibration/shared_calibration_models.dart';
 import '../models/collaboration/collaboration_models.dart';
 import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
-import '../providers/constellation_provider.dart';
+import 'constellation/hub_credentials.dart';
 import '../providers/database_provider.dart';
 import 'calibration/fits_header_reader.dart';
 import 'calibration/shared_calibration_library.dart';

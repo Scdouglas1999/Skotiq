@@ -20,7 +20,7 @@ import 'package:skotiq_core/src/models/scheduler/scheduler_status.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart'
     show BinningMode, LiveStackingMethod, LiveStackingThumbnailSize;
 import 'package:skotiq_core/src/providers/annotation_settings_provider.dart';
-import 'package:skotiq_core/src/providers/constellation_provider.dart'
+import 'package:skotiq_core/src/services/constellation/hub_credentials.dart'
     show resolveConstellationAccountId, resolveConstellationCredentials;
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/frame_watch_settings_provider.dart';

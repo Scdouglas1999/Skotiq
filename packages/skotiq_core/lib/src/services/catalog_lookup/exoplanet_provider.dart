@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
-import '../models/annotation_data.dart';
+import '../../models/annotation_data.dart';
 
 class ExoplanetProvider {
   static const String _baseUrl =

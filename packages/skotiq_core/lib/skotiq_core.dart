@@ -306,10 +306,10 @@ export 'src/models/backend/host_runtime_update.dart';
 export 'src/models/depthlock/depthlock_models.dart';
 export 'src/providers/depthlock_provider.dart';
 export 'src/services/host_mutation_event_hub.dart';
-export 'src/providers/simbad_provider.dart';
+export 'src/services/catalog_lookup/simbad_provider.dart';
 export 'src/services/sesame_name_resolver.dart';
-export 'src/providers/exoplanet_provider.dart';
-export 'src/providers/gaia_provider.dart';
+export 'src/services/catalog_lookup/exoplanet_provider.dart';
+export 'src/services/catalog_lookup/gaia_provider.dart';
 export 'src/providers/annotation_settings_provider.dart';
 export 'src/providers/annotation_presets_provider.dart'
     hide AnnotationPreset, annotationPresetsProvider, AnnotationPresetsNotifier;
@@ -748,6 +748,7 @@ export 'src/models/collaboration/collaboration_models.dart';
 export 'src/services/coimaging/coimaging_session_service.dart';
 export 'src/services/constellation/constellation_client.dart';
 export 'src/services/constellation/constellation_service.dart';
+export 'src/services/constellation/hub_credentials.dart';
 export 'src/providers/constellation_provider.dart';
 // Pillar B ("First Light"): difference-imaging transient log + scan service +
 // report export.
