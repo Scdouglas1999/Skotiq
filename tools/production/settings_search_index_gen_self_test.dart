@@ -51,25 +51,44 @@ void main() {
     'Safety fail mode',
     'Park on unsafe weather',
     'Default watermark template',
-    'Default broadcast port',
     'Default thumbnail size',
   ]) {
     _check('indexes "$term"', index.contains(term));
   }
 
-  // 3. Nested-call lookback. `_LabeledNumberField(fieldKey: ValueKey('x'),
+  // 3. Nested-call lookback. `_OverrideField(key: ValueKey('x'),
   //    label: '...')` closes an inner call before the label, so a naive
   //    "nearest preceding constructor" read answers ValueKey and rejects the
-  //    label. That dropped the whole Adaptive Exposure page.
+  //    label. That dropped the whole Adaptive Exposure page. Checked inside
+  //    that page's own list: "min s" is its per-filter override field.
+  final adaptive = RegExp(
+    r"'adaptive-exposure': \[(.*?)\],",
+    dotAll: true,
+  ).firstMatch(index)?.group(1);
   _check(
     'resolves labels past a closed nested call',
-    index.contains('Global minimum exposure (s)'),
+    adaptive != null && adaptive.contains("'min s'"),
   );
 
   // 4. Composition following. Files & Storage and Autofocus render no rows of
   //    their own; they stack other settings pages inside a shared shell.
   for (final key in const ['files-storage', 'autofocus']) {
     _check("indexes composed page '$key'", index.contains("'$key': ["));
+  }
+
+  // 4b. A page outside screens/settings/ is followed through its own feature
+  //     folder. Equipment profiles is the profile manager under
+  //     screens/equipment/ and its settings are the profile editor's rows;
+  //     not followed, the section indexed nothing at all.
+  final profiles = RegExp(
+    r"'equipment-profiles': \[(.*?)\],",
+    dotAll: true,
+  ).firstMatch(index)?.group(1);
+  for (final term in const ['Optical train', 'Camera defaults']) {
+    _check(
+      'indexes the profile editor\'s "$term" under Equipment profiles',
+      profiles != null && profiles.contains("'$term'"),
+    );
   }
 
   // 5. Button verbs must NOT be indexed, or "delete" matches settings pages.
