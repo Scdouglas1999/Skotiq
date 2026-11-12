@@ -28,7 +28,7 @@ mod runtime_config;
 mod setup;
 
 use crate::device_ops::SharedDeviceOps;
-use crate::node::instructions::autofocus::refocus_detail;
+use crate::node::instructions::autofocus::autofocus_detail;
 use crate::node::{
     CloudMotionSnapshot, ExecutionContext, Node, ProgressDetail, ProgressUpdate, RuntimeNode,
 };

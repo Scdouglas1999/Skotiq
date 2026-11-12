@@ -102,7 +102,7 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
             progress_node_id.clone(),
             "Autofocus",
             percent,
-            refocus_detail(progress, total_steps),
+            autofocus_detail(progress, total_steps),
         ));
     };
     // Recorded so the decision row can name the focus the run kept.

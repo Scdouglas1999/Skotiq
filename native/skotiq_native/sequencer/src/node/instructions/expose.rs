@@ -11,7 +11,7 @@ use crate::instructions::{
     Setback,
 };
 use crate::node::context::ExecutionContext;
-use crate::node::instructions::autofocus::refocus_detail;
+use crate::node::instructions::autofocus::autofocus_detail;
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::registry::InstructionNode;
 use crate::scheduling::{
@@ -1031,7 +1031,7 @@ pub(crate) async fn check_exposure_triggers(
                             progress_node_id.clone(),
                             "Autofocus",
                             percent,
-                            refocus_detail(progress, total_steps),
+                            autofocus_detail(progress, total_steps),
                         ));
                     }
                 };

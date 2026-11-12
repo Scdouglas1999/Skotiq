@@ -32,7 +32,7 @@ impl InstructionNode for AutofocusInstruction {
                     node_id.to_string(),
                     "Autofocus",
                     percent,
-                    node_detail(progress, total_steps),
+                    autofocus_detail(progress, total_steps),
                 ));
             }
         };
@@ -60,28 +60,26 @@ impl InstructionNode for AutofocusInstruction {
     }
 }
 
-/// The node's progress for one step of its sweep: the point and HFR while
-/// the sweep measures, the step itself in words otherwise.
-fn node_detail(progress: &AutofocusProgress, total_steps: u32) -> ProgressDetail {
-    let point = progress.sweep().map(|sweep| sweep.point);
-    match (point, progress.hfr()) {
-        (None, None) => ProgressDetail::Generic(progress.to_string()),
-        (point, current_hfr) => ProgressDetail::Autofocus {
-            step: point.map_or(0, |point| u32::try_from(point).unwrap_or(u32::MAX)),
+/// The progress of an autofocus sweep, for the node and for a refocus run on
+/// behalf of another step (a trigger, an exposure, a recovery): the point and
+/// HFR while the sweep measures, the step itself in words otherwise. A
+/// finished sweep reports its last point and final HFR as an autofocus
+/// detail: the app counts a successful autofocus by the step's last detail
+/// being one.
+pub(crate) fn autofocus_detail(progress: &AutofocusProgress, total_steps: u32) -> ProgressDetail {
+    let step = match progress {
+        AutofocusProgress::Complete { .. } => Some(total_steps),
+        _ => progress
+            .sweep()
+            .map(|sweep| u32::try_from(sweep.point).unwrap_or(u32::MAX)),
+    };
+    match step {
+        Some(step) => ProgressDetail::Autofocus {
+            step,
             total_steps,
-            current_hfr,
+            current_hfr: progress.hfr(),
         },
-    }
-}
-
-/// The progress of an autofocus run on behalf of another step (a trigger, an
-/// exposure, a recovery): always an autofocus detail, with the HFR when the
-/// step has one.
-pub(crate) fn refocus_detail(progress: &AutofocusProgress, total_steps: u32) -> ProgressDetail {
-    ProgressDetail::Autofocus {
-        step: 0,
-        total_steps,
-        current_hfr: progress.hfr(),
+        None => ProgressDetail::Generic(progress.to_string()),
     }
 }
 
@@ -114,11 +112,11 @@ mod tests {
         }
     }
 
-    /// What the run's status line and the node's progress panel read for each
-    /// step of a node's sweep.
+    /// What the run's status line and the step's progress panel read for each
+    /// step of a sweep, whether a node or a refocus runs it.
     #[test]
-    fn a_node_reports_the_point_and_hfr_while_measuring_and_words_otherwise() {
-        let line = |progress: &AutofocusProgress| node_detail(progress, 9).detail_text();
+    fn a_sweep_reports_the_point_and_hfr_while_measuring_and_words_otherwise() {
+        let line = |progress: &AutofocusProgress| autofocus_detail(progress, 9).detail_text();
         assert_eq!(line(&AutofocusProgress::Starting), "Starting autofocus...");
         assert_eq!(
             line(&AutofocusProgress::MovingToStart { position: 600 }),
@@ -141,7 +139,7 @@ mod tests {
             line(&AutofocusProgress::MovingToBestFocus { position: 1012 }),
             "Moving to best focus: 1012"
         );
-        assert_eq!(line(&complete()), "step 0/9 HFR 2.35");
+        assert_eq!(line(&complete()), "step 9/9 HFR 2.35");
         assert_eq!(
             line(&AutofocusProgress::FocusBeyondSweep { sweep_center: 1600 }),
             "Focus lies beyond the sweep; sweeping around 1600"
@@ -154,7 +152,7 @@ mod tests {
             "Autofocus attempt 1/3 failed; retrying full sweep"
         );
         assert!(matches!(
-            node_detail(&measured(5, 3.871), 9),
+            autofocus_detail(&measured(5, 3.871), 9),
             ProgressDetail::Autofocus {
                 step: 5,
                 total_steps: 9,
@@ -163,13 +161,17 @@ mod tests {
         ));
     }
 
-    /// A trigger's, an exposure's or a recovery's refocus always reads as an
-    /// autofocus, which the app counts the sweep by.
+    /// A finished sweep ends on an autofocus detail, which the app counts a
+    /// successful autofocus by.
     #[test]
-    fn a_refocus_always_reports_an_autofocus_detail() {
-        let line = |progress: &AutofocusProgress| refocus_detail(progress, 9).detail_text();
-        assert_eq!(line(&AutofocusProgress::Starting), "step 0/9");
-        assert_eq!(line(&measured(5, 3.871)), "step 0/9 HFR 3.87");
-        assert_eq!(line(&complete()), "step 0/9 HFR 2.35");
+    fn a_finished_sweep_ends_on_an_autofocus_detail() {
+        assert!(matches!(
+            autofocus_detail(&complete(), 9),
+            ProgressDetail::Autofocus {
+                step: 9,
+                total_steps: 9,
+                current_hfr: Some(hfr),
+            } if hfr == 2.3456
+        ));
     }
 }
