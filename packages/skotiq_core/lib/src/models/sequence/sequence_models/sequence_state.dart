@@ -120,61 +120,17 @@ abstract class Sequence with _$Sequence {
   /// [SequenceTreeIndex.invariants] for the full set of checks.
   List<String> invariants() => treeIndex.invariants();
 
-  /// Get total exposure count.
-  ///
-  /// Walks the tree from [rootNodeId] applying loop multipliers, mirroring
-  /// [_calculateOverhead] / [estimateIntegrationSecs] so the progress
-  /// denominator counts looped frames the same way the integration estimate
-  /// does. Falls back to the flat sum over [nodes] when there is no tree
-  /// structure (no root node), matching the fallback in
-  /// [estimateIntegrationSecs].
+  /// Frames the plan takes, with count loops multiplied (see
+  /// [plannedCaptureUnder]). Without a root node, the sum over every enabled
+  /// step.
   int get totalExposures {
-    if (rootNodeId != null && nodes[rootNodeId] != null) {
-      return _countExposures(rootNodeId!, 1);
+    final rootId = rootNodeId;
+    if (rootId != null && nodes[rootId] != null) {
+      return plannedCaptureUnder(this, rootId).frames;
     }
-    int count = 0;
-    for (final node in nodes.values) {
-      if (node is ExposureNode && node.isEnabled) {
-        count += node.count;
-      } else if (node is SmartExposureNode && node.isEnabled) {
-        count += node.plans.fold(0, (s, p) => s + p.count);
-      } else if (node is SciencePhotometryNode && node.isEnabled) {
-        count += node.count;
-      }
-    }
-    return count;
-  }
-
-  /// Recursively count planned exposures under [nodeId], scaling by [mult]
-  /// (the accumulated loop multiplier). Count loops multiply the child
-  /// multiplier by their iteration count; unbounded / other loops keep the
-  /// single-iteration multiplier (matching how [_calculateOverhead] treats
-  /// them so the denominator never reports an unbounded total).
-  int _countExposures(String nodeId, int mult) {
-    final node = nodes[nodeId];
-    if (node == null || !node.isEnabled) return 0;
-
-    int count = 0;
-    if (node is ExposureNode) {
-      count += node.count * mult;
-    } else if (node is SmartExposureNode) {
-      count += node.plans.fold(0, (s, p) => s + p.count) * mult;
-    } else if (node is SciencePhotometryNode) {
-      // A photometry burst captures `count` frames through the standard
-      // TakeExposure pipeline. Omitting it made the sequence header read
-      // "0 frames" for a node whose own properties panel said 60.
-      count += node.count * mult;
-    }
-
-    int childMultiplier = mult;
-    if (node is LoopNode && node.conditionType == LoopConditionType.count) {
-      childMultiplier = mult * (node.repeatCount ?? 1);
-    }
-
-    for (final childId in node.childIds) {
-      count += _countExposures(childId, childMultiplier);
-    }
-    return count;
+    return nodes.values
+        .where((node) => node.isEnabled)
+        .fold(0, (sum, node) => sum + node.framesPerPass);
   }
 
   /// Get total integration time in seconds

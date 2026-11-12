@@ -42,7 +42,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/add_target_header_helper.dart';
 import '../../../utils/count_label.dart';
 import '../../accessible_dropdown.dart';
-import '../plan_math.dart';
 import 'sequence_tree.dart' show revealSequenceRow, treeNodeKeyRegistryProvider;
 import 'target_coordinates.dart';
 import 'target_header_card.dart';

@@ -12,7 +12,6 @@ import '../../../utils/sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
-import '../plan_math.dart';
 import '../widgets/save_sequence.dart';
 
 part 'sequence_library_tab/library_header.dart';
