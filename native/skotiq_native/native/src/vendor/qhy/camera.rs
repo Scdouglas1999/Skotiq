@@ -176,8 +176,8 @@ impl QhyCamera {
         what: &str,
     ) -> Result<(), DriverError> {
         let handle = self.handle.ok_or(DriverError::NotConnected)?;
-        // SAFETY: as in `available`; the value is passed by value.
         check_qhy_error(
+            // SAFETY: as in `available`; the value is passed by value.
             unsafe { (sdk.set_qhyccd_param)(handle, control as c_int, value) },
             what,
         )
@@ -380,8 +380,8 @@ impl QhyCamera {
         {
             return None;
         }
-        // SAFETY: the SDK wrote a NUL-terminated name.
         Some(
+            // SAFETY: the SDK wrote a NUL-terminated name.
             unsafe { CStr::from_ptr(name.as_ptr()) }
                 .to_string_lossy()
                 .into_owned(),
@@ -400,8 +400,8 @@ impl QhyCamera {
         let window = readout_window(self.sensor_area, bin, subframe)?;
         if bin != self.current_bin {
             let bin_u = bin as c_uint;
-            // SAFETY: as in `available`; `bin` was checked to be a supported factor.
             bin_mode_result(
+                // SAFETY: as in `available`; `bin` was checked to be a supported factor.
                 unsafe { (sdk.set_qhyccd_binmode)(handle, bin_u, bin_u) },
                 bin,
             )?;
