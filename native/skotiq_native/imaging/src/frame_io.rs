@@ -7,6 +7,7 @@
 //! first bytes (its extension when they say nothing). Each format is one
 //! [`FrameCodec`]; supporting another format is one more codec in [`CODECS`].
 
+use crate::xisf::{self, XisfError, XisfWriteOptions};
 use crate::{FitsError, FitsHeader, ImageData, ImageFormat};
 use std::io::Read;
 use std::path::Path;
@@ -15,6 +16,7 @@ use std::path::Path;
 pub enum FrameIoError {
     Io(std::io::Error),
     Fits(FitsError),
+    Xisf(XisfError),
     Raw(String),
     /// Neither the content nor the extension names a format the app reads.
     UnknownFormat(String),
@@ -27,6 +29,7 @@ impl std::fmt::Display for FrameIoError {
         match self {
             FrameIoError::Io(e) => write!(f, "{e}"),
             FrameIoError::Fits(e) => write!(f, "{e}"),
+            FrameIoError::Xisf(e) => write!(f, "{e}"),
             FrameIoError::Raw(e) => write!(f, "{e}"),
             FrameIoError::UnknownFormat(name) => write!(
                 f,
@@ -49,22 +52,30 @@ impl From<std::io::Error> for FrameIoError {
     }
 }
 
-impl From<crate::RawError> for FrameIoError {
-    fn from(e: crate::RawError) -> Self {
-        FrameIoError::Raw(e.to_string())
-    }
-}
-
 impl From<FitsError> for FrameIoError {
     fn from(e: FitsError) -> Self {
         FrameIoError::Fits(e)
     }
 }
 
+impl From<crate::RawError> for FrameIoError {
+    fn from(e: crate::RawError) -> Self {
+        FrameIoError::Raw(e.to_string())
+    }
+}
+
+impl From<XisfError> for FrameIoError {
+    fn from(e: XisfError) -> Self {
+        FrameIoError::Xisf(e)
+    }
+}
+
 /// Choices a format may honor when it writes; a format ignores the ones that
 /// are not its own.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct FrameWriteOptions {}
+pub struct FrameWriteOptions {
+    pub xisf: XisfWriteOptions,
+}
 
 pub trait FrameCodec: Sync {
     fn format(&self) -> ImageFormat;
@@ -85,6 +96,12 @@ pub trait FrameCodec: Sync {
     ) -> Result<(), FrameIoError> {
         let _ = (path, image, header, options);
         Err(FrameIoError::WriteUnsupported(self.format()))
+    }
+    /// An 8-bit preview stored in the file, already stretched for display,
+    /// when the file holds one whose longer side reaches `min_side`.
+    fn read_preview(&self, path: &Path, min_side: u32) -> Result<Option<ImageData>, FrameIoError> {
+        let _ = (path, min_side);
+        Ok(None)
     }
     /// Change a file's metadata in place, keeping its pixels and anything
     /// else it holds.
@@ -136,6 +153,75 @@ impl FrameCodec for FitsFrames {
     }
 }
 
+struct XisfFrames;
+
+impl FrameCodec for XisfFrames {
+    fn format(&self) -> ImageFormat {
+        ImageFormat::Xisf
+    }
+    fn extensions(&self) -> &'static [&'static str] {
+        &["xisf", "xish"]
+    }
+    fn probe(&self, head: &[u8]) -> bool {
+        xisf::is_xisf_head(head)
+    }
+    fn read_header(&self, path: &Path) -> Result<FitsHeader, FrameIoError> {
+        let unit = xisf::read_xisf_unit(path)?;
+        Ok(xisf::header_from_image(unit.image(0)?))
+    }
+    fn read(&self, path: &Path) -> Result<(ImageData, FitsHeader), FrameIoError> {
+        let unit = xisf::read_xisf_unit(path)?;
+        let header = xisf::header_from_image(unit.image(0)?);
+        Ok((unit.read_pixels(0)?, header))
+    }
+    fn write(
+        &self,
+        path: &Path,
+        image: &ImageData,
+        header: &FitsHeader,
+        options: &FrameWriteOptions,
+    ) -> Result<(), FrameIoError> {
+        let image_header = xisf::image_header_from_fits(header, image);
+        Ok(xisf::write_images(
+            path,
+            &[],
+            &[(image_header, image)],
+            &options.xisf,
+        )?)
+    }
+    fn read_preview(&self, path: &Path, min_side: u32) -> Result<Option<ImageData>, FrameIoError> {
+        let unit = xisf::read_xisf_unit(path)?;
+        let image = unit.image(0)?;
+        let wanted = u64::from(min_side).min(image.width().max(image.height()));
+        match image.thumbnail.as_deref() {
+            Some(t) if t.width().max(t.height()) >= wanted => {
+                Ok(unit.read_thumbnail()?.map(|mut preview| {
+                    // Thumbnails may be 16-bit (section 11.12); previews are 8.
+                    if preview.pixel_type == crate::PixelType::U16 {
+                        preview.data = preview.data.as_chunks::<2>().0.iter().map(|b| b[1]).collect();
+                        preview.pixel_type = crate::PixelType::U8;
+                    }
+                    preview
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+    fn rewrite_header(
+        &self,
+        path: &Path,
+        edit: &mut dyn FnMut(&mut FitsHeader),
+    ) -> Result<(), FrameIoError> {
+        let mut unit = xisf::read_xisf_unit(path)?;
+        let image = unit.images.first_mut().ok_or(XisfError::NoImage)?;
+        let old = xisf::header_from_image(image);
+        let mut new = old.clone();
+        edit(&mut new);
+        xisf::apply_header(image, &old, &new);
+        Ok(xisf::rewrite_unit_metadata(path, &unit)?)
+    }
+}
+
 /// Camera raw files: the sensor's linear color-filter mosaic. Read-only; the
 /// camera's file is never changed.
 struct RawFrames;
@@ -163,7 +249,7 @@ impl FrameCodec for RawFrames {
 }
 
 /// The formats, in the order their probes are asked.
-static CODECS: &[&dyn FrameCodec] = &[&FitsFrames, &RawFrames];
+static CODECS: &[&dyn FrameCodec] = &[&FitsFrames, &XisfFrames, &RawFrames];
 
 fn extension_of(path: &Path) -> String {
     path.extension()
@@ -243,6 +329,13 @@ pub fn read_frame_header(path: &Path) -> Result<FitsHeader, FrameIoError> {
     codec_for_file(path)?.read_header(path)
 }
 
+/// A display-ready 8-bit preview the file stores, when it has one whose
+/// longer side reaches `min_side` (or the image's own size), so a list of
+/// frames need not decode every frame.
+pub fn read_frame_preview(path: &Path, min_side: u32) -> Result<Option<ImageData>, FrameIoError> {
+    codec_for_file(path)?.read_preview(path, min_side)
+}
+
 /// Write a frame in the format its extension names, with default choices.
 pub fn write_frame(path: &Path, image: &ImageData, header: &FitsHeader) -> Result<(), FrameIoError> {
     write_frame_with(path, image, header, &FrameWriteOptions::default())
@@ -259,12 +352,34 @@ pub fn write_frame_with(
         .write(path, image, header, options)
 }
 
+/// Write a frame in `format` whatever the path's extension, for a caller that
+/// writes to a temporary name first.
+pub fn write_frame_as(
+    format: ImageFormat,
+    path: &Path,
+    image: &ImageData,
+    header: &FitsHeader,
+    options: &FrameWriteOptions,
+) -> Result<(), FrameIoError> {
+    CODECS
+        .iter()
+        .find(|c| c.format() == format)
+        .ok_or(FrameIoError::WriteUnsupported(format))?
+        .write(path, image, header, options)
+}
+
 /// Edit a file's metadata in place; its pixels are not touched.
 pub fn rewrite_frame_header(
     path: &Path,
     mut edit: impl FnMut(&mut FitsHeader),
 ) -> Result<(), FrameIoError> {
     codec_for_file(path)?.rewrite_header(path, &mut edit)
+}
+
+/// Write a plate solve's WCS into a frame file, keeping its pixels and
+/// everything else it holds.
+pub fn write_wcs_into_frame(path: &Path, wcs: &crate::WcsInfo) -> Result<(), FrameIoError> {
+    rewrite_frame_header(path, |header| crate::add_wcs_headers(header, wcs))
 }
 
 /// Write through a sibling file and move it into place, so no reader sees a

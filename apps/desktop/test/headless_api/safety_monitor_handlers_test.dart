@@ -164,7 +164,7 @@ void main() {
       expect(response.statusCode, HttpStatus.ok);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['status'], 'acknowledged');
-      expect(body['snoozeUntil'], isA<String>());
+      expect(body['snoozeUntil'], endsWith('Z'));
     });
 
     test('cancel acknowledgement clears the host snooze', () async {

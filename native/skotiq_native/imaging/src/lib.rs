@@ -17,7 +17,6 @@ pub mod buffer_pool;
 pub mod calibration;
 pub mod calibration_master_stream; // Memory-bounded dark/bias masters straight from FITS files
 pub mod calibration_masters; // NEW: Master-flat build + cosmetic (hot/cold) correction
-pub mod channel_combine; // NEW: Narrowband/LRGB channel combination
 pub mod color_calibration; // NEW: Photometric color calibration (per-channel white balance)
 pub mod deconvolution; // NEW: PSF estimation + Richardson-Lucy deconvolution
 pub mod defect_map;
@@ -57,13 +56,12 @@ mod stats;
 mod stretch;
 mod trail; // Star trailing from the autocorrelation of the bright pixels
 pub mod wcs_sip; // NEW: SIP-aware (CD + forward/inverse SIP) gnomonic projection
-mod xisf;
+pub mod xisf;
 
 pub use background_extraction::*; // NEW: Export background-extraction types
 pub use buffer_pool::*;
 pub use calibration::*;
 pub use calibration_masters::*; // NEW: Export master-flat / cosmetic-correction types
-pub use channel_combine::*; // NEW: Export channel-combination types
 pub use color_calibration::*; // NEW: Export color-calibration types
 pub use debayer::*;
 pub use deconvolution::*; // NEW: Export deconvolution types
@@ -92,7 +90,10 @@ pub use stats::*;
 pub use stretch::*;
 pub use trail::{measure_frame_trail, FrameTrail, TRAIL_MIN_AXIS_RATIO};
 pub use wcs_sip::*; // NEW: Export SIP-aware projection types
-pub use xisf::*;
+pub use xisf::{
+    read_xisf_unit, ChecksumAlgorithm, XisfCodec, XisfCompression, XisfError, XisfUnit,
+    XisfWriteOptions,
+};
 
 use rayon::prelude::*;
 
@@ -141,7 +142,7 @@ impl ImageFormat {
     pub fn from_extension(ext: &str) -> Option<Self> {
         match ext.to_lowercase().as_str() {
             "fits" | "fit" | "fts" => Some(ImageFormat::Fits),
-            "xisf" => Some(ImageFormat::Xisf),
+            "xisf" | "xish" => Some(ImageFormat::Xisf),
             "tiff" | "tif" => Some(ImageFormat::Tiff),
             "png" => Some(ImageFormat::Png),
             "jpg" | "jpeg" => Some(ImageFormat::Jpeg),
@@ -764,25 +765,10 @@ pub fn write_jpeg(path: &std::path::Path, image: &ImageData, quality: u8) -> Res
 /// Read an image file in any format the app opens, with its metadata
 /// flattened to value text.
 pub fn read_image(path: &std::path::Path) -> Result<ImageReadResult, String> {
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    if ImageFormat::from_extension(ext) == Some(ImageFormat::Xisf) {
-        let (image, xisf_metadata) = read_xisf(path).map_err(|e| e.to_string())?;
-        // `fits_keywords` already arrive as on-card value text; the XISF
-        // properties are typed, so they get the same treatment as `FitsValue`.
-        let mut header: std::collections::HashMap<String, String> = xisf_metadata.fits_keywords;
-        for (k, v) in xisf_metadata.properties {
-            header.insert(k, v.to_header_string());
-        }
-        return Ok(ImageReadResult {
-            image,
-            format: ImageFormat::Xisf,
-            header,
-            // The XISF reader exposes CFA metadata only as flattened text.
-            cfa: None,
-        });
-    }
     let format = frame_format(path).map_err(|e| e.to_string())?;
     let (image, header) = read_frame(path).map_err(|e| e.to_string())?;
+    // Read the color filter before the header is flattened: the flattened
+    // form has lost the types and the subframe offsets it is composed from.
     let cfa = read_color_filter_array(&header);
     let flattened = header
         .keywords

@@ -665,7 +665,7 @@ fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
 /// Returns one slot per requested keyword, in the order asked for; every slot
 /// is empty when the header cannot be read.
 fn fits_header_floats(path: &Path, keys: &[&str]) -> Vec<Option<f64>> {
-    match crate::fits::read_fits_header(path) {
+    match crate::read_frame_header(path) {
         Ok(header) => keys.iter().map(|key| header.get_float(key)).collect(),
         Err(_) => vec![None; keys.len()],
     }
@@ -788,27 +788,29 @@ pub(crate) fn build_astap_args(
     args
 }
 
-/// A FITS copy of a camera raw file for a solver that reads only FITS,
-/// removed when dropped.
+/// A FITS copy of a frame in another format, for solvers that read FITS
+/// (astrometry.net reads only FITS; ASTAP reads only uncompressed XISF and no
+/// camera raw file), removed when dropped.
 struct SolverCopy {
     path: PathBuf,
 }
 
 impl SolverCopy {
-    /// `None` when the file is no camera raw file and is solved as it is.
+    /// `None` when the file is FITS (or no frame the app reads) and is
+    /// solved as it is.
     fn of(image_path: &Path) -> Result<Option<Self>, String> {
-        let is_raw = crate::frame_format(image_path).is_ok_and(|format| format.is_raw());
-        if !is_raw {
-            return Ok(None);
+        match crate::frame_format(image_path) {
+            Ok(crate::ImageFormat::Fits) | Err(_) => return Ok(None),
+            Ok(_) => {}
         }
         let (image, header) = crate::read_frame(image_path).map_err(|e| e.to_string())?;
         let path = std::env::temp_dir().join(format!(
-            "skotiq-solve-raw-{}-{}.fits",
+            "skotiq-solve-copy-{}-{}.fits",
             std::process::id(),
             SCRATCH_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         crate::write_fits(&path, &image, &header).map_err(|e| {
-            format!("could not prepare the camera raw file for the solver: {e}")
+            format!("could not prepare the frame for the solver: {e}")
         })?;
         Ok(Some(Self { path }))
     }
@@ -1071,8 +1073,8 @@ impl AstapSolver {
             }
         };
 
-        // ASTAP reads FITS; a camera raw file is solved from a FITS copy of its
-        // mosaic, which the solver bins like any one-shot-color frame.
+        // A frame that is not FITS (an XISF, a camera raw file) is solved
+        // from a FITS copy with the same pixels and cards.
         let converted = match SolverCopy::of(image_path) {
             Ok(converted) => converted,
             Err(error) => {
@@ -2115,6 +2117,41 @@ pub fn get_solver_path() -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
+
+    /// A frame that is not FITS reaches the solver as a FITS copy with the
+    /// same pixels and cards: a zstd-compressed XISF capture (ASTAP reads only
+    /// uncompressed XISF) included. A FITS frame is solved as it is, and the
+    /// copy is removed when the solve is done with it.
+    #[test]
+    fn a_non_fits_frame_is_solved_from_a_fits_copy() {
+        let dir = std::env::temp_dir().join(format!("sk-solver-copy-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let samples: Vec<u16> = (0..64 * 48).map(|i| (i * 7 % 4096) as u16).collect();
+        let image = crate::ImageData::from_u16(64, 48, 1, &samples);
+        let mut header = crate::FitsHeader::new();
+        header.set_string("OBJECT", "M31");
+
+        let xisf = dir.join("light.xisf");
+        let options = crate::FrameWriteOptions {
+            xisf: crate::XisfWriteOptions {
+                compression: crate::XisfCompression::from_name("zstd+sh").unwrap(),
+                ..Default::default()
+            },
+        };
+        crate::write_frame_with(&xisf, &image, &header, &options).unwrap();
+        let copy = super::SolverCopy::of(&xisf).unwrap().expect("an XISF frame is copied");
+        let (copied, copied_header) = crate::read_fits(&copy.path).unwrap();
+        assert_eq!(copied.as_u16().unwrap(), samples);
+        assert_eq!(copied_header.get_string("OBJECT"), Some("M31"));
+        let copy_path = copy.path.clone();
+        drop(copy);
+        assert!(!copy_path.exists());
+
+        let fits = dir.join("light.fits");
+        crate::write_fits(&fits, &image, &header).unwrap();
+        assert!(super::SolverCopy::of(&fits).unwrap().is_none());
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     /// A solver another part of the process already reaped reads as exited,
     /// so the solve goes on to its output files instead of aborting the app.

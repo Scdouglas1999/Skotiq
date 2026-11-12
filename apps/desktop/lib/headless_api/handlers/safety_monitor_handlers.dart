@@ -117,7 +117,7 @@ class SafetyMonitorHandlers implements RouteSource {
         'shouldPark': safety.actions.shouldPark,
         'shouldCloseDome': safety.actions.shouldCloseDome,
         'reason': safety.actions.reason,
-        'resumeCheckTime': safety.actions.resumeCheckTime?.toIso8601String(),
+        'resumeCheckTime': safety.actions.resumeCheckTime?.toWireTime(),
         'advisoryOnly': safety.actions.advisoryOnly,
       },
       // Which input decides, and what the run's own frames say: a forecast
@@ -131,15 +131,15 @@ class SafetyMonitorHandlers implements RouteSource {
         final evidence? => {
           'latestStars': evidence.latestStars,
           'typicalStars': evidence.typicalStars,
-          'latestAt': evidence.latestAt.toUtc().toIso8601String(),
+          'latestAt': evidence.latestAt.toWireTime(),
           'clear': evidence.clear,
         },
         null => null,
       },
       'snoozeReason': safety.snoozeReason,
       'failModeWarning': safety.failModeWarning,
-      'lastEvaluation': safety.lastEvaluation?.toIso8601String(),
-      'snoozeUntil': safety.snoozeUntil?.toIso8601String(),
+      'lastEvaluation': safety.lastEvaluation?.toWireTime(),
+      'snoozeUntil': safety.snoozeUntil?.toWireTime(),
     };
   }
 
@@ -204,8 +204,8 @@ class SafetyMonitorHandlers implements RouteSource {
         "deviceId": deviceId,
         "deviceName": monitor.name,
         "isSafe": safetyMonitorState.isSafe,
-        "lastChecked": safetyMonitorState.lastChecked?.toIso8601String(),
-        "lastUpdate": DateTime.now().toIso8601String(),
+        "lastChecked": safetyMonitorState.lastChecked?.toWireTime(),
+        "lastUpdate": DateTime.now().toWireTime(),
       });
     }
 
@@ -220,7 +220,7 @@ class SafetyMonitorHandlers implements RouteSource {
         ..._aggregateSafetyPayload(weatherSafety),
         "monitorsConnected": 0,
         "monitors": <Map<String, dynamic>>[],
-        "lastUpdate": DateTime.now().toIso8601String(),
+        "lastUpdate": DateTime.now().toWireTime(),
       });
     }
 
@@ -236,7 +236,7 @@ class SafetyMonitorHandlers implements RouteSource {
         'connected': isConnected,
         'isSafe': isConnected ? safetyMonitorState.isSafe : null,
         'lastChecked': isConnected
-            ? safetyMonitorState.lastChecked?.toIso8601String()
+            ? safetyMonitorState.lastChecked?.toWireTime()
             : null,
       };
     }).toList();
@@ -245,7 +245,7 @@ class SafetyMonitorHandlers implements RouteSource {
       ..._aggregateSafetyPayload(weatherSafety),
       "monitorsConnected": safetyMonitors.length,
       "monitors": monitorStatuses,
-      "lastUpdate": DateTime.now().toIso8601String(),
+      "lastUpdate": DateTime.now().toWireTime(),
     });
   }
 
@@ -361,7 +361,7 @@ class SafetyMonitorHandlers implements RouteSource {
       'reason': reason,
       'deviceId': optionalString(payload, 'deviceId'),
       'durationMinutes': durationMinutes,
-      'acknowledgedAt': DateTime.now().toUtc().toIso8601String(),
+      'acknowledgedAt': DateTime.now().toWireTime(),
     };
     await container
         .read(settingsDaoProvider)
@@ -377,8 +377,7 @@ class SafetyMonitorHandlers implements RouteSource {
       'status': 'acknowledged',
       'snoozeUntil': DateTime.now()
           .add(Duration(minutes: durationMinutes))
-          .toUtc()
-          .toIso8601String(),
+          .toWireTime(),
       'warningDelaySeconds': _parseIntSetting(stored, _kWarningDelayKey, 60),
     });
   }

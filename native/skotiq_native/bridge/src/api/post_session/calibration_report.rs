@@ -328,7 +328,7 @@ fn non_blank(path: &Option<String>) -> Option<&str> {
 fn read_header_if_fits(path: &str) -> Option<FitsHeader> {
     let path = Path::new(path);
     skotiq_imaging::is_frame_path(path)
-        .then(|| skotiq_imaging::read_frame_header(path).ok())
+        .then(|| read_frame_header(path).ok())
         .flatten()
 }
 

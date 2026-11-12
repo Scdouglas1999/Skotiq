@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show WireTime, parseWireTime;
 
 part 'target_suggestion.freezed.dart';
 part 'target_suggestion.g.dart';
@@ -78,13 +79,13 @@ class TargetVisibilityInfoConverter
           ? (json['transitAltitude'] as num).toDouble()
           : null,
       riseTime: json['riseTime'] != null
-          ? DateTime.parse(json['riseTime'] as String)
+          ? parseWireTime(json['riseTime'] as String)
           : null,
       transitTime: json['transitTime'] != null
-          ? DateTime.parse(json['transitTime'] as String)
+          ? parseWireTime(json['transitTime'] as String)
           : null,
       setTime: json['setTime'] != null
-          ? DateTime.parse(json['setTime'] as String)
+          ? parseWireTime(json['setTime'] as String)
           : null,
       isCircumpolar: json['isCircumpolar'] as bool? ?? false,
       neverRises: json['neverRises'] as bool? ?? false,
@@ -99,7 +100,7 @@ class TargetVisibilityInfoConverter
           ? (json['peakAzimuth'] as num).toDouble()
           : null,
       peakAltitudeTime: json['peakAltitudeTime'] != null
-          ? DateTime.parse(json['peakAltitudeTime'] as String)
+          ? parseWireTime(json['peakAltitudeTime'] as String)
           : null,
       hoursAboveMinAlt: json['hoursAboveMinAlt'] != null
           ? (json['hoursAboveMinAlt'] as num).toDouble()
@@ -113,16 +114,16 @@ class TargetVisibilityInfoConverter
       'currentAltitude': object.currentAltitude,
       'currentAzimuth': object.currentAzimuth,
       'transitAltitude': object.transitAltitude,
-      'riseTime': object.riseTime?.toIso8601String(),
-      'transitTime': object.transitTime?.toIso8601String(),
-      'setTime': object.setTime?.toIso8601String(),
+      'riseTime': object.riseTime?.toWireTime(),
+      'transitTime': object.transitTime?.toWireTime(),
+      'setTime': object.setTime?.toWireTime(),
       'isCircumpolar': object.isCircumpolar,
       'neverRises': object.neverRises,
       'airmass': object.airmass.isFinite ? object.airmass : null,
       'moonDistance': object.moonDistance,
       'peakAltitude': object.peakAltitude,
       'peakAzimuth': object.peakAzimuth,
-      'peakAltitudeTime': object.peakAltitudeTime?.toIso8601String(),
+      'peakAltitudeTime': object.peakAltitudeTime?.toWireTime(),
       'hoursAboveMinAlt': object.hoursAboveMinAlt,
     };
   }

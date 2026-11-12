@@ -63,7 +63,7 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
       }
 
       DateTime? wireDate(Object? value) =>
-          value is String ? DateTime.tryParse(value) : null;
+          value is String ? tryParseWireTime(value) : null;
 
       final rawAlertLevel = response['currentAlertLevel'];
       final alertLevel = AlertLevel.values.firstWhere(
@@ -131,7 +131,8 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
     } catch (error) {
       if (!mounted) return;
       state = WeatherSafetyState.initial().copyWith(
-        failModeWarning: 'Imaging host safety status unavailable: ${userFacingError(error)}',
+        failModeWarning:
+            'Imaging host safety status unavailable: ${userFacingError(error)}',
         lastEvaluation: DateTime.now(),
         hostVerdictUnavailable: true,
       );
@@ -150,7 +151,7 @@ SkyStarEvidence? _starEvidenceFromWire(Object? raw) {
   final latest = raw['latestStars'];
   final typical = raw['typicalStars'];
   final at = raw['latestAt'] is String
-      ? DateTime.tryParse(raw['latestAt'] as String)
+      ? tryParseWireTime(raw['latestAt'] as String)
       : null;
   final clear = raw['clear'];
   if (latest is! int || typical is! int || at == null || clear is! bool) {

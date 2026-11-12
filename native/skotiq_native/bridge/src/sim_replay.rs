@@ -134,7 +134,7 @@ impl Replay {
         for entry in manifest.frames {
             let path = dir.join(&entry.file);
             let (image, _) =
-                skotiq_imaging::read_fits(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+                skotiq_imaging::read_frame(&path).map_err(|e| format!("{}: {e}", path.display()))?;
             let data = image
                 .as_u16()
                 .ok_or_else(|| format!("{}: not a 16-bit frame", path.display()))?;

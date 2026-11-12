@@ -119,7 +119,7 @@ fn polar_solve_frame_carries_the_field_scale_hints() {
     };
     write_temp_fits_for_solve(&image, &path_str, &hints).expect("temp FITS write");
 
-    let (_data, header) = skotiq_imaging::read_fits(&path).expect("read back temp FITS");
+    let (_data, header) = skotiq_imaging::read_frame(&path).expect("read back temp FITS");
     assert_eq!(header.get_float("FOCALLEN"), Some(416.0));
     let xpixsz = header.get_float("XPIXSZ").expect("XPIXSZ card");
     let ypixsz = header.get_float("YPIXSZ").expect("YPIXSZ card");
@@ -163,7 +163,7 @@ fn polar_solve_frame_omits_scale_cards_when_nothing_is_known() {
     let path_str = path.to_string_lossy().to_string();
     write_temp_fits_for_solve(&image, &path_str, &SolveHints::default()).expect("write");
 
-    let (_data, header) = skotiq_imaging::read_fits(&path).expect("read back temp FITS");
+    let (_data, header) = skotiq_imaging::read_frame(&path).expect("read back temp FITS");
     assert_eq!(header.get_float("FOCALLEN"), None);
     assert_eq!(header.get_float("XPIXSZ"), None);
 

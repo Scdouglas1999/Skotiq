@@ -537,10 +537,9 @@ final namingPatternProvider = Provider<NamingPattern>((ref) {
     return const NamingPattern();
   }
 
-  // Captures are currently persisted through the native FITS writer. This
-  // defensive coercion also protects callers while a legacy/remote settings
-  // snapshot is being migrated by appSettingsProvider.
-  const format = ImageFileFormat.fits;
+  final format = ImageFileFormatSettingsX.fromSettings(
+    normalizeCaptureImageFormat(settings.format),
+  );
   final baseDir = settings.outputPath.isEmpty ? '.' : settings.outputPath;
 
   return NamingPattern(

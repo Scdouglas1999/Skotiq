@@ -83,10 +83,6 @@ class _FakeSeam implements PostSessionSeam {
       throw UnimplementedError();
 
   @override
-  Future<String> combineChannels(Map<String, dynamic> args) async =>
-      throw UnimplementedError();
-
-  @override
   Future<MosaicStitchResult> stitchMosaic(Map<String, dynamic> args) async =>
       throw UnimplementedError();
 

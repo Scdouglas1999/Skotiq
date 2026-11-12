@@ -78,7 +78,7 @@ pub async fn measure_saved_frame(
 async fn write_solved_wcs(path: &str, wcs: skotiq_imaging::WcsInfo) {
     let owned = std::path::PathBuf::from(path);
     let outcome =
-        tokio::task::spawn_blocking(move || skotiq_imaging::write_wcs_into_fits(&owned, &wcs))
+        tokio::task::spawn_blocking(move || skotiq_imaging::write_wcs_into_frame(&owned, &wcs))
             .await;
     match outcome {
         Ok(Ok(())) => tracing::debug!("[FRAME_WATCH] Wrote the solved WCS into {}", path),
@@ -96,7 +96,7 @@ async fn write_solved_wcs(path: &str, wcs: skotiq_imaging::WcsInfo) {
 }
 
 fn load_frame(path: &str) -> Result<ImageData, String> {
-    let (image, header) = skotiq_imaging::read_fits(std::path::Path::new(path))
+    let (image, header) = skotiq_imaging::read_frame(std::path::Path::new(path))
         .map_err(|e| format!("could not read {path}: {e}"))?;
     let data = image
         .as_u16()

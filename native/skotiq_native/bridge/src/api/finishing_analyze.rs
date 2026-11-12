@@ -30,7 +30,7 @@ use skotiq_imaging::color_calibration::{
 use skotiq_imaging::frame_weighting::FrameQuality;
 use skotiq_imaging::optimizer::{integration_curve, recommend_subset, OptimizerConfig};
 use skotiq_imaging::{
-    carry_source_header, detect_stars, read_fits, write_fits, FitsHeader, ImageData, PixelType,
+    carry_source_header, detect_stars, read_frame, write_fits, FitsHeader, ImageData, PixelType,
     StarDetectionConfig,
 };
 use std::path::Path;
@@ -340,7 +340,7 @@ fn detect_stars_photometry_impl(
     if args.input_fits.trim().is_empty() {
         return Err("inputFits is required".to_string());
     }
-    let (image, _header) = read_fits(Path::new(&args.input_fits))
+    let (image, _header) = read_frame(Path::new(&args.input_fits))
         .map_err(|e| format!("failed to read '{}': {e:?}", args.input_fits))?;
 
     let width = image.width as usize;
@@ -513,7 +513,7 @@ fn color_calibrate_impl(args: ColorCalibrateArgs) -> Result<ColorCalibrateResult
     // Read the master, rebalance it in place, and write the calibrated FITS. The
     // master count guard in the solver does not see the image, so guard the
     // channel count here too: the calibration's scales must match the master.
-    let (mut image, source_header) = read_fits(Path::new(&args.input_fits))
+    let (mut image, source_header) = read_frame(Path::new(&args.input_fits))
         .map_err(|e| format!("failed to read '{}': {e:?}", args.input_fits))?;
     if image.channels as usize != args.channels {
         return Err(format!(
@@ -1102,7 +1102,7 @@ mod tests {
         assert!(result.residual.is_finite() && result.residual >= 0.0);
 
         // The calibrated master is a real, readable F32 FITS of the same geometry.
-        let (img, _h) = read_fits(out_path.as_path()).expect("read calibrated master");
+        let (img, _h) = read_frame(out_path.as_path()).expect("read calibrated master");
         assert_eq!(img.pixel_type, PixelType::F32);
         assert_eq!(img.width, size);
         assert_eq!(img.channels, 3);
@@ -1191,7 +1191,7 @@ mod tests {
         });
         api_color_calibrate(args.to_string()).expect("calibrate");
 
-        let (_img, out) = read_fits(out_path.as_path()).expect("read calibrated master");
+        let (_img, out) = read_frame(out_path.as_path()).expect("read calibrated master");
         for key in [
             "CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CD1_1", "CD1_2", "CD2_1", "CD2_2",
         ] {

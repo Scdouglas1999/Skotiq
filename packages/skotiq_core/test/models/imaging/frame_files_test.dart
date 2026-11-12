@@ -32,9 +32,9 @@ void main() {
   });
 
   test('a captured-image record names the format of the file it points at', () {
-    expect(ImageFileFormat.recordNameForPath('/n/M31_0001.fits'), 'fits');
-    expect(ImageFileFormat.recordNameForPath('/n/M31_0001.xisf'), 'xisf');
-    expect(ImageFileFormat.recordNameForPath('/n/IMG_0001.CR2'), 'raw');
+    expect(frameFileFormatOf('/n/M31_0001.fits').recordName, 'fits');
+    expect(frameFileFormatOf('/n/M31_0001.xisf').recordName, 'xisf');
+    expect(frameFileFormatOf('/n/IMG_0001.CR2').recordName, 'raw');
     for (final format in ImageFileFormat.values) {
       expect(ImageFileFormat.fromRecord(format.recordName), format);
     }

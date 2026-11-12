@@ -8,7 +8,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/plate_solver.dart';
 import '../../models/science/science_models.dart';
-import '../wcs/fits_image_size.dart';
+import '../wcs/frame_image_size.dart';
 import '../wcs/gnomonic_projection.dart';
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
@@ -88,7 +88,7 @@ class DefaultScienceBackend implements ScienceBackend {
       var fieldWidth = result.fieldWidth;
       var fieldHeight = result.fieldHeight;
       if (!(fieldWidth > 0 && fieldHeight > 0) && result.pixelScale > 0) {
-        final size = await readFitsImageSize(imagePath);
+        final size = await readFrameImageSize(imagePath);
         if (size != null) {
           fieldWidth = size.width * result.pixelScale / 3600.0;
           fieldHeight = size.height * result.pixelScale / 3600.0;
@@ -494,9 +494,9 @@ class DefaultScienceBackend implements ScienceBackend {
       );
     }
 
-    final fits = await readFitsImageSize(imagePath);
+    final fits = await readFrameImageSize(imagePath);
     if (fits == null) {
-      throw StateError('FITS dimensions are unavailable: $imagePath');
+      throw StateError('Frame dimensions are unavailable: $imagePath');
     }
     final tileW = fits.width / options.gridCols;
     final tileH = fits.height / options.gridRows;
@@ -569,7 +569,7 @@ class DefaultScienceBackend implements ScienceBackend {
       maxCatalogMag: 15.0,
       maxMatchPx: _residualMatchPx,
     );
-    final size = await readFitsImageSize(imagePath);
+    final size = await readFrameImageSize(imagePath);
     if (size == null) return null;
     return buildAstrometricResidualMap(
       pairs: [
@@ -760,7 +760,7 @@ class DefaultScienceBackend implements ScienceBackend {
     final stopwatch = Stopwatch()..start();
     final linear = await apiReadFitsLinearData(filePath: filePath);
     if (linear.width <= 0 || linear.height <= 0) {
-      throw StateError('FITS dimensions are unavailable');
+      throw StateError('Frame dimensions are unavailable');
     }
     final expected = linear.width * linear.height;
     if (linear.linearData.length < expected) {

@@ -545,7 +545,7 @@ async fn park_and_abort_cancels_and_quiesces_before_safe_state_work() {
 async fn stop_waits_for_executor_cleanup_acknowledgment() {
     let mut executor = SequenceExecutor::new();
     let (command_tx, mut command_rx) = mpsc::channel(1);
-    let (completion_tx, completion_rx) = oneshot::channel();
+    let (completion_tx, completion_rx) = tokio::sync::watch::channel(false);
     let cleanup_confirmed = Arc::new(AtomicBool::new(false));
     executor.command_tx = Some(command_tx);
     executor.run_completion_rx = Some(completion_rx);
@@ -562,7 +562,7 @@ async fn stop_waits_for_executor_cleanup_acknowledgment() {
             "Stop must signal cancellation before the command is handled"
         );
         cleanup_confirmed_for_task.store(true, Ordering::Release);
-        let _ = completion_tx.send(());
+        completion_tx.send_replace(true);
     });
 
     executor.stop().await.expect("Stop should be confirmed");
@@ -573,7 +573,6 @@ async fn stop_waits_for_executor_cleanup_acknowledgment() {
         "stop() must not return before executor cleanup is acknowledged"
     );
     assert!(executor.command_tx.is_none());
-    assert!(executor.run_completion_rx.is_none());
 }
 
 /// `terminate_with` must always set the cancellation flag

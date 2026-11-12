@@ -47,6 +47,29 @@ class _DarkroomChannelMixControl extends StatelessWidget {
     required this.onChanged,
   });
 
+  /// The edit that makes [step] a custom mix, starting from the weights it
+  /// renders with: those it stores, its palette's, or else the palette its
+  /// masters suggest (SHO with all three lines, HOO with Ha and OIII).
+  static Map<String, Object?> customMix(
+    DarkroomStep step,
+    List<DarkroomChannelMixPreset> presets,
+  ) {
+    final roles = darkroomMixRolesOf(step);
+    final start = DarkroomChannelMix.fromJson(step.params['mix']) ??
+        presets
+            .where((preset) => preset.palette == step.params['palette'])
+            .firstOrNull
+            ?.mix ??
+        presets
+            .where((preset) => roles.toSet().containsAll(preset.mix.roles))
+            .firstOrNull
+            ?.mix;
+    return {
+      'palette': 'custom',
+      if (start != null && roles.length >= 2) 'mix': start.toJson(roles),
+    };
+  }
+
   /// The weights the step renders with, or null when it is a custom mix that
   /// stores none yet.
   DarkroomChannelMix? get _mixInEffect {
@@ -98,8 +121,7 @@ class _DarkroomChannelMixControl extends StatelessWidget {
             child: Text(
               'This custom mix stores no weights yet. Start from a palette or '
               'set them below.',
-              style:
-                  SkotiqTypography.captionSm.copyWith(color: colors.warning),
+              style: SkotiqTypography.captionSm.copyWith(color: colors.warning),
             ),
           ),
         if (startingPoints.isNotEmpty) ...[

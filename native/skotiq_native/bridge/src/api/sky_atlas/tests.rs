@@ -120,7 +120,7 @@ fn fold_then_coverage_then_finalize() {
     let fin: FinalizeResult = serde_json::from_str(&api_sky_atlas(fin_args).unwrap()).unwrap();
     assert!(fin.ok);
     assert!(out.exists());
-    let (img, hdr) = skotiq_imaging::read_fits(&out).unwrap();
+    let (img, hdr) = skotiq_imaging::read_frame(&out).unwrap();
     assert_eq!(img.pixel_type, skotiq_imaging::PixelType::F32);
     assert_eq!(hdr.get_int("TILEID"), Some(tid as i64));
     let f = img.as_f32().unwrap();
@@ -182,7 +182,7 @@ fn query_cutout_recovers_signal_and_coverage() {
     assert!(res.mean_coverage > 0.0);
     assert!(res.tiles_used >= 1);
     // The co-added centre should recover ~1234.
-    let (img, _) = skotiq_imaging::read_fits(&out).unwrap();
+    let (img, _) = skotiq_imaging::read_frame(&out).unwrap();
     let f = img.as_f32().unwrap();
     let w = img.width as usize;
     let mid = (img.height as usize / 2) * w + w / 2;

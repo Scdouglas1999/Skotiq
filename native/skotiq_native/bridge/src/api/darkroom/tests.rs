@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 use skotiq_imaging::recipe::{canonical_json, fingerprint_hex, OpRegistry, RECIPE_SCHEMA_VERSION};
-use skotiq_imaging::{read_fits, write_fits, FitsHeader, ImageData};
+use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData};
 
 use super::export::recipe_from_history;
 use super::schema::{example_params, ParamKind, OP_DOCS};
@@ -374,7 +374,7 @@ fn validate_refuses_a_payload_that_is_not_a_recipe() {
 fn linear_color_preview_neutralizes_unequal_sky_backgrounds() {
     let dir = tempfile::tempdir().unwrap();
     let master = write_master(dir.path(), "cast.fits", 128, 128, 3);
-    let (image, header) = read_fits(&master).unwrap();
+    let (image, header) = read_frame(&master).unwrap();
     let mut data = image.as_f32().unwrap();
     for pixel in data.as_chunks_mut::<3>().0.iter_mut() {
         pixel[0] *= 0.8;
@@ -781,7 +781,7 @@ fn export_writes_the_recipe_into_the_fits_and_beside_it() {
     assert_eq!(reply["outputs"][0]["pixelType"], json!("f32"));
     assert!(out.exists());
 
-    let (_, header) = read_fits(&out).expect("the exported master must read back");
+    let (_, header) = read_frame(&out).expect("the exported master must read back");
     assert_eq!(header.get_string("SKSTAGE"), Some("final"));
     assert_eq!(
         header.get_string("SKRECIPE"),
@@ -865,7 +865,7 @@ fn the_exported_history_states_a_crop_the_render_had_to_shrink() {
         json!({"x": 0, "y": 0, "width": 1920, "height": 1080})
     );
 
-    let (_, header) = read_fits(&out).expect("the exported master must read back");
+    let (_, header) = read_frame(&out).expect("the exported master must read back");
     let line = header
         .history
         .iter()
@@ -907,7 +907,7 @@ fn the_exported_summary_line_carries_the_whole_fingerprint() {
         .as_str()
         .expect("the reply names the recipe fingerprint");
 
-    let (_, header) = read_fits(&out).expect("the exported master must read back");
+    let (_, header) = read_frame(&out).expect("the exported master must read back");
     let summary = header
         .history
         .iter()
@@ -957,8 +957,8 @@ fn export_of_the_linear_stage_writes_the_masters_own_pixels() {
     assert_eq!(reply["stage"]["kind"], json!("linear"));
     assert_eq!(reply["report"]["steps"], json!([]));
 
-    let (source, _) = read_fits(&master).expect("master reads");
-    let (written, header) = read_fits(&out).expect("export reads");
+    let (source, _) = read_frame(&master).expect("master reads");
+    let (written, header) = read_frame(&out).expect("export reads");
     assert_eq!(written.data, source.data, "linear export is a passthrough");
     assert_eq!(header.get_string("SKSTAGE"), Some("linear"));
     assert!(
@@ -1030,8 +1030,8 @@ fn the_linear_stage_exports_a_master_whose_recipe_the_engine_refuses() {
     assert_eq!(reply["stage"]["kind"], json!("linear"));
     assert_eq!(reply["report"]["steps"], json!([]));
 
-    let (source, _) = read_fits(&master).expect("master reads");
-    let (written, header) = read_fits(&out).expect("export reads");
+    let (source, _) = read_frame(&master).expect("master reads");
+    let (written, header) = read_frame(&out).expect("export reads");
     assert_eq!(written.data, source.data, "linear export is a passthrough");
     assert!(
         header
@@ -1095,7 +1095,7 @@ fn export_after_a_step_stops_the_stack_there() {
     assert_eq!(reply["report"]["steps"].as_array().map(Vec::len), Some(1));
     assert_eq!(reply["sourceDomain"], json!("linear"));
 
-    let (_, header) = read_fits(&out).expect("export reads");
+    let (_, header) = read_frame(&out).expect("export reads");
     assert_eq!(header.get_string("SKSTAGE"), Some("afterStep:0"));
 }
 
@@ -1129,7 +1129,7 @@ fn the_exported_history_numbers_steps_from_one() {
     )
     .expect("the export must run");
 
-    let (_, header) = read_fits(&out).expect("export reads");
+    let (_, header) = read_frame(&out).expect("export reads");
     let steps: Vec<&String> = header
         .history
         .iter()
@@ -1197,7 +1197,7 @@ fn the_stage_card_keeps_the_request_index_and_translates_it_for_a_reader() {
     );
 
     assert_eq!(reply["stage"], json!({"kind": "afterStep", "index": 0}));
-    let (_, header) = read_fits(&out).expect("export reads");
+    let (_, header) = read_frame(&out).expect("export reads");
     assert_eq!(header.get_string("SKSTAGE"), Some("afterStep:0"));
     let sidecar = parse(
         &std::fs::read_to_string(
@@ -1246,8 +1246,8 @@ fn the_stage_card_keeps_the_request_index_and_translates_it_for_a_reader() {
         .expect("the replayed export must run"),
     );
     assert_eq!(replayed["stage"], reply["stage"]);
-    let (replayed_pixels, replayed_header) = read_fits(&replay).expect("replay reads");
-    let (original_pixels, _) = read_fits(&out).expect("original reads");
+    let (replayed_pixels, replayed_header) = read_frame(&replay).expect("replay reads");
+    let (original_pixels, _) = read_frame(&out).expect("original reads");
     assert_eq!(replayed_header.get_string("SKSTAGE"), Some("afterStep:0"));
     assert_eq!(
         replayed_pixels.data, original_pixels.data,
@@ -1401,6 +1401,38 @@ fn every_registered_operation_is_documented() {
     }
 }
 
+/// The Combination list offered every palette by its wire token (`sho`,
+/// `haLrgb`, `custom`); each choice carries the name the engine reports it by.
+#[test]
+fn the_combination_choices_are_every_palette_by_its_name() {
+    use skotiq_imaging::color_composite::Palette;
+    let palette = OP_DOCS
+        .iter()
+        .find(|doc| doc.id == "channel_combine")
+        .and_then(|doc| doc.params.iter().find(|p| p.name == "palette"))
+        .expect("channel_combine documents its palette");
+    let wires: Vec<&str> = palette.allowed.iter().map(|c| c.wire).collect();
+    assert_eq!(wires, Palette::WIRE);
+    for choice in palette.allowed {
+        assert_eq!(
+            choice.label,
+            Palette::from_wire(choice.wire).unwrap().display_name()
+        );
+    }
+    let ops = super::schema::ops_json().expect("the schema publishes");
+    let published = ops
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|op| op["id"] == "channel_combine")
+        .and_then(|op| op["params"].as_array())
+        .and_then(|params| params.iter().find(|p| p["name"] == "palette"))
+        .cloned()
+        .unwrap();
+    assert_eq!(published["allowedLabels"][4], "SHO (Hubble palette)");
+    assert_eq!(published["allowed"][4], "sho");
+}
+
 #[test]
 fn the_published_schema_matches_each_operations_own_validation() {
     let registry = OpRegistry::builtin().expect("the builtin registry must build");
@@ -1472,7 +1504,8 @@ fn the_published_schema_matches_each_operations_own_validation() {
                 }
             }
             if param.kind == ParamKind::Enumerated {
-                for token in param.allowed {
+                for choice in param.allowed {
+                    let token = choice.wire;
                     let mut probe = example.clone();
                     probe[param.name] = json!(token);
                     op.validate_params(&probe).unwrap_or_else(|error| {

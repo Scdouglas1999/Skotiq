@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
-use skotiq_imaging::{read_fits, write_fits, FitsHeader, ImageData};
+use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData};
 
 use super::{api_darkroom_registry, api_darkroom_render_export, api_darkroom_render_preview};
 
@@ -243,7 +243,7 @@ fn the_composite_renders_in_color_and_exports_its_master() {
         .to_string(),
     )
     .expect("the linear composite exports");
-    let (image, header) = read_fits(&linear).expect("read back");
+    let (image, header) = read_frame(&linear).expect("read back");
     assert_eq!(image.channels, 3);
     assert_eq!(header.get_string("FILTER"), Some("LRGB"));
     let crop = &reply["composite"]["crop"];

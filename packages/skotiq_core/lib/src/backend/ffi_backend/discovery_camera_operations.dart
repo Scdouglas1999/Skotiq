@@ -339,6 +339,39 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }
 
   @override
+  Future<void> setCaptureFileFormat({
+    required String format,
+    required String xisfCompression,
+    required bool xisfChecksums,
+  }) async {
+    await bridge.apiSetCaptureFileFormat(
+      format: format,
+      xisfCompression: xisfCompression,
+      xisfChecksums: xisfChecksums,
+    );
+  }
+
+  @override
+  Future<void> updateFrameCards(
+    String filePath,
+    List<FitsKeywordWrite> cards,
+  ) async {
+    await bridge.apiUpdateFrameCards(
+      filePath: filePath,
+      cards: [
+        for (final card in cards)
+          bridge.FrameCardUpdate(
+            keyword: card.keyword,
+            stringValue: card.stringValue,
+            intValue: card.intValue,
+            doubleValue: card.doubleValue,
+            comment: card.comment,
+          ),
+      ],
+    );
+  }
+
+  @override
   Future<void> clearDeviceImage(String deviceId) async {
     await bridge.apiClearDeviceImage(deviceId: deviceId);
   }

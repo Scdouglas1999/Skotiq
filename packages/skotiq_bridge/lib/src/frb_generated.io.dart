@@ -490,6 +490,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrameCaptureMetadata dco_decode_frame_capture_metadata(dynamic raw);
 
   @protected
+  FrameCardUpdate dco_decode_frame_card_update(dynamic raw);
+
+  @protected
   FrameType dco_decode_frame_type(dynamic raw);
 
   @protected
@@ -541,6 +544,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<FocusDataPoint> dco_decode_list_focus_data_point(dynamic raw);
 
   @protected
+  List<FrameCardUpdate> dco_decode_list_frame_card_update(dynamic raw);
+
+  @protected
   List<MountGuardStatus> dco_decode_list_mount_guard_status(dynamic raw);
 
   @protected
@@ -548,6 +554,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Float64List dco_decode_list_prim_f_64_strict(dynamic raw);
+
+  @protected
+  List<int> dco_decode_list_prim_i_32_loose(dynamic raw);
 
   @protected
   Int32List dco_decode_list_prim_i_32_strict(dynamic raw);
@@ -588,9 +597,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   List<(String, Map<String, double>)>
   dco_decode_list_record_string_map_string_f_64_none(dynamic raw);
-
-  @protected
-  List<(String, String)> dco_decode_list_record_string_string(dynamic raw);
 
   @protected
   List<(String, int)> dco_decode_list_record_string_u_32(dynamic raw);
@@ -823,9 +829,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (String, String) dco_decode_record_string_string(dynamic raw);
-
-  @protected
   (String, int) dco_decode_record_string_u_32(dynamic raw);
 
   @protected
@@ -947,9 +950,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WeatherConditions dco_decode_weather_conditions(dynamic raw);
-
-  @protected
-  XisfReadResult dco_decode_xisf_read_result(dynamic raw);
 
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
@@ -1488,6 +1488,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  FrameCardUpdate sse_decode_frame_card_update(SseDeserializer deserializer);
+
+  @protected
   FrameType sse_decode_frame_type(SseDeserializer deserializer);
 
   @protected
@@ -1549,6 +1552,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<FrameCardUpdate> sse_decode_list_frame_card_update(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<MountGuardStatus> sse_decode_list_mount_guard_status(
     SseDeserializer deserializer,
   );
@@ -1558,6 +1566,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Float64List sse_decode_list_prim_f_64_strict(SseDeserializer deserializer);
+
+  @protected
+  List<int> sse_decode_list_prim_i_32_loose(SseDeserializer deserializer);
 
   @protected
   Int32List sse_decode_list_prim_i_32_strict(SseDeserializer deserializer);
@@ -1604,11 +1615,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   List<(String, Map<String, double>)>
   sse_decode_list_record_string_map_string_f_64_none(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  List<(String, String)> sse_decode_list_record_string_string(
     SseDeserializer deserializer,
   );
 
@@ -1905,11 +1911,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (String, String) sse_decode_record_string_string(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer);
 
   @protected
@@ -2057,9 +2058,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   WeatherConditions sse_decode_weather_conditions(SseDeserializer deserializer);
-
-  @protected
-  XisfReadResult sse_decode_xisf_read_result(SseDeserializer deserializer);
 
   @protected
   ffi.Pointer<wire_cst_list_prim_u_8_strict> cst_encode_AnyhowException(
@@ -2765,6 +2763,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_frame_card_update>
+  cst_encode_list_frame_card_update(List<FrameCardUpdate> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_frame_card_update(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_frame_card_update(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_mount_guard_status>
   cst_encode_list_mount_guard_status(List<MountGuardStatus> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -2791,6 +2800,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ans = wire.cst_new_list_prim_f_64_strict(raw.length);
+    ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_prim_i_32_loose> cst_encode_list_prim_i_32_loose(
+    List<int> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_prim_i_32_loose(raw.length);
     ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
     return ans;
   }
@@ -2930,17 +2949,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
         raw[i],
         ans.ref.ptr[i],
       );
-    }
-    return ans;
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_list_record_string_string>
-  cst_encode_list_record_string_string(List<(String, String)> raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    final ans = wire.cst_new_list_record_string_string(raw.length);
-    for (var i = 0; i < raw.length; ++i) {
-      cst_api_fill_to_wire_record_string_string(raw[i], ans.ref.ptr[i]);
     }
     return ans;
   }
@@ -5015,6 +5023,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_frame_card_update(
+    FrameCardUpdate apiObj,
+    wire_cst_frame_card_update wireObj,
+  ) {
+    wireObj.keyword = cst_encode_String(apiObj.keyword);
+    wireObj.string_value = cst_encode_opt_String(apiObj.stringValue);
+    wireObj.int_value = cst_encode_opt_box_autoadd_i_64(apiObj.intValue);
+    wireObj.double_value = cst_encode_opt_box_autoadd_f_64(apiObj.doubleValue);
+    wireObj.comment = cst_encode_opt_String(apiObj.comment);
+  }
+
+  @protected
   void cst_api_fill_to_wire_guiding_event(
     GuidingEvent apiObj,
     wire_cst_guiding_event wireObj,
@@ -5759,15 +5779,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.field0 = cst_encode_String(apiObj.$1);
     wireObj.field1 = cst_encode_Map_String_f_64_None(apiObj.$2);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_record_string_string(
-    (String, String) apiObj,
-    wire_cst_record_string_string wireObj,
-  ) {
-    wireObj.field0 = cst_encode_String(apiObj.$1);
-    wireObj.field1 = cst_encode_String(apiObj.$2);
   }
 
   @protected
@@ -7130,22 +7141,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_xisf_read_result(
-    XisfReadResult apiObj,
-    wire_cst_xisf_read_result wireObj,
-  ) {
-    wireObj.width = cst_encode_u_32(apiObj.width);
-    wireObj.height = cst_encode_u_32(apiObj.height);
-    wireObj.channels = cst_encode_u_32(apiObj.channels);
-    wireObj.display_data = cst_encode_list_prim_u_8_strict(apiObj.displayData);
-    wireObj.histogram = cst_encode_list_prim_u_32_strict(apiObj.histogram);
-    cst_api_fill_to_wire_image_stats_result(apiObj.stats, wireObj.stats);
-    wireObj.properties = cst_encode_list_record_string_string(
-      apiObj.properties,
-    );
-  }
-
-  @protected
   bool cst_encode_bool(bool raw);
 
   @protected
@@ -7893,6 +7888,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_frame_card_update(
+    FrameCardUpdate self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_frame_type(FrameType self, SseSerializer serializer);
 
   @protected
@@ -7971,6 +7972,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_frame_card_update(
+    List<FrameCardUpdate> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_mount_guard_status(
     List<MountGuardStatus> self,
     SseSerializer serializer,
@@ -7985,6 +7992,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_prim_f_64_strict(
     Float64List self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_i_32_loose(
+    List<int> self,
     SseSerializer serializer,
   );
 
@@ -8054,12 +8067,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_record_string_map_string_f_64_none(
     List<(String, Map<String, double>)> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_record_string_string(
-    List<(String, String)> self,
     SseSerializer serializer,
   );
 
@@ -8436,12 +8443,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_record_string_string(
-    (String, String) self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_record_string_u_32(
     (String, int) self,
     SseSerializer serializer,
@@ -8630,12 +8631,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_weather_conditions(
     WeatherConditions self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_xisf_read_result(
-    XisfReadResult self,
     SseSerializer serializer,
   );
 }
@@ -9423,33 +9418,6 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__finishing_analyze__api_color_calibrate =
       _wire__crate__api__finishing_analyze__api_color_calibratePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__finishing_combine__api_combine_channels(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
-  ) {
-    return _wire__crate__api__finishing_combine__api_combine_channels(
-      port_,
-      args_json,
-    );
-  }
-
-  late final _wire__crate__api__finishing_combine__api_combine_channelsPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__finishing_combine__api_combine_channels',
-      );
-  late final _wire__crate__api__finishing_combine__api_combine_channels =
-      _wire__crate__api__finishing_combine__api_combine_channelsPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -13833,26 +13801,46 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__imaging__api_read_xisf_file(
+  void wire__crate__api__imaging__api_read_frame_cutouts(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
+    ffi.Pointer<wire_cst_list_prim_i_32_loose> centers_x,
+    ffi.Pointer<wire_cst_list_prim_i_32_loose> centers_y,
+    int half,
   ) {
-    return _wire__crate__api__imaging__api_read_xisf_file(port_, file_path);
+    return _wire__crate__api__imaging__api_read_frame_cutouts(
+      port_,
+      file_path,
+      centers_x,
+      centers_y,
+      half,
+    );
   }
 
-  late final _wire__crate__api__imaging__api_read_xisf_filePtr =
+  late final _wire__crate__api__imaging__api_read_frame_cutoutsPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_i_32_loose>,
+            ffi.Pointer<wire_cst_list_prim_i_32_loose>,
+            ffi.Uint32,
           )
         >
-      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_xisf_file');
-  late final _wire__crate__api__imaging__api_read_xisf_file =
-      _wire__crate__api__imaging__api_read_xisf_filePtr
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_read_frame_cutouts',
+      );
+  late final _wire__crate__api__imaging__api_read_frame_cutouts =
+      _wire__crate__api__imaging__api_read_frame_cutoutsPtr
           .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_i_32_loose>,
+              ffi.Pointer<wire_cst_list_prim_i_32_loose>,
+              int,
+            )
           >();
 
   void wire__crate__api__finishing_enhance__api_reduce_stars_preview(
@@ -14342,50 +14330,6 @@ class RustLibWire implements BaseWire {
               int,
               int,
               ffi.Pointer<wire_cst_list_prim_u_8_loose>,
-            )
-          >();
-
-  void wire__crate__api__imaging__api_save_xisf_file(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
-    int width,
-    int height,
-    ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
-    ffi.Pointer<wire_cst_list_record_string_string> properties,
-  ) {
-    return _wire__crate__api__imaging__api_save_xisf_file(
-      port_,
-      file_path,
-      width,
-      height,
-      data,
-      properties,
-    );
-  }
-
-  late final _wire__crate__api__imaging__api_save_xisf_filePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint32,
-            ffi.Uint32,
-            ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-            ffi.Pointer<wire_cst_list_record_string_string>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__imaging__api_save_xisf_file');
-  late final _wire__crate__api__imaging__api_save_xisf_file =
-      _wire__crate__api__imaging__api_save_xisf_filePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              int,
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_16_loose>,
-              ffi.Pointer<wire_cst_list_record_string_string>,
             )
           >();
 
@@ -16034,6 +15978,44 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
           >();
 
+  void wire__crate__api__imaging__api_set_capture_file_format(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> format,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> xisf_compression,
+    bool xisf_checksums,
+  ) {
+    return _wire__crate__api__imaging__api_set_capture_file_format(
+      port_,
+      format,
+      xisf_compression,
+      xisf_checksums,
+    );
+  }
+
+  late final _wire__crate__api__imaging__api_set_capture_file_formatPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Bool,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_set_capture_file_format',
+      );
+  late final _wire__crate__api__imaging__api_set_capture_file_format =
+      _wire__crate__api__imaging__api_set_capture_file_formatPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              bool,
+            )
+          >();
+
   WireSyncRust2DartDco wire__crate__api__storage__api_set_location(
     ffi.Pointer<wire_cst_observer_location> location,
   ) {
@@ -16886,6 +16868,40 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               int,
               double,
+            )
+          >();
+
+  void wire__crate__api__imaging__api_update_frame_cards(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
+    ffi.Pointer<wire_cst_list_frame_card_update> cards,
+  ) {
+    return _wire__crate__api__imaging__api_update_frame_cards(
+      port_,
+      file_path,
+      cards,
+    );
+  }
+
+  late final _wire__crate__api__imaging__api_update_frame_cardsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_frame_card_update>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_update_frame_cards',
+      );
+  late final _wire__crate__api__imaging__api_update_frame_cards =
+      _wire__crate__api__imaging__api_update_frame_cardsPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_frame_card_update>,
             )
           >();
 
@@ -18789,6 +18805,24 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_focus_data_point = _cst_new_list_focus_data_pointPtr
       .asFunction<ffi.Pointer<wire_cst_list_focus_data_point> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_frame_card_update> cst_new_list_frame_card_update(
+    int len,
+  ) {
+    return _cst_new_list_frame_card_update(len);
+  }
+
+  late final _cst_new_list_frame_card_updatePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_frame_card_update> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_frame_card_update');
+  late final _cst_new_list_frame_card_update =
+      _cst_new_list_frame_card_updatePtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_frame_card_update> Function(int)
+          >();
+
   ffi.Pointer<wire_cst_list_mount_guard_status> cst_new_list_mount_guard_status(
     int len,
   ) {
@@ -18836,6 +18870,21 @@ class RustLibWire implements BaseWire {
       >('frbgen_skotiq_bridge_cst_new_list_prim_f_64_strict');
   late final _cst_new_list_prim_f_64_strict = _cst_new_list_prim_f_64_strictPtr
       .asFunction<ffi.Pointer<wire_cst_list_prim_f_64_strict> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_prim_i_32_loose> cst_new_list_prim_i_32_loose(
+    int len,
+  ) {
+    return _cst_new_list_prim_i_32_loose(len);
+  }
+
+  late final _cst_new_list_prim_i_32_loosePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_prim_i_32_loose> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_prim_i_32_loose');
+  late final _cst_new_list_prim_i_32_loose = _cst_new_list_prim_i_32_loosePtr
+      .asFunction<ffi.Pointer<wire_cst_list_prim_i_32_loose> Function(int)>();
 
   ffi.Pointer<wire_cst_list_prim_i_32_strict> cst_new_list_prim_i_32_strict(
     int len,
@@ -19030,23 +19079,6 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_list_record_string_map_string_f_64_none>
             Function(int)
-          >();
-
-  ffi.Pointer<wire_cst_list_record_string_string>
-  cst_new_list_record_string_string(int len) {
-    return _cst_new_list_record_string_string(len);
-  }
-
-  late final _cst_new_list_record_string_stringPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Pointer<wire_cst_list_record_string_string> Function(ffi.Int32)
-        >
-      >('frbgen_skotiq_bridge_cst_new_list_record_string_string');
-  late final _cst_new_list_record_string_string =
-      _cst_new_list_record_string_stringPtr
-          .asFunction<
-            ffi.Pointer<wire_cst_list_record_string_string> Function(int)
           >();
 
   ffi.Pointer<wire_cst_list_record_string_u_32> cst_new_list_record_string_u_32(
@@ -19358,6 +19390,13 @@ final class wire_cst_plate_solver_config_payload extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> solver_choice;
 }
 
+final class wire_cst_list_prim_i_32_loose extends ffi.Struct {
+  external ffi.Pointer<ffi.Int32> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_autofocus_config_api extends ffi.Struct {
   @ffi.Double()
   external double exposure_time;
@@ -19492,19 +19531,6 @@ final class wire_cst_equipment_profile extends ffi.Struct {
 
 final class wire_cst_list_prim_u_8_loose extends ffi.Struct {
   external ffi.Pointer<ffi.Uint8> ptr;
-
-  @ffi.Int32()
-  external int len;
-}
-
-final class wire_cst_record_string_string extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field1;
-}
-
-final class wire_cst_list_record_string_string extends ffi.Struct {
-  external ffi.Pointer<wire_cst_record_string_string> ptr;
 
   @ffi.Int32()
   external int len;
@@ -19677,6 +19703,25 @@ final class wire_cst_api_live_stacking_config extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> bayer_pattern;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> demosaic_quality;
+}
+
+final class wire_cst_frame_card_update extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> keyword;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> string_value;
+
+  external ffi.Pointer<ffi.Int64> int_value;
+
+  external ffi.Pointer<ffi.Double> double_value;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> comment;
+}
+
+final class wire_cst_list_frame_card_update extends ffi.Struct {
+  external ffi.Pointer<wire_cst_frame_card_update> ptr;
+
+  @ffi.Int32()
+  external int len;
 }
 
 final class wire_cst_app_settings extends ffi.Struct {
@@ -23340,25 +23385,6 @@ final class wire_cst_star_detection_result_api extends ffi.Struct {
 
   @ffi.Double()
   external double noise;
-}
-
-final class wire_cst_xisf_read_result extends ffi.Struct {
-  @ffi.Uint32()
-  external int width;
-
-  @ffi.Uint32()
-  external int height;
-
-  @ffi.Uint32()
-  external int channels;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> display_data;
-
-  external ffi.Pointer<wire_cst_list_prim_u_32_strict> histogram;
-
-  external wire_cst_image_stats_result stats;
-
-  external ffi.Pointer<wire_cst_list_record_string_string> properties;
 }
 
 const int SIM_GUIDE_SENSOR_W = 1280;

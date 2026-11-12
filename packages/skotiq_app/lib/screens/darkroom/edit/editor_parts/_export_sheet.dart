@@ -127,6 +127,7 @@ enum _DarkroomExportStageKind {
 
 enum _DarkroomExportFormat {
   fits,
+  xisf,
   png,
   jpeg,
   tiff;
@@ -137,6 +138,8 @@ enum _DarkroomExportFormat {
     switch (this) {
       case _DarkroomExportFormat.fits:
         return 'FITS';
+      case _DarkroomExportFormat.xisf:
+        return 'XISF';
       case _DarkroomExportFormat.png:
         return 'PNG';
       case _DarkroomExportFormat.jpeg:
@@ -151,6 +154,8 @@ enum _DarkroomExportFormat {
     switch (this) {
       case _DarkroomExportFormat.fits:
         return const ['fits', 'fit'];
+      case _DarkroomExportFormat.xisf:
+        return const ['xisf'];
       case _DarkroomExportFormat.png:
         return const ['png'];
       case _DarkroomExportFormat.jpeg:
@@ -162,7 +167,8 @@ enum _DarkroomExportFormat {
 
   /// True when the format quantises the engine's `F32` samples into 8/16-bit
   /// integers, which is what needs a display mapping to be meaningful.
-  bool get isRaster => this != _DarkroomExportFormat.fits;
+  bool get isRaster =>
+      this != _DarkroomExportFormat.fits && this != _DarkroomExportFormat.xisf;
 }
 
 /// Whether the pixels a chosen stage produces have left the linear domain.
@@ -1022,7 +1028,7 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       case _DarkroomStageDomain.linear:
         return 'The ${_stageLabel()} is still linear ADU and has no display '
             'mapping, so quantizing it into 8 or 16 bits would show almost '
-            'nothing. Export FITS to keep the linear pixels, or switch on the '
+            'nothing. Export FITS or XISF to keep the linear pixels, or switch on the '
             'auto stretch below to render the 8/16-bit files through the '
             'engine\'s own transfer.';
       case _DarkroomStageDomain.undetermined:
@@ -1077,6 +1083,11 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       case _DarkroomExportFormat.fits:
         return 'The engine\'s own F32 samples, with the master\'s astrometry '
             'and the recipe in HISTORY cards. Always available, at every '
+            'stage.';
+      case _DarkroomExportFormat.xisf:
+        return 'The same F32 samples and astrometry as FITS, in PixInsight\'s '
+            'own format, so PixInsight shows the solution and the recipe '
+            'history where it expects them. Always available, at every '
             'stage.';
       case _DarkroomExportFormat.png:
         return '16-bit PNG, quantized from the render\'s samples.';

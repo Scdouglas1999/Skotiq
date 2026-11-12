@@ -1,5 +1,10 @@
 part of '../darkroom_editor.dart';
 
+/// A list item starts a line. The registry's names are also used inside
+/// sentences ("one-shot color"), so the first letter is raised here.
+String _listItem(String label) =>
+    label.isEmpty ? label : label[0].toUpperCase() + label.substring(1);
+
 /// The recipe as an ordered list of step cards.
 ///
 /// Each card carries three separate statements about its step and never lets
@@ -855,10 +860,26 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
           value: effective is String && spec.allowed.contains(effective)
               ? effective
               : null,
-          hint: 'Choose ${spec.name}',
+          hint: 'Choose ${spec.displayName.toLowerCase()}',
           items: spec.allowed,
+          itemLabels: spec.allowedLabels.length == spec.allowed.length
+              ? [for (final label in spec.allowedLabels) _listItem(label)]
+              : null,
           isExpanded: true,
-          onChanged: (value) => widget.onParamChanged(index, spec.name, value),
+          onChanged: (value) {
+            if (spec.name == 'palette' && value == 'custom') {
+              widget.onParamsChanged(
+                index,
+                _DarkroomChannelMixControl.customMix(
+                  step,
+                  widget.state.catalog?.channelMixes ?? const [],
+                ),
+                coalesceKey: spec.name,
+              );
+            } else {
+              widget.onParamChanged(index, spec.name, value);
+            }
+          },
         );
       case DarkroomParamKind.numberArray:
         control = _arrayControl(colors, index, step, spec, effective);

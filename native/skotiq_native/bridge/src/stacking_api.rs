@@ -1095,7 +1095,7 @@ mod tests {
         assert_eq!(saved.total_integration_secs, 240.0);
         assert_eq!(saved.date_obs, "2026-08-14T03:22:30.000");
 
-        let (image, header) = skotiq_imaging::read_fits(&master).expect("master reads back");
+        let (image, header) = skotiq_imaging::read_frame(&master).expect("master reads back");
         assert_eq!(image.width, IMG_W);
         assert_eq!(header.get_float("EXPTIME"), Some(240.0));
         assert_eq!(

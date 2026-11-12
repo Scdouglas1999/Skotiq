@@ -226,7 +226,7 @@ class FocusModelHandlers implements RouteSource {
     final dataPoints = profileData.dataPoints
         .map(
           (p) => {
-            'timestamp': p.timestamp.toIso8601String(),
+            'timestamp': p.timestamp.toWireTime(),
             'timestampEpoch': p.timestamp.millisecondsSinceEpoch,
             'temperature': p.temperatureCelsius,
             'position': p.focusPosition,
@@ -350,7 +350,7 @@ class FocusModelHandlers implements RouteSource {
         "intercept": model.intercept,
         "rSquared": model.rSquared,
         "dataPointCount": model.dataPointCount,
-        "lastUpdated": model.lastUpdated.toIso8601String(),
+        "lastUpdated": model.lastUpdated.toWireTime(),
         "lastUpdatedEpoch": model.lastUpdated.millisecondsSinceEpoch,
         "isReliable": model.isReliable,
       },

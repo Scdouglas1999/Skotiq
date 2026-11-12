@@ -462,7 +462,7 @@ class RunFrameRecorder {
         final rowId = await dao.insertSequenceFrame(
           filePath: filePath,
           fileName: fileName,
-          fileFormat: ImageFileFormat.recordNameForPath(filePath),
+          fileFormat: frameFileFormatOf(filePath).recordName,
           exposureDuration: exposureSecs ?? 0.0,
           targetId: targetId,
           capturedAt: DateTime.now(),

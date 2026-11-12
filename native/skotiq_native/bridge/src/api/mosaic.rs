@@ -26,7 +26,7 @@ use skotiq_imaging::mosaic_stitch::{
     stitch_mosaic, MosaicBlend, MosaicError, MosaicPanel, MosaicStitchConfig,
 };
 use skotiq_imaging::registration::Interpolator;
-use skotiq_imaging::{add_wcs_headers, read_fits, write_fits, FitsHeader, WcsInfo};
+use skotiq_imaging::{add_wcs_headers, read_frame, write_fits, FitsHeader, WcsInfo};
 use std::path::Path;
 
 // JSON contracts
@@ -181,7 +181,7 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
         if pa.fits_path.trim().is_empty() {
             return Err(format!("panel {idx} has an empty fitsPath"));
         }
-        let (image, header) = read_fits(Path::new(&pa.fits_path))
+        let (image, header) = read_frame(Path::new(&pa.fits_path))
             .map_err(|e| format!("failed to read panel '{}': {e:?}", pa.fits_path))?;
         let wcs = match pa.wcs {
             Some(w) => w.into(),
@@ -463,7 +463,7 @@ mod tests {
         assert!(result.overlap_pairs >= 1, "panels overlap");
 
         // The written master must carry the output canvas WCS.
-        let (master_img, master_hdr) = read_fits(&master_out).unwrap();
+        let (master_img, master_hdr) = read_frame(&master_out).unwrap();
         assert_eq!(master_img.pixel_type, PixelType::F32);
         assert!(master_hdr.get_float("CRVAL1").is_some(), "master has WCS");
         assert_eq!(
@@ -525,7 +525,7 @@ mod tests {
         let resp = api_stitch_mosaic(args).expect("explicit-WCS stitch succeeds");
         let _: StitchMosaicResult = serde_json::from_str(&resp).unwrap();
         // Output WCS should be near the explicit centre, not the wrong header.
-        let (_img, hdr) = read_fits(&master_out).unwrap();
+        let (_img, hdr) = read_frame(&master_out).unwrap();
         let out_ra = hdr.get_float("CRVAL1").unwrap();
         assert!(
             (out_ra - 250.0).abs() < 1.0,

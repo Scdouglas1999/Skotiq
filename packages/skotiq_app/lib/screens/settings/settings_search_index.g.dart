@@ -365,7 +365,10 @@ const Map<String, List<String>> kSettingsSearchTerms = {
     'File naming pattern',
     'For DSLR and mirrorless cameras. The raw file is',
     'Imaging',
-    'The FITS files Skotiq writes are lossless 16-bit',
+    'Smaller files at no cost to the pixels. Byte shuffling helps',
+    'Store a SHA-1 checksum with each frame so damage on disk is',
+    'XISF checksums',
+    'XISF compression',
   ],
   'integrations': [
     'Application token',
@@ -964,7 +967,10 @@ const Map<String, Map<String, String>> kSettingsSearchRowTitles = {
   },
   'imaging': {
     'For DSLR and mirrorless cameras. The raw file is': 'Camera raw files',
-    'The FITS files Skotiq writes are lossless 16-bit': 'Archive format',
+    'Smaller files at no cost to the pixels. Byte shuffling helps':
+        'XISF compression',
+    'Store a SHA-1 checksum with each frame so damage on disk is':
+        'XISF checksums',
   },
   'integrations': {
     'Open Skotiq on the rig to enable plugins and enter':

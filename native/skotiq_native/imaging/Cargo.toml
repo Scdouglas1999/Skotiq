@@ -25,6 +25,17 @@ bytemuck = { version = "1.14", features = ["derive"] }
 # Deflate for compressed sky-atlas tile sidecars (already in the tree via png/zip)
 flate2 = "1.1"
 
+# XISF data block codecs and checksums (XISF 1.0 sections 10.5 and 10.6).
+# LZ4 and Zstandard are the reference C libraries (BSD), bound by MIT/BSD
+# crates; the hashes are RustCrypto (MIT OR Apache-2.0) on the digest 0.10
+# line sha2 already uses in this workspace.
+base64.workspace = true
+lz4 = "1.28"
+zstd = "0.13"
+sha1 = "0.10"
+sha2 = "0.10"
+sha3 = "0.10"
+
 [build-dependencies]
 cc = "1.1"
 

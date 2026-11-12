@@ -207,6 +207,7 @@ export 'src/providers/framing_image_cache_provider.dart';
 // gating the GPU-composited tiled survey background. Renders inside the framing
 // path (not the planetarium renderer).
 export 'src/providers/hips_framing_provider.dart';
+export 'src/providers/capture_file_format_sync.dart';
 export 'src/providers/imaging_provider.dart';
 export 'src/providers/imaging_viewer_state_provider.dart';
 export 'src/providers/sequence_provider.dart';

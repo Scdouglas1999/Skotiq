@@ -7,7 +7,21 @@ import 'package:skotiq_core/src/models/equipment_profile.dart';
 import 'package:skotiq_core/src/models/depthlock/depthlock_models.dart';
 
 /// Mock implementation of SkotiqBackend for testing
-class MockBackend extends Mock implements SkotiqBackend {}
+class MockBackend extends Mock implements SkotiqBackend {
+  /// The native policy (the heartbeat reconnects these itself), unless a test
+  /// stubs another answer.
+  @override
+  Set<DeviceType> get nativeReconnectedDeviceTypes =>
+      super.noSuchMethod(Invocation.getter(#nativeReconnectedDeviceTypes))
+          as Set<DeviceType>? ??
+      const {
+        DeviceType.mount,
+        DeviceType.guider,
+        DeviceType.dome,
+        DeviceType.weather,
+        DeviceType.coverCalibrator,
+      };
+}
 
 /// Test fixtures and helper data for common test scenarios
 class TestFixtures {

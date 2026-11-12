@@ -207,8 +207,11 @@ extension _ProfileServiceBackends on ProfileService {
         .connectProfile(profile, source: progressSource);
     final failures = [
       for (final failure in sweep.failures)
-        '${failure.deviceType} (${failure.deviceId}): '
-            '${failure.errorMessage ?? failure.error ?? 'unknown error'}',
+        (
+          device: _deviceCalled(profile, failure.deviceType),
+          deviceId: failure.deviceId,
+          reason: '${failure.errorMessage ?? failure.error ?? 'unknown error'}',
+        ),
     ];
 
     if (failures.isNotEmpty) {
@@ -217,6 +220,22 @@ extension _ProfileServiceBackends on ProfileService {
         failures: failures,
       );
     }
+  }
+
+  /// What a person calls the device a sweep names by [label] ("focuser",
+  /// "guide camera"): its kind, and the name the profile gives it.
+  String _deviceCalled(EquipmentProfileModel profile, String label) {
+    final (String kind, String? name) = label == guideCameraLabel
+        ? ('Guide camera', profile.guideCameraName)
+        : switch (deviceSlots.where((slot) => slot.noun == label)) {
+            final slots when slots.isNotEmpty => (
+              slots.first.type.displayName,
+              profile.deviceNameFor(slots.first.type),
+            ),
+            _ => (label, null),
+          };
+    final trimmed = name?.trim() ?? '';
+    return trimmed.isEmpty ? kind : '$kind ($trimmed)';
   }
 
   Future<int> _createProfileFromExport(

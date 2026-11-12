@@ -1,5 +1,5 @@
-use super::{write_frame_fits, FrameHeader};
-use skotiq_imaging::read_fits;
+use super::{write_capture_frame, FrameHeader};
+use skotiq_imaging::read_frame;
 use skotiq_sequencer::scheduling::FrameContext;
 use skotiq_sequencer::MosaicPanelInfo;
 use std::path::{Path, PathBuf};
@@ -106,7 +106,7 @@ async fn fits_round_trip_preserves_all_frame_context_keywords() {
 
     let header = FrameHeader::from_frame_context(&ctx);
 
-    write_frame_fits(
+    write_capture_frame(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -116,7 +116,7 @@ async fn fits_round_trip_preserves_all_frame_context_keywords() {
     .await
     .expect("rich FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back should succeed");
+    let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back should succeed");
 
     // Core observation metadata.
     assert_eq!(parsed.get_string("OBJECT"), Some("M31"));
@@ -221,7 +221,7 @@ async fn monochrome_capture_omits_bayer_pattern() {
     ctx.target_name = Some("FocusTest".to_string());
     // bayer_pattern is None — mono camera.
     let header = FrameHeader::from_frame_context(&ctx);
-    write_frame_fits(
+    write_capture_frame(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -231,7 +231,7 @@ async fn monochrome_capture_omits_bayer_pattern() {
     .await
     .expect("mono FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back");
+    let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back");
     assert_eq!(
         parsed.get_string("BAYERPAT"),
         None,
@@ -253,7 +253,7 @@ async fn missing_optional_fields_are_omitted_not_zeroed() {
     let ctx = FrameContext::new_light("sess", 1, 1, 10.0, 1);
     // Nothing else set — every optional field stays None.
     let header = FrameHeader::from_frame_context(&ctx);
-    write_frame_fits(
+    write_capture_frame(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -263,7 +263,7 @@ async fn missing_optional_fields_are_omitted_not_zeroed() {
     .await
     .expect("FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back");
+    let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back");
     // Every optional keyword must be absent.
     for absent_key in &[
         "OBJECT", "FILTER", "FILTPOS", "GAIN", "OFFSET", "CCD-TEMP", "SET-TEMP", "FOCUSPOS",
@@ -312,7 +312,7 @@ async fn below_horizon_altitude_still_writes_the_frame() {
     // Mount parked: the exact altitude the sim mount reports.
     header.altitude = Some(-9.9);
 
-    write_frame_fits(
+    write_capture_frame(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -326,7 +326,7 @@ async fn below_horizon_altitude_still_writes_the_frame() {
         temp_path.exists(),
         "FITS file must exist on disk for a below-horizon capture"
     );
-    let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back");
+    let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back");
     assert_eq!(
         parsed.get_float("AIRMASS"),
         None,
@@ -360,7 +360,7 @@ async fn above_horizon_altitude_writes_airmass() {
     let mut header = FrameHeader::from_frame_context(&ctx);
     header.altitude = Some(78.98);
 
-    write_frame_fits(
+    write_capture_frame(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -370,7 +370,7 @@ async fn above_horizon_altitude_writes_airmass() {
     .await
     .expect("FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back");
+    let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back");
     let airmass = parsed.get_float("AIRMASS").expect("AIRMASS card");
     assert!(
         (airmass - 1.0185).abs() < 0.001,
@@ -410,7 +410,7 @@ async fn sequenced_frame_records_where_in_the_sky_it_was_taken() {
     ctx.mount_altitude_deg = Some(30.0);
 
     let header = FrameHeader::from_frame_context(&ctx);
-    write_frame_fits(
+    write_capture_frame(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -420,7 +420,7 @@ async fn sequenced_frame_records_where_in_the_sky_it_was_taken() {
     .await
     .expect("FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back");
+    let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back");
 
     let recorded_alt = parsed
         .get_float("OBJCTALT")
@@ -508,7 +508,7 @@ async fn mountless_frame_still_records_altitude_and_airmass() {
     );
 
     let header = FrameHeader::from_frame_context(&ctx);
-    write_frame_fits(
+    write_capture_frame(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -518,7 +518,7 @@ async fn mountless_frame_still_records_altitude_and_airmass() {
     .await
     .expect("FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back");
+    let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back");
 
     let recorded_alt = parsed
         .get_float("OBJCTALT")
@@ -726,7 +726,7 @@ async fn airmass_card_agrees_with_the_scheduler_that_chose_the_target() {
         let mut header = FrameHeader::from_frame_context(&ctx);
         header.altitude = Some(altitude);
 
-        write_frame_fits(
+        write_capture_frame(
             temp_path.to_string_lossy().to_string(),
             width,
             height,
@@ -736,7 +736,7 @@ async fn airmass_card_agrees_with_the_scheduler_that_chose_the_target() {
         .await
         .expect("FITS save should succeed");
 
-        let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back");
+        let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back");
         let written = parsed.get_float("AIRMASS").expect("AIRMASS card");
         let scheduled = skotiq_sequencer::scheduling::airmass(altitude);
         assert!(
@@ -765,7 +765,7 @@ async fn ra_is_written_in_degrees_not_hours() {
     ctx.target_dec_degrees = Some(40.0);
     let header = FrameHeader::from_frame_context(&ctx);
 
-    write_frame_fits(
+    write_capture_frame(
         temp_path.to_string_lossy().to_string(),
         width,
         height,
@@ -775,7 +775,7 @@ async fn ra_is_written_in_degrees_not_hours() {
     .await
     .expect("FITS save should succeed");
 
-    let (_image, parsed) = read_fits(&temp_path).expect("FITS read-back");
+    let (_image, parsed) = read_frame(&temp_path).expect("FITS read-back");
     assert_eq!(
         parsed.get_float("RA"),
         Some(120.0),

@@ -789,7 +789,7 @@ fn flat_metadata(path: &str) -> Result<FitsHeader, String> {
     if !skotiq_imaging::is_frame_path(path) {
         return Ok(FitsHeader::new());
     }
-    skotiq_imaging::read_frame_header(path).map_err(|e| {
+    read_frame_header(path).map_err(|e| {
         format!(
             "failed to read calibration metadata '{}': {e}",
             path.display()

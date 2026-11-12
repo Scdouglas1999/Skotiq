@@ -49,11 +49,17 @@ const Set<String> _addedSinceBase = {
   'qhy_discovery_enabled',
   'catalog_base_url',
   'camera_file_saving',
+  'xisf_compression',
+  'xisf_checksums',
 };
 
 /// Wire fields of settings declared after the base build; the base wire form
 /// is compared without them.
-const Set<String> _wireAddedSinceBase = {'cameraFileSaving'};
+const Set<String> _wireAddedSinceBase = {
+  'cameraFileSaving',
+  'xisfCompression',
+  'xisfChecksums',
+};
 
 /// [rows] without the settings the base build did not have.
 Map<String, String> _baseOnly(Map<String, String> rows) => {
@@ -174,6 +180,16 @@ void main() {
   test('every stored row reads as the base build read it', () {
     (fixture['fullLoad'] as Map<String, dynamic>).forEach((key, perRaw) {
       (perRaw as Map<String, dynamic>).forEach((raw, expected) {
+        // The base build could only save frames as FITS and read every
+        // stored archive format as FITS; XISF is now a format frames are
+        // saved in, so a stored XISF reads as XISF.
+        if (key == 'image_format' && raw.toUpperCase() == 'XISF') {
+          expect(
+            AppSettingsCodec.toRows(AppSettingsCodec.fromRows({key: raw}))[key],
+            'XISF',
+          );
+          return;
+        }
         final got = _changed(
           baseDefaults,
           _baseOnly(

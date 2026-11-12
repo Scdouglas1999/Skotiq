@@ -7,7 +7,7 @@
 /// step.
 abstract final class FrameFiles {
   static const List<String> fits = ['fits', 'fit', 'fts'];
-  static const List<String> xisf = ['xisf'];
+  static const List<String> xisf = ['xisf', 'xish'];
 
   /// Every maker's raw format: Canon (CR2, CR3, CRW), Nikon (NEF, NRW), Sony
   /// (ARW, SRF, SR2), Fujifilm (RAF), Pentax (PEF), Adobe and others (DNG),
@@ -17,6 +17,10 @@ abstract final class FrameFiles {
     'cr2', 'cr3', 'nef', 'nrw', 'arw', 'srf', 'sr2', 'raf', 'pef', 'dng', //
     'orf', 'rw2', 'raw', 'crw', 'mrw', 'erf', '3fr',
   ];
+
+  /// The formats Skotiq writes and whose metadata it edits in place (WCS
+  /// write-back, calibrated copies); a camera raw file is read-only.
+  static const List<String> archive = [...fits, ...xisf];
 
   /// Everything above: what a frame picker offers.
   static const List<String> all = [...fits, ...xisf, ...cameraRaw];
@@ -32,4 +36,7 @@ abstract final class FrameFiles {
   static bool isFrame(String path) => all.contains(_extension(path));
 
   static bool isCameraRaw(String path) => cameraRaw.contains(_extension(path));
+
+  /// Whether [path] names a FITS or XISF file (see [archive]).
+  static bool isArchive(String path) => archive.contains(_extension(path));
 }

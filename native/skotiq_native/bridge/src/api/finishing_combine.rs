@@ -1,24 +1,18 @@
-//! Post-session **combination** FFI surface — drizzle integration and
-//! narrowband channel combine.
+//! Post-session **combination** FFI surface — drizzle integration.
 //!
-//! This module exposes two committed native finishing primitives
-//! (`skotiq_imaging::{drizzle, channel_combine}`) to Dart through the same
+//! This module exposes the native drizzle (`skotiq_imaging::drizzle`) to Dart
+//! through the same
 //! **JSON-in / JSON-out** boundary the rest of the post-session surface uses
 //! (see [`crate::api::post_session`] for the canonical template and the
-//! rationale). Every knob — drizzle scale / pixfrac / kernel, palette name,
-//! custom weight tables — rides inside the JSON payload, so adding one never
-//! triggers a `flutter_rust_bridge` regen. The boundary is exactly two
-//! `String -> Result<String, String>` functions:
+//! rationale). Every knob — drizzle scale / pixfrac / kernel — rides inside
+//! the JSON payload, so adding one never triggers a `flutter_rust_bridge`
+//! regen. [`api_drizzle_integrate`] is variable-pixel linear reconstruction
+//! (drizzle) of a population of already-registered frames onto a finer output
+//! grid, with an RGB / Bayer-CFA mode, producing a linear `F32` master plus an
+//! optional per-pixel coverage map. Narrowband channels are combined by the
+//! Darkroom recipe's `channel_combine` step.
 //!
-//! * [`api_drizzle_integrate`] — variable-pixel linear reconstruction (drizzle)
-//!   of a population of already-registered frames onto a finer output grid,
-//!   with an RGB / Bayer-CFA mode, producing a linear `F32` master plus an
-//!   optional per-pixel coverage map.
-//! * [`api_combine_channels`] — linear narrowband palette combine (SHO / HOO /
-//!   custom weights) of single-channel masters into a 3-channel `F32` RGB
-//!   composite.
-//!
-//! These are **stateless per call** (no process-wide singleton) and CPU-bound;
+//! It is **stateless per call** (no process-wide singleton) and CPU-bound;
 //! the Dart side runs them off the UI isolate. As everywhere in the
 //! post-session surface, every failure mode (no frames, unreadable FITS,
 //! geometry mismatch, bad parameters, write failure) surfaces as `Err(String)`
@@ -26,15 +20,13 @@
 
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::calibration_masters::{cosmetic_correct_transient, CosmeticConfig};
-use skotiq_imaging::channel_combine::{combine_channels, hoo_palette, sho_palette};
 use skotiq_imaging::drizzle::{
     bayer_drizzle_integrate, drizzle_integrate, BayerDrizzleFrame, DrizzleConfig, DrizzleFrame,
     DrizzleKernel,
 };
 use skotiq_imaging::registration::{TransformKind, TransformModel};
 use skotiq_imaging::{
-    copy_astrometry_headers, read_bayer_geometry, read_fits, write_fits, FitsHeader, ImageData,
-    PixelType,
+    read_bayer_geometry, read_frame, write_fits, FitsHeader, ImageData, PixelType,
 };
 use std::path::Path;
 
@@ -179,39 +171,6 @@ struct DrizzleIntegrateResult {
     channels: u32,
 }
 
-// api_combine_channels — JSON contracts
-
-/// Top-level request for [`api_combine_channels`].
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
-#[flutter_rust_bridge::frb(ignore)]
-struct CombineChannelsArgs {
-    /// Single-channel linear master FITS paths, in palette order.
-    inputs: Vec<String>,
-    /// Per-input `[r, g, b]` weight triples. Required unless `palette` is set;
-    /// when both are given, `palette` wins and these are ignored.
-    weights: Option<Vec<[f64; 3]>>,
-    /// `"sho"` (S II→R, Hα→G, O III→B) | `"hoo"` (Hα→R, O III→G+B). When set,
-    /// the canonical palette weight table is used and the input count must match
-    /// the palette (3 for SHO, 2 for HOO).
-    palette: Option<String>,
-    /// Output FITS path for the 3-channel `F32` RGB composite (required).
-    output_fits: String,
-}
-
-/// Response for [`api_combine_channels`].
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[flutter_rust_bridge::frb(ignore)]
-struct CombineChannelsResult {
-    /// Path the `F32` RGB composite was written to.
-    output_path: String,
-    /// Composite width in pixels.
-    width: u32,
-    /// Composite height in pixels.
-    height: u32,
-}
-
 // Public FFI entry points
 
 /// Drizzle (variable-pixel linear reconstruction) a population of registered
@@ -231,22 +190,6 @@ pub fn api_drizzle_integrate(args_json: String) -> Result<String, String> {
     let args: DrizzleIntegrateArgs =
         serde_json::from_str(&args_json).map_err(|e| format!("invalid drizzle args: {e}"))?;
     let result = drizzle_integrate_impl(args)?;
-    serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
-}
-
-/// Linearly combine single-channel narrowband masters into a 3-channel `F32`
-/// RGB composite, wrapping [`combine_channels`].
-///
-/// When `palette` is `"sho"`/`"hoo"` the canonical weight table
-/// ([`sho_palette`]/[`hoo_palette`]) is used; otherwise the explicit per-input
-/// `[r, g, b]` `weights` are applied. The composite is written to `output_fits`.
-///
-/// `args_json` is a [`CombineChannelsArgs`]; the result is a
-/// [`CombineChannelsResult`].
-pub fn api_combine_channels(args_json: String) -> Result<String, String> {
-    let args: CombineChannelsArgs =
-        serde_json::from_str(&args_json).map_err(|e| format!("invalid combine args: {e}"))?;
-    let result = combine_channels_impl(args)?;
     serde_json::to_string(&result).map_err(|e| format!("failed to encode result: {e}"))
 }
 
@@ -271,7 +214,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
     // SAME dark/flat/bias the standard integrate pass applied — otherwise the
     // drizzled FITS that `_runDrizzle` swaps in as THE persisted master would be
     // a raw, uncalibrated deposit (amp glow, hot pixels, vignetting, dust). We
-    // read the masters with `read_fits` (NOT the auto-debayering `read_image`):
+    // read the masters with `read_frame` (NOT the auto-debayering `read_image`):
     // calibration is per-raw-pixel and must run on the same single-channel
     // geometry the (raw, Bayer or mono) sub carries, before any debayer/warp.
     let calibrate = args.calibration.is_active();
@@ -294,7 +237,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
         if fa.fits_path.trim().is_empty() {
             return Err("a drizzle frame has an empty fitsPath".to_string());
         }
-        let (mut image, header) = read_fits(Path::new(&fa.fits_path))
+        let (mut image, header) = read_frame(Path::new(&fa.fits_path))
             .map_err(|e| format!("failed to read '{}': {e:?}", fa.fits_path))?;
         let transform = transform_from_row_major(&fa.transform)
             .map_err(|e| format!("frame '{}': {e}", fa.fits_path))?;
@@ -564,104 +507,11 @@ fn decode_image_f64(image: &ImageData, path: &str) -> Result<Vec<f64>, String> {
     }
 }
 
-// api_combine_channels implementation
-
-fn combine_channels_impl(args: CombineChannelsArgs) -> Result<CombineChannelsResult, String> {
-    if args.inputs.is_empty() {
-        return Err("no input channels supplied to combine".to_string());
-    }
-    if args.output_fits.trim().is_empty() {
-        return Err("outputFits is required".to_string());
-    }
-
-    // Read every single-channel master with its header. The images stay in this
-    // owned vector so the `&[&ImageData]` slice `combine_channels` borrows stays
-    // valid, and the first input's header supplies the composite's astrometry.
-    let inputs: Vec<(ImageData, FitsHeader)> = args
-        .inputs
-        .iter()
-        .map(|p| read_fits(Path::new(p)).map_err(|e| format!("failed to read '{p}': {e:?}")))
-        .collect::<Result<_, _>>()?;
-    let images: Vec<&ImageData> = inputs.iter().map(|(image, _)| image).collect();
-
-    // Resolve the weight table: a named palette wins, else the explicit weights.
-    let weights: Vec<[f64; 3]> = if let Some(palette) = args.palette.as_ref() {
-        let p = palette.trim().to_ascii_lowercase();
-        match p.as_str() {
-            "sho" => {
-                let w = sho_palette();
-                if images.len() != w.len() {
-                    return Err(format!(
-                        "SHO palette expects {} inputs (S II, Hα, O III) but {} were supplied",
-                        w.len(),
-                        images.len()
-                    ));
-                }
-                w
-            }
-            "hoo" => {
-                let w = hoo_palette();
-                if images.len() != w.len() {
-                    return Err(format!(
-                        "HOO palette expects {} inputs (Hα, O III) but {} were supplied",
-                        w.len(),
-                        images.len()
-                    ));
-                }
-                w
-            }
-            other => return Err(format!("unknown palette '{other}'; expected sho or hoo")),
-        }
-    } else {
-        match args.weights {
-            Some(w) if !w.is_empty() => w,
-            _ => return Err("either palette or a non-empty weights table is required".to_string()),
-        }
-    };
-
-    let composite =
-        combine_channels(&images, &weights).map_err(|e| format!("channel combine failed: {e}"))?;
-
-    let out_path = Path::new(&args.output_fits);
-    ensure_parent_dir(out_path)?;
-    let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq channel combine");
-    if let Some(palette) = args.palette.as_ref() {
-        header.set_string("PALETTE", palette.trim());
-    }
-    header.add_history("Skotiq narrowband channel combination");
-    // `combine_channels` has already rejected any input whose geometry differs
-    // from the first, so every input shares one pixel grid and the first one's
-    // astrometry describes the composite. Only astrometry is carried: FILTER,
-    // EXPTIME and the sensor settings belong to one channel and would misstate
-    // the composite. OBJECT is the exception — the whole point of a palette
-    // combine is that every channel is the same target.
-    let (_, first_header) = &inputs[0];
-    let carried = copy_astrometry_headers(&mut header, first_header);
-    if let Some(object) = first_header.get_string("OBJECT") {
-        header.set_string("OBJECT", object);
-    }
-    header.add_history(&format!(
-        "Carried {carried} astrometry cards from '{}'",
-        args.inputs[0]
-    ));
-    write_fits(out_path, &composite, &header)
-        .map_err(|e| format!("failed to write composite: {e:?}"))?;
-
-    Ok(CombineChannelsResult {
-        output_path: args.output_fits,
-        width: composite.width,
-        height: composite.height,
-    })
-}
-
 // Shared helpers
 
 /// Read an optional calibration master by path. Empty / `None` → `Ok(None)`.
 ///
-/// Reads with [`read_fits`] (NOT the auto-debayering `read_image`): the drizzle
+/// Reads with [`read_frame`] (NOT the auto-debayering `read_image`): the drizzle
 /// calibration runs on the raw, single-channel (Bayer) or RGB/mono sub geometry,
 /// so the master must keep the same raw layout. Mirrors the `load_optional_master`
 /// in [`crate::api::post_session`]; duplicated here so this module stays
@@ -669,7 +519,7 @@ fn combine_channels_impl(args: CombineChannelsArgs) -> Result<CombineChannelsRes
 fn load_optional_master(path: &Option<String>, label: &str) -> Result<Option<ImageData>, String> {
     match path {
         Some(p) if !p.trim().is_empty() => {
-            let (image, _header) = read_fits(Path::new(p))
+            let (image, _header) = read_frame(Path::new(p))
                 .map_err(|e| format!("failed to read {label} master '{p}': {e:?}"))?;
             Ok(Some(image))
         }
@@ -685,7 +535,7 @@ fn load_optional_flat_raw(
 ) -> Result<Option<crate::api::post_session::FlatMaster>, String> {
     match path {
         Some(p) if !p.trim().is_empty() => {
-            let (image, header) = read_fits(Path::new(p))
+            let (image, header) = read_frame(Path::new(p))
                 .map_err(|e| format!("failed to read flat master '{p}': {e:?}"))?;
             let pedestal = crate::api::post_session::flat_pedestal_state(&image, Some(&header));
             Ok(Some(crate::api::post_session::FlatMaster {
@@ -719,7 +569,6 @@ fn ensure_parent_dir(path: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skotiq_imaging::{add_wcs_headers, WcsInfo};
     use std::path::PathBuf;
 
     /// A scratch directory that deletes itself when the test ends. Cleanup runs
@@ -892,11 +741,11 @@ mod tests {
         assert!(cov_png_path.exists(), "coverage preview must be on disk");
         assert!(png_path.exists(), "drizzle preview PNG must be on disk");
 
-        let (master, _h) = read_fits(out_path.as_path()).expect("read drizzle master");
+        let (master, _h) = read_frame(out_path.as_path()).expect("read drizzle master");
         assert_eq!(master.pixel_type, PixelType::F32);
         assert_eq!(master.width, result.out_width);
         assert_eq!(master.channels, 1);
-        let (cov, _hc) = read_fits(cov_path.as_path()).expect("read coverage map");
+        let (cov, _hc) = read_frame(cov_path.as_path()).expect("read coverage map");
         assert_eq!(cov.channels, 1, "coverage is a single-channel map");
         // The preview decodes as an 8-bit image of the scaled master geometry.
         let preview = image::open(&png_path).expect("decode drizzle preview");
@@ -1013,8 +862,8 @@ mod tests {
         let cal_resp = api_drizzle_integrate(cal_args.to_string()).expect("calibrated drizzle");
         let _: DrizzleIntegrateResult = serde_json::from_str(&cal_resp).unwrap();
 
-        let (raw_master, _h0) = read_fits(raw_out.as_path()).expect("read raw master");
-        let (cal_master, _h1) = read_fits(cal_out.as_path()).expect("read calibrated master");
+        let (raw_master, _h0) = read_frame(raw_out.as_path()).expect("read raw master");
+        let (cal_master, _h1) = read_frame(cal_out.as_path()).expect("read calibrated master");
 
         let out_h = raw_master.height as usize;
         // Sample bands well inside each region (away from the half-split seam and
@@ -1169,237 +1018,8 @@ mod tests {
         assert!(result.coverage_path.is_none(), "no coverage requested");
         assert!(result.preview_png_path.is_none(), "no preview requested");
 
-        let (master, _h) = read_fits(out_path.as_path()).expect("read bayer drizzle master");
+        let (master, _h) = read_frame(out_path.as_path()).expect("read bayer drizzle master");
         assert_eq!(master.pixel_type, PixelType::F32);
         assert_eq!(master.channels, 3);
-    }
-
-    // api_combine_channels
-
-    /// Three single-channel masters combine through the SHO palette into a
-    /// 3-channel `F32` composite of the shared geometry.
-    #[test]
-    fn combine_channels_sho_round_trip() {
-        let dir = temp_dir("combine_channels_sho_round_trip");
-        let size = 32u32;
-        let len = (size * size) as usize;
-        // Distinct flat single-channel masters so each output channel is traceable.
-        let make = |level: f32| -> ImageData {
-            let data: Vec<f32> = (0..len).map(|i| level + (i % 5) as f32 * 0.5).collect();
-            ImageData::from_f32(size, size, 1, &data)
-        };
-        let s_path = dir.join("combine_channels_sho_round_trip_s.fits");
-        let ha_path = dir.join("combine_channels_sho_round_trip_ha.fits");
-        let o_path = dir.join("combine_channels_sho_round_trip_o.fits");
-        write_master(&s_path, &make(100.0));
-        write_master(&ha_path, &make(200.0));
-        write_master(&o_path, &make(300.0));
-
-        let out_path = dir.join("combine_channels_sho_round_trip_out.fits");
-        let args = serde_json::json!({
-            "inputs": [
-                s_path.to_string_lossy(),
-                ha_path.to_string_lossy(),
-                o_path.to_string_lossy()
-            ],
-            "palette": "sho",
-            "outputFits": out_path.to_string_lossy()
-        });
-
-        let resp = api_combine_channels(args.to_string()).expect("combine sho");
-        let result: CombineChannelsResult = serde_json::from_str(&resp).unwrap();
-        assert_eq!(result.width, size);
-        assert_eq!(result.height, size);
-        assert!(out_path.exists(), "composite must be on disk");
-
-        // The composite is a real, readable 3-channel F32 FITS of the same geometry.
-        let (img, _h) = read_fits(out_path.as_path()).expect("read composite");
-        assert_eq!(img.pixel_type, PixelType::F32);
-        assert_eq!(img.width, size);
-        assert_eq!(img.height, size);
-        assert_eq!(img.channels, 3, "narrowband composite has three channels");
-    }
-
-    /// Explicit per-input `[r,g,b]` weights also produce a 3-channel composite.
-    #[test]
-    fn combine_channels_explicit_weights_round_trip() {
-        let dir = temp_dir("combine_channels_explicit_weights_round_trip");
-        let size = 24u32;
-        let len = (size * size) as usize;
-        let data: Vec<f32> = (0..len).map(|i| 50.0 + i as f32 * 0.1).collect();
-        let a = ImageData::from_f32(size, size, 1, &data);
-        let b = ImageData::from_f32(size, size, 1, &data);
-        let a_path = dir.join("combine_channels_explicit_weights_round_trip_a.fits");
-        let b_path = dir.join("combine_channels_explicit_weights_round_trip_b.fits");
-        write_master(&a_path, &a);
-        write_master(&b_path, &b);
-
-        let out_path = dir.join("combine_channels_explicit_weights_round_trip_out.fits");
-        let args = serde_json::json!({
-            "inputs": [a_path.to_string_lossy(), b_path.to_string_lossy()],
-            "weights": [[1.0, 0.0, 0.0], [0.0, 1.0, 1.0]],
-            "outputFits": out_path.to_string_lossy()
-        });
-        let resp = api_combine_channels(args.to_string()).expect("combine explicit");
-        let result: CombineChannelsResult = serde_json::from_str(&resp).unwrap();
-        assert_eq!(result.width, size);
-        let (img, _h) = read_fits(out_path.as_path()).expect("read composite");
-        assert_eq!(img.channels, 3);
-    }
-
-    // Error paths
-
-    /// Malformed JSON, empty populations, a nonexistent input frame, a bad
-    /// transform, a missing Bayer header, and mismatched combine geometry all
-    /// surface as `Err` — never a silent partial stack.
-    #[test]
-    fn combine_error_paths() {
-        let dir = temp_dir("combine_error_paths");
-        // Malformed JSON.
-        assert!(api_drizzle_integrate("not json".to_string()).is_err());
-        assert!(api_combine_channels("not json".to_string()).is_err());
-
-        // Empty frame population / no inputs.
-        assert!(api_drizzle_integrate(
-            r#"{"frames":[],"refW":10,"refH":10,"outputFits":"x.fits"}"#.to_string()
-        )
-        .is_err());
-        assert!(api_combine_channels(
-            r#"{"inputs":[],"palette":"sho","outputFits":"x.fits"}"#.to_string()
-        )
-        .is_err());
-
-        // Nonexistent input frame to drizzle.
-        let missing = dir.join("combine_error_paths_missing.fits");
-        let out = dir.join("combine_error_paths_out.fits");
-        let nonexistent = serde_json::json!({
-            "frames": [
-                { "fitsPath": missing.to_string_lossy(), "transform": translate(0.0, 0.0), "weight": 1.0 }
-            ],
-            "refW": 16,
-            "refH": 16,
-            "outputFits": out.to_string_lossy()
-        });
-        assert!(
-            api_drizzle_integrate(nonexistent.to_string()).is_err(),
-            "a nonexistent drizzle frame must error"
-        );
-
-        // A real frame but a malformed (non-9-element) transform.
-        let size = 16u32;
-        let frame = render_mono_f32(size, &drizzle_stars(size as f64), 100.0);
-        let fp = dir.join("combine_error_paths_frame.fits");
-        write_master(&fp, &frame);
-        let bad_transform = serde_json::json!({
-            "frames": [ { "fitsPath": fp.to_string_lossy(), "transform": [1.0, 0.0, 0.0], "weight": 1.0 } ],
-            "refW": size, "refH": size,
-            "outputFits": out.to_string_lossy()
-        });
-        assert!(
-            api_drizzle_integrate(bad_transform.to_string()).is_err(),
-            "a non-9-element transform must error"
-        );
-
-        // Bayer mode against a frame with NO BAYERPAT header is rejected.
-        let no_bayer = serde_json::json!({
-            "frames": [ { "fitsPath": fp.to_string_lossy(), "transform": translate(0.0, 0.0), "weight": 1.0 } ],
-            "refW": size, "refH": size, "bayer": true,
-            "outputFits": out.to_string_lossy()
-        });
-        assert!(
-            api_drizzle_integrate(no_bayer.to_string()).is_err(),
-            "Bayer mode without a CFA header must error"
-        );
-
-        // combine_channels with mismatched input geometry is rejected.
-        let big = ImageData::from_f32(8, 8, 1, &[1.0f32; 64]);
-        let small = ImageData::from_f32(4, 4, 1, &[1.0f32; 16]);
-        let big_path = dir.join("combine_error_paths_big.fits");
-        let small_path = dir.join("combine_error_paths_small.fits");
-        write_master(&big_path, &big);
-        write_master(&small_path, &small);
-        let mismatch = serde_json::json!({
-            "inputs": [big_path.to_string_lossy(), small_path.to_string_lossy()],
-            "weights": [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-            "outputFits": out.to_string_lossy()
-        });
-        assert!(
-            api_combine_channels(mismatch.to_string()).is_err(),
-            "mismatched combine geometry must error"
-        );
-    }
-
-    // WCS carry-over
-
-    /// The palette composite must carry the astrometry of the channels it was
-    /// built from — every input shares one grid by construction (a geometry
-    /// mismatch is already a hard error), so the first input's solve describes
-    /// the composite exactly. Per-channel identity (`FILTER`, `EXPTIME`) is
-    /// deliberately NOT carried: it would describe one channel and misstate the
-    /// composite.
-    #[test]
-    fn combine_channels_carries_astrometry_but_not_per_channel_identity() {
-        let size = 24u32;
-        let dir = temp_dir("combine_wcs");
-        let wcs = WcsInfo::from_plate_solve(299.8681, 40.7339, 5.0, 1.2, size, size);
-
-        let mut inputs = Vec::new();
-        for (i, filter) in ["Ha", "OIII"].iter().enumerate() {
-            let data: Vec<f32> = vec![100.0 + i as f32 * 10.0; (size * size) as usize];
-            let plane = ImageData::from_f32(size, size, 1, &data);
-            let path = dir.join(format!("chan{i}.fits"));
-            let mut h = FitsHeader::new();
-            h.set_string("IMAGETYP", "MASTER_LIGHT");
-            add_wcs_headers(&mut h, &wcs);
-            h.set_string("OBJECT", "NGC 6960");
-            h.set_string("FILTER", filter);
-            h.set_float("EXPTIME", 3600.0 + i as f64 * 600.0);
-            write_fits(path.as_path(), &plane, &h).expect("write channel master");
-            inputs.push(path.to_string_lossy().to_string());
-        }
-
-        let out_path = dir.join("hoo.fits");
-        let args = serde_json::json!({
-            "inputs": inputs,
-            "palette": "hoo",
-            "outputFits": out_path.to_string_lossy()
-        });
-        api_combine_channels(args.to_string()).expect("combine");
-
-        let (img, out) = read_fits(out_path.as_path()).expect("read composite");
-        assert_eq!(img.channels, 3);
-        for key in ["CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CD1_1", "CD2_2"] {
-            let want = match key {
-                "CRVAL1" => wcs.crval1,
-                "CRVAL2" => wcs.crval2,
-                "CRPIX1" => wcs.crpix1,
-                "CRPIX2" => wcs.crpix2,
-                "CD1_1" => wcs.cd1_1,
-                _ => wcs.cd2_2,
-            };
-            let got = out
-                .get_float(key)
-                .unwrap_or_else(|| panic!("composite dropped {key}"));
-            assert!(
-                (got - want).abs() <= want.abs() * 1e-9 + 1e-15,
-                "{key}: composite {got} != input {want}"
-            );
-        }
-        assert_eq!(out.get_string("CTYPE1"), Some("RA---TAN"));
-        assert_eq!(
-            out.get_string("OBJECT"),
-            Some("NGC 6960"),
-            "every channel is the same target, so OBJECT is the composite's too"
-        );
-        assert_eq!(
-            out.get_string("FILTER"),
-            None,
-            "one channel's filter must not be claimed for the composite"
-        );
-        assert_eq!(
-            out.get_float("EXPTIME"),
-            None,
-            "one channel's exposure must not be claimed for the composite"
-        );
     }
 }

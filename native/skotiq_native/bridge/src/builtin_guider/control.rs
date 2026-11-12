@@ -211,7 +211,21 @@ pub async fn stop() -> Result<(), SkotiqError> {
 /// shared body used by `stop`, `start_guiding`, `loop_exposures`, and `disconnect`
 /// so the lifecycle entry points cannot interleave.
 pub(crate) async fn stop_locked() -> Result<(), SkotiqError> {
+    // The loop is stopped and joined before the state is reset: an iteration
+    // already past its stop check wrote "Guiding" back over a reset made
+    // first, and the guider then read as guiding with nothing running.
     let (stop_flag, task) = {
+        let mut guard = state().write().await;
+        (guard.stop_flag.take(), guard.task.take())
+    };
+    if let Some(flag) = stop_flag {
+        flag.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    if let Some(handle) = task {
+        let _ = handle.await;
+    }
+
+    {
         let mut guard = state().write().await;
         guard.guiding = false;
         guard.looping = false;
@@ -244,14 +258,6 @@ pub(crate) async fn stop_locked() -> Result<(), SkotiqError> {
         } else {
             "Disconnected".to_string()
         };
-        (guard.stop_flag.take(), guard.task.take())
-    };
-
-    if let Some(flag) = stop_flag {
-        flag.store(true, std::sync::atomic::Ordering::Relaxed);
-    }
-    if let Some(handle) = task {
-        let _ = handle.await;
     }
 
     get_state().publish_guiding_event(GuidingEvent::GuidingStopped, EventSeverity::Info);

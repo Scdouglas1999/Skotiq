@@ -10,7 +10,7 @@ import '../backend/roles/host_data/calibration_library.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
-import '../models/imaging/imaging_models.dart' show ImageFileFormat;
+import '../models/imaging/imaging_models.dart' show frameFileFormatOf;
 import '../providers/backend_provider.dart';
 import '../providers/dark_library_provider.dart';
 import '../providers/database_provider.dart';
@@ -719,7 +719,7 @@ class CalibrationBacklogService {
           CapturedImagesCompanion.insert(
             filePath: filePath,
             fileName: p.basename(filePath),
-            fileFormat: Value(ImageFileFormat.recordNameForPath(filePath)),
+            fileFormat: Value(frameFileFormatOf(filePath).recordName),
             frameType: const Value('flat'),
             exposureDuration: exposureSeconds,
             capturedAt: capturedAt,

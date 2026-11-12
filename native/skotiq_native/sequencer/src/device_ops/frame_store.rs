@@ -13,25 +13,26 @@ pub struct FrameStarShape {
     pub elongation: Option<(f64, f64)>,
 }
 
-/// Save a frame as the operator chose: the app's FITS file at `fits_path`
-/// (header from `frame_ctx`, through [`FrameStoreOps::save_fits`]), the
+/// Save a frame as the operator chose: the app's archive file at `frame_path`
+/// (FITS or XISF, the capture file format; header from `frame_ctx`, through
+/// [`FrameStoreOps::save_fits`]), the
 /// camera's own file beside it under the same name with the camera's
 /// extension, or both. The camera's file is written byte for byte and never
 /// over an existing file: when either name is taken, both move to the next
 /// free `_001`-style name. A frame without a camera file (every astronomy
-/// camera) always gets the FITS file.
+/// camera) always gets the archive file.
 ///
 /// Only a frame kept as a frame (`keeper`: a sequence's light, dark, flat or
 /// bias, a secondary camera's sequence frame, a capture the operator saves)
 /// follows `saving`; a scratch frame (live view, loop, framing, plate solve,
-/// autofocus) is saved as FITS only. The caller knows which it is.
+/// autofocus) gets the archive file only. The caller knows which it is.
 ///
 /// Every saved frame comes through here. Returns the file the app records the
-/// frame by: the FITS file when one is written, else the camera's file.
+/// frame by: the archive file when one is written, else the camera's file.
 pub async fn save_frame<T: FrameStoreOps + ?Sized>(
     ops: &T,
     image_data: &ImageData,
-    fits_path: &str,
+    frame_path: &str,
     frame_ctx: &crate::scheduling::FrameContext,
     saving: crate::CameraFileSaving,
     keeper: bool,
@@ -46,25 +47,25 @@ pub async fn save_frame<T: FrameStoreOps + ?Sized>(
         .as_ref()
         .filter(|_| saving.writes_camera_file());
     let Some(file) = camera_file else {
-        ops.save_fits(image_data, fits_path, frame_ctx).await?;
-        return Ok(fits_path.to_string());
+        ops.save_fits(image_data, frame_path, frame_ctx).await?;
+        return Ok(frame_path.to_string());
     };
-    let (fits_path, camera_path) = free_names(fits_path, file);
+    let (frame_path, camera_path) = free_names(frame_path, file);
     write_camera_file(&camera_path, file).await?;
     if !saving.writes_converted() {
         return Ok(camera_path);
     }
-    ops.save_fits(image_data, &fits_path, frame_ctx).await?;
-    Ok(fits_path)
+    ops.save_fits(image_data, &frame_path, frame_ctx).await?;
+    Ok(frame_path)
 }
 
-/// The first FITS and camera-file pair, starting from `fits_path`, of which
+/// The first archive-file and camera-file pair, starting from `frame_path`, of which
 /// neither exists yet.
-fn free_names(fits_path: &str, file: &skotiq_device::CameraFile) -> (String, String) {
-    let path = std::path::Path::new(fits_path);
+fn free_names(frame_path: &str, file: &skotiq_device::CameraFile) -> (String, String) {
+    let path = std::path::Path::new(frame_path);
     let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
     let extension = path.extension().map(|e| e.to_string_lossy().into_owned());
-    let mut candidate = fits_path.to_string();
+    let mut candidate = frame_path.to_string();
     for suffix in 1u32.. {
         let camera = camera_file_path(&candidate, file);
         if !std::path::Path::new(&candidate).exists() && !std::path::Path::new(&camera).exists() {
@@ -79,10 +80,10 @@ fn free_names(fits_path: &str, file: &skotiq_device::CameraFile) -> (String, Str
     unreachable!("u32 suffixes run out only after four billion files")
 }
 
-/// The camera's file beside `fits_path`: same folder and name, the camera's
+/// The camera's file beside `frame_path`: same folder and name, the camera's
 /// extension.
-pub fn camera_file_path(fits_path: &str, file: &skotiq_device::CameraFile) -> String {
-    let path = std::path::Path::new(fits_path);
+pub fn camera_file_path(frame_path: &str, file: &skotiq_device::CameraFile) -> String {
+    let path = std::path::Path::new(frame_path);
     match file.extension() {
         Some(extension) => path.with_extension(extension),
         None => path.to_path_buf(),
@@ -115,16 +116,23 @@ async fn write_camera_file(path: &str, file: &skotiq_device::CameraFile) -> Devi
 
 #[async_trait]
 pub trait FrameStoreOps: Send + Sync {
-    /// Write `image_data` as FITS with the header its
-    /// [`FrameContext`](crate::scheduling::FrameContext) describes; the
-    /// bridge's `frame_header` holds the keyword list. Callers save through
-    /// [`save_frame`], which decides whether a FITS file is written.
+    /// Write `image_data` in the capture file format (FITS or XISF) with the
+    /// header its [`FrameContext`](crate::scheduling::FrameContext) describes;
+    /// the bridge's `frame_header` holds the keyword list. Callers save
+    /// through [`save_frame`], which decides whether an archive file is
+    /// written.
     async fn save_fits(
         &self,
         image_data: &ImageData,
         file_path: &str,
         frame_ctx: &crate::scheduling::FrameContext,
     ) -> DeviceResult<()>;
+
+    /// The extension, without the dot, of the file format frames are saved
+    /// in: the host's capture file format setting.
+    fn frame_file_extension(&self) -> &'static str {
+        "fits"
+    }
 
     /// Calculate median HFR from an image
     async fn calculate_image_hfr(&self, image_data: &ImageData) -> DeviceResult<Option<f64>>;

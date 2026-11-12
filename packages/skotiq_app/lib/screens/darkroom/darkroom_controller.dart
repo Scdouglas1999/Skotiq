@@ -945,6 +945,7 @@ class DarkroomController extends StateNotifier<DarkroomState> {
       '.nsrecipe',
       '.fits',
       '.fit',
+      '.xisf',
       '.jpg',
       '.jpeg',
       '.png',

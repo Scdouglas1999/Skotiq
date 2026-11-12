@@ -133,6 +133,183 @@ async fn dawn_park_still_runs_the_plans_shutdown_steps() {
     assert!(notified(&calls, "Warm camera: done"), "calls={calls:?}");
 }
 
+/// A stop that arrives while dawn is putting the rig away is a request: the
+/// executor shared behind a lock is free again at once and reads `Stopping`,
+/// the plan's Warm camera is not cut short, and the stop is confirmed when it
+/// is done. The host's API used to hold the executor for the whole ramp, so
+/// every status read timed out for fifteen minutes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stop_during_the_dawn_shutdown_does_not_hold_the_executor() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut plan = night_plan(node("park", "Park mount", NodeType::Park));
+    // One ten-second ramp step from the camera's -10 C.
+    let warm = plan.nodes.iter_mut().find(|n| n.id == "warm").unwrap();
+    warm.node_type = NodeType::WarmCamera(WarmConfig {
+        target_temp: Some(-9.7),
+        ..WarmConfig::default()
+    });
+    let executor = start_night(super::SequenceExecutor::new(), ops.clone(), plan).await;
+    // A cooler at work: Warm camera ramps instead of switching off.
+    ops.cooler_idle.store(false, Ordering::SeqCst);
+    wait_for_monitor(&ops).await;
+    bring_dawn_near(&executor).await;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+    while !notified(&ops.calls(), "running the plan's shutdown steps") {
+        assert!(tokio::time::Instant::now() < deadline, "dawn never fired");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    let executor = tokio::sync::RwLock::new(executor);
+    let stopping = executor
+        .write()
+        .await
+        .request_stop(super::StopOrigin::Operator)
+        .await;
+    let a_second_stop = executor
+        .write()
+        .await
+        .request_stop(super::StopOrigin::Operator)
+        .await;
+    let read = tokio::time::timeout(Duration::from_secs(1), executor.read())
+        .await
+        .expect("the executor answers while the run stops");
+    assert_eq!(read.get_state().await, super::ExecutorState::Stopping);
+    drop(read);
+
+    let mut stopping = Box::pin(stopping.finished());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(500), &mut stopping)
+            .await
+            .is_err(),
+        "the stop must not cut the plan's Warm camera short"
+    );
+    // The ramp is one ten-second step.
+    tokio::time::timeout(Duration::from_secs(30), stopping)
+        .await
+        .unwrap_or_else(|_| {
+            panic!(
+                "the stop is confirmed once the shutdown steps end; calls={:?}",
+                ops.calls()
+            )
+        })
+        .expect("the run ended cleanly");
+    tokio::time::timeout(Duration::from_secs(1), a_second_stop.finished())
+        .await
+        .expect("every stop request sees the same end")
+        .expect("the run ended cleanly");
+
+    let executor = executor.into_inner();
+    assert_eq!(executor.get_state().await, super::ExecutorState::Cancelled);
+    let calls = ops.calls();
+    assert!(
+        calls.iter().any(|c| c == "camera_set_cooler:cam-1:false"),
+        "the camera was warmed and switched off; calls={calls:?}"
+    );
+}
+
+/// One target: Start Guiding when `start_guiding`, then a long wait.
+fn guided_plan(start_guiding: bool) -> SequenceDefinition {
+    let mut steps = Vec::new();
+    if start_guiding {
+        steps.push(node(
+            "guide",
+            "Start Guiding",
+            NodeType::StartGuiding(crate::StartGuidingConfig {
+                settle_timeout: 10.0,
+                validate_calibration: false,
+                ..Default::default()
+            }),
+        ));
+    }
+    steps.push(node(
+        "imaging",
+        "Imaging",
+        NodeType::Delay(DelayConfig { seconds: 600.0 }),
+    ));
+    let mut root = node(
+        "root",
+        "Night",
+        NodeType::Loop(LoopConfig {
+            iterations: Some(1),
+            condition: LoopCondition::Count,
+            ..Default::default()
+        }),
+    );
+    root.children = steps.iter().map(|n| n.id.clone()).collect();
+    let mut sequence = SequenceDefinition::new("Night".into());
+    sequence.root_node_id = Some("root".into());
+    sequence.nodes = std::iter::once(root).chain(steps).collect();
+    sequence
+}
+
+async fn wait_for_step(executor: &super::SequenceExecutor, id: &str) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+    while executor.get_progress().current_node_id.as_deref() != Some(id) {
+        assert!(tokio::time::Instant::now() < deadline, "{id} never ran");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+}
+
+/// The operator's Stop ends the guiding the run started; on the rig the
+/// guider went on guiding after the run had stopped.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stopped_run_stops_the_guiding_it_started() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let mut executor = start_night(
+        super::SequenceExecutor::new(),
+        ops.clone(),
+        guided_plan(true),
+    )
+    .await;
+    wait_for_step(&executor, "imaging").await;
+    let before = ops.calls().iter().filter(|c| *c == "guider_stop").count();
+
+    executor.stop().await.expect("the run stops");
+
+    let calls = ops.calls();
+    assert_eq!(executor.get_state().await, super::ExecutorState::Cancelled);
+    assert_eq!(
+        calls.iter().filter(|c| *c == "guider_stop").count(),
+        before + 1,
+        "calls={calls:?}"
+    );
+    assert_eq!(
+        executor.get_progress().message.as_deref(),
+        Some("Cancelled: Night")
+    );
+}
+
+/// Guiding the operator started before the run is not the run's: a Stop
+/// leaves it guiding and the run's verdict says so.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stopped_run_leaves_guiding_it_did_not_start_and_says_so() {
+    let ops = Arc::new(ScriptedDeviceOps::new());
+    let executor = super::SequenceExecutor::new();
+    let mut events = executor.subscribe();
+    let mut executor = start_night(executor, ops.clone(), guided_plan(false)).await;
+    wait_for_step(&executor, "imaging").await;
+
+    executor.stop().await.expect("the run stops");
+    let mut warned = false;
+    loop {
+        match events.try_recv() {
+            Ok(super::ExecutorEvent::Warning { message }) => {
+                warned |= message.contains("started outside this run");
+            }
+            Ok(_) | Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => {}
+            Err(_) => break,
+        }
+    }
+    assert!(warned, "the run's log says the guider is still guiding");
+
+    let calls = ops.calls();
+    assert!(!calls.iter().any(|c| c == "guider_stop"), "calls={calls:?}");
+    assert_eq!(
+        executor.get_progress().message.as_deref(),
+        Some("Cancelled: Night. The guider is still guiding: it was started outside this run.")
+    );
+}
+
 /// With Park before dawn off, the plan's own Park step is what puts the mount
 /// away, and the operator is told so rather than that it may still track.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

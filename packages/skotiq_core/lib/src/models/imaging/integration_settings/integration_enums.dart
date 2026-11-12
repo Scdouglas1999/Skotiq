@@ -371,10 +371,9 @@ enum StarReduceMethod {
   }
 }
 
-/// Narrowband palette mix. `sho` / `hoo` mirror the native canonical weight
-/// tables (`channel_combine::{sho_palette, hoo_palette}` via the
-/// `CombineChannelsArgs.palette` wire token); `custom` carries explicit
-/// per-channel weights, and `none` leaves the master in its native colour.
+/// Narrowband palette mix. `sho` / `hoo` name the fixed palettes; `custom`
+/// carries explicit per-channel weights, and `none` leaves the master in its
+/// native color.
 enum NarrowbandPalette {
   /// No palette mix (default — broadband / OSC colour).
   none,

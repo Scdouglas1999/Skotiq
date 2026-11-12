@@ -1,5 +1,5 @@
 use super::api_calibrate_image_file;
-use skotiq_imaging::{read_fits, write_fits, FitsHeader, ImageData, PixelType};
+use skotiq_imaging::{read_frame, write_fits, FitsHeader, ImageData, PixelType};
 use std::path::PathBuf;
 
 fn scratch(name: &str) -> PathBuf {
@@ -31,7 +31,7 @@ fn calibrated_save_keeps_numeric_exptime_and_gain() {
     )
     .unwrap();
 
-    let (_, out_header) = read_fits(&out).unwrap();
+    let (_, out_header) = read_frame(&out).unwrap();
     assert_eq!(out_header.get_float("EXPTIME"), Some(120.0));
     assert_eq!(out_header.get_int("GAIN"), Some(100));
 }

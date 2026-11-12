@@ -121,8 +121,6 @@ finishing/background.rgb_f32 e0f594506ee65c8b
 finishing/background.rgb_f32.model 7df56ca370c64519
 finishing/background.rgb_u16 b72e81cbab6cabb6
 finishing/background.rgb_u16.model ea908c14b6d1a4f9
-finishing/channel_combine.hoo 35ea0db7da288c44
-finishing/channel_combine.sho 2ced7932d1226f40
 finishing/color_calibration.apply_f32 ee288633eb5da014
 finishing/color_calibration.apply_u16 7b754edcaa70225c
 finishing/color_calibration.solve 222a84e32daa0938

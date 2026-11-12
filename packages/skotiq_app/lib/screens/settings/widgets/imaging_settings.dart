@@ -42,9 +42,9 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
   /// A pattern persisted before this validation existed (or written by a
   /// remote host) is reported the same way, rather than sitting silently in
   /// the field until the first exposure of the night fails.
-  Widget _patternFeedback(String savedPattern) {
+  Widget _patternFeedback(String savedPattern, String extension) {
     final colors = SkotiqColors.of(context);
-    final saved = checkNamingPattern(savedPattern);
+    final saved = checkNamingPattern(savedPattern, extension: extension);
     final error = _patternError ?? saved.error;
     if (error != null) {
       return Padding(
@@ -81,6 +81,63 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
     );
   }
 
+  /// The archive format and, for XISF, how it is compressed and checked.
+  List<Widget> _formatRows(AppSettingsState settings) {
+    final notifier = ref.read(appSettingsProvider.notifier);
+    final format = normalizeCaptureImageFormat(settings.imageFormat);
+    final isXisf = format == kCaptureImageFormatXisf;
+    return [
+      SettingRow(
+        icon: LucideIcons.file,
+        title: 'Archive format',
+        subtitle: isXisf
+            ? 'Lossless $kCaptureBitDepth XISF, the format PixInsight works in; '
+                'keywords and sky position land where PixInsight reads them'
+            : 'Lossless $kCaptureBitDepth FITS, which every astronomy program '
+                'opens',
+        trailing: SettingsDropdown(
+          key: const Key('imaging.archiveFormat'),
+          value: format,
+          items: kSupportedCaptureImageFormats,
+          onChanged: notifier.setImageFormat,
+          width: 140,
+          narrowWidth: 120,
+        ),
+      ),
+      if (isXisf) ...[
+        SettingRow(
+          icon: LucideIcons.archive,
+          title: 'XISF compression',
+          subtitle:
+              'Smaller files at no cost to the pixels. Byte shuffling helps '
+              '16-bit frames compress further',
+          trailing: SettingsDropdown(
+            key: const Key('imaging.xisfCompression'),
+            value: normalizeXisfCompression(settings.xisfCompression),
+            items: kXisfCompressionLabels.keys.toList(),
+            itemLabels: kXisfCompressionLabels.values.toList(),
+            onChanged: notifier.setXisfCompression,
+            width: 280,
+            narrowWidth: 200,
+          ),
+          stackWhenNarrow: true,
+        ),
+        SettingRow(
+          icon: LucideIcons.shieldCheck,
+          title: 'XISF checksums',
+          subtitle:
+              'Store a SHA-1 checksum with each frame so damage on disk is '
+              'caught when the frame is opened',
+          trailing: SettingsSwitch(
+            key: const Key('imaging.xisfChecksums'),
+            value: settings.xisfChecksums,
+            onChanged: notifier.setXisfChecksums,
+          ),
+        ),
+      ],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final settingsAsync = ref.watch(appSettingsProvider);
@@ -101,21 +158,14 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
             SettingsSection(
               title: 'File format',
               children: [
-                SettingRow(
-                  icon: LucideIcons.file,
-                  title: 'Archive format',
-                  subtitle: 'The FITS files Skotiq writes are lossless 16-bit',
-                  trailing: Text(
-                    '$kCaptureImageFormat · $kCaptureBitDepth',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ),
+                ..._formatRows(settings),
                 SettingRow(
                   icon: LucideIcons.camera,
                   title: 'Camera raw files',
                   subtitle: 'For DSLR and mirrorless cameras. The raw file is '
-                      'kept exactly as the camera made it; the FITS file also '
-                      'records the telescope, mount and site.',
+                      'kept exactly as the camera made it; the archive file '
+                      '(the format above) also records the telescope, mount '
+                      'and site.',
                   trailing: SettingsDropdown(
                     value: settings.cameraFileSaving,
                     items: [
@@ -149,7 +199,12 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                   isLast: true,
                   stackWhenNarrow: true,
                 ),
-                _patternFeedback(settings.fileNamingPattern),
+                _patternFeedback(
+                  settings.fileNamingPattern,
+                  ImageFileFormatSettingsX.fromSettings(
+                    normalizeCaptureImageFormat(settings.imageFormat),
+                  ).extension,
+                ),
               ],
             ),
           ],

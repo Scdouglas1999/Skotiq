@@ -103,7 +103,8 @@ class CapturePanel extends ConsumerWidget {
             : 0.0;
     // Imaging for: from the night's first frame, or the session's start when
     // that is earlier or the night has no frame yet.
-    final sessionDuration = sessionState.isActive ? sessionState.duration : null;
+    final sessionDuration =
+        sessionState.isActive ? sessionState.duration : null;
     final nightSpan = nightCounted
         ? DateTime.now().difference(sessionImages.first.capturedAt)
         : null;
@@ -264,7 +265,8 @@ class CapturePanel extends ConsumerWidget {
           FormRow(
             label: 'Format',
             child: ReadOnlyField(
-              value: '$kCaptureImageFormat · $kCaptureBitDepth',
+              value:
+                  '${namingPattern.format.settingsValue} · $kCaptureBitDepth',
             ),
           ),
           const SizedBox(height: FormRow.rowGap),
@@ -375,8 +377,8 @@ class CapturePanel extends ConsumerWidget {
                             context.push(
                                 AppRoutes.sessionReviewOfSession(sessionId));
                           } else {
-                            context.push(AppRoutes.analytics(
-                                tab: AnalyticsTab.session));
+                            context.push(
+                                AppRoutes.analytics(tab: AnalyticsTab.session));
                           }
                         }
                       : null,
@@ -563,7 +565,8 @@ class CapturePanel extends ConsumerWidget {
           logger.error('[Imaging] Session ended but mount park failed: $e',
               source: 'CapturePanel', fields: {'error': e.toString()});
           if (context.mounted) {
-            context.showErrorSnackBar('Session ended, but parking failed: ${userFacingError(e)}');
+            context.showErrorSnackBar(
+                'Session ended, but parking failed: ${userFacingError(e)}');
           }
         }
       }
@@ -572,7 +575,8 @@ class CapturePanel extends ConsumerWidget {
       logger.error('[Imaging] Error ending session: $e',
           source: 'CapturePanel', fields: {'error': e.toString()});
       if (context.mounted) {
-        context.showErrorSnackBar('Failed to end session: ${userFacingError(e)}');
+        context
+            .showErrorSnackBar('Failed to end session: ${userFacingError(e)}');
       }
       return false;
     }
@@ -662,7 +666,8 @@ class _CaptureSavePathButtonState extends ConsumerState<CaptureSavePathButton> {
           !identical(ref.read(backendProvider), authority)) {
         return;
       }
-      context.showErrorSnackBar('Could not update the capture folder: ${userFacingError(error)}');
+      context.showErrorSnackBar(
+          'Could not update the capture folder: ${userFacingError(error)}');
     } finally {
       if (mounted && generation == _operationGeneration) {
         setState(() => _busy = false);

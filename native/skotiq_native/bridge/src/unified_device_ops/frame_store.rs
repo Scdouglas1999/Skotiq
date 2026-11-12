@@ -38,7 +38,7 @@ impl FrameStoreOps for UnifiedDeviceOps {
         };
         let header = build_rich_header(image_data, frame_ctx, pointing);
 
-        crate::frame_header::write_frame_fits(
+        crate::frame_header::write_capture_frame(
             file_path.to_string(),
             image_data.width,
             image_data.height,
@@ -46,7 +46,11 @@ impl FrameStoreOps for UnifiedDeviceOps {
             header,
         )
         .await
-        .map_err(|e| format!("Save FITS failed: {}", e).into())
+        .map_err(|e| format!("Save frame failed: {}", e).into())
+    }
+
+    fn frame_file_extension(&self) -> &'static str {
+        crate::capture_file_format::extension()
     }
 
     async fn calculate_image_hfr(&self, image_data: &ImageData) -> DeviceResult<Option<f64>> {

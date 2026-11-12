@@ -1,14 +1,14 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 
 import '../../models/science/science_models.dart';
 import '../../utils/utc_timestamp.dart';
+import '../calibration/fits_header_reader.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-/// Image size and timing from a FITS primary header, read without decoding
-/// the pixels.
+/// Image size and timing from a frame's header, read without decoding the
+/// pixels.
 class FitsFrameSummary {
   const FitsFrameSummary({
     required this.width,
@@ -35,60 +35,33 @@ class FitsFrameSummary {
   }
 }
 
-/// Read the primary header of the FITS file at [path]; null when the file is
-/// not a readable FITS image.
+/// Read the header of the FITS or XISF frame at [path]; null when the file is
+/// not a readable frame.
 Future<FitsFrameSummary?> readFitsFrameSummary(String path) async {
-  RandomAccessFile? file;
+  final Map<String, String> cards;
   try {
-    file = await File(path).open();
-    final cards = <String, String>{};
-    for (var block = 0; block < 64; block++) {
-      final bytes = await file.read(2880);
-      if (bytes.length < 2880) return null;
-      final text = latin1.decode(bytes);
-      for (var c = 0; c < 36; c++) {
-        final card = text.substring(c * 80, c * 80 + 80);
-        final key = card.substring(0, 8).trim();
-        if (key == 'END') {
-          final w = _parseCard(cards['NAXIS1'], int.tryParse);
-          final h = _parseCard(cards['NAXIS2'], int.tryParse);
-          if (w == null || h == null) return null;
-          final exp =
-              _parseCard(cards['EXPTIME'], double.tryParse) ??
-              _parseCard(cards['EXPOSURE'], double.tryParse);
-          return FitsFrameSummary(
-            width: w,
-            height: h,
-            dateObs: tryParseUtcTimestamp(cards['DATE-OBS']),
-            exposureSeconds: exp,
-            filter: cards['FILTER'],
-          );
-        }
-        if (card.length > 10 && card.substring(8, 10) == '= ') {
-          var value = card.substring(10);
-          final slash = value.indexOf(" /");
-          if (!value.trimLeft().startsWith("'") && slash >= 0) {
-            value = value.substring(0, slash);
-          }
-          value = value.trim();
-          if (value.startsWith("'")) {
-            final end = value.indexOf("'", 1);
-            value = value.substring(1, end < 0 ? value.length : end).trim();
-          }
-          cards.putIfAbsent(key, () => value);
-        }
-      }
-    }
-    return null;
+    cards = await const FitsHeaderReader().readPrimaryHeader(path);
   } on FileSystemException {
     return null;
-  } finally {
-    await file?.close();
+  } on FormatException {
+    return null;
   }
+  final w = FitsHeaderReader.intValue(cards, 'NAXIS1');
+  final h = FitsHeaderReader.intValue(cards, 'NAXIS2');
+  if (w == null || h == null) return null;
+  return FitsFrameSummary(
+    width: w,
+    height: h,
+    dateObs: tryParseUtcTimestamp(
+      FitsHeaderReader.stringValue(cards, 'DATE-OBS'),
+    ),
+    exposureSeconds: FitsHeaderReader.firstDouble(cards, const [
+      'EXPTIME',
+      'EXPOSURE',
+    ]),
+    filter: FitsHeaderReader.stringValue(cards, 'FILTER'),
+  );
 }
-
-T? _parseCard<T>(String? raw, T? Function(String) parse) =>
-    raw == null ? null : parse(raw);
 
 /// One source detected in one frame, already placed on the sky through that
 /// frame's own plate solve.

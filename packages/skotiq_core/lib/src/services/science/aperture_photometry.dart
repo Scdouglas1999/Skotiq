@@ -1,4 +1,4 @@
-/// Fixed-aperture photometry on small cutouts of an uncompressed FITS image.
+/// Fixed-aperture photometry on small cutouts of a frame.
 ///
 /// Differential photometry needs every star of a frame measured the same way.
 /// The star detector sums each star inside its own footprint, which grows
@@ -11,6 +11,8 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
+
+import 'package:skotiq_bridge/skotiq_bridge.dart' show apiReadFrameCutouts;
 
 /// One star measured in a circular aperture.
 class ApertureFlux {
@@ -125,23 +127,110 @@ double _sample(ByteData data, int index, _FitsLayout layout) {
 /// FITS row, as the star detector reports them) in a circular aperture of
 /// [radius] pixels, with the sky from an annulus [innerSky]..[outerSky].
 ///
-/// Returns null when the file cannot be read as an uncompressed 2-D image;
-/// an entry is null when its aperture or annulus leaves the image.
+/// Returns null when the file cannot be read as a 2-D image; an entry is null
+/// when its aperture or annulus leaves the image.
+///
+/// An uncompressed FITS file is read here, a few rows per star; any other
+/// frame (XISF, compressed) is decoded by the native frame reader, which
+/// returns the cutouts.
 Future<List<ApertureFlux?>?> measureApertures(
   String path,
   List<({double x, double y})> stars, {
   required double radius,
   required double innerSky,
   required double outerSky,
-}) => Isolate.run(
-  () => _measureApertures(
-    path,
-    stars,
+}) async {
+  if (!await _isFits(path)) {
+    return _measureNativeCutouts(
+      path,
+      stars,
+      radius: radius,
+      innerSky: innerSky,
+      outerSky: outerSky,
+    );
+  }
+  return Isolate.run(
+    () => _measureApertures(
+      path,
+      stars,
+      radius: radius,
+      innerSky: innerSky,
+      outerSky: outerSky,
+    ),
+  );
+}
+
+Future<bool> _isFits(String path) async {
+  RandomAccessFile? file;
+  try {
+    file = await File(path).open();
+    final head = await file.read(9);
+    return String.fromCharCodes(head) == 'SIMPLE  =';
+  } on FileSystemException {
+    return false;
+  } finally {
+    await file?.close();
+  }
+}
+
+Future<List<ApertureFlux?>?> _measureNativeCutouts(
+  String path,
+  List<({double x, double y})> stars, {
+  required double radius,
+  required double innerSky,
+  required double outerSky,
+}) async {
+  final half = outerSky.ceil() + 1;
+  final side = 2 * half + 1;
+  final centers = [
+    for (final star in stars) (x: star.x.round(), y: star.y.round()),
+  ];
+  ApertureFlux? measure(int i, List<double> cut) => apertureFromCutout(
+    Float64List.fromList(cut),
+    width: side,
+    x: stars[i].x - (centers[i].x - half),
+    y: stars[i].y - (centers[i].y - half),
     radius: radius,
     innerSky: innerSky,
     outerSky: outerSky,
-  ),
-);
+  );
+
+  final all = await _nativeCutouts(path, centers, half);
+  if (all != null) {
+    return [
+      for (var i = 0; i < stars.length; i++)
+        measure(i, all.sublist(i * side * side, (i + 1) * side * side)),
+    ];
+  }
+  // One star whose cutout leaves the image refuses the whole batch; measure
+  // the stars one at a time so the rest still count.
+  final results = <ApertureFlux?>[];
+  var anyRead = false;
+  for (var i = 0; i < stars.length; i++) {
+    final cut = await _nativeCutouts(path, [centers[i]], half);
+    anyRead = anyRead || cut != null;
+    results.add(cut == null ? null : measure(i, cut));
+  }
+  return anyRead || stars.isEmpty ? results : null;
+}
+
+/// Cutouts from the native frame reader, or null when it refuses them.
+Future<List<double>?> _nativeCutouts(
+  String path,
+  List<({int x, int y})> centers,
+  int half,
+) async {
+  try {
+    return await apiReadFrameCutouts(
+      filePath: path,
+      centersX: Int32List.fromList([for (final c in centers) c.x]),
+      centersY: Int32List.fromList([for (final c in centers) c.y]),
+      half: half,
+    );
+  } on Object {
+    return null;
+  }
+}
 
 Future<List<ApertureFlux?>?> _measureApertures(
   String path,

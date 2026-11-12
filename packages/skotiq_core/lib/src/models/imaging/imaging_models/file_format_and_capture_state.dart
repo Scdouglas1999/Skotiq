@@ -1,5 +1,13 @@
 part of '../imaging_models.dart';
 
+/// The format of a frame file by its extension: XISF, a camera raw file, or
+/// FITS otherwise.
+ImageFileFormat frameFileFormatOf(String path) {
+  if (path.toLowerCase().endsWith('.xisf')) return ImageFileFormat.xisf;
+  if (FrameFiles.isCameraRaw(path)) return ImageFileFormat.cameraRaw;
+  return ImageFileFormat.fits;
+}
+
 enum ImageFileFormat {
   fits,
   xisf,
@@ -32,14 +40,6 @@ enum ImageFileFormat {
       default:
         return null;
     }
-  }
-
-  /// The record name of the frame file at [path].
-  static String recordNameForPath(String path) {
-    final lower = path.toLowerCase();
-    if (lower.endsWith('.xisf')) return ImageFileFormat.xisf.recordName;
-    if (FrameFiles.isCameraRaw(path)) return ImageFileFormat.cameraRaw.recordName;
-    return ImageFileFormat.fits.recordName;
   }
 
   /// The name [fromRecord] reads back.

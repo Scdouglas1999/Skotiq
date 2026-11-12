@@ -7,7 +7,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `image_data_to_linear_f64`, `one_shot_focus_context`, `sanitize_camera_id`, `thumbnail_generation_gate`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `convert_config`, `convert_result`, `convert_stats`, `defect_apply_flags`, `defect_map_path`, `defect_maps_root`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `image_data_to_linear_f64`, `one_shot_focus_context`, `sanitize_camera_id`, `thumbnail_generation_gate`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
@@ -225,25 +225,6 @@ Future<Uint8List> apiApplyStretch({
   params: params,
 );
 
-/// Read an XISF file
-Future<XisfReadResult> apiReadXisfFile({required String filePath}) =>
-    RustLib.instance.api.crateApiImagingApiReadXisfFile(filePath: filePath);
-
-/// Save image as XISF
-Future<void> apiSaveXisfFile({
-  required String filePath,
-  required int width,
-  required int height,
-  required List<int> data,
-  required List<(String, String)> properties,
-}) => RustLib.instance.api.crateApiImagingApiSaveXisfFile(
-  filePath: filePath,
-  width: width,
-  height: height,
-  data: data,
-  properties: properties,
-);
-
 /// Save image as PNG (16-bit preserving, lossless)
 Future<void> apiSavePngFile({
   required String filePath,
@@ -309,16 +290,57 @@ Future<void> apiSaveRgbaJpegFile({
   quality: quality,
 );
 
+/// Set cards in a frame file's metadata, FITS or XISF, keeping its pixels and
+/// everything else it holds. The file is replaced whole, never left half
+/// written.
+Future<void> apiUpdateFrameCards({
+  required String filePath,
+  required List<FrameCardUpdate> cards,
+}) => RustLib.instance.api.crateApiImagingApiUpdateFrameCards(
+  filePath: filePath,
+  cards: cards,
+);
+
+/// Square cutouts of a mono frame file, `2 * half + 1` pixels on a side,
+/// centered on each (`centers_x[i]`, `centers_y[i]`) (0-based, row 0 = first
+/// stored row), concatenated in that order. A center whose cutout leaves the
+/// image is refused.
+Future<Float64List> apiReadFrameCutouts({
+  required String filePath,
+  required List<int> centersX,
+  required List<int> centersY,
+  required int half,
+}) => RustLib.instance.api.crateApiImagingApiReadFrameCutouts(
+  filePath: filePath,
+  centersX: centersX,
+  centersY: centersY,
+  half: half,
+);
+
+/// Set the file format captured frames are saved in: `format` is `FITS` or
+/// `XISF`; `xisf_compression` names an XISF codec as its `compression`
+/// attribute does (`zstd+sh`, `lz4`, ...) or `none`.
+Future<void> apiSetCaptureFileFormat({
+  required String format,
+  required String xisfCompression,
+  required bool xisfChecksums,
+}) => RustLib.instance.api.crateApiImagingApiSetCaptureFileFormat(
+  format: format,
+  xisfCompression: xisfCompression,
+  xisfChecksums: xisfChecksums,
+);
+
 /// Save the device's last captured frame, without moving its pixels across
-/// the FFI boundary: as FITS at `file_path`, and, when `keep_camera_file` (a
-/// frame the operator keeps, not a live-view or loop scratch frame), the
-/// camera's own file beside it as the camera-file setting says.
+/// the FFI boundary: as the archive file (FITS or XISF, the capture format)
+/// at `file_path`, and, when `keep_camera_file` (a frame the operator keeps,
+/// not a live-view or loop scratch frame), the camera's own file beside it as
+/// the camera-file setting says.
 ///
 /// The header is the one a sequence's frame gets, less the cards that tie a
 /// frame to a run: the rig is read by `skotiq_sequencer::sample_frame_context`
 /// and the file is written by the same `save_frame`.
 ///
-/// Returns the path the frame is recorded by (the FITS file when one is
+/// Returns the path the frame is recorded by (the archive file when one is
 /// written, else the camera's file), or an error if no image has been
 /// captured yet for the specified device.
 Future<String> apiSaveFitsFromLastCapture({
@@ -1373,6 +1395,42 @@ class FocusDataPoint {
           starCount == other.starCount;
 }
 
+/// One card to set in a frame file's metadata. Exactly one value is given.
+class FrameCardUpdate {
+  final String keyword;
+  final String? stringValue;
+  final PlatformInt64? intValue;
+  final double? doubleValue;
+  final String? comment;
+
+  const FrameCardUpdate({
+    required this.keyword,
+    this.stringValue,
+    this.intValue,
+    this.doubleValue,
+    this.comment,
+  });
+
+  @override
+  int get hashCode =>
+      keyword.hashCode ^
+      stringValue.hashCode ^
+      intValue.hashCode ^
+      doubleValue.hashCode ^
+      comment.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FrameCardUpdate &&
+          runtimeType == other.runtimeType &&
+          keyword == other.keyword &&
+          stringValue == other.stringValue &&
+          intValue == other.intValue &&
+          doubleValue == other.doubleValue &&
+          comment == other.comment;
+}
+
 /// Image statistics
 class ImageStatsResult {
   final double min;
@@ -1757,48 +1815,4 @@ class StretchParamsApi {
           shadows == other.shadows &&
           highlights == other.highlights &&
           midtones == other.midtones;
-}
-
-/// XISF file read result
-class XisfReadResult {
-  final int width;
-  final int height;
-  final int channels;
-  final Uint8List displayData;
-  final Uint32List histogram;
-  final ImageStatsResult stats;
-  final List<(String, String)> properties;
-
-  const XisfReadResult({
-    required this.width,
-    required this.height,
-    required this.channels,
-    required this.displayData,
-    required this.histogram,
-    required this.stats,
-    required this.properties,
-  });
-
-  @override
-  int get hashCode =>
-      width.hashCode ^
-      height.hashCode ^
-      channels.hashCode ^
-      displayData.hashCode ^
-      histogram.hashCode ^
-      stats.hashCode ^
-      properties.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is XisfReadResult &&
-          runtimeType == other.runtimeType &&
-          width == other.width &&
-          height == other.height &&
-          channels == other.channels &&
-          displayData == other.displayData &&
-          histogram == other.histogram &&
-          stats == other.stats &&
-          properties == other.properties;
 }
