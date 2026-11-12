@@ -12,19 +12,6 @@ import '../../harness/harness.dart';
 
 const Size _desktop = Size(1646, 960);
 
-class _TutorialsDisabled extends TutorialNotifier {
-  _TutorialsDisabled() : super(_NoopDao()) {
-    // ignore: invalid_use_of_protected_member
-    state = const TutorialProgress(tutorialsEnabled: false);
-  }
-}
-
-class _NoopDao implements TutorialProgressDao {
-  @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError('${invocation.memberName}');
-}
-
 class _BuiltinConnected extends GuiderStateNotifier {
   _BuiltinConnected(super.ref) {
     // ignore: invalid_use_of_protected_member
@@ -57,7 +44,6 @@ void main() {
       size: _desktop,
       settle: false,
       extraOverrides: [
-        tutorialProvider.overrideWith((ref) => _TutorialsDisabled()),
         guiderStateProvider.overrideWith(_BuiltinConnected.new),
         // Stopped, so the guide-star image poll does not start in a test.
         phd2StateProvider.overrideWith((ref) => Phd2State.stopped),

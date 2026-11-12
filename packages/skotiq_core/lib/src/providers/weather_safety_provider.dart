@@ -72,7 +72,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// The verdict last sent to the sequencer, re-sent on every heartbeat so a
   /// quiet spell in the evaluation never reads as a dead feed.
   ({bool? unsafe, bool advisory})? _lastVerdict;
-  int? _lastResumeAfterSecs;
 
   SkyStarEvidence? _starEvidence;
   bool _decisionPolicyWatched = false;
@@ -608,9 +607,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       forecastActs: forecastActs,
       forecastHoldsRun: policy.forecastHoldsRun,
     );
-    if (_decisionPolicyWatched) {
-      _lastResumeAfterSecs = policy.requiredSafeDurationSeconds;
-    }
     unawaited(_pushWeatherVerdict(pushed.unsafe, advisory: pushed.advisory));
 
     if (previousStatus == WeatherSafetyStatus.unsafe &&

@@ -13,7 +13,7 @@ import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations;
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
-import '../../../widgets/tutorial_keys/framing_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../altitude_chart.dart';
 import '../framing_search_provider.dart';
 import 'framing_controls.dart';

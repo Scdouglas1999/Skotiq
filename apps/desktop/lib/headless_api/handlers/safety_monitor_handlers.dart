@@ -56,12 +56,6 @@ class SafetyMonitorHandlers implements RouteSource {
     _ => SafetyFailMode.failClosed,
   };
 
-  String _failModeToSequencer(SafetyFailMode mode) => switch (mode) {
-    SafetyFailMode.failOpen => 'fail_open',
-    SafetyFailMode.failClosed => 'fail_closed',
-    SafetyFailMode.warnOnly => 'warn_only',
-  };
-
   int _parseIntSetting(Map<String, String> settings, String key, int fallback) {
     final raw = settings[key];
     if (raw == null) return fallback;
@@ -293,7 +287,6 @@ class SafetyMonitorHandlers implements RouteSource {
     optionalInt(payload, 'requiredSafeDurationSeconds', min: 0);
 
     final settingsNotifier = container.read(appSettingsProvider.notifier);
-    final backend = container.read(sequencerBackendProvider);
     final safetyConfig = container.read(safetyConfigStoreProvider);
 
     if (failMode != null) {
@@ -301,7 +294,6 @@ class SafetyMonitorHandlers implements RouteSource {
       // safety_fail_mode is owned by app_settings; the notifier setter is the
       // canonical writer so state + persistence stay in lockstep.
       await settingsNotifier.setSafetyFailMode(mode);
-      await backend.sequencerSetSafetyFailMode(_failModeToSequencer(mode));
     }
 
     final autoParkOnUnsafe = optionalBool(payload, 'autoParkOnUnsafe');
@@ -327,7 +319,6 @@ class SafetyMonitorHandlers implements RouteSource {
 
     final checkInterval = optionalInt(payload, 'checkIntervalSeconds');
     if (checkInterval != null) {
-      await backend.sequencerSetSafetyCheckIntervalSeconds(checkInterval);
       await safetyConfig.setCheckIntervalSeconds(checkInterval);
     }
 

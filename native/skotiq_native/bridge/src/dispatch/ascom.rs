@@ -86,37 +86,39 @@ impl DeviceManager {
                 disconnect_existing_ascom!(self.ascom_mounts, "mount");
                 let mut mount = AscomMountWrapper::new(prog_id.to_string())?;
                 mount.connect().await.map_err(|e| e.to_string())?;
+                self.record_declared_mount_frame(&info.id, mount.equatorial_system().await)
+                    .await;
 
                 let mut ascom_mounts = self.ascom_mounts.write().await;
                 ascom_mounts.insert(info.id.clone(), Arc::new(RwLock::new(mount)));
             }
             DeviceType::Focuser => {
                 use crate::ascom_wrapper::focuser::AscomFocuserWrapper;
-                use crate::device_manager::rig::focuser::AscomFocuser;
+                use crate::device_manager::rig::ascom::AscomFocuser;
+                use crate::device_manager::rig::Exclusive;
                 self.disconnect_previous_ascom_handle(&info.id, "focuser ")
                     .await;
-                let mut focuser = AscomFocuserWrapper::new(prog_id.to_string())?;
+                let focuser = AscomFocuserWrapper::new(prog_id.to_string())?;
                 focuser.connect().await.map_err(|e| e.to_string())?;
-
-                self.handles.insert(
-                    &info.id,
-                    DeviceHandle::Focuser(Arc::new(AscomFocuser::new(&info.id, focuser))),
-                );
+                let focuser = AscomFocuser::open(&info.id, Exclusive::new(focuser))
+                    .await
+                    .map_err(|e| e.to_string())?;
+                self.handles
+                    .insert(&info.id, DeviceHandle::Focuser(Arc::new(focuser)));
             }
             DeviceType::FilterWheel => {
                 use crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper;
-                use crate::device_manager::rig::filter_wheel::AscomWheel;
+                use crate::device_manager::rig::ascom::AscomFilterWheel;
+                use crate::device_manager::rig::Exclusive;
 
                 self.disconnect_previous_ascom_handle(&info.id, "filter wheel ")
                     .await;
 
-                let mut fw = AscomFilterWheelWrapper::new(prog_id.to_string())?;
+                let fw = AscomFilterWheelWrapper::new(prog_id.to_string())?;
                 fw.connect().await.map_err(|e| e.to_string())?;
-
-                self.handles.insert(
-                    &info.id,
-                    DeviceHandle::FilterWheel(Arc::new(AscomWheel::new(&info.id, fw))),
-                );
+                let fw = AscomFilterWheel::new(&info.id, Exclusive::new(fw));
+                self.handles
+                    .insert(&info.id, DeviceHandle::FilterWheel(Arc::new(fw)));
             }
             DeviceType::Rotator => {
                 use crate::ascom_wrapper::rotator::AscomRotatorWrapper;

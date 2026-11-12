@@ -117,12 +117,12 @@ class _NodeTreeView extends ConsumerWidget {
       if (node is TargetHeaderNode) {
         final anchor = siblings.where((n) => n is TargetHeaderNode).firstOrNull;
         if (anchor?.id == nodeId) {
-          tutorialKey = SequencerTutorialKeys.targetNode;
+          tutorialKey = TourTarget.sequencerTargetNode.key;
         }
       } else if (node is ExposureNode) {
         final anchor = siblings.where((n) => n is ExposureNode).firstOrNull;
         if (anchor?.id == nodeId) {
-          tutorialKey = SequencerTutorialKeys.captureNode;
+          tutorialKey = TourTarget.sequencerCaptureNode.key;
         }
       }
     }
@@ -633,7 +633,7 @@ class _NodeTreeView extends ConsumerWidget {
       final anchor =
           sequence.getChildren(nodeId).whereType<ExposureNode>().firstOrNull;
       if (anchor != null && group.memberIds.contains(anchor.id)) {
-        tutorialKey = SequencerTutorialKeys.captureNode;
+        tutorialKey = TourTarget.sequencerCaptureNode.key;
       }
     }
 

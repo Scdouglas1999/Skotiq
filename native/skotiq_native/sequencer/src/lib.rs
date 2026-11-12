@@ -62,7 +62,7 @@ pub use checkpoint::*;
 // Replay Debug — hoist the decision types so the bridge can use
 // them without pathing through `skotiq_sequencer::decision::…`.
 pub use decision::{
-    emit_decision, DecisionCategory, DecisionEvent, DecisionReceiver, DecisionSender,
+    emit_decision, DecisionCategory, DecisionEvent, DecisionReceiver, DecisionSender, RunNotice,
     DEFAULT_DECISION_CHANNEL_CAPACITY,
 };
 pub use depth_goal::{

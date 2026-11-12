@@ -6,7 +6,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../widgets/catalog_overlay_widget.dart'
     show CatalogOverlayPopover;
-import '../../../widgets/tutorial_keys/imaging_keys.dart';
+import '../../../tours/tour_target.dart';
 import 'annotation_panel.dart' show annotationPanelVisibleProvider;
 import 'custom_annotation_drawing.dart'
     show customAnnotationDrawModeActiveProvider, toggleAnnotationDrawPalette;
@@ -174,7 +174,7 @@ class _ImagingPreviewToolbarState extends ConsumerState<ImagingPreviewToolbar> {
               const _CatalogOverlaySettingsButton(),
               if (showAbort)
                 SkotiqIconButton(
-                  key: ImagingTutorialKeys.abortBtn,
+                  key: TourTarget.imagingAbortButton.key,
                   icon: SkotiqIcons.close,
                   tooltip: 'Abort capture',
                   size: IconButtonSize.sm,
@@ -212,7 +212,7 @@ class _ImagingPreviewToolbarState extends ConsumerState<ImagingPreviewToolbar> {
               constraints: BoxConstraints(minWidth: constraints.maxWidth),
               child: IntrinsicWidth(
                 child: Row(
-                  key: ImagingTutorialKeys.zoomControls,
+                  key: TourTarget.imagingZoomControls.key,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     meta,

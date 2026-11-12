@@ -73,7 +73,7 @@ class MobileViewControls extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           MobileControlButton(
-            key: PlanetariumTutorialKeys.fovToggle,
+            key: TourTarget.planetariumFovToggle.key,
             icon: SkotiqIcons.frame,
             isActive: showFOV,
             onTap: onToggleFOV,
@@ -274,7 +274,7 @@ class MobileSlewControls extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           MobileControlButton(
-            key: PlanetariumTutorialKeys.slewBtn,
+            key: TourTarget.planetariumSlewButton.key,
             icon: SkotiqIcons.move,
             isActive: slewMode,
             isEnabled: isConnected,

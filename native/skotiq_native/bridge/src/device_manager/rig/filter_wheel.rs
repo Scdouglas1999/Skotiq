@@ -1,4 +1,6 @@
 //! The filter wheel behind its handle, once per protocol. Slots are 0-based.
+//! The ASCOM filter wheel, over Alpaca or COM, is
+//! [`super::ascom::AscomFilterWheel`].
 
 use super::{closed, Exclusive, RigDriver};
 use crate::api::devices::simulation::get_sim_filterwheel;
@@ -7,7 +9,6 @@ use crate::device_manager::ops::{sim_faults, sim_gate};
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
-use skotiq_alpaca::AlpacaFilterWheel;
 use skotiq_device::{DriverError, FilterWheelDriver};
 use skotiq_indi::names as indi;
 use skotiq_indi::IndiFilterWheel;
@@ -106,34 +107,21 @@ impl FilterWheel for VendorFilterWheel {
         // starts, and a ZWO EFW can return SDK success for a command that
         // never changes the encoder position. The move has succeeded only
         // once the wheel reads back the requested slot.
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-        let mut last_position = None;
-        loop {
-            let read = self.driver.read().await.get_position().await;
-            match read {
-                Ok(current) if current == slot => return Ok(()),
-                Ok(current) => last_position = Some(current),
-                Err(error) if closed(&error) => return Err(self.not_connected()),
-                Err(error) => {
-                    tracing::warn!(
-                        "Native filter wheel {} readback failed while moving to {}: {}",
-                        device_id,
-                        slot,
-                        error
-                    );
-                }
-            }
-            if tokio::time::Instant::now() >= deadline {
-                return Err(DeviceOpError::hardware(
-                    Some(device_id.clone()),
-                    format!(
-                        "Native filter wheel {} did not reach slot {} within 60s (last position: {:?})",
-                        device_id, slot, last_position
-                    ),
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
+        super::ascom::wait_for_slot("Native", device_id, slot, Duration::from_secs(60), || async {
+            self.driver
+                .read()
+                .await
+                .get_position()
+                .await
+                .map_err(|error| {
+                    if closed(&error) {
+                        self.not_connected()
+                    } else {
+                        DeviceOpError::from(error)
+                    }
+                })
+        })
+        .await
     }
 
     async fn position(&self) -> Result<i32, DeviceOpError> {
@@ -198,219 +186,6 @@ impl FilterWheel for VendorFilterWheel {
             // `FilterWheelDriver` requires `set_filter_name`: every vendor
             // wheel can be renamed (a ZWO EFW keeps the names it is given).
             can_set_filter_names: true,
-            ..Default::default()
-        })
-    }
-}
-
-/// An ASCOM filter wheel. Every call is a command on the wrapper's channel,
-/// run by the STA worker.
-#[cfg(windows)]
-pub(crate) struct AscomWheel {
-    device_id: String,
-    driver: Exclusive<crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper>,
-}
-
-#[cfg(windows)]
-impl AscomWheel {
-    pub(crate) fn new(
-        device_id: &str,
-        wrapper: crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper,
-    ) -> Self {
-        Self {
-            device_id: device_id.to_string(),
-            driver: Exclusive::new(wrapper),
-        }
-    }
-}
-
-#[cfg(windows)]
-#[async_trait]
-impl RigDriver for AscomWheel {
-    async fn disconnect(&self) -> Result<(), DriverError> {
-        use skotiq_device::DeviceDriver;
-        self.driver.write().await.disconnect().await
-    }
-
-    async fn heartbeat(&self) -> Result<bool, String> {
-        match self.driver.read().await.heartbeat().await {
-            Ok(()) => {
-                tracing::trace!("ASCOM filter wheel {} heartbeat: healthy", self.device_id);
-                Ok(true)
-            }
-            Err(e) => {
-                tracing::debug!(
-                    "ASCOM filter wheel {} heartbeat failed: {:?}",
-                    self.device_id,
-                    e
-                );
-                Ok(false)
-            }
-        }
-    }
-}
-
-#[cfg(windows)]
-#[async_trait]
-impl FilterWheel for AscomWheel {
-    async fn move_to_slot(&self, slot: i32) -> Result<(), DeviceOpError> {
-        let device_id = &self.device_id;
-        let mut wheel = self.driver.write().await;
-        wheel.move_to_position(slot).await.map_err(|e| {
-            DeviceOpError::caused_by(
-                Some(device_id.clone()),
-                format!(
-                    "Failed to move ASCOM filter wheel {} to slot {}: {}",
-                    device_id, slot, e
-                ),
-                e,
-            )
-        })
-    }
-
-    async fn position(&self) -> Result<i32, DeviceOpError> {
-        let wheel = self.driver.read().await;
-        wheel.get_position().await.map_err(DeviceOpError::from)
-    }
-
-    async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-        let wheel = self.driver.read().await;
-        wheel.is_moving().await.map_err(DeviceOpError::from)
-    }
-
-    /// One Position read supplies both values; that read can be an expensive
-    /// or persistently failing COM property (the ZWO EFW driver in a headless
-    /// session), so it is not repeated.
-    async fn is_moving_at(&self, position: i32) -> Result<bool, DeviceOpError> {
-        Ok(position == -1)
-    }
-
-    async fn config(&self) -> Result<(i32, Vec<String>), DeviceOpError> {
-        let wheel = self.driver.read().await;
-        let names = wheel
-            .get_filter_names()
-            .await
-            .map_err(DeviceOpError::from)?;
-        let count = names.len() as i32;
-        Ok((count, names))
-    }
-
-    async fn set_names(&self, _names: Vec<String>) -> Result<(), DeviceOpError> {
-        let msg = "ASCOM filter names are managed by the driver and cannot be set programmatically";
-        tracing::warn!("filter_wheel_set_filter_names: {}", msg);
-        Err(DeviceOpError::unsupported(msg))
-    }
-
-    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
-        // A failed Names read is not a wheel without filters: a 0-slot wheel
-        // makes the scheduler reject every filtered target. ASCOM Names is
-        // one of the reads that intermittently throws 0x80020009 headless.
-        let filter_names = self
-            .driver
-            .read()
-            .await
-            .get_filter_names()
-            .await
-            .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
-        // An empty list is a wheel without custom names; it still has the
-        // slots the driver reports.
-        let slot_count = self.driver.read().await.get_filter_count();
-        let current_position = self.driver.read().await.get_position().await.ok();
-        Ok(FilterWheelCapabilities {
-            position_count: if filter_names.is_empty() {
-                slot_count
-            } else {
-                i32::try_from(filter_names.len()).unwrap_or(i32::MAX)
-            },
-            current_position,
-            filter_names,
-            focus_offsets: Vec::new(),
-            can_set_focus_offsets: false,
-            ..Default::default()
-        })
-    }
-}
-
-#[async_trait]
-impl RigDriver for AlpacaFilterWheel {
-    async fn disconnect(&self) -> Result<(), DriverError> {
-        Ok(AlpacaFilterWheel::disconnect(self).await?)
-    }
-
-    async fn heartbeat(&self) -> Result<bool, String> {
-        match AlpacaFilterWheel::heartbeat(self).await {
-            Ok(rtt_ms) => {
-                tracing::trace!("Alpaca filter wheel heartbeat: {}ms RTT", rtt_ms);
-                Ok(true)
-            }
-            Err(e) => {
-                tracing::debug!("Alpaca filter wheel heartbeat failed: {}", e);
-                Ok(false)
-            }
-        }
-    }
-}
-
-#[async_trait]
-impl FilterWheel for AlpacaFilterWheel {
-    async fn move_to_slot(&self, slot: i32) -> Result<(), DeviceOpError> {
-        self.set_position(slot).await.map_err(DeviceOpError::from)
-    }
-
-    async fn position(&self) -> Result<i32, DeviceOpError> {
-        AlpacaFilterWheel::position(self)
-            .await
-            .map_err(DeviceOpError::from)
-    }
-
-    /// Alpaca reports motion as position -1.
-    async fn is_moving(&self) -> Result<bool, DeviceOpError> {
-        Ok(AlpacaFilterWheel::position(self).await? == -1)
-    }
-
-    async fn config(&self) -> Result<(i32, Vec<String>), DeviceOpError> {
-        let names = self.names().await?;
-        let count = names.len() as i32;
-        Ok((count, names))
-    }
-
-    async fn set_names(&self, _names: Vec<String>) -> Result<(), DeviceOpError> {
-        let msg = "Alpaca filter names are read-only and cannot be set programmatically";
-        tracing::warn!("filter_wheel_set_filter_names: {}", msg);
-        Err(DeviceOpError::unsupported(msg))
-    }
-
-    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
-        // A failed Names read is not a wheel without filters: a 0-slot wheel
-        // makes the scheduler reject every filtered target. An empty list
-        // that the wheel did answer is passed on as it is.
-        let filter_names = self.names().await.map_err(|e| {
-            SkotiqError::connection_failed(
-                device_id,
-                format!("Failed to read Alpaca filter wheel names: {e}"),
-            )
-        })?;
-        // No offsets only loses per-filter focus compensation, so the read
-        // goes on, but says so: it looks the same as a wheel with none set.
-        let focus_offsets = match self.focus_offsets().await {
-            Ok(offsets) => offsets,
-            Err(e) => {
-                tracing::warn!(
-                    "Alpaca filter wheel {}: focus-offset read failed ({}); per-filter \
-                     focus compensation will be skipped for this wheel.",
-                    device_id,
-                    e
-                );
-                Vec::new()
-            }
-        };
-        Ok(FilterWheelCapabilities {
-            position_count: filter_names.len() as i32,
-            current_position: AlpacaFilterWheel::position(self).await.ok(),
-            filter_names,
-            focus_offsets,
-            // Alpaca has no IsMoving for a wheel; motion is position -1.
-            is_moving: false,
             ..Default::default()
         })
     }

@@ -9,7 +9,7 @@ import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../localization/skotiq_localizations.dart';
-import '../../widgets/tutorial_keys/settings_keys.dart';
+import '../../tours/tour_target.dart';
 import 'settings_catalog.dart';
 import 'settings_search_index.g.dart';
 import 'widgets/host_settings_notice.dart';

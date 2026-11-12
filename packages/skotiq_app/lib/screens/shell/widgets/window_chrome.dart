@@ -10,7 +10,7 @@ import '../../../localization/skotiq_localizations.dart';
 import '../../../widgets/command_palette/command_palette.dart';
 import '../../../widgets/remote_connection_indicator.dart';
 import '../../../widgets/transient_alert_badge.dart';
-import '../../../widgets/tutorial_overlay.dart' show TutorialKeys;
+import '../../../tours/tour_target.dart';
 import '../shell_chrome.dart';
 import 'shell_clock.dart';
 import 'shell_help_popover.dart';
@@ -347,7 +347,7 @@ class ShellTopBand extends StatelessWidget {
             // tour can spotlight where Plate Solving lives.
             Builder(
               builder: (context) => SkotiqIconButton(
-                key: TutorialKeys.navSettings,
+                key: TourTarget.navSettings.key,
                 icon: LucideIcons.settings,
                 tooltip: l10n.text('settingsTitle'),
                 tooltipPosition: SkotiqTooltipPosition.bottom,

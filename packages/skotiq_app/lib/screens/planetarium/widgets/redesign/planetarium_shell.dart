@@ -95,7 +95,7 @@ extension _PlanetariumShell on _PlanetariumScreenState {
                           final imageryActive =
                               ref.watch(planetariumSkyImageryActiveProvider);
                           return FullScreenSkyView(
-                            key: PlanetariumTutorialKeys.skyView,
+                            key: TourTarget.planetariumSkyView.key,
                             showFOV: _showFOV,
                             onObjectTapped: _handleObjectTapped,
                             observedObjectIds: observedIds,

@@ -32,7 +32,7 @@ void main() {
     expect(backend.mountPark('mount'), notConnected);
     expect(backend.focuserHalt('focuser'), notConnected);
     expect(backend.autofocusCancel(), notConnected);
-    expect(backend.phd2GetStatus(), notConnected);
+    expect(backend.guiderGetStatus(), notConnected);
     expect(backend.sequencerStart(), notConnected);
     expect(backend.sequencerGetStatus(), notConnected);
     expect(backend.getProfiles(), notConnected);

@@ -10,7 +10,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/framing/framing_screen.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_panel_parts.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/framing_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -203,7 +203,7 @@ void main() {
     expect(find.byTooltip('Save target'), findsOneWidget);
     expect(
       tester
-          .widget<SlewDropdownButton>(find.byKey(FramingTutorialKeys.slewBtn))
+          .widget<SlewDropdownButton>(find.byKey(TourTarget.framingSlewButton.key))
           .isEnabled,
       isTrue,
     );

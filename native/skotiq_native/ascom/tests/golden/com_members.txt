@@ -19,6 +19,7 @@ AscomCamera::set_bin_x(1) | put BinX(I4 1) -> void | Failed to set property BinX
 AscomCamera::set_bin_y(1) | put BinY(I4 1) -> void | Failed to set property BinY: {cause} | -
 AscomCamera::can_set_ccd_temperature() | get CanSetCCDTemperature() -> BOOL | Failed to get property CanSetCCDTemperature: {cause} | Property CanSetCCDTemperature is not a bool
 AscomCamera::ccd_temperature() | get CCDTemperature() -> R8 | Failed to get property CCDTemperature: {cause} | Property CCDTemperature is not a double
+AscomCamera::ccd_temperature_setpoint() | get SetCCDTemperature() -> R8 | Failed to get property SetCCDTemperature: {cause} | Property SetCCDTemperature is not a double
 AscomCamera::set_ccd_temperature(1.5) | put SetCCDTemperature(R8 1.5) -> void | Failed to set property SetCCDTemperature: {cause} | -
 AscomCamera::cooler_on() | get CoolerOn() -> BOOL | Failed to get property CoolerOn: {cause} | Property CoolerOn is not a bool
 AscomCamera::set_cooler_on(true) | put CoolerOn(BOOL true) -> void | Failed to set property CoolerOn: {cause} | -
@@ -27,10 +28,15 @@ AscomCamera::gain() | get Gain() -> I4 | Failed to get property Gain: {cause} | 
 AscomCamera::set_gain(1) | put Gain(I4 1) -> void | Failed to set property Gain: {cause} | -
 AscomCamera::offset() | get Offset() -> I4 | Failed to get property Offset: {cause} | Property Offset is not an int (VARIANT type={vt})
 AscomCamera::set_offset(1) | put Offset(I4 1) -> void | Failed to set property Offset: {cause} | -
+AscomCamera::gains() | get Gains() -> SAFEARRAY(BSTR) | Failed to get property Gains: {cause} | Property Gains is not a string array: {detail}
+AscomCamera::offsets() | get Offsets() -> SAFEARRAY(BSTR) | Failed to get property Offsets: {cause} | Property Offsets is not a string array: {detail}
+AscomCamera::exposure_min() | get ExposureMin() -> R8 | Failed to get property ExposureMin: {cause} | Property ExposureMin is not a double
+AscomCamera::exposure_max() | get ExposureMax() -> R8 | Failed to get property ExposureMax: {cause} | Property ExposureMax is not a double
 AscomCamera::camera_state() | get CameraState() -> I4 | Failed to get property CameraState: {cause} | Property CameraState is not an int (VARIANT type={vt})
 AscomCamera::image_ready() | get ImageReady() -> BOOL | Failed to get property ImageReady: {cause} | Property ImageReady is not a bool
 AscomCamera::percent_completed() | get PercentCompleted() -> I4 | Failed to get property PercentCompleted: {cause} | Property PercentCompleted is not an int (VARIANT type={vt})
 AscomCamera::start_exposure(1.5, true) | method StartExposure(R8 1.5, BOOL true) -> void | Failed to call method StartExposure: {cause} | -
+AscomCamera::start_exposure(0.0, false) | method StartExposure(R8 0.0, BOOL false) -> void | Failed to call method StartExposure: {cause} | -
 AscomCamera::abort_exposure() | method AbortExposure() -> void | Failed to call method AbortExposure: {cause} | -
 AscomCamera::stop_exposure() | method StopExposure() -> void | Failed to call method StopExposure: {cause} | -
 AscomCamera::image_array() | get ImageArray() -> SAFEARRAY(I4) | Failed to get ImageArray property: {cause} | {detail}
@@ -199,6 +205,8 @@ AscomMount::tracking_rate() | get TrackingRate() -> I4 | Failed to get property 
 AscomMount::set_tracking_rate(1) | put TrackingRate(I4 1) -> void | Failed to set property TrackingRate: {cause} | -
 AscomMount::can_move_axis(1) | method CanMoveAxis(I4 1) -> BOOL | Failed to call method CanMoveAxis: {cause} | Method CanMoveAxis did not return a boolean
 AscomMount::move_axis(1, 2.5) | method MoveAxis(I4 1, R8 2.5) -> void | Failed to call method MoveAxis: {cause} | -
+AscomMount::equatorial_system() | get EquatorialSystem() -> I4 | Failed to get property EquatorialSystem: {cause} | Property EquatorialSystem is not an int (VARIANT type={vt})
+AscomMount::can_set_pier_side() | get CanSetPierSide() -> BOOL | Failed to get property CanSetPierSide: {cause} | Property CanSetPierSide is not a bool
 AscomMount::heartbeat() | connection.heartbeat
 AscomObservingConditions::connect() | connection.connect
 AscomObservingConditions::disconnect() | connection.disconnect

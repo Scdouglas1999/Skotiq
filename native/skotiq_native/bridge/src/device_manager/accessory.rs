@@ -38,6 +38,64 @@ use tokio::sync::RwLock;
 #[async_trait]
 pub(crate) trait Rotator: RotatorDriver {
     async fn capabilities(&self, device_id: &str) -> Result<RotatorCapabilities, SkotiqError>;
+
+    /// Degrees the mechanism is at, before any sync offset.
+    async fn mechanical_position(&self) -> Result<f64, DriverError>;
+}
+
+/// The `IRotatorV4` properties beyond the [`RotatorDriver`] operations,
+/// carried by Alpaca or COM. What they mean is decided once, in
+/// [`ascom_rotator_capabilities`] and [`ascom_mechanical_position`].
+#[async_trait]
+pub(crate) trait AscomRotatorMembers: RotatorDriver {
+    async fn interface_version(&self) -> Result<i32, DriverError>;
+    async fn can_reverse(&self) -> Result<bool, DriverError>;
+    async fn reverse(&self) -> Result<bool, DriverError>;
+    /// Degrees.
+    async fn step_size(&self) -> Result<f64, DriverError>;
+    async fn ascom_mechanical_position(&self) -> Result<f64, DriverError>;
+}
+
+/// `Sync`, `MoveMechanical` and `MechanicalPosition` arrived with IRotatorV3;
+/// a driver that does not say its version is taken as V1.
+async fn ascom_rotator_version(rotator: &dyn AscomRotatorMembers) -> i32 {
+    rotator.interface_version().await.unwrap_or(1)
+}
+
+/// Before IRotatorV3 there is no sync offset, so the mechanism is at
+/// `Position`.
+pub(crate) async fn ascom_mechanical_position(
+    rotator: &dyn AscomRotatorMembers,
+) -> Result<f64, DriverError> {
+    if ascom_rotator_version(rotator).await >= 3 {
+        rotator.ascom_mechanical_position().await
+    } else {
+        rotator.position().await
+    }
+}
+
+/// An unanswered optional property means the feature is absent. `Reverse` is
+/// read only where `CanReverse` says it exists, as NINA does. `Halt` and
+/// `MoveAbsolute` are offered; a driver without them says so when called.
+/// IRotator has no angle limits: positions wrap within 0-360.
+pub(crate) async fn ascom_rotator_capabilities(
+    rotator: &dyn AscomRotatorMembers,
+) -> RotatorCapabilities {
+    let version = ascom_rotator_version(rotator).await;
+    let can_reverse = rotator.can_reverse().await.unwrap_or(false);
+    RotatorCapabilities {
+        can_reverse,
+        reverse: can_reverse && rotator.reverse().await.unwrap_or(false),
+        step_size: rotator.step_size().await.ok(),
+        is_moving: rotator.is_moving().await.unwrap_or(false),
+        mechanical_position: ascom_mechanical_position(rotator).await.ok(),
+        position: rotator.position().await.ok(),
+        can_move_absolute: true,
+        can_halt: true,
+        can_sync: version >= 3,
+        min_angle_deg: None,
+        max_angle_deg: None,
+    }
 }
 
 #[async_trait]
@@ -149,29 +207,37 @@ pub(crate) async fn cover_calibrator_capabilities(
     }
 }
 
-// Alpaca. The rotator's `unwrap_or` defaults are what the ASCOM interface
-// means when a driver does not implement an optional property: the feature is
-// absent, the device is not in that state. The dome and weather station
-// follow the shared rules of `skotiq_device::ascom`.
+// Alpaca. The rotator follows `ascom_rotator_capabilities` above, the dome
+// and weather station the rules of `skotiq_device::ascom`; the COM wrappers
+// use the same ones.
+
+#[async_trait]
+impl AscomRotatorMembers for AlpacaRotator {
+    async fn interface_version(&self) -> Result<i32, DriverError> {
+        Ok(AlpacaRotator::interface_version(self).await?)
+    }
+    async fn can_reverse(&self) -> Result<bool, DriverError> {
+        Ok(AlpacaRotator::can_reverse(self).await?)
+    }
+    async fn reverse(&self) -> Result<bool, DriverError> {
+        Ok(AlpacaRotator::reverse(self).await?)
+    }
+    async fn step_size(&self) -> Result<f64, DriverError> {
+        Ok(AlpacaRotator::step_size(self).await?)
+    }
+    async fn ascom_mechanical_position(&self) -> Result<f64, DriverError> {
+        Ok(AlpacaRotator::mechanical_position(self).await?)
+    }
+}
 
 #[async_trait]
 impl Rotator for AlpacaRotator {
     async fn capabilities(&self, _device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
-        Ok(RotatorCapabilities {
-            // IRotatorV3.CanReverse; rotators before V3 cannot reverse.
-            can_reverse: self.can_reverse().await.unwrap_or(false),
-            reverse: AlpacaRotator::reverse(self).await.unwrap_or(false),
-            step_size: self.step_size().await.ok(),
-            is_moving: AlpacaRotator::is_moving(self).await.unwrap_or(false),
-            mechanical_position: self.mechanical_position().await.ok(),
-            position: AlpacaRotator::position(self).await.ok(),
-            can_move_absolute: true,
-            can_halt: true,
-            can_sync: true,
-            // IRotatorV3 has no angle limits: positions wrap within 0-360.
-            min_angle_deg: None,
-            max_angle_deg: None,
-        })
+        Ok(ascom_rotator_capabilities(self).await)
+    }
+
+    async fn mechanical_position(&self) -> Result<f64, DriverError> {
+        ascom_mechanical_position(self).await
     }
 }
 
@@ -318,6 +384,15 @@ impl Rotator for IndiRotator {
             min_angle_deg: limits.as_ref().and_then(|l| l.min),
             max_angle_deg: limits.as_ref().and_then(|l| l.max),
         })
+    }
+
+    /// The raw (encoder) angle where the driver publishes one, otherwise the
+    /// one angle it has.
+    async fn mechanical_position(&self) -> Result<f64, DriverError> {
+        match self.get_mechanical_position().await {
+            Ok(angle) => Ok(angle),
+            Err(_) => RotatorDriver::position(self).await,
+        }
     }
 }
 

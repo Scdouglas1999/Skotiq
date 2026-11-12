@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/imaging_screen.dart';
 import 'package:skotiq_app/screens/imaging/widgets/guiding_active_chip.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_capture_bar.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/imaging_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 
 import '../../golden/surface_golden_harness.dart';
@@ -147,7 +147,7 @@ void main() {
     final scrollable = tester.state<ScrollableState>(
       find
           .ancestor(
-            of: find.byKey(ImagingTutorialKeys.zoomControls),
+            of: find.byKey(TourTarget.imagingZoomControls.key),
             matching: find.byType(Scrollable),
           )
           .first,

@@ -10,6 +10,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         SequencerErrorKind;
 import '../backend/bridge_event_mapper.dart';
 import '../backend/sequencer_error_kind.dart';
+import '../backend/sequencer_notice.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
@@ -243,7 +244,7 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       // what happened (the step's error, the heartbeat's equipment Error).
       final message = _eventMessage(event);
       if (message == null) return;
-      if (_isAnnouncedRunWarning(event, message)) return;
+      if (_isAnnouncedRunWarning(event)) return;
 
       // A sequencer event the notification router classifies is the router's
       // to tell: a failed run (once per run, with its reason) and an
@@ -318,13 +319,14 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
   });
 });
 
-/// True for the run's Warning about a happening it carried on through, which
-/// the notification router announces from the decision row
-/// ([isContinuedHappeningWarning]).
-bool _isAnnouncedRunWarning(core.SkotiqEvent event, String message) =>
-    event.category == core.EventCategory.sequencer &&
+/// True for the run's Warning about a happening it carried on through. The
+/// notification router announces it from the decision row with the same
+/// notice, and Tonight lists the Warning with the run's warnings, so a toast
+/// would tell the same happening twice.
+bool _isAnnouncedRunWarning(core.SkotiqEvent event) =>
+    event.eventType == 'Error' &&
     event.severity == core.EventSeverity.warning &&
-    isContinuedHappeningWarning(message);
+    sequencerNoticeOf(event) != null;
 
 /// The sentence a backend event carries, or null when it carries none.
 String? _eventMessage(core.SkotiqEvent event) {

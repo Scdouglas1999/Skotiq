@@ -24,7 +24,7 @@ import 'providers/finder_chart_catalog_provider.dart';
 import '../../services/mount_command_service.dart';
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/tutorial_keys/planetarium_keys.dart';
+import '../../tours/tour_target.dart';
 import 'sky_imagery/planetarium_sky_imagery_layer.dart';
 import 'sky_imagery/planetarium_sky_imagery_providers.dart';
 import 'widgets/full_screen_sky_view.dart';

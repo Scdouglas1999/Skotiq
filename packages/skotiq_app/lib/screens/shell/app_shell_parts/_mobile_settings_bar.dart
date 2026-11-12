@@ -53,7 +53,7 @@ class _MobileSettingsBar extends ConsumerWidget {
           const RemoteConnectionIndicator(compact: true),
           if (status != null) status,
           SkotiqIconButton(
-            key: TutorialKeys.navSettings,
+            key: TourTarget.navSettings.key,
             icon: SkotiqIcons.settings,
             tooltip: l10n.text('settingsTitle'),
             tooltipPosition: SkotiqTooltipPosition.bottom,

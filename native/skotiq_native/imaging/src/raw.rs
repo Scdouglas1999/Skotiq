@@ -11,7 +11,7 @@
 //! `libraw_shim.c`, which build.rs compiles against the headers of the linked
 //! library, so struct layouts always agree with the library at run time.
 
-use crate::raw_clock::{camera_clock, CameraClock};
+use crate::raw_exif::{camera_record, CameraClock, CameraRecord};
 use crate::{ColorFilterArray, FitsHeader, ImageData};
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_float, c_int, c_longlong, c_uint, c_ushort, c_void};
@@ -49,6 +49,7 @@ struct RawInfoFfi {
     raw_height: c_int,
     raw_bps: c_int,
     white_level: c_uint,
+    linear_max: c_uint,
     filters: c_uint,
     colors: c_int,
     dng_version: c_int,
@@ -157,12 +158,20 @@ impl Maker {
     /// darks on when the sensor itself has none.
     ///
     /// Canon writes only `CameraTemperature`, measured on the sensor board,
-    /// which EOS capture tools report as the sensor temperature. LibRaw reads
-    /// Pentax's `CameraTemperature` but not its `SensorTemperature`. Olympus,
-    /// Sony, Nikon, Panasonic and Fujifilm either record the sensor itself or
-    /// only an ambient or body value that does not track the sensor.
+    /// which EOS capture tools report as the sensor temperature. Pentax bodies
+    /// without a `TempInfo` block in their maker note record only the body
+    /// reading. Olympus, Sony, Nikon, Panasonic and Fujifilm either record the
+    /// sensor itself or only an ambient or body value that does not track the
+    /// sensor.
     fn body_temperature_stands_for_sensor(self) -> bool {
         matches!(self, Maker::Canon | Maker::Pentax)
+    }
+
+    /// Whether LibRaw's linear maximum for this maker is what the camera
+    /// recorded. For Nikon LibRaw fills in its own estimate (white level /
+    /// 1.07), which real frames exceed.
+    fn records_linear_max(self) -> bool {
+        self != Maker::Nikon
     }
 }
 
@@ -213,8 +222,13 @@ pub struct RawFrame {
     pub cfa: ColorFilterArray,
     /// The sensor's bit depth, from its white level.
     pub bits_per_pixel: u32,
-    /// The saturation level: the largest value a pixel can hold.
+    /// The largest value a pixel can hold (LibRaw `color.maximum`).
     pub white_level: u32,
+    /// Where the sensor stops responding linearly: the camera's recorded
+    /// linear maximum when it is below the white level (a Canon CR3 at ISO
+    /// 100 records 11892 in a 16383 container; it varies with the ISO), else
+    /// the white level. Only saturation checks use it.
+    pub saturation_level: u32,
     /// Black level at each position of the filter cell, row-major
     /// (`cfa.cell_size()` squared entries).
     pub black_levels: Vec<u32>,
@@ -236,7 +250,7 @@ impl RawFrame {
         header.set_int("BLKLEVEL", self.black_level() as i64);
         header.set_comment("BLKLEVEL", "camera black level (ADU), not subtracted");
         header.set_int("DATAMAX", self.white_level as i64);
-        header.set_comment("DATAMAX", "camera white (saturation) level (ADU)");
+        header.set_comment("DATAMAX", "camera white level (ADU)");
         header.set_int("BITDEPTH", self.bits_per_pixel as i64);
         header
     }
@@ -256,8 +270,7 @@ fn describe_into(
     height: u32,
     cfa: Option<&ColorFilterArray>,
 ) {
-    header.set_int("NAXIS1", width as i64);
-    header.set_int("NAXIS2", height as i64);
+    header.set_image_size(width, height, 1);
     let instrument = [meta.make.as_str(), meta.model.as_str()]
         .iter()
         .filter(|s| !s.is_empty())
@@ -430,11 +443,17 @@ fn positive(value: f32) -> Option<f32> {
 }
 
 /// The temperature to describe a frame by: the sensor's own reading when the
-/// camera recorded one, else the body reading for makers whose body reading
-/// tracks the sensor.
-fn frame_temperature(maker: Maker, info: &RawInfoFfi) -> Option<SensorTemperature> {
+/// camera recorded one (LibRaw's, else a maker-note block LibRaw does not
+/// read), else the body reading for makers whose body reading tracks the
+/// sensor.
+fn frame_temperature(
+    maker: Maker,
+    info: &RawInfoFfi,
+    maker_note_sensor: Option<f32>,
+) -> Option<SensorTemperature> {
     recorded(info.sensor_temperature)
         .or_else(|| recorded(info.sensor_temperature2))
+        .or(maker_note_sensor)
         .map(|celsius| SensorTemperature {
             celsius,
             source: TemperatureSource::Sensor,
@@ -471,7 +490,7 @@ fn capture_time(
     }
 }
 
-fn metadata_from(info: &RawInfoFfi, clock: Option<CameraClock>) -> RawMetadata {
+fn metadata_from(info: &RawInfoFfi, record: CameraRecord) -> RawMetadata {
     let make = text(&info.make);
     let maker = Maker::from_make(&make);
     let lens = text(&info.lens);
@@ -486,8 +505,8 @@ fn metadata_from(info: &RawInfoFfi, clock: Option<CameraClock>) -> RawMetadata {
             .map(|s| s.to_string().parse::<f64>().unwrap_or(s as f64)),
         f_number: positive(info.aperture),
         focal_length_mm: positive(info.focal_length),
-        captured_at: capture_time(clock, info.timestamp),
-        temperature: frame_temperature(maker, info),
+        captured_at: capture_time(record.clock, info.timestamp),
+        temperature: frame_temperature(maker, info, record.sensor_celsius),
     }
 }
 
@@ -517,7 +536,15 @@ fn bits_for_white_level(white_level: u32, raw_bps: c_int) -> u32 {
     }
 }
 
-fn decode(processor: Processor, clock: Option<CameraClock>) -> Result<RawFrame, RawError> {
+fn saturation_level(maker: Maker, white_level: u32, linear_max: u32) -> u32 {
+    if maker.records_linear_max() && linear_max > 0 && linear_max < white_level {
+        linear_max
+    } else {
+        white_level
+    }
+}
+
+fn decode(processor: Processor, record: CameraRecord) -> Result<RawFrame, RawError> {
     processor.unpack()?;
     let info = processor.describe()?;
     let cfa = color_filter_from(&info)?;
@@ -546,26 +573,33 @@ fn decode(processor: Processor, clock: Option<CameraClock>) -> Result<RawFrame, 
         cfa,
         bits_per_pixel: bits_for_white_level(info.white_level, info.raw_bps),
         white_level: info.white_level,
+        saturation_level: saturation_level(
+            Maker::from_make(&text(&info.make)),
+            info.white_level,
+            info.linear_max,
+        ),
         black_levels: info.cfa_black[..cell * cell].to_vec(),
-        metadata: metadata_from(&info, clock),
+        metadata: metadata_from(&info, record),
     })
 }
 
 /// Decode a raw file on disk.
 pub fn read_raw_file(path: &Path) -> Result<RawFrame, RawError> {
     let processor = Processor::open_path(path)?;
-    decode(processor, file_clock(path))
+    decode(processor, file_record(path))
 }
 
 /// Decode a raw file held in memory, as a camera download delivers it.
 pub fn read_raw_bytes(bytes: &[u8]) -> Result<RawFrame, RawError> {
     let processor = Processor::open_bytes(bytes)?;
-    decode(processor, camera_clock(&mut std::io::Cursor::new(bytes)))
+    decode(processor, camera_record(&mut std::io::Cursor::new(bytes)))
 }
 
-fn file_clock(path: &Path) -> Option<CameraClock> {
-    let file = std::fs::File::open(path).ok()?;
-    camera_clock(&mut std::io::BufReader::new(file))
+fn file_record(path: &Path) -> CameraRecord {
+    match std::fs::File::open(path) {
+        Ok(file) => camera_record(&mut std::io::BufReader::new(file)),
+        Err(_) => CameraRecord::default(),
+    }
 }
 
 /// A raw file's header without decoding the sensor data. The black and white
@@ -578,20 +612,12 @@ pub fn read_raw_header(path: &Path) -> Result<FitsHeader, RawError> {
     let mut header = FitsHeader::new();
     describe_into(
         &mut header,
-        &metadata_from(&info, file_clock(path)),
+        &metadata_from(&info, file_record(path)),
         info.width.max(0) as u32,
         info.height.max(0) as u32,
         cfa.as_ref(),
     );
     Ok(header)
-}
-
-/// The extension a raw file in `data` usually has, from its first bytes.
-/// `None` when the bytes are not a camera raw format (a JPEG, for example).
-pub fn raw_format_extension(data: &[u8]) -> Option<&'static str> {
-    crate::ImageFormat::from_magic_bytes(data)
-        .filter(|format| format.is_raw())
-        .map(|format| format.extension())
 }
 
 #[cfg(test)]
@@ -627,7 +653,7 @@ mod tests {
         olympus.sensor_temperature = 32.0;
         olympus.camera_temperature = 5.0;
         assert_eq!(
-            frame_temperature(Maker::Olympus, &olympus),
+            frame_temperature(Maker::Olympus, &olympus, None),
             Some(SensorTemperature { celsius: 32.0, source: TemperatureSource::Sensor })
         );
     }
@@ -637,12 +663,22 @@ mod tests {
         let mut body_only = info();
         body_only.camera_temperature = 21.0;
         let body = Some(SensorTemperature { celsius: 21.0, source: TemperatureSource::CameraBody });
-        assert_eq!(frame_temperature(Maker::Canon, &body_only), body);
-        assert_eq!(frame_temperature(Maker::Pentax, &body_only), body);
+        assert_eq!(frame_temperature(Maker::Canon, &body_only, None), body);
+        assert_eq!(frame_temperature(Maker::Pentax, &body_only, None), body);
         for maker in [Maker::Nikon, Maker::Sony, Maker::Olympus, Maker::Panasonic, Maker::Fujifilm] {
-            assert_eq!(frame_temperature(maker, &body_only), None, "{maker:?}");
+            assert_eq!(frame_temperature(maker, &body_only, None), None, "{maker:?}");
         }
-        assert_eq!(frame_temperature(Maker::Canon, &info()), None);
+        assert_eq!(frame_temperature(Maker::Canon, &info(), None), None);
+    }
+
+    #[test]
+    fn a_maker_note_sensor_reading_wins_over_the_body() {
+        let mut pentax = info();
+        pentax.camera_temperature = 29.0;
+        assert_eq!(
+            frame_temperature(Maker::Pentax, &pentax, Some(32.4)),
+            Some(SensorTemperature { celsius: 32.4, source: TemperatureSource::Sensor })
+        );
     }
 
     #[test]
@@ -654,6 +690,7 @@ mod tests {
             cfa: ColorFilterArray::parse("RGGB").unwrap(),
             bits_per_pixel: 14,
             white_level: 16383,
+            saturation_level: 11892,
             black_levels: vec![510, 511, 511, 510],
             metadata: RawMetadata {
                 make: "Canon".into(),
@@ -711,6 +748,16 @@ mod tests {
     }
 
     #[test]
+    fn a_recorded_linear_maximum_below_white_is_the_saturation_level() {
+        assert_eq!(saturation_level(Maker::Canon, 16383, 11892), 11892);
+        // Above the white level (a 12-bit Canon) or not recorded: white.
+        assert_eq!(saturation_level(Maker::Canon, 3651, 3780), 3651);
+        assert_eq!(saturation_level(Maker::Sony, 16383, 0), 16383);
+        // LibRaw's own estimate for Nikon is not the camera's.
+        assert_eq!(saturation_level(Maker::Nikon, 4095, 3827), 4095);
+    }
+
+    #[test]
     fn bit_depth_comes_from_the_white_level() {
         assert_eq!(bits_for_white_level(16383, 14), 14);
         assert_eq!(bits_for_white_level(3651, 12), 12);
@@ -747,6 +794,5 @@ mod tests {
     fn bytes_that_are_no_raw_are_refused() {
         assert!(read_raw_bytes(&[]).is_err());
         assert!(read_raw_bytes(&[0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10, b'J', b'F', b'I', b'F']).is_err());
-        assert_eq!(raw_format_extension(&[0xFF; 64]), None);
     }
 }

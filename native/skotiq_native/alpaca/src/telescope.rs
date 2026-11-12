@@ -5,15 +5,22 @@ use skotiq_device::ascom::{AlignmentMode, AxisRate, DriveRate, PierSide, Telesco
 
 /// Capability endpoints are optional in practice even when a server exposes
 /// the rest of the Telescope API. Treat an explicit not-implemented response
-/// as `false`, while preserving transport and malformed-response failures.
+/// (ASCOM `NotImplemented` by number, or a server that has no such endpoint
+/// and says so) as `false`, while preserving transport and malformed-response
+/// failures.
 fn capability_or_unsupported(result: Result<bool, AlpacaError>) -> Result<bool, AlpacaError> {
     match result {
         Ok(value) => Ok(value),
-        Err(error)
-            if error
-                .to_string()
-                .to_ascii_lowercase()
-                .contains("not implemented") =>
+        Err(AlpacaError::DeviceError { code, ref message })
+            if matches!(
+                skotiq_device::ascom::classify_error_number(code, message),
+                Some(skotiq_device::DriverError::NotSupported)
+            ) =>
+        {
+            Ok(false)
+        }
+        Err(AlpacaError::HttpError { ref message, .. })
+            if message.to_ascii_lowercase().contains("not implemented") =>
         {
             Ok(false)
         }
@@ -333,6 +340,17 @@ mod tests {
         ));
         let refused = AlpacaError::connection_refused("http://127.0.0.1:1", "connection refused");
         assert!(capability_or_unsupported(Err(refused)).is_err());
+        // The ASCOM number decides, whatever words the driver chose.
+        let by_number = AlpacaError::DeviceError {
+            code: 0x400,
+            message: "Property CanSetPark is not available in this driver".to_string(),
+        };
+        assert!(matches!(capability_or_unsupported(Err(by_number)), Ok(false)));
+        let not_connected = AlpacaError::DeviceError {
+            code: 0x407,
+            message: "not implemented while disconnected".to_string(),
+        };
+        assert!(capability_or_unsupported(Err(not_connected)).is_err());
     }
 
     async fn serve_alpaca_response(

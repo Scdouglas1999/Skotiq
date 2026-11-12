@@ -154,6 +154,10 @@ pub struct CameraStatus {
     pub pixel_size_x: f64,
     pub pixel_size_y: f64,
     pub max_adu: u32,
+    /// Where the sensor stops responding linearly, when the camera records it
+    /// below `max_adu` (`skotiq_device::SensorInfo::saturation_adu`). Only
+    /// saturation checks use it.
+    pub saturation_adu: Option<u32>,
     pub can_cool: bool,
     pub can_set_gain: bool,
     pub can_set_offset: bool,

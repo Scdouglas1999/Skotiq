@@ -29,6 +29,7 @@ async fn register_native_test_device(id: &str, device_type: crate::device::Devic
             heartbeat_active: false,
             desired_cooler: None,
             desired_tracking: None,
+            declared_mount_frame: None,
         },
     );
     invalidate_capability_cache_for_device(id).await;
@@ -214,6 +215,7 @@ impl skotiq_device::CameraDriver for FakeRangedCamera {
             bit_depth: 16,
             color: false,
             bayer_pattern: None,
+            saturation_adu: None,
         }
     }
     async fn get_readout_modes(

@@ -7,7 +7,7 @@
 
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
-use crate::device_manager::rig::focuser::AlpacaFocuserHandle;
+use crate::device_manager::rig::ascom::{AscomFilterWheel, AscomFocuser};
 use crate::device_manager::DeviceManager;
 use std::sync::Arc;
 
@@ -43,22 +43,27 @@ impl DeviceManager {
             DeviceType::Mount => {
                 let telescope = AlpacaTelescope::from_server(&base_url, device_number);
                 telescope.connect().await.map_err(|e| e.to_string())?;
+                self.record_declared_mount_frame(&info.id, telescope.equatorial_system().await)
+                    .await;
                 let mut alpaca_mounts = self.alpaca_mounts.write().await;
                 alpaca_mounts.insert(info.id.clone(), Arc::new(telescope));
             }
             DeviceType::Focuser => {
                 let focuser = AlpacaFocuser::from_server(&base_url, device_number);
                 focuser.connect().await.map_err(|e| e.to_string())?;
-                self.handles.insert(
-                    &info.id,
-                    DeviceHandle::Focuser(Arc::new(AlpacaFocuserHandle::new(&info.id, focuser))),
-                );
+                let focuser = AscomFocuser::open(&info.id, focuser)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                self.handles
+                    .insert(&info.id, DeviceHandle::Focuser(Arc::new(focuser)));
             }
             DeviceType::FilterWheel => {
                 let fw = AlpacaFilterWheel::from_server(&base_url, device_number);
                 fw.connect().await.map_err(|e| e.to_string())?;
-                self.handles
-                    .insert(&info.id, DeviceHandle::FilterWheel(Arc::new(fw)));
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::FilterWheel(Arc::new(AscomFilterWheel::new(&info.id, fw))),
+                );
             }
             DeviceType::Rotator => {
                 let rotator = AlpacaRotator::from_server(&base_url, device_number);

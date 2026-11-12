@@ -86,7 +86,7 @@ class FramingMosaicSection extends ConsumerWidget {
     final on = framingState.mosaicEnabled && hasEquipment;
 
     return FramingPanelSection(
-      key: FramingTutorialKeys.mosaicBtn,
+      key: TourTarget.framingMosaicButton.key,
       title: 'Mosaic',
       note: on ? '${config.columns}×${config.rows}' : null,
       divider: false,

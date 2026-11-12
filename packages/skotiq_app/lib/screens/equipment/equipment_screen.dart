@@ -13,6 +13,7 @@ import 'widgets/equipment_readiness_panel.dart';
 import 'widgets/profile_scan_notice.dart';
 import 'widgets/switch_control_card.dart';
 import 'dialogs/profile_editor_dialog.dart';
+import 'equipment_route.dart';
 import 'tabs/settings_tab.dart';
 import 'profile_actions.dart';
 import 'utils/connect_all_summary.dart';
@@ -22,7 +23,7 @@ import 'utils/session_device_save.dart';
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/device_type_ui.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/tutorial_keys/equipment_keys.dart';
+import '../../tours/tour_target.dart';
 import '../sequencer/widgets/run_dashboard/recovery_banner.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 
@@ -33,8 +34,8 @@ part 'equipment_screen/layout_rail.dart';
 part 'equipment_screen/progress_dashboard.dart';
 part 'equipment_screen/sidebar_onboarding.dart';
 
-/// Which page-header tab the Equipment screen is showing: 0 Devices,
-/// 1 Profiles, 2 Optical train.
+/// Which page-header tab the Equipment screen is showing, as an index into
+/// [EquipmentTab].
 final equipmentTabIndexProvider = StateProvider<int>((ref) => 0);
 
 /// Whether the right-hand side panel (profile, readiness, system health) is
@@ -57,7 +58,10 @@ const EdgeInsets _bodyPadding = EdgeInsets.symmetric(
 );
 
 class EquipmentScreen extends ConsumerStatefulWidget {
-  const EquipmentScreen({super.key});
+  const EquipmentScreen({super.key, this.requestedTab});
+
+  /// The tab a link asked for (`?tab=`); null leaves the tab as it was.
+  final EquipmentTab? requestedTab;
 
   @override
   ConsumerState<EquipmentScreen> createState() => _EquipmentScreenState();
@@ -65,6 +69,29 @@ class EquipmentScreen extends ConsumerStatefulWidget {
 
 class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
     with ProfileActions<EquipmentScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _showRequestedTab();
+  }
+
+  @override
+  void didUpdateWidget(EquipmentScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.requestedTab != oldWidget.requestedTab) _showRequestedTab();
+  }
+
+  void _showRequestedTab() {
+    final tab = widget.requestedTab;
+    if (tab == null) return;
+    // A provider must not change while the tree that watches it is building.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(equipmentTabIndexProvider.notifier).state = tab.index;
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     watchProfileAuthority();
@@ -147,7 +174,10 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
               onSelected: (index) =>
                   ref.read(equipmentTabIndexProvider.notifier).state = index,
               tabs: [
-                const AdaptiveTab(label: 'Devices'),
+                AdaptiveTab(
+                  label: 'Devices',
+                  buttonKey: TourTarget.equipmentDevicesTab.key,
+                ),
                 AdaptiveTab(
                   label: 'Profiles',
                   count: profiles.isEmpty ? null : '${profiles.length}',
@@ -197,6 +227,7 @@ class _EquipmentScreenState extends ConsumerState<EquipmentScreen>
                     onPressed: disconnectAllDevices,
                   ),
                 _HeaderAction(
+                  key: TourTarget.equipmentScanButton.key,
                   label: 'Scan for devices',
                   icon: LucideIcons.search,
                   iconOnly: narrowHeader,
@@ -309,6 +340,7 @@ class _HeaderAction extends StatelessWidget {
   final VoidCallback onPressed;
 
   const _HeaderAction({
+    super.key,
     required this.label,
     required this.icon,
     required this.iconOnly,

@@ -106,7 +106,9 @@ macro_rules! ascom_cover_calibrator_members {
     };
 }
 
-/// `IRotatorV3`
+/// `IRotatorV4`. A move may block until done (V3 and before) or return as it
+/// starts (V4), so it waits the long timeout and is sent once: resending a
+/// relative `Move` whose reply was lost would turn the rotator twice.
 #[macro_export]
 macro_rules! ascom_rotator_members {
     ($callback:ident) => {
@@ -119,16 +121,16 @@ macro_rules! ascom_rotator_members {
             get can_reverse() -> bool = "CanReverse";
             get reverse() -> bool = "Reverse";
             set set_reverse(reverse: bool) = "Reverse";
-            call move_relative(offset: f64 = "Position") = "Move";
-            call move_absolute(position: f64 = "Position") = "MoveAbsolute";
-            call move_mechanical(position: f64 = "Position") = "MoveMechanical";
+            call move_relative(offset: f64 = "Position") = "Move" [long];
+            call move_absolute(position: f64 = "Position") = "MoveAbsolute" [long];
+            call move_mechanical(position: f64 = "Position") = "MoveMechanical" [long];
             call halt() = "Halt";
             call sync(position: f64 = "Position") = "Sync";
         }
     };
 }
 
-/// `IFilterWheelV2`
+/// `IFilterWheelV3`
 #[macro_export]
 macro_rules! ascom_filter_wheel_members {
     ($callback:ident) => {
@@ -141,7 +143,7 @@ macro_rules! ascom_filter_wheel_members {
     };
 }
 
-/// `IFocuserV3`
+/// `IFocuserV4`
 #[macro_export]
 macro_rules! ascom_focuser_members {
     ($callback:ident) => {
@@ -195,7 +197,7 @@ macro_rules! ascom_dome_members {
     };
 }
 
-/// `ITelescopeV3`
+/// `ITelescopeV4`
 #[macro_export]
 macro_rules! ascom_telescope_members {
     ($callback:ident) => {
@@ -254,6 +256,7 @@ macro_rules! ascom_telescope_members {
             get can_set_tracking() -> bool = "CanSetTracking";
             get can_pulse_guide() -> bool = "CanPulseGuide";
             get can_set_guide_rates() -> bool = "CanSetGuideRates";
+            get can_set_pier_side() -> bool = "CanSetPierSide";
             get can_set_right_ascension_rate() -> bool = "CanSetRightAscensionRate";
             get can_set_declination_rate() -> bool = "CanSetDeclinationRate";
             call can_move_axis(axis: i32 = "Axis") -> bool = "CanMoveAxis"
@@ -294,8 +297,8 @@ macro_rules! ascom_telescope_members {
     };
 }
 
-/// `ICameraV3`. `ImageArray` is transferred by hand-written code in each
-/// transport.
+/// `ICameraV4`. `ImageArray` is transferred by hand-written code in each
+/// transport; what the members mean is decided in [`super::camera`].
 #[macro_export]
 macro_rules! ascom_camera_members {
     ($callback:ident) => {
@@ -320,6 +323,7 @@ macro_rules! ascom_camera_members {
             get can_set_ccd_temperature() -> bool = "CanSetCCDTemperature";
             get can_get_cooler_power() -> bool = "CanGetCoolerPower";
             get ccd_temperature() -> f64 = "CCDTemperature";
+            get ccd_temperature_setpoint() -> f64 = "SetCCDTemperature";
             set set_ccd_temperature(temp: f64) = "SetCCDTemperature";
             get cooler_on() -> bool = "CoolerOn";
             set set_cooler_on(on: bool) = "CoolerOn";
@@ -330,15 +334,19 @@ macro_rules! ascom_camera_members {
             set set_gain(gain: i32) = "Gain";
             get gain_min() -> i32 = "GainMin";
             get gain_max() -> i32 = "GainMax";
+            get gains() -> Vec<String> = "Gains";
             get offset() -> i32 = "Offset";
             set set_offset(offset: i32) = "Offset";
             get offset_min() -> i32 = "OffsetMin";
             get offset_max() -> i32 = "OffsetMax";
+            get offsets() -> Vec<String> = "Offsets";
 
             get camera_state() -> i32 as $crate::ascom::CameraState = "CameraState";
             get image_ready() -> bool = "ImageReady";
             get is_pulse_guiding() -> bool = "IsPulseGuiding";
             get percent_completed() -> i32 = "PercentCompleted";
+            get exposure_min() -> f64 = "ExposureMin";
+            get exposure_max() -> f64 = "ExposureMax";
             call start_exposure(duration: f64 = "Duration", light: bool = "Light") = "StartExposure";
             call abort_exposure() = "AbortExposure";
             call stop_exposure() = "StopExposure";

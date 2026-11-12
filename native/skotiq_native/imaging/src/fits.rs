@@ -107,7 +107,6 @@ impl FitsValue {
     /// Why this and not `format!("{:?}", value)`: Debug emits the Rust variant
     /// syntax (`Float(120.0)`), and any consumer that carries a flattened
     /// header back into a FITS file then ships `EXPTIME = 'Float(120.0)'`.
-    /// `FitsHeader::set_value_token` reads this form back into typed cards.
     pub fn to_header_string(&self) -> String {
         match self {
             FitsValue::String(s) => s.clone(),
@@ -157,42 +156,17 @@ impl FitsHeader {
         self.keywords.insert(key_upper, FitsValue::Boolean(value));
     }
 
-    /// Restore a keyword from plain header text — the form
-    /// `FitsValue::to_header_string` produces and `ImageReadResult::header`
-    /// carries.
-    ///
-    /// Why not `set_string`: a header flattened to text and put back with
-    /// `set_string` becomes a quoted string card, so a calibrated frame ships
-    /// `EXPTIME = '120.0'` and `get_float("EXPTIME")` — plus PixInsight, ASTAP
-    /// and Siril — read nothing. Recovering the type restores real numeric
-    /// cards.
-    ///
-    /// Limit of the flattened form: a *string* value that reads as a number or
-    /// as `T`/`F` (`OBJECT = '61'`) comes back typed. Carrying the typed
-    /// `FitsHeader` instead of a `HashMap<String, String>` is the only way to
-    /// remove that ambiguity.
-    pub fn set_value_token(&mut self, key: &str, token: &str) {
-        // Deliberately not `parse_fits_value`: that takes a whole card body and
-        // splits a trailing `/ comment` off, which would truncate an unquoted
-        // path value such as `/data/darks/master.fits` to nothing.
-        let text = token.trim();
-        let value = if text == "T" {
-            FitsValue::Boolean(true)
-        } else if text == "F" {
-            FitsValue::Boolean(false)
-        } else if let Ok(i) = text.parse::<i64>() {
-            FitsValue::Integer(i)
-        } else if let Ok(f) = text.replace('D', "E").replace('d', "e").parse::<f64>() {
-            FitsValue::Float(f)
-        } else {
-            FitsValue::String(token.to_string())
-        };
-
-        let key_upper = key.to_uppercase();
-        if !self.keyword_order.contains(&key_upper) {
-            self.keyword_order.push(key_upper.clone());
+    /// State the image size as a FITS file does: `NAXIS`, `NAXIS1` (width),
+    /// `NAXIS2` (height) and, for more than one channel, `NAXIS3`. Every
+    /// format's header read gives these, so a caller learns a frame's size
+    /// without decoding it.
+    pub fn set_image_size(&mut self, width: u32, height: u32, channels: u32) {
+        self.set_int("NAXIS", if channels > 1 { 3 } else { 2 });
+        self.set_int("NAXIS1", i64::from(width));
+        self.set_int("NAXIS2", i64::from(height));
+        if channels > 1 {
+            self.set_int("NAXIS3", i64::from(channels));
         }
-        self.keywords.insert(key_upper, value);
     }
 
     /// Attach an inline comment to an existing keyword. Emitted as

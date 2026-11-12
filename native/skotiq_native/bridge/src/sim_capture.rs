@@ -86,11 +86,8 @@ pub(crate) async fn sim_sky_view(
         let (pointing_ra, pointing_dec) =
             crate::device_manager::ops::sim_runaway::physical_pointing()
                 .unwrap_or((mount.status.right_ascension, mount.status.declination));
-        let (ra_hours, dec_deg) = crate::device_manager::epoch::mount_frame_to_j2000(
-            crate::device::DriverType::Simulator,
-            pointing_ra,
-            pointing_dec,
-        );
+        let (ra_hours, dec_deg) = crate::device_manager::epoch::MountFrame::for_driver(crate::device::DriverType::Simulator)
+            .mount_to_j2000(pointing_ra, pointing_dec);
         (ra_hours * 15.0, dec_deg)
     };
     if !centre_ra_deg.is_finite() || !centre_dec_deg.is_finite() {
@@ -357,10 +354,11 @@ async fn sim_pointing_deg() -> Option<(f64, f64)> {
 
 /// Whether the rig's active guider reports guiding. No guider is not guiding.
 async fn sim_rig_is_guiding() -> bool {
-    let Some(guider_id) = crate::api::phd2::get_active_guider_id_for_ops().await else {
+    let Ok(Some(guider)) = crate::guider::Guider::active().await else {
         return false;
     };
-    crate::api::phd2::api_guider_get_status(guider_id)
+    guider
+        .status()
         .await
         .is_ok_and(|status| status.state == "Guiding")
 }

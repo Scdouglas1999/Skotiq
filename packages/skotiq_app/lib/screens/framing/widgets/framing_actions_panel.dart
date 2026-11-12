@@ -23,7 +23,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import 'package:skotiq_app/widgets/plate_solver_required_banner.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
-import '../../../widgets/tutorial_keys/framing_keys.dart';
+import '../../../tours/tour_target.dart';
 import '../framing_altaz.dart';
 import 'framing_panel_parts.dart';
 
@@ -173,7 +173,7 @@ class _FramingTelescopeSectionState
       children: [
         if (hasTarget)
           SlewDropdownButton(
-            key: FramingTutorialKeys.slewBtn,
+            key: TourTarget.framingSlewButton.key,
             // Slew to where the reticle was dragged, not the view center.
             ra: aimTarget!.raHours,
             dec: aimTarget.decDegrees,

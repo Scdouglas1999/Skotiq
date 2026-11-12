@@ -16,7 +16,7 @@ import 'package:skotiq_app/screens/polar_alignment/polar_alignment_screen.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import 'package:skotiq_app/widgets/tutorial_keys/polar_alignment_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 
 import '../../golden/surface_golden_harness.dart';
 import '../../harness/pump_app_screen.dart';
@@ -177,7 +177,7 @@ void main() {
       reason: 'the checklist heads the settings column',
     );
     expect(
-      tester.getRect(find.byKey(PolarAlignmentTutorialKeys.errorDisplay)).width,
+      tester.getRect(find.byKey(TourTarget.polarErrorDisplay.key)).width,
       greaterThan(_desktop.width / 2),
       reason: 'with nothing running the error display takes the center too',
     );
@@ -187,7 +187,7 @@ void main() {
     await _pump(tester);
     expect(tester.takeException(), isNull);
 
-    final display = find.byKey(PolarAlignmentTutorialKeys.errorDisplay);
+    final display = find.byKey(TourTarget.polarErrorDisplay.key);
     final paint = find.descendant(
       of: display,
       matching: find.byWidgetPredicate(
@@ -256,7 +256,7 @@ void main() {
     // The rail's last step is on screen, not cut off at the column edge.
     final adjustStep = tester.getRect(find.text('Adjust').first);
     final display =
-        tester.getRect(find.byKey(PolarAlignmentTutorialKeys.errorDisplay));
+        tester.getRect(find.byKey(TourTarget.polarErrorDisplay.key));
     expect(adjustStep.right, lessThanOrEqualTo(display.left));
 
     // A first measurement from a mount set up by eye: degrees off.

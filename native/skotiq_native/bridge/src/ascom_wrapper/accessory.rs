@@ -5,7 +5,9 @@
 
 use super::rotator::AscomRotatorWrapper;
 use crate::device_capabilities::RotatorCapabilities;
-use crate::device_manager::accessory::Rotator;
+use crate::device_manager::accessory::{
+    ascom_mechanical_position, ascom_rotator_capabilities, AscomRotatorMembers, Rotator,
+};
 use crate::dispatch::DeviceOpError;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -31,7 +33,7 @@ macro_rules! ascom_accessory {
     };
 }
 
-ascom_accessory!(AscomRotatorWrapper, position);
+ascom_accessory!(AscomRotatorWrapper, heartbeat);
 
 #[async_trait]
 impl RotatorDriver for AscomRotatorWrapper {
@@ -72,29 +74,33 @@ impl RotatorDriver for AscomRotatorWrapper {
 // device is not in that state.
 
 #[async_trait]
+impl AscomRotatorMembers for AscomRotatorWrapper {
+    async fn interface_version(&self) -> Result<i32, DriverError> {
+        AscomRotatorWrapper::interface_version(self).await.map_err(com)
+    }
+    async fn can_reverse(&self) -> Result<bool, DriverError> {
+        AscomRotatorWrapper::can_reverse(self).await.map_err(com)
+    }
+    async fn reverse(&self) -> Result<bool, DriverError> {
+        AscomRotatorWrapper::reverse(self).await.map_err(com)
+    }
+    async fn step_size(&self) -> Result<f64, DriverError> {
+        AscomRotatorWrapper::step_size(self).await.map_err(com)
+    }
+    async fn ascom_mechanical_position(&self) -> Result<f64, DriverError> {
+        AscomRotatorWrapper::mechanical_position(self)
+            .await
+            .map_err(com)
+    }
+}
+
+#[async_trait]
 impl Rotator for AscomRotatorWrapper {
     async fn capabilities(&self, _device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
-        // CanReverse and Sync arrived in IRotatorV3; a driver that does not
-        // say its version is taken as V1.
-        let is_v3 = AscomRotatorWrapper::interface_version(self)
-            .await
-            .unwrap_or(0)
-            >= 3;
-        Ok(RotatorCapabilities {
-            can_reverse: is_v3,
-            reverse: false,
-            step_size: None,
-            is_moving: AscomRotatorWrapper::is_moving(self)
-                .await
-                .unwrap_or(false),
-            mechanical_position: self.mechanical_position().await.ok(),
-            position: AscomRotatorWrapper::position(self).await.ok(),
-            can_move_absolute: true,
-            can_halt: true,
-            can_sync: is_v3,
-            // IRotatorV3 has no angle limits: positions wrap within 0-360.
-            min_angle_deg: None,
-            max_angle_deg: None,
-        })
+        Ok(ascom_rotator_capabilities(self).await)
+    }
+
+    async fn mechanical_position(&self) -> Result<f64, DriverError> {
+        ascom_mechanical_position(self).await
     }
 }

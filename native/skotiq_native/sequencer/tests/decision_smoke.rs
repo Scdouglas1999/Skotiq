@@ -4,7 +4,7 @@
 //! pair from outside the crate, so a future refactor that breaks the
 //! contract fails fast.
 
-use skotiq_sequencer::{DecisionCategory, DecisionEvent, SequenceExecutor};
+use skotiq_sequencer::{DecisionCategory, DecisionEvent, RunNotice, SequenceExecutor};
 
 #[tokio::test]
 async fn executor_emit_decision_round_trips_through_channel() {
@@ -30,13 +30,41 @@ async fn executor_emit_decision_round_trips_through_channel() {
 async fn disabling_logging_short_circuits_emit() {
     let executor = SequenceExecutor::new();
     let _rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.decision_logging_enabled = false)
+        .await
+        .unwrap();
     let sent = executor.emit_decision(DecisionEvent::new(
         DecisionCategory::SystemEvent,
         "should be dropped",
         serde_json::Value::Null,
     ));
     assert!(!sent, "emit_decision must return false when disabled");
+}
+
+#[tokio::test]
+async fn a_row_the_operator_is_notified_from_goes_out_with_logging_off() {
+    let executor = SequenceExecutor::new();
+    let mut rx = executor.subscribe_decisions();
+    executor
+        .handle()
+        .update_run_config(|config| config.decision_logging_enabled = false)
+        .await
+        .expect("decision logging setting applies");
+    let sent = executor.emit_decision(
+        DecisionEvent::new(
+            DecisionCategory::SystemEvent,
+            "Problem noticed — the run continues",
+            serde_json::json!({ "source": "Center" }),
+        )
+        .with_notice(RunNotice::ProblemNoticed),
+    );
+    assert!(sent);
+    assert_eq!(
+        rx.recv().await.expect("notice row delivered").notice,
+        Some(RunNotice::ProblemNoticed)
+    );
 }
 
 #[tokio::test]
@@ -127,7 +155,11 @@ async fn stop_origin_selects_the_decision_category() {
     // Operator (None) origin -> ManualIntervention, even with logging OFF.
     let mut executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.decision_logging_enabled = false)
+        .await
+        .unwrap();
     let _ = executor.stop().await;
     let received = rx.recv().await.expect("operator stop decision delivered");
     assert_eq!(received.category, DecisionCategory::ManualIntervention);
@@ -136,7 +168,11 @@ async fn stop_origin_selects_the_decision_category() {
     // Rollback origin -> gated SystemEvent; silenced when logging is off.
     let mut executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
-    executor.set_decision_logging_enabled(false).await;
+    executor
+        .handle()
+        .update_run_config(|config| config.decision_logging_enabled = false)
+        .await
+        .unwrap();
     let _ = executor
         .stop_with_origin(skotiq_sequencer::StopOrigin::from_wire(Some("rollback")))
         .await;

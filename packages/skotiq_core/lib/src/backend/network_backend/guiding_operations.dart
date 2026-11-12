@@ -1,7 +1,6 @@
 part of '../network_backend.dart';
 
 mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
-
   @override
   Future<bool> isPhd2Running({
     String host = 'localhost',
@@ -63,67 +62,6 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     await _post('phd2/disconnect');
   }
 
-  @override
-  Future<void> phd2StartGuiding({
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) async {
-    await _post('phd2/start-guiding', {
-      'settlePixels': settlePixels,
-      'settleTime': settleTime,
-      'settleTimeout': settleTimeout,
-    });
-  }
-
-  @override
-  Future<void> phd2StopGuiding() async {
-    await _post('phd2/stop-guiding');
-  }
-
-  @override
-  Future<void> phd2Dither({
-    double amount = 5.0,
-    bool raOnly = false,
-    double settlePixels = 1.0,
-    double settleTime = 10.0,
-    double settleTimeout = 60.0,
-  }) async {
-    await _post('phd2/dither', {
-      'amount': amount,
-      'raOnly': raOnly,
-      'settlePixels': settlePixels,
-      'settleTime': settleTime,
-      'settleTimeout': settleTimeout,
-    });
-  }
-
-  @override
-  Future<Phd2Status> phd2GetStatus() async {
-    final response = await _get('phd2/status');
-    return Phd2Status(
-      state: _requiredGuidingString(response, 'state', 'phd2/status'),
-      connected: _requiredGuidingBool(response, 'connected', 'phd2/status'),
-      rmsRa: _requiredGuidingDouble(response, 'rmsRa', 'phd2/status'),
-      rmsDec: _requiredGuidingDouble(response, 'rmsDec', 'phd2/status'),
-      rmsTotal: _requiredGuidingDouble(response, 'rmsTotal', 'phd2/status'),
-      snr: _requiredGuidingDouble(response, 'snr', 'phd2/status'),
-      starMass: _requiredGuidingDouble(response, 'starMass', 'phd2/status'),
-      avgDistance: _requiredGuidingDouble(
-        response,
-        'avgDistance',
-        'phd2/status',
-      ),
-      // Per-star list from the built-in multi-star guider (empty for PHD2).
-      // Rides through the status JSON as a `trackedStars` array — no FRB regen.
-      // This field was added after the original status route, so its absence on
-      // an older host is the one supported compatibility case.
-      trackedStars: _networkTrackedStars(response),
-      // Why the guider is stopped; absent on hosts older than the field.
-      stopReason: response['stopReason'] as String?,
-    );
-  }
-
   String _requiredGuidingString(
     Map<String, dynamic> response,
     String key,
@@ -171,7 +109,7 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     final raw = response['trackedStars'];
     if (raw is! List) {
       throw const FormatException(
-        'GET /api/phd2/status returned a non-list `trackedStars` field',
+        'GET /api/guider/status returned a non-list `trackedStars` field',
       );
     }
 
@@ -179,7 +117,7 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     for (final value in raw) {
       if (value is! Map) {
         throw const FormatException(
-          'GET /api/phd2/status returned a non-object tracked star',
+          'GET /api/guider/status returned a non-object tracked star',
         );
       }
       final star = Map<String, dynamic>.from(value);
@@ -195,7 +133,7 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
           (star['residual'] != null && star['residual'] is! num) ||
           star['weight'] is! num) {
         throw const FormatException(
-          'GET /api/phd2/status returned a malformed tracked star',
+          'GET /api/guider/status returned a malformed tracked star',
         );
       }
       stars.add(GuideStar.fromJson(star));
@@ -203,9 +141,8 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     return stars;
   }
 
-  /// Decode a star-image JSON envelope (shared by the PHD2 and built-in
-  /// guider star-image routes, which return the same shape). `base64Decode`
-  /// already yields a `Uint8List`, so no extra copy is needed.
+  /// Decode a star-image JSON envelope. `base64Decode` already yields a
+  /// `Uint8List`, so no extra copy is needed.
   Phd2StarImage _starImageFromJson(Map<String, dynamic> response) {
     return Phd2StarImage(
       frame: response['frame'] as int,
@@ -215,12 +152,6 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
       starY: (response['starY'] as num).toDouble(),
       pixels: base64Decode(response['pixels'] as String),
     );
-  }
-
-  @override
-  Future<Phd2StarImage> phd2GetStarImage({int size = 50}) async {
-    final response = await _get('phd2/star-image', {'size': size});
-    return _starImageFromJson(response);
   }
 
   @override
@@ -259,11 +190,6 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> phd2SetPaused(bool paused) async {
-    await _post('phd2/pause', {'paused': paused});
-  }
-
-  @override
   Future<void> phd2ClearCalibration({String which = 'both'}) async {
     await _post('phd2/clear-calibration', {'which': which});
   }
@@ -271,12 +197,6 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
   @override
   Future<void> phd2FlipCalibration() async {
     await _post('phd2/flip-calibration', {});
-  }
-
-  @override
-  Future<Phd2CalibrationData> phd2GetCalibrationData() async {
-    final response = await _post('phd2/get-calibration-data', {});
-    return _calibrationFromJson(response);
   }
 
   Phd2CalibrationData _calibrationFromJson(Map<String, dynamic> response) {
@@ -291,51 +211,12 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<(double, double)> phd2FindStar() async {
-    final response = await _post('phd2/find-star', {});
-    return (
-      (response['x'] as num).toDouble(),
-      (response['y'] as num).toDouble(),
-    );
-  }
-
-  @override
-  Future<void> phd2SetLockPosition({
-    required double x,
-    required double y,
-    bool exact = false,
-  }) async {
-    await _post('phd2/set-lock-position', {'x': x, 'y': y, 'exact': exact});
-  }
-
-  @override
-  Future<(double, double)> phd2GetLockPosition() async {
-    final response = await _get('phd2/lock-position');
-    return (
-      (response['x'] as num).toDouble(),
-      (response['y'] as num).toDouble(),
-    );
-  }
-
-  @override
-  Future<void> phd2Loop() async {
-    await _post('phd2/loop', {});
-  }
-
-  @override
-  Future<void> phd2DeselectStar() async {
-    await _post('phd2/deselect-star', {});
-  }
-
-  @override
   Future<void> guiderStartGuiding({
-    required String deviceId,
     double settlePixels = 1.0,
     double settleTime = 10.0,
     double settleTimeout = 60.0,
   }) async {
     await _post('guider/start-guiding', {
-      'deviceId': deviceId,
       'settlePixels': settlePixels,
       'settleTime': settleTime,
       'settleTimeout': settleTimeout,
@@ -343,13 +224,12 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> guiderStopGuiding({required String deviceId}) async {
-    await _post('guider/stop-guiding', {'deviceId': deviceId});
+  Future<void> guiderStopGuiding() async {
+    await _post('guider/stop-guiding', {});
   }
 
   @override
   Future<void> guiderDither({
-    required String deviceId,
     double amount = 5.0,
     bool raOnly = false,
     double settlePixels = 1.0,
@@ -357,7 +237,6 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
     double settleTimeout = 60.0,
   }) async {
     await _post('guider/dither', {
-      'deviceId': deviceId,
       'amount': amount,
       'raOnly': raOnly,
       'settlePixels': settlePixels,
@@ -367,13 +246,18 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> guiderLoop({required String deviceId}) async {
-    await _post('guider/loop', {'deviceId': deviceId});
+  Future<void> guiderLoop() async {
+    await _post('guider/loop', {});
   }
 
   @override
-  Future<(double, double)> guiderFindStar({required String deviceId}) async {
-    final response = await _post('guider/find-star', {'deviceId': deviceId});
+  Future<void> guiderSetPaused(bool paused) async {
+    await _post('guider/pause', {'paused': paused});
+  }
+
+  @override
+  Future<(double, double)> guiderFindStar() async {
+    final response = await _post('guider/find-star', {});
     return (
       (response['x'] as num).toDouble(),
       (response['y'] as num).toDouble(),
@@ -382,26 +266,16 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
 
   @override
   Future<void> guiderSetLockPosition({
-    required String deviceId,
     required double x,
     required double y,
     bool exact = false,
   }) async {
-    await _post('guider/set-lock-position', {
-      'deviceId': deviceId,
-      'x': x,
-      'y': y,
-      'exact': exact,
-    });
+    await _post('guider/set-lock-position', {'x': x, 'y': y, 'exact': exact});
   }
 
   @override
-  Future<(double, double)> guiderGetLockPosition({
-    required String deviceId,
-  }) async {
-    final response = await _get(
-      'guider/lock-position?deviceId=${Uri.encodeQueryComponent(deviceId)}',
-    );
+  Future<(double, double)> guiderGetLockPosition() async {
+    final response = await _get('guider/lock-position');
     return (
       (response['x'] as num).toDouble(),
       (response['y'] as num).toDouble(),
@@ -409,36 +283,45 @@ mixin _NetworkBackendGuidingOperations on _NetworkBackendTransport {
   }
 
   @override
-  Future<void> guiderDeselectStar({required String deviceId}) async {
-    await _post('guider/deselect-star', {'deviceId': deviceId});
+  Future<void> guiderDeselectStar() async {
+    await _post('guider/deselect-star', {});
   }
 
   @override
-  Future<Phd2StarImage> guiderGetStarImage({
-    required String deviceId,
-    int size = 50,
-  }) async {
-    final response = await _get(
-      'guider/star-image?deviceId=${Uri.encodeQueryComponent(deviceId)}&size=$size',
-    );
+  Future<Phd2StarImage> guiderGetStarImage({int size = 50}) async {
+    final response = await _get('guider/star-image', {'size': size});
     return _starImageFromJson(response);
   }
 
   @override
-  Future<Phd2Status> guiderGetStatus({required String deviceId}) async {
-    final response = await _get(
-      'guider/status?deviceId=${Uri.encodeQueryComponent(deviceId)}',
+  Future<Phd2Status> guiderGetStatus() async {
+    const endpoint = 'guider/status';
+    final response = await _get(endpoint);
+    return Phd2Status(
+      deviceId: response['deviceId'] as String?,
+      state: _requiredGuidingString(response, 'state', endpoint),
+      connected: _requiredGuidingBool(response, 'connected', endpoint),
+      rmsRa: _requiredGuidingDouble(response, 'rmsRa', endpoint),
+      rmsDec: _requiredGuidingDouble(response, 'rmsDec', endpoint),
+      rmsTotal: _requiredGuidingDouble(response, 'rmsTotal', endpoint),
+      snr: _requiredGuidingDouble(response, 'snr', endpoint),
+      starMass: _requiredGuidingDouble(response, 'starMass', endpoint),
+      avgDistance: _requiredGuidingDouble(response, 'avgDistance', endpoint),
+      pixelScale: _positiveScale(response['pixelScale']),
+      trackedStars: _networkTrackedStars(response),
+      stopReason: response['stopReason'] as String?,
     );
-    return Phd2Status.fromJson(response);
+  }
+
+  double? _positiveScale(Object? value) {
+    if (value is! num) return null;
+    final scale = value.toDouble();
+    return scale.isFinite && scale > 0 ? scale : null;
   }
 
   @override
-  Future<Phd2CalibrationData> guiderGetCalibration({
-    required String deviceId,
-  }) async {
-    final response = await _get(
-      'guider/calibration?deviceId=${Uri.encodeQueryComponent(deviceId)}',
-    );
+  Future<Phd2CalibrationData> guiderGetCalibration() async {
+    final response = await _get('guider/calibration');
     return _calibrationFromJson(response);
   }
 

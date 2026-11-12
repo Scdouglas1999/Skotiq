@@ -32,10 +32,6 @@ mod switch;
 // compile.
 pub mod connect_verify;
 
-// Same reasoning: which cooler properties may be written is pure policy over
-// the driver's declared capabilities.
-pub mod cooler_policy;
-
 /// ASCOM device information discovered from Windows Registry
 #[derive(Debug, Clone)]
 pub struct AscomDevice {
@@ -99,15 +95,15 @@ pub use camera::{
 pub use cover_calibrator::CoverCalibrator;
 pub use dome::Dome;
 pub use error::{AscomError, AscomResult};
-pub use filter_wheel::{FilterWheel, FilterWheelFullStatus};
-pub use focuser::{Focuser, FocuserCapabilities, FocuserFullStatus};
+pub use filter_wheel::FilterWheel;
+pub use focuser::Focuser;
 pub use health::{ConnectionHealth, HealthMonitor};
 pub use mount::{
     Mount, MountCapabilities, MountFullStatus, MountGuideRates, MountMotionStatus,
     MountPositionStatus, MountSiteStatus,
 };
 pub use observing_conditions::ObservingConditions;
-pub use rotator::{Rotator, RotatorFullStatus};
+pub use rotator::Rotator;
 pub use safety_monitor::SafetyMonitor;
 pub use switch::Switch;
 

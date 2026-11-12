@@ -45,7 +45,7 @@ macro_rules! alpaca_accessory {
 }
 
 alpaca_accessory!(AlpacaDome, connected);
-alpaca_accessory!(AlpacaRotator, heartbeat);
+alpaca_accessory!(AlpacaRotator, connected);
 alpaca_accessory!(AlpacaSwitch, connected);
 alpaca_accessory!(AlpacaObservingConditions, connected);
 alpaca_accessory!(AlpacaSafetyMonitor, connected);

@@ -31,6 +31,13 @@ fn unix_seconds_to_ole(unix_seconds: i64) -> f64 {
     unix_seconds as f64 / SECONDS_PER_DAY + OLE_EPOCH_TO_UNIX_DAYS
 }
 
+/// An Alpaca `UTCDate` value: ISO 8601 in UTC with a `Z` suffix.
+fn alpaca_utc_date(unix_seconds: i64) -> Result<String, DeviceOpError> {
+    chrono::DateTime::from_timestamp(unix_seconds, 0)
+        .map(|utc| utc.to_rfc3339_opts(chrono::SecondsFormat::Millis, true))
+        .ok_or_else(|| DeviceOpError::from(format!("{unix_seconds} is not a UTC time")))
+}
+
 impl DeviceManager {
     /// What this mount can actually do, so the reconciliation card offers only
     /// directions the driver supports.
@@ -85,13 +92,11 @@ impl DeviceManager {
                 can_read_time: true,
                 can_write_time: true,
             },
-            // Alpaca exposes utcdate for reading but this client has no setter,
-            // so "computer to mount" is not offerable for time.
             DriverType::Alpaca => MountSiteCapabilities {
                 can_read_site: true,
                 can_write_site: true,
                 can_read_time: true,
-                can_write_time: false,
+                can_write_time: true,
             },
             // INDI carries GEOGRAPHIC_COORD and TIME_UTC, but this client does
             // not wire them yet. Reported as absent rather than attempted.
@@ -414,9 +419,19 @@ impl DeviceManager {
                     "ASCOM mount not connected",
                 ))
             }
-            DriverType::Alpaca => Err(DeviceOpError::unsupported(
-                "This Alpaca client can read the mount clock but not set it",
-            )),
+            DriverType::Alpaca => {
+                let mount = self.alpaca_mounts.read().await.get(device_id).cloned();
+                let mount = mount.ok_or_else(|| {
+                    DeviceOpError::not_connected(
+                        Some(device_id.to_string()),
+                        "Alpaca mount not connected",
+                    )
+                })?;
+                mount
+                    .set_utc_date(&alpaca_utc_date(time.utc_unix_seconds)?)
+                    .await
+                    .map_err(DeviceOpError::from)
+            }
             DriverType::Indi => Err(DeviceOpError::unsupported(
                 "Writing the clock to an INDI mount is not wired up yet",
             )),
@@ -428,6 +443,17 @@ impl DeviceManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_alpaca_utc_date_is_iso_8601_in_utc() {
+        let unix = chrono::DateTime::parse_from_rfc3339("2026-09-09T12:00:05Z")
+            .expect("parse")
+            .timestamp();
+        assert_eq!(
+            alpaca_utc_date(unix).expect("in range"),
+            "2026-09-09T12:00:05.000Z"
+        );
+    }
 
     #[test]
     fn ole_dates_round_trip_through_unix_seconds() {

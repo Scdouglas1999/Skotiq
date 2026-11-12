@@ -12,7 +12,7 @@ import 'package:skotiq_app/widgets/phd2/guide_controls_panel.dart';
 import 'package:skotiq_app/widgets/phd2/guide_target_display.dart';
 import 'package:skotiq_app/utils/phd2_helper.dart';
 import 'package:skotiq_app/utils/confirm_dialog.dart';
-import '../../widgets/tutorial_keys/guiding_keys.dart';
+import '../../tours/tour_target.dart';
 import 'widgets/brain_settings_panel.dart';
 import 'widgets/guide_graph_advanced.dart';
 import 'widgets/guide_star_view.dart';
@@ -23,16 +23,6 @@ part 'guiding_screen_parts/state_fields.dart';
 part 'guiding_screen_parts/desktop_sections.dart';
 part 'guiding_screen_parts/mobile_sections.dart';
 part 'guiding_screen_parts/actions.dart';
-
-/// Why Pause is unavailable under Skotiq's own guider.
-///
-/// Pause is a PHD2 command, so the built-in guider has none. Without this
-/// reason on screen the button is simply inert — nothing changes in the UI, the
-/// status bar or the log — and the operator cannot tell whether corrections
-/// have been suspended.
-const String kBuiltinGuiderNoPauseReason =
-    'Pause is a PHD2 feature. The built-in guider has no pause — '
-    'use Stop to suspend guiding.';
 
 /// Full guiding interface (06 §Guiding).
 ///
@@ -113,7 +103,7 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
         child: Column(
           children: [
             PageHeader(
-              key: GuidingTutorialKeys.statusBar,
+              key: TourTarget.guidingStatusBar.key,
               icon: SkotiqIcons.guider,
               title: 'Guiding',
               // Below the breakpoint the header keeps the title, the state
@@ -187,14 +177,14 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
       ),
       if (narrow)
         SkotiqIconButton(
-          key: GuidingTutorialKeys.connectBtn,
+          key: TourTarget.guidingConnectButton.key,
           icon: icon,
           tooltip: label,
           onPressed: onPressed,
         )
       else
         SkotiqButton(
-          key: GuidingTutorialKeys.connectBtn,
+          key: TourTarget.guidingConnectButton.key,
           label: label,
           icon: icon,
           variant: ButtonVariant.secondary,

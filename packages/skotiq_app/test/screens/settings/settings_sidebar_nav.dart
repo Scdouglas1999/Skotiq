@@ -23,12 +23,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/widgets/tutorial_keys/settings_keys.dart';
+import 'package:skotiq_app/tours/tour_target.dart';
 
 /// The sidebar's scrollable (the keyed grouped ListView). Targeting it
 /// explicitly avoids grabbing a Scrollable inside the detail pane.
 Finder get settingsSidebar => find.descendant(
-      of: find.byKey(SettingsTutorialKeys.categories),
+      of: find.byKey(TourTarget.settingsCategories.key),
       matching: find.byType(Scrollable),
     );
 

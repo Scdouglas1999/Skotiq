@@ -5,6 +5,7 @@ export 'src/frb_generated.dart';
 export 'src/event.dart';
 export 'src/event_display.dart';
 export 'src/device.dart';
+export 'src/guider.dart';
 export 'src/state.dart';
 export 'src/storage.dart';
 export 'src/native_bridge.dart';

@@ -21,7 +21,7 @@ import '../../utils/exported_file_reveal.dart';
 import 'package:path/path.dart' as path;
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/tutorial_keys/analytics_keys.dart';
+import '../../tours/tour_target.dart';
 import '../accessible_dropdown.dart';
 import '../diagnostics/diagnostics_screen.dart';
 import '../science/science_screen.dart';
@@ -109,12 +109,12 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       AdaptiveTab(
         label: l10n.text('analyticsSession'),
         icon: LucideIcons.activity,
-        buttonKey: AnalyticsTutorialKeys.sessionTab,
+        buttonKey: TourTarget.analyticsSessionTab.key,
       ),
       AdaptiveTab(
         label: l10n.text('analyticsHistory'),
         icon: LucideIcons.history,
-        buttonKey: AnalyticsTutorialKeys.historyTab,
+        buttonKey: TourTarget.analyticsHistoryTab.key,
       ),
       AdaptiveTab(
         label: l10n.text('analyticsProjects'),
@@ -123,7 +123,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       AdaptiveTab(
         label: l10n.text('analyticsEquipmentTab'),
         icon: LucideIcons.wrench,
-        buttonKey: AnalyticsTutorialKeys.equipmentTab,
+        buttonKey: TourTarget.analyticsEquipmentTab.key,
       ),
       AdaptiveTab(
         label: l10n.text('analyticsScience'),

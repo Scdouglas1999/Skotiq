@@ -214,6 +214,7 @@ fn member_lines() -> Vec<String> {
         row!("set_bin_y(1)", d.set_bin_y(1));
         row!("can_set_ccd_temperature()", d.can_set_ccd_temperature());
         row!("ccd_temperature()", d.ccd_temperature());
+        row!("ccd_temperature_setpoint()", d.ccd_temperature_setpoint());
         row!("set_ccd_temperature(1.5)", d.set_ccd_temperature(1.5));
         row!("cooler_on()", d.cooler_on());
         row!("set_cooler_on(true)", d.set_cooler_on(true));
@@ -222,10 +223,15 @@ fn member_lines() -> Vec<String> {
         row!("set_gain(1)", d.set_gain(1));
         row!("offset()", d.offset());
         row!("set_offset(1)", d.set_offset(1));
+        row!("gains()", d.gains());
+        row!("offsets()", d.offsets());
+        row!("exposure_min()", d.exposure_min());
+        row!("exposure_max()", d.exposure_max());
         row!("camera_state()", d.camera_state());
         row!("image_ready()", d.image_ready());
         row!("percent_completed()", d.percent_completed());
         row!("start_exposure(1.5, true)", d.start_exposure(1.5, true));
+        row!("start_exposure(0.0, false)", d.start_exposure(0.0, false));
         row!("abort_exposure()", d.abort_exposure());
         row!("stop_exposure()", d.stop_exposure());
         row!("image_array()", d.image_array());
@@ -404,6 +410,8 @@ fn member_lines() -> Vec<String> {
         row!("set_tracking_rate(1)", d.set_tracking_rate(1));
         row!("can_move_axis(1)", d.can_move_axis(1));
         row!("move_axis(1, 2.5)", d.move_axis(1, 2.5));
+        row!("equatorial_system()", d.equatorial_system());
+        row!("can_set_pier_side()", d.can_set_pier_side());
         row!("heartbeat()", d.heartbeat());
     }
     rows! { lines, "AscomObservingConditions", ObservingConditions;

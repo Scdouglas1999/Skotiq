@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../screens/shell/app_shell.dart';
 import '../screens/night_control/night_control_screen.dart';
+import '../screens/equipment/equipment_route.dart';
 import '../screens/equipment/equipment_screen.dart';
 import '../screens/imaging/imaging_screen.dart';
 import '../screens/guiding/guiding_screen.dart';
@@ -28,7 +29,7 @@ import '../screens/polar_alignment/polar_alignment_screen.dart';
 import '../screens/planner/planner_screen.dart';
 import '../screens/tonight/tonight_screen.dart';
 import '../screens/diagnostics/diagnostic_dump_screen.dart';
-import '../screens/tutorial/first_night_wizard_route.dart';
+import '../tours/first_night_entry.dart';
 import '../screens/onboarding/onboarding_screen.dart';
 import '../widgets/first_light/first_light_launcher.dart';
 import 'app_routes.dart';
@@ -109,7 +110,8 @@ Widget _screen(AppRoute route, GoRouterState state) {
         initialTab: PlannerTab.fromQuery(query['tab']),
         initialDiscoverView: DiscoverView.fromQuery(query['view']),
       ),
-    AppRoute.equipment => const EquipmentScreen(),
+    AppRoute.equipment =>
+      EquipmentScreen(requestedTab: EquipmentTab.fromQuery(query['tab'])),
     AppRoute.flatWizard => const FlatWizardScreen(),
     AppRoute.weather => const WeatherScreen(),
     AppRoute.darkroom => DarkroomScreen.route(DarkroomRoute.fromUri(state.uri)),
@@ -153,7 +155,7 @@ Widget _screen(AppRoute route, GoRouterState state) {
       ),
     // Renders Tonight with the wizard open over it; closing the wizard
     // returns to Tonight.
-    AppRoute.firstNightWizard => const FirstNightWizardRoute(),
+    AppRoute.firstNightWizard => const FirstNightEntry(),
     AppRoute.onboarding => const OnboardingScreen(),
     AppRoute.planetarium ||
     AppRoute.framing ||

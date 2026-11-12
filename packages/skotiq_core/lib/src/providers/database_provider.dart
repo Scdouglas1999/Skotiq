@@ -32,6 +32,7 @@ import '../database/daos/recipes_dao.dart';
 import '../database/daos/sky_atlas_dao.dart';
 import '../database/daos/stacked_results_dao.dart';
 import '../database/daos/transient_detections_dao.dart';
+import '../database/daos/tutorial_progress_dao.dart';
 import '../services/imaging_records_repository.dart';
 import 'backend_provider.dart';
 import 'host_settings/host_settings_providers.dart';
@@ -65,6 +66,12 @@ final imagesDaoProvider = Provider<ImagesDao>((ref) {
 
 final sequencesDaoProvider = Provider<SequencesDao>((ref) {
   return SequencesDao(ref.watch(databaseProvider));
+});
+
+/// Guided-tour progress and dismissed prompts. Always this computer's
+/// database: what a user has been shown is theirs, not the imaging host's.
+final tutorialProgressDaoProvider = Provider<TutorialProgressDao>((ref) {
+  return TutorialProgressDao(ref.watch(databaseProvider));
 });
 
 /// Settings DAO provider

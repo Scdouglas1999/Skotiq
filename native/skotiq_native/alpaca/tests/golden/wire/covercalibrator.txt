@@ -81,9 +81,7 @@
 
 ## covercalibrator.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.is_connected [http 400]
 > GET /api/v1/covercalibrator/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -111,9 +109,7 @@
 
 ## covercalibrator.name [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.name [http 400]
 > GET /api/v1/covercalibrator/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -141,9 +137,7 @@
 
 ## covercalibrator.description [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.description [http 400]
 > GET /api/v1/covercalibrator/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -171,9 +165,7 @@
 
 ## covercalibrator.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.driver_version [http 400]
 > GET /api/v1/covercalibrator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -201,9 +193,7 @@
 
 ## covercalibrator.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.driver_info [http 400]
 > GET /api/v1/covercalibrator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -231,9 +221,7 @@
 
 ## covercalibrator.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.interface_version [http 400]
 > GET /api/v1/covercalibrator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -261,9 +249,7 @@
 
 ## covercalibrator.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.supported_actions [http 400]
 > GET /api/v1/covercalibrator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -291,9 +277,7 @@
 
 ## covercalibrator.cover_state [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.cover_state [http 400]
 > GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=0]
@@ -337,9 +321,7 @@
 
 ## covercalibrator.cover_state [ascom 0x40C without Value]
 > GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## covercalibrator.cover_state [ascom 0x500]
 > GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=0]
@@ -363,9 +345,7 @@
 
 ## covercalibrator.cover_state [wrong value type]
 > GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## covercalibrator.calibrator_state [ok]
 > GET /api/v1/covercalibrator/#/calibratorstate query[ClientID=<id>&ClientTransactionID=0]
@@ -377,9 +357,7 @@
 
 ## covercalibrator.calibrator_state [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/calibratorstate query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/calibratorstate query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/calibratorstate query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.calibrator_state [http 400]
 > GET /api/v1/covercalibrator/#/calibratorstate query[ClientID=<id>&ClientTransactionID=0]
@@ -407,9 +385,7 @@
 
 ## covercalibrator.brightness [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/brightness query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/brightness query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/brightness query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.brightness [http 400]
 > GET /api/v1/covercalibrator/#/brightness query[ClientID=<id>&ClientTransactionID=0]
@@ -437,9 +413,7 @@
 
 ## covercalibrator.max_brightness [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/maxbrightness query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/maxbrightness query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/maxbrightness query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.max_brightness [http 400]
 > GET /api/v1/covercalibrator/#/maxbrightness query[ClientID=<id>&ClientTransactionID=0]
@@ -699,9 +673,7 @@
 
 ## covercalibrator.cover_moving [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/covermoving query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/covermoving query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/covermoving query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.cover_moving [http 400]
 > GET /api/v1/covercalibrator/#/covermoving query[ClientID=<id>&ClientTransactionID=0]
@@ -729,9 +701,7 @@
 
 ## covercalibrator.calibrator_changing [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/calibratorchanging query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/covercalibrator/#/calibratorchanging query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/covercalibrator/#/calibratorchanging query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.calibrator_changing [http 400]
 > GET /api/v1/covercalibrator/#/calibratorchanging query[ClientID=<id>&ClientTransactionID=0]
@@ -762,9 +732,7 @@
 
 ## covercalibrator.status (CoverCalibratorDriver) [ascom 0x4FF without Value]
 > GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## covercalibrator.status (CoverCalibratorDriver) [http 400]
 > GET /api/v1/covercalibrator/#/coverstate query[ClientID=<id>&ClientTransactionID=<txn>]

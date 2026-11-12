@@ -4,7 +4,7 @@ extension _SequencerRecovery on SequencerHandlers {
   // Recovery mode — HTTP handlers.
   //
   // These mirror the NetworkBackend client calls in
-  // `network_backend.dart > recoveryTryNow/recoveryAbort/updateRecoveryConfig/
+  // `network_backend.dart > recoveryTryNow/recoveryAbort/
   // getCurrentRecoveryJson/getRecoveryHistoryJson`. The shape of the JSON
   // wire payload here is what `_post`/`_get` produces / expects on the
   // client side; do not change one without changing the other.
@@ -26,48 +26,6 @@ extension _SequencerRecovery on SequencerHandlers {
     final backend = container.read(sequencerBackendProvider);
     await backend.recoveryAbort();
     return jsonOk({'status': 'abort_requested'});
-  }
-
-  /// Push updated recovery defaults from a remote settings UI. The five
-  /// original fields are required; the Rust side validates positivity gates
-  /// and returns a structured InvalidParameter on a non-positive interval /
-  /// duration. We surface those via the existing translateHandlerErrors
-  /// middleware.
-  ///
-  /// `parkAndCloseWhenRecoveryGivesUp` is OPTIONAL and defaults to `false`,
-  /// which is also its meaning in the native config: an older client that does
-  /// not send it gets the safe behaviour (hold the run, move nothing) rather
-  /// than a 400. Requiring it would have made a mobile companion on the
-  /// previous build unable to save recovery settings at all, and defaulting a
-  /// missing value to "park the mount" is exactly the inference this field
-  /// exists to remove.
-  Future<Response> _handleSequencerUpdateRecoveryConfig(Request request) async {
-    _logInfo('[API] POST /api/sequencer/recovery/update-config');
-    final payload = await readJsonObject(request);
-    final retryIntervalSecs = requireDouble(payload, 'retryIntervalSecs');
-    final maxDurationSecs = requireDouble(payload, 'maxDurationSecs');
-    final stopTrackingDuringRecovery = requireBool(
-      payload,
-      'stopTrackingDuringRecovery',
-    );
-    final abortOnMeridian = requireBool(payload, 'abortOnMeridian');
-    final audibleAlertWhenEntered = requireBool(
-      payload,
-      'audibleAlertWhenEntered',
-    );
-    final parkAndCloseWhenRecoveryGivesUp =
-        optionalBool(payload, 'parkAndCloseWhenRecoveryGivesUp') ?? false;
-
-    final backend = container.read(sequencerBackendProvider);
-    await backend.updateRecoveryConfig(
-      retryIntervalSecs: retryIntervalSecs,
-      maxDurationSecs: maxDurationSecs,
-      stopTrackingDuringRecovery: stopTrackingDuringRecovery,
-      abortOnMeridian: abortOnMeridian,
-      audibleAlertWhenEntered: audibleAlertWhenEntered,
-      parkAndCloseWhenRecoveryGivesUp: parkAndCloseWhenRecoveryGivesUp,
-    );
-    return jsonOk({'status': 'ok'});
   }
 
   /// GET — snapshot the current in-flight recovery context as a JSON

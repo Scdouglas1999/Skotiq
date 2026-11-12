@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
+import '../../../tours/tour_target.dart';
 import '../shell_navigation.dart';
 
 /// The narrow shell's navigation (04-shell §3.3).
@@ -44,6 +45,7 @@ class SkotiqBottomNavigation extends StatelessWidget {
               for (final dest in ShellNavigation.phoneBar)
                 Expanded(
                   child: _BottomNavItem(
+                    key: TourTarget.forDestination(dest)?.key,
                     icon: dest.icon!,
                     label: (dest.shortLabel ?? dest.label!).of(l10n),
                     // Sub-route aware: the image-ready deep link
@@ -57,6 +59,7 @@ class SkotiqBottomNavigation extends StatelessWidget {
                 ),
               Expanded(
                 child: _BottomNavItem(
+                  key: TourTarget.navMore.key,
                   icon: LucideIcons.menu,
                   label: l10n.text('navMore'),
                   isSelected: overflowIsCurrent,
@@ -144,6 +147,7 @@ class _BottomNavItem extends StatelessWidget {
   final SkotiqColors colors;
 
   const _BottomNavItem({
+    super.key,
     required this.icon,
     required this.label,
     required this.isSelected,

@@ -19,8 +19,7 @@ export 'src/database/database.dart'
         DarkroomState;
 export 'src/database/database_aliases.dart';
 // Aliases for class names hidden from the barrel due to symbol collisions
-// (legacy HorizonProfile vs scheduler HorizonProfile; tutorial-step
-// FirstNightWizard model vs skotiq_app FirstNightWizard widget).
+// (legacy HorizonProfile vs scheduler HorizonProfile).
 export 'src/legacy_aliases.dart';
 export 'src/database/integrity_check.dart';
 export 'src/database/recovery/crash_recovery.dart';
@@ -39,7 +38,6 @@ export 'src/database/daos/settings_dao.dart';
 export 'src/database/daos/weather_settings_dao.dart';
 export 'src/database/daos/flat_history_dao.dart';
 export 'src/database/daos/tutorial_progress_dao.dart';
-export 'src/database/daos/tutorial_dao.dart';
 export 'src/database/daos/polar_alignment_history_dao.dart';
 export 'src/database/daos/science_dao.dart';
 export 'src/database/daos/dark_library_dao.dart';
@@ -109,12 +107,6 @@ export 'src/models/hips/hips_tile_id.dart';
 export 'src/models/hips/hips_survey_registry.dart';
 export 'src/models/annotation_data.dart';
 export 'src/models/annotation_settings.dart';
-export 'src/models/tutorial/tutorial_models.dart';
-// The model-layer FirstNightWizard class collides with the widget class of
-// the same name in skotiq_app. We hide it from the barrel so callers
-// either import tutorial_step.dart directly (the widget does) or just use
-// FirstNightWizardStep.
-export 'src/models/tutorial/tutorial_step.dart' hide FirstNightWizard;
 export 'src/models/phd2_models.dart';
 export 'src/models/weather/weather_models.dart';
 export 'src/models/autofocus_progress.dart';
@@ -185,7 +177,6 @@ export 'src/models/import/canonical_sequence_node.dart';
 export 'src/models/import/import_result.dart';
 
 export 'src/providers/app_version_provider.dart';
-export 'src/providers/camera_file_saving_sync.dart';
 export 'src/providers/focuser_backlash_calibration_provider.dart';
 export 'src/providers/focuser_backlash_provider.dart';
 export 'src/providers/database_provider.dart';
@@ -209,7 +200,6 @@ export 'src/providers/framing_image_cache_provider.dart';
 // gating the GPU-composited tiled survey background. Renders inside the framing
 // path (not the planetarium renderer).
 export 'src/providers/hips_framing_provider.dart';
-export 'src/providers/capture_file_format_sync.dart';
 export 'src/providers/imaging_provider.dart';
 export 'src/providers/imaging_viewer_state_provider.dart';
 export 'src/providers/sequence_provider.dart';
@@ -218,6 +208,8 @@ export 'src/models/sequence/validation/structural_rules.dart';
 export 'src/models/sequence/validation/validation_issue.dart';
 export 'src/models/sequence/sequence_editor_exceptions.dart';
 export 'src/providers/sequence/remote_sequence_editor_sync.dart';
+export 'src/providers/sequence/run_config_sync.dart'
+    show runConfigSyncProvider, RunConfigSync;
 export 'src/providers/sequence_stats_provider.dart';
 export 'src/models/sequence/terminal_run_result.dart';
 // The one predicate every surface asks before calling a run's end an error.
@@ -316,7 +308,6 @@ export 'src/services/catalog_lookup/gaia_provider.dart';
 export 'src/providers/annotation_settings_provider.dart';
 export 'src/providers/annotation_presets_provider.dart'
     hide AnnotationPreset, annotationPresetsProvider, AnnotationPresetsNotifier;
-export 'src/providers/tutorial_provider.dart';
 export 'src/providers/filter_offset_provider.dart';
 export 'src/providers/camera_presets_provider.dart';
 export 'src/providers/weather_providers.dart';
@@ -410,6 +401,7 @@ export 'src/providers/async_scope.dart';
 export 'src/backend/bridge_events.dart'
     hide SkotiqEvent, EventCategory, EventSeverity;
 export 'src/backend/sequencer_error_kind.dart';
+export 'src/backend/sequencer_notice.dart';
 // Per-frame capture truth carried on FrameAccepted/FrameRejected. Exported so
 // the surfaces that persist or assert on a sequenced frame read the event's
 // key names from one place rather than re-spelling them.

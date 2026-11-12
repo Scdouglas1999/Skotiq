@@ -9,7 +9,7 @@ pub(crate) struct LoadedLight {
     pub(crate) exposure_sec: f64,
     /// The sub's own FITS keywords, kept from the single read so the master can
     /// inherit FILTER/OBJECT/INSTRUME/DATE-OBS without re-opening every file.
-    pub(crate) header: std::collections::HashMap<String, String>,
+    pub(crate) header: FitsHeader,
 }
 
 pub(crate) fn integrate_session(

@@ -71,7 +71,7 @@ class _MobileSectionList extends StatelessWidget {
                         onSectionTap: onSectionTap,
                       )
                     : ListView.builder(
-                        key: SettingsTutorialKeys.categories,
+                        key: TourTarget.settingsCategories.key,
                         padding: const EdgeInsets.symmetric(
                           horizontal: SkotiqTokens.spaceSm,
                           vertical: SkotiqTokens.spaceSm,

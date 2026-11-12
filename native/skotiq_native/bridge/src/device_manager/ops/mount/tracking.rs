@@ -1,5 +1,62 @@
 use super::*;
 use crate::event::EquipmentEvent;
+use std::time::Duration;
+use tokio::time::Instant;
+
+/// How long past its nominal end an ASCOM guide pulse may still read as
+/// running before the wait for it gives up.
+const PULSE_END_GRACE: Duration = Duration::from_secs(2);
+const PULSE_END_POLL: Duration = Duration::from_millis(50);
+
+/// Waits until an ASCOM guide pulse the driver accepted at `started` is over.
+///
+/// An ITelescopeV4 driver returns from `PulseGuide` at once and reports the
+/// pulse through `IsPulseGuiding`; older drivers often return when the pulse
+/// ends. Either way `mount_pulse_guide` hands control back once the mount has
+/// stopped correcting, so the next pulse or guide frame does not overlap this
+/// one (NINA's direct guider waits the same way). A driver that cannot report
+/// `IsPulseGuiding` is taken to be done when the pulse's length has passed.
+async fn wait_for_ascom_pulse_end<F, Fut, E>(
+    device_id: &str,
+    started: Instant,
+    duration_ms: u32,
+    mut is_pulse_guiding: F,
+) -> Result<(), DeviceOpError>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<bool, E>>,
+    E: std::fmt::Display,
+{
+    let nominal_end = started + Duration::from_millis(u64::from(duration_ms));
+    tokio::time::sleep_until(nominal_end).await;
+    let deadline = nominal_end + PULSE_END_GRACE;
+    loop {
+        match is_pulse_guiding().await {
+            Ok(false) => return Ok(()),
+            Ok(true) if Instant::now() >= deadline => {
+                return Err(DeviceOpError::Timeout {
+                    device_id: Some(device_id.to_string()),
+                    detail: format!(
+                        "the mount still reports a guide pulse {:.1} s after a {} ms pulse \
+                         should have ended",
+                        PULSE_END_GRACE.as_secs_f64(),
+                        duration_ms
+                    ),
+                })
+            }
+            Ok(true) => tokio::time::sleep(PULSE_END_POLL).await,
+            Err(error) => {
+                tracing::debug!(
+                    "mount_pulse_guide: {} cannot report IsPulseGuiding ({}); the pulse's \
+                     length was the wait",
+                    device_id,
+                    error
+                );
+                return Ok(());
+            }
+        }
+    }
+}
 
 impl DeviceManager {
     pub async fn mount_set_tracking(
@@ -191,11 +248,18 @@ impl DeviceManager {
                 {
                     let mount = self.ascom_mounts.read().await.get(device_id).cloned();
                     if let Some(mount) = mount {
-                        let mut mount = mount.write().await;
-                        return mount
+                        let started = Instant::now();
+                        mount
+                            .write()
+                            .await
                             .pulse_guide(dir, duration_ms)
                             .await
-                            .map_err(DeviceOpError::from);
+                            .map_err(DeviceOpError::from)?;
+                        return wait_for_ascom_pulse_end(device_id, started, duration_ms, || {
+                            let mount = mount.clone();
+                            async move { mount.read().await.is_pulse_guiding().await }
+                        })
+                        .await;
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -217,8 +281,8 @@ impl DeviceManager {
                 ))
             }
             DriverType::Alpaca => {
-                let mounts = self.alpaca_mounts.read().await;
-                if let Some(mount) = mounts.get(device_id) {
+                let mount = self.alpaca_mounts.read().await.get(device_id).cloned();
+                if let Some(mount) = mount {
                     let alpaca_dir = match dir {
                         skotiq_device::GuideDirection::North => 0,
                         skotiq_device::GuideDirection::South => 1,
@@ -235,10 +299,15 @@ impl DeviceManager {
                             duration_ms
                         ))
                     })?;
-                    return mount
+                    let started = Instant::now();
+                    mount
                         .pulse_guide(alpaca_dir, duration_i32)
                         .await
-                        .map_err(DeviceOpError::from);
+                        .map_err(DeviceOpError::from)?;
+                    return wait_for_ascom_pulse_end(device_id, started, duration_ms, || {
+                        mount.is_pulse_guiding()
+                    })
+                    .await;
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),

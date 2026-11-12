@@ -34,60 +34,47 @@ pub fn is_sdk_available() -> bool {
     QhySdk::is_available()
 }
 
-/// Internal function to perform the actual SDK discovery.
-/// This is separated out to allow catch_unwind wrapping.
-pub(crate) fn discover_devices_internal(sdk: &QhySdk) -> Result<Vec<QhyCameraInfo>, DriverError> {
+/// The cameras the SDK lists, with model and serial parsed from their ids.
+pub(crate) fn discover_devices_internal(sdk: &QhySdk) -> Vec<QhyCameraInfo> {
     let sdk_version = sdk_version_from_sdk(sdk);
-
-    // SAFETY: ScanQHYCCD takes no arguments and returns a c_uint count. The caller,
-    // discover_devices(), holds the SDK lock while it waits for this scan.
-    let num_cameras = unsafe { (sdk.scan_qhyccd)() };
-    tracing::info!("Found {} QHY cameras", num_cameras);
-
-    let mut cameras = Vec::new();
-    for i in 0..num_cameras {
-        let mut id_buf = [0 as c_char; 256];
-        // SAFETY: `i` is in `0..num_cameras` so
-        // ScanQHYCCD's reported index range; id_buf is a 256-byte stack array — qhyccd.h
-        // documents the ID as fitting within 32 bytes.
-        let result = unsafe { (sdk.get_qhyccd_id)(i, id_buf.as_mut_ptr()) };
-
-        if result == 0 {
-            // SAFETY: id_buf is 256 bytes; GetQHYCCDId guarantees NUL-termination on success
-            // (result == 0).
-            let id = unsafe { CStr::from_ptr(id_buf.as_ptr()) }
-                .to_string_lossy()
-                .to_string();
-
-            let (name, serial_number) = QhyCameraInfo::parse_id(&id);
-
-            cameras.push(QhyCameraInfo {
-                camera_id: id,
+    let cameras: Vec<QhyCameraInfo> = session::scan(sdk)
+        .into_iter()
+        .map(|camera_id| {
+            let (name, serial_number) = QhyCameraInfo::parse_id(&camera_id);
+            QhyCameraInfo {
+                camera_id,
                 name,
                 serial_number,
                 sdk_version: sdk_version.clone(),
-            });
-        }
-    }
+            }
+        })
+        .collect();
+    tracing::info!("Found {} QHY cameras", cameras.len());
+    cameras
+}
 
-    Ok(cameras)
+pub(crate) fn panic_text(panic: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = panic.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = panic.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "Unknown panic".to_string()
+    }
 }
 
 /// Discover QHY cameras with safety measures.
 ///
-/// This function includes several safety measures to handle potential SDK issues:
-///
 /// 1. **Enable/Disable Check**: Returns empty if discovery is disabled via
 ///    `set_qhy_discovery_enabled(false)`
-/// 2. **Panic Protection**: SDK calls are wrapped in `catch_unwind` to prevent
-///    crashes from propagating
+/// 2. **Panic Protection**: the scan is wrapped in `catch_unwind`
 /// 3. **Timeout**: Discovery has a configurable timeout (default 10s, can be
-///    overridden via quirks database)
-/// 4. **Lock Serialization**: All SDK calls are serialized by the `QhySdk` lock
+///    overridden via quirks database); a scan that times out keeps the SDK
+///    lock on its blocking thread until the SDK returns, so no other call
+///    enters the SDK while it is still scanning
 ///
 /// # Returns
 /// * `Ok(cameras)` - List of discovered cameras (may be empty)
-/// * `Err(DriverError::SdkNotLoaded)` - SDK not available or discovery disabled
 /// * `Err(DriverError::Timeout)` - Discovery timed out
 /// * `Err(DriverError::SdkError)` - SDK panicked during discovery
 pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, DriverError> {
@@ -98,87 +85,37 @@ pub async fn discover_devices() -> Result<Vec<QhyCameraInfo>, DriverError> {
         return Ok(Vec::new());
     }
 
-    // Ensure SDK is initialized first (before timeout starts)
     QhySdk::ensure_initialized()?;
-
-    let loaded = match QhySdk::installed() {
-        Ok(sdk) => sdk,
-        Err(_) => return Ok(Vec::new()),
-    };
-
-    // Hold the SDK lock for as long as this call waits for the scan
-    let _scan_lock = loaded.lock().await;
-
-    let timeout_duration = Duration::from_millis(config.timeout_ms);
-
-    let catch_panics = config.catch_panics;
-    let discovery_future = async move {
-        if catch_panics {
-            // Wrap SDK calls in catch_unwind for crash protection
-            // We use spawn_blocking because catch_unwind works best in sync context
-            tokio::task::spawn_blocking(move || {
-                // Unlocked on purpose: the caller's guard is held only while the
-                // caller waits. After a timeout this scan keeps running on the
-                // blocking thread without it, which is how QHY discovery has
-                // always behaved (see the timeout handling below).
-                let sdk = loaded.unlocked();
-                catch_unwind(AssertUnwindSafe(|| discover_devices_internal(sdk)))
-                    .map_err(|panic_info| {
-                        let panic_msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
-                            s.to_string()
-                        } else if let Some(s) = panic_info.downcast_ref::<String>() {
-                            s.clone()
-                        } else {
-                            "Unknown panic".to_string()
-                        };
-                        tracing::error!("QHY SDK panicked during discovery: {}", panic_msg);
-                        DriverError::SdkError(format!(
-                            "QHY SDK crashed during discovery: {}. Discovery has been disabled. \
-                             Re-enable with api_set_qhy_discovery_enabled(true) if you want to try again.",
-                            panic_msg
-                        ))
-                    })?
-            })
-            .await
-            .map_err(|e| {
-                DriverError::SdkError(format!("QHY discovery task failed: {:?}", e))
-            })?
-        } else {
-            // No panic protection, just call directly. The caller's guard is
-            // still held here, see above.
-            discover_devices_internal(loaded.unlocked())
+    let sdk = QhySdk::lock().await?;
+    let scan = tokio::task::spawn_blocking(move || {
+        catch_unwind(AssertUnwindSafe(|| discover_devices_internal(&sdk)))
+    });
+    let result = match tokio::time::timeout(Duration::from_millis(config.timeout_ms), scan).await {
+        Ok(Ok(Ok(cameras))) => return Ok(cameras),
+        Ok(Ok(Err(panic))) => {
+            let panic_msg = panic_text(&panic);
+            tracing::error!("QHY SDK panicked during discovery: {}", panic_msg);
+            DriverError::SdkError(format!(
+                "QHY SDK crashed during discovery: {}. Discovery has been disabled. \
+                 Re-enable with api_set_qhy_discovery_enabled(true) if you want to try again.",
+                panic_msg
+            ))
         }
-    };
-
-    match tokio::time::timeout(timeout_duration, discovery_future).await {
-        Ok(result) => {
-            match &result {
-                Ok(cameras) => {
-                    tracing::debug!(
-                        "QHY discovery completed successfully, found {} cameras",
-                        cameras.len()
-                    );
-                }
-                Err(e) => {
-                    tracing::warn!("QHY discovery failed: {}", e);
-                    // On failure, disable discovery to prevent repeated crashes
-                    set_qhy_discovery_enabled(false);
-                }
-            }
-            result
-        }
+        Ok(Err(e)) => DriverError::SdkError(format!("QHY discovery task failed: {:?}", e)),
         Err(_) => {
             tracing::error!(
                 "QHY discovery timed out after {}ms. Disabling QHY discovery.",
                 config.timeout_ms
             );
-            // Disable discovery to prevent repeated timeouts
-            set_qhy_discovery_enabled(false);
-            Err(DriverError::Timeout(format!(
+            DriverError::Timeout(format!(
                 "QHY discovery timed out after {}ms. Discovery has been disabled. \
                  Re-enable with api_set_qhy_discovery_enabled(true) if you want to try again.",
                 config.timeout_ms
-            )))
+            ))
         }
-    }
+    };
+    // Disable discovery so a crashing or hanging SDK is not entered again.
+    tracing::warn!("QHY discovery failed: {}", result);
+    set_qhy_discovery_enabled(false);
+    Err(result)
 }

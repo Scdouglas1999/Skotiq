@@ -49,6 +49,11 @@ class CameraStatus {
   final double pixelSizeX;
   final double pixelSizeY;
   final int maxAdu;
+
+  /// Where the sensor stops responding linearly, when the camera records it
+  /// below `max_adu` (`skotiq_device::SensorInfo::saturation_adu`). Only
+  /// saturation checks use it.
+  final int? saturationAdu;
   final bool canCool;
   final bool canSetGain;
   final bool canSetOffset;
@@ -69,6 +74,7 @@ class CameraStatus {
     required this.pixelSizeX,
     required this.pixelSizeY,
     required this.maxAdu,
+    this.saturationAdu,
     required this.canCool,
     required this.canSetGain,
     required this.canSetOffset,
@@ -91,6 +97,7 @@ class CameraStatus {
       pixelSizeX.hashCode ^
       pixelSizeY.hashCode ^
       maxAdu.hashCode ^
+      saturationAdu.hashCode ^
       canCool.hashCode ^
       canSetGain.hashCode ^
       canSetOffset.hashCode;
@@ -115,6 +122,7 @@ class CameraStatus {
           pixelSizeX == other.pixelSizeX &&
           pixelSizeY == other.pixelSizeY &&
           maxAdu == other.maxAdu &&
+          saturationAdu == other.saturationAdu &&
           canCool == other.canCool &&
           canSetGain == other.canSetGain &&
           canSetOffset == other.canSetOffset;

@@ -2,10 +2,9 @@
 //!
 //! Four kinds of thing arrive here, and each has one home:
 //!
-//!   * Operator settings. Every setter is read-modify-apply on the one
-//!     [`RunConfig`] through [`RunConfigStore`]; [`SequenceExecutor::apply_run_config`]
-//!     takes the whole value. Idle or running, the path is the same, and a
-//!     changed section is announced once as
+//!   * Operator settings: the one [`RunConfig`], which the app sends whole
+//!     through [`super::ExecutorHandle::apply_run_config`]. Idle or running, the
+//!     path is the same, and a changed section is announced once as
 //!     `ExecutorEvent::RuntimeConfigUpdated`.
 //!   * The next start's staging ([`RunStaging`]): the integration carry-over.
 //!   * The live sky feed ([`SkyFeed`] and the weather readings on the trigger
@@ -15,224 +14,20 @@
 //! Device ids, the save path and the device handlers are wiring, not
 //! settings; they are in [`super::setup`].
 
-use super::{
-    CameraFileSaving, DefectMapApplyState, ExecutorEvent, ObserverProfile, ParkPolicy, RunConfig, RunConfigStore,
-    SequenceExecutor,
-};
+use super::{DefectMapApplyState, ExecutorEvent, RunConfigStore, SequenceExecutor};
 use crate::node::context::{CloudMotionSnapshot, TransparencyBackupPlan};
-use crate::SafetyFailMode;
 use std::collections::HashMap;
 
 impl SequenceExecutor {
-    /// The current operator settings.
-    pub fn run_config(&self) -> RunConfig {
-        self.settings.snapshot()
-    }
-
     /// The store the run's tasks read the settings from.
     pub fn run_config_store(&self) -> RunConfigStore {
         self.settings.clone()
-    }
-
-    /// Replace the operator settings. Each section that differs from the
-    /// current value takes effect and is announced once; equal sections do
-    /// nothing.
-    pub async fn apply_run_config(&self, config: RunConfig) {
-        self.settings
-            .apply(config, &self.trigger_manager, &self.run_state)
-            .await;
-    }
-
-    pub(super) async fn update_config(&self, edit: impl FnOnce(&mut RunConfig)) {
-        self.settings
-            .update(&self.trigger_manager, &self.run_state, edit)
-            .await;
     }
 
     /// The observing site, or `None`s when it is not configured.
     pub fn observer_location(&self) -> (Option<f64>, Option<f64>) {
         let config = self.settings.read();
         (config.latitude, config.longitude)
-    }
-
-    /// Dither size and settle. Used by the next dither.
-    pub async fn update_dither_config(
-        &mut self,
-        pixels: f64,
-        settle_pixels: f64,
-        settle_time: f64,
-        settle_timeout: f64,
-        ra_only: bool,
-    ) {
-        self.update_config(|config| {
-            config.dither.pixels = pixels;
-            config.dither.settle_pixels = settle_pixels;
-            config.dither.settle_time = settle_time;
-            config.dither.settle_timeout = settle_timeout;
-            config.dither.ra_only = ra_only;
-        })
-        .await;
-    }
-
-    /// The observing site. Reaches the altitude, dawn and meridian
-    /// evaluation of a running sequence at its next poll. (0, 0) is how an
-    /// unset site arrives and is stored as unset.
-    pub async fn update_location(&mut self, lat: Option<f64>, lon: Option<f64>) {
-        self.set_location(lat, lon).await;
-    }
-
-    /// See [`Self::update_location`].
-    pub async fn set_location(&mut self, lat: Option<f64>, lon: Option<f64>) {
-        self.update_config(|config| {
-            config.latitude = lat;
-            config.longitude = lon;
-        })
-        .await;
-    }
-
-    /// The daylight gate's maximum Sun altitude. `None` or a non-finite
-    /// value means the default; see [`RunConfig::max_sun_altitude`]. The gate
-    /// is safe without a push: the default equals the app scheduler's.
-    pub async fn update_max_sun_altitude(&mut self, degrees: Option<f64>) {
-        self.update_config(|config| config.max_sun_altitude_degrees = degrees)
-            .await;
-    }
-
-    /// The operator's meridian-flip settings, for the standard flip trigger:
-    /// the only flip path that runs on an unattended night.
-    pub async fn update_meridian_flip_config(&mut self, flip: crate::MeridianFlipConfig) {
-        self.update_config(|config| config.meridian_flip = Some(flip))
-            .await;
-    }
-
-    /// Per-filter focus offsets from the equipment profile.
-    pub async fn update_filter_offsets(&mut self, offsets: HashMap<String, i32>) {
-        self.set_filter_focus_offsets(offsets).await;
-    }
-
-    /// See [`Self::update_filter_offsets`].
-    pub async fn set_filter_focus_offsets(&mut self, offsets: HashMap<String, i32>) {
-        self.update_config(|config| config.filter_focus_offsets = offsets)
-            .await;
-    }
-
-    /// The operator's autofocus tuning, for trigger-fired refocus. It takes
-    /// precedence over the sequence's first Autofocus node: a sequence
-    /// without one is the sequence whose interval trigger fires unattended.
-    pub async fn update_autofocus_config(&mut self, autofocus: crate::AutofocusConfig) {
-        self.update_config(|config| config.autofocus = Some(autofocus))
-            .await;
-    }
-
-    /// Cadence of the standard autofocus-interval trigger.
-    pub async fn update_autofocus_interval(&mut self, every_n_frames: u32) {
-        self.update_config(|config| config.autofocus_interval_frames = Some(every_n_frames))
-            .await;
-    }
-
-    /// Grading thresholds for exposures without their own; `None` turns
-    /// grading off for them. A run reads this when it starts.
-    pub async fn update_default_quality_check(
-        &mut self,
-        check: Option<crate::quality::ImageQualityCheck>,
-    ) {
-        self.update_config(|config| config.default_quality_check = check)
-            .await;
-    }
-
-    /// What is saved for a frame from a camera that delivers its own file.
-    /// Every save reads it, the run's and a manual capture's.
-    pub async fn update_camera_file_saving(&mut self, saving: CameraFileSaving) {
-        self.update_config(|config| config.camera_file_saving = saving)
-            .await;
-    }
-
-    /// Where rejected frames go; `None` is a `Reject/` folder beside the
-    /// frames. A run reads this when it starts.
-    pub async fn update_reject_folder_path(&mut self, path: Option<String>) {
-        self.update_config(|config| config.reject_folder_path = path)
-            .await;
-    }
-
-    /// Observer and equipment names for the FITS header. A run reads this
-    /// when it starts.
-    pub async fn update_observer_profile(&mut self, profile: ObserverProfile) {
-        self.update_config(|config| config.observer_profile = profile)
-            .await;
-    }
-
-    /// Sky-brightness adaptive exposure for exposures without their own.
-    pub async fn update_default_adaptive_exposure(
-        &mut self,
-        adaptive: Option<crate::scheduling::AdaptiveExposureConfig>,
-    ) {
-        self.update_config(|config| config.default_adaptive_exposure = adaptive)
-            .await;
-    }
-
-    /// Retry cadence and budget of the recovery ladder. A ladder already
-    /// running keeps the cadence it entered with.
-    pub async fn update_recovery_config(
-        &mut self,
-        recovery: crate::recovery::RecoveryRuntimeConfig,
-    ) {
-        self.update_config(|config| config.recovery = recovery)
-            .await;
-    }
-
-    /// Whether the standard weather and dawn triggers may park (the
-    /// operator's "Park on unsafe weather" and "Park before dawn"). Read each
-    /// time one of them fires.
-    pub async fn set_park_policy(&mut self, policy: ParkPolicy) {
-        self.update_config(|config| config.park_policy = policy)
-            .await;
-    }
-
-    /// How many times a failed camera exposure or filter-wheel move is
-    /// retried before it counts as a failure. Applies to the next attempt.
-    pub async fn set_device_retry_policy(
-        &mut self,
-        policy: crate::instructions::DeviceRetryPolicy,
-    ) {
-        self.update_config(|config| config.device_retry = policy)
-            .await;
-    }
-
-    /// Whether a quality problem the software judges (guiding RMS over the
-    /// limit, a Center that did not converge, a dither that did not settle,
-    /// a failed post-flip recenter or guiding check) stops the run or
-    /// notifies the operator while imaging continues (the default).
-    pub async fn set_stop_on_quality_problems(&self, stop: bool) {
-        self.update_config(|config| config.stop_on_quality_problems = stop)
-            .await;
-    }
-
-    /// What missing safety data means.
-    pub async fn set_safety_fail_mode(&mut self, mode: SafetyFailMode) {
-        self.update_config(|config| config.safety_fail_mode = mode)
-            .await;
-    }
-
-    /// Cadence of safety and humidity device polls, held to 5..=3600 s; `0`
-    /// is the default cadence, so it cannot switch polling off.
-    pub async fn set_safety_check_interval_secs(&mut self, seconds: u64) {
-        self.update_config(|config| {
-            config.safety_check_interval_secs = super::effective_safety_check_interval_secs(seconds)
-        })
-        .await;
-    }
-
-    /// How long the sky must read safe before a weather hold ends: the
-    /// operator's "required safe duration". Read at each weather-hold check.
-    pub async fn set_weather_resume_after_safe_secs(&self, secs: u64) {
-        self.update_config(|config| config.weather_resume_after_safe_secs = Some(secs))
-            .await;
-    }
-
-    /// Whether decisions are written to the replay log.
-    pub async fn set_decision_logging_enabled(&self, enabled: bool) {
-        self.update_config(|config| config.decision_logging_enabled = enabled)
-            .await;
     }
 
     pub fn decision_logging_enabled(&self) -> bool {
@@ -259,7 +54,7 @@ impl SequenceExecutor {
 
     /// The defect map applied to lights during capture, loaded by the host;
     /// `None` turns correction off. Applies from the next exposure.
-    pub async fn update_defect_map(&mut self, state: Option<DefectMapApplyState>) {
+    pub async fn update_defect_map(&self, state: Option<DefectMapApplyState>) {
         match &state {
             Some(s) => tracing::info!(
                 "Updating defect map: camera={}, defects={}, kernel={}x{}, method={}, save_original={}",

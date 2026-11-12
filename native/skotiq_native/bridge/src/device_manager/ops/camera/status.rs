@@ -139,6 +139,7 @@ impl DeviceManager {
                                 .as_ref()
                                 .map(|c| if c.max_adu == 0 { 65535 } else { c.max_adu })
                                 .unwrap_or(65535),
+                            saturation_adu: None,
                             can_cool: ascom_caps
                                 .as_ref()
                                 .map(|c| c.can_set_ccd_temperature)
@@ -160,11 +161,11 @@ impl DeviceManager {
                             // a control we cannot deliver.
                             can_set_gain: ascom_caps
                                 .as_ref()
-                                .map(|c| c.can_set_gain)
+                                .map(|c| c.controls.gain.is_present())
                                 .unwrap_or(false),
                             can_set_offset: ascom_caps
                                 .as_ref()
-                                .map(|c| c.can_set_offset)
+                                .map(|c| c.controls.offset.is_present())
                                 .unwrap_or(false),
                         });
                     }
@@ -207,8 +208,17 @@ impl DeviceManager {
                             e,
                         )
                     })?;
-                    let gain = camera.gain().await.ok();
-                    let offset = camera.offset().await.ok();
+                    let controls = camera.controls().await;
+                    let (gain, offset, setpoint) =
+                        tokio::join!(camera.gain(), camera.offset(), async {
+                            if capabilities.can_set_ccd_temperature {
+                                camera.ccd_temperature_setpoint().await.ok()
+                            } else {
+                                None
+                            }
+                        });
+                    let gain = gain.ok().map(|wire| controls.gain.from_wire(wire));
+                    let offset = offset.ok().map(|wire| controls.offset.from_wire(wire));
 
                     return Ok(crate::device::CameraStatus {
                         connected: true,
@@ -230,7 +240,7 @@ impl DeviceManager {
                         },
                         sensor_temp: status.ccd_temperature,
                         cooler_power: status.cooler_power,
-                        target_temp: None, // Alpaca doesn't provide target temp directly
+                        target_temp: setpoint,
                         cooler_on: status.cooler_on.unwrap_or(false),
                         gain: gain.unwrap_or(0),
                         offset: offset.unwrap_or(0),
@@ -241,9 +251,10 @@ impl DeviceManager {
                         pixel_size_x: sensor.pixel_size_x,
                         pixel_size_y: sensor.pixel_size_y,
                         max_adu: sensor.max_adu as u32,
+                        saturation_adu: None,
                         can_cool: capabilities.can_set_ccd_temperature,
-                        can_set_gain: gain.is_some(),
-                        can_set_offset: offset.is_some(),
+                        can_set_gain: controls.gain.is_present(),
+                        can_set_offset: controls.offset.is_present(),
                     });
                 }
                 Err(DeviceOpError::not_connected(
@@ -307,6 +318,7 @@ impl DeviceManager {
                         } else {
                             sensor_info.max_adu
                         },
+                        saturation_adu: sensor_info.saturation_adu,
                         can_cool: capabilities.can_cool,
                         can_set_gain: capabilities.can_set_gain,
                         can_set_offset: capabilities.can_set_offset,
@@ -494,6 +506,7 @@ impl DeviceManager {
                         pixel_size_x,
                         pixel_size_y,
                         max_adu,
+                        saturation_adu: None,
                         can_cool: has_cooler,
                         can_set_gain: has_gain,
                         can_set_offset: has_offset,

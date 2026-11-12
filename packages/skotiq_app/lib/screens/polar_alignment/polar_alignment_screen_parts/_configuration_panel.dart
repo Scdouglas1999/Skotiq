@@ -128,7 +128,7 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
           ? 'From your observing location (not set yet)'
           : '${site.latitude >= 0 ? 'North' : 'South'} · from your site at '
               '${AngleFormat.latitude(site.latitude, decimals: 1)}',
-      key: PolarAlignmentTutorialKeys.hemisphere,
+      key: TourTarget.polarHemisphere.key,
       style: SkotiqTypography.bodySm.copyWith(
         color: site == null ? colors.textMuted : colors.textPrimary,
       ),
@@ -164,7 +164,7 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
               'Longer exposures capture more stars but slow down iterations',
           colors: colors,
           child: Row(
-            key: PolarAlignmentTutorialKeys.exposure,
+            key: TourTarget.polarExposure.key,
             children: [
               Expanded(
                 child: Slider(
@@ -247,7 +247,7 @@ extension _ConfigurationPanel on _PolarAlignmentScreenState {
                   'Distance between measurement points. Larger = more accurate but may hit mount limits',
               colors: colors,
               child: Row(
-                key: PolarAlignmentTutorialKeys.stepSize,
+                key: TourTarget.polarStepSize.key,
                 children: [
                   Expanded(
                     child: Slider(

@@ -81,9 +81,7 @@
 
 ## rotator.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.is_connected [http 400]
 > GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -159,9 +157,7 @@
 
 ## rotator.name [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.name [http 400]
 > GET /api/v1/rotator/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -189,9 +185,7 @@
 
 ## rotator.description [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.description [http 400]
 > GET /api/v1/rotator/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -219,9 +213,7 @@
 
 ## rotator.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.driver_version [http 400]
 > GET /api/v1/rotator/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -249,9 +241,7 @@
 
 ## rotator.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.driver_info [http 400]
 > GET /api/v1/rotator/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -279,9 +269,7 @@
 
 ## rotator.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.interface_version [http 400]
 > GET /api/v1/rotator/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -309,9 +297,7 @@
 
 ## rotator.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.supported_actions [http 400]
 > GET /api/v1/rotator/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -339,9 +325,7 @@
 
 ## rotator.position [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.position [http 400]
 > GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -385,9 +369,7 @@
 
 ## rotator.position [ascom 0x40C without Value]
 > GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## rotator.position [ascom 0x500]
 > GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -411,9 +393,7 @@
 
 ## rotator.position [wrong value type]
 > GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected f64 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected f64)
 
 ## rotator.mechanical_position [ok]
 > GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
@@ -425,9 +405,7 @@
 
 ## rotator.mechanical_position [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.mechanical_position [http 400]
 > GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=0]
@@ -455,9 +433,7 @@
 
 ## rotator.target_position [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.target_position [http 400]
 > GET /api/v1/rotator/#/targetposition query[ClientID=<id>&ClientTransactionID=0]
@@ -485,9 +461,7 @@
 
 ## rotator.step_size [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.step_size [http 400]
 > GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=0]
@@ -515,9 +489,7 @@
 
 ## rotator.is_moving [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.is_moving [http 400]
 > GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=0]
@@ -545,9 +517,7 @@
 
 ## rotator.can_reverse [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.can_reverse [http 400]
 > GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=0]
@@ -575,9 +545,7 @@
 
 ## rotator.reverse [ascom 0x4FF without Value]
 > GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## rotator.reverse [http 400]
 > GET /api/v1/rotator/#/reverse query[ClientID=<id>&ClientTransactionID=0]
@@ -641,15 +609,11 @@
 
 ## rotator.move_absolute [http 500]
 > PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
-> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=1&Position=359.75]
-> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=2&Position=359.75]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+= Err(HTTP error 500: Internal server error)
 
 ## rotator.move_absolute [malformed json]
 > PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
-> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=1&Position=359.75]
-> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=2&Position=359.75]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## rotator.move_absolute [ascom 0x401]
 > PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
@@ -689,15 +653,11 @@
 
 ## rotator.move_absolute [http 429 retry-after 0]
 > PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
-> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=1&Position=359.75]
-> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=2&Position=359.75]
-= Err(Retry exhausted after 3 attempts: HTTP error 429: Slow down)
+= Err(HTTP error 429: Slow down)
 
 ## rotator.move_absolute [http 503]
 > PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
-> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=1&Position=359.75]
-> PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=2&Position=359.75]
-= Err(Retry exhausted after 3 attempts: HTTP error 503: Service Unavailable)
+= Err(HTTP error 503: Service Unavailable)
 
 ## rotator.move_absolute [wrong value type]
 > PUT /api/v1/rotator/#/moveabsolute query[] form[ClientID=<id>&ClientTransactionID=0&Position=359.75]
@@ -721,15 +681,11 @@
 
 ## rotator.move_relative [http 500]
 > PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=-12.5]
-> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=1&Position=-12.5]
-> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=2&Position=-12.5]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+= Err(HTTP error 500: Internal server error)
 
 ## rotator.move_relative [malformed json]
 > PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=0&Position=-12.5]
-> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=1&Position=-12.5]
-> PUT /api/v1/rotator/#/move query[] form[ClientID=<id>&ClientTransactionID=2&Position=-12.5]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## rotator.move_mechanical [ok]
 > PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
@@ -749,15 +705,11 @@
 
 ## rotator.move_mechanical [http 500]
 > PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
-> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=1&Position=90]
-> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=2&Position=90]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
+= Err(HTTP error 500: Internal server error)
 
 ## rotator.move_mechanical [malformed json]
 > PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=0&Position=90]
-> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=1&Position=90]
-> PUT /api/v1/rotator/#/movemechanical query[] form[ClientID=<id>&ClientTransactionID=2&Position=90]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
+= Err(Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
 
 ## rotator.halt [ok]
 > PUT /api/v1/rotator/#/halt query[] form[ClientID=<id>&ClientTransactionID=0]
@@ -813,112 +765,4 @@
 > PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=0&Position=180.25]
 > PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=1&Position=180.25]
 > PUT /api/v1/rotator/#/sync query[] form[ClientID=<id>&ClientTransactionID=2&Position=180.25]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## rotator.get_status [ok]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(RotatorStatus { connected: true, position: 123.5, mechanical_position: 124.5, is_moving: false })
-
-## rotator.get_status [ascom 0x400]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## rotator.get_status [ascom 0x4FF without Value]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## rotator.get_status [http 400]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## rotator.get_status [http 500]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## rotator.get_status [malformed json]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/ismoving query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/mechanicalposition query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
-
-## rotator.get_capabilities [ok]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-= Ok(RotatorCapabilities { can_reverse: true, step_size: 0.5 })
-
-## rotator.get_capabilities [ascom 0x400]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Device error 1024: Property or method is not implemented)
-
-## rotator.get_capabilities [ascom 0x4FF without Value]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
-
-## rotator.get_capabilities [http 400]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(HTTP error 400: Method not implemented)
-
-## rotator.get_capabilities [http 500]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: HTTP error 500: Internal server error)
-
-## rotator.get_capabilities [malformed json]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/canreverse query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/rotator/#/stepsize query[ClientID=<id>&ClientTransactionID=<txn>]
 = Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: EOF while parsing a value at line 1 column 13)
