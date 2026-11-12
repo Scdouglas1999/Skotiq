@@ -83,7 +83,6 @@
       "skotiq_app -> package:skotiq_core/src/models/troubleshooter/connection_diagnostic.dart": 5,
       "skotiq_app -> package:skotiq_core/src/providers/backend_provider.dart": 1,
       "skotiq_app -> package:skotiq_core/src/providers/database_provider.dart": 4,
-      "skotiq_app -> package:skotiq_core/src/providers/framing_provider.dart": 9,
       "skotiq_app -> package:skotiq_core/src/providers/hardware_presets_provider.dart": 15,
       "skotiq_app -> package:skotiq_core/src/providers/plate_solver_provider.dart": 1,
       "skotiq_app -> package:skotiq_core/src/providers/plugin_enablement_provider.dart": 4,
