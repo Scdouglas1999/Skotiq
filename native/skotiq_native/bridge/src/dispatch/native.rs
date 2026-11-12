@@ -153,8 +153,11 @@ impl DeviceManager {
                 if !camera.is_connected() {
                     return Ok(false);
                 }
+                // The status read, because every camera answers it; a body
+                // without a thermometer (every DSLR and mirrorless camera)
+                // answers a temperature read "not supported".
                 camera
-                    .get_temperature()
+                    .get_status()
                     .await
                     .map(|_| true)
                     .map_err(|e| format!("Native camera liveness probe failed: {}", e))
