@@ -141,6 +141,7 @@ class FrameQualityAssessmentService {
     CapturedImage image, {
     double? referenceHfr,
     double? referenceGuidingRms,
+    int? referenceStarCount,
   }) {
     var advisoryScore = image.qualityScore ?? 75.0;
     var severeIssue = false;
@@ -174,7 +175,27 @@ class FrameQualityAssessmentService {
     }
 
     final starCount = image.starCount;
-    if (starCount != null) {
+    if (starCount != null && referenceStarCount != null) {
+      // How many stars a frame shows depends on exposure, filter, binning and
+      // sky, so a frame is judged against the frames taken with it: a short
+      // sub with 45 stars is normal when every sub of the night has 45.
+      final ratio = starCount / referenceStarCount;
+      if (ratio < 0.5) {
+        advisoryScore -= 20;
+        severeIssue = true;
+        reasons.add(
+          'Star count ($starCount) under half the session median '
+          '($referenceStarCount)',
+        );
+      } else if (ratio < 0.75) {
+        advisoryScore -= 10;
+        moderateIssueCount++;
+        reasons.add(
+          'Fewer stars than the session median ($starCount vs '
+          '$referenceStarCount)',
+        );
+      }
+    } else if (starCount != null) {
       if (starCount < 20) {
         advisoryScore -= 20;
         severeIssue = true;
@@ -319,15 +340,30 @@ class FrameQualityAssessmentService {
           .where((v) => v > 0),
     );
 
+    final starCounts = list
+        .map((i) => i.starCount)
+        .whereType<int>()
+        .where((v) => v > 0)
+        .map((v) => v.toDouble())
+        .toList();
+    // A median of one or two frames is not a session norm; those frames are
+    // judged on their own star count.
+    final medianStarCount = starCounts.length >= _minFramesForStarNorm
+        ? _median(starCounts)?.round()
+        : null;
+
     return {
       for (final image in list)
         image.id: assessFrame(
           image,
           referenceHfr: medianHfr,
           referenceGuidingRms: medianGuidingRms,
+          referenceStarCount: medianStarCount,
         ),
     };
   }
+
+  static const int _minFramesForStarNorm = 3;
 
   /// Build counts for dashboard and session overview display.
   FrameQualitySummary summarize(Map<int, FrameQualityAssessment> assessments) {

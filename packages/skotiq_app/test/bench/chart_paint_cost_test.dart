@@ -63,6 +63,7 @@ void main() {
             title: 'Image quality',
             yAxisLabel: 'HFR (px)',
             dataPoints: points,
+            reading: (value) => value.toStringAsFixed(2),
           ),
         ),
         const Size(600, 320),

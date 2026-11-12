@@ -27,7 +27,7 @@ class _FrozenClock implements Clock {
   DateTime fromUtc(DateTime utc) => utc;
 }
 
-ProjectProgress _project(int id, String name, DateTime lastSessionAt) {
+ProjectProgress _project(int id, String name, DateTime lastImagedAt) {
   final created = DateTime(2026, 1, 1);
   return ProjectProgress(
     target: DbTarget(
@@ -40,15 +40,17 @@ ProjectProgress _project(int id, String name, DateTime lastSessionAt) {
       totalPlannedSubs: 0,
       capturedSubs: 0,
       totalIntegrationSecs: 0,
-      goalIntegrationSecs: 3600,
+      goalIntegrationSecs: 0,
       createdAt: created,
       updatedAt: created,
       isFavorite: false,
     ),
     sessionCount: 1,
-    successfulExposures: 0,
+    acceptedFrames: 0,
     integratedSecs: 0,
-    lastSessionAt: lastSessionAt,
+    filters: const [],
+    goal: const TargetGoal(goalSecs: 3600, doneSecs: 0, allFilters: false),
+    lastImagedAt: lastImagedAt,
   );
 }
 
@@ -71,9 +73,6 @@ void main() {
               // Last imaged in the spring — outside the 30-night window.
               _project(4, 'NGC 7000', DateTime(2026, 5, 2)),
             ]),
-          ),
-          perFilterIntegrationProvider.overrideWith(
-            (ref) => const AsyncValue.data(<int, Map<String, double>>{}),
           ),
           untrackedTargetsCountProvider.overrideWith((ref) async => 0),
         ],

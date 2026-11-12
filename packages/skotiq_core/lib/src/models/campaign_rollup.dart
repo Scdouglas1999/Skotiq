@@ -90,8 +90,9 @@ class CampaignSessionRef {
   final DateTime? endTime;
   final String status;
 
-  /// Integration time recorded on the session row, in seconds. Sourced from
-  /// `imaging_sessions.totalIntegrationSecs` — may be 0 for active sessions.
+  /// Exposure of this target's light frames taken in the session, accepted or
+  /// not, in seconds. A run can image several targets, so this is not the
+  /// session row's own total.
   final double sessionIntegrationSecs;
 
   /// Mean HFR recorded on the session row. Null when not tracked.
@@ -159,6 +160,14 @@ class CampaignRollup {
   /// includes rejected frames in some older code paths).
   final double totalCapturedIntegrationSecs;
 
+  /// The target's old single goal over every filter, seconds, when it has no
+  /// per-filter goals; null otherwise (see `TargetGoal`).
+  final double? allFiltersGoalSecs;
+
+  /// Accepted seconds counted toward the goal: those in the goals' filters,
+  /// or in every filter for [allFiltersGoalSecs] (see `TargetGoal`).
+  final double goalDoneSecs;
+
   /// Mean HFR across the target's sessions, weighted by frame count. Null
   /// when no session recorded an HFR for this target.
   final double? meanSessionHfr;
@@ -182,6 +191,8 @@ class CampaignRollup {
     required this.firstSessionAt,
     required this.lastSessionAt,
     required this.totalCapturedIntegrationSecs,
+    this.allFiltersGoalSecs,
+    required this.goalDoneSecs,
     required this.meanSessionHfr,
     required this.meanSessionSeeing,
     required this.meanEffectiveImagingFraction,
@@ -193,19 +204,17 @@ class CampaignRollup {
   /// True when at least one filter has a configured integration goal.
   bool get hasGoals => filters.any((f) => f.hasGoal);
 
-  /// True when every filter goal is met (and at least one goal exists).
+  /// True when the accepted seconds meet the goal, as Plan judges it.
   bool get isComplete {
-    if (!hasGoals) return false;
-    return filters
-        .where((f) => f.hasGoal)
-        .every((f) => (f.percentComplete ?? 0.0) >= 1.0);
+    final goalTotal = totalGoalIntegrationSecs;
+    return goalTotal != null && goalTotal > 0 && goalDoneSecs >= goalTotal;
   }
 
   /// Sum of all per-filter `goalIntegrationSecs`. Null when no goals exist
   /// or none of the goals have an exposure (no captured frames either).
   double? get totalGoalIntegrationSecs {
     final goaled = filters.where((f) => f.hasGoal);
-    if (goaled.isEmpty) return null;
+    if (goaled.isEmpty) return allFiltersGoalSecs;
     var sum = 0.0;
     var any = false;
     for (final f in goaled) {
@@ -223,7 +232,7 @@ class CampaignRollup {
   double? get totalPercentComplete {
     final goalTotal = totalGoalIntegrationSecs;
     if (goalTotal == null || goalTotal <= 0) return null;
-    final ratio = totalCapturedIntegrationSecs / goalTotal;
+    final ratio = goalDoneSecs / goalTotal;
     if (ratio < 0.0) return 0.0;
     if (ratio > 1.0) return 1.0;
     return ratio;
@@ -238,6 +247,8 @@ class CampaignRollup {
     'firstSessionAt': firstSessionAt?.toIso8601String(),
     'lastSessionAt': lastSessionAt?.toIso8601String(),
     'totalCapturedIntegrationSecs': totalCapturedIntegrationSecs,
+    'allFiltersGoalSecs': allFiltersGoalSecs,
+    'goalDoneSecs': goalDoneSecs,
     'totalGoalIntegrationSecs': totalGoalIntegrationSecs,
     'totalPercentComplete': totalPercentComplete,
     'meanSessionHfr': meanSessionHfr,

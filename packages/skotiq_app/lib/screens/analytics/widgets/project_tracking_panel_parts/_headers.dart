@@ -123,8 +123,8 @@ class _SummaryStatsHeader extends ConsumerWidget {
     final totalTargets = projects.length;
     final trackedTargets = projects.where((p) => p.isTracked).length;
     final completedTargets = projects.where((p) => p.isCompleted).length;
-    final totalIntegrationHours =
-        projects.fold<double>(0.0, (sum, p) => sum + p.integratedSecs) / 3600.0;
+    final totalIntegrationSecs =
+        projects.fold<double>(0.0, (sum, p) => sum + p.integratedSecs);
 
     // Counted over a rolling 30 nights, not the calendar month: an observing
     // run straddles the 1st, and on Aug 1 a calendar-month window reported "0
@@ -134,7 +134,7 @@ class _SummaryStatsHeader extends ConsumerWidget {
     final activeCutoff =
         ref.watch(clockProvider).now().subtract(const Duration(days: 30));
     final activeTargets = projects.fold<int>(0, (sum, p) {
-      if (p.lastSessionAt != null && p.lastSessionAt!.isAfter(activeCutoff)) {
+      if (p.lastImagedAt != null && p.lastImagedAt!.isAfter(activeCutoff)) {
         return sum + 1;
       }
       return sum;
@@ -175,7 +175,7 @@ class _SummaryStatsHeader extends ConsumerWidget {
             child: _SummaryStat(
               icon: LucideIcons.timer,
               label: 'Total integration',
-              value: '${totalIntegrationHours.toStringAsFixed(1)}h',
+              value: DurationFormat.decimalHours(totalIntegrationSecs),
               colors: colors,
             ),
           ),

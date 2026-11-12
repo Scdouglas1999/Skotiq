@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/format.dart';
 
 import '../../models/darkroom/darkroom_links.dart';
 import '../../models/notification/notification_categories.dart';
@@ -76,6 +77,11 @@ class NightEndRunner {
     }
     _finished ??= _jobs.finished.listen(_onBuildFinished);
     _ref.onDispose(() => _finished?.cancel());
+    final builds = [
+      ?_ref.read(darkroomBuildJobsProvider),
+      ..._ref.read(darkroomRecentBuildsProvider),
+    ];
+    _enqueue(() async => _settleCalibrationHolds(builds));
     for (final run in _runs.where((r) => !r.finished).toList()) {
       _enqueue(() => _carryOn(run.id));
     }
@@ -584,9 +590,59 @@ class NightEndRunner {
     }
   }
 
+  /// A target a night held for calibration that has been built since, by hand
+  /// or by another build, no longer waits: its step says when it was built,
+  /// and there is nothing left to retry.
+  void _settleCalibrationHolds(Iterable<DarkroomBuildJob> builds) {
+    for (final run in _runs.toList()) {
+      for (final target in run.targets) {
+        if (!target.waitingForCalibration ||
+            target.build.state != NightEndStepState.waiting) {
+          continue;
+        }
+        DarkroomBuildJob? built;
+        for (final job in builds) {
+          final finishedAt = job.finishedAt;
+          if (job.target != target.target ||
+              job.stage != DarkroomJobStage.done ||
+              job.nightRunId == run.id ||
+              finishedAt == null ||
+              !finishedAt.isAfter(run.startedAt)) {
+            continue;
+          }
+          if (built == null || finishedAt.isAfter(built.finishedAt!)) {
+            built = job;
+          }
+        }
+        if (built == null) continue;
+        final at = ClockFormat.hm(built.finishedAt!.toLocal());
+        _put(
+          _run(run.id)!.withTarget(
+            target.target,
+            (t) => t.copyWith(
+              build: NightEndStep(
+                NightEndStepState.done,
+                built!.unattended ? 'Built at $at.' : 'Built by hand at $at.',
+              ),
+              deliver: const NightEndStep(
+                NightEndStepState.skipped,
+                'Built outside the night end, so it delivered nothing.',
+              ),
+              waitingForCalibration: false,
+              directory: built.directory,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   /// A build a night-end run held at the framing check was accepted and has
   /// ended: deliver it and say so, as the run would have.
   void _onBuildFinished(DarkroomBuildJob job) {
+    if (job.stage == DarkroomJobStage.done) {
+      _enqueue(() async => _settleCalibrationHolds([job]));
+    }
     final id = job.nightRunId;
     if (id == null) return;
     final run = _run(id);

@@ -264,7 +264,7 @@ void main() {
       expect(groups.map((g) => g.frames.length).toList()..sort(), [1, 3]);
       expect(
         groups.firstWhere((g) => g.frames.length == 3).label,
-        contains('-10 C'),
+        contains('-10°C'),
       );
     });
   });

@@ -36,6 +36,7 @@ CampaignRollup _rollup({required DateTime? endTime}) => CampaignRollup(
       firstSessionAt: DateTime.utc(2026, 7, 31, 23),
       lastSessionAt: DateTime.utc(2026, 7, 31, 23),
       totalCapturedIntegrationSecs: 0,
+      goalDoneSecs: 0,
       meanSessionHfr: 2.20,
       meanSessionSeeing: null,
       meanEffectiveImagingFraction: 0.0,
@@ -84,6 +85,7 @@ CampaignRollup _partlyRejectedRollup() => CampaignRollup(
       firstSessionAt: DateTime.utc(2026, 7, 31, 23),
       lastSessionAt: DateTime.utc(2026, 7, 31, 23),
       totalCapturedIntegrationSecs: 8400,
+      goalDoneSecs: 6000,
       meanSessionHfr: 2.20,
       meanSessionSeeing: null,
       meanEffectiveImagingFraction: 0.66,
@@ -191,10 +193,11 @@ void main() {
     expect(find.text('8 frames accepted (no goal)'), findsOneWidget);
     expect(find.text('20/50 frames accepted'), findsOneWidget);
 
-    // The goal bar's number is the accepted total (2.3h), not the 3.3h the
-    // session row below it reports as captured.
-    expect(find.textContaining('Accepted 2.3h of'), findsOneWidget);
-    expect(find.textContaining('Captured 2.3h of'), findsNothing);
-    expect(find.textContaining('3.33h captured'), findsOneWidget);
+    // The goal bar's number is the accepted time in the goal's filter (L,
+    // 1.7h), as Plan counts it: not the 2.3h accepted over every filter, nor
+    // the 3.3h the session row below it reports as captured.
+    expect(find.textContaining('Accepted 1.7h of'), findsOneWidget);
+    expect(find.textContaining('Captured 1.7h of'), findsNothing);
+    expect(find.textContaining('3.3h captured'), findsOneWidget);
   });
 }

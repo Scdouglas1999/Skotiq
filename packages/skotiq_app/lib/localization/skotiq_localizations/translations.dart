@@ -189,14 +189,13 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsAvgHfr': 'Avg HFR',
     'analyticsAvgRms': 'Avg RMS',
     'analyticsCapturedImages': 'Captured images',
-    'analyticsClearGoal': 'Clear Goal',
     'analyticsCurrentSession': 'Current Session',
     'analyticsDiagnostics': 'Diagnostics',
     'analyticsDuration': 'Duration',
     'analyticsEditGoal': 'Edit Goal',
     'analyticsAcceptedLights': 'Accepted',
     'analyticsExposureCountsLightOnly':
-        'Exposure counts are light frames only. "Camera Returned" is what the '
+        'Exposure counts are light frames only. "Total exposures" is what the '
             'camera handed back; "Accepted" and "Rejected" are what the culling '
             'decided about those frames.',
     'analyticsGradingUnread':
@@ -211,8 +210,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     // it only ever counted lights. Both captions exist so the two numbers
     // cannot be read as disagreeing versions of one count.
     'analyticsFrameMix': '{light} light \u00B7 {calibration} calibration',
-    'analyticsGoalDialogTitle': 'Set integration goal for {target}',
-    'analyticsGoalHours': 'Goal integration (hours)',
     'analyticsHistory': 'History',
     'analyticsImages': 'Images ({count})',
     'analyticsIntegration': 'Integration',
@@ -225,7 +222,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsQuickCapture': 'Quick Capture',
     'analyticsQuickCaptureSubtitle':
         'Standalone snapshots taken outside sequences',
-    'analyticsSave': 'Save',
     'analyticsScience': 'Science',
     'analyticsSearchSessions': 'Search sessions...',
     'analyticsSession': 'Session',
@@ -1804,7 +1800,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsAvgHfr': 'HFR prom.',
     'analyticsAvgRms': 'RMS prom.',
     'analyticsCapturedImages': 'Im\u00E1genes capturadas',
-    'analyticsClearGoal': 'Borrar meta',
     'analyticsCurrentSession': 'Sesi\u00F3n actual',
     'analyticsDiagnostics': 'Diagn\u00F3stico',
     'analyticsDuration': 'Duraci\u00F3n',
@@ -1812,7 +1807,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsAcceptedLights': 'Aceptadas',
     'analyticsExposureCountsLightOnly':
         'Los recuentos de exposiciones incluyen solo cuadros de luz. '
-            '"Devueltas por la c\u00E1mara" es lo que entreg\u00F3 la '
+            '"Exposiciones totales" es lo que entreg\u00F3 la '
             'c\u00E1mara; '
             '"Aceptadas" y "Rechazadas" son lo que decidi\u00F3 el descarte sobre '
             'esos cuadros.',
@@ -1827,9 +1822,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsExportJson': 'Exportar a JSON',
     'analyticsFrameMix':
         '{light} de luz \u00B7 {calibration} de calibraci\u00F3n',
-    'analyticsGoalDialogTitle':
-        'Definir meta de integraci\u00F3n para {target}',
-    'analyticsGoalHours': 'Meta de integraci\u00F3n (horas)',
     'analyticsHistory': 'Historial',
     'analyticsImages': 'Im\u00E1genes ({count})',
     'analyticsIntegration': 'Integraci\u00F3n',
@@ -1842,7 +1834,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'analyticsQuickCapture': 'Captura r\u00E1pida',
     'analyticsQuickCaptureSubtitle':
         'Instant\u00E1neas hechas fuera de las secuencias',
-    'analyticsSave': 'Guardar',
     'analyticsScience': 'Ciencia',
     'analyticsSearchSessions': 'Buscar sesiones...',
     'analyticsSession': 'Sesi\u00F3n',

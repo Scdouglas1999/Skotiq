@@ -579,8 +579,7 @@ class _SessionDetailDialogState extends ConsumerState<_SessionDetailDialog> {
             ),
             _buildStat(
               l10n.text('analyticsIntegration'),
-              (session.totalIntegrationSecs / 3600).toStringAsFixed(2),
-              unit: 'h',
+              DurationFormat.decimalHours(session.totalIntegrationSecs),
             ),
             _buildStat(
               l10n.text('analyticsAvgHfr'),

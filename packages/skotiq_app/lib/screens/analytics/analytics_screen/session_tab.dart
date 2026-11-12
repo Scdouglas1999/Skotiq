@@ -92,7 +92,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
       headerTitle = reviewSession.name ?? l10n.text('analyticsUnnamedSession');
       headerSubtitle =
           '${DateFormat('EEE MMM d, yyyy · HH:mm').format(reviewSession.startTime)}'
-          '  ·  ${reviewSession.status}';
+          '  ·  ${runStatusLabel(reviewSession.status)}';
     } else if (isStandaloneMode) {
       headerTitle = l10n.text('analyticsQuickCapture');
       headerSubtitle = l10n.text('analyticsQuickCaptureSubtitle');
@@ -367,7 +367,7 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                       ),
                     if (reviewStatus != null)
                       SkotiqChip(
-                        label: reviewStatus,
+                        label: runStatusLabel(reviewStatus),
                         tone: _SessionHistoryCard._statusTone(reviewStatus),
                       ),
                   ],
@@ -442,8 +442,9 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Quality badges are advisory. To reject frames in '
-                        'bulk, use Science ▸ Field quality ▸ Grade frames.',
+                        'Quality badges are advisory. Right-click or long-press '
+                        'a frame to reject it; to reject in bulk, use Science ▸ '
+                        'Field quality ▸ Grade frames.',
                         style: SkotiqTypography.caption.copyWith(
                           color: colors.textMuted,
                         ),

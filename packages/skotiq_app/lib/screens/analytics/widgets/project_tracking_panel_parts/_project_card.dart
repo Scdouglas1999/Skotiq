@@ -3,103 +3,8 @@ part of '../project_tracking_panel.dart';
 
 class _EnhancedProjectCard extends ConsumerWidget {
   final ProjectProgress progress;
-  final Map<String, double> filterBreakdown;
 
-  const _EnhancedProjectCard({
-    required this.progress,
-    required this.filterBreakdown,
-  });
-
-  Future<void> _editGoal(BuildContext context, WidgetRef ref) async {
-    final authority = ref.read(backendProvider);
-    final l10n = context.l10n;
-    var draftGoal = progress.goalIntegrationSecs > 0
-        ? (progress.goalIntegrationSecs / 3600.0).toStringAsFixed(1)
-        : '';
-    final submitted = await showDialog<double>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(
-            l10n.text(
-              'analyticsGoalDialogTitle',
-              params: {'target': progress.target.name},
-            ),
-          ),
-          content: ConstrainedBox(
-            constraints: AdaptiveDialogConstraints.hybrid(
-              dialogContext,
-              designMaxWidth: 420,
-            ),
-            child: TextFormField(
-              initialValue: draftGoal,
-              onChanged: (value) => draftGoal = value,
-              autofocus: true,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: l10n.text('analyticsGoalHours'),
-                hintText: 'e.g. 10.0',
-                suffixText: 'hours',
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text(l10n.text('cancel')),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(0.0),
-              child: Text(l10n.text('analyticsClearGoal')),
-            ),
-            FilledButton(
-              onPressed: () {
-                final hours = double.tryParse(draftGoal.trim());
-                if (hours == null || hours < 0) return;
-                Navigator.of(dialogContext).pop(hours);
-              },
-              child: Text(l10n.text('analyticsSave')),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (submitted == null) return;
-    if (!context.mounted) return;
-    if (!identical(ref.read(backendProvider), authority)) {
-      context.showWarningSnackBar(
-        'Imaging host changed. Goal update was canceled.',
-      );
-      return;
-    }
-
-    try {
-      if (authority.remoteHost case final linkedHost?) {
-        await linkedHost.imagingRecords.updateTarget(progress.target.id, {
-          'goalIntegrationSecs': submitted * 3600.0,
-        });
-      } else {
-        await ref
-            .read(targetsDaoProvider)
-            .setGoalIntegrationSecs(progress.target.id, submitted * 3600.0);
-      }
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
-      ref.invalidate(allDbTargetsProvider);
-      ref.invalidate(projectProgressListProvider);
-      context.showSuccessSnackBar('Goal updated');
-    } catch (e) {
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
-      context.showErrorSnackBar('Failed to save goal: ${userFacingError(e)}');
-    }
-  }
+  const _EnhancedProjectCard({required this.progress});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -165,7 +70,12 @@ class _EnhancedProjectCard extends ConsumerWidget {
               ),
               const SizedBox(width: 4),
               TextButton.icon(
-                onPressed: () => _editGoal(context, ref),
+                onPressed: () => showIntegrationGoalsDialog(
+                  context,
+                  ref,
+                  targetId: progress.target.id,
+                  targetName: progress.target.name,
+                ),
                 icon: const Icon(LucideIcons.target, size: 14),
                 label: Text(
                   progress.isTracked
@@ -218,7 +128,7 @@ class _EnhancedProjectCard extends ConsumerWidget {
               ),
               _MetricChip(
                 icon: LucideIcons.target,
-                label: 'Goal',
+                label: progress.goal.allFilters ? 'Goal (all filters)' : 'Goal',
                 value: progress.isTracked
                     ? DurationFormat.decimalHours(progress.goalIntegrationSecs)
                     : 'Not set',
@@ -238,28 +148,25 @@ class _EnhancedProjectCard extends ConsumerWidget {
                 value: '${progress.sessionCount}',
                 colors: colors,
               ),
-              // "Frames returned", not "Frames": the sum is over each
-              // session's `successful_exposures`, which counts what the
-              // camera handed back rather than what the culling kept.
               _MetricChip(
                 icon: LucideIcons.image,
-                label: 'Frames returned',
-                value: '${progress.successfulExposures}',
+                label: 'Frames accepted',
+                value: '${progress.acceptedFrames}',
                 colors: colors,
               ),
             ],
           ),
-          if (filterBreakdown.isNotEmpty) ...[
+          if (progress.filters.isNotEmpty) ...[
             const SizedBox(height: 12),
             _FilterBreakdownRow(
-              filterData: filterBreakdown,
+              filters: progress.filters,
               colors: colors,
             ),
           ],
-          if (progress.lastSessionAt != null) ...[
+          if (progress.lastImagedAt case final lastImagedAt?) ...[
             const SizedBox(height: 10),
             Text(
-              'Last imaged: ${DateFormat('MMM d, yyyy HH:mm').format(progress.lastSessionAt!)}',
+              'Last imaged: ${ClockFormat.monthDayYearHm(lastImagedAt.toLocal())}',
               style: SkotiqTypography.caption.copyWith(color: colors.textMuted),
             ),
           ],
@@ -310,11 +217,11 @@ class _MetricChip extends StatelessWidget {
 }
 
 class _FilterBreakdownRow extends StatelessWidget {
-  final Map<String, double> filterData;
+  final List<FilterIntegration> filters;
   final SkotiqColors colors;
 
   const _FilterBreakdownRow({
-    required this.filterData,
+    required this.filters,
     required this.colors,
   });
 
@@ -323,15 +230,14 @@ class _FilterBreakdownRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sortedEntries = filterData.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sortedEntries = [...filters]
+      ..sort((a, b) => b.seconds.compareTo(a.seconds));
 
     return Wrap(
       spacing: 8,
       runSpacing: 6,
       children: sortedEntries.map((entry) {
-        final hours = entry.value / 3600.0;
-        final color = _filterColor(entry.key);
+        final color = _filterColor(entry.filter);
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: SkotiqDecorations.chip(colors, tone: color),
@@ -348,7 +254,8 @@ class _FilterBreakdownRow extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                '${entry.key}: ${hours.toStringAsFixed(1)}h',
+                '${entry.filter}: '
+                '${DurationFormat.decimalHours(entry.seconds)}',
                 style: SkotiqTypography.labelStrongSm.copyWith(
                   color: colors.textPrimary,
                 ),

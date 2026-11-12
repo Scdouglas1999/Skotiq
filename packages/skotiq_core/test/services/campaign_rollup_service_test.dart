@@ -311,5 +311,62 @@ void main() {
         expect(all[t2]!.filters, hasLength(1));
       },
     );
+
+    // UX walk 2, F35: a sequence run's session names the run, not a target,
+    // so the rollup listed "No sessions recorded" beside 44 s of the target's
+    // accepted frames.
+    test('a run that imaged several targets counts for each, with only that '
+        'target\'s lights', () async {
+      final fieldOne = await createTarget('Field One');
+      final fieldTwo = await createTarget('Field Two');
+      final run = await sessionsDao.createSession(
+        ImagingSessionsCompanion.insert(
+          name: const Value('Stop and recover'),
+          startTime: DateTime.utc(2026, 11, 11, 8, 21),
+          endTime: Value(DateTime.utc(2026, 11, 11, 8, 22)),
+          status: const Value('completed'),
+        ),
+      );
+      for (var i = 0; i < 3; i++) {
+        await insertLight(
+          sessionId: run,
+          targetId: fieldOne,
+          filter: 'L',
+          exposure: 4,
+          capturedAt: DateTime.utc(2026, 11, 11, 8, 21, i),
+        );
+      }
+      await insertLight(
+        sessionId: run,
+        targetId: fieldTwo,
+        filter: 'L',
+        exposure: 30,
+      );
+
+      final rollup = await service.buildForTarget(fieldOne);
+      expect(rollup.sessionCount, 1);
+      expect(rollup.sessions.single.sessionId, run);
+      expect(rollup.sessions.single.sessionIntegrationSecs, 12);
+      expect(rollup.totalCapturedIntegrationSecs, 12);
+      expect(rollup.filters.single.capturedFrames, 3);
+    });
+
+    test('a target with only the old hours goal shows it over all filters',
+        () async {
+      final t = await createTarget('M101');
+      await targetsDao.updateProgress(t, goalIntegrationSecs: 36000);
+      final sId = await insertSession(
+        targetId: t,
+        name: 'M101 night',
+        startTime: DateTime.utc(2026, 4, 1, 22),
+      );
+      await insertLight(sessionId: sId, targetId: t, filter: 'L');
+
+      final rollup = await service.buildForTarget(t);
+      expect(rollup.allFiltersGoalSecs, 36000);
+      expect(rollup.totalGoalIntegrationSecs, 36000);
+      expect(rollup.totalPercentComplete, closeTo(60 / 36000, 1e-9));
+      expect(rollup.isComplete, isFalse);
+    });
   });
 }

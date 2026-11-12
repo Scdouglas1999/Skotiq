@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -102,7 +101,6 @@ class _ReportBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('MMM d, yyyy HH:mm');
     // The client ROLE, not the connection: a desktop launched with
     // `--remote-host` that has not reached its rig is `Disconnected`, so
     // `backend.remoteHost != null` read false for the whole pre-handshake
@@ -155,7 +153,6 @@ class _ReportBody extends ConsumerWidget {
           _Header(
             report: report,
             colors: colors,
-            dateFormat: dateFormat,
             onCopyMarkdown: () => _copyMarkdown(context, ref),
             onExportTxt: () => _exportText(context, ref),
           ),

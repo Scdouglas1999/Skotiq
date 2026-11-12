@@ -14,24 +14,27 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
   TargetsDao(super.db);
 
   /// Predicate identifying "untracked" library targets that are safe to remove
-  /// in the Analytics → Projects cleanup. A target is untracked only when it has
-  /// NO integration goal, is NOT a favorite, has NO captured data, and is NOT
-  /// referenced by any imaging session. This deliberately preserves every target
-  /// the user has invested in (favorites, goals, captures, sessions).
+  /// in the Analytics → Projects cleanup: not a favorite, no integration goal,
+  /// no captured frame, no imaging session naming it and in no project. Every
+  /// target the user has invested in is kept.
   Expression<bool> _untrackedPredicate($TargetsTable t) {
-    final sessions = attachedDatabase.imagingSessions;
-    final referencedBySession = existsQuery(
-      selectOnly(sessions)
-        ..addColumns([sessions.id])
-        ..where(
-          sessions.targetId.equalsExp(t.id) & sessions.targetId.isNotNull(),
-        ),
+    final db = attachedDatabase;
+    Expression<bool> referenced<T extends HasResultSet, D>(
+      ResultSetImplementation<T, D> table,
+      Expression<int> targetColumn,
+    ) => existsQuery(
+      selectOnly(table)
+        ..addColumns([targetColumn])
+        ..where(targetColumn.equalsExp(t.id)),
     );
     return t.goalIntegrationSecs.isSmallerOrEqualValue(0.0) &
         t.isFavorite.equals(false) &
         t.capturedSubs.equals(0) &
         t.totalIntegrationSecs.equals(0.0) &
-        referencedBySession.not();
+        referenced(db.imagingSessions, db.imagingSessions.targetId).not() &
+        referenced(db.capturedImages, db.capturedImages.targetId).not() &
+        referenced(db.integrationGoals, db.integrationGoals.targetId).not() &
+        referenced(db.projectTargets, db.projectTargets.targetId).not();
   }
 
   /// Counts library targets matching [_untrackedPredicate]. Drives the opt-in
@@ -172,19 +175,6 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     );
 
     await (update(targets)..where((t) => t.id.equals(id))).write(updates);
-  }
-
-  /// Set the target's multi-night integration goal in seconds.
-  Future<void> setGoalIntegrationSecs(
-    int id,
-    double goalIntegrationSecs,
-  ) async {
-    await (update(targets)..where((t) => t.id.equals(id))).write(
-      TargetsCompanion(
-        goalIntegrationSecs: Value(goalIntegrationSecs),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
   }
 
   Future<List<Target>> getTargetsByPriority() {

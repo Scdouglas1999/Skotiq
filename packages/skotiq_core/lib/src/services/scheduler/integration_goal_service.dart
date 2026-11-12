@@ -63,6 +63,7 @@ class IntegrationGoalService {
     }
     final dao = _db.planningDao;
     await _readmitToSchedulerQueue(goal.targetId);
+    await _replaceOldTotalGoal(goal.targetId);
     final existingId = await dao.integrationGoalId(
       targetId: goal.targetId,
       filter: goal.filter,
@@ -89,6 +90,16 @@ class IntegrationGoalService {
     );
     _notifyMutated();
     return inserted;
+  }
+
+  /// A per-filter goal replaces the target's old single hours goal
+  /// (`targets.goal_integration_secs`), which only counts while the target has
+  /// no per-filter goal; clearing it keeps it from coming back if the filter
+  /// goals are deleted later.
+  Future<void> _replaceOldTotalGoal(int targetId) async {
+    final target = await _db.targetsDao.getTargetById(targetId);
+    if (target == null || target.goalIntegrationSecs <= 0) return;
+    await _db.targetsDao.updateProgress(targetId, goalIntegrationSecs: 0);
   }
 
   Future<void> delete(int goalId) async {

@@ -26,6 +26,7 @@ import '../../widgets/tutorial_keys/analytics_keys.dart';
 import '../accessible_dropdown.dart';
 import '../diagnostics/diagnostics_screen.dart';
 import '../science/science_screen.dart';
+import '../sequencer/run_status_presentation.dart';
 import '../sequencer/widgets/session_report_dialog.dart';
 import 'analytics_route.dart';
 import 'quick_capture_selection.dart';

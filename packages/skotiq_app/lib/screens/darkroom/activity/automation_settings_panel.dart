@@ -145,6 +145,7 @@ class _AutomationSettingsPanelState
             onChanged: (on) => _save((a) => a.setBuild(on)),
             footer: Column(children: [
               const ProcessingDefaultsPanel(),
+              const SizedBox(height: SkotiqTokens.spaceLg),
               Row(children: [
                 Expanded(
                     child: Column(

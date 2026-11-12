@@ -155,6 +155,7 @@ void main() {
         exposureSeconds: 300,
         goalFrames: 20,
         capturedFrames: 8,
+        capturedSeconds: 2400.0,
       );
       expect(line.accruedSeconds, 8 * 300.0);
       expect(line.goalSeconds, 20 * 300.0);
@@ -168,6 +169,7 @@ void main() {
         exposureSeconds: 60,
         goalFrames: 10,
         capturedFrames: 15,
+        capturedSeconds: 900.0,
       );
       expect(line.remainingFrames, 0);
       expect(line.isComplete, isTrue);
@@ -179,6 +181,7 @@ void main() {
         exposureSeconds: 120,
         goalFrames: 5,
         capturedFrames: 2,
+        capturedSeconds: 240.0,
       );
       final json = line.toJson();
       expect(json['filter'], 'O3');
@@ -208,12 +211,14 @@ void main() {
           exposureSeconds: 60,
           goalFrames: 10,
           capturedFrames: 5,
+          capturedSeconds: 300.0,
         ),
         FilterProgressLine(
           filter: 'R',
           exposureSeconds: 120,
           goalFrames: 5,
           capturedFrames: 0,
+          capturedSeconds: 0.0,
         ),
       ]);
       // L: accrued 300, goal 600. R: accrued 0, goal 600.
@@ -231,6 +236,7 @@ void main() {
           exposureSeconds: 60,
           goalFrames: 10,
           capturedFrames: 30,
+          capturedSeconds: 1800.0,
         ),
       ]);
       expect(p.percentComplete, 1.0);
@@ -245,6 +251,7 @@ void main() {
           exposureSeconds: 60,
           goalFrames: 0,
           capturedFrames: 0,
+          capturedSeconds: 0.0,
         ),
       ]);
       expect(p.goalSeconds, 0.0);
@@ -266,6 +273,7 @@ void main() {
           exposureSeconds: 60,
           goalFrames: 10,
           capturedFrames: 10,
+          capturedSeconds: 600.0,
         ),
       ]);
       expect(p.remainingSeconds, 0.0);
@@ -280,6 +288,7 @@ void main() {
           exposureSeconds: 60,
           goalFrames: 10,
           capturedFrames: 5,
+          capturedSeconds: 300.0,
         ),
       ]);
       final json = p.toJson();
@@ -317,6 +326,7 @@ void main() {
           exposureSeconds: 60,
           goalFrames: goalFrames,
           capturedFrames: capturedFrames,
+          capturedSeconds: capturedFrames * 60.0,
         ),
       ],
     );

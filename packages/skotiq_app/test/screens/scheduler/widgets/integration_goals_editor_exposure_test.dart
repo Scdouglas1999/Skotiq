@@ -39,6 +39,8 @@ void main() {
       ProviderScope(
         overrides: [
           inMemoryDatabaseOverride(),
+          // The editor reads the target's old hours goal from the library.
+          allDbTargetsProvider.overrideWith((ref) => Stream.value(const [])),
           integrationGoalProgressProvider.overrideWith(
             (ref, targetId) async => const <IntegrationGoalProgress>[],
           ),
@@ -98,6 +100,8 @@ void main() {
       ProviderScope(
         overrides: [
           inMemoryDatabaseOverride(),
+          // The editor reads the target's old hours goal from the library.
+          allDbTargetsProvider.overrideWith((ref) => Stream.value(const [])),
           backendProvider.overrideWith((ref) {
             backendNotifier = _SwappableBackendNotifier(
               ref,

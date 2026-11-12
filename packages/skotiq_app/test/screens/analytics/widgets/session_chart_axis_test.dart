@@ -27,6 +27,7 @@ Future<void> _pump(WidgetTester tester, List<ChartDataPoint> points) async {
           yAxisLabel: 'HFR (px)',
           measurementName: 'half-flux radius',
           dataPoints: points,
+          reading: (value) => value.toStringAsFixed(value.abs() >= 100 ? 0 : 2),
         ),
       ),
     ),
@@ -77,15 +78,40 @@ void main() {
   }
 
   testWidgets(
-      'the time axis starts at zero and runs forward for descending '
-      'input', (tester) async {
+      'a night is drawn on clock time, forward even for descending input',
+      (tester) async {
     await _pump(tester, ascending.reversed.toList());
     final layout = chartLayoutOf(tester, _chart);
-    expect(layout.xMin, 0);
-    expect(layout.xMax, 23 * 630);
+    expect(layout.xMin, start.millisecondsSinceEpoch);
+    expect(
+      layout.xMax,
+      start.add(const Duration(seconds: 23 * 630)).millisecondsSinceEpoch,
+    );
     final xs = layout.series.first.points.map((p) => p.dx).toList();
     expect(xs, List<double>.of(xs)..sort());
-    expect(layout.xLabel(7200), '2h');
+    expect(
+      layout.xLabel(
+        DateTime(2026, 7, 28, 23).millisecondsSinceEpoch.toDouble(),
+      ),
+      '23:00',
+    );
+  });
+
+  testWidgets('a run of a few minutes keeps elapsed time from zero',
+      (tester) async {
+    await _pump(
+      tester,
+      List.generate(
+        8,
+        (i) => ChartDataPoint(
+          timestamp: start.add(Duration(seconds: i * 5)),
+          value: 2.4,
+        ),
+      ),
+    );
+    final layout = chartLayoutOf(tester, _chart);
+    expect(layout.xMin, 0);
+    expect(layout.xMax, 35);
   });
 
   testWidgets('ordering does not change what is drawn', (tester) async {

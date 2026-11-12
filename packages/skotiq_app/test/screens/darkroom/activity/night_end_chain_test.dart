@@ -182,6 +182,74 @@ void main() {
     expect(native.built, ['Ha']);
   });
 
+  // UX walk 2, F31: after the target was built by hand the night-end history
+  // still said "Calibration needed" and offered "Retry after calibration".
+  test('a night held for calibration is settled by a later build by hand, '
+      'also across a restart', () async {
+    await db.settingsDao.setSetting(
+        NightEndAutomationSettings.allowIncompleteCalibrationKey, 'false');
+    final session = await night(DateTime(2026, 10, 27, 20), ['Ha']);
+    final app = launch();
+    await app
+        .read(nightEndRunnerProvider)
+        .nightEnded(sessionId: session, reason: 'plan completed');
+    final held = app.read(nightEndRunsProvider).single;
+    expect(held.targets.single.waitingForCalibration, isTrue);
+    await app.read(nightEndRunnerProvider).idle();
+
+    final builtAt = DateTime.now().add(const Duration(minutes: 5));
+    await DarkroomStateStore(db).write(darkroomBuildJobsStateKey, {
+      'current': DarkroomBuildJob(
+        target: 'NGC891',
+        stage: DarkroomJobStage.done,
+        message: 'Masters ready',
+        startedAt: builtAt.subtract(const Duration(minutes: 2)),
+        finishedAt: builtAt,
+        directory: '${folder.path}/by-hand',
+      ).toJson(),
+      'held': const [],
+      'recent': const [],
+    });
+    final later = launch();
+    await later.read(nightEndRunnerProvider).start();
+    await later.read(nightEndRunnerProvider).idle();
+
+    final target = later.read(nightEndRunsProvider).single.targets.single;
+    expect(target.waitingForCalibration, isFalse);
+    expect(target.build.state, NightEndStepState.done);
+    expect(target.build.detail,
+        'Built by hand at ${ClockFormat.hm(builtAt.toLocal())}.');
+    expect(native.built, isEmpty);
+  });
+
+  test('a later build of the held target settles the hold as it finishes',
+      () async {
+    await db.settingsDao.setSetting(
+        NightEndAutomationSettings.allowIncompleteCalibrationKey, 'false');
+    final session = await night(DateTime(2026, 10, 27, 20), ['Ha']);
+    final app = launch();
+    final runner = app.read(nightEndRunnerProvider);
+    await runner.nightEnded(sessionId: session, reason: 'plan completed');
+    await runner.idle();
+    expect(
+        app.read(nightEndRunsProvider).single.targets.single
+            .waitingForCalibration,
+        isTrue);
+
+    await app.read(darkroomBuildJobsProvider.notifier).startUnattended(
+          'NGC891',
+          announce: false,
+          requireCalibration: false,
+        );
+    await runner.idle();
+
+    final target = app.read(nightEndRunsProvider).single.targets.single;
+    expect(target.waitingForCalibration, isFalse);
+    expect(target.build.state, NightEndStepState.done);
+    expect(target.build.detail, startsWith('Built at '));
+    expect(native.built, ['Ha']);
+  });
+
   test(
       'a dawn end calibrates, builds the target from all its nights, '
       'delivers, and sends one morning message that opens the target; the '

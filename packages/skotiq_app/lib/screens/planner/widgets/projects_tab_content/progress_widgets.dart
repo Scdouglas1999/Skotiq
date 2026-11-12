@@ -276,6 +276,19 @@ class _TargetProgressCard extends StatelessWidget {
                           color: colors.textPrimary,
                         ),
                       ),
+                      if (target.allFiltersGoalSeconds != null)
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: SkotiqTokens.spaceXs,
+                          ),
+                          child: Text(
+                            'One goal over all filters, set before per-filter '
+                            'goals. Edit goals to split it by filter.',
+                            style: SkotiqTypography.captionSm.copyWith(
+                              color: colors.textMuted,
+                            ),
+                          ),
+                        ),
                       if (!hasGoals)
                         Padding(
                           padding: const EdgeInsets.only(
