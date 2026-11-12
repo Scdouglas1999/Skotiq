@@ -627,20 +627,20 @@ impl CameraDriver for PlayerOneCamera {
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         self.core.require_connected()?;
-
-        self.config_int_bounds(POAConfig::POA_GAIN).await
+        let sdk = PoaSdk::lock().await?;
+        self.config_int_bounds(&sdk, POAConfig::POA_GAIN)
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         self.core.require_connected()?;
-
-        self.config_int_bounds(POAConfig::POA_OFFSET).await
+        let sdk = PoaSdk::lock().await?;
+        self.config_int_bounds(&sdk, POAConfig::POA_OFFSET)
     }
 
     async fn get_exposure_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
         self.core.require_connected()?;
-
-        self.exposure_bounds().await
+        let sdk = PoaSdk::lock().await?;
+        self.exposure_bounds(&sdk)
     }
 
     async fn get_cooler_temp_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
@@ -649,7 +649,8 @@ impl CameraDriver for PlayerOneCamera {
             return Ok(None);
         }
 
-        match self.config_int_bounds(POAConfig::POA_TARGET_TEMP).await {
+        let sdk = PoaSdk::lock().await?;
+        match self.config_int_bounds(&sdk, POAConfig::POA_TARGET_TEMP) {
             Ok((min, max)) => Ok(Some((f64::from(min), f64::from(max)))),
             Err(DriverError::NotSupported) => Ok(None),
             Err(e) => Err(e),
