@@ -201,6 +201,7 @@ class CampaignRollupService {
       lastSessionAt: lastAt,
       totalCapturedIntegrationSecs: totalCapturedSecs,
       allFiltersGoalSecs: goal.allFilters ? goal.goalSecs : null,
+      goalDoneSecs: goal.doneSecs,
       meanSessionHfr: weightedMean(hfrInputs),
       meanSessionSeeing: simpleMean(seeingInputs),
       meanEffectiveImagingFraction: simpleMean(efficiencyInputs) ?? 0.0,

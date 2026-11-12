@@ -164,6 +164,10 @@ class CampaignRollup {
   /// per-filter goals; null otherwise (see `TargetGoal`).
   final double? allFiltersGoalSecs;
 
+  /// Accepted seconds counted toward the goal: those in the goals' filters,
+  /// or in every filter for [allFiltersGoalSecs] (see `TargetGoal`).
+  final double goalDoneSecs;
+
   /// Mean HFR across the target's sessions, weighted by frame count. Null
   /// when no session recorded an HFR for this target.
   final double? meanSessionHfr;
@@ -188,6 +192,7 @@ class CampaignRollup {
     required this.lastSessionAt,
     required this.totalCapturedIntegrationSecs,
     this.allFiltersGoalSecs,
+    required this.goalDoneSecs,
     required this.meanSessionHfr,
     required this.meanSessionSeeing,
     required this.meanEffectiveImagingFraction,
@@ -199,16 +204,10 @@ class CampaignRollup {
   /// True when at least one filter has a configured integration goal.
   bool get hasGoals => filters.any((f) => f.hasGoal);
 
-  /// True when every filter goal is met (and at least one goal exists).
+  /// True when the accepted seconds meet the goal, as Plan judges it.
   bool get isComplete {
-    final allFiltersGoal = allFiltersGoalSecs;
-    if (!hasGoals && allFiltersGoal != null) {
-      return totalCapturedIntegrationSecs >= allFiltersGoal;
-    }
-    if (!hasGoals) return false;
-    return filters
-        .where((f) => f.hasGoal)
-        .every((f) => (f.percentComplete ?? 0.0) >= 1.0);
+    final goalTotal = totalGoalIntegrationSecs;
+    return goalTotal != null && goalTotal > 0 && goalDoneSecs >= goalTotal;
   }
 
   /// Sum of all per-filter `goalIntegrationSecs`. Null when no goals exist
@@ -233,7 +232,7 @@ class CampaignRollup {
   double? get totalPercentComplete {
     final goalTotal = totalGoalIntegrationSecs;
     if (goalTotal == null || goalTotal <= 0) return null;
-    final ratio = totalCapturedIntegrationSecs / goalTotal;
+    final ratio = goalDoneSecs / goalTotal;
     if (ratio < 0.0) return 0.0;
     if (ratio > 1.0) return 1.0;
     return ratio;
@@ -249,6 +248,7 @@ class CampaignRollup {
     'lastSessionAt': lastSessionAt?.toIso8601String(),
     'totalCapturedIntegrationSecs': totalCapturedIntegrationSecs,
     'allFiltersGoalSecs': allFiltersGoalSecs,
+    'goalDoneSecs': goalDoneSecs,
     'totalGoalIntegrationSecs': totalGoalIntegrationSecs,
     'totalPercentComplete': totalPercentComplete,
     'meanSessionHfr': meanSessionHfr,

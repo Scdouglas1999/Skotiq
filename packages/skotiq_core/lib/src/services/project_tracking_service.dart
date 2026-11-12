@@ -42,6 +42,22 @@ List<FilterIntegration> acceptedLightsByFilter(Iterable<db.CapturedImage> frames
   ]..sort((a, b) => a.filter.toLowerCase().compareTo(b.filter.toLowerCase()));
 }
 
+/// The accepted light integration a goal for [goalFilter] counts: the group
+/// with that filter, matched case-insensitively; the unfiltered goal (empty
+/// filter) counts the frames that name no filter.
+FilterIntegration acceptedInGoalFilter(
+  List<FilterIntegration> accepted,
+  String goalFilter,
+) {
+  final key = goalFilter.trim().isEmpty
+      ? 'unfiltered'
+      : goalFilter.trim().toLowerCase();
+  for (final f in accepted) {
+    if (f.filter.toLowerCase() == key) return f;
+  }
+  return FilterIntegration(filter: goalFilter, frames: 0, seconds: 0);
+}
+
 /// The sessions that imaged a target: every session holding one of its light
 /// frames, and any session row that names the target.
 ///
@@ -63,8 +79,10 @@ Set<int> targetSessionIds(
 
 /// A target's integration goal, in seconds, and how much of it is done.
 ///
-/// The goal is the target's per-filter integration goals (frames x exposure),
-/// the ones Plan and the Scheduler write. A target set up before those existed
+/// Progress is time: the goal is the target's per-filter integration goals
+/// (frames x exposure), the ones Plan and the Scheduler write, and what is done
+/// is the accepted light seconds in those filters, at whatever exposure they
+/// were taken. Frame counts are shown beside it, never instead of it. A target set up before those existed
 /// may carry only the old single hours goal (`targets.goal_integration_secs`);
 /// with no per-filter goal it still counts, as one goal over all filters, so a
 /// goal the user set does not turn into "Not set".
@@ -82,7 +100,6 @@ class TargetGoal {
     required Iterable<IntegrationGoal> goals,
     required double oldTotalGoalSecs,
   }) {
-    final acceptedSecs = accepted.fold(0.0, (sum, f) => sum + f.seconds);
     final perFilterGoalSecs = goals.fold(
       0.0,
       (sum, g) => sum + g.frameCount * g.exposureSeconds,
@@ -90,14 +107,17 @@ class TargetGoal {
     if (perFilterGoalSecs > 0) {
       return TargetGoal(
         goalSecs: perFilterGoalSecs,
-        doneSecs: acceptedSecs,
+        doneSecs: goals.fold(
+          0.0,
+          (sum, g) => sum + acceptedInGoalFilter(accepted, g.filter).seconds,
+        ),
         allFilters: false,
       );
     }
     if (oldTotalGoalSecs > 0) {
       return TargetGoal(
         goalSecs: oldTotalGoalSecs,
-        doneSecs: acceptedSecs,
+        doneSecs: accepted.fold(0.0, (sum, f) => sum + f.seconds),
         allFilters: true,
       );
     }

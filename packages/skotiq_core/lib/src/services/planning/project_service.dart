@@ -16,9 +16,9 @@ import '../../backend/remote_host.dart';
 ///
 /// A [Project] groups several targets into one campaign; this service owns the
 /// CRUD for projects and their target memberships, and derives a
-/// project-scoped [CampaignProgress] roll-up on demand by reusing
-/// [IntegrationGoalService]'s accrued-from-history primitives
-/// ([IntegrationGoalService.capturedFrameCount]). Accrued progress is NEVER
+/// project-scoped [CampaignProgress] roll-up on demand from the target's
+/// accepted frames and goals (`TargetGoal`, the rule Analytics uses too).
+/// Accrued progress is NEVER
 /// denormalized onto the `projects` / `project_targets` tables — it is always
 /// derived from `captured_images` (the single source of truth) so it cannot
 /// drift out of sync when a frame is rejected, deleted, or re-graded.
@@ -225,9 +225,8 @@ class ProjectService {
   ///
   /// For each member target this loads its name/RA/dec from `targets` and its
   /// per-filter [integration goals][IntegrationGoalService.listForTarget], then
-  /// derives accrued frames per filter from `captured_images` via
-  /// [IntegrationGoalService.capturedFrameCount] (the single accrued-from-
-  /// history primitive — never a denormalized tally). The result assembles into
+  /// derives each goal's accepted frames and seconds from `captured_images`
+  /// ([acceptedInGoalFilter], never a denormalized tally). The result assembles into
   /// [FilterProgressLine] / [ProjectTargetProgress] / [CampaignProgress].
   ///
   /// Throws [StateError] if [projectId] does not exist (fail-loud, matching
@@ -260,26 +259,24 @@ class ProjectService {
       }
 
       final goals = await _goalService.listForTarget(targetId);
+      final accepted = acceptedLightsByFilter(
+        await _db.imagesDao.getImagesForTarget(targetId),
+      );
       final lines = <FilterProgressLine>[];
       for (final goal in goals) {
-        final captured = await _goalService.capturedFrameCount(
-          targetId: targetId,
-          filter: goal.filter,
-        );
+        final captured = acceptedInGoalFilter(accepted, goal.filter);
         lines.add(
           FilterProgressLine(
             filter: goal.filter,
             exposureSeconds: goal.exposureSeconds,
             goalFrames: goal.frameCount,
-            capturedFrames: captured,
+            capturedFrames: captured.frames,
+            capturedSeconds: captured.seconds,
           ),
         );
       }
-
       final goal = TargetGoal.of(
-        accepted: acceptedLightsByFilter(
-          await _db.imagesDao.getImagesForTarget(targetId),
-        ),
+        accepted: accepted,
         goals: goals,
         oldTotalGoalSecs: targetRow.goalIntegrationSecs,
       );

@@ -219,7 +219,7 @@ class _Body extends StatelessWidget {
                 if (totalPct != null) ...[
                   _OverallProgress(
                     pct: totalPct,
-                    captured: rollup.totalCapturedIntegrationSecs,
+                    captured: rollup.goalDoneSecs,
                     goal: rollup.totalGoalIntegrationSecs ?? 0,
                     allFilters: rollup.allFiltersGoalSecs != null,
                     colors: colors,

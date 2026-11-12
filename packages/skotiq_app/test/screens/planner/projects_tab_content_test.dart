@@ -115,6 +115,7 @@ ProjectTargetProgress _targetProgress({
         exposureSeconds: exposureSeconds,
         goalFrames: goalFrames,
         capturedFrames: capturedFrames,
+        capturedSeconds: capturedFrames * exposureSeconds,
       ),
     ],
   );

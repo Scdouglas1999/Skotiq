@@ -4,11 +4,11 @@ import 'project.dart';
 
 /// Per-filter accrued-vs-goal line within a project target's progress.
 ///
-/// Mirrors the semantics of `FilterProgress` (in
-/// `models/scheduler/target_progress.dart`): integration is frame-count *
-/// per-frame exposure, remaining frames clamp to zero on overshoot, and a goal
-/// of zero frames is treated as inert (never "complete"). This is a pure
-/// derivation model — it holds no database identity and is never persisted.
+/// Progress is time: the goal is frames x per-frame exposure, and what is done
+/// is the accepted seconds in the filter at whatever exposure they were taken
+/// (`TargetGoal`, which Analytics uses too). Frames are the secondary count;
+/// remaining frames clamp to zero on overshoot, and a goal of zero frames is
+/// inert (never "complete"). Pure derivation; never persisted.
 class FilterProgressLine extends Equatable {
   /// Filter name as stored on the integration goal (case-preserved). The
   /// goal-vs-captured match itself is case-insensitive across the scheduler
@@ -24,11 +24,15 @@ class FilterProgressLine extends Equatable {
   /// Frames already captured and accepted for this filter.
   final int capturedFrames;
 
+  /// Exposure of those frames, seconds.
+  final double capturedSeconds;
+
   const FilterProgressLine({
     required this.filter,
     required this.exposureSeconds,
     required this.goalFrames,
     required this.capturedFrames,
+    required this.capturedSeconds,
   });
 
   /// Remaining frames, clamped to `[0, goalFrames]`. Overshooting a goal does
@@ -36,7 +40,7 @@ class FilterProgressLine extends Equatable {
   int get remainingFrames => (goalFrames - capturedFrames).clamp(0, goalFrames);
 
   /// Integration time already on disk for this filter, in seconds.
-  double get accruedSeconds => capturedFrames * exposureSeconds;
+  double get accruedSeconds => capturedSeconds;
 
   /// Integration time required to meet the goal, in seconds.
   double get goalSeconds => goalFrames * exposureSeconds;
@@ -53,20 +57,29 @@ class FilterProgressLine extends Equatable {
     'exposureSeconds': exposureSeconds,
     'goalFrames': goalFrames,
     'capturedFrames': capturedFrames,
+    'capturedSeconds': capturedSeconds,
     'remainingFrames': remainingFrames,
     'accruedSeconds': accruedSeconds,
     'goalSeconds': goalSeconds,
     'isComplete': isComplete,
   };
 
-  /// Tolerant decoder for [toJson]. Only the four base fields are read back;
-  /// the derived totals are recomputed from them.
+  /// Tolerant decoder for [toJson]. Only the base fields are read back; the
+  /// derived totals are recomputed from them.
   static FilterProgressLine fromJson(Map<String, dynamic> json) {
+    final exposureSeconds =
+        (json['exposureSeconds'] as num?)?.toDouble() ?? 0.0;
+    final capturedFrames = json['capturedFrames'] as int? ?? 0;
     return FilterProgressLine(
       filter: json['filter'] as String? ?? '',
-      exposureSeconds: (json['exposureSeconds'] as num?)?.toDouble() ?? 0.0,
+      exposureSeconds: exposureSeconds,
       goalFrames: json['goalFrames'] as int? ?? 0,
-      capturedFrames: json['capturedFrames'] as int? ?? 0,
+      capturedFrames: capturedFrames,
+      // A host older than capturedSeconds sent frames only; it credited them
+      // at the goal's exposure.
+      capturedSeconds:
+          (json['capturedSeconds'] as num?)?.toDouble() ??
+          capturedFrames * exposureSeconds,
     );
   }
 
@@ -76,6 +89,7 @@ class FilterProgressLine extends Equatable {
     exposureSeconds,
     goalFrames,
     capturedFrames,
+    capturedSeconds,
   ];
 }
 
