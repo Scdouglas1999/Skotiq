@@ -496,6 +496,94 @@ async fn a_failed_run_reports_the_reason_the_instruction_gave() {
     );
 }
 
+/// A run that fails inside its target still puts the rig away with the plan's
+/// shutdown steps. Those steps succeeding is cleanup, not the run carrying on,
+/// so the reason stays the fault that ended it. On a GUI host the operator
+/// read "Sequence failed / Sequence failed" for a FITS save failure because
+/// the Park step completed after it.
+#[tokio::test]
+async fn the_shutdown_steps_succeeding_after_a_failure_keep_its_reason() {
+    let mut sequence = SequenceDefinition::new("Fails then parks".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "root".to_string(),
+        name: "Night".to_string(),
+        node_type: crate::NodeType::Loop(crate::LoopConfig {
+            iterations: Some(1),
+            condition: crate::LoopCondition::Count,
+            condition_value: None,
+            horizon_profile: None,
+        }),
+        enabled: true,
+        children: vec!["script".to_string(), "notify".to_string()],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "script".to_string(),
+        name: "Run Script".to_string(),
+        node_type: crate::NodeType::RunScript(crate::ScriptConfig {
+            script_path: "/nonexistent/skotiq-test-script".to_string(),
+            timeout_secs: Some(0),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "notify".to_string(),
+        name: "Tell the operator".to_string(),
+        node_type: crate::NodeType::Notification(crate::NotificationConfig {
+            title: "Night over".to_string(),
+            message: "Rig put away".to_string(),
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("root".to_string());
+
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
+    executor.load_sequence(sequence).expect("sequence loads");
+    let mut events = executor.subscribe();
+
+    executor.start().await.expect("run starts");
+    for _ in 0..200 {
+        if matches!(
+            executor.get_state().await,
+            ExecutorState::Completed | ExecutorState::Failed | ExecutorState::Cancelled
+        ) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    executor.stop().await.ok();
+
+    let mut shutdown_step_ran = false;
+    let mut failure_reason = None;
+    while let Ok(event) = events.try_recv() {
+        match event {
+            ExecutorEvent::NodeCompleted { id, status } if id == "notify" => {
+                shutdown_step_ran = status == NodeStatus::Success;
+            }
+            ExecutorEvent::SequenceFailed { error } => failure_reason = Some(error),
+            _ => {}
+        }
+    }
+    assert!(
+        shutdown_step_ran,
+        "the plan's shutdown step runs after the failure (the premise of this test)"
+    );
+    let reason = failure_reason.expect("a failed run must publish a terminal failure reason");
+    assert!(
+        reason.contains("timeout_secs must be greater than zero"),
+        "the shutdown step's success must not erase the fault that ended the run; got: {reason}"
+    );
+    assert_eq!(
+        executor.get_progress().message.as_deref(),
+        Some(reason.as_str()),
+        "the run's own status message carries the same reason"
+    );
+}
+
 /// A night that dies on a target trigger it cannot evaluate must say so on the
 /// surfaces an operator can reach.
 ///
