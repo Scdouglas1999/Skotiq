@@ -46,6 +46,14 @@ Future<ProviderContainer> _pumpNewProfile(WidgetTester tester) async {
   return container;
 }
 
+/// The editor watches the device slots, whose providers hold database query
+/// streams; closing them schedules a zero-length timer that has to run before
+/// the test ends.
+Future<void> _closeEditor(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(milliseconds: 1));
+}
+
 void main() {
   testWidgets('the picker offers the connected camera and names it once chosen',
       (tester) async {
@@ -62,6 +70,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.bySemanticsLabel('Camera: Simulated Camera'), findsOneWidget);
+
+    await _closeEditor(tester);
   });
 
   testWidgets('the picker offers a device a saved profile assigns',
@@ -75,6 +85,8 @@ void main() {
 
     expect(find.text('Simulated Focuser'), findsOneWidget);
     expect(find.text('In Sim Rig'), findsOneWidget);
+
+    await _closeEditor(tester);
   });
 
   testWidgets('the device picker is the wide control, the name the narrow one',
@@ -88,5 +100,7 @@ void main() {
       find.bySemanticsLabel(RegExp('^Camera display name')),
     );
     expect(picker.width, greaterThan(name.width));
+
+    await _closeEditor(tester);
   });
 }

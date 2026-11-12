@@ -556,8 +556,7 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
       ]).where((choice) => choice.id != _cameraId).toList();
 
   List<EquipmentProfileModel> get _savedProfiles =>
-      ref.watch(equipmentProfilesProvider).valueOrNull?.profiles ??
-      const <EquipmentProfileModel>[];
+      ref.watch(sortedProfilesProvider);
 
   List<_DeviceChoice> _uniqueChoices(
     List<(String?, String?, String)> candidates,
