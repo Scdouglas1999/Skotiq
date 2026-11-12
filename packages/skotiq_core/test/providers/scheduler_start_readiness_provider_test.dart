@@ -219,7 +219,7 @@ void main() {
         low.blockers
             .singleWhere((issue) => issue.id == SchedulerReadinessIssueId.disk)
             .detail,
-        contains('Less than 2 GB'),
+        contains('Less than 2.0 GiB'),
       );
 
       final unknownDisk = _container(diskUnknown: true);

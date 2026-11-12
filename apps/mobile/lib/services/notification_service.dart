@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -688,7 +689,8 @@ class MobileNotificationService implements MobileNotificationSink {
     await _notifications.show(
       _lowDiskSpaceId,
       'Low Disk Space',
-      'Only ${remainingGB.toStringAsFixed(1)} GB remaining. Consider freeing up space.',
+      'Only ${ByteFormat.size((remainingGB * ByteFormat.bytesPerGiga).round())} '
+          'remaining. Consider freeing up space.',
       _warningDetails,
       payload: 'low_disk_space',
     );

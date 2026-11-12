@@ -86,7 +86,7 @@ class ProcessingOptionsPanel extends StatelessWidget {
         if (width != null && height != null)
           Text(
               '${width! * scale} × ${height! * scale} pixels before cropping.'
-              '${frames == null ? '' : ' About ${(width! * height! * scale * scale * frames! * 8 / (1 << 30)).toStringAsFixed(1)} GB of working files for $frames monochrome frames, plus masters.'}',
+              '${frames == null ? '' : ' About ${ByteFormat.size(width! * height! * scale * scale * frames! * 8)} of working files for $frames monochrome frames, plus masters.'}',
               style: style),
       ],
     ]);
