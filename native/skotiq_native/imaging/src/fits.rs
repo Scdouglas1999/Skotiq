@@ -332,6 +332,8 @@ pub fn read_fits_header(path: &Path) -> Result<FitsHeader, FitsError> {
     let mut header = read_header(&mut reader)?;
     header.remove("BZERO");
     header.remove("BSCALE");
+    header.remove(crate::fits_reader::RANGE_LOW_CARD);
+    header.remove(crate::fits_reader::RANGE_HIGH_CARD);
     Ok(header)
 }
 
@@ -856,6 +858,20 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
         // to negative i32 on disk and are clamped to zero when read back.
         write_value_card(&mut writer, "BZERO", "2147483648", None)?;
         write_value_card(&mut writer, "BSCALE", "1", None)?;
+    } else if matches!(image.pixel_type, PixelType::F32 | PixelType::F64) {
+        // A float file's numbers say nothing about their scale; state it.
+        write_value_card(
+            &mut writer,
+            crate::fits_reader::RANGE_LOW_CARD,
+            &format_fits_float(image.range.low),
+            Some("sample value of black"),
+        )?;
+        write_value_card(
+            &mut writer,
+            crate::fits_reader::RANGE_HIGH_CARD,
+            &format_fits_float(image.range.high),
+            Some("sample value of full scale"),
+        )?;
     }
     if image.channels > 1 {
         write_value_card(
@@ -880,6 +896,8 @@ pub fn write_fits(path: &Path, image: &ImageData, header: &FitsHeader) -> Result
             "BSCALE",
             "END",
             crate::fits_layout::LAYOUT_KEYWORD,
+            crate::fits_reader::RANGE_LOW_CARD,
+            crate::fits_reader::RANGE_HIGH_CARD,
         ]
         .contains(&key.as_str())
         {
@@ -1330,36 +1348,21 @@ pub struct BayerGeometry {
 ///
 /// Negative offsets are wrapped via Euclidean mod 2 to keep the table consistent.
 pub fn effective_bayer_pattern(source: BayerPattern, x_offset: i64, y_offset: i64) -> BayerPattern {
-    // Why: rust's `%` is sign-preserving; for offset composition we need a true
-    // modulo so a -1 offset behaves like a +1 offset (parity is what matters).
-    let xb = x_offset.rem_euclid(2) as usize;
-    let yb = y_offset.rem_euclid(2) as usize;
-    match (source, xb, yb) {
-        (BayerPattern::RGGB, 0, 0) => BayerPattern::RGGB,
-        (BayerPattern::RGGB, 1, 0) => BayerPattern::GRBG,
-        (BayerPattern::RGGB, 0, 1) => BayerPattern::GBRG,
-        (BayerPattern::RGGB, 1, 1) => BayerPattern::BGGR,
-
-        (BayerPattern::BGGR, 0, 0) => BayerPattern::BGGR,
-        (BayerPattern::BGGR, 1, 0) => BayerPattern::GBRG,
-        (BayerPattern::BGGR, 0, 1) => BayerPattern::GRBG,
-        (BayerPattern::BGGR, 1, 1) => BayerPattern::RGGB,
-
-        (BayerPattern::GRBG, 0, 0) => BayerPattern::GRBG,
-        (BayerPattern::GRBG, 1, 0) => BayerPattern::RGGB,
-        (BayerPattern::GRBG, 0, 1) => BayerPattern::BGGR,
-        (BayerPattern::GRBG, 1, 1) => BayerPattern::GBRG,
-
-        (BayerPattern::GBRG, 0, 0) => BayerPattern::GBRG,
-        (BayerPattern::GBRG, 1, 0) => BayerPattern::BGGR,
-        (BayerPattern::GBRG, 0, 1) => BayerPattern::RGGB,
-        (BayerPattern::GBRG, 1, 1) => BayerPattern::GRBG,
-
-        // Why: rem_euclid(2) only ever returns 0 or 1, but the match must be
-        // exhaustive in (BayerPattern, usize, usize); unreachable! signals the
-        // invariant rather than silently picking a wrong arm.
-        _ => unreachable!("rem_euclid(2) returned out-of-range value"),
-    }
+    // Each pattern is the RGGB cell seen from one of its four pixels (bit 0:
+    // one column in, bit 1: one row down); an offset moves that pixel. Only
+    // the parity of an offset matters, and `rem_euclid` keeps -1 odd.
+    const BY_ORIGIN: [BayerPattern; 4] = [
+        BayerPattern::RGGB,
+        BayerPattern::GRBG,
+        BayerPattern::GBRG,
+        BayerPattern::BGGR,
+    ];
+    let origin = BY_ORIGIN
+        .iter()
+        .position(|pattern| *pattern == source)
+        .expect("every Bayer pattern is in the table");
+    let shift = x_offset.rem_euclid(2) as usize | (y_offset.rem_euclid(2) as usize) << 1;
+    BY_ORIGIN[origin ^ shift]
 }
 
 /// Read the Bayer geometry from a FITS header.
@@ -3488,6 +3491,7 @@ mod tests {
             channels: 1,
             pixel_type: PixelType::U32,
             data,
+            range: crate::SampleRange::of(PixelType::U32),
         };
         let path =
             std::env::temp_dir().join(format!("skotiq_u32_roundtrip_{}.fits", std::process::id()));

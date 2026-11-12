@@ -30,9 +30,51 @@ pub struct ImageStats {
     pub mad: f64, // Median Absolute Deviation
 }
 
-/// Calculate statistics for a 16-bit image
-pub fn calculate_stats_u16(image: &ImageData) -> ImageStats {
-    stats_from_levels(&LevelCounts::of_le_bytes(&image.data))
+/// Statistics of an image's samples in 16-bit ADU. A 16-bit image is counted
+/// by level; any other type is measured on its samples as they are (finite
+/// ones only), so a float master keeps its fractions and what it holds below
+/// zero.
+pub fn calculate_stats(image: &ImageData) -> ImageStats {
+    if image.pixel_type == crate::PixelType::U16 {
+        return stats_from_levels(&LevelCounts::of_le_bytes(&image.data));
+    }
+    let mut samples = image.samples_f64();
+    samples.retain(|v| v.is_finite());
+    stats_from_samples(&mut samples)
+}
+
+fn stats_from_samples(samples: &mut [f64]) -> ImageStats {
+    if samples.is_empty() {
+        return ImageStats::default();
+    }
+    let count = samples.len() as f64;
+    let (min, max, sum) = samples
+        .par_iter()
+        .fold(
+            || (f64::INFINITY, f64::NEG_INFINITY, 0.0),
+            |(lo, hi, sum), &v| (lo.min(v), hi.max(v), sum + v),
+        )
+        .reduce(
+            || (f64::INFINITY, f64::NEG_INFINITY, 0.0),
+            |a, b| (a.0.min(b.0), a.1.max(b.1), a.2 + b.2),
+        );
+    let mean = sum / count;
+    let variance = samples
+        .par_iter()
+        .map(|&v| (v - mean) * (v - mean))
+        .sum::<f64>()
+        / count;
+    let median = crate::robust_stats::median_in_place(samples);
+    samples.par_iter_mut().for_each(|v| *v = (*v - median).abs());
+    let mad = crate::robust_stats::median_in_place(samples);
+    ImageStats {
+        min,
+        max,
+        mean,
+        median,
+        std_dev: variance.sqrt(),
+        mad,
+    }
 }
 
 pub(crate) fn stats_from_levels(levels: &LevelCounts) -> ImageStats {
@@ -413,13 +455,43 @@ pub fn calculate_median_hfr(image: &ImageData) -> Option<f64> {
     Some(hfrs[hfrs.len() / 2])
 }
 
-/// Calculate histogram for a 16-bit image
+/// Count an image's samples into `bins` equal bins over the 16-bit ADU scale.
+/// A sample outside the scale lands in the end bin on its side; one that is
+/// not finite is not counted.
 pub fn calculate_histogram(image: &ImageData, bins: usize) -> Vec<u32> {
     if bins == 0 {
         return Vec::new();
     }
 
     let bin_size = 65536 / bins;
+    if image.pixel_type != crate::PixelType::U16 {
+        let size = image.bytes_per_pixel();
+        let pixel_type = image.pixel_type;
+        let (low, gain) = image.adu_mapping().unwrap_or((0.0, 1.0));
+        return image
+            .data
+            .par_chunks_exact(size)
+            .fold(
+                || vec![0u32; bins],
+                |mut hist, bytes| {
+                    let adu = (crate::samples::sample_from_le(bytes, pixel_type) - low) * gain;
+                    if adu.is_finite() {
+                        let level = adu.round().clamp(0.0, 65535.0) as usize;
+                        hist[(level / bin_size).min(bins - 1)] += 1;
+                    }
+                    hist
+                },
+            )
+            .reduce(
+                || vec![0u32; bins],
+                |mut a, b| {
+                    for (a, b) in a.iter_mut().zip(b) {
+                        *a += b;
+                    }
+                    a
+                },
+            );
+    }
 
     // Parallel histogram calculation
     // Each thread calculates a local histogram, then they are reduced
@@ -785,7 +857,7 @@ mod tests {
     #[test]
     fn calculate_stats_reports_expected_mad_for_even_sample() {
         let image = ImageData::from_u16(4, 1, 1, &[10, 10, 14, 22]);
-        let stats = calculate_stats_u16(&image);
+        let stats = calculate_stats(&image);
         assert_eq!(stats.median, 12.0);
         assert_eq!(stats.mad, 2.0);
     }
@@ -798,8 +870,9 @@ mod tests {
             channels: 1,
             pixel_type: crate::PixelType::U16,
             data: vec![0x34, 0x12, 0xFF],
+            range: crate::SampleRange::of(crate::PixelType::U16),
         };
-        let stats = calculate_stats_u16(&image);
+        let stats = calculate_stats(&image);
         assert_eq!(stats.min, 0x1234 as f64);
         assert_eq!(stats.max, 0x1234 as f64);
         assert_eq!(stats.mad, 0.0);

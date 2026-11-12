@@ -7,9 +7,83 @@
 //! frames in memory.
 
 use crate::fits::{geometry_from_header, read_header_measured, FitsError, FitsHeader};
-use crate::{ImageData, PixelType};
+use crate::{ImageData, PixelType, SampleRange};
 use rayon::prelude::*;
 use std::io::{Read, Seek, SeekFrom};
+
+/// The cards a float FITS file states its sample range with: the physical
+/// values of black and of full scale. FITS has no standard pair for this
+/// (`DATAMIN`/`DATAMAX` are the extremes of the data, and PixInsight ignores
+/// them), so the app writes its own and reads them back.
+pub const RANGE_LOW_CARD: &str = "RANGELOW";
+pub const RANGE_HIGH_CARD: &str = "RANGEHI";
+
+/// The range a file's cards declare, if they do.
+pub(crate) fn declared_range(header: &FitsHeader) -> Option<SampleRange> {
+    SampleRange::new(
+        header.get_float(RANGE_LOW_CARD)?,
+        header.get_float(RANGE_HIGH_CARD)?,
+    )
+}
+
+/// The range of float samples whose file declares none, from the smallest and
+/// largest finite sample. Within `[0, 1]` they are a normalized image, which is
+/// how PixInsight reads such a file; anything else is 16-bit ADU, the scale of
+/// the float masters the app wrote before it declared a range. (PixInsight
+/// rescales such a file from its own extremes, which moves the zero and makes
+/// two masters of one camera incomparable.)
+pub(crate) fn undeclared_float_range(low: f64, high: f64) -> SampleRange {
+    if low >= 0.0 && high <= 1.0 {
+        SampleRange::UNIT
+    } else {
+        SampleRange::ADU
+    }
+}
+
+fn finite_extremes_f32(samples: &[u8]) -> (f64, f64) {
+    let (low, high) = samples
+        .par_chunks(4 << 14)
+        .map(|chunk| {
+            chunk.as_chunks::<4>().0.iter().fold(
+                (f32::INFINITY, f32::NEG_INFINITY),
+                |(lo, hi), c| {
+                    let v = f32::from_le_bytes(*c);
+                    if v.is_finite() {
+                        (lo.min(v), hi.max(v))
+                    } else {
+                        (lo, hi)
+                    }
+                },
+            )
+        })
+        .reduce(
+            || (f32::INFINITY, f32::NEG_INFINITY),
+            |a, b| (a.0.min(b.0), a.1.max(b.1)),
+        );
+    (f64::from(low), f64::from(high))
+}
+
+fn finite_extremes_f64(samples: &[u8]) -> (f64, f64) {
+    samples
+        .par_chunks(8 << 14)
+        .map(|chunk| {
+            chunk.as_chunks::<8>().0.iter().fold(
+                (f64::INFINITY, f64::NEG_INFINITY),
+                |(lo, hi), c| {
+                    let v = f64::from_le_bytes(*c);
+                    if v.is_finite() {
+                        (lo.min(v), hi.max(v))
+                    } else {
+                        (lo, hi)
+                    }
+                },
+            )
+        })
+        .reduce(
+            || (f64::INFINITY, f64::NEG_INFINITY),
+            |a, b| (a.0.min(b.0), a.1.max(b.1)),
+        )
+}
 
 /// How the data unit stores a sample: `physical = stored · BSCALE + BZERO`.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -168,6 +242,9 @@ pub struct FitsReader<R> {
     data_offset: u64,
     /// `None` for a header-only HDU (`NAXIS = 0`).
     shape: Option<FitsShape>,
+    /// What the samples span. `None` until the data has been looked at, for a
+    /// float file that declares no range.
+    range: Option<SampleRange>,
 }
 
 impl<R: Read> FitsReader<R> {
@@ -189,11 +266,16 @@ impl<R: Read> FitsReader<R> {
                 encoding,
             })
         };
+        let range = shape.and_then(|shape: FitsShape| match shape.pixel_type {
+            PixelType::F32 | PixelType::F64 => declared_range(&header),
+            integer => Some(SampleRange::of(integer)),
+        });
         Ok(Self {
             reader,
             header,
             data_offset,
             shape,
+            range,
         })
     }
 
@@ -217,8 +299,8 @@ impl<R: Read> FitsReader<R> {
     ///
     /// The returned header has `BZERO`/`BSCALE` removed: they describe the
     /// stored encoding, which is now folded into the samples, and writing them
-    /// back would scale the data twice. A header-only HDU yields an empty
-    /// image.
+    /// back would scale the data twice. The range cards go the same way, into
+    /// the image's [`SampleRange`]. A header-only HDU yields an empty image.
     pub fn into_image(mut self) -> Result<(ImageData, FitsHeader), FitsError> {
         let Some(shape) = self.shape else {
             return Ok((ImageData::new(0, 0, 1, PixelType::U16), self.header));
@@ -262,6 +344,15 @@ impl<R: Read> FitsReader<R> {
         header.remove(crate::fits_layout::LAYOUT_KEYWORD);
         header.remove("BZERO");
         header.remove("BSCALE");
+        header.remove(RANGE_LOW_CARD);
+        header.remove(RANGE_HIGH_CARD);
+        let range = self.range.unwrap_or_else(|| {
+            let (low, high) = match shape.pixel_type {
+                PixelType::F32 => finite_extremes_f32(&data),
+                _ => finite_extremes_f64(&data),
+            };
+            undeclared_float_range(low, high)
+        });
 
         Ok((
             ImageData {
@@ -270,6 +361,7 @@ impl<R: Read> FitsReader<R> {
                 channels: shape.planes,
                 pixel_type: shape.pixel_type,
                 data,
+                range,
             },
             header,
         ))
@@ -277,9 +369,41 @@ impl<R: Read> FitsReader<R> {
 }
 
 impl<R: Read + Seek> FitsReader<R> {
-    /// Decode rows `row..row + rows` of the first plane into `out` as physical
-    /// values (`stored · BSCALE + BZERO`, unclamped), replacing its contents.
-    /// `scratch` is the caller's reusable byte buffer.
+    /// What the samples span: declared by the file, or, for a float file that
+    /// declares nothing, found by one pass over its data.
+    pub fn sample_range(&mut self) -> Result<SampleRange, FitsError> {
+        if let Some(range) = self.range {
+            return Ok(range);
+        }
+        let shape = self
+            .shape
+            .ok_or_else(|| FitsError::InvalidFormat("No image data in FITS file".to_string()))?;
+        let size = shape.encoding.bytes_per_sample();
+        let mut left = shape.sample_count()? * size;
+        let mut buffer = vec![0u8; left.min(size << 20)];
+        let mut values = Vec::new();
+        let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
+        self.reader.seek(SeekFrom::Start(self.data_offset))?;
+        while left > 0 {
+            let take = left.min(buffer.len());
+            self.reader.read_exact(&mut buffer[..take])?;
+            values.clear();
+            shape.encoding.decode_physical(&buffer[..take], &mut values);
+            for &v in values.iter().filter(|v| v.is_finite()) {
+                low = low.min(v);
+                high = high.max(v);
+            }
+            left -= take;
+        }
+        let range = undeclared_float_range(low, high);
+        self.range = Some(range);
+        Ok(range)
+    }
+
+    /// Decode rows `row..row + rows` of the first plane into `out` as 16-bit
+    /// ADU (the physical value `stored · BSCALE + BZERO`, unclamped, taken
+    /// from the file's range), replacing its contents. `scratch` is the
+    /// caller's reusable byte buffer.
     ///
     /// The reader must have been opened at the start of the file: rows are
     /// found by seeking to [`Self::data_offset`].
@@ -300,6 +424,7 @@ impl<R: Read + Seek> FitsReader<R> {
                 shape.height
             )));
         }
+        let range = self.sample_range()?;
         let row_bytes = shape.width as usize * shape.encoding.bytes_per_sample();
         scratch.resize(rows * row_bytes, 0);
         self.reader
@@ -308,6 +433,9 @@ impl<R: Read + Seek> FitsReader<R> {
         out.clear();
         out.reserve(rows * shape.width as usize);
         shape.encoding.decode_physical(scratch, out);
+        if !range.is_adu() {
+            out.iter_mut().for_each(|v| *v = range.to_adu(*v));
+        }
         Ok(())
     }
 }

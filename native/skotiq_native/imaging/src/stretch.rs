@@ -106,30 +106,29 @@ pub fn apply_stretch(image: &ImageData, params: &StretchParams) -> Vec<u8> {
 /// The samples of an image that is not 16-bit, on the 16-bit level scale the
 /// stretch works in; `None` for a 16-bit image, whose bytes are the levels.
 ///
-/// The scale is chosen from the finite samples' range:
-/// * within [0, 1]: the [0, 1] float convention (PixInsight's), spread over
-///   the full scale;
-/// * within [0, 65535]: ADU, as the integration masters write them, taken as
-///   they are, so a float master shows as its 16-bit twin does;
-/// * anything else (a background-subtracted master with samples below zero, a
-///   32-bit integer or a float file on another scale): the range itself is
-///   spread over the full scale. Clamping instead would flatten everything
-///   below zero or above 65535 into one level.
+/// The levels are the samples in 16-bit ADU, as the image's sample range gives
+/// them, so a float frame shows as its 16-bit twin does. Two things keep an
+/// image from being flattened by that:
+/// * samples outside the scale (a background-subtracted master below zero, a
+///   sum above full scale) widen the span that is spread over the levels;
+/// * samples that would all land on fewer than [`MIN_DISPLAY_LEVELS`] levels
+///   (a file that uses a sliver of its range) are spread from their own span.
 ///
 /// A sample that is not finite (NaN marks a pixel with no data in some
 /// masters) shows as level 0.
-fn display_levels(image: &ImageData) -> Option<Vec<u16>> {
+pub(crate) fn display_levels(image: &ImageData) -> Option<Vec<u16>> {
     let pixel_type = image.pixel_type;
     if pixel_type == crate::PixelType::U16 {
         return None;
     }
     let size = pixel_type.byte_size();
-    let sample = |bytes: &[u8]| crate::samples::sample_from_le(bytes, pixel_type);
+    let (range_low, gain) = image.adu_mapping().unwrap_or((0.0, 1.0));
+    let adu = |bytes: &[u8]| (crate::samples::sample_from_le(bytes, pixel_type) - range_low) * gain;
 
     let (low, high) = image
         .data
         .par_chunks_exact(size)
-        .map(sample)
+        .map(adu)
         .filter(|v| v.is_finite())
         .fold(
             || (f64::INFINITY, f64::NEG_INFINITY),
@@ -139,21 +138,16 @@ fn display_levels(image: &ImageData) -> Option<Vec<u16>> {
             || (f64::INFINITY, f64::NEG_INFINITY),
             |a, b| (a.0.min(b.0), a.1.max(b.1)),
         );
-    const FULL_SCALE: f64 = 65535.0;
-    let is_float = matches!(
-        pixel_type,
-        crate::PixelType::F32 | crate::PixelType::F64
-    );
-    let (offset, scale) = if pixel_type == crate::PixelType::U8 {
-        (0.0, 257.0)
-    } else if low > high {
+    const FULL_SCALE: f64 = crate::ADU_FULL_SCALE;
+    let (offset, scale) = if low > high {
         // No finite sample at all.
         (0.0, 0.0)
-    } else if is_float && low >= 0.0 && high <= 1.0 {
-        (0.0, FULL_SCALE)
+    } else if high > low && high - low < MIN_DISPLAY_LEVELS {
+        (low, FULL_SCALE / (high - low))
     } else if low >= 0.0 && high <= FULL_SCALE {
         (0.0, 1.0)
     } else if high > low {
+        let (low, high) = (low.min(0.0), high.max(FULL_SCALE));
         (low, FULL_SCALE / (high - low))
     } else {
         (low, 0.0)
@@ -164,13 +158,17 @@ fn display_levels(image: &ImageData) -> Option<Vec<u16>> {
             .data
             .par_chunks_exact(size)
             .map(|bytes| {
-                let level = (sample(bytes) - offset) * scale;
+                let level = (adu(bytes) - offset) * scale;
                 // `as` saturates and maps NaN to 0.
                 level.round() as u16
             })
             .collect(),
     )
 }
+
+/// The fewest levels an image's samples may span before the display spreads
+/// them from their own range: as many as an 8-bit image has.
+const MIN_DISPLAY_LEVELS: f64 = 256.0;
 
 /// Apply stretch to RGB image (3 channels), returning 8-bit RGB output for display
 /// Input: RGB16 data (width * height * 3 u16 values)
@@ -1009,7 +1007,8 @@ mod tests {
             .iter()
             .map(|&v| f32::from(v) / 65535.0)
             .collect();
-        let float_image = ImageData::from_f32(64, 48, 1, &unit);
+        let float_image =
+            ImageData::from_f32(64, 48, 1, &unit).with_range(crate::SampleRange::UNIT);
 
         let params = auto_stretch_stf(&float_image);
         let expected = auto_stretch_stf(&u16_image);

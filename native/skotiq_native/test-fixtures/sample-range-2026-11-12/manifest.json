@@ -1,0 +1,16 @@
+{
+  "description": "One synthetic star field (400x300, 45 stars, two of them saturated, sky 1000 ADU with a gradient, sigma 18 ADU) in every sample convention the app reads. The test imaging/tests/sample_range_conventions.rs checks that star detection, HFR, statistics, histogram, stretch, thumbnail, calibration and registration give the same answers for all of them.",
+  "made_by": "make_scene.py (numpy) wrote scene_u16.fits and unmarked_f32_adu.fits. PixInsight 1.9.4 (headless, pixinsight.js) opened scene_u16.fits and saved the pi_* files: ImageWindow.setSampleFormat, then saveAs with zstd+sh for XISF.",
+  "files": {
+    "scene_u16.fits": "the scene, 16-bit FITS (BZERO 32768)",
+    "unmarked_f32_adu.fits": "the scene as float FITS in ADU with no range cards: what Skotiq wrote for float masters before it declared a range",
+    "pi_scene_f32.xisf": "PixInsight Float32 XISF, bounds 0:1",
+    "pi_scene_f64.xisf": "PixInsight Float64 XISF, bounds 0:1",
+    "pi_scene_u16.xisf": "PixInsight UInt16 XISF",
+    "pi_scene_u32.xisf": "PixInsight UInt32 XISF (the 16-bit levels spread over the 32-bit range)",
+    "pi_scene_f32.fits": "PixInsight Float32 FITS, samples in 0..1, no range card",
+    "pi_scene_rgb_f32.xisf": "PixInsight Float32 RGB XISF: R = 0.8 scene, G = scene, B = 0.6 scene",
+    "pi_scene_rgb_u16.xisf": "the same RGB image as UInt16 XISF"
+  },
+  "pixinsight_reads": "Measured with pixinsight.js: an XISF Float32 file with bounds 0:65535 holding ADU reads in PixInsight exactly as the 16-bit frame (median 0.0157472); samples outside the bounds are truncated. A float FITS outside 0..1 is rescaled from its own extremes whatever cards it has."
+}

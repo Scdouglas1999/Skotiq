@@ -319,9 +319,11 @@ impl LiveStacker {
             return Err("Reference frame is empty".to_string());
         }
 
-        if reference_frame.pixel_type != PixelType::U16 {
+        // 16-bit frames and float frames, whose sample range says where their
+        // ADU are; the stack itself is 16-bit.
+        if !matches!(reference_frame.pixel_type, PixelType::U16 | PixelType::F32) {
             return Err(format!(
-                "Live stacking currently supports U16 images only, got {:?}",
+                "Live stacking reads 16-bit and 32-bit float images, got {:?}",
                 reference_frame.pixel_type
             ));
         }
@@ -457,9 +459,9 @@ impl LiveStacker {
                 frame.channels, self.channels
             ));
         }
-        if frame.pixel_type != PixelType::U16 {
+        if !matches!(frame.pixel_type, PixelType::U16 | PixelType::F32) {
             return Err(format!(
-                "Expected U16 pixel type, got {:?}",
+                "Live stacking reads 16-bit and 32-bit float images, got {:?}",
                 frame.pixel_type
             ));
         }
@@ -1614,14 +1616,7 @@ mod master_parity_tests {
         let frame_stacks: Vec<Vec<f64>> = frames
             .iter()
             .map(|f| match f.pixel_type {
-                PixelType::U16 => f.samples_f64(),
-                PixelType::F32 => f
-                    .data
-                    .as_chunks::<4>()
-                    .0
-                    .iter()
-                    .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f64)
-                    .collect(),
+                PixelType::U16 | PixelType::F32 => f.samples_f64(),
                 _ => unreachable!(),
             })
             .collect();
@@ -2794,6 +2789,43 @@ mod tests {
             Some("2026-08-14T03:21:00.000"),
             "DATE-OBS must come from the earliest STACKED frame, not the rejected one"
         );
+    }
+
+    /// A float reference in [0, 1], as PixInsight saves a frame, starts the
+    /// same stack as the 16-bit frame it was made from, and a float frame
+    /// joins a 16-bit stack.
+    #[test]
+    fn a_normalized_float_frame_stacks_as_its_16_bit_twin() {
+        let field = osc_test_field();
+        let reference = make_test_image(512, 512, &field);
+        let shifted = make_test_image(512, 512, &shift_field(&field, 3.0, 2.0));
+        let unit = |image: &ImageData| {
+            let px: Vec<f32> = image
+                .as_u16()
+                .unwrap()
+                .iter()
+                .map(|&v| f32::from(v) / 65535.0)
+                .collect();
+            ImageData::from_f32(image.width, image.height, 1, &px)
+                .with_range(crate::SampleRange::UNIT)
+        };
+
+        let mut sixteen = LiveStacker::new(&reference, osc_test_config()).unwrap();
+        let expected = sixteen.add_frame(&shifted).unwrap().as_u16().unwrap();
+
+        let mut float = LiveStacker::new(&unit(&reference), osc_test_config())
+            .expect("a float reference is accepted");
+        let stacked = float.add_frame(&unit(&shifted)).expect("a float frame is stacked");
+        assert_eq!(stacked.pixel_type, PixelType::U16);
+        assert_eq!(float.frame_count(), 2);
+        let got = stacked.as_u16().unwrap();
+        let worst = got.iter().zip(&expected).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
+        assert!(worst <= 1, "the float stack differs from the 16-bit one by {worst} ADU");
+
+        let mut mixed = LiveStacker::new(&reference, osc_test_config()).unwrap();
+        let got = mixed.add_frame(&unit(&shifted)).unwrap().as_u16().unwrap();
+        let worst = got.iter().zip(&expected).map(|(a, b)| a.abs_diff(*b)).max().unwrap();
+        assert!(worst <= 1, "the mixed stack differs by {worst} ADU");
     }
 
     /// The mono two-frame stack is pinned byte-for-byte.

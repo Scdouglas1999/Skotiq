@@ -538,40 +538,14 @@ fn reduce_stars_preview_impl(
 
 // Shared helpers
 
-/// Convert an image to `F32` for an archival linear master, de-interleaving and
-/// promoting any supported source pixel type. A frame already `F32` is returned
-/// as a clone.
+/// Convert an image to `F32` in ADU for an archival linear master, promoting
+/// any supported source pixel type. A frame already `F32` is returned as a
+/// clone, in the range it has.
 fn to_f32(image: &ImageData) -> ImageData {
     if image.pixel_type == PixelType::F32 {
         return image.clone();
     }
-    let width = image.width as usize;
-    let height = image.height as usize;
-    let channels = image.channels as usize;
-    let n = width * height * channels;
-    let bpp = image.pixel_type.byte_size();
-    let mut out = vec![0.0_f32; n];
-    for (idx, o) in out.iter_mut().enumerate() {
-        let off = idx * bpp;
-        if off + bpp <= image.data.len() {
-            *o = read_pixel_f32(&image.data[off..off + bpp], image.pixel_type);
-        }
-    }
-    ImageData::from_f32(image.width, image.height, image.channels, &out)
-}
-
-/// Read a single little-endian pixel of the given type as `f32`.
-#[inline]
-fn read_pixel_f32(bytes: &[u8], pt: PixelType) -> f32 {
-    match pt {
-        PixelType::U8 => bytes[0] as f32,
-        PixelType::U16 => u16::from_le_bytes([bytes[0], bytes[1]]) as f32,
-        PixelType::U32 => u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) as f32,
-        PixelType::F32 => f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-        PixelType::F64 => f64::from_le_bytes([
-            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-        ]) as f32,
-    }
+    ImageData::from_f32(image.width, image.height, image.channels, &image.samples_f32())
 }
 
 /// Create the parent directory of an output path if it does not exist. Mirrors

@@ -204,6 +204,7 @@ pub(crate) fn read_image(
         channels,
         pixel_type,
         data: out,
+        range: super::fits_map::sample_range(image),
     };
     if image.color_space == ColorSpace::CieLab {
         lab_to_rgb(image, &mut result);
