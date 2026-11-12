@@ -184,17 +184,13 @@ impl DeviceManager {
             return handle.heartbeat(device_id).await;
         }
         match driver_type {
-            DriverType::Alpaca => {
-                self.perform_alpaca_health_check(device_id, device_type)
-                    .await
-            }
-            #[cfg(windows)]
-            DriverType::Ascom => {
-                self.perform_ascom_health_check(device_id, device_type)
-                    .await
-            }
-            #[cfg(not(windows))]
-            DriverType::Ascom => Err("ASCOM is not supported on this platform".to_string()),
+            // Every Alpaca and ASCOM device answers through its handle.
+            DriverType::Alpaca | DriverType::Ascom => Err(format!(
+                "No {} heartbeat implementation for device {} ({:?})",
+                crate::device_manager::handle::protocol_label(*driver_type),
+                device_id,
+                device_type
+            )),
             DriverType::Indi => self.perform_indi_health_check(device_id).await,
             DriverType::Native => {
                 self.perform_native_health_check(device_id, device_type)

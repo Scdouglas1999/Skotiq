@@ -307,7 +307,7 @@ impl CameraDriver for AtikCamera {
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         self.core.require_connected()?;
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.status(&sdk)
     }
 
@@ -316,7 +316,7 @@ impl CameraDriver for AtikCamera {
         let deadline = std::time::Instant::now() + IDLE_WAIT;
         loop {
             {
-                let sdk = AtikSdk::lock().await?;
+                let sdk = self.sdk().await?;
                 if self.ready_to_expose(&sdk)? {
                     return self.begin_exposure(&sdk, &params);
                 }
@@ -334,7 +334,7 @@ impl CameraDriver for AtikCamera {
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         // SAFETY: the handle is open and the lock is held.
         let result = unsafe { (sdk.abort_exposure)(self.handle()) };
         check_artemis_error(result, "abort the exposure")?;
@@ -344,13 +344,13 @@ impl CameraDriver for AtikCamera {
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
         self.core.require_connected()?;
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.exposure_done(&sdk)
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         self.core.require_connected()?;
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.take_frame(&sdk)
     }
 
@@ -391,7 +391,7 @@ impl CameraDriver for AtikCamera {
             }
         }
 
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         let handle = self.handle();
         if let Some(target) = setpoint_c {
             // SAFETY: the handle is open and the lock is held; hundredths of a degree.
@@ -414,7 +414,7 @@ impl CameraDriver for AtikCamera {
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
         self.core.require_connected()?;
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         let mut temp: c_int = 0;
         // SAFETY: `temp` is a valid out-pointer; the handle is open and the lock is held.
         let result = unsafe { (sdk.temperature_sensor_info)(self.handle(), 1, &mut temp) };
@@ -427,7 +427,7 @@ impl CameraDriver for AtikCamera {
         if !self.facts.has_cooling {
             return Err(DriverError::NotSupported);
         }
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         let cooling = cooling_info(&sdk, self.handle())
             .ok_or_else(|| DriverError::SdkError("could not read the Atik cooler".to_string()))?;
         Ok(cooling.power_percent().unwrap_or(0.0))
@@ -438,7 +438,7 @@ impl CameraDriver for AtikCamera {
         if !self.facts.gain.takes(false) {
             return Err(DriverError::NotSupported);
         }
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_gain(&sdk, gain, false)
     }
 
@@ -451,7 +451,7 @@ impl CameraDriver for AtikCamera {
         if !self.facts.gain.takes(true) {
             return Err(DriverError::NotSupported);
         }
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_gain(&sdk, offset, true)
     }
 
@@ -461,7 +461,7 @@ impl CameraDriver for AtikCamera {
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_binning(&sdk, bin_x, bin_y)
     }
 
@@ -471,7 +471,7 @@ impl CameraDriver for AtikCamera {
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         self.core.require_connected()?;
-        let sdk = AtikSdk::lock().await?;
+        let sdk = self.sdk().await?;
         self.apply_subframe(&sdk, subframe)
     }
 

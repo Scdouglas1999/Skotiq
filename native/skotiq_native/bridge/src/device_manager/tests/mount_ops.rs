@@ -151,10 +151,7 @@ async fn test_mount_get_status_uses_ascom_can_park() {
         sidereal_time: 5.0,
         can_park: false,
     };
-    manager.ascom_mounts.write().await.insert(
-        device_id.to_string(),
-        Arc::new(RwLock::new(build_test_mount_wrapper(responses))),
-    );
+    manager.hold_ascom_mount(device_id, build_test_mount_wrapper(responses));
 
     let status = manager
         .mount_get_status(device_id)

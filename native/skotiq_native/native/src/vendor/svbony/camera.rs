@@ -34,6 +34,19 @@ pub struct SvbonyCamera {
 }
 
 impl SvbonyCamera {
+    /// The SDK, held for this camera (see `sdk_loader::lock_scope`).
+    pub(crate) async fn sdk(
+        &self,
+    ) -> Result<crate::vendor::sdk_loader::SdkGuard<SvbonySdk>, skotiq_device::DriverError> {
+        use crate::vendor::sdk_loader::{device_key, lock_scope};
+        SvbonySdk::slot()
+            .lock_device(
+                lock_scope(&skotiq_device::Vendor::Svbony),
+                device_key(self.camera_id),
+            )
+            .await
+    }
+
     pub fn new(camera_id: i32) -> Self {
         Self {
             camera_id,

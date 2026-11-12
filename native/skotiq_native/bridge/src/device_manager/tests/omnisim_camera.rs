@@ -263,13 +263,7 @@ async fn abort_discards_and_stop_keeps_the_frame() {
         .await
         .expect("start");
     tokio::time::sleep(Duration::from_millis(500)).await;
-    let camera = manager
-        .alpaca_cameras
-        .read()
-        .await
-        .get(&id)
-        .cloned()
-        .unwrap();
+    let camera = skotiq_alpaca::AlpacaCamera::from_server(&base_url, 0);
     assert!(camera.can_stop_exposure().await.unwrap());
     camera.stop_exposure().await.expect("stop");
     wait_for_frame(&manager, &id).await;

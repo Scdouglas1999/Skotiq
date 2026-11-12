@@ -1048,6 +1048,180 @@ pub(crate) mod test_support {
             connected: std::sync::atomic::AtomicBool::new(false),
         }
     }
+
+    /// A connected wrapper whose worker answers every command, keeps the
+    /// state the commands change (tracking, parked, position, tracking rate)
+    /// and hands each command's name and arguments to `saw` before answering.
+    /// The mount starts parked, not tracking, at RA 5.5 h / Dec 22 degrees.
+    pub fn build_recording_mount_wrapper(
+        saw: impl Fn(String) + Send + 'static,
+    ) -> AscomMountWrapper {
+        let (tx, mut rx) = mpsc::channel(8);
+        let _handle = thread::spawn(move || {
+            let (mut tracking, mut parked, mut rate) = (false, true, 0);
+            let mut position = (5.5, 22.0);
+            while let Some(cmd) = crate::ascom_wrapper::pump_blocking_recv(&mut rx) {
+                use AscomMountCommand::*;
+                match cmd {
+                    Connect(reply) => {
+                        saw("Connect".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    Disconnect(reply) => {
+                        saw("Disconnect".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    SlewToCoordinates(ra, dec, reply) => {
+                        saw(format!("SlewToCoordinates {ra:.1} {dec:.1}"));
+                        position = (ra, dec);
+                        let _ = reply.send(Ok(()));
+                    }
+                    SyncToCoordinates(ra, dec, reply) => {
+                        saw(format!("SyncToCoordinates {ra:.1} {dec:.1}"));
+                        position = (ra, dec);
+                        let _ = reply.send(Ok(()));
+                    }
+                    Park(reply) => {
+                        saw("Park".into());
+                        parked = true;
+                        tracking = false;
+                        let _ = reply.send(Ok(()));
+                    }
+                    Unpark(reply) => {
+                        saw("Unpark".into());
+                        parked = false;
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetCoordinates(reply) => {
+                        saw("GetCoordinates".into());
+                        let _ = reply.send(Ok(position));
+                    }
+                    IsSlewing(reply) => {
+                        saw("IsSlewing".into());
+                        let _ = reply.send(Ok(false));
+                    }
+                    IsParked(reply) => {
+                        saw("IsParked".into());
+                        let _ = reply.send(Ok(parked));
+                    }
+                    CanPark(reply) => {
+                        saw("CanPark".into());
+                        let _ = reply.send(Ok(true));
+                    }
+                    GetCapabilities(reply) => {
+                        saw("GetCapabilities".into());
+                        let _ = reply.send(Ok(AscomMountCapabilities {
+                            can_slew: true,
+                            can_slew_async: true,
+                            can_sync: true,
+                            can_park: true,
+                            can_unpark: true,
+                            can_set_park: true,
+                            can_pulse_guide: true,
+                            can_set_tracking: true,
+                            can_find_home: true,
+                            can_move_axis_primary: true,
+                            can_move_axis_secondary: true,
+                            is_equatorial: true,
+                        }));
+                    }
+                    Stop(reply) => {
+                        saw("Stop".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    AbortSlew(reply) => {
+                        saw("AbortSlew".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    SetTracking(on, reply) => {
+                        saw(format!("SetTracking {on}"));
+                        tracking = on;
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetTracking(reply) => {
+                        saw("GetTracking".into());
+                        let _ = reply.send(Ok(tracking));
+                    }
+                    PulseGuide(direction, ms, reply) => {
+                        saw(format!("PulseGuide {direction:?} {ms}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetSideOfPier(reply) => {
+                        saw("GetSideOfPier".into());
+                        let _ = reply.send(Ok(skotiq_device::PierSide::East));
+                    }
+                    GetAltAz(reply) => {
+                        saw("GetAltAz".into());
+                        let _ = reply.send(Ok((45.0, 180.0)));
+                    }
+                    GetSiderealTime(reply) => {
+                        saw("GetSiderealTime".into());
+                        let _ = reply.send(Ok(5.0));
+                    }
+                    SetTrackingRate(value, reply) => {
+                        saw(format!("SetTrackingRate {value}"));
+                        rate = value;
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetTrackingRate(reply) => {
+                        saw("GetTrackingRate".into());
+                        let _ = reply.send(Ok(rate));
+                    }
+                    MoveAxis(axis, speed, reply) => {
+                        saw(format!("MoveAxis {axis} {speed}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                    SlewToAltAz(alt, az, reply) => {
+                        saw(format!("SlewToAltAz {alt:.4} {az:.4}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                    FindHome(reply) => {
+                        saw("FindHome".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    AtHome(reply) => {
+                        saw("AtHome".into());
+                        let _ = reply.send(Ok(false));
+                    }
+                    SetPark(reply) => {
+                        saw("SetPark".into());
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetSite(reply) => {
+                        saw("GetSite".into());
+                        let _ = reply.send(Ok((40.0, -75.0, Some(100.0))));
+                    }
+                    SetSite(latitude, longitude, elevation, reply) => {
+                        saw(format!("SetSite {latitude:.4} {longitude:.4} {elevation:?}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                    GetUtcDate(reply) => {
+                        saw("GetUtcDate".into());
+                        let _ = reply.send(Ok(46338.125));
+                    }
+                    GetEquatorialSystem(reply) => {
+                        saw("GetEquatorialSystem".into());
+                        let _ = reply.send(Ok(1));
+                    }
+                    IsPulseGuiding(reply) => {
+                        saw("IsPulseGuiding".into());
+                        let _ = reply.send(Ok(false));
+                    }
+                    SetUtcDate(days, reply) => {
+                        saw(format!("SetUtcDate {days:.6}"));
+                        let _ = reply.send(Ok(()));
+                    }
+                }
+            }
+        });
+
+        AscomMountWrapper {
+            id: "test-mount".to_string(),
+            name: "Test Mount".to_string(),
+            sender: tx,
+            connected: std::sync::atomic::AtomicBool::new(true),
+        }
+    }
 }
 
 #[cfg(test)]

@@ -99,6 +99,19 @@ unsafe impl Send for QhyCamera {}
 unsafe impl Sync for QhyCamera {}
 
 impl QhyCamera {
+    /// The SDK, held for this camera (see `sdk_loader::lock_scope`).
+    pub(crate) async fn sdk(
+        &self,
+    ) -> Result<crate::vendor::sdk_loader::SdkGuard<QhySdk>, skotiq_device::DriverError> {
+        use crate::vendor::sdk_loader::{device_key, lock_scope};
+        QhySdk::slot()
+            .lock_device(
+                lock_scope(&skotiq_device::Vendor::Qhy),
+                device_key(&self.camera_id),
+            )
+            .await
+    }
+
     pub fn new(camera_id: String) -> Self {
         let device_id = format!("native:qhy:{}", camera_id);
         Self {
@@ -535,7 +548,16 @@ impl CoolerKeepalive {
             let handle = handle;
             loop {
                 tokio::time::sleep(COOLER_RESEND_INTERVAL).await;
-                let Ok(sdk) = QhySdk::lock().await else {
+                // Held for this camera only, like the camera's own calls: a
+                // resend waiting for the whole SDK would queue behind another
+                // camera's frame read and hold every later call up with it.
+                let Ok(sdk) = QhySdk::slot()
+                    .lock_device(
+                        crate::vendor::sdk_loader::lock_scope(&skotiq_device::Vendor::Qhy),
+                        crate::vendor::sdk_loader::device_key(&camera_id),
+                    )
+                    .await
+                else {
                     return;
                 };
                 // The camera's session ended (disconnect, unplug): stop.

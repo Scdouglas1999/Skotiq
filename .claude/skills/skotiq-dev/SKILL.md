@@ -129,7 +129,9 @@ Read the nearest existing example first and copy its shape. Every recipe ends wi
 
 ### 3.4 Device vendor (native SDK or serial protocol)
 1. Driver in `native/skotiq_native/native/src/vendor/<vendor>/` implementing the `skotiq_device`
-   trait for its kind; the SDK handle owns its lock (`XSdk::lock().await?`), missing SDK is
+   trait for its kind; the SDK handle owns its lock (`XSdk::lock().await?`; a camera's own calls take
+   `self.sdk()`, the lock held for that camera, and `lock_scope` in `vendor/sdk_loader.rs` says per vendor whether
+   two cameras may be inside the SDK at once: add the vendor there with the reference that shows it), missing SDK is
    `DriverError::SdkNotInstalled`; cameras build on `camera_core.rs`, serial mounts on
    `vendor/serial_link.rs`.
 2. One `Family` row in `native/src/catalog.rs` (id token, kind, vendor, labels, SDK probe, discover,

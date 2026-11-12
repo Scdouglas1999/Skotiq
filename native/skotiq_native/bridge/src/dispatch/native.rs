@@ -7,8 +7,10 @@
 
 use crate::device::*;
 use crate::device_manager::handle::DeviceHandle;
+use crate::device_manager::rig::camera::VendorCamera;
 use crate::device_manager::rig::filter_wheel::VendorFilterWheel;
 use crate::device_manager::rig::focuser::VendorFocuser;
+use crate::device_manager::rig::mount::VendorMount;
 use crate::device_manager::DeviceManager;
 #[allow(unused_imports)] // Trait methods on `dyn Native*` handles require these in scope.
 use skotiq_device::{CameraDriver, DeviceDriver, MountDriver};
@@ -73,10 +75,10 @@ impl DeviceManager {
         match (handle, info.device_type) {
             (NativeHandle::Camera(mut camera), DeviceType::Camera) => {
                 camera.connect().await.map_err(|e| e.to_string())?;
-                self.native_cameras
-                    .write()
-                    .await
-                    .insert(info.id.clone(), camera);
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Camera(Arc::new(VendorCamera::new(&info.id, camera))),
+                );
                 tracing::info!("Connected to native camera: {}", info.name);
             }
             (NativeHandle::Focuser(mut focuser), _) => {
@@ -106,22 +108,22 @@ impl DeviceManager {
             }
             (NativeHandle::Mount(mut mount), _) => {
                 // Release the port held by any earlier instance of this mount. A
-                // heartbeat loss marks the mount Error but leaves its driver in
-                // `native_mounts` with the serial port open, and serial ports open
-                // exclusively, so the reconnection loop's connect failed "busy"
-                // against Skotiq's own handle on every attempt. The old
-                // instance is dropped, not disconnected: disconnect() sends a
-                // stop-slew, and recovering a link must not halt a mount that may
-                // be slewing or tracking perfectly well.
-                if let Some(stale) = self.native_mounts.write().await.remove(&info.id) {
-                    drop(stale);
+                // heartbeat loss marks the mount Error but leaves its driver
+                // with the serial port open, and serial ports open exclusively,
+                // so the reconnection loop's connect failed "busy" against
+                // Skotiq's own handle on every attempt. The old instance is
+                // released, not disconnected: disconnect() sends a stop-slew,
+                // and recovering a link must not halt a mount that may be
+                // slewing or tracking perfectly well.
+                if let Some(DeviceHandle::Mount(stale)) = self.handles.remove(&info.id) {
+                    stale.release().await;
                     tracing::info!("Released the previous native mount handle for {}", info.id);
                 }
                 mount.connect().await.map_err(|e| e.to_string())?;
-                self.native_mounts
-                    .write()
-                    .await
-                    .insert(info.id.clone(), mount);
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Mount(Arc::new(VendorMount::new(&info.id, mount))),
+                );
                 tracing::info!("Connected to native mount: {}", info.name);
             }
             // A camera registered as another kind of device (a guide camera
@@ -153,57 +155,13 @@ impl DeviceManager {
             return Ok(connected);
         }
 
-        match device_type {
-            DeviceType::Camera => {
-                let cameras = self.native_cameras.read().await;
-                let camera = cameras.get(device_id).ok_or_else(|| {
-                    format!(
-                        "Native camera {} not registered in device manager",
-                        device_id
-                    )
-                })?;
-                if !camera.is_connected() {
-                    return Ok(false);
-                }
-                // The status read, because every camera answers it; a body
-                // without a thermometer (every DSLR and mirrorless camera)
-                // answers a temperature read "not supported".
-                camera
-                    .get_status()
-                    .await
-                    .map(|_| true)
-                    .map_err(|e| format!("Native camera liveness probe failed: {}", e))
-            }
-            DeviceType::Mount => {
-                let mounts = self.native_mounts.read().await;
-                let mount = mounts.get(device_id).ok_or_else(|| {
-                    format!(
-                        "Native mount {} not registered in device manager",
-                        device_id
-                    )
-                })?;
-                if !mount.is_connected() {
-                    return Ok(false);
-                }
-                // A coordinate read, because it always crosses the wire. The
-                // LX200 driver answers the tracking state from memory on most
-                // firmware, so a mount that had gone silent still passed.
-                mount
-                    .get_coordinates()
-                    .await
-                    .map(|_| true)
-                    .map_err(|e| format!("Native mount liveness probe failed: {}", e))
-            }
-            other => {
-                let devices = self.native_devices.read().await;
-                let device = devices.get(device_id).ok_or_else(|| {
-                    format!(
-                        "Native device {} (type {:?}) not registered in device manager",
-                        device_id, other
-                    )
-                })?;
-                Ok(device.is_connected())
-            }
-        }
+        let devices = self.native_devices.read().await;
+        let device = devices.get(device_id).ok_or_else(|| {
+            format!(
+                "Native device {} (type {:?}) not registered in device manager",
+                device_id, device_type
+            )
+        })?;
+        Ok(device.is_connected())
     }
 }

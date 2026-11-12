@@ -49,8 +49,9 @@
 //! the held lock. ioptron/lx200/skywatcher are serial protocols with no SDK
 //! to load.
 
-use skotiq_device::DriverError;
+use skotiq_device::{DriverError, Vendor};
 use std::path::PathBuf;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// Errors that can occur while locating and loading a vendor SDK shared library.
@@ -134,22 +135,108 @@ impl From<VendorLoadError> for SdkUnavailable {
     }
 }
 
-/// The lock that serializes every call into one vendor SDK. Vendor SDKs are
-/// not thread-safe, so a function table is only reachable through an
-/// [`SdkGuard`] that holds this.
-pub struct SdkLock(tokio::sync::Mutex<()>);
+/// How many devices of one vendor SDK may be inside it at the same moment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LockScope {
+    /// One call at a time for the whole SDK.
+    Sdk,
+    /// One call at a time per device; calls for different devices overlap.
+    Device,
+}
+
+/// The lock scope of each vendor's camera SDK: `Device` where a reference
+/// driver runs two cameras of the vendor inside the SDK at once in one
+/// process, `Sdk` where none does.
+///
+/// - ZWO: indi-asi gives each camera a worker thread that calls
+///   `ASIGetExpStatus` and `ASIGetDataAfterExp` with no lock between cameras,
+///   and ships `asi_multi_camera_test.cpp`, which exposes an imaging and a
+///   guide camera on two threads at once.
+/// - QHY: indi-qhy runs an imaging thread per camera, each blocked in
+///   `GetQHYCCDSingleFrame` on its own handle.
+/// - SVBony, Player One: indi-svbony and indi-playerone give each camera a
+///   worker thread.
+/// - Touptek family: indi-toupbase opens several cameras in one process and
+///   the SDK delivers frames on its own threads.
+/// - Atik: indi-atik runs an imaging thread per camera; the DLL takes its own
+///   lock on every entry.
+/// - FLI: libfli keeps one process-wide device table and indi-fli drives one
+///   device per process.
+/// - Moravian: indi-mi drives every camera from one thread.
+/// - Fujifilm, gPhoto2 and anything else: no reference runs two at once.
+pub fn lock_scope(vendor: &Vendor) -> LockScope {
+    match vendor {
+        Vendor::Zwo
+        | Vendor::Qhy
+        | Vendor::Svbony
+        | Vendor::PlayerOne
+        | Vendor::Touptek
+        | Vendor::Atik => LockScope::Device,
+        _ => LockScope::Sdk,
+    }
+}
+
+/// The key of one device under an SDK's lock, from whatever names it there.
+pub fn device_key(id: impl std::hash::Hash) -> u64 {
+    use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher};
+    BuildHasherDefault::<DefaultHasher>::default().hash_one(id)
+}
+
+/// The lock that serializes calls into one vendor SDK. Vendor SDKs are not
+/// thread-safe, so a function table is only reachable through an [`SdkGuard`]
+/// that holds this.
+///
+/// [`Self::lock`] holds the whole SDK: discovery, opening and closing a
+/// device, and every device of an SDK whose scope is [`LockScope::Sdk`].
+/// [`Self::lock_device`] holds one device of an SDK whose scope is
+/// [`LockScope::Device`]: it excludes other calls for that device and any
+/// holder of the whole SDK, and overlaps with calls for other devices.
+pub struct SdkLock {
+    whole: tokio::sync::RwLock<()>,
+    devices: std::sync::Mutex<Vec<(u64, Arc<tokio::sync::Mutex<()>>)>>,
+}
 
 impl SdkLock {
     pub const fn new() -> Self {
-        Self(tokio::sync::Mutex::const_new(()))
+        Self {
+            whole: tokio::sync::RwLock::const_new(()),
+            devices: std::sync::Mutex::new(Vec::new()),
+        }
     }
 
     pub async fn lock(&'static self) -> SdkLockHeld {
-        SdkLockHeld(self.0.lock().await)
+        SdkLockHeld(Held::Sdk(self.whole.write().await))
     }
 
     pub fn try_lock(&'static self) -> Option<SdkLockHeld> {
-        self.0.try_lock().ok().map(SdkLockHeld)
+        self.whole
+            .try_write()
+            .ok()
+            .map(|held| SdkLockHeld(Held::Sdk(held)))
+    }
+
+    /// Holds the device `device` (see [`device_key`]), or the whole SDK when
+    /// `scope` says its devices may not overlap.
+    pub async fn lock_device(&'static self, scope: LockScope, device: u64) -> SdkLockHeld {
+        if scope == LockScope::Sdk {
+            return self.lock().await;
+        }
+        let shared = self.whole.read().await;
+        let own = {
+            let mut devices = self.devices.lock().unwrap_or_else(|e| e.into_inner());
+            match devices.iter().find(|(key, _)| *key == device) {
+                Some((_, own)) => own.clone(),
+                None => {
+                    let own = Arc::new(tokio::sync::Mutex::new(()));
+                    devices.push((device, own.clone()));
+                    own
+                }
+            }
+        };
+        SdkLockHeld(Held::Device {
+            _own: own.lock_owned().await,
+            _shared: shared,
+        })
     }
 }
 
@@ -160,7 +247,15 @@ impl Default for SdkLock {
 }
 
 /// Proof that an [`SdkLock`] is held. Dropping it releases the lock.
-pub struct SdkLockHeld(#[allow(dead_code)] tokio::sync::MutexGuard<'static, ()>);
+pub struct SdkLockHeld(#[allow(dead_code)] Held);
+
+enum Held {
+    Sdk(#[allow(dead_code)] tokio::sync::RwLockWriteGuard<'static, ()>),
+    Device {
+        _own: tokio::sync::OwnedMutexGuard<()>,
+        _shared: tokio::sync::RwLockReadGuard<'static, ()>,
+    },
+}
 
 /// A loaded SDK function table together with its held lock. Dereferences to
 /// the table, so a vendor function pointer can only be called while the lock is
@@ -215,6 +310,11 @@ impl<T: 'static> SdkLoaded<T> {
         self.lock
             .try_lock()
             .map(|held| SdkGuard::new(self.table, held))
+    }
+
+    /// See [`SdkLock::lock_device`].
+    pub async fn lock_device(self, scope: LockScope, device: u64) -> SdkGuard<T> {
+        SdkGuard::new(self.table, self.lock.lock_device(scope, device).await)
     }
 
     /// The table without its lock. Every use must say at the call site why
@@ -305,6 +405,16 @@ impl<T: 'static> SdkSlot<T> {
     /// Load the SDK, then take its lock.
     pub async fn lock(&'static self) -> Result<SdkGuard<T>, DriverError> {
         Ok(self.installed()?.lock().await)
+    }
+
+    /// Load the SDK, then hold one of its devices; see
+    /// [`SdkLock::lock_device`].
+    pub async fn lock_device(
+        &'static self,
+        scope: LockScope,
+        device: u64,
+    ) -> Result<SdkGuard<T>, DriverError> {
+        Ok(self.installed()?.lock_device(scope, device).await)
     }
 
     /// Take the lock first; the caller loads under it with
@@ -976,6 +1086,76 @@ mod tests {
         assert!(ALONE.installed().unwrap().try_lock().is_some());
         drop(camera);
         assert!(WHEEL.installed().unwrap().try_lock().is_some());
+    }
+
+    #[tokio::test]
+    async fn two_devices_of_a_device_scoped_sdk_overlap_and_one_device_does_not() {
+        static LOCK: SdkLock = SdkLock::new();
+        let short = std::time::Duration::from_millis(20);
+
+        let first = LOCK.lock_device(LockScope::Device, device_key(1)).await;
+        let second =
+            tokio::time::timeout(short, LOCK.lock_device(LockScope::Device, device_key(2)))
+                .await
+                .expect("another device enters the SDK beside the first");
+        assert!(
+            tokio::time::timeout(short, LOCK.lock_device(LockScope::Device, device_key(1)))
+                .await
+                .is_err(),
+            "a second call for the same device waits"
+        );
+        assert!(
+            LOCK.try_lock().is_none(),
+            "the whole SDK is not free while a device is inside it"
+        );
+        drop(first);
+        drop(second);
+        let whole = LOCK.lock().await;
+        assert!(
+            tokio::time::timeout(short, LOCK.lock_device(LockScope::Device, device_key(2)))
+                .await
+                .is_err(),
+            "a device waits for a holder of the whole SDK"
+        );
+        drop(whole);
+    }
+
+    #[tokio::test]
+    async fn every_device_of_an_sdk_scoped_sdk_waits_for_the_other() {
+        static LOCK: SdkLock = SdkLock::new();
+        let first = LOCK.lock_device(LockScope::Sdk, device_key(1)).await;
+        assert!(tokio::time::timeout(
+            std::time::Duration::from_millis(20),
+            LOCK.lock_device(LockScope::Sdk, device_key(2))
+        )
+        .await
+        .is_err());
+        drop(first);
+    }
+
+    /// The table is evidence about each SDK; a vendor moves between the two
+    /// sides only with a reference that shows the new side.
+    #[test]
+    fn the_lock_scope_of_each_camera_sdk() {
+        use skotiq_device::Vendor;
+        for vendor in [
+            Vendor::Zwo,
+            Vendor::Qhy,
+            Vendor::Svbony,
+            Vendor::PlayerOne,
+            Vendor::Touptek,
+            Vendor::Atik,
+        ] {
+            assert_eq!(lock_scope(&vendor), LockScope::Device, "{vendor:?}");
+        }
+        for vendor in [
+            Vendor::Fli,
+            Vendor::Moravian,
+            Vendor::Fujifilm,
+            Vendor::GPhoto2,
+        ] {
+            assert_eq!(lock_scope(&vendor), LockScope::Sdk, "{vendor:?}");
+        }
     }
 
     #[tokio::test]

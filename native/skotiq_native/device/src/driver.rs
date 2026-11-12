@@ -56,6 +56,20 @@ pub trait DeviceDriver: Send + Sync + Debug {
     async fn disconnect(&mut self) -> Result<(), DriverError>;
 }
 
+/// A camera driver's way to give up the frame read in flight, used from
+/// outside the call that is running it.
+///
+/// [`CameraDriver::download_image`] takes `&mut self`, so while it runs nobody
+/// can call [`CameraDriver::abort_exposure`]. A driver whose read is a loop of
+/// short SDK calls (waiting for the frame, grabbing it row by row) hands one
+/// of these out; after `request` the read ends at its next step with an
+/// error and leaves the camera ready for `abort_exposure`.
+pub trait ExposureAbort: Send + Sync {
+    /// Returns at once: it sets what the read checks between SDK calls, or
+    /// makes the one SDK call the vendor documents as safe beside a read.
+    fn request(&self);
+}
+
 /// Native camera device interface
 ///
 /// This trait provides all camera operations that native drivers must implement.
@@ -63,6 +77,13 @@ pub trait DeviceDriver: Send + Sync + Debug {
 #[async_trait]
 pub trait CameraDriver: DeviceDriver {
     fn capabilities(&self) -> CameraCapabilities;
+
+    /// See [`ExposureAbort`]. `None` for a driver whose frame read is a
+    /// single SDK call: an abort then reaches the camera when that call
+    /// returns.
+    fn exposure_abort(&self) -> Option<std::sync::Arc<dyn ExposureAbort>> {
+        None
+    }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError>;
 

@@ -15,8 +15,8 @@ pub mod vendor;
 pub use camera::*;
 pub use driver::{
     AccessoryDriver, CameraDriver, CoverCalibratorDriver, CoverCalibratorState, DeviceDriver,
-    DomeDriver, DomeState, FilterWheelDriver, FocuserDriver, MountDriver, RotatorDriver,
-    SafetyMonitorDriver, SwitchDriver, WeatherDriver, WeatherReadings,
+    DomeDriver, DomeState, ExposureAbort, FilterWheelDriver, FocuserDriver, MountDriver,
+    RotatorDriver, SafetyMonitorDriver, SwitchDriver, WeatherDriver, WeatherReadings,
 };
 pub use error::DriverError;
 pub use kind::DeviceKind;
