@@ -72,16 +72,18 @@ impl Controls {
         self.get(control).is_some()
     }
 
-    /// Writable controls that shape the image (gamma, contrast, white balance,
-    /// flip, ...). The camera keeps their values from the last program that
-    /// used it, so connect puts them back to their defaults: INDI calls
-    /// SVBRestoreDefaultParam (svbony_base.cpp:539-545) and NINA sets every
-    /// control to its default (SVBonySDK.cs:103-112). A flip left on would move
-    /// the Bayer pattern every frame is labelled with.
-    pub(crate) fn image_shaping(&self) -> impl Iterator<Item = &Control> {
+    /// Writable controls connect puts back to their defaults: gain, offset and
+    /// everything that shapes the image (gamma, contrast, white balance, flip,
+    /// ...). The camera keeps their values from the last program that used it
+    /// (a flip left on would move the Bayer pattern every frame is labelled
+    /// with), and the SV305M Pro workaround has just set gain and offset to 0.
+    /// INDI calls SVBRestoreDefaultParam (svbony_base.cpp:539-545); NINA, after
+    /// the same workaround, sets every control to its default
+    /// (SVBonySDK.cs:82, 103-112).
+    pub(crate) fn reset_at_connect(&self) -> impl Iterator<Item = &Control> {
         self.0.iter().filter(|c| {
             c.writable
-                && !SvbControlType::OWNED
+                && !SvbControlType::KEPT_AT_CONNECT
                     .iter()
                     .any(|owned| *owned as c_int == c.control_type)
         })

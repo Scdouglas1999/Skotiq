@@ -191,7 +191,7 @@ impl SvbonyCamera {
 
         self.capture = select_capture(sdk, self.camera_id);
 
-        for control in self.controls.image_shaping() {
+        for control in self.controls.reset_at_connect() {
             if let Err(e) =
                 write_control(sdk, self.camera_id, control.control_type, control.default)
             {

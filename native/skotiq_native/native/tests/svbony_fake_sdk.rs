@@ -82,6 +82,11 @@ fn a_monochrome_camera_that_offers_only_luma_connects_and_exposes() {
 }
 
 #[test]
+fn a_camera_connects_at_its_default_gain_and_offset() {
+    run_scenario("default_gain_and_offset", &[]);
+}
+
+#[test]
 fn a_failed_download_leaves_the_camera_ready_for_the_next_exposure() {
     run_scenario("failed_download", &[("FAKE_SVB_FAIL_FRAME", "1")]);
 }
@@ -166,7 +171,7 @@ mod scenario {
         assert_eq!(camera.serial_number().as_deref(), Some("SV405CC-FAKE-01"));
         assert_eq!(fake.mode(), 1, "soft-trigger mode");
         // Gamma, flip and bad pixel correction left by another program are back
-        // at their defaults; gain and offset are left for the exposure to set.
+        // at their defaults.
         assert_eq!(
             (fake.control(2), fake.control(7), fake.control(18)),
             (100, 0, 0)
@@ -292,6 +297,31 @@ mod scenario {
         assert!(frame.data.iter().all(|&px| px == 1001), "16-bit luma frame");
         assert_eq!(frame.bayer_pattern, None);
         assert_eq!(frame.metadata.temperature, Some(21.5));
+    }
+
+    #[tokio::test]
+    #[ignore = "run in a child process by its parent test, with the fake SDK on the loader path"]
+    async fn default_gain_and_offset() {
+        let fake = Fake::open();
+        let mut camera = SvbonyCamera::new(0);
+        camera.connect().await.expect("connect");
+        // Connect zeroes gain and offset for the SV305M Pro carry-over; an exposure
+        // that leaves them to the camera then needs the defaults, not 0 (an offset
+        // of 0 clips the bias).
+        assert_eq!((fake.control(0), fake.control(13)), (120, 10));
+        assert_eq!(camera.get_gain().await.expect("gain"), 120);
+        assert_eq!(camera.get_offset().await.expect("offset"), 10);
+        let frame = take(
+            &mut camera,
+            ExposureParams {
+                gain: None,
+                offset: None,
+                ..exposure(0.01, 1, None)
+            },
+        )
+        .await
+        .expect("frame at the camera's own gain and offset");
+        assert_eq!((frame.metadata.gain, frame.metadata.offset), (120, 10));
     }
 
     #[tokio::test]
