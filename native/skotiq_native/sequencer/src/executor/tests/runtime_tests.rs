@@ -1629,26 +1629,6 @@ async fn non_camera_actions_take_no_claim() {
     }
 }
 
-/// The guard's coverage is only real while it is the ONLY way the trigger
-/// dispatch hands the imaging train back: a hand-placed
-/// `imaging_train.release()` per arm plus a comment claiming every exit is
-/// covered is a claim rather than a check, and one arm goes uncovered.
-///
-/// So check it: a bare release inside the dispatch is a release that some
-/// future early exit will route around.
-#[test]
-fn the_trigger_dispatch_releases_the_camera_only_through_the_guard() {
-    let start_rs = include_str!("../start.rs");
-    let bare_releases = start_rs.matches("imaging_train.release(").count();
-    assert_eq!(
-        bare_releases, 0,
-        "executor/start.rs releases the imaging-train claim directly in {bare_releases} \
-         place(s). Route it through `camera_claim.release().await` instead: a per-arm release \
-         only covers the exits someone remembered, and the autofocus device-missing branch is \
-         what happens when one is forgotten — ten minutes of blocked frames per firing."
-    );
-}
-
 /// The live defect (2026-08-17, D1 sim-night harness, release bundle): the
 /// meridian-flip trigger fired 1.5 ms after the run started, on a target 1.5h
 /// EAST of the meridian, and the flip's own banner printed the contradiction —

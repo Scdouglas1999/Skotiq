@@ -605,4 +605,138 @@ mod tests {
         assert_eq!(ctx.run.rig.latitude, Some(45.0));
         assert_eq!(ctx.run.rig.filter_focus_offsets.get("Ha"), Some(&42));
     }
+
+    /// A dispatcher over the scripted rig, with a target west of the pier
+    /// just past the meridian.
+    async fn scripted_dispatcher(
+        rig: RunRig,
+    ) -> (
+        Dispatcher,
+        Arc<crate::executor::scenario_sim_tests::ScriptedDeviceOps>,
+    ) {
+        let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+        let (events, _) = broadcast::channel(256);
+        let mut run = Run::detached(
+            ops.clone(),
+            RunCell::starting_in(events, ExecutorState::Running),
+        );
+        let mut manager = TriggerManager::new();
+        manager.create_standard_triggers();
+        {
+            let lock = manager.state();
+            let mut state = lock.write().await;
+            state.set_target(84.0, -5.0);
+            state.target.current_target_name = Some("M42".to_string());
+            state.target.current_hour_angle = Some(0.2);
+            state.telemetry.weather_safe = true;
+        }
+        run.triggers = Arc::new(RwLock::new(manager));
+        run.rig = rig;
+        run.teardown.node_tree_has_ended();
+        let (dispatcher, _) = dispatcher_for(&run).await;
+        (dispatcher, ops)
+    }
+
+    fn firing(action: RecoveryAction) -> Dispatch {
+        Dispatch {
+            trigger_id: "test".to_string(),
+            trigger_name: "Test".to_string(),
+            fired: FiredTriggerAction {
+                action,
+                end_without_parking: false,
+                notify_only: false,
+            },
+            cooldown_secs: None,
+        }
+    }
+
+    async fn imaging_train_is_free(dispatcher: &Dispatcher) -> bool {
+        // A claim given back from a drop under contention is handed to the
+        // runtime; let it run.
+        tokio::task::yield_now().await;
+        dispatcher
+            .rig
+            .trigger_state
+            .read()
+            .await
+            .imaging_train
+            .hold()
+            .is_none()
+    }
+
+    /// Every way a camera-driving action ends hands the imaging train back to
+    /// the capture loop: one that ran, one that was no longer due, and one
+    /// that ended the run. A claim left behind holds every later frame for the
+    /// claim's expiry.
+    #[tokio::test(start_paused = true)]
+    async fn a_trigger_action_hands_the_imaging_train_back_however_it_ends() {
+        let camera_only = RunRig {
+            camera_id: Some("camera".into()),
+            mount_id: Some("mount".into()),
+            ..RunRig::default()
+        };
+
+        // Ran: an autofocus with no focuser is skipped and imaging goes on.
+        let (mut dispatcher, _) = scripted_dispatcher(camera_only.clone()).await;
+        let flow = dispatcher
+            .dispatch(firing(RecoveryAction::Autofocus), None)
+            .await;
+        assert!(matches!(flow, Flow::Next));
+        assert_eq!(dispatcher.fired.len(), 1, "the firing is recorded");
+        assert!(
+            imaging_train_is_free(&dispatcher).await,
+            "after a finished action"
+        );
+
+        // Not run: a flip that is no longer due once its turn comes.
+        let (mut dispatcher, ops) = scripted_dispatcher(camera_only.clone()).await;
+        ops.flip_on_slew.store(true, Ordering::SeqCst);
+        ops.flipped.store(true, Ordering::SeqCst);
+        let flow = dispatcher
+            .dispatch(
+                firing(RecoveryAction::MeridianFlip(
+                    crate::MeridianFlipConfig::default(),
+                )),
+                None,
+            )
+            .await;
+        assert!(matches!(flow, Flow::Next));
+        assert!(dispatcher.fired.is_empty(), "nothing ran");
+        assert!(
+            imaging_train_is_free(&dispatcher).await,
+            "after an action not run"
+        );
+
+        // Ended the run: a flip the mount refuses, under "abort and park".
+        let (mut dispatcher, ops) = scripted_dispatcher(camera_only).await;
+        ops.flip_on_slew.store(true, Ordering::SeqCst);
+        ops.flip_refused.store(true, Ordering::SeqCst);
+        dispatcher
+            .rig
+            .trigger_state
+            .write()
+            .await
+            .meridian
+            .request();
+        let config = crate::MeridianFlipConfig {
+            max_retries: 0,
+            settle_time: 0.0,
+            guider_settle_time: 0.0,
+            failure_action: crate::FlipFailureAction::AbortAndPark,
+            ..Default::default()
+        };
+        let flow = dispatcher
+            .dispatch(firing(RecoveryAction::MeridianFlip(config)), None)
+            .await;
+        assert!(
+            matches!(flow, Flow::Terminate(_)),
+            "the refused flip ends the run; calls={:?}",
+            ops.calls()
+        );
+        assert!(ops.calls().iter().any(|c| c == "mount_park:mount"));
+        assert!(
+            imaging_train_is_free(&dispatcher).await,
+            "after an action that ended the run"
+        );
+    }
 }
