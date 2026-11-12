@@ -532,6 +532,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<DeviceInfo> dco_decode_list_device_info(dynamic raw);
 
   @protected
+  List<DeviceType> dco_decode_list_device_type(dynamic raw);
+
+  @protected
   List<EquipmentProfile> dco_decode_list_equipment_profile(dynamic raw);
 
   @protected
@@ -1528,6 +1531,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<DeviceInfo> sse_decode_list_device_info(SseDeserializer deserializer);
+
+  @protected
+  List<DeviceType> sse_decode_list_device_type(SseDeserializer deserializer);
 
   @protected
   List<EquipmentProfile> sse_decode_list_equipment_profile(
@@ -2711,6 +2717,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ans = wire.cst_new_list_device_info(raw.length);
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_device_info(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_device_type> cst_encode_list_device_type(
+    List<DeviceType> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_device_type(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      ans.ref.ptr[i] = cst_encode_device_type(raw[i]);
     }
     return ans;
   }
@@ -7924,6 +7942,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_device_type(
+    List<DeviceType> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_equipment_profile(
     List<EquipmentProfile> self,
     SseSerializer serializer,
@@ -13044,6 +13068,19 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
+
+  WireSyncRust2DartDco
+  wire__crate__api__heartbeat__api_native_reconnected_device_types() {
+    return _wire__crate__api__heartbeat__api_native_reconnected_device_types();
+  }
+
+  late final _wire__crate__api__heartbeat__api_native_reconnected_device_typesPtr =
+      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
+        'frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types',
+      );
+  late final _wire__crate__api__heartbeat__api_native_reconnected_device_types =
+      _wire__crate__api__heartbeat__api_native_reconnected_device_typesPtr
+          .asFunction<WireSyncRust2DartDco Function()>();
 
   void wire__crate__api__sequencer__lifecycle__api_perform_meridian_flip(
     int port_,
@@ -18701,6 +18738,19 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_device_info = _cst_new_list_device_infoPtr
       .asFunction<ffi.Pointer<wire_cst_list_device_info> Function(int)>();
 
+  ffi.Pointer<wire_cst_list_device_type> cst_new_list_device_type(int len) {
+    return _cst_new_list_device_type(len);
+  }
+
+  late final _cst_new_list_device_typePtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_device_type> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_device_type');
+  late final _cst_new_list_device_type = _cst_new_list_device_typePtr
+      .asFunction<ffi.Pointer<wire_cst_list_device_type> Function(int)>();
+
   ffi.Pointer<wire_cst_list_equipment_profile> cst_new_list_equipment_profile(
     int len,
   ) {
@@ -21731,6 +21781,13 @@ final class wire_cst_device_info extends ffi.Struct {
 
 final class wire_cst_list_device_info extends ffi.Struct {
   external ffi.Pointer<wire_cst_device_info> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
+final class wire_cst_list_device_type extends ffi.Struct {
+  external ffi.Pointer<ffi.Int32> ptr;
 
   @ffi.Int32()
   external int len;

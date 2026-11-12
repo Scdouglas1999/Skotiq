@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1336701731;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -671445970;
 
 // Section: executor
 
@@ -4055,6 +4055,24 @@ fn wire__crate__api__devices__simulation__mount__api_mount_unpark_impl(
                     .await,
                 )
             }
+        },
+    )
+}
+fn wire__crate__api__heartbeat__api_native_reconnected_device_types_impl(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_native_reconnected_device_types",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            transform_result_dco::<_, _, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::heartbeat::api_native_reconnected_device_types(),
+                )?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -10948,6 +10966,18 @@ impl SseDecode for Vec<crate::device::DeviceInfo> {
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
             ans_.push(<crate::device::DeviceInfo>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::device::DeviceType> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::device::DeviceType>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -20068,6 +20098,16 @@ impl SseEncode for Vec<crate::device::DeviceInfo> {
     }
 }
 
+impl SseEncode for Vec<crate::device::DeviceType> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::device::DeviceType>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::state::EquipmentProfile> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -24229,6 +24269,16 @@ mod io {
     impl CstDecode<Vec<crate::device::DeviceInfo>> for *mut wire_cst_list_device_info {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::device::DeviceInfo> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
+    impl CstDecode<Vec<crate::device::DeviceType>> for *mut wire_cst_list_device_type {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::device::DeviceType> {
             let vec = unsafe {
                 let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
                 flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
@@ -29660,6 +29710,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__heartbeat__api_native_reconnected_device_types_impl()
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_perform_meridian_flip(
         port_: i64,
         mount_id: *mut wire_cst_list_prim_u_8_strict,
@@ -31991,6 +32047,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_device_type(
+        len: i32,
+    ) -> *mut wire_cst_list_device_type {
+        let wrap = wire_cst_list_device_type {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(Default::default(), len),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_equipment_profile(
         len: i32,
     ) -> *mut wire_cst_list_equipment_profile {
@@ -33539,6 +33606,12 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_list_device_info {
         ptr: *mut wire_cst_device_info,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_list_device_type {
+        ptr: *mut i32,
         len: i32,
     }
     #[repr(C)]

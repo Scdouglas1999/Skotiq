@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1336701731;
+  int get rustContentHash => -671445970;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -816,6 +816,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiDevicesSimulationMountApiMountUnpark({
     required String deviceId,
   });
+
+  List<DeviceType> crateApiHeartbeatApiNativeReconnectedDeviceTypes();
 
   Future<void> crateApiSequencerLifecycleApiPerformMeridianFlip({
     required String mountId,
@@ -6784,6 +6786,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_mount_unpark",
         argNames: ["deviceId"],
+      );
+
+  @override
+  List<DeviceType> crateApiHeartbeatApiNativeReconnectedDeviceTypes() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          return wire
+              .wire__crate__api__heartbeat__api_native_reconnected_device_types();
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_device_type,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiHeartbeatApiNativeReconnectedDeviceTypesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiHeartbeatApiNativeReconnectedDeviceTypesConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_native_reconnected_device_types",
+        argNames: [],
       );
 
   @override
@@ -14670,6 +14698,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DeviceType> dco_decode_list_device_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_device_type).toList();
+  }
+
+  @protected
   List<EquipmentProfile> dco_decode_list_equipment_profile(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_equipment_profile).toList();
@@ -19133,6 +19167,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <DeviceInfo>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_device_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<DeviceType> sse_decode_list_device_type(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DeviceType>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_device_type(deserializer));
     }
     return ans_;
   }
@@ -24087,6 +24133,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_device_info(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_device_type(
+    List<DeviceType> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_device_type(item, serializer);
     }
   }
 

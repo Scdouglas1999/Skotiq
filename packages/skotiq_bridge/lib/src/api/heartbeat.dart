@@ -8,6 +8,11 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+/// The device types the native side reconnects by itself once their
+/// heartbeat is lost. A caller that reconnects devices leaves these alone.
+List<DeviceType> apiNativeReconnectedDeviceTypes() =>
+    RustLib.instance.api.crateApiHeartbeatApiNativeReconnectedDeviceTypes();
+
 /// Start heartbeat monitoring for a device: poll its status every `interval_ms`
 /// (10000 is the usual cadence) and emit a Disconnected event once it stops
 /// answering.
