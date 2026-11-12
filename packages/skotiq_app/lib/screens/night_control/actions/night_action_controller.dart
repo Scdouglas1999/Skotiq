@@ -100,33 +100,56 @@ NightActionInputs readNightActionInputs(
   T Function<T>(ProviderListenable<T> provider) read,
   ManualActionState action,
 ) {
+  // Selected, not whole states: the gating reads a few facts per device, and
+  // a whole state changes with every telemetry poll.
   bool connected(DeviceConnectionState state) =>
       state == DeviceConnectionState.connected;
-  final camera = read(cameraStateProvider);
-  final mount = read(mountStateProvider);
-  final focuser = read(focuserStateProvider);
-  final guider = read(guiderStateProvider);
+  final camera = read(
+    cameraStateProvider.select(
+      (c) => (connected: connected(c.connectionState), cooling: c.isCooling),
+    ),
+  );
+  final mount = read(
+    mountStateProvider.select(
+      (m) => (
+        connected: connected(m.connectionState),
+        parked: m.isParked,
+        tracking: m.isTracking,
+      ),
+    ),
+  );
+  final guider = read(
+    guiderStateProvider.select(
+      (g) => (connected: connected(g.connectionState), guiding: g.isGuiding),
+    ),
+  );
   final target = read(nightCenterTargetProvider);
   return NightActionInputs(
     canCommand: read(backendCanCommandProvider),
     runState: read(sequenceExecutionStateProvider),
     action: action,
     loopActive: action.isBusy && action.active == ManualActionId.loop,
-    cameraConnected: connected(camera.connectionState),
-    mountConnected: connected(mount.connectionState),
-    focuserConnected: connected(focuser.connectionState),
-    guiderConnected: connected(guider.connectionState),
-    isGuiding: guider.isGuiding,
-    mountParked: mount.isParked,
-    mountTracking: mount.isTracking,
-    cameraCooling: camera.isCooling,
+    cameraConnected: camera.connected,
+    mountConnected: mount.connected,
+    focuserConnected: read(
+      focuserStateProvider.select((f) => connected(f.connectionState)),
+    ),
+    guiderConnected: guider.connected,
+    isGuiding: guider.guiding,
+    mountParked: mount.parked,
+    mountTracking: mount.tracking,
+    cameraCooling: camera.cooling,
     coolerSetpoint: read(nightCoolerSetpointProvider),
     targetName: target?.name,
     hasTarget: target != null,
-    hasFrame: read(currentImageProvider)?.filePath != null,
-    exposureSeconds: read(exposureSettingsProvider).exposureTime,
-    filterName: read(filterWheelStateProvider).currentFilterName,
-    flipDone: read(nightFlipProvider).doneForThisTransit,
+    hasFrame: read(currentImageProvider.select((i) => i?.filePath != null)),
+    exposureSeconds: read(
+      exposureSettingsProvider.select((e) => e.exposureTime),
+    ),
+    filterName: read(
+      filterWheelStateProvider.select((w) => w.currentFilterName),
+    ),
+    flipDone: read(nightFlipProvider.select((f) => f.doneForThisTransit)),
     solverMissing: read(nightSolverStatusProvider)?.ready == false,
   );
 }
