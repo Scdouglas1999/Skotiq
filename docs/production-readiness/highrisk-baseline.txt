@@ -43,7 +43,7 @@ native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	fu
 native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	full_size_build_timing	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/bridge/src/api/post_session/darkroom_regression_tests.rs	low_background_build	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/bridge/src/api/post_session/helpers.rs	image_to_f64	highrisk	2	baseline	.unwrap_or_default(),
-native/skotiq_native/bridge/src/api/post_session/helpers.rs	load_optional_flat	highrisk	1	baseline	let header = read_fits_header(Path::new(p)).ok();
+native/skotiq_native/bridge/src/api/post_session/helpers.rs	load_optional_flat	highrisk	1	baseline	let header = read_frame_header(Path::new(p)).ok();
 native/skotiq_native/bridge/src/api/post_session/helpers.rs	to_u16_for_preview	highrisk	1	baseline	let data = master.as_f32().unwrap_or_default();
 native/skotiq_native/bridge/src/api/post_session/master_cards.rs	attach_wcs	highrisk	1	baseline	result.error.unwrap_or_default()
 native/skotiq_native/bridge/src/api/post_session/masters.rs	flat_pedestal_state	highrisk	1	baseline	.unwrap_or_default()
@@ -76,6 +76,8 @@ native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	capabilities	highrisk	1	
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	get_sensor_info	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	new	highrisk	1	baseline	let readout_modes = cam.readout_modes().unwrap_or_default();
 native/skotiq_native/bridge/src/ascom_wrapper/camera.rs	test_cooler_power_supported_caches_not_implemented	highrisk	1	baseline	"CoolerPower is not implemented (reported by ASCOM.Simulator.Camera, 0x80040400)";
+native/skotiq_native/bridge/src/capture_file_format.rs	current	highrisk	1	baseline	.map(|guard| guard.clone().unwrap_or_default())
+native/skotiq_native/bridge/src/capture_file_format.rs	current	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/depthlock_service/store.rs	open	highrisk	1	baseline	.unwrap_or_default() // Why: a non-UTF-8 file stem yields "", which valid_goal_id below rejects
 native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/bridge/src/device_capabilities/alpaca.rs	get_alpaca_capabilities	highrisk	1	baseline	camera.disconnect().await.ok();
@@ -135,12 +137,17 @@ native/skotiq_native/imaging/src/platesolve.rs	run_solver_command	highrisk	1	bas
 native/skotiq_native/imaging/src/platesolve.rs	solve	highrisk	1	baseline	let stderr_bytes = stderr_reader.join().unwrap_or_default();
 native/skotiq_native/imaging/src/platesolve.rs	solve	highrisk	1	baseline	let stdout_bytes = stdout_reader.join().unwrap_or_default();
 native/skotiq_native/imaging/src/platesolve.rs	timed_out_astap_is_terminated_before_it_can_write_late_output	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/imaging/src/raw.rs	-	highrisk	1	baseline	//! * The remaining sites (`user_sat.unwrap_or_default()`,
-native/skotiq_native/imaging/src/raw.rs	-	highrisk	1	baseline	//! `max_memory_mb.unwrap_or_default()`) are all paired with a
-native/skotiq_native/imaging/src/raw.rs	read_raw	highrisk	1	baseline	max_memory_mb: params.max_memory_mb.unwrap_or_default() as c_uint,
-native/skotiq_native/imaging/src/raw.rs	read_raw	highrisk	1	baseline	user_sat: params.user_sat.unwrap_or_default(),
+native/skotiq_native/imaging/src/raw.rs	read_raw_header	highrisk	1	baseline	let cfa = color_filter_from(&info).ok();
 native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs	apply_measured	highrisk	1	baseline	|role: FilterRole| -> Vec<Vec<f32>> { by_role.get(&role).cloned().unwrap_or_default() };
 native/skotiq_native/imaging/src/recipe/ops/channel_combine.rs	read_settings	highrisk	1	baseline	for (role, sigma) in raw.star_sigma.unwrap_or_default() {
+native/skotiq_native/imaging/src/xisf/color.rs	parse	highrisk	1	baseline	let text = node.attr(attr).unwrap_or_default();
+native/skotiq_native/imaging/src/xisf/fits_map.rs	apply_header	highrisk	1	baseline	comment: comment.unwrap_or_default().to_string(),
+native/skotiq_native/imaging/src/xisf/header.rs	image	highrisk	1	baseline	comment: target.attr("comment").unwrap_or_default().to_string(),
+native/skotiq_native/imaging/src/xisf/header.rs	image	highrisk	1	baseline	name: target.attr("name").unwrap_or_default().trim().to_string(),
+native/skotiq_native/imaging/src/xisf/header.rs	image	highrisk	1	baseline	value: target.attr("value").unwrap_or_default().trim().to_string(),
+native/skotiq_native/imaging/src/xisf/header.rs	parse_display_function	highrisk	1	baseline	node.attr(attr).unwrap_or_default(),
+native/skotiq_native/imaging/src/xisf/property.rs	display_text	highrisk	1	baseline	other => other.scalar_text().unwrap_or_default(),
+native/skotiq_native/imaging/src/xisf/write.rs	emit_property	highrisk	1	baseline	scalar.scalar_text().unwrap_or_default().as_str(),
 native/skotiq_native/indi/src/client/properties.rs	set_switch_exclusive	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/indi/src/client/reader.rs	reader_task_with_timeout	highrisk	1	baseline	group: get_attribute(e, "group").unwrap_or_default(),
 native/skotiq_native/indi/src/client/reader.rs	reader_task_with_timeout	highrisk	1	baseline	let text = e.unescape().unwrap_or_default().to_string();
@@ -148,6 +155,7 @@ native/skotiq_native/indi/src/error.rs	fmt	highrisk	1	baseline	.unwrap_or_defaul
 native/skotiq_native/native/src/catalog.rs	-	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/native/src/catalog.rs	-	highrisk	1	baseline	segments.next().unwrap_or_default(),
 native/skotiq_native/native/src/catalog.rs	port_and_baud	highrisk	1	baseline	let port = port_from_address(segments.next().unwrap_or_default());
+native/skotiq_native/native/src/vendor/gphoto2/camera_ops.rs	download_image	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	download_image	highrisk	1	baseline	.ok();
 native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	download_image	highrisk	1	baseline	let heater_power = self.get_control_int(&sdk, POAConfig::POA_HEATER_POWER).ok();
 native/skotiq_native/native/src/vendor/player_one/camera_ops.rs	get_status	highrisk	1	baseline	.ok();
@@ -158,6 +166,7 @@ native/skotiq_native/native/src/vendor/skywatcher.rs	tests	highrisk	1	baseline	/
 native/skotiq_native/native/src/vendor/touptek/camera.rs	-	highrisk	1	baseline	// SAFETY: HOgmacam is a `*mut c_void` opaque camera handle returned by Ogmacam_Open. The struct is always wrapped in `Mutex<HandleWrapper>` in TouptekCamera; the pointer is never dereferenced or modified outside `TOUPTEK_SDK_LOCK.lock().await` + `handle.lock().unwrap()` sections (see all call sites in this module — every SDK call captures the handle value while both locks are held). Marking Send is therefore equivalent to a hand-serialized capability. Sync is intentionally NOT implemented (see comment block below).
 native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	download_image	highrisk	1	baseline	.ok();
 native/skotiq_native/native/src/vendor/zwo/camera_ops.rs	get_status	highrisk	1	baseline	let temp = self.read_temperature_celsius_sync(&sdk).ok();
+native/skotiq_native/sequencer/src/device_ops/frame_store.rs	free_names	highrisk	1	baseline	let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
 native/skotiq_native/sequencer/src/device_ops/safe_state.rs	try_park_with_retry	highrisk	1	baseline	let start = device_ops.mount_get_coordinates(mount_id).await.ok();
 native/skotiq_native/sequencer/src/executor/monitoring.rs	quality_trigger_notice	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/sequencer/src/executor/start.rs	start	highrisk	1	baseline	.unwrap_or_default();
@@ -213,7 +222,6 @@ packages/skotiq_app/lib/services/sequence_action_service.dart	SequenceActionServ
 packages/skotiq_bridge/lib/src/api.dart	-	highrisk	1	baseline	/// silent no-op — and silent no-ops mask real bugs. If a
 packages/skotiq_core/lib/src/backend/network_backend/device_operations.dart	cameraGetRecommendedSettings	highrisk	1	baseline	'cameraGetRecommendedSettings not implemented on remote '
 packages/skotiq_core/lib/src/models/sequence/instruction_progress_detail.dart	-	highrisk	1	baseline	/// newer native emitters do not become silent no-ops on older Dart clients.
-packages/skotiq_core/lib/src/providers/remote_sync/equipment_mirror.dart	_fetchConnectedFocuserCaps	highrisk	1	baseline	} catch (_) {}
 packages/skotiq_core/lib/src/services/device_service/connections/device_connections.dart	_disconnect	highrisk	1	baseline	// "Nothing connected" is a typed precondition, not a silent no-op, so a
 packages/skotiq_core/lib/src/services/notification/transports/email_transport.dart	_runSmtpSession	highrisk	1	baseline	return NotificationResult.ok();
 packages/skotiq_core/lib/src/services/notification/transports/in_app_transport.dart	send	highrisk	1	baseline	return NotificationResult.ok();
