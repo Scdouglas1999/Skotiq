@@ -396,7 +396,10 @@ impl FilterWheel for IndiWheel {
 }
 
 /// The simulated filter wheel singleton.
-pub(crate) struct SimFilterWheel;
+///
+/// Written with braces because the binding generator stops on a unit struct
+/// that implements a trait of this crate.
+pub(crate) struct SimFilterWheel {}
 
 #[async_trait]
 impl RigDriver for SimFilterWheel {

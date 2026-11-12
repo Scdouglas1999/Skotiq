@@ -31,8 +31,8 @@ fn refuse(error: impl Into<DeviceOpError>) -> DriverError {
 pub(crate) fn handle(info: &DeviceInfo) -> Option<DeviceHandle> {
     let device_id = info.id.clone();
     Some(match info.device_type {
-        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(SimFocuser)),
-        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(SimFilterWheel)),
+        DeviceType::Focuser => DeviceHandle::Focuser(Arc::new(SimFocuser {})),
+        DeviceType::FilterWheel => DeviceHandle::FilterWheel(Arc::new(SimFilterWheel {})),
         DeviceType::Dome => DeviceHandle::Dome(Arc::new(SimDome { device_id })),
         DeviceType::Rotator => DeviceHandle::Rotator(Arc::new(SimRotator)),
         DeviceType::Switch => DeviceHandle::Switch(Arc::new(SimSwitch)),

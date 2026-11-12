@@ -581,7 +581,10 @@ impl Focuser for IndiFocuserHandle {
 }
 
 /// The simulated focuser singleton.
-pub(crate) struct SimFocuser;
+///
+/// Written with braces because the binding generator stops on a unit struct
+/// that implements a trait of this crate.
+pub(crate) struct SimFocuser {}
 
 fn sim_not_connected() -> DeviceOpError {
     DeviceOpError::not_connected(None, sim_gate::not_connected_focuser())
