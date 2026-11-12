@@ -523,7 +523,7 @@ async fn take_burst(
                     ctx,
                     RetriedDevice::Camera,
                     camera_retries_done,
-                    &error.to_string(),
+                    error,
                     &format!("on frame {}/{}", frame, config.count),
                 )
                 .await
@@ -532,8 +532,9 @@ async fn take_burst(
                     RetryOutcome::Cancelled => {
                         return InstructionResult::cancelled("Exposure cancelled")
                     }
-                    RetryOutcome::GiveUp(message) => {
-                        return InstructionResult::failure(format!("Exposure failed: {}", message))
+                    RetryOutcome::GiveUp(failure) => {
+                        return InstructionResult::failure(format!("Exposure failed: {failure}"))
+                            .caused_by(&failure.error)
                     }
                 },
             }
@@ -788,7 +789,7 @@ async fn take_burst(
             } else {
                 (crate::quality::FrameGrade::Pass, base_path.clone(), false)
             };
-            let (grade, save_dir, was_graded) = match untracked_reason.clone() {
+            let (grade, save_dir, was_graded) = match untracked_reason {
                 Some(reason) => (
                     crate::quality::FrameGrade::Reject {
                         reason,
@@ -1266,7 +1267,7 @@ async fn recenter_after_mount_fault(
 async fn untracked_exposure_reason(
     ctx: &InstructionContext,
     started: chrono::DateTime<chrono::Utc>,
-) -> Option<String> {
+) -> Option<crate::quality::RejectReason> {
     let trigger_state = ctx.run.trigger_state.as_ref()?;
     if trigger_state
         .read()
@@ -1275,9 +1276,7 @@ async fn untracked_exposure_reason(
         .mount_fault_at
         .is_some_and(|at| at >= started.timestamp())
     {
-        return Some(
-            "the mount moved on its own or lost its position during this exposure".to_string(),
-        );
+        return Some(crate::quality::RejectReason::MountMoved);
     }
     let (limit_hold, lost_since_start, expected, run_owns_tracking) = {
         let state = trigger_state.read().await;
@@ -1292,7 +1291,7 @@ async fn untracked_exposure_reason(
         )
     };
     if limit_hold || lost_since_start {
-        return Some("the mount stopped tracking during this exposure".to_string());
+        return Some(crate::quality::RejectReason::TrackingStopped);
     }
     // The monitor polls on its own cadence; a stop in the last seconds of the
     // frame is read from the mount directly.
@@ -1302,7 +1301,7 @@ async fn untracked_exposure_reason(
                 ctx.run.device_ops.mount_is_tracking(mount_id).await,
                 Ok(false)
             ) {
-                return Some("the mount was not tracking at the end of this exposure".to_string());
+                return Some(crate::quality::RejectReason::NotTrackingAtEnd);
             }
         }
     }
@@ -1513,7 +1512,10 @@ async fn apply_burst_filter(
                 if let Err(e) =
                     move_filter_wheel(ctx, fw_id, WheelTarget::Position(index), None).await
                 {
-                    return Err(InstructionResult::failure(e));
+                    return Err(
+                        InstructionResult::failure(format!("Filter change failed: {e}"))
+                            .caused_by(&e.error),
+                    );
                 }
                 let filter_name = match config.filter.as_deref() {
                     Some(name) if !name.is_empty() => Some(name.to_string()),
@@ -1538,7 +1540,8 @@ async fn apply_burst_filter(
                                 return Err(InstructionResult::failure(format!(
                                     "Failed to read filter names for focus offset lookup: {}",
                                     e
-                                )));
+                                ))
+                                .caused_by(&e));
                             }
                         }
                     }
@@ -1549,20 +1552,25 @@ async fn apply_burst_filter(
                         return Err(InstructionResult::failure(format!(
                             "Focus offset failed for filter \"{}\": {}",
                             filter_name, e
-                        )));
+                        ))
+                        .caused_by(&e));
                     }
                 }
             } else if let Some(filter) = &config.filter {
                 tracing::info!("Changing to filter by name: {}", filter);
                 if let Err(e) = move_filter_wheel(ctx, fw_id, WheelTarget::Name(filter), None).await
                 {
-                    return Err(InstructionResult::failure(e));
+                    return Err(
+                        InstructionResult::failure(format!("Filter change failed: {e}"))
+                            .caused_by(&e.error),
+                    );
                 }
                 if let Err(e) = apply_filter_focus_offset(filter, ctx, None).await {
                     return Err(InstructionResult::failure(format!(
                         "Focus offset failed for filter \"{}\": {}",
                         filter, e
-                    )));
+                    ))
+                    .caused_by(&e));
                 }
             }
         }

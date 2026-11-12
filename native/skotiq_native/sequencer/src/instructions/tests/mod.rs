@@ -218,12 +218,16 @@ struct ScriptedDomeRotatorOps {
     /// `None` stands in for a rig whose site has not been configured.
     scripted_observer_location: Option<(f64, f64)>,
     /// Errors the next exposures fail with, one per exposure, oldest first.
-    camera_failures: Mutex<std::collections::VecDeque<String>>,
+    camera_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// Errors the next `filterwheel_set_position` calls fail with, one each.
-    filter_set_failures: Mutex<std::collections::VecDeque<String>>,
+    filter_set_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
     /// The next this-many `filterwheel_set_position` calls are accepted and
     /// never carried out: a stalled wheel.
     filter_stalled_moves: AtomicU32,
+    /// Errors the next `focuser_move_to` calls fail with, one each.
+    focuser_move_failures: Mutex<std::collections::VecDeque<crate::device_ops::DeviceError>>,
+    /// When `Some`, `cover_calibrator_open_cover` fails with this error.
+    cover_open_error: Option<crate::device_ops::DeviceError>,
 }
 
 impl ScriptedDomeRotatorOps {
@@ -315,24 +319,47 @@ impl ScriptedDomeRotatorOps {
             camera_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_set_failures: Mutex::new(std::collections::VecDeque::new()),
             filter_stalled_moves: AtomicU32::new(0),
+            focuser_move_failures: Mutex::new(std::collections::VecDeque::new()),
+            cover_open_error: None,
         }
     }
 
+    /// Fail the next focuser moves with these errors, one each.
+    fn failing_focuser_moves(self, errors: &[crate::device_ops::DeviceError]) -> Self {
+        self.focuser_move_failures
+            .lock()
+            .unwrap()
+            .extend(errors.iter().cloned());
+        self
+    }
+
+    /// Fail every cover open with `error`.
+    fn failing_cover_open(mut self, error: crate::device_ops::DeviceError) -> Self {
+        self.cover_open_error = Some(error);
+        self
+    }
+
     /// Fail the next exposures with these errors, one each.
-    fn failing_exposures(self, errors: &[&str]) -> Self {
+    fn failing_exposures<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.camera_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
     /// Fail the next filter-wheel moves with these errors, one each.
-    fn failing_filter_moves(self, errors: &[&str]) -> Self {
+    fn failing_filter_moves<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.filter_set_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
@@ -413,11 +440,14 @@ impl ScriptedDomeRotatorOps {
     }
 
     /// Fail the next camera exposures with these errors, one each.
-    fn failing_next_exposures(self, errors: &[&str]) -> Self {
+    fn failing_next_exposures<E: Clone + Into<crate::device_ops::DeviceError>>(
+        self,
+        errors: &[E],
+    ) -> Self {
         self.camera_failures
             .lock()
             .unwrap()
-            .extend(errors.iter().map(|e| e.to_string()));
+            .extend(errors.iter().cloned().map(Into::into));
         self
     }
 
@@ -768,7 +798,7 @@ impl CameraOps for ScriptedDomeRotatorOps {
             return std::future::pending::<DeviceResult<ImageData>>().await;
         }
         if let Some(error) = self.camera_failures.lock().unwrap().pop_front() {
-            return Err(error.into());
+            return Err(error);
         }
         if let Some((position, frame)) = &self.focus_model {
             let at = *position.lock().unwrap();
@@ -862,6 +892,9 @@ impl CameraOps for ScriptedDomeRotatorOps {
 impl FocuserOps for ScriptedDomeRotatorOps {
     async fn focuser_move_to(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.focuser_moves.lock().unwrap().push(p);
+        if let Some(error) = self.focuser_move_failures.lock().unwrap().pop_front() {
+            return Err(error);
+        }
         if let Some((position, _)) = &self.focus_model {
             *position.lock().unwrap() = p;
         }
@@ -896,7 +929,7 @@ impl FilterWheelOps for ScriptedDomeRotatorOps {
     async fn filterwheel_set_position(&self, _id: &str, p: i32) -> DeviceResult<()> {
         self.filter_moves.lock().unwrap().push(p);
         if let Some(error) = self.filter_set_failures.lock().unwrap().pop_front() {
-            return Err(error.into());
+            return Err(error);
         }
         let stalled = self
             .filter_stalled_moves
@@ -1061,6 +1094,9 @@ impl CoverCalibratorOps for ScriptedDomeRotatorOps {
     }
     async fn cover_calibrator_open_cover(&self, id: &str) -> DeviceResult<()> {
         self.cover_open_ids.lock().unwrap().push(id.to_string());
+        if let Some(error) = &self.cover_open_error {
+            return Err(error.clone());
+        }
         self.inner.cover_calibrator_open_cover(id).await
     }
     async fn cover_calibrator_close_cover(&self, id: &str) -> DeviceResult<()> {

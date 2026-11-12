@@ -2,27 +2,9 @@
 //!
 //! # `as`-cast policy
 //!
-//! Numeric casts in this file cluster into three patterns; sites with a
-//! local `Why:` comment override the module-level reasoning.
-//!
-//! 1. **Sensor-dimension i32 → u32 after `> 0` guard** (lines 297, 314,
-//!    482, 493, 531, 532). The ASCOM ICameraV3/V4 spec defines CameraXSize,
-//!    CameraYSize and the SAFEARRAY dims as `int` (i32); a positive value
-//!    fits trivially in u32. Negative or zero returns are surfaced as
-//!    explicit `Err` immediately above each cast, not silently wrapped.
-//! 2. **Subframe i32 ↔ u32** (lines 581-592). The pre-check on lines
-//!    581-583 guarantees `start + width ≤ max` (i32 sums), making the
-//!    subsequent u32 → i32 narrowing SAFE because each sensor dimension is
-//!    already i32-bounded by the same driver.
-//! 3. **Display-only widening** (line 55, line 850 readout-mode index).
-//!    Progress percent and readout-mode index are bounded to small ranges
-//!    by construction (percent ≤ 100; readout modes ≤ ~10).
-//!
-//! Two truncation-risk sites have explicit hardening:
-//! - Line 517: ASCOM image_array() returns i32 SAFEARRAY samples; we
-//!   `clamp(0, 65535)` before `as u16` — that bounds the cast.
-//! - Line 829: bit-depth shift uses u64 intermediate then narrows to u32
-//!   after the `bit_depth >= 32` early-return ceiling.
+//! Sensor and SAFEARRAY dimensions are ASCOM `int`s checked positive before
+//! they become `u32`; image samples are clamped to `0..=65535` before `as u16`;
+//! the readout-mode index and progress percent are small by construction.
 //!
 //! # `unwrap_or` policy
 //!
@@ -54,6 +36,9 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomCamera;
+use skotiq_device::ascom::camera::{
+    cooler_setpoint_to_write, exposes_to_light, CameraControl, CameraControls, Probe,
+};
 use skotiq_device::Vendor;
 use skotiq_device::{
     BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
@@ -200,6 +185,53 @@ fn bayer_pattern_from_sensor(
         .map(|pattern| pattern.fits_name())
 }
 
+/// The frame the camera holds, with what it says about it.
+///
+/// `ImageArray` is `[NumX][NumY]` and a SAFEARRAY stores its first dimension
+/// fastest, so the copied samples are already row by row. EXPTIME is the
+/// camera's `LastExposureDuration` where it has one; gain, offset and binning
+/// are read back (gain and offset in the camera's mode), and a value that
+/// cannot be read is recorded as unknown so the configured one stands in.
+fn download_frame(
+    cam: &AscomCamera,
+    controls: &CameraControls,
+    bayer_pattern: Option<BayerPattern>,
+    commanded_secs: Option<f64>,
+) -> Result<ImageData, DriverError> {
+    use crate::device_manager::ops::camera::UNKNOWN_CAMERA_SETTING;
+    let (data, width, height) = cam
+        .image_array()
+        .map_err(|e| DriverError::SdkError(format!("Failed to download image: {e}")))?;
+    let read_setting = |read: skotiq_ascom::AscomResult<i32>, control: &CameraControl| {
+        read.map_or(UNKNOWN_CAMERA_SETTING, |wire| control.from_wire(wire))
+    };
+    Ok(ImageData {
+        width: width as u32,
+        height: height as u32,
+        data: data.iter().map(|&v| v.clamp(0, 65535) as u16).collect(),
+        bits_per_pixel: 16,
+        bayer_pattern,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: cam
+                .last_exposure_duration()
+                .ok()
+                .filter(|secs| *secs > 0.0)
+                .or(commanded_secs)
+                .unwrap_or(0.0),
+            gain: read_setting(cam.gain(), &controls.gain),
+            offset: read_setting(cam.offset(), &controls.offset),
+            bin_x: cam.bin_x().unwrap_or(1),
+            bin_y: cam.bin_y().unwrap_or(1),
+            temperature: cam.ccd_temperature().ok(),
+            timestamp: chrono::Utc::now(),
+            subframe: None,
+            readout_mode: None,
+            vendor_data: VendorFeatures::default(),
+            camera_file: None,
+        },
+    })
+}
+
 /// Connection health status for ASCOM devices
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CameraConnectionHealth {
@@ -234,8 +266,13 @@ pub struct AscomCameraCapabilities {
     pub max_bin_y: i32,
     pub can_abort_exposure: bool,
     pub can_stop_exposure: bool,
-    pub can_set_gain: bool,
-    pub can_set_offset: bool,
+    /// How the camera offers gain and offset (`skotiq_device::ascom::camera`).
+    pub controls: CameraControls,
+    /// `CoolerOn` is implemented: the camera has a cooler to switch.
+    pub has_cooler: bool,
+    pub can_asymmetric_bin: bool,
+    pub exposure_min: Option<f64>,
+    pub exposure_max: Option<f64>,
     pub pixel_size_x: Option<f64>,
     pub pixel_size_y: Option<f64>,
     pub is_color: bool,
@@ -246,28 +283,28 @@ pub struct AscomCameraCapabilities {
 
 /// Command sent to the ASCOM worker thread
 enum AscomCommand {
-    Connect(oneshot::Sender<Result<(), String>>),
-    SetupDialog(oneshot::Sender<Result<(), String>>),
-    Disconnect(oneshot::Sender<Result<(), String>>),
-    GetStatus(oneshot::Sender<Result<CameraStatus, String>>),
-    GetCapabilities(oneshot::Sender<Result<AscomCameraCapabilities, String>>),
-    StartExposure(ExposureParams, oneshot::Sender<Result<(), String>>),
-    AbortExposure(oneshot::Sender<Result<(), String>>),
-    IsExposureComplete(oneshot::Sender<Result<bool, String>>),
-    DownloadImage(oneshot::Sender<Result<ImageData, String>>),
-    SetSubframe(Option<SubFrame>, oneshot::Sender<Result<(), String>>),
-    SetBinning(i32, i32, oneshot::Sender<Result<(), String>>),
-    SetGain(i32, oneshot::Sender<Result<(), String>>),
-    SetOffset(i32, oneshot::Sender<Result<(), String>>),
-    SetReadoutMode(i32, oneshot::Sender<Result<(), String>>),
-    SetCooler(bool, Option<f64>, oneshot::Sender<Result<(), String>>),
+    Connect(oneshot::Sender<Result<(), DriverError>>),
+    SetupDialog(oneshot::Sender<Result<(), DriverError>>),
+    Disconnect(oneshot::Sender<Result<(), DriverError>>),
+    GetStatus(oneshot::Sender<Result<CameraStatus, DriverError>>),
+    GetCapabilities(oneshot::Sender<Result<AscomCameraCapabilities, DriverError>>),
+    StartExposure(ExposureParams, oneshot::Sender<Result<(), DriverError>>),
+    AbortExposure(oneshot::Sender<Result<(), DriverError>>),
+    IsExposureComplete(oneshot::Sender<Result<bool, DriverError>>),
+    DownloadImage(oneshot::Sender<Result<ImageData, DriverError>>),
+    SetSubframe(Option<SubFrame>, oneshot::Sender<Result<(), DriverError>>),
+    SetBinning(i32, i32, oneshot::Sender<Result<(), DriverError>>),
+    SetGain(i32, oneshot::Sender<Result<(), DriverError>>),
+    SetOffset(i32, oneshot::Sender<Result<(), DriverError>>),
+    SetReadoutMode(i32, oneshot::Sender<Result<(), DriverError>>),
+    SetCooler(bool, Option<f64>, oneshot::Sender<Result<(), DriverError>>),
     /// Heartbeat check to verify device is still responding
-    Heartbeat(oneshot::Sender<Result<CameraConnectionHealth, String>>),
+    Heartbeat(oneshot::Sender<Result<CameraConnectionHealth, DriverError>>),
     /// Get interface version number
     /// Get driver version string
     /// Get driver info string
     /// Get list of supported actions
-    Stop(oneshot::Sender<Result<(), String>>),
+    Stop(oneshot::Sender<Result<(), DriverError>>),
 }
 
 /// Wrapper for ASCOM Camera whose COM object lives on the shared STA worker.
@@ -280,6 +317,7 @@ pub struct AscomCameraWrapper {
     cached_capabilities: RwLock<CameraCapabilities>,
     cached_sensor_info: RwLock<SensorInfo>,
     cached_readout_modes: RwLock<Vec<ReadoutMode>>,
+    cached_controls: RwLock<CameraControls>,
 }
 
 impl AscomCameraWrapper {
@@ -299,8 +337,10 @@ impl AscomCameraWrapper {
                 Err(e) => tracing::error!("Failed to create ASCOM camera {}: {}", prog_id_clone, e),
             }
 
-            // Track the last set temperature setpoint (ASCOM SetCCDTemperature is write-only)
-            let mut last_target_temp: Option<f64> = None;
+            // How the camera offers gain and offset, and its Bayer pattern: read
+            // with the capabilities at connect, used by every later command.
+            let mut controls = CameraControls::default();
+            let mut bayer_pattern: Option<BayerPattern> = None;
             // Why: ASCOM has no "last commanded exposure duration" property.
             // We capture it at StartExposure time so that GetStatus can convert
             // `PercentCompleted` (0..100) into a wall-clock seconds-remaining
@@ -341,16 +381,18 @@ impl AscomCameraWrapper {
                 match cmd {
                     AscomCommand::Connect(reply) => {
                         if let Some(cam) = &mut camera {
-                            let _ = reply.send(cam.connect().map_err(|e| e.to_string()));
+                            let _ = reply.send(cam.connect().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::SetupDialog(reply) => {
                         if let Some(cam) = &mut camera {
-                            let _ = reply.send(cam.setup_dialog().map_err(|e| e.to_string()));
+                            let _ = reply.send(cam.setup_dialog().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::Disconnect(reply) => {
@@ -361,9 +403,10 @@ impl AscomCameraWrapper {
                             // exposure tracking must be invalidated here.
                             cooler_power_cache = None;
                             last_exposure_duration = None;
-                            let _ = reply.send(cam.disconnect().map_err(|e| e.to_string()));
+                            let _ = reply.send(cam.disconnect().map_err(super::ascom_error));
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::GetStatus(reply) => {
@@ -371,16 +414,10 @@ impl AscomCameraWrapper {
                             // Use batch query for efficiency - fewer COM calls
                             let full_status = cam.get_full_status();
 
-                            // Map ASCOM camera state to our CameraState enum
-                            let state = match full_status.state.unwrap_or(0) {
-                                0 => CameraState::Idle,
-                                1 => CameraState::Idle, // Waiting maps to Idle
-                                2 => CameraState::Exposing,
-                                3 => CameraState::Reading,
-                                4 => CameraState::Downloading,
-                                5 => CameraState::Error,
-                                _ => CameraState::Idle,
-                            };
+                            // The ASCOM numbering, as the Alpaca path reads it.
+                            let state = full_status
+                                .state
+                                .map_or(CameraState::Idle, CameraState::from);
 
                             if let Some(temp) = full_status.thermal.temperature {
                                 tracing::debug!("ASCOM camera temperature: {}C", temp);
@@ -389,10 +426,10 @@ impl AscomCameraWrapper {
                                 tracing::debug!("ASCOM cooler power: {}%", power);
                             }
 
-                            // Use tracked target temp (ASCOM SetCCDTemperature is write-only)
+                            // The driver's own setpoint: SetCCDTemperature is readable.
                             let target_temp =
                                 if full_status.thermal.can_set_temperature.unwrap_or(false) {
-                                    last_target_temp
+                                    cam.ccd_temperature_setpoint().ok()
                                 } else {
                                     None
                                 };
@@ -417,15 +454,22 @@ impl AscomCameraWrapper {
                                 cooler_power: full_status.thermal.cooler_power,
                                 target_temp,
                                 cooler_on: full_status.thermal.cooler_on,
-                                gain: full_status.exposure_settings.gain.unwrap_or(0),
-                                offset: full_status.exposure_settings.offset.unwrap_or(0),
+                                gain: full_status
+                                    .exposure_settings
+                                    .gain
+                                    .map_or(0, |wire| controls.gain.from_wire(wire)),
+                                offset: full_status
+                                    .exposure_settings
+                                    .offset
+                                    .map_or(0, |wire| controls.offset.from_wire(wire)),
                                 bin_x: full_status.exposure_settings.bin_x.unwrap_or(1),
                                 bin_y: full_status.exposure_settings.bin_y.unwrap_or(1),
                                 exposure_remaining,
                             };
                             let _ = reply.send(Ok(status));
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::GetCapabilities(reply) => {
@@ -438,34 +482,32 @@ impl AscomCameraWrapper {
                             let width = match sensor_config.width {
                                 Some(w) if w > 0 => w as u32,
                                 Some(w) => {
-                                    let _ = reply.send(Err(format!(
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
                                         "ASCOM camera reported invalid CameraXSize={}",
                                         w
-                                    )));
+                                    ))));
                                     return PumpOutcome::DidWork;
                                 }
                                 None => {
-                                    let _ =
-                                        reply
-                                            .send(Err("ASCOM camera CameraXSize property failed"
-                                                .to_string()));
+                                    let _ = reply.send(Err(DriverError::SdkError(
+                                        "ASCOM camera CameraXSize property failed".to_string(),
+                                    )));
                                     return PumpOutcome::DidWork;
                                 }
                             };
                             let height = match sensor_config.height {
                                 Some(h) if h > 0 => h as u32,
                                 Some(h) => {
-                                    let _ = reply.send(Err(format!(
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
                                         "ASCOM camera reported invalid CameraYSize={}",
                                         h
-                                    )));
+                                    ))));
                                     return PumpOutcome::DidWork;
                                 }
                                 None => {
-                                    let _ =
-                                        reply
-                                            .send(Err("ASCOM camera CameraYSize property failed"
-                                                .to_string()));
+                                    let _ = reply.send(Err(DriverError::SdkError(
+                                        "ASCOM camera CameraYSize property failed".to_string(),
+                                    )));
                                     return PumpOutcome::DidWork;
                                 }
                             };
@@ -476,10 +518,10 @@ impl AscomCameraWrapper {
                             let max_adu = match cam.max_adu() {
                                 Ok(v) => v,
                                 Err(e) => {
-                                    let _ = reply.send(Err(format!(
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
                                         "ASCOM camera MaxADU property failed: {}",
                                         e
-                                    )));
+                                    ))));
                                     return PumpOutcome::DidWork;
                                 }
                             };
@@ -499,7 +541,7 @@ impl AscomCameraWrapper {
                             let sensor_type = sensor_config.sensor_type.unwrap_or(0);
                             let is_color = crate::ascom_sensor_type::is_colour_sensor(sensor_type);
 
-                            let bayer_pattern = bayer_pattern_from_sensor(
+                            let bayer_pattern_text = bayer_pattern_from_sensor(
                                 sensor_type,
                                 sensor_config.bayer_offset_x,
                                 sensor_config.bayer_offset_y,
@@ -526,7 +568,26 @@ impl AscomCameraWrapper {
                             // not advertise readout modes. Treating absence as empty list is
                             // semantically correct, not a silent fallback.
                             let readout_modes = cam.readout_modes().unwrap_or_default();
-                            let exposure_settings = cam.get_exposure_settings();
+                            fn probe<T>(read: skotiq_ascom::AscomResult<T>) -> Probe<T> {
+                                Probe::from(read.map_err(super::ascom_error))
+                            }
+                            controls = CameraControls {
+                                gain: CameraControl::detect(
+                                    probe(cam.gain()),
+                                    probe(cam.gains()),
+                                    probe(cam.gain_min()),
+                                    probe(cam.gain_max()),
+                                ),
+                                offset: CameraControl::detect(
+                                    probe(cam.offset()),
+                                    probe(cam.offsets()),
+                                    probe(cam.offset_min()),
+                                    probe(cam.offset_max()),
+                                ),
+                            };
+                            bayer_pattern = AscomCameraWrapper::map_bayer_pattern(
+                                bayer_pattern_text.as_deref(),
+                            );
 
                             // Try-once-cache the CanGetCoolerPower probe.
                             let can_get_cooler_power =
@@ -551,18 +612,22 @@ impl AscomCameraWrapper {
                                 max_bin_y: sensor_config.max_bin_y.unwrap_or(1),
                                 can_abort_exposure: cam.can_abort_exposure().unwrap_or(false),
                                 can_stop_exposure: cam.can_stop_exposure().unwrap_or(false),
-                                can_set_gain: exposure_settings.gain.is_some(),
-                                can_set_offset: exposure_settings.offset.is_some(),
+                                controls: controls.clone(),
+                                has_cooler: cam.cooler_on().is_ok(),
+                                can_asymmetric_bin: cam.can_asymmetric_bin().unwrap_or(false),
+                                exposure_min: cam.exposure_min().ok(),
+                                exposure_max: cam.exposure_max().ok(),
                                 pixel_size_x: sensor_config.pixel_size_x,
                                 pixel_size_y: sensor_config.pixel_size_y,
                                 is_color,
-                                bayer_pattern,
+                                bayer_pattern: bayer_pattern_text,
                                 sensor_name: cam.sensor_name().ok(),
                                 readout_modes,
                             };
                             let _ = reply.send(Ok(caps));
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::StartExposure(params, reply) => {
@@ -594,20 +659,18 @@ impl AscomCameraWrapper {
                                 params.gain,
                                 params.offset,
                                 &params.subframe,
+                                &controls,
                             );
                             if let Err(e) = apply_result {
                                 tracing::error!("ASCOM: failed to apply exposure params: {}", e);
-                                let _ = reply.send(Err(format!(
+                                let _ = reply.send(Err(DriverError::SdkError(format!(
                                     "Failed to apply exposure parameters: {}",
                                     e
-                                )));
+                                ))));
                                 return PumpOutcome::DidWork;
                             }
-                            tracing::info!(
-                                "ASCOM: Calling cam.start_exposure({}, true)",
-                                params.duration_secs
-                            );
-                            match cam.start_exposure(params.duration_secs, true) {
+                            let light = exposes_to_light(params.frame_type);
+                            match cam.start_exposure(params.duration_secs, light) {
                                 Ok(_) => {
                                     tracing::info!("ASCOM: start_exposure succeeded");
                                     // Capture the commanded duration so
@@ -618,13 +681,16 @@ impl AscomCameraWrapper {
                                 }
                                 Err(e) => {
                                     tracing::error!("ASCOM: start_exposure failed: {}", e);
-                                    let _ =
-                                        reply.send(Err(format!("Failed to start exposure: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to start exposure: {}",
+                                        e
+                                    ))));
                                 }
                             }
                         } else {
                             tracing::error!("ASCOM: Camera not created");
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::AbortExposure(reply) => {
@@ -632,7 +698,7 @@ impl AscomCameraWrapper {
                         if let Some(cam) = &mut camera {
                             let result = cam
                                 .abort_exposure()
-                                .map_err(|e| format!("Failed to abort exposure: {}", e));
+                                .map_err(|e| super::ascom_error_in("Failed to abort exposure", e));
                             // Why: aborted exposure has no defined remaining time;
                             // clearing prevents stale ETA figures on the next status read.
                             if result.is_ok() {
@@ -640,7 +706,8 @@ impl AscomCameraWrapper {
                             }
                             let _ = reply.send(result);
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::IsExposureComplete(reply) => {
@@ -652,158 +719,64 @@ impl AscomCameraWrapper {
                                 }
                                 Err(e) => {
                                     tracing::error!("ASCOM: image_ready() failed: {}", e);
-                                    let _ = reply
-                                        .send(Err(format!("Failed to check image ready: {}", e)));
+                                    let _ = reply.send(Err(DriverError::SdkError(format!(
+                                        "Failed to check image ready: {}",
+                                        e
+                                    ))));
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::DownloadImage(reply) => {
-                        tracing::info!("ASCOM: DownloadImage called");
                         if let Some(cam) = &camera {
-                            tracing::info!("ASCOM: Getting camera dimensions");
-                            // The dimensions used here are only for the log
-                            // line below — the authoritative dimensions come from
-                            // `image_array()` itself which returns the SAFEARRAY shape.
-                            // Even so, a transient COM error on CameraXSize/YSize must
-                            // not silently produce a "1x1" log; propagate as Err so the
-                            // bridge dispatch marks the device Disconnected rather than
-                            // pretending the image download will succeed.
-                            let width = match cam.camera_x_size() {
-                                Ok(v) => v as u32,
-                                Err(e) => {
-                                    let _ = reply.send(Err(format!(
-                                        "ASCOM camera CameraXSize failed: {}",
-                                        e
-                                    )));
-                                    last_exposure_duration = None;
-                                    return PumpOutcome::DidWork;
-                                }
-                            };
-                            let height = match cam.camera_y_size() {
-                                Ok(v) => v as u32,
-                                Err(e) => {
-                                    let _ = reply.send(Err(format!(
-                                        "ASCOM camera CameraYSize failed: {}",
-                                        e
-                                    )));
-                                    last_exposure_duration = None;
-                                    return PumpOutcome::DidWork;
-                                }
-                            };
-                            tracing::info!("ASCOM: Camera dimensions: {}x{}", width, height);
-
-                            tracing::info!("ASCOM: Calling cam.image_array()");
-                            match cam.image_array() {
-                                Ok((data, w, h)) => {
-                                    tracing::info!(
-                                        "ASCOM: image_array() returned {} pixels ({}x{})",
-                                        data.len(),
-                                        w,
-                                        h
-                                    );
-
-                                    let u16_data: Vec<u16> =
-                                        data.iter().map(|&v| v.max(0).min(65535) as u16).collect();
-
-                                    // Log min/max values for debugging
-                                    if let (Some(&min), Some(&max)) =
-                                        (data.iter().min(), data.iter().max())
-                                    {
-                                        tracing::info!(
-                                            "ASCOM: Image data range: {} to {}",
-                                            min,
-                                            max
-                                        );
-                                    }
-
-                                    let image_data = ImageData {
-                                        width: w as u32,
-                                        height: h as u32,
-                                        data: u16_data,
-                                        bits_per_pixel: 16,
-                                        bayer_pattern: None, // ASCOM doesn't provide bayer pattern info easily
-                                        metadata: skotiq_device::ImageMetadata {
-                                            exposure_time: last_exposure_duration.unwrap_or(0.0),
-                                            gain: 0,
-                                            offset: 0,
-                                            bin_x: 1,
-                                            bin_y: 1,
-                                            temperature: None,
-                                            timestamp: chrono::Utc::now(),
-                                            subframe: None,
-                                            readout_mode: None,
-                                            vendor_data: VendorFeatures::default(),
-                                            camera_file: None,
-                                        },
-                                    };
-                                    tracing::info!(
-                                        "ASCOM: Sending ImageData with {} pixels",
-                                        image_data.data.len()
-                                    );
-                                    // Once the frame has been delivered the
-                                    // tracked duration is no longer the "current" exposure;
-                                    // clear it so subsequent GetStatus calls return None
-                                    // instead of computing remaining-time from a stale total.
-                                    last_exposure_duration = None;
-                                    let _ = reply.send(Ok(image_data));
-                                }
-                                Err(e) => {
-                                    tracing::error!("ASCOM: image_array() failed: {}", e);
-                                    last_exposure_duration = None;
-                                    let _ =
-                                        reply.send(Err(format!("Failed to download image: {}", e)));
-                                }
-                            }
+                            let result = download_frame(
+                                cam,
+                                &controls,
+                                bayer_pattern,
+                                last_exposure_duration,
+                            );
+                            last_exposure_duration = None;
+                            let _ = reply.send(result);
                         } else {
                             tracing::error!("ASCOM: Camera not created");
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::SetSubframe(subframe, reply) => {
-                        tracing::info!("ASCOM: SetSubframe called");
                         if let Some(cam) = &mut camera {
-                            match subframe {
-                                Some(sf) => {
-                                    // Validate and set ROI
-                                    let max_x = cam.camera_x_size().unwrap_or(1);
-                                    let max_y = cam.camera_y_size().unwrap_or(1);
-
-                                    if sf.start_x as i32 + sf.width as i32 > max_x
-                                        || sf.start_y as i32 + sf.height as i32 > max_y
-                                    {
-                                        let _ = reply.send(Err(
-                                            "Subframe exceeds sensor bounds".to_string()
-                                        ));
-                                    } else {
-                                        let result = cam
-                                            .set_start_x(sf.start_x as i32)
-                                            .and_then(|_| cam.set_start_y(sf.start_y as i32))
-                                            .and_then(|_| cam.set_num_x(sf.width as i32))
-                                            .and_then(|_| cam.set_num_y(sf.height as i32))
-                                            .map_err(|e| format!("Failed to set subframe: {}", e));
-                                        let _ = reply.send(result);
-                                    }
-                                }
-                                None => {
-                                    // Reset to full frame
-                                    let max_x = cam.camera_x_size().unwrap_or(1);
-                                    let max_y = cam.camera_y_size().unwrap_or(1);
-                                    let result = cam
-                                        .set_start_x(0)
-                                        .and_then(|_| cam.set_start_y(0))
-                                        .and_then(|_| cam.set_num_x(max_x))
-                                        .and_then(|_| cam.set_num_y(max_y))
-                                        .map_err(|e| {
-                                            format!("Failed to reset to full frame: {}", e)
-                                        });
-                                    let _ = reply.send(result);
-                                }
-                            }
+                            let result = (|| {
+                                let read = |r: skotiq_ascom::AscomResult<i32>, what: &str| {
+                                    r.map_err(|e| {
+                                        DriverError::SdkError(format!("Failed to read {what}: {e}"))
+                                    })
+                                };
+                                let frame = skotiq_device::ascom::camera::frame_geometry(
+                                    (
+                                        read(cam.camera_x_size(), "CameraXSize")?,
+                                        read(cam.camera_y_size(), "CameraYSize")?,
+                                    ),
+                                    (cam.max_bin_x().unwrap_or(1), cam.max_bin_y().unwrap_or(1)),
+                                    (cam.bin_x().unwrap_or(1), cam.bin_y().unwrap_or(1)),
+                                    subframe.as_ref(),
+                                )?;
+                                cam.set_start_x(frame.start_x)
+                                    .and_then(|_| cam.set_start_y(frame.start_y))
+                                    .and_then(|_| cam.set_num_x(frame.num_x))
+                                    .and_then(|_| cam.set_num_y(frame.num_y))
+                                    .map_err(|e| {
+                                        DriverError::SdkError(format!(
+                                            "Failed to set the frame: {e}"
+                                        ))
+                                    })
+                            })();
+                            let _ = reply.send(result);
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::SetBinning(bin_x, bin_y, reply) => {
@@ -813,52 +786,63 @@ impl AscomCameraWrapper {
                             let max_bin_y = cam.max_bin_y().unwrap_or(1);
 
                             if bin_x > max_bin_x || bin_y > max_bin_y {
-                                let _ = reply.send(Err(format!(
+                                let _ = reply.send(Err(DriverError::SdkError(format!(
                                     "Binning {}x{} exceeds max {}x{}",
                                     bin_x, bin_y, max_bin_x, max_bin_y
-                                )));
+                                ))));
                             } else {
                                 let result = cam
                                     .set_bin_x(bin_x)
                                     .and_then(|_| cam.set_bin_y(bin_y))
-                                    .map_err(|e| format!("Failed to set binning: {}", e));
+                                    .map_err(|e| {
+                                        DriverError::SdkError(format!("Failed to set binning: {e}"))
+                                    });
                                 let _ = reply.send(result);
                             }
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::SetGain(gain, reply) => {
                         tracing::info!("ASCOM: SetGain called: {}", gain);
                         if let Some(cam) = &mut camera {
-                            let result = cam
-                                .set_gain(gain)
-                                .map_err(|e| format!("Failed to set gain: {}", e));
+                            let result = controls.gain.to_wire(gain, "Gain").and_then(|wire| {
+                                cam.set_gain(wire).map_err(|e| {
+                                    DriverError::SdkError(format!("Failed to set gain: {e}"))
+                                })
+                            });
                             let _ = reply.send(result);
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::SetOffset(offset, reply) => {
                         tracing::info!("ASCOM: SetOffset called: {}", offset);
                         if let Some(cam) = &mut camera {
-                            let result = cam
-                                .set_offset(offset)
-                                .map_err(|e| format!("Failed to set offset: {}", e));
+                            let result =
+                                controls.offset.to_wire(offset, "Offset").and_then(|wire| {
+                                    cam.set_offset(wire).map_err(|e| {
+                                        DriverError::SdkError(format!("Failed to set offset: {e}"))
+                                    })
+                                });
                             let _ = reply.send(result);
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::SetReadoutMode(mode_index, reply) => {
                         tracing::info!("ASCOM: SetReadoutMode called: {}", mode_index);
                         if let Some(cam) = &mut camera {
-                            let result = cam
-                                .set_readout_mode(mode_index)
-                                .map_err(|e| format!("Failed to set readout mode: {}", e));
+                            let result = cam.set_readout_mode(mode_index).map_err(|e| {
+                                super::ascom_error_in("Failed to set readout mode", e)
+                            });
                             let _ = reply.send(result);
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::SetCooler(enabled, target_temp, reply) => {
@@ -868,44 +852,32 @@ impl AscomCameraWrapper {
                             target_temp
                         );
                         if let Some(cam) = &mut camera {
-                            // Which setpoint (if any) may be written is decided
-                            // by `cooler_policy`, not here — see that module for
-                            // why an off-command must never carry one. Writing
-                            // SetCCDTemperature unconditionally is what made
-                            // "turn the cooler off" fail outright on a camera
-                            // reporting CanSetCCDTemperature = False.
-                            let writable = skotiq_ascom::cooler_policy::setpoint_to_write(
+                            let writable = cooler_setpoint_to_write(
                                 enabled,
                                 target_temp,
                                 cam.can_set_ccd_temperature().ok(),
                             );
                             if target_temp.is_some() && writable.is_none() {
                                 tracing::info!(
-                                    "ASCOM: skipping SetCCDTemperature write \
-                                     (enabled={}, requested={:?}) — the driver does not \
-                                     accept a setpoint here",
+                                    "ASCOM: no SetCCDTemperature write (enabled={}, requested={:?}): \
+                                     the driver does not take a setpoint here",
                                     enabled,
                                     target_temp
                                 );
                             }
-                            let mut outcome: Result<(), String> = Ok(());
+                            let mut outcome = Ok(());
                             if let Some(t) = writable {
-                                outcome = cam.set_ccd_temperature(t).map_err(|e| e.to_string());
+                                outcome = cam.set_ccd_temperature(t);
                             }
                             if outcome.is_ok() {
-                                outcome = cam.set_cooler_on(enabled).map_err(|e| e.to_string());
+                                outcome = cam.set_cooler_on(enabled);
                             }
-                            let result =
-                                outcome.map_err(|e| format!("Failed to set cooler: {}", e));
-                            if result.is_ok() {
-                                if let Some(t) = writable {
-                                    // Track the setpoint since ASCOM SetCCDTemperature is write-only
-                                    last_target_temp = Some(t);
-                                }
-                            }
+                            let result = outcome
+                                .map_err(|e| super::ascom_error_in("Failed to set cooler", e));
                             let _ = reply.send(result);
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::Heartbeat(reply) => {
@@ -936,14 +908,15 @@ impl AscomCameraWrapper {
                                 }
                             }
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                     AscomCommand::Stop(reply) => {
                         if let Some(cam) = &mut camera {
                             let result = cam
                                 .stop_exposure()
-                                .map_err(|e| format!("Failed to stop exposure: {}", e));
+                                .map_err(|e| super::ascom_error_in("Failed to stop exposure", e));
                             // Why: stopping the exposure terminates progress reporting;
                             // any subsequent GetStatus must report `None` rather than a
                             // residual based on the now-defunct duration.
@@ -952,7 +925,8 @@ impl AscomCameraWrapper {
                             }
                             let _ = reply.send(result);
                         } else {
-                            let _ = reply.send(Err("Camera not created".to_string()));
+                            let _ = reply
+                                .send(Err(DriverError::SdkError("Camera not created".to_string())));
                         }
                     }
                 }
@@ -969,6 +943,7 @@ impl AscomCameraWrapper {
             cached_capabilities: RwLock::new(CameraCapabilities::default()),
             cached_sensor_info: RwLock::new(SensorInfo::default()),
             cached_readout_modes: RwLock::new(Vec::new()),
+            cached_controls: RwLock::new(CameraControls::default()),
         })
     }
 
@@ -985,8 +960,8 @@ impl AscomCameraWrapper {
     fn map_camera_capabilities(caps: &AscomCameraCapabilities) -> CameraCapabilities {
         CameraCapabilities {
             can_cool: caps.can_set_ccd_temperature,
-            can_set_gain: caps.can_set_gain,
-            can_set_offset: caps.can_set_offset,
+            can_set_gain: caps.controls.gain.is_present(),
+            can_set_offset: caps.controls.offset.is_present(),
             can_set_binning: caps.can_bin,
             can_subframe: true,
             has_shutter: caps.has_shutter,
@@ -1017,6 +992,7 @@ impl AscomCameraWrapper {
             bit_depth,
             color: caps.is_color,
             bayer_pattern: Self::map_bayer_pattern(caps.bayer_pattern.as_deref()),
+            saturation_adu: None,
         }
     }
 
@@ -1046,26 +1022,20 @@ impl AscomCameraWrapper {
         if let Ok(mut lock) = self.cached_readout_modes.write() {
             *lock = Self::map_readout_modes(caps);
         }
+        if let Ok(mut lock) = self.cached_controls.write() {
+            *lock = caps.controls.clone();
+        }
     }
 
-    /// Helper to receive a response with a timeout
-    /// Returns an error if the receive times out or the operation fails
-    async fn recv_with_timeout<T>(
-        rx: oneshot::Receiver<Result<T, String>>,
-        timeout: Duration,
-        operation: &str,
-    ) -> Result<T, DriverError> {
-        match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result.map_err(|e| DriverError::SdkError(e)),
-            Ok(Err(_recv_err)) => Err(DriverError::Unknown(format!(
-                "Worker thread dead during {}",
-                operation
-            ))),
-            Err(_elapsed) => Err(DriverError::Timeout(format!(
-                "Camera {} timed out after {:?}",
-                operation, timeout
-            ))),
-        }
+    fn control_range(
+        &self,
+        pick: fn(&CameraControls) -> &CameraControl,
+    ) -> Result<(i32, i32), DriverError> {
+        self.cached_controls
+            .read()
+            .ok()
+            .and_then(|controls| pick(&controls).range())
+            .ok_or(DriverError::NotSupported)
     }
 
     /// Display the ASCOM driver SetupDialog to choose device/config
@@ -1076,7 +1046,8 @@ impl AscomCameraWrapper {
             .send(AscomCommand::SetupDialog(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(
+        super::recv_with_timeout(
+            "Camera",
             rx,
             Duration::from_secs(300), // Setup dialog can take a long time (user interaction)
             "setup_dialog",
@@ -1096,7 +1067,8 @@ impl AscomCameraWrapper {
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         let caps =
-            Self::recv_with_timeout(rx, Timeouts::property_read(), "get_capabilities").await?;
+            super::recv_with_timeout("Camera", rx, Timeouts::property_read(), "get_capabilities")
+                .await?;
         self.update_capability_cache(&caps);
         Ok(caps)
     }
@@ -1111,7 +1083,7 @@ impl AscomCameraWrapper {
             .send(AscomCommand::Heartbeat(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::heartbeat(), "heartbeat").await
+        super::recv_with_timeout("Camera", rx, Timeouts::heartbeat(), "heartbeat").await
     }
 
     pub async fn stop_exposure(&mut self) -> Result<(), DriverError> {
@@ -1120,7 +1092,7 @@ impl AscomCameraWrapper {
             .send(AscomCommand::Stop(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "stop_exposure").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_write(), "stop_exposure").await
     }
 }
 
@@ -1148,7 +1120,7 @@ impl DeviceDriver for AscomCameraWrapper {
             .send(AscomCommand::Connect(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await?;
+        super::recv_with_timeout("Camera", rx, Timeouts::connection(), "connect").await?;
         self.connected.store(true, Ordering::SeqCst);
         // Sensor size and bit depth are load-bearing for every
         // downstream image operation. If the device cannot answer those
@@ -1171,7 +1143,9 @@ impl DeviceDriver for AscomCameraWrapper {
                 .await
                 .is_ok()
             {
-                let _ = Self::recv_with_timeout(drx, Timeouts::connection(), "disconnect").await;
+                let _ =
+                    super::recv_with_timeout("Camera", drx, Timeouts::connection(), "disconnect")
+                        .await;
             }
             return Err(err);
         }
@@ -1187,7 +1161,8 @@ impl DeviceDriver for AscomCameraWrapper {
             .send(AscomCommand::Disconnect(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
+        let result =
+            super::recv_with_timeout("Camera", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
             if let Ok(mut caps) = self.cached_capabilities.write() {
@@ -1198,6 +1173,9 @@ impl DeviceDriver for AscomCameraWrapper {
             }
             if let Ok(mut modes) = self.cached_readout_modes.write() {
                 modes.clear();
+            }
+            if let Ok(mut controls) = self.cached_controls.write() {
+                *controls = CameraControls::default();
             }
         }
         result
@@ -1219,7 +1197,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::GetStatus(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_status").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_read(), "get_status").await
     }
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
@@ -1228,7 +1206,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::StartExposure(params, tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::exposure_start(), "start_exposure").await
+        super::recv_with_timeout("Camera", rx, Timeouts::exposure_start(), "start_exposure").await
     }
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
@@ -1237,7 +1215,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::AbortExposure(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "abort_exposure").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_write(), "abort_exposure").await
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
@@ -1246,7 +1224,13 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::IsExposureComplete(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "is_exposure_complete").await
+        super::recv_with_timeout(
+            "Camera",
+            rx,
+            Timeouts::property_read(),
+            "is_exposure_complete",
+        )
+        .await
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
@@ -1256,7 +1240,13 @@ impl CameraDriver for AscomCameraWrapper {
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
         // Image download can take a long time for large sensors
-        Self::recv_with_timeout(rx, Timeouts::image_download_large(), "download_image").await
+        super::recv_with_timeout(
+            "Camera",
+            rx,
+            Timeouts::image_download_large(),
+            "download_image",
+        )
+        .await
     }
 
     async fn set_cooler(
@@ -1269,7 +1259,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::SetCooler(enabled, target_temp, tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_cooler").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_write(), "set_cooler").await
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
@@ -1290,7 +1280,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::SetGain(gain, tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_gain").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_write(), "set_gain").await
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
@@ -1305,7 +1295,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::SetOffset(offset, tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_offset").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_write(), "set_offset").await
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
@@ -1320,7 +1310,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::SetBinning(bin_x, bin_y, tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_binning").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_write(), "set_binning").await
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
@@ -1335,7 +1325,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::SetSubframe(subframe, tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_subframe").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_write(), "set_subframe").await
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
@@ -1364,7 +1354,7 @@ impl CameraDriver for AscomCameraWrapper {
             .send(AscomCommand::SetReadoutMode(mode.index, tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_readout_mode").await
+        super::recv_with_timeout("Camera", rx, Timeouts::property_write(), "set_readout_mode").await
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
@@ -1372,13 +1362,11 @@ impl CameraDriver for AscomCameraWrapper {
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
-        // Return a reasonable default gain range
-        Ok((0, 100))
+        self.control_range(|controls| &controls.gain)
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
-        // Return a reasonable default offset range
-        Ok((0, 255))
+        self.control_range(|controls| &controls.offset)
     }
 }
 
@@ -1411,6 +1399,7 @@ mod tests {
             cached_capabilities: std::sync::RwLock::new(CameraCapabilities::default()),
             cached_sensor_info: std::sync::RwLock::new(SensorInfo::default()),
             cached_readout_modes: std::sync::RwLock::new(Vec::new()),
+            cached_controls: std::sync::RwLock::new(CameraControls::default()),
         }
     }
 
@@ -1445,9 +1434,9 @@ mod tests {
     async fn test_download_image_propagates_com_error() {
         let mut wrapper = build_test_wrapper(move |cmd| {
             if let AscomCommand::DownloadImage(reply) = cmd {
-                let _ = reply.send(Err(
-                    "ASCOM camera CameraXSize failed: COM error 0x80004005".to_string()
-                ));
+                let _ = reply.send(Err(DriverError::SdkError(
+                    "ASCOM camera CameraXSize failed: COM error 0x80004005".to_string(),
+                )));
                 return true;
             }
             false
@@ -1470,9 +1459,9 @@ mod tests {
     async fn test_get_capabilities_propagates_com_error() {
         let wrapper = build_test_wrapper(move |cmd| {
             if let AscomCommand::GetCapabilities(reply) = cmd {
-                let _ = reply.send(Err(
+                let _ = reply.send(Err(DriverError::SdkError(
                     "ASCOM camera MaxADU property failed: COM error 0x80004005".to_string(),
-                ));
+                )));
                 return true;
             }
             false

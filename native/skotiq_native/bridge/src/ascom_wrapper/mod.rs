@@ -18,6 +18,48 @@ pub mod sta_worker;
 pub mod switch;
 pub mod weather;
 
+use crate::dispatch::DeviceOpError;
+use std::time::Duration;
+use tokio::sync::oneshot;
+
+/// The STA worker's answer to one command for a `device` ("Mount"). A worker
+/// that stopped answering took the driver with it; a command past `timeout`
+/// is reported as a timeout.
+pub(crate) async fn recv_with_timeout<T, E: From<DeviceOpError>>(
+    device: &str,
+    rx: oneshot::Receiver<Result<T, E>>,
+    timeout: Duration,
+    operation: &str,
+) -> Result<T, E> {
+    match tokio::time::timeout(timeout, rx).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(_)) => Err(DeviceOpError::not_connected(
+            None,
+            format!("Worker thread dead during {operation}"),
+        )
+        .into()),
+        Err(_) => Err(DeviceOpError::Timeout {
+            device_id: None,
+            detail: format!("{device} {operation} timed out after {timeout:?}"),
+        }
+        .into()),
+    }
+}
+
+/// [`ascom_error`] for a failure inside `what` ("Failed to set cooler").
+pub(crate) fn ascom_error_in(
+    what: &str,
+    error: skotiq_ascom::AscomError,
+) -> skotiq_device::DriverError {
+    DeviceOpError::caused_by(None, format!("{what}: {error}"), error).into()
+}
+
+/// An ASCOM failure as a driver error, in the driver's words and of the kind
+/// it named.
+pub(crate) fn ascom_error(error: skotiq_ascom::AscomError) -> skotiq_device::DriverError {
+    DeviceOpError::from(error).into()
+}
+
 /// Blocking receive that keeps this STA thread's Win32 message queue pumped
 /// while it waits for the next command.
 ///

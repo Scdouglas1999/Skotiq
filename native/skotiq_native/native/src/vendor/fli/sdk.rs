@@ -219,9 +219,15 @@ pub(crate) fn check_fli_error(result: c_long, context: &str) -> Result<(), Drive
     } else {
         let text = fli_error_text(result);
         tracing::error!("FLI {} failed: {}", context, text);
-        Err(DriverError::SdkError(format!(
-            "FLI {context} failed: {text}"
-        )))
+        let detail = format!("FLI {context} failed: {text}");
+        Err(match -result {
+            // Not attached: the caller reconnects it. The words are logged above;
+            // the bridge names the device in its not-connected message.
+            6 | 19 => DriverError::Disconnected,
+            60 | 110 | 138 => DriverError::Timeout(detail),
+            22 => DriverError::InvalidParameter(detail),
+            _ => DriverError::SdkError(detail),
+        })
     }
 }
 
@@ -233,4 +239,31 @@ pub(crate) fn close_fli_handle(sdk: &FliSdk, handle: &mut FliDev) {
     // SAFETY: the caller passes the table from its SDK guard and handle was returned by a successful FLIOpen.
     unsafe { (sdk.close)(*handle) };
     *handle = FLI_INVALID_DEVICE;
+}
+
+#[cfg(test)]
+mod error_kind_tests {
+    use super::*;
+
+    /// A camera pulled off the bus is a lost device the run reconnects; a
+    /// timeout and a refused value keep their own kinds and libfli's meaning.
+    #[test]
+    fn libfli_codes_reach_callers_as_the_failure_they_name() {
+        assert!(matches!(
+            check_fli_error(-19, "expose"),
+            Err(DriverError::Disconnected)
+        ));
+        assert!(matches!(
+            check_fli_error(-110, "download"),
+            Err(DriverError::Timeout(text)) if text.contains("the device timed out")
+        ));
+        assert!(matches!(
+            check_fli_error(-22, "set gain"),
+            Err(DriverError::InvalidParameter(text)) if text.contains("refused the request")
+        ));
+        assert!(matches!(
+            check_fli_error(-5, "expose"),
+            Err(DriverError::SdkError(text)) if text.contains("did not answer over USB")
+        ));
+    }
 }

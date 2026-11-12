@@ -101,6 +101,8 @@ pub struct ZwoCamera {
     // cannot leave status permanently stuck at Downloading.
     pub(crate) exposure_active: AtomicBool,
     pub(crate) current_subframe: Option<SubFrame>,
+    /// `ASI_EXPOSURE`'s published `(min, max)` in microseconds, read at connect.
+    pub(crate) exposure_range_us: Option<(i64, i64)>,
     /// The last `set_cooler` command. `ASIGetControlValue(ASI_COOLER_ON)` is
     /// read first in `get_status`; this answers when that read fails or the
     /// camera has no cooler, so status never reports off after an on command.
@@ -126,6 +128,7 @@ impl ZwoCamera {
             exposure_time: 0.0,
             exposure_active: AtomicBool::new(false),
             current_subframe: None,
+            exposure_range_us: None,
             // Off at -10 C is the camera's power-on state. Reported only when
             // both reads fail, which the rig has not shown; whether a failed
             // read should say "unknown" instead is a rig-night question.
@@ -394,20 +397,16 @@ impl ZwoCamera {
         }
     }
 
-    /// Read a control's `(min, max, default)` WITHOUT narrowing to `i32`.
+    /// A control's published `(min, max, default)` under a lock the caller
+    /// already holds; `NotSupported` when the camera has no such control.
     ///
-    /// [`Self::get_control_caps_async`] casts to `i32` on the documented
-    /// assumption that "ZWO controls never exceed i32 in practice (gain <= 600,
-    /// offset <= 255)". That assumption does not hold for `ASI_EXPOSURE`, whose
-    /// values are MICROSECONDS: a 2000 s maximum is 2_000_000_000 µs, one
-    /// rounding away from `i32::MAX`, and longer-exposure models overflow it
-    /// outright. Exposure limits must therefore come through this variant.
-    pub(crate) async fn get_control_caps_raw_async(
+    /// Kept as i64: `ASI_EXPOSURE` is in microseconds, and a 2000 s maximum is
+    /// one rounding away from `i32::MAX`.
+    pub(crate) fn control_caps(
         &self,
+        sdk: &AsiSdk,
         target_control: ASIControlType,
     ) -> Result<(i64, i64, i64), DriverError> {
-        let sdk = AsiSdk::lock().await?;
-
         let mut num_controls: c_int = 0;
         // SAFETY: `num_controls` is a valid stack pointer; camera_id is valid
         // (camera opened during connect).
@@ -421,7 +420,7 @@ impl ZwoCamera {
             // SAFETY: `caps` is a valid stack pointer; `i` is bounded by
             // num_controls; camera_id is valid.
             let result = unsafe { (sdk.get_control_caps)(self.camera_id, i, &mut caps) };
-            if result == 0 && caps.control_type as c_int == target_control as c_int {
+            if result == 0 && caps.control_type == target_control as c_int {
                 // c_long is i32 on Windows and i64 on Linux; widening to i64 is
                 // lossless on both.
                 return Ok((
@@ -456,34 +455,301 @@ impl ZwoCamera {
         target_control: ASIControlType,
     ) -> Result<(i32, i32, i32), DriverError> {
         let sdk = AsiSdk::lock().await?;
+        let (min, max, default) = self.control_caps(&sdk, target_control)?;
+        // Gain, offset and set-point ranges are small (gain <= 600, offset <=
+        // 255); only ASI_EXPOSURE needs the wide form.
+        Ok((min as i32, max as i32, default as i32))
+    }
 
-        let mut num_controls: c_int = 0;
-        // SAFETY: `num_controls` is a valid stack pointer; camera_id is valid (camera opened during connect).
-        let result = unsafe { (sdk.get_num_controls)(self.camera_id, &mut num_controls) };
+    /// One line with the settings Skotiq leaves at the camera's own values,
+    /// for comparing a camera's behavior with another program's.
+    pub(crate) fn log_connect_settings(&self, sdk: &AsiSdk) {
+        let value = |control| {
+            self.get_control(sdk, control)
+                .map_or_else(|_| "-".to_string(), |v| v.to_string())
+        };
+        let bandwidth_range = self
+            .control_caps(sdk, ASIControlType::ASI_BANDWIDTHOVERLOAD)
+            .map_or_else(|_| "-".to_string(), |(min, max, _)| format!("{min}..{max}"));
+        let exposure = self.exposure_range_us.map_or_else(
+            || "-".to_string(),
+            |(min, max)| format!("{} us..{} s", min, max as f64 / 1_000_000.0),
+        );
+        let usb = self.camera_info.as_ref().map_or("-", |info| {
+            match (info.is_usb3_camera != 0, info.is_usb3_host != 0) {
+                (true, true) => "USB3",
+                (true, false) => "USB3 camera on a USB2 port",
+                _ => "USB2",
+            }
+        });
+        tracing::info!(
+            "{}: {}, bins {:?}, exposure {}, USB bandwidth {} ({}), flip {}, high-speed mode {}, \
+             hardware bin {}, mono bin {}",
+            self.camera_name(),
+            usb,
+            self.supported_bins(),
+            exposure,
+            value(ASIControlType::ASI_BANDWIDTHOVERLOAD),
+            bandwidth_range,
+            value(ASIControlType::ASI_FLIP),
+            value(ASIControlType::ASI_HIGH_SPEED_MODE),
+            value(ASIControlType::ASI_HARDWARE_BIN),
+            value(ASIControlType::ASI_MONO_BIN),
+        );
+    }
+
+    /// The bin factors the camera lists, in its order; `SupportedBins` ends at
+    /// the first 0.
+    pub(crate) fn supported_bins(&self) -> Vec<i32> {
+        let listed: Vec<i32> = self
+            .camera_info
+            .as_ref()
+            .map(|info| {
+                info.supported_bins
+                    .iter()
+                    .copied()
+                    .take_while(|&bin| bin > 0)
+                    .collect()
+            })
+            .unwrap_or_default();
+        // ASICamera2.h: "1 means bin1 which is supported by every camera", so an
+        // empty list is an SDK that did not fill it; keep the bins Skotiq always
+        // offered then.
+        if listed.is_empty() {
+            vec![1, 2, 3, 4]
+        } else {
+            listed
+        }
+    }
+
+    /// The symmetric bin factor for a request the camera can take.
+    pub(crate) fn validate_bin(&self, bin_x: i32, bin_y: i32) -> Result<i32, DriverError> {
+        if bin_x != bin_y {
+            return Err(DriverError::InvalidParameter(format!(
+                "The {} bins the same in both directions; {}x{} was requested",
+                self.camera_name(),
+                bin_x,
+                bin_y
+            )));
+        }
+        let bins = self.supported_bins();
+        if !bins.contains(&bin_x) {
+            let listed: Vec<String> = bins.iter().map(i32::to_string).collect();
+            return Err(DriverError::InvalidParameter(format!(
+                "The {} bins {}; {}x{} was requested",
+                self.camera_name(),
+                listed.join(", "),
+                bin_x,
+                bin_y
+            )));
+        }
+        Ok(bin_x)
+    }
+
+    /// The readout format for this camera: RAW16 when it lists it (every
+    /// cooled ZWO camera does), else RAW8 (`SupportedVideoFormat`, ended by
+    /// `ASI_IMG_END`).
+    pub(crate) fn readout_format(info: &ASICameraInfo) -> Option<ASIImgType> {
+        let listed: Vec<c_int> = info
+            .supported_video_format
+            .iter()
+            .copied()
+            .take_while(|&format| format != ASIImgType::End as c_int)
+            .collect();
+        if listed.contains(&(ASIImgType::Raw16 as c_int)) {
+            Some(ASIImgType::Raw16)
+        } else if listed.contains(&(ASIImgType::Raw8 as c_int)) {
+            Some(ASIImgType::Raw8)
+        } else {
+            None
+        }
+    }
+
+    /// Bits per sample of the delivered frame: the ADC depth in RAW16, 8 in RAW8.
+    pub(crate) fn delivered_bit_depth(&self) -> u32 {
+        match self.image_type {
+            ASIImgType::Raw8 => 8,
+            _ => self
+                .camera_info
+                .as_ref()
+                .and_then(|info| u32::try_from(info.bit_depth).ok())
+                .filter(|bits| (1..=16).contains(bits))
+                .unwrap_or(16),
+        }
+    }
+
+    /// The region the SDK reads for a frame at `bin`: the whole sensor, or
+    /// `subframe` (binned pixels, as `ASISetROIFormat` and `ASISetStartPos`
+    /// take them).
+    pub(crate) fn frame_roi(
+        &self,
+        bin: i32,
+        subframe: Option<&SubFrame>,
+    ) -> Result<FrameRoi, DriverError> {
+        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
+        // Sensor dimensions are c_long (i64 on Linux) and always fit an i32.
+        let sensor_width = info.max_width as i32 / bin;
+        let sensor_height = info.max_height as i32 / bin;
+        FrameRoi::within(
+            sensor_width,
+            sensor_height,
+            info.is_color_cam != 0,
+            subframe,
+        )
+        .ok_or_else(|| {
+            let requested = subframe.map_or_else(String::new, |sf| {
+                format!(
+                    "{}x{} at ({}, {})",
+                    sf.width, sf.height, sf.start_x, sf.start_y
+                )
+            });
+            DriverError::InvalidParameter(format!(
+                "The subframe {} does not fit the {}x{} frame of the {} at bin {}",
+                requested,
+                sensor_width,
+                sensor_height,
+                self.camera_name(),
+                bin
+            ))
+        })
+    }
+
+    /// Set the frame region and binning under a lock the caller already holds.
+    pub(crate) fn apply_roi(
+        &mut self,
+        sdk: &AsiSdk,
+        bin: i32,
+        roi: FrameRoi,
+        subframe_requested: bool,
+    ) -> Result<(), DriverError> {
+        // SAFETY: the ROI was checked against the binned sensor and the SDK's
+        // size multiples by FrameRoi::within; camera_id is open.
+        let result = unsafe {
+            (sdk.set_roi_format)(
+                self.camera_id,
+                roi.width,
+                roi.height,
+                bin as c_int,
+                self.image_type as c_int,
+            )
+        };
+        check_asi_error(result)?;
+        // SAFETY: as above; the start keeps the ROI inside the binned sensor.
+        let result = unsafe { (sdk.set_start_pos)(self.camera_id, roi.x, roi.y) };
         check_asi_error(result)?;
 
-        for i in 0..num_controls {
-            // SAFETY: ASIControlCaps is `#[repr(C)]` POD; zeroed is a safe initial state per SDK contract.
-            let mut caps: ASIControlCaps = unsafe { std::mem::zeroed() };
-            // SAFETY: `caps` is a valid stack pointer; `i` is bounded by num_controls returned by the SDK above; camera_id is valid.
-            let result = unsafe { (sdk.get_control_caps)(self.camera_id, i, &mut caps) };
-            if result == 0 {
-                if caps.control_type as c_int == target_control as c_int {
-                    // Why: caps fields are `c_long` (i32 on Windows, i64 on Linux);
-                    // ZWO controls never exceed i32 in practice (gain <= 600,
-                    // offset <= 255). The cast is a no-op on Windows (hence the
-                    // clippy allow) but necessary for portability.
-                    #[allow(clippy::unnecessary_cast)]
-                    return Ok((
-                        caps.min_value as i32,
-                        caps.max_value as i32,
-                        caps.default_value as i32,
-                    ));
+        self.current_bin = bin;
+        self.current_width = roi.width;
+        self.current_height = roi.height;
+        self.current_subframe = subframe_requested.then(|| roi.as_subframe());
+        Ok(())
+    }
+
+    /// The Bayer pattern of a frame read under the current settings, under a
+    /// lock the caller already holds.
+    ///
+    /// `ASIGetCameraProperty` names the sensor's own pattern. A color camera
+    /// binned in software with `ASI_MONO_BIN` on sums each 2x2 cell into one
+    /// mono pixel, and `ASI_FLIP` mirrors an even-sized frame, which moves the
+    /// pattern by one column or row. Skotiq sets neither, but another program
+    /// can leave them set. ROI starts are even on a color camera
+    /// (`FrameRoi::within`), so the start never moves the pattern.
+    pub(crate) fn delivered_bayer_pattern(&self, sdk: &AsiSdk) -> Option<BayerPattern> {
+        let info = self.camera_info.as_ref().filter(|i| i.is_color_cam != 0)?;
+        let sensor = match info.bayer_pattern {
+            1 => BayerPattern::Bggr,
+            2 => BayerPattern::Grbg,
+            3 => BayerPattern::Gbrg,
+            _ => BayerPattern::Rggb,
+        };
+        let mono_binned = self.current_bin > 1
+            && self
+                .get_control(sdk, ASIControlType::ASI_MONO_BIN)
+                .is_ok_and(|on| on != 0);
+        if mono_binned {
+            return None;
+        }
+        let flip = self.get_control(sdk, ASIControlType::ASI_FLIP).unwrap_or(0);
+        Some(mirrored(sensor, flip & 1 != 0, flip & 2 != 0))
+    }
+}
+
+/// The pattern of a Bayer mosaic of even width and height after mirroring it
+/// left to right (`columns`) and/or top to bottom (`rows`).
+pub(crate) fn mirrored(pattern: BayerPattern, columns: bool, rows: bool) -> BayerPattern {
+    let mut cell: Vec<char> = pattern.fits_name().chars().collect();
+    if columns {
+        cell.swap(0, 1);
+        cell.swap(2, 3);
+    }
+    if rows {
+        cell.swap(0, 2);
+        cell.swap(1, 3);
+    }
+    BayerPattern::from_fits_name(&cell.into_iter().collect::<String>()).unwrap_or(pattern)
+}
+
+/// A frame region in binned pixels, in the multiples the SDK takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct FrameRoi {
+    pub(crate) x: c_int,
+    pub(crate) y: c_int,
+    pub(crate) width: c_int,
+    pub(crate) height: c_int,
+}
+
+impl FrameRoi {
+    /// The region for `subframe` (or the whole frame) on a binned sensor of
+    /// `sensor_width` x `sensor_height`; `None` when it does not fit.
+    ///
+    /// ASICamera2.h: the width is a multiple of 8 and the height of 2, so both
+    /// round down, as INDI and NINA do. On a color sensor the start rounds down
+    /// to an even pixel, so the frame begins on the cell the camera's pattern
+    /// names.
+    pub(crate) fn within(
+        sensor_width: i32,
+        sensor_height: i32,
+        color: bool,
+        subframe: Option<&SubFrame>,
+    ) -> Option<Self> {
+        let roi = match subframe {
+            None => Self {
+                x: 0,
+                y: 0,
+                width: sensor_width & !7,
+                height: sensor_height & !1,
+            },
+            Some(sf) => {
+                let start_mask = if color { !1 } else { !0 };
+                Self {
+                    x: i32::try_from(sf.start_x).ok()? & start_mask,
+                    y: i32::try_from(sf.start_y).ok()? & start_mask,
+                    width: i32::try_from(sf.width).ok()? & !7,
+                    height: i32::try_from(sf.height).ok()? & !1,
                 }
             }
-        }
+        };
+        let fits = roi.width > 0
+            && roi.height > 0
+            && roi
+                .x
+                .checked_add(roi.width)
+                .is_some_and(|end| end <= sensor_width)
+            && roi
+                .y
+                .checked_add(roi.height)
+                .is_some_and(|end| end <= sensor_height);
+        fits.then_some(roi)
+    }
 
-        Err(DriverError::NotSupported)
+    pub(crate) fn as_subframe(&self) -> SubFrame {
+        // Non-negative by construction in `within`.
+        SubFrame {
+            start_x: self.x as u32,
+            start_y: self.y as u32,
+            width: self.width as u32,
+            height: self.height as u32,
+        }
     }
 }
 

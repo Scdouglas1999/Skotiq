@@ -126,7 +126,7 @@ pub(crate) async fn get_ascom_capabilities(
                 .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?
         } else {
             let mut wrapper = AscomCameraWrapper::new(prog_id.clone())
-                .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             wrapper
                 .connect()
                 .await
@@ -145,7 +145,7 @@ pub(crate) async fn get_ascom_capabilities(
             bit_depth: ascom_caps.bit_depth,
             has_shutter: ascom_caps.has_shutter,
             can_set_ccd_temperature: ascom_caps.can_set_ccd_temperature,
-            can_set_cooler: ascom_caps.can_set_ccd_temperature, // ASCOM doesn't distinguish
+            can_set_cooler: ascom_caps.has_cooler,
             can_get_cooler_power: ascom_caps.can_get_cooler_power,
             can_bin: ascom_caps.can_bin,
             max_bin_x: ascom_caps.max_bin_x,
@@ -158,6 +158,15 @@ pub(crate) async fn get_ascom_capabilities(
             bayer_pattern: ascom_caps.bayer_pattern,
             sensor_type: ascom_caps.sensor_name,
             readout_modes: ascom_caps.readout_modes,
+            can_set_gain: ascom_caps.controls.gain.is_present(),
+            gain_min: ascom_caps.controls.gain.range().map(|(min, _)| min),
+            gain_max: ascom_caps.controls.gain.range().map(|(_, max)| max),
+            can_set_offset: ascom_caps.controls.offset.is_present(),
+            offset_min: ascom_caps.controls.offset.range().map(|(min, _)| min),
+            offset_max: ascom_caps.controls.offset.range().map(|(_, max)| max),
+            can_asymmetric_bin: ascom_caps.can_asymmetric_bin,
+            exposure_min: ascom_caps.exposure_min,
+            exposure_max: ascom_caps.exposure_max,
             // Why: ASCOM ICameraV3 exposes SetCCDTemperature (the setpoint) but no
             // property bounding the achievable range, so the wrapper cannot report
             // one. None = "range unknown"; the UI shows the setpoint field unclamped.
@@ -179,7 +188,7 @@ pub(crate) async fn get_ascom_capabilities(
                 .map_err(|e| SkotiqError::hardware_error(device_id, format!("{:?}", e)))?
         } else {
             let mut wrapper = AscomMountWrapper::new(prog_id.clone())
-                .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             wrapper
                 .connect()
                 .await

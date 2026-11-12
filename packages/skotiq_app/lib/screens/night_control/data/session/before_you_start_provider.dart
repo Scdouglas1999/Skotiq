@@ -119,12 +119,77 @@ final nightPlanUnparksMountProvider = Provider<bool?>((ref) {
   );
 });
 
+NightText _cameraCheckDetail(CameraStateSnapshot camera) {
+  final temp = camera.temperature;
+  if (temp == null) return const NightText('nightSessionCheckConnected');
+  if (camera.isCooling && (temp - camera.targetTemp).abs() >= 0.5) {
+    return NightText(
+      'nightSessionCheckCameraCooling',
+      params: <String, String>{
+        'temp': nightFixed(temp, 1),
+        'target': nightFixed(camera.targetTemp, 0),
+      },
+    );
+  }
+  return NightText(
+    'nightSessionCheckCameraAt',
+    params: <String, String>{'temp': nightCelsius(temp)},
+  );
+}
+
+NightText _filterCheckDetail(FilterWheelState wheel) {
+  final slot = wheel.currentPosition;
+  final names = wheel.filterNames;
+  final name =
+      slot != null && slot >= 0 && slot < names.length ? names[slot] : null;
+  return NightText(
+    name == null || name.isEmpty
+        ? 'nightSessionCheckFilterSlots'
+        : 'nightSessionCheckFilterSlotsAt',
+    params: <String, String>{
+      'count': '${names.length}',
+      if (name != null) 'name': name,
+    },
+  );
+}
+
 final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
-  final camera = ref.watch(cameraStateProvider);
-  final wheel = ref.watch(filterWheelStateProvider);
-  final focuser = ref.watch(focuserStateProvider);
-  final mount = ref.watch(mountStateProvider);
-  final guider = ref.watch(guiderStateProvider);
+  // Each device through a select of what its row shows: a whole state changes
+  // with every telemetry poll, and each recompute costs a frame.
+  final camera = ref.watch(
+    cameraStateProvider.select(
+      (c) => (
+        connected: nightConnected(c.connectionState),
+        detail: _cameraCheckDetail(c),
+      ),
+    ),
+  );
+  final wheel = ref.watch(
+    filterWheelStateProvider.select(
+      (w) => (
+        connected: nightConnected(w.connectionState),
+        detail: _filterCheckDetail(w),
+      ),
+    ),
+  );
+  final focuser = ref.watch(
+    focuserStateProvider.select(
+      (f) =>
+          (connected: nightConnected(f.connectionState), position: f.position),
+    ),
+  );
+  final mount = ref.watch(
+    mountStateProvider.select(
+      (m) => (
+        connected: nightConnected(m.connectionState),
+        isParked: m.isParked,
+        isTracking: m.isTracking,
+      ),
+    ),
+  );
+  final guiderConnected = ref.watch(
+    guiderStateProvider.select((g) => nightConnected(g.connectionState)),
+  );
   final phd2 = ref.watch(phd2StateProvider);
   final assigned = ref.watch(rigDevicesProvider).assigned.toSet();
   final settings = ref.watch(appSettingsProvider).valueOrNull;
@@ -138,7 +203,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   final rows = <ChecklistItemVm>[];
 
   // Camera: the one device a run cannot start without.
-  if (!nightConnected(camera.connectionState)) {
+  if (!camera.connected) {
     rows.add(
       _notConnected(
         ChecklistItemId.camera,
@@ -147,51 +212,25 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
       ),
     );
   } else {
-    final temp = camera.temperature;
     rows.add(
       _row(
         ChecklistItemId.camera,
         ChecklistItemState.ok,
         'nightSessionCheckCamera',
-        detail: temp == null
-            ? const NightText('nightSessionCheckConnected')
-            : camera.isCooling && (temp - camera.targetTemp).abs() >= 0.5
-                ? NightText(
-                    'nightSessionCheckCameraCooling',
-                    params: <String, String>{
-                      'temp': nightFixed(temp, 1),
-                      'target': nightFixed(camera.targetTemp, 0),
-                    },
-                  )
-                : NightText(
-                    'nightSessionCheckCameraAt',
-                    params: <String, String>{'temp': nightCelsius(temp)},
-                  ),
+        detail: camera.detail,
       ),
     );
   }
 
   // Filter wheel and focuser: checked when connected or when the profile
   // assigns one.
-  if (nightConnected(wheel.connectionState)) {
-    final slot = wheel.currentPosition;
-    final names = wheel.filterNames;
-    final name =
-        slot != null && slot >= 0 && slot < names.length ? names[slot] : null;
+  if (wheel.connected) {
     rows.add(
       _row(
         ChecklistItemId.filterWheel,
         ChecklistItemState.ok,
         'nightSessionCheckFilter',
-        detail: NightText(
-          name == null || name.isEmpty
-              ? 'nightSessionCheckFilterSlots'
-              : 'nightSessionCheckFilterSlotsAt',
-          params: <String, String>{
-            'count': '${names.length}',
-            if (name != null) 'name': name,
-          },
-        ),
+        detail: wheel.detail,
       ),
     );
   } else if (assigned.contains(DeviceType.filterWheel)) {
@@ -204,7 +243,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
     );
   }
 
-  if (nightConnected(focuser.connectionState)) {
+  if (focuser.connected) {
     final position = focuser.position;
     rows.add(
       _row(
@@ -230,7 +269,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   // mount needs a look rather than blocking. Parked is where a mount rests
   // between nights: it needs a look only under a plan that would leave it
   // there.
-  if (nightConnected(mount.connectionState)) {
+  if (mount.connected) {
     final staysParked = mount.isParked && planUnparks == false;
     rows.add(
       _row(
@@ -263,7 +302,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
   }
 
   // Guider: connected but idle is the board's "!" row with an in-place Loop.
-  if (nightConnected(guider.connectionState)) {
+  if (guiderConnected) {
     final working = phd2 == Phd2State.guiding ||
         phd2 == Phd2State.looping ||
         phd2 == Phd2State.calibrating ||

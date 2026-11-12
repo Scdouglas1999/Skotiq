@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 
 import '../backend/skotiq_backend.dart';
 import '../models/backend/host_mutation_event.dart';
+import '../models/imaging/frame_files.dart';
 import '../providers/async_scope.dart';
 import '../providers/backend_provider.dart';
 import '../providers/dark_library_provider.dart';
@@ -396,9 +397,13 @@ class CalibrationService {
   ///
   /// Adds "_cal" suffix before the extension:
   ///   "image_001.fits" -> "image_001_cal.fits"
+  /// The calibrated copy keeps the light's format; a camera raw light, which
+  /// Skotiq cannot write, gets a FITS copy.
   String _generateCalOutputPath(String lightPath, path.Context paths) {
     final dir = paths.dirname(lightPath);
-    final ext = paths.extension(lightPath);
+    final ext = FrameFiles.isCameraRaw(lightPath)
+        ? '.${FrameFiles.fits.first}'
+        : paths.extension(lightPath);
     final baseName = paths.basenameWithoutExtension(lightPath);
     return paths.join(dir, '${baseName}_cal$ext');
   }

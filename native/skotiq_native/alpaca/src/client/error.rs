@@ -217,15 +217,19 @@ impl From<serde_json::Error> for AlpacaError {
     }
 }
 
-// Backward compatibility: convert AlpacaError to String for existing code
-impl From<AlpacaError> for String {
-    fn from(err: AlpacaError) -> Self {
-        err.to_string()
-    }
-}
-
+/// The kind of failure an Alpaca error names. A failure of no particular kind
+/// stays the protocol's own error, for its wording.
 impl From<AlpacaError> for skotiq_device::DriverError {
     fn from(err: AlpacaError) -> Self {
-        skotiq_device::DriverError::Backend(Box::new(err))
+        use skotiq_device::DriverError;
+        match &err {
+            AlpacaError::NotConnected => DriverError::NotConnected,
+            AlpacaError::Timeout { .. } => DriverError::Timeout(err.to_string()),
+            AlpacaError::DeviceError { code, message } => {
+                skotiq_device::ascom::classify_error_number(*code, message)
+                    .unwrap_or_else(|| DriverError::Backend(Box::new(err)))
+            }
+            _ => DriverError::Backend(Box::new(err)),
+        }
     }
 }

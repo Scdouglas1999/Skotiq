@@ -92,7 +92,6 @@ impl CameraOps for NullDeviceOps {
         } = request;
         if subframe.is_some() {
             return Err(DeviceError::unsupported(
-                "camera_start_exposure",
                 "Camera subframes are not supported by this device backend",
             ));
         }

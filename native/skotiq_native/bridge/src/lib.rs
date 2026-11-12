@@ -58,7 +58,6 @@ mod ascom_sensor_type;
 #[cfg(windows)]
 mod ascom_wrapper;
 mod builtin_guider;
-mod capture_file_format;
 mod depthlock_service;
 mod device;
 mod device_capabilities;
@@ -70,6 +69,7 @@ mod event;
 mod filter_matching;
 mod frame_display;
 mod frame_header;
+mod guider;
 mod hotplug;
 mod last_frame;
 /// THE simulated-capture entry point: the one place a simulated frame is

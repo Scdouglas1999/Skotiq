@@ -1,11 +1,11 @@
 /// One declared application setting: its name, where and how it is stored,
 /// its default, its bounds, who owns it when a client is linked to a host, and
-/// which part of the native executor's configuration it feeds.
+/// where the executor's run configuration takes it.
 ///
 /// Everything else about a setting is derived from its declaration in
 /// `app_settings_table.dart`: the field on `AppSettingsState`, the stored row,
-/// the host/client wire value, export and import, the install seed, and the
-/// push to the running executor.
+/// the host/client wire value, export and import, the install seed, and its
+/// place in the run configuration.
 library;
 
 import 'dart:convert';
@@ -23,22 +23,6 @@ enum SettingSync {
   /// It belongs to the computer whose database holds it. A linked client
   /// cannot change it, and a write from one is refused.
   thisComputer,
-}
-
-/// The parts of the native executor's configuration that settings feed. A
-/// setting tagged with one of these is pushed when a run starts and again
-/// whenever it changes during a run.
-enum ExecutorConfig {
-  location,
-  parkPolicy,
-  deviceRetries,
-  qualityPolicy,
-  safetyFailMode,
-  qualityCheck,
-  rejectFolder,
-  observerProfile,
-  adaptiveExposure,
-  filterOffsets,
 }
 
 /// Returned by [Setting.fromJson] for a wire value of the wrong shape.
@@ -76,7 +60,7 @@ sealed class Setting<T> {
     this.sync = SettingSync.host,
     this.wireKey,
     this.clientKeepsOwn = false,
-    this.feeds,
+    this.runConfig,
     this.seed,
     this.seeded = false,
     this.adminOnly,
@@ -100,7 +84,12 @@ sealed class Setting<T> {
   /// database instead of writing the host's.
   final bool clientKeepsOwn;
 
-  final ExecutorConfig? feeds;
+  /// The field of the executor's run configuration (the native `RunConfig`)
+  /// this setting is copied into as it is stored, as a dotted path such as
+  /// `device_retry.camera_retries`. A setting the run configuration takes
+  /// worked out from more than itself (a site, minutes into seconds, two
+  /// settings into one field) has none and is built in `run_config_sync.dart`.
+  final String? runConfig;
 
   /// Row text written at install when it differs from the encoded [fallback].
   final String? seed;
@@ -180,7 +169,7 @@ final class BoolSetting extends Setting<bool> {
     super.sync,
     super.wireKey,
     super.clientKeepsOwn,
-    super.feeds,
+    super.runConfig,
     super.seed,
     super.seeded,
     super.adminOnly,
@@ -231,7 +220,7 @@ final class OptionalBoolSetting extends Setting<bool?> {
     String key, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   }) : super(field, key, null);
 
@@ -266,7 +255,7 @@ final class IntSetting extends Setting<int> {
     this.inputMax,
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seed,
     super.seeded,
     super.adminOnly,
@@ -334,7 +323,7 @@ final class DoubleSetting extends Setting<double> {
     this.inputMax,
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seed,
     super.seeded,
   });
@@ -404,7 +393,7 @@ final class OptionalIntSetting extends Setting<int?> {
     super.fallback, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   });
 
@@ -439,7 +428,7 @@ final class OptionalDoubleSetting extends Setting<double?> {
     super.fallback, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   });
 
@@ -478,7 +467,7 @@ final class TextSetting extends Setting<String> {
     super.sync,
     super.wireKey,
     super.clientKeepsOwn,
-    super.feeds,
+    super.runConfig,
     super.seed,
     super.seeded,
     super.adminOnly,
@@ -556,7 +545,7 @@ final class OptionalTextSetting extends Setting<String?> {
     this.unsetText = 'null',
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
     super.adminOnly,
   }) : super(field, key, null);
@@ -594,7 +583,7 @@ final class EnumSetting<E extends Enum> extends Setting<E> {
     this.values, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   });
 
@@ -635,7 +624,7 @@ final class BoolMapSetting extends Setting<Map<String, bool>> {
     String key, {
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   }) : super(field, key, const {});
 
@@ -690,7 +679,7 @@ final class DoubleMapSetting extends Setting<Map<String, double>> {
     this.fixedKeys = false,
     super.sync,
     super.wireKey,
-    super.feeds,
+    super.runConfig,
     super.seeded,
   }) : super(field, key, entries);
 

@@ -104,7 +104,12 @@ fn every_sample_format_codec_and_shuffle_round_trips() {
                     (image.width, image.height, image.channels, image.pixel_type),
                     "{what}"
                 );
-                assert_eq!(cards(&back_header), cards(&header), "{what}");
+                // The header leads with the image size, as a FITS header does.
+                let mut size = FitsHeader::new();
+                size.set_image_size(image.width, image.height, image.channels);
+                let expected: Vec<_> = cards(&size).into_iter().chain(cards(&header)).collect();
+                assert_eq!(cards(&back_header), expected, "{what}");
+                assert_eq!(cards(&read_frame_header(&path).unwrap()), expected, "{what}");
                 assert_eq!(back_header.comments, header.comments, "{what}");
                 assert_eq!(back_header.history, header.history, "{what}");
             }

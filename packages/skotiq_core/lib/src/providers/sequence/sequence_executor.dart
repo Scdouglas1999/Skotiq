@@ -198,12 +198,11 @@ class SequenceExecutor {
   /// Per-frame cadence smoother backing the run's ETA.
   final EtaSmoother _eta = EtaSmoother();
 
-  /// Pushes the operator's settings into the native runtime config, before
-  /// launch and while the run is live.
+  /// The launch wiring, the run's settings (through [RunConfigSync]) and the
+  /// run's sky feed.
   late final RuntimeConfigSync _runtimeConfig = RuntimeConfigSync(
     ref: _ref,
     backend: _backend,
-    serializer: _serializer,
     logger: () => _logger,
     warn: _surfaceRunWarning,
     isDisposed: () => _disposed,

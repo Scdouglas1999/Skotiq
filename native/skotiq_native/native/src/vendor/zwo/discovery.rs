@@ -224,12 +224,7 @@ fn discover_devices_locked(
         let result = unsafe { (sdk.get_camera_property)(&mut info, i) };
 
         if result == 0 {
-            // SAFETY: ASI SDK guarantees `info.name` is a NUL-terminated UTF-8 string within the 64-byte array; to_string_lossy handles any non-UTF8 bytes by replacing them.
-            let name = unsafe {
-                CStr::from_ptr(info.name.as_ptr())
-                    .to_string_lossy()
-                    .to_string()
-            };
+            let name = safe_cstr_to_string(info.name.as_ptr(), 64);
             tracing::info!(
                 "Found ZWO camera: {} (ID: {}, index: {})",
                 name,

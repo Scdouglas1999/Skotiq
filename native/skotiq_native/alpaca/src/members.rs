@@ -117,11 +117,13 @@ macro_rules! alpaca_member {
 }
 
 /// Declares an Alpaca device wrapper with everything the ten kinds share.
+/// A kind may add fields of its own, each starting from its `Default`.
 macro_rules! alpaca_device {
-    ($(#[$meta:meta])* $name:ident, $device_type:ident) => {
+    ($(#[$meta:meta])* $name:ident, $device_type:ident $(, { $($field:ident : $fty:ty),* $(,)? })?) => {
         $(#[$meta])*
         pub struct $name {
             client: $crate::AlpacaClient,
+            $($($field: $fty,)*)?
         }
 
         impl $name {
@@ -129,6 +131,7 @@ macro_rules! alpaca_device {
                 assert_eq!(device.device_type, $crate::AlpacaDeviceType::$device_type);
                 Self {
                     client: $crate::AlpacaClient::new(device),
+                    $($($field: Default::default(),)*)?
                 }
             }
 

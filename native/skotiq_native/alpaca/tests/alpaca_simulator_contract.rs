@@ -176,7 +176,7 @@ async fn handle_connection(mut stream: TcpStream, state: SimState) -> std::io::R
         ("GET", "camera", "ccdtemperature") => json!(-10.5),
         ("GET", "camera", "cooleron") => json!(true),
         ("GET", "camera", "coolerpower") => json!(42.0),
-        ("GET", "camera", "imagearrayvariant") => {
+        ("GET", "camera", "imagearray") => {
             json!({"Type": 8, "Rank": 2, "Value": [[10, 20], [30, 40]]})
         }
         ("PUT", "camera", "startexposure") => Value::Null,
@@ -219,10 +219,10 @@ async fn handle_connection(mut stream: TcpStream, state: SimState) -> std::io::R
     let body = if method == "GET"
         && device == "camera"
         && device_number == "98"
-        && endpoint == "imagearrayvariant"
+        && endpoint == "imagearray"
     {
         "{\"Type\":8,\"Rank\":2,\"Value\":[[1,2],[3,4]]".to_string()
-    } else if method == "GET" && device == "camera" && endpoint == "imagearrayvariant" {
+    } else if method == "GET" && device == "camera" && endpoint == "imagearray" {
         value.to_string()
     } else {
         let error_number = if matches!(value, Value::String(ref s) if s.starts_with("unhandled ")) {
@@ -278,7 +278,8 @@ async fn alpaca_simulator_camera_filterwheel_and_telescope_contract() {
     assert!(camera.image_ready().await.unwrap());
     let (width, height, pixels) = camera.download_image_data().await.unwrap();
     assert_eq!((width, height), (2, 2));
-    assert_eq!(pixels, vec![10, 20, 30, 40]);
+    // The server's [x][y] columns [10, 20] and [30, 40], row by row.
+    assert_eq!(pixels, vec![10, 30, 20, 40]);
     camera.abort_exposure().await.unwrap();
 
     let filter_wheel = AlpacaFilterWheel::from_server(&base_url, 0);
@@ -300,7 +301,7 @@ async fn alpaca_simulator_camera_filterwheel_and_telescope_contract() {
     for expected in [
         "PUT /api/v1/camera/0/connected",
         "PUT /api/v1/camera/0/startexposure",
-        "GET /api/v1/camera/0/imagearrayvariant",
+        "GET /api/v1/camera/0/imagearray",
         "PUT /api/v1/camera/0/abortexposure",
         "PUT /api/v1/filterwheel/0/position",
         "PUT /api/v1/telescope/0/tracking",
@@ -334,7 +335,7 @@ async fn alpaca_simulator_fault_contract_surfaces_device_and_payload_errors() {
     let image_err = malformed_camera
         .download_image_data()
         .await
-        .expect_err("malformed imagearrayvariant JSON should fail image download")
+        .expect_err("malformed imagearray JSON should fail image download")
         .to_string();
     assert!(
         image_err.contains("JSON") || image_err.contains("parse") || image_err.contains("EOF"),

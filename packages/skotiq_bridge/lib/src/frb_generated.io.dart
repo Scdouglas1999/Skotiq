@@ -29,6 +29,7 @@ import 'api/event_stream.dart';
 import 'api/finishing_analyze.dart';
 import 'api/finishing_combine.dart';
 import 'api/finishing_enhance.dart';
+import 'api/guiding.dart';
 import 'api/heartbeat.dart';
 import 'api/hotplug.dart';
 import 'api/imaging.dart';
@@ -64,6 +65,7 @@ import 'event/imaging.dart';
 import 'event/sequencer.dart';
 import 'event/system.dart';
 import 'frb_generated.dart';
+import 'guider.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 import 'state.dart';
 import 'storage.dart';
@@ -90,9 +92,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Map<String, FieldAvailability> dco_decode_Map_String_field_availability_None(
     dynamic raw,
   );
-
-  @protected
-  Map<String, int> dco_decode_Map_String_i_32_None(dynamic raw);
 
   @protected
   Map<String, int> dco_decode_Map_String_u_32_None(dynamic raw);
@@ -322,11 +321,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (double, double) dco_decode_box_autoadd_record_f_64_f_64(dynamic raw);
 
   @protected
-  RecoveryConfigUpdate dco_decode_box_autoadd_recovery_config_update(
-    dynamic raw,
-  );
-
-  @protected
   RotatorCapabilities dco_decode_box_autoadd_rotator_capabilities(dynamic raw);
 
   @protected
@@ -344,6 +338,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent dco_decode_box_autoadd_sequencer_event(dynamic raw);
+
+  @protected
+  SequencerNotice dco_decode_box_autoadd_sequencer_notice(dynamic raw);
 
   @protected
   ShutterStatus dco_decode_box_autoadd_shutter_status(dynamic raw);
@@ -497,6 +494,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrameType dco_decode_frame_type(dynamic raw);
 
   @protected
+  GuideStarImage dco_decode_guide_star_image(dynamic raw);
+
+  @protected
+  GuiderCalibration dco_decode_guider_calibration(dynamic raw);
+
+  @protected
+  GuiderStatus dco_decode_guider_status(dynamic raw);
+
+  @protected
   GuidingEvent dco_decode_guiding_event(dynamic raw);
 
   @protected
@@ -527,9 +533,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ApiDepthGoal> dco_decode_list_api_depth_goal(dynamic raw);
 
   @protected
-  List<bool> dco_decode_list_bool(dynamic raw);
-
-  @protected
   List<DetectedStarInfo> dco_decode_list_detected_star_info(dynamic raw);
 
   @protected
@@ -549,9 +552,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<MountGuardStatus> dco_decode_list_mount_guard_status(dynamic raw);
-
-  @protected
-  List<double> dco_decode_list_prim_f_64_loose(dynamic raw);
 
   @protected
   Float64List dco_decode_list_prim_f_64_strict(dynamic raw);
@@ -593,9 +593,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   dco_decode_list_record_string_field_availability(dynamic raw);
 
   @protected
-  List<(String, int)> dco_decode_list_record_string_i_32(dynamic raw);
-
-  @protected
   List<(String, Map<String, double>)>
   dco_decode_list_record_string_map_string_f_64_none(dynamic raw);
 
@@ -610,6 +607,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SwitchInfo> dco_decode_list_switch_info(dynamic raw);
+
+  @protected
+  List<TrackedGuideStar> dco_decode_list_tracked_guide_star(dynamic raw);
 
   @protected
   List<TrackingRate> dco_decode_list_tracking_rate(dynamic raw);
@@ -651,9 +651,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ObserverLocation dco_decode_observer_location(dynamic raw);
-
-  @protected
-  Map<String, int>? dco_decode_opt_Map_String_i_32_None(dynamic raw);
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
@@ -731,6 +728,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (double, double)? dco_decode_opt_box_autoadd_record_f_64_f_64(dynamic raw);
 
   @protected
+  SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw);
+
+  @protected
   ShutterStatus? dco_decode_opt_box_autoadd_shutter_status(dynamic raw);
 
   @protected
@@ -755,15 +755,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Uint16List? dco_decode_opt_list_prim_u_16_strict(dynamic raw);
-
-  @protected
-  Phd2CalibrationData dco_decode_phd_2_calibration_data(dynamic raw);
-
-  @protected
-  Phd2StarImage dco_decode_phd_2_star_image(dynamic raw);
-
-  @protected
-  Phd2Status dco_decode_phd_2_status(dynamic raw);
 
   @protected
   PierSide dco_decode_pier_side(dynamic raw);
@@ -822,18 +813,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (String, int) dco_decode_record_string_i_32(dynamic raw);
-
-  @protected
   (String, Map<String, double>) dco_decode_record_string_map_string_f_64_none(
     dynamic raw,
   );
 
   @protected
   (String, int) dco_decode_record_string_u_32(dynamic raw);
-
-  @protected
-  RecoveryConfigUpdate dco_decode_recovery_config_update(dynamic raw);
 
   @protected
   RotatorCapabilities dco_decode_rotator_capabilities(dynamic raw);
@@ -864,6 +849,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent dco_decode_sequencer_event(dynamic raw);
+
+  @protected
+  SequencerNotice dco_decode_sequencer_notice(dynamic raw);
 
   @protected
   SequencerState dco_decode_sequencer_state(dynamic raw);
@@ -929,6 +917,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SystemEvent dco_decode_system_event(dynamic raw);
 
   @protected
+  TrackedGuideStar dco_decode_tracked_guide_star(dynamic raw);
+
+  @protected
   TrackingRate dco_decode_tracking_rate(dynamic raw);
 
   @protected
@@ -966,11 +957,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   Map<String, FieldAvailability> sse_decode_Map_String_field_availability_None(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  Map<String, int> sse_decode_Map_String_i_32_None(
     SseDeserializer deserializer,
   );
 
@@ -1282,11 +1268,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RecoveryConfigUpdate sse_decode_box_autoadd_recovery_config_update(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   RotatorCapabilities sse_decode_box_autoadd_rotator_capabilities(
     SseDeserializer deserializer,
   );
@@ -1306,6 +1287,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent sse_decode_box_autoadd_sequencer_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SequencerNotice sse_decode_box_autoadd_sequencer_notice(
     SseDeserializer deserializer,
   );
 
@@ -1495,6 +1481,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FrameType sse_decode_frame_type(SseDeserializer deserializer);
 
   @protected
+  GuideStarImage sse_decode_guide_star_image(SseDeserializer deserializer);
+
+  @protected
+  GuiderCalibration sse_decode_guider_calibration(SseDeserializer deserializer);
+
+  @protected
+  GuiderStatus sse_decode_guider_status(SseDeserializer deserializer);
+
+  @protected
   GuidingEvent sse_decode_guiding_event(SseDeserializer deserializer);
 
   @protected
@@ -1529,9 +1524,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<bool> sse_decode_list_bool(SseDeserializer deserializer);
-
-  @protected
   List<DetectedStarInfo> sse_decode_list_detected_star_info(
     SseDeserializer deserializer,
   );
@@ -1561,9 +1553,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<MountGuardStatus> sse_decode_list_mount_guard_status(
     SseDeserializer deserializer,
   );
-
-  @protected
-  List<double> sse_decode_list_prim_f_64_loose(SseDeserializer deserializer);
 
   @protected
   Float64List sse_decode_list_prim_f_64_strict(SseDeserializer deserializer);
@@ -1609,11 +1598,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<(String, int)> sse_decode_list_record_string_i_32(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   List<(String, Map<String, double>)>
   sse_decode_list_record_string_map_string_f_64_none(
     SseDeserializer deserializer,
@@ -1634,6 +1618,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SwitchInfo> sse_decode_list_switch_info(SseDeserializer deserializer);
+
+  @protected
+  List<TrackedGuideStar> sse_decode_list_tracked_guide_star(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<TrackingRate> sse_decode_list_tracking_rate(
@@ -1685,11 +1674,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ObserverLocation sse_decode_observer_location(SseDeserializer deserializer);
-
-  @protected
-  Map<String, int>? sse_decode_opt_Map_String_i_32_None(
-    SseDeserializer deserializer,
-  );
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
@@ -1785,6 +1769,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ShutterStatus? sse_decode_opt_box_autoadd_shutter_status(
     SseDeserializer deserializer,
   );
@@ -1815,17 +1804,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint16List? sse_decode_opt_list_prim_u_16_strict(
     SseDeserializer deserializer,
   );
-
-  @protected
-  Phd2CalibrationData sse_decode_phd_2_calibration_data(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  Phd2StarImage sse_decode_phd_2_star_image(SseDeserializer deserializer);
-
-  @protected
-  Phd2Status sse_decode_phd_2_status(SseDeserializer deserializer);
 
   @protected
   PierSide sse_decode_pier_side(SseDeserializer deserializer);
@@ -1904,20 +1882,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  (String, int) sse_decode_record_string_i_32(SseDeserializer deserializer);
-
-  @protected
   (String, Map<String, double>) sse_decode_record_string_map_string_f_64_none(
     SseDeserializer deserializer,
   );
 
   @protected
   (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer);
-
-  @protected
-  RecoveryConfigUpdate sse_decode_recovery_config_update(
-    SseDeserializer deserializer,
-  );
 
   @protected
   RotatorCapabilities sse_decode_rotator_capabilities(
@@ -1960,6 +1930,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent sse_decode_sequencer_event(SseDeserializer deserializer);
+
+  @protected
+  SequencerNotice sse_decode_sequencer_notice(SseDeserializer deserializer);
 
   @protected
   SequencerState sse_decode_sequencer_state(SseDeserializer deserializer);
@@ -2035,6 +2008,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SystemEvent sse_decode_system_event(SseDeserializer deserializer);
 
   @protected
+  TrackedGuideStar sse_decode_tracked_guide_star(SseDeserializer deserializer);
+
+  @protected
   TrackingRate sse_decode_tracking_rate(SseDeserializer deserializer);
 
   @protected
@@ -2096,16 +2072,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_list_record_string_field_availability(
-      raw.entries.map((e) => (e.key, e.value)).toList(),
-    );
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_list_record_string_i_32> cst_encode_Map_String_i_32_None(
-    Map<String, int> raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return cst_encode_list_record_string_i_32(
       raw.entries.map((e) => (e.key, e.value)).toList(),
     );
   }
@@ -2515,15 +2481,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  ffi.Pointer<wire_cst_recovery_config_update>
-  cst_encode_box_autoadd_recovery_config_update(RecoveryConfigUpdate raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    final ptr = wire.cst_new_box_autoadd_recovery_config_update();
-    cst_api_fill_to_wire_recovery_config_update(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
   ffi.Pointer<wire_cst_rotator_capabilities>
   cst_encode_box_autoadd_rotator_capabilities(RotatorCapabilities raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -2570,6 +2527,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ptr = wire.cst_new_box_autoadd_sequencer_event();
     cst_api_fill_to_wire_sequencer_event(raw, ptr.ref);
     return ptr;
+  }
+
+  @protected
+  ffi.Pointer<ffi.Int32> cst_encode_box_autoadd_sequencer_notice(
+    SequencerNotice raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return wire.cst_new_box_autoadd_sequencer_notice(
+      cst_encode_sequencer_notice(raw),
+    );
   }
 
   @protected
@@ -2696,16 +2663,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  ffi.Pointer<wire_cst_list_bool> cst_encode_list_bool(List<bool> raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    final ans = wire.cst_new_list_bool(raw.length);
-    for (var i = 0; i < raw.length; ++i) {
-      ans.ref.ptr[i] = cst_encode_bool(raw[i]);
-    }
-    return ans;
-  }
-
-  @protected
   ffi.Pointer<wire_cst_list_detected_star_info>
   cst_encode_list_detected_star_info(List<DetectedStarInfo> raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
@@ -2782,16 +2739,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     for (var i = 0; i < raw.length; ++i) {
       cst_api_fill_to_wire_mount_guard_status(raw[i], ans.ref.ptr[i]);
     }
-    return ans;
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_list_prim_f_64_loose> cst_encode_list_prim_f_64_loose(
-    List<double> raw,
-  ) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    final ans = wire.cst_new_list_prim_f_64_loose(raw.length);
-    ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
     return ans;
   }
 
@@ -2926,17 +2873,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  ffi.Pointer<wire_cst_list_record_string_i_32>
-  cst_encode_list_record_string_i_32(List<(String, int)> raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    final ans = wire.cst_new_list_record_string_i_32(raw.length);
-    for (var i = 0; i < raw.length; ++i) {
-      cst_api_fill_to_wire_record_string_i_32(raw[i], ans.ref.ptr[i]);
-    }
-    return ans;
-  }
-
-  @protected
   ffi.Pointer<wire_cst_list_record_string_map_string_f_64_none>
   cst_encode_list_record_string_map_string_f_64_none(
     List<(String, Map<String, double>)> raw,
@@ -3001,6 +2937,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_tracked_guide_star>
+  cst_encode_list_tracked_guide_star(List<TrackedGuideStar> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_tracked_guide_star(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_tracked_guide_star(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_tracking_rate> cst_encode_list_tracking_rate(
     List<TrackingRate> raw,
   ) {
@@ -3010,13 +2957,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       ans.ref.ptr[i] = cst_encode_tracking_rate(raw[i]);
     }
     return ans;
-  }
-
-  @protected
-  ffi.Pointer<wire_cst_list_record_string_i_32>
-  cst_encode_opt_Map_String_i_32_None(Map<String, int>? raw) {
-    // Codec=Cst (C-struct based), see doc to use other codecs
-    return raw == null ? ffi.nullptr : cst_encode_Map_String_i_32_None(raw);
   }
 
   @protected
@@ -3195,6 +3135,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return raw == null
         ? ffi.nullptr
         : cst_encode_box_autoadd_record_f_64_f_64(raw);
+  }
+
+  @protected
+  ffi.Pointer<ffi.Int32> cst_encode_opt_box_autoadd_sequencer_notice(
+    SequencerNotice? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_sequencer_notice(raw);
   }
 
   @protected
@@ -3910,14 +3860,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_box_autoadd_recovery_config_update(
-    RecoveryConfigUpdate apiObj,
-    ffi.Pointer<wire_cst_recovery_config_update> wireObj,
-  ) {
-    cst_api_fill_to_wire_recovery_config_update(apiObj, wireObj.ref);
-  }
-
-  @protected
   void cst_api_fill_to_wire_box_autoadd_rotator_capabilities(
     RotatorCapabilities apiObj,
     ffi.Pointer<wire_cst_rotator_capabilities> wireObj,
@@ -4100,6 +4042,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.pixel_size_x = cst_encode_f_64(apiObj.pixelSizeX);
     wireObj.pixel_size_y = cst_encode_f_64(apiObj.pixelSizeY);
     wireObj.max_adu = cst_encode_u_32(apiObj.maxAdu);
+    wireObj.saturation_adu = cst_encode_opt_box_autoadd_u_32(
+      apiObj.saturationAdu,
+    );
     wireObj.can_cool = cst_encode_bool(apiObj.canCool);
     wireObj.can_set_gain = cst_encode_bool(apiObj.canSetGain);
     wireObj.can_set_offset = cst_encode_bool(apiObj.canSetOffset);
@@ -5036,6 +4981,51 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_guide_star_image(
+    GuideStarImage apiObj,
+    wire_cst_guide_star_image wireObj,
+  ) {
+    wireObj.frame = cst_encode_u_32(apiObj.frame);
+    wireObj.width = cst_encode_u_32(apiObj.width);
+    wireObj.height = cst_encode_u_32(apiObj.height);
+    wireObj.star_x = cst_encode_f_64(apiObj.starX);
+    wireObj.star_y = cst_encode_f_64(apiObj.starY);
+    wireObj.pixels = cst_encode_list_prim_u_8_strict(apiObj.pixels);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_guider_calibration(
+    GuiderCalibration apiObj,
+    wire_cst_guider_calibration wireObj,
+  ) {
+    wireObj.is_calibrated = cst_encode_bool(apiObj.isCalibrated);
+    wireObj.ra_angle = cst_encode_opt_box_autoadd_f_64(apiObj.raAngle);
+    wireObj.dec_angle = cst_encode_opt_box_autoadd_f_64(apiObj.decAngle);
+    wireObj.ra_rate = cst_encode_opt_box_autoadd_f_64(apiObj.raRate);
+    wireObj.dec_rate = cst_encode_opt_box_autoadd_f_64(apiObj.decRate);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_guider_status(
+    GuiderStatus apiObj,
+    wire_cst_guider_status wireObj,
+  ) {
+    wireObj.device_id = cst_encode_String(apiObj.deviceId);
+    wireObj.connected = cst_encode_bool(apiObj.connected);
+    wireObj.state = cst_encode_String(apiObj.state);
+    wireObj.rms_ra = cst_encode_f_64(apiObj.rmsRa);
+    wireObj.rms_dec = cst_encode_f_64(apiObj.rmsDec);
+    wireObj.rms_total = cst_encode_f_64(apiObj.rmsTotal);
+    wireObj.snr = cst_encode_f_64(apiObj.snr);
+    wireObj.star_mass = cst_encode_f_64(apiObj.starMass);
+    wireObj.pixel_scale = cst_encode_opt_box_autoadd_f_64(apiObj.pixelScale);
+    wireObj.stop_reason = cst_encode_opt_String(apiObj.stopReason);
+    wireObj.tracked_stars = cst_encode_list_tracked_guide_star(
+      apiObj.trackedStars,
+    );
+  }
+
+  @protected
   void cst_api_fill_to_wire_guiding_event(
     GuidingEvent apiObj,
     wire_cst_guiding_event wireObj,
@@ -5508,47 +5498,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_phd_2_calibration_data(
-    Phd2CalibrationData apiObj,
-    wire_cst_phd_2_calibration_data wireObj,
-  ) {
-    wireObj.is_calibrated = cst_encode_bool(apiObj.isCalibrated);
-    wireObj.ra_angle = cst_encode_opt_box_autoadd_f_64(apiObj.raAngle);
-    wireObj.dec_angle = cst_encode_opt_box_autoadd_f_64(apiObj.decAngle);
-    wireObj.ra_rate = cst_encode_opt_box_autoadd_f_64(apiObj.raRate);
-    wireObj.dec_rate = cst_encode_opt_box_autoadd_f_64(apiObj.decRate);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_phd_2_star_image(
-    Phd2StarImage apiObj,
-    wire_cst_phd_2_star_image wireObj,
-  ) {
-    wireObj.frame = cst_encode_u_32(apiObj.frame);
-    wireObj.width = cst_encode_u_32(apiObj.width);
-    wireObj.height = cst_encode_u_32(apiObj.height);
-    wireObj.star_x = cst_encode_f_64(apiObj.starX);
-    wireObj.star_y = cst_encode_f_64(apiObj.starY);
-    wireObj.pixels = cst_encode_list_prim_u_8_strict(apiObj.pixels);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_phd_2_status(
-    Phd2Status apiObj,
-    wire_cst_phd_2_status wireObj,
-  ) {
-    wireObj.connected = cst_encode_bool(apiObj.connected);
-    wireObj.state = cst_encode_String(apiObj.state);
-    wireObj.rms_ra = cst_encode_f_64(apiObj.rmsRa);
-    wireObj.rms_dec = cst_encode_f_64(apiObj.rmsDec);
-    wireObj.rms_total = cst_encode_f_64(apiObj.rmsTotal);
-    wireObj.snr = cst_encode_f_64(apiObj.snr);
-    wireObj.star_mass = cst_encode_f_64(apiObj.starMass);
-    wireObj.pixel_scale = cst_encode_opt_box_autoadd_f_64(apiObj.pixelScale);
-    wireObj.stop_reason = cst_encode_opt_String(apiObj.stopReason);
-  }
-
-  @protected
   void cst_api_fill_to_wire_plate_solve_result(
     PlateSolveResult apiObj,
     wire_cst_plate_solve_result wireObj,
@@ -5765,15 +5714,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
-  void cst_api_fill_to_wire_record_string_i_32(
-    (String, int) apiObj,
-    wire_cst_record_string_i_32 wireObj,
-  ) {
-    wireObj.field0 = cst_encode_String(apiObj.$1);
-    wireObj.field1 = cst_encode_i_32(apiObj.$2);
-  }
-
-  @protected
   void cst_api_fill_to_wire_record_string_map_string_f_64_none(
     (String, Map<String, double>) apiObj,
     wire_cst_record_string_map_string_f_64_none wireObj,
@@ -5789,25 +5729,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.field0 = cst_encode_String(apiObj.$1);
     wireObj.field1 = cst_encode_u_32(apiObj.$2);
-  }
-
-  @protected
-  void cst_api_fill_to_wire_recovery_config_update(
-    RecoveryConfigUpdate apiObj,
-    wire_cst_recovery_config_update wireObj,
-  ) {
-    wireObj.retry_interval_secs = cst_encode_f_64(apiObj.retryIntervalSecs);
-    wireObj.max_duration_secs = cst_encode_f_64(apiObj.maxDurationSecs);
-    wireObj.stop_tracking_during_recovery = cst_encode_bool(
-      apiObj.stopTrackingDuringRecovery,
-    );
-    wireObj.abort_on_meridian = cst_encode_bool(apiObj.abortOnMeridian);
-    wireObj.audible_alert_when_entered = cst_encode_bool(
-      apiObj.audibleAlertWhenEntered,
-    );
-    wireObj.park_and_close_when_recovery_gives_up = cst_encode_bool(
-      apiObj.parkAndCloseWhenRecoveryGivesUp,
-    );
   }
 
   @protected
@@ -6105,9 +6026,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SequencerEvent_Error) {
       var pre_message = cst_encode_String(apiObj.message);
       var pre_kind = cst_encode_sequencer_error_kind(apiObj.kind);
+      var pre_notice = cst_encode_opt_box_autoadd_sequencer_notice(
+        apiObj.notice,
+      );
       wireObj.tag = 13;
       wireObj.kind.Error.message = pre_message;
       wireObj.kind.Error.kind = pre_kind;
+      wireObj.kind.Error.notice = pre_notice;
       return;
     }
     if (apiObj is SequencerEvent_MeridianFlipOutcome) {
@@ -6563,6 +6488,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_sequence_run_id = cst_encode_opt_box_autoadd_i_64(
         apiObj.sequenceRunId,
       );
+      var pre_notice = cst_encode_opt_box_autoadd_sequencer_notice(
+        apiObj.notice,
+      );
       wireObj.tag = 33;
       wireObj.kind.DecisionLogged.timestamp_iso = pre_timestamp_iso;
       wireObj.kind.DecisionLogged.category = pre_category;
@@ -6570,6 +6498,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.DecisionLogged.details_json = pre_details_json;
       wireObj.kind.DecisionLogged.node_id = pre_node_id;
       wireObj.kind.DecisionLogged.sequence_run_id = pre_sequence_run_id;
+      wireObj.kind.DecisionLogged.notice = pre_notice;
       return;
     }
   }
@@ -6799,30 +6728,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.DeviceBusy.current_operation = pre_current_operation;
       return;
     }
-    if (apiObj is SkotiqError_ImageError) {
+    if (apiObj is SkotiqError_InvalidState) {
       var pre_field0 = cst_encode_String(apiObj.field0);
       wireObj.tag = 17;
+      wireObj.kind.InvalidState.field0 = pre_field0;
+      return;
+    }
+    if (apiObj is SkotiqError_ImageError) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 18;
       wireObj.kind.ImageError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_CameraError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 18;
+      wireObj.tag = 19;
       wireObj.kind.CameraError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_NoImageAvailable) {
-      wireObj.tag = 19;
+      wireObj.tag = 20;
       return;
     }
     if (apiObj is SkotiqError_ExposureCancelled) {
-      wireObj.tag = 20;
+      wireObj.tag = 21;
       return;
     }
     if (apiObj is SkotiqError_ExposureFailed) {
       var pre_camera_id = cst_encode_String(apiObj.cameraId);
       var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 21;
+      wireObj.tag = 22;
       wireObj.kind.ExposureFailed.camera_id = pre_camera_id;
       wireObj.kind.ExposureFailed.reason = pre_reason;
       return;
@@ -6830,32 +6765,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SkotiqError_DownloadFailed) {
       var pre_camera_id = cst_encode_String(apiObj.cameraId);
       var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 22;
+      wireObj.tag = 23;
       wireObj.kind.DownloadFailed.camera_id = pre_camera_id;
       wireObj.kind.DownloadFailed.reason = pre_reason;
       return;
     }
     if (apiObj is SkotiqError_IoError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 23;
+      wireObj.tag = 24;
       wireObj.kind.IoError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_SerializationError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 24;
+      wireObj.tag = 25;
       wireObj.kind.SerializationError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_PlateSolveError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 25;
+      wireObj.tag = 26;
       wireObj.kind.PlateSolveError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_SequenceError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 26;
+      wireObj.tag = 27;
       wireObj.kind.SequenceError.field0 = pre_field0;
       return;
     }
@@ -6863,7 +6798,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_prog_id = cst_encode_String(apiObj.progId);
       var pre_message = cst_encode_String(apiObj.message);
       var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 27;
+      wireObj.tag = 28;
       wireObj.kind.AscomError.prog_id = pre_prog_id;
       wireObj.kind.AscomError.message = pre_message;
       wireObj.kind.AscomError.error_code = pre_error_code;
@@ -6874,7 +6809,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_number = cst_encode_u_32(apiObj.deviceNumber);
       var pre_message = cst_encode_String(apiObj.message);
       var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 28;
+      wireObj.tag = 29;
       wireObj.kind.AlpacaError.base_url = pre_base_url;
       wireObj.kind.AlpacaError.device_number = pre_device_number;
       wireObj.kind.AlpacaError.message = pre_message;
@@ -6886,7 +6821,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_port = cst_encode_u_16(apiObj.port);
       var pre_device_name = cst_encode_String(apiObj.deviceName);
       var pre_message = cst_encode_String(apiObj.message);
-      wireObj.tag = 29;
+      wireObj.tag = 30;
       wireObj.kind.IndiError.server = pre_server;
       wireObj.kind.IndiError.port = pre_port;
       wireObj.kind.IndiError.device_name = pre_device_name;
@@ -6897,7 +6832,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_vendor = cst_encode_String(apiObj.vendor);
       var pre_message = cst_encode_String(apiObj.message);
       var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 30;
+      wireObj.tag = 31;
       wireObj.kind.NativeError.vendor = pre_vendor;
       wireObj.kind.NativeError.message = pre_message;
       wireObj.kind.NativeError.error_code = pre_error_code;
@@ -6906,31 +6841,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SkotiqError_ComError) {
       var pre_message = cst_encode_String(apiObj.message);
       var pre_hresult = cst_encode_u_32(apiObj.hresult);
-      wireObj.tag = 31;
+      wireObj.tag = 32;
       wireObj.kind.ComError.message = pre_message;
       wireObj.kind.ComError.hresult = pre_hresult;
       return;
     }
     if (apiObj is SkotiqError_Internal) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 32;
+      wireObj.tag = 33;
       wireObj.kind.Internal.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_Cancelled) {
-      wireObj.tag = 33;
+      wireObj.tag = 34;
       return;
     }
     if (apiObj is SkotiqError_RuntimeInitFailed) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 34;
+      wireObj.tag = 35;
       wireObj.kind.RuntimeInitFailed.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_ResourceExhausted) {
       var pre_resource = cst_encode_String(apiObj.resource);
       var pre_message = cst_encode_String(apiObj.message);
-      wireObj.tag = 35;
+      wireObj.tag = 36;
       wireObj.kind.ResourceExhausted.resource = pre_resource;
       wireObj.kind.ResourceExhausted.message = pre_message;
       return;
@@ -7098,6 +7033,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_tracked_guide_star(
+    TrackedGuideStar apiObj,
+    wire_cst_tracked_guide_star wireObj,
+  ) {
+    wireObj.id = cst_encode_u_32(apiObj.id);
+    wireObj.x = cst_encode_f_64(apiObj.x);
+    wireObj.y = cst_encode_f_64(apiObj.y);
+    wireObj.flux = cst_encode_f_64(apiObj.flux);
+    wireObj.snr = cst_encode_f_64(apiObj.snr);
+    wireObj.is_lock = cst_encode_bool(apiObj.isLock);
+    wireObj.residual = cst_encode_opt_box_autoadd_f_64(apiObj.residual);
+    wireObj.weight = cst_encode_f_64(apiObj.weight);
+  }
+
+  @protected
   void cst_api_fill_to_wire_weather_capabilities(
     WeatherCapabilities apiObj,
     wire_cst_weather_capabilities wireObj,
@@ -7190,6 +7140,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw);
 
   @protected
+  int cst_encode_sequencer_notice(SequencerNotice raw);
+
+  @protected
   int cst_encode_shutter_state(ShutterState raw);
 
   @protected
@@ -7231,12 +7184,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_Map_String_field_availability_None(
     Map<String, FieldAvailability> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_Map_String_i_32_None(
-    Map<String, int> self,
     SseSerializer serializer,
   );
 
@@ -7619,12 +7566,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_recovery_config_update(
-    RecoveryConfigUpdate self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_rotator_capabilities(
     RotatorCapabilities self,
     SseSerializer serializer,
@@ -7651,6 +7592,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_sequencer_event(
     SequencerEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sequencer_notice(
+    SequencerNotice self,
     SseSerializer serializer,
   );
 
@@ -7898,6 +7845,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_frame_type(FrameType self, SseSerializer serializer);
 
   @protected
+  void sse_encode_guide_star_image(
+    GuideStarImage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_guider_calibration(
+    GuiderCalibration self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_guider_status(GuiderStatus self, SseSerializer serializer);
+
+  @protected
   void sse_encode_guiding_event(GuidingEvent self, SseSerializer serializer);
 
   @protected
@@ -7940,9 +7902,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_bool(List<bool> self, SseSerializer serializer);
-
-  @protected
   void sse_encode_list_detected_star_info(
     List<DetectedStarInfo> self,
     SseSerializer serializer,
@@ -7981,12 +7940,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_mount_guard_status(
     List<MountGuardStatus> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_prim_f_64_loose(
-    List<double> self,
     SseSerializer serializer,
   );
 
@@ -8060,12 +8013,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_record_string_i_32(
-    List<(String, int)> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_list_record_string_map_string_f_64_none(
     List<(String, Map<String, double>)> self,
     SseSerializer serializer,
@@ -8092,6 +8039,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_switch_info(
     List<SwitchInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_tracked_guide_star(
+    List<TrackedGuideStar> self,
     SseSerializer serializer,
   );
 
@@ -8161,12 +8114,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_observer_location(
     ObserverLocation self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_opt_Map_String_i_32_None(
-    Map<String, int>? self,
     SseSerializer serializer,
   );
 
@@ -8282,6 +8229,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_sequencer_notice(
+    SequencerNotice? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_shutter_status(
     ShutterStatus? self,
     SseSerializer serializer,
@@ -8316,21 +8269,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     Uint16List? self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_phd_2_calibration_data(
-    Phd2CalibrationData self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_phd_2_star_image(
-    Phd2StarImage self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_phd_2_status(Phd2Status self, SseSerializer serializer);
 
   @protected
   void sse_encode_pier_side(PierSide self, SseSerializer serializer);
@@ -8432,12 +8370,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_record_string_i_32(
-    (String, int) self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_record_string_map_string_f_64_none(
     (String, Map<String, double>) self,
     SseSerializer serializer,
@@ -8446,12 +8378,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_record_string_u_32(
     (String, int) self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_recovery_config_update(
-    RecoveryConfigUpdate self,
     SseSerializer serializer,
   );
 
@@ -8503,6 +8429,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sequencer_event(
     SequencerEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sequencer_notice(
+    SequencerNotice self,
     SseSerializer serializer,
   );
 
@@ -8604,6 +8536,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_system_event(SystemEvent self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tracked_guide_star(
+    TrackedGuideStar self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_tracking_rate(TrackingRate self, SseSerializer serializer);
@@ -8881,35 +8819,19 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__phd2__api_builtin_guider_get_config(int port_) {
-    return _wire__crate__api__phd2__api_builtin_guider_get_config(port_);
+  void wire__crate__api__guiding__api_builtin_guider_get_config(int port_) {
+    return _wire__crate__api__guiding__api_builtin_guider_get_config(port_);
   }
 
-  late final _wire__crate__api__phd2__api_builtin_guider_get_configPtr =
+  late final _wire__crate__api__guiding__api_builtin_guider_get_configPtr =
       _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_get_config',
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_builtin_guider_get_config',
       );
-  late final _wire__crate__api__phd2__api_builtin_guider_get_config =
-      _wire__crate__api__phd2__api_builtin_guider_get_configPtr
+  late final _wire__crate__api__guiding__api_builtin_guider_get_config =
+      _wire__crate__api__guiding__api_builtin_guider_get_configPtr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__phd2__api_builtin_guider_get_tracked_stars_json(
-    int port_,
-  ) {
-    return _wire__crate__api__phd2__api_builtin_guider_get_tracked_stars_json(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__phd2__api_builtin_guider_get_tracked_stars_jsonPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_get_tracked_stars_json',
-      );
-  late final _wire__crate__api__phd2__api_builtin_guider_get_tracked_stars_json =
-      _wire__crate__api__phd2__api_builtin_guider_get_tracked_stars_jsonPtr
-          .asFunction<void Function(int)>();
-
-  void wire__crate__api__phd2__api_builtin_guider_set_config(
+  void wire__crate__api__guiding__api_builtin_guider_set_config(
     int port_,
     double exposure_secs,
     int gain,
@@ -8920,7 +8842,7 @@ class RustLibWire implements BaseWire {
     double min_pulse_ms,
     double max_pulse_ms,
   ) {
-    return _wire__crate__api__phd2__api_builtin_guider_set_config(
+    return _wire__crate__api__guiding__api_builtin_guider_set_config(
       port_,
       exposure_secs,
       gain,
@@ -8933,7 +8855,7 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__phd2__api_builtin_guider_set_configPtr =
+  late final _wire__crate__api__guiding__api_builtin_guider_set_configPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
@@ -8949,10 +8871,10 @@ class RustLibWire implements BaseWire {
           )
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_builtin_guider_set_config',
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_builtin_guider_set_config',
       );
-  late final _wire__crate__api__phd2__api_builtin_guider_set_config =
-      _wire__crate__api__phd2__api_builtin_guider_set_configPtr
+  late final _wire__crate__api__guiding__api_builtin_guider_set_config =
+      _wire__crate__api__guiding__api_builtin_guider_set_configPtr
           .asFunction<
             void Function(int, double, int, int, int, int, int, double, double)
           >();
@@ -12043,42 +11965,28 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__phd2__api_guider_deselect_star(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__phd2__api_guider_deselect_star(port_, device_id);
+  void wire__crate__api__guiding__api_guider_deselect_star(int port_) {
+    return _wire__crate__api__guiding__api_guider_deselect_star(port_);
   }
 
-  late final _wire__crate__api__phd2__api_guider_deselect_starPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_deselect_star',
+  late final _wire__crate__api__guiding__api_guider_deselect_starPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_deselect_star',
       );
-  late final _wire__crate__api__phd2__api_guider_deselect_star =
-      _wire__crate__api__phd2__api_guider_deselect_starPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
+  late final _wire__crate__api__guiding__api_guider_deselect_star =
+      _wire__crate__api__guiding__api_guider_deselect_starPtr
+          .asFunction<void Function(int)>();
 
-  void wire__crate__api__phd2__api_guider_dither(
+  void wire__crate__api__guiding__api_guider_dither(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double amount,
-    int ra_only,
+    bool ra_only,
     double settle_pixels,
     double settle_time,
     double settle_timeout,
   ) {
-    return _wire__crate__api__phd2__api_guider_dither(
+    return _wire__crate__api__guiding__api_guider_dither(
       port_,
-      device_id,
       amount,
       ra_only,
       settle_pixels,
@@ -12087,289 +11995,178 @@ class RustLibWire implements BaseWire {
     );
   }
 
-  late final _wire__crate__api__phd2__api_guider_ditherPtr =
+  late final _wire__crate__api__guiding__api_guider_ditherPtr =
       _lookup<
         ffi.NativeFunction<
           ffi.Void Function(
             ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Double,
-            ffi.Uint8,
+            ffi.Bool,
             ffi.Double,
             ffi.Double,
             ffi.Double,
           )
         >
-      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_dither');
-  late final _wire__crate__api__phd2__api_guider_dither =
-      _wire__crate__api__phd2__api_guider_ditherPtr
+      >('frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_dither');
+  late final _wire__crate__api__guiding__api_guider_dither =
+      _wire__crate__api__guiding__api_guider_ditherPtr
           .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              double,
-              int,
-              double,
-              double,
-              double,
-            )
+            void Function(int, double, bool, double, double, double)
           >();
 
-  void wire__crate__api__phd2__api_guider_find_star(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__phd2__api_guider_find_star(port_, device_id);
+  void wire__crate__api__guiding__api_guider_find_star(int port_) {
+    return _wire__crate__api__guiding__api_guider_find_star(port_);
   }
 
-  late final _wire__crate__api__phd2__api_guider_find_starPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_find_star');
-  late final _wire__crate__api__phd2__api_guider_find_star =
-      _wire__crate__api__phd2__api_guider_find_starPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__phd2__api_guider_get_calibration(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__phd2__api_guider_get_calibration(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__phd2__api_guider_get_calibrationPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_calibration',
+  late final _wire__crate__api__guiding__api_guider_find_starPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_find_star',
       );
-  late final _wire__crate__api__phd2__api_guider_get_calibration =
-      _wire__crate__api__phd2__api_guider_get_calibrationPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
+  late final _wire__crate__api__guiding__api_guider_find_star =
+      _wire__crate__api__guiding__api_guider_find_starPtr
+          .asFunction<void Function(int)>();
 
-  void wire__crate__api__phd2__api_guider_get_lock_position(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__phd2__api_guider_get_lock_position(
-      port_,
-      device_id,
-    );
+  void wire__crate__api__guiding__api_guider_get_calibration(int port_) {
+    return _wire__crate__api__guiding__api_guider_get_calibration(port_);
   }
 
-  late final _wire__crate__api__phd2__api_guider_get_lock_positionPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_lock_position',
+  late final _wire__crate__api__guiding__api_guider_get_calibrationPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_calibration',
       );
-  late final _wire__crate__api__phd2__api_guider_get_lock_position =
-      _wire__crate__api__phd2__api_guider_get_lock_positionPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
+  late final _wire__crate__api__guiding__api_guider_get_calibration =
+      _wire__crate__api__guiding__api_guider_get_calibrationPtr
+          .asFunction<void Function(int)>();
 
-  void wire__crate__api__phd2__api_guider_get_star_image(
+  void wire__crate__api__guiding__api_guider_get_lock_position(int port_) {
+    return _wire__crate__api__guiding__api_guider_get_lock_position(port_);
+  }
+
+  late final _wire__crate__api__guiding__api_guider_get_lock_positionPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_lock_position',
+      );
+  late final _wire__crate__api__guiding__api_guider_get_lock_position =
+      _wire__crate__api__guiding__api_guider_get_lock_positionPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__guiding__api_guider_get_star_image(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     int size,
   ) {
-    return _wire__crate__api__phd2__api_guider_get_star_image(
-      port_,
-      device_id,
-      size,
-    );
+    return _wire__crate__api__guiding__api_guider_get_star_image(port_, size);
   }
 
-  late final _wire__crate__api__phd2__api_guider_get_star_imagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Uint32,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_star_image',
+  late final _wire__crate__api__guiding__api_guider_get_star_imagePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_star_image',
       );
-  late final _wire__crate__api__phd2__api_guider_get_star_image =
-      _wire__crate__api__phd2__api_guider_get_star_imagePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
-          >();
+  late final _wire__crate__api__guiding__api_guider_get_star_image =
+      _wire__crate__api__guiding__api_guider_get_star_imagePtr
+          .asFunction<void Function(int, int)>();
 
-  void wire__crate__api__phd2__api_guider_get_status(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__phd2__api_guider_get_status(port_, device_id);
+  void wire__crate__api__guiding__api_guider_get_status(int port_) {
+    return _wire__crate__api__guiding__api_guider_get_status(port_);
   }
 
-  late final _wire__crate__api__phd2__api_guider_get_statusPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_get_status');
-  late final _wire__crate__api__phd2__api_guider_get_status =
-      _wire__crate__api__phd2__api_guider_get_statusPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
+  late final _wire__crate__api__guiding__api_guider_get_statusPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_get_status',
+      );
+  late final _wire__crate__api__guiding__api_guider_get_status =
+      _wire__crate__api__guiding__api_guider_get_statusPtr
+          .asFunction<void Function(int)>();
 
-  void wire__crate__api__phd2__api_guider_loop(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__phd2__api_guider_loop(port_, device_id);
+  void wire__crate__api__guiding__api_guider_loop(int port_) {
+    return _wire__crate__api__guiding__api_guider_loop(port_);
   }
 
-  late final _wire__crate__api__phd2__api_guider_loopPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_loop');
-  late final _wire__crate__api__phd2__api_guider_loop =
-      _wire__crate__api__phd2__api_guider_loopPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
+  late final _wire__crate__api__guiding__api_guider_loopPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_loop',
+      );
+  late final _wire__crate__api__guiding__api_guider_loop =
+      _wire__crate__api__guiding__api_guider_loopPtr
+          .asFunction<void Function(int)>();
 
-  void wire__crate__api__phd2__api_guider_set_lock_position(
+  void wire__crate__api__guiding__api_guider_set_lock_position(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
     double x,
     double y,
     bool exact,
   ) {
-    return _wire__crate__api__phd2__api_guider_set_lock_position(
+    return _wire__crate__api__guiding__api_guider_set_lock_position(
       port_,
-      device_id,
       x,
       y,
       exact,
     );
   }
 
-  late final _wire__crate__api__phd2__api_guider_set_lock_positionPtr =
+  late final _wire__crate__api__guiding__api_guider_set_lock_positionPtr =
       _lookup<
         ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Double,
-            ffi.Double,
-            ffi.Bool,
-          )
+          ffi.Void Function(ffi.Int64, ffi.Double, ffi.Double, ffi.Bool)
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_set_lock_position',
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_set_lock_position',
       );
-  late final _wire__crate__api__phd2__api_guider_set_lock_position =
-      _wire__crate__api__phd2__api_guider_set_lock_positionPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              double,
-              double,
-              bool,
-            )
-          >();
+  late final _wire__crate__api__guiding__api_guider_set_lock_position =
+      _wire__crate__api__guiding__api_guider_set_lock_positionPtr
+          .asFunction<void Function(int, double, double, bool)>();
 
-  void wire__crate__api__phd2__api_guider_start_guiding(
+  void wire__crate__api__guiding__api_guider_set_paused(
     int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    bool paused,
+  ) {
+    return _wire__crate__api__guiding__api_guider_set_paused(port_, paused);
+  }
+
+  late final _wire__crate__api__guiding__api_guider_set_pausedPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_set_paused',
+      );
+  late final _wire__crate__api__guiding__api_guider_set_paused =
+      _wire__crate__api__guiding__api_guider_set_pausedPtr
+          .asFunction<void Function(int, bool)>();
+
+  void wire__crate__api__guiding__api_guider_start_guiding(
+    int port_,
     double settle_pixels,
     double settle_time,
     double settle_timeout,
   ) {
-    return _wire__crate__api__phd2__api_guider_start_guiding(
+    return _wire__crate__api__guiding__api_guider_start_guiding(
       port_,
-      device_id,
       settle_pixels,
       settle_time,
       settle_timeout,
     );
   }
 
-  late final _wire__crate__api__phd2__api_guider_start_guidingPtr =
+  late final _wire__crate__api__guiding__api_guider_start_guidingPtr =
       _lookup<
         ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Double,
-            ffi.Double,
-            ffi.Double,
-          )
+          ffi.Void Function(ffi.Int64, ffi.Double, ffi.Double, ffi.Double)
         >
       >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_start_guiding',
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_start_guiding',
       );
-  late final _wire__crate__api__phd2__api_guider_start_guiding =
-      _wire__crate__api__phd2__api_guider_start_guidingPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              double,
-              double,
-              double,
-            )
-          >();
+  late final _wire__crate__api__guiding__api_guider_start_guiding =
+      _wire__crate__api__guiding__api_guider_start_guidingPtr
+          .asFunction<void Function(int, double, double, double)>();
 
-  void wire__crate__api__phd2__api_guider_stop(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__phd2__api_guider_stop(port_, device_id);
+  void wire__crate__api__guiding__api_guider_stop(int port_) {
+    return _wire__crate__api__guiding__api_guider_stop(port_);
   }
 
-  late final _wire__crate__api__phd2__api_guider_stopPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_guider_stop');
-  late final _wire__crate__api__phd2__api_guider_stop =
-      _wire__crate__api__phd2__api_guider_stopPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
+  late final _wire__crate__api__guiding__api_guider_stopPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_stop',
+      );
+  late final _wire__crate__api__guiding__api_guider_stop =
+      _wire__crate__api__guiding__api_guider_stopPtr
+          .asFunction<void Function(int)>();
 
   WireSyncRust2DartDco wire__crate__api__init__api_init() {
     return _wire__crate__api__init__api_init();
@@ -13123,18 +12920,6 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__phd2__api_phd2_deselect_star(int port_) {
-    return _wire__crate__api__phd2__api_phd2_deselect_star(port_);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_deselect_starPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_deselect_star',
-      );
-  late final _wire__crate__api__phd2__api_phd2_deselect_star =
-      _wire__crate__api__phd2__api_phd2_deselect_starPtr
-          .asFunction<void Function(int)>();
-
   void wire__crate__api__phd2__api_phd2_disconnect(int port_) {
     return _wire__crate__api__phd2__api_phd2_disconnect(port_);
   }
@@ -13145,55 +12930,6 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__phd2__api_phd2_disconnect =
       _wire__crate__api__phd2__api_phd2_disconnectPtr
-          .asFunction<void Function(int)>();
-
-  void wire__crate__api__phd2__api_phd2_dither(
-    int port_,
-    double amount,
-    int ra_only,
-    double settle_pixels,
-    double settle_time,
-    double settle_timeout,
-  ) {
-    return _wire__crate__api__phd2__api_phd2_dither(
-      port_,
-      amount,
-      ra_only,
-      settle_pixels,
-      settle_time,
-      settle_timeout,
-    );
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_ditherPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Double,
-            ffi.Uint8,
-            ffi.Double,
-            ffi.Double,
-            ffi.Double,
-          )
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_dither');
-  late final _wire__crate__api__phd2__api_phd2_dither =
-      _wire__crate__api__phd2__api_phd2_ditherPtr
-          .asFunction<
-            void Function(int, double, int, double, double, double)
-          >();
-
-  void wire__crate__api__phd2__api_phd2_find_star(int port_) {
-    return _wire__crate__api__phd2__api_phd2_find_star(port_);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_find_starPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_find_star',
-      );
-  late final _wire__crate__api__phd2__api_phd2_find_star =
-      _wire__crate__api__phd2__api_phd2_find_starPtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__phd2__api_phd2_flip_calibration(int port_) {
@@ -13260,18 +12996,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void wire__crate__api__phd2__api_phd2_get_calibration_data(int port_) {
-    return _wire__crate__api__phd2__api_phd2_get_calibration_data(port_);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_get_calibration_dataPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_calibration_data',
-      );
-  late final _wire__crate__api__phd2__api_phd2_get_calibration_data =
-      _wire__crate__api__phd2__api_phd2_get_calibration_dataPtr
-          .asFunction<void Function(int)>();
-
   void wire__crate__api__phd2__api_phd2_get_exposure(int port_) {
     return _wire__crate__api__phd2__api_phd2_get_exposure(port_);
   }
@@ -13284,18 +13008,6 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__phd2__api_phd2_get_exposurePtr
           .asFunction<void Function(int)>();
 
-  void wire__crate__api__phd2__api_phd2_get_lock_position(int port_) {
-    return _wire__crate__api__phd2__api_phd2_get_lock_position(port_);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_get_lock_positionPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_lock_position',
-      );
-  late final _wire__crate__api__phd2__api_phd2_get_lock_position =
-      _wire__crate__api__phd2__api_phd2_get_lock_positionPtr
-          .asFunction<void Function(int)>();
-
   void wire__crate__api__phd2__api_phd2_get_profile(int port_) {
     return _wire__crate__api__phd2__api_phd2_get_profile(port_);
   }
@@ -13306,42 +13018,6 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__phd2__api_phd2_get_profile =
       _wire__crate__api__phd2__api_phd2_get_profilePtr
-          .asFunction<void Function(int)>();
-
-  void wire__crate__api__phd2__api_phd2_get_star_image(int port_, int size) {
-    return _wire__crate__api__phd2__api_phd2_get_star_image(port_, size);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_get_star_imagePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_star_image',
-      );
-  late final _wire__crate__api__phd2__api_phd2_get_star_image =
-      _wire__crate__api__phd2__api_phd2_get_star_imagePtr
-          .asFunction<void Function(int, int)>();
-
-  void wire__crate__api__phd2__api_phd2_get_status(int port_) {
-    return _wire__crate__api__phd2__api_phd2_get_status(port_);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_get_statusPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_get_status',
-      );
-  late final _wire__crate__api__phd2__api_phd2_get_status =
-      _wire__crate__api__phd2__api_phd2_get_statusPtr
-          .asFunction<void Function(int)>();
-
-  void wire__crate__api__phd2__api_phd2_loop(int port_) {
-    return _wire__crate__api__phd2__api_phd2_loop(port_);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_loopPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_loop',
-      );
-  late final _wire__crate__api__phd2__api_phd2_loop =
-      _wire__crate__api__phd2__api_phd2_loopPtr
           .asFunction<void Function(int)>();
 
   void wire__crate__api__phd2__api_phd2_set_algo_param(
@@ -13394,80 +13070,6 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__phd2__api_phd2_set_exposure =
       _wire__crate__api__phd2__api_phd2_set_exposurePtr
           .asFunction<void Function(int, int)>();
-
-  void wire__crate__api__phd2__api_phd2_set_lock_position(
-    int port_,
-    double x,
-    double y,
-    bool exact,
-  ) {
-    return _wire__crate__api__phd2__api_phd2_set_lock_position(
-      port_,
-      x,
-      y,
-      exact,
-    );
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_set_lock_positionPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(ffi.Int64, ffi.Double, ffi.Double, ffi.Bool)
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_lock_position',
-      );
-  late final _wire__crate__api__phd2__api_phd2_set_lock_position =
-      _wire__crate__api__phd2__api_phd2_set_lock_positionPtr
-          .asFunction<void Function(int, double, double, bool)>();
-
-  void wire__crate__api__phd2__api_phd2_set_paused(int port_, bool paused) {
-    return _wire__crate__api__phd2__api_phd2_set_paused(port_, paused);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_set_pausedPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_set_paused',
-      );
-  late final _wire__crate__api__phd2__api_phd2_set_paused =
-      _wire__crate__api__phd2__api_phd2_set_pausedPtr
-          .asFunction<void Function(int, bool)>();
-
-  void wire__crate__api__phd2__api_phd2_start_guiding(
-    int port_,
-    double settle_pixels,
-    double settle_time,
-    double settle_timeout,
-  ) {
-    return _wire__crate__api__phd2__api_phd2_start_guiding(
-      port_,
-      settle_pixels,
-      settle_time,
-      settle_timeout,
-    );
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_start_guidingPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(ffi.Int64, ffi.Double, ffi.Double, ffi.Double)
-        >
-      >('frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_start_guiding');
-  late final _wire__crate__api__phd2__api_phd2_start_guiding =
-      _wire__crate__api__phd2__api_phd2_start_guidingPtr
-          .asFunction<void Function(int, double, double, double)>();
-
-  void wire__crate__api__phd2__api_phd2_stop_guiding(int port_) {
-    return _wire__crate__api__phd2__api_phd2_stop_guiding(port_);
-  }
-
-  late final _wire__crate__api__phd2__api_phd2_stop_guidingPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__phd2__api_phd2_stop_guiding',
-      );
-  late final _wire__crate__api__phd2__api_phd2_stop_guiding =
-      _wire__crate__api__phd2__api_phd2_stop_guidingPtr
-          .asFunction<void Function(int)>();
 
   void wire__crate__api__imaging__api_plan_focuser_backlash_calibration(
     int port_,
@@ -14375,6 +13977,34 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void
+  wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> config_json,
+  ) {
+    return _wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config(
+      port_,
+      config_json,
+    );
+  }
+
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_configPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config',
+      );
+  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_config =
+      _wire__crate__api__sequencer__runtime_config__api_sequencer_apply_run_configPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint(
     int port_,
   ) {
@@ -14389,23 +14019,6 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpoint =
       _wire__crate__api__sequencer__lifecycle__api_sequencer_clear_checkpointPtr
-          .asFunction<void Function(int)>();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure(
-    int port_,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposurePtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposure =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_clear_default_adaptive_exposurePtr
           .asFunction<void Function(int)>();
 
   void
@@ -14736,34 +14349,6 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__sequencer__runtime_config__api_sequencer_set_active_sequence_run_idPtr
           .asFunction<void Function(int, ffi.Pointer<ffi.Int64>)>();
 
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> saving,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving(
-      port_,
-      saving,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_savingPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_saving =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_camera_file_savingPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
   void wire__crate__api__sequencer__lifecycle__api_sequencer_set_checkpoint_dir(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> path,
@@ -14791,48 +14376,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled(
-    int port_,
-    bool enabled,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled(
-      port_,
-      enabled,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabledPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabled =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_decision_logging_enabledPtr
-          .asFunction<void Function(int, bool)>();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries(
-    int port_,
-    int camera_retries,
-    int filter_wheel_retries,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries(
-      port_,
-      camera_retries,
-      filter_wheel_retries,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retriesPtr =
-      _lookup<
-        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32, ffi.Uint32)>
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retries =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_device_retriesPtr
-          .asFunction<void Function(int, int, int)>();
-
   void wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_id,
@@ -14841,7 +14384,6 @@ class RustLibWire implements BaseWire {
     ffi.Pointer<wire_cst_list_prim_u_8_strict> filterwheel_id,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> rotator_id,
     ffi.Pointer<wire_cst_list_String> filter_names,
-    ffi.Pointer<wire_cst_list_record_string_i_32> filter_focus_offsets,
   ) {
     return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_devices(
       port_,
@@ -14851,7 +14393,6 @@ class RustLibWire implements BaseWire {
       filterwheel_id,
       rotator_id,
       filter_names,
-      filter_focus_offsets,
     );
   }
 
@@ -14866,7 +14407,6 @@ class RustLibWire implements BaseWire {
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_String>,
-            ffi.Pointer<wire_cst_list_record_string_i_32>,
           )
         >
       >(
@@ -14883,78 +14423,7 @@ class RustLibWire implements BaseWire {
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_String>,
-              ffi.Pointer<wire_cst_list_record_string_i_32>,
             )
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(
-    int port_,
-    bool park_on_unsafe_weather,
-    bool park_before_dawn,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy(
-      port_,
-      park_on_unsafe_weather,
-      park_before_dawn,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policyPtr =
-      _lookup<
-        ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool, ffi.Bool)>
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policy =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_park_policyPtr
-          .asFunction<void Function(int, bool, bool)>();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds(
-    int port_,
-    int seconds,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds(
-      port_,
-      seconds,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_secondsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_seconds =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_check_interval_secondsPtr
-          .asFunction<void Function(int, int)>();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> mode,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode(
-      port_,
-      mode,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_modePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_mode =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_safety_fail_modePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
   void wire__crate__api__sequencer__runtime_config__api_sequencer_set_save_path(
@@ -15004,25 +14473,6 @@ class RustLibWire implements BaseWire {
           .asFunction<void Function(int, bool)>();
 
   void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(
-    int port_,
-    bool stop_on_quality_problems,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems(
-      port_,
-      stop_on_quality_problems,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problemsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Bool)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problems =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_stop_on_quality_problemsPtr
-          .asFunction<void Function(int, bool)>();
-
-  void
   wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_operator_clear(
     int port_,
     int duration_secs,
@@ -15052,25 +14502,6 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(
-    int port_,
-    int seconds,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs(
-      port_,
-      seconds,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secs =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_set_weather_resume_after_safe_secsPtr
-          .asFunction<void Function(int, int)>();
 
   void wire__crate__api__sequencer__lifecycle__api_sequencer_skip(int port_) {
     return _wire__crate__api__sequencer__lifecycle__api_sequencer_skip(port_);
@@ -15166,53 +14597,6 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events =
       _wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_eventsPtr
           .asFunction<void Function(int)>();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> config_json,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config(
-      port_,
-      config_json,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_configPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_config =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_configPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval(
-    int port_,
-    int every_n_frames,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval(
-      port_,
-      every_n_frames,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_intervalPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64, ffi.Uint32)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_interval =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_autofocus_intervalPtr
-          .asFunction<void Function(int, int)>();
 
   void
   wire__crate__api__sequencer__runtime_config__api_sequencer_update_cloud_motion(
@@ -15333,310 +14717,6 @@ class RustLibWire implements BaseWire {
           >();
 
   void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure(
-    int port_,
-    bool enabled,
-    double target_snr,
-    double reference_sky_brightness_mag,
-    double min_exposure_secs,
-    double max_exposure_secs,
-    ffi.Pointer<wire_cst_list_String> per_filter_enabled_keys,
-    ffi.Pointer<wire_cst_list_bool> per_filter_enabled_values,
-    ffi.Pointer<wire_cst_list_String> per_filter_min_keys,
-    ffi.Pointer<wire_cst_list_prim_f_64_loose> per_filter_min_values,
-    ffi.Pointer<wire_cst_list_String> per_filter_max_keys,
-    ffi.Pointer<wire_cst_list_prim_f_64_loose> per_filter_max_values,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure(
-      port_,
-      enabled,
-      target_snr,
-      reference_sky_brightness_mag,
-      min_exposure_secs,
-      max_exposure_secs,
-      per_filter_enabled_keys,
-      per_filter_enabled_values,
-      per_filter_min_keys,
-      per_filter_min_values,
-      per_filter_max_keys,
-      per_filter_max_values,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposurePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Bool,
-            ffi.Double,
-            ffi.Double,
-            ffi.Double,
-            ffi.Double,
-            ffi.Pointer<wire_cst_list_String>,
-            ffi.Pointer<wire_cst_list_bool>,
-            ffi.Pointer<wire_cst_list_String>,
-            ffi.Pointer<wire_cst_list_prim_f_64_loose>,
-            ffi.Pointer<wire_cst_list_String>,
-            ffi.Pointer<wire_cst_list_prim_f_64_loose>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposure =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_adaptive_exposurePtr
-          .asFunction<
-            void Function(
-              int,
-              bool,
-              double,
-              double,
-              double,
-              double,
-              ffi.Pointer<wire_cst_list_String>,
-              ffi.Pointer<wire_cst_list_bool>,
-              ffi.Pointer<wire_cst_list_String>,
-              ffi.Pointer<wire_cst_list_prim_f_64_loose>,
-              ffi.Pointer<wire_cst_list_String>,
-              ffi.Pointer<wire_cst_list_prim_f_64_loose>,
-            )
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check(
-    int port_,
-    ffi.Pointer<ffi.Double> hfr_threshold,
-    ffi.Pointer<ffi.Double> hfr_baseline_percent,
-    ffi.Pointer<ffi.Double> eccentricity_threshold,
-    ffi.Pointer<ffi.Uint32> star_count_min,
-    int max_consecutive_rejects,
-    bool enabled,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check(
-      port_,
-      hfr_threshold,
-      hfr_baseline_percent,
-      eccentricity_threshold,
-      star_count_min,
-      max_consecutive_rejects,
-      enabled,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_checkPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<ffi.Double>,
-            ffi.Pointer<ffi.Double>,
-            ffi.Pointer<ffi.Double>,
-            ffi.Pointer<ffi.Uint32>,
-            ffi.Uint32,
-            ffi.Bool,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_check =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_default_quality_checkPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<ffi.Double>,
-              ffi.Pointer<ffi.Double>,
-              ffi.Pointer<ffi.Double>,
-              ffi.Pointer<ffi.Uint32>,
-              int,
-              bool,
-            )
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config(
-    int port_,
-    double pixels,
-    double settle_pixels,
-    double settle_time,
-    double settle_timeout,
-    bool ra_only,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config(
-      port_,
-      pixels,
-      settle_pixels,
-      settle_time,
-      settle_timeout,
-      ra_only,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_configPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Double,
-            ffi.Double,
-            ffi.Double,
-            ffi.Double,
-            ffi.Bool,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_config =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_dither_configPtr
-          .asFunction<
-            void Function(int, double, double, double, double, bool)
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets(
-    int port_,
-    ffi.Pointer<wire_cst_list_record_string_i_32> offsets,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets(
-      port_,
-      offsets,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsetsPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_record_string_i_32>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsets =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_filter_offsetsPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_record_string_i_32>)
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_location(
-    int port_,
-    ffi.Pointer<ffi.Double> latitude,
-    ffi.Pointer<ffi.Double> longitude,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_location(
-      port_,
-      latitude,
-      longitude,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_locationPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<ffi.Double>,
-            ffi.Pointer<ffi.Double>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_location',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_location =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_locationPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<ffi.Double>, ffi.Pointer<ffi.Double>)
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> config_json,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config(
-      port_,
-      config_json,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_configPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_config =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_meridian_flip_configPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> observer_name,
-    ffi.Pointer<ffi.Double> site_elevation_m,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_make,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> camera_model,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> telescope_name,
-    ffi.Pointer<ffi.Double> telescope_focal_length_mm,
-    ffi.Pointer<ffi.Double> telescope_aperture_mm,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile(
-      port_,
-      observer_name,
-      site_elevation_m,
-      camera_make,
-      camera_model,
-      telescope_name,
-      telescope_focal_length_mm,
-      telescope_aperture_mm,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profilePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<ffi.Double>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<ffi.Double>,
-            ffi.Pointer<ffi.Double>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profile =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_observer_profilePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<ffi.Double>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<ffi.Double>,
-              ffi.Pointer<ffi.Double>,
-            )
-          >();
-
-  void
   wire__crate__api__sequencer__runtime_config__api_sequencer_update_pending_integration_carry_over(
     int port_,
     ffi.Pointer<wire_cst_list_record_string_map_string_f_64_none> carry_over,
@@ -15665,62 +14745,6 @@ class RustLibWire implements BaseWire {
               int,
               ffi.Pointer<wire_cst_list_record_string_map_string_f_64_none>,
             )
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config(
-    int port_,
-    ffi.Pointer<wire_cst_recovery_config_update> update,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config(
-      port_,
-      update,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_configPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_recovery_config_update>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_config =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_recovery_configPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_recovery_config_update>)
-          >();
-
-  void
-  wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> path,
-  ) {
-    return _wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path(
-      port_,
-      path,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_pathPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path',
-      );
-  late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_path =
-      _wire__crate__api__sequencer__runtime_config__api_sequencer_update_reject_folder_pathPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
   void
@@ -15770,44 +14794,6 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdict =
       _wire__crate__api__sequencer__runtime_config__api_sequencer_update_weather_verdictPtr
           .asFunction<void Function(int, ffi.Pointer<ffi.Bool>, bool)>();
-
-  void wire__crate__api__imaging__api_set_capture_file_format(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> format,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> xisf_compression,
-    bool xisf_checksums,
-  ) {
-    return _wire__crate__api__imaging__api_set_capture_file_format(
-      port_,
-      format,
-      xisf_compression,
-      xisf_checksums,
-    );
-  }
-
-  late final _wire__crate__api__imaging__api_set_capture_file_formatPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Bool,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_set_capture_file_format',
-      );
-  late final _wire__crate__api__imaging__api_set_capture_file_format =
-      _wire__crate__api__imaging__api_set_capture_file_formatPtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              bool,
-            )
-          >();
 
   WireSyncRust2DartDco wire__crate__api__storage__api_set_location(
     ffi.Pointer<wire_cst_observer_location> location,
@@ -17942,23 +16928,6 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_record_f_64_f_64Ptr
           .asFunction<ffi.Pointer<wire_cst_record_f_64_f_64> Function()>();
 
-  ffi.Pointer<wire_cst_recovery_config_update>
-  cst_new_box_autoadd_recovery_config_update() {
-    return _cst_new_box_autoadd_recovery_config_update();
-  }
-
-  late final _cst_new_box_autoadd_recovery_config_updatePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Pointer<wire_cst_recovery_config_update> Function()
-        >
-      >('frbgen_skotiq_bridge_cst_new_box_autoadd_recovery_config_update');
-  late final _cst_new_box_autoadd_recovery_config_update =
-      _cst_new_box_autoadd_recovery_config_updatePtr
-          .asFunction<
-            ffi.Pointer<wire_cst_recovery_config_update> Function()
-          >();
-
   ffi.Pointer<wire_cst_rotator_capabilities>
   cst_new_box_autoadd_rotator_capabilities() {
     return _cst_new_box_autoadd_rotator_capabilities();
@@ -18031,6 +17000,18 @@ class RustLibWire implements BaseWire {
   late final _cst_new_box_autoadd_sequencer_event =
       _cst_new_box_autoadd_sequencer_eventPtr
           .asFunction<ffi.Pointer<wire_cst_sequencer_event> Function()>();
+
+  ffi.Pointer<ffi.Int32> cst_new_box_autoadd_sequencer_notice(int value) {
+    return _cst_new_box_autoadd_sequencer_notice(value);
+  }
+
+  late final _cst_new_box_autoadd_sequencer_noticePtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Int32> Function(ffi.Int32)>>(
+        'frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice',
+      );
+  late final _cst_new_box_autoadd_sequencer_notice =
+      _cst_new_box_autoadd_sequencer_noticePtr
+          .asFunction<ffi.Pointer<ffi.Int32> Function(int)>();
 
   ffi.Pointer<ffi.Int32> cst_new_box_autoadd_shutter_status(int value) {
     return _cst_new_box_autoadd_shutter_status(value);
@@ -18204,17 +17185,6 @@ class RustLibWire implements BaseWire {
   late final _cst_new_list_api_depth_goal = _cst_new_list_api_depth_goalPtr
       .asFunction<ffi.Pointer<wire_cst_list_api_depth_goal> Function(int)>();
 
-  ffi.Pointer<wire_cst_list_bool> cst_new_list_bool(int len) {
-    return _cst_new_list_bool(len);
-  }
-
-  late final _cst_new_list_boolPtr =
-      _lookup<
-        ffi.NativeFunction<ffi.Pointer<wire_cst_list_bool> Function(ffi.Int32)>
-      >('frbgen_skotiq_bridge_cst_new_list_bool');
-  late final _cst_new_list_bool = _cst_new_list_boolPtr
-      .asFunction<ffi.Pointer<wire_cst_list_bool> Function(int)>();
-
   ffi.Pointer<wire_cst_list_detected_star_info> cst_new_list_detected_star_info(
     int len,
   ) {
@@ -18327,21 +17297,6 @@ class RustLibWire implements BaseWire {
           .asFunction<
             ffi.Pointer<wire_cst_list_mount_guard_status> Function(int)
           >();
-
-  ffi.Pointer<wire_cst_list_prim_f_64_loose> cst_new_list_prim_f_64_loose(
-    int len,
-  ) {
-    return _cst_new_list_prim_f_64_loose(len);
-  }
-
-  late final _cst_new_list_prim_f_64_loosePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Pointer<wire_cst_list_prim_f_64_loose> Function(ffi.Int32)
-        >
-      >('frbgen_skotiq_bridge_cst_new_list_prim_f_64_loose');
-  late final _cst_new_list_prim_f_64_loose = _cst_new_list_prim_f_64_loosePtr
-      .asFunction<ffi.Pointer<wire_cst_list_prim_f_64_loose> Function(int)>();
 
   ffi.Pointer<wire_cst_list_prim_f_64_strict> cst_new_list_prim_f_64_strict(
     int len,
@@ -18531,24 +17486,6 @@ class RustLibWire implements BaseWire {
             Function(int)
           >();
 
-  ffi.Pointer<wire_cst_list_record_string_i_32> cst_new_list_record_string_i_32(
-    int len,
-  ) {
-    return _cst_new_list_record_string_i_32(len);
-  }
-
-  late final _cst_new_list_record_string_i_32Ptr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Pointer<wire_cst_list_record_string_i_32> Function(ffi.Int32)
-        >
-      >('frbgen_skotiq_bridge_cst_new_list_record_string_i_32');
-  late final _cst_new_list_record_string_i_32 =
-      _cst_new_list_record_string_i_32Ptr
-          .asFunction<
-            ffi.Pointer<wire_cst_list_record_string_i_32> Function(int)
-          >();
-
   ffi.Pointer<wire_cst_list_record_string_map_string_f_64_none>
   cst_new_list_record_string_map_string_f_64_none(int len) {
     return _cst_new_list_record_string_map_string_f_64_none(len);
@@ -18628,6 +17565,24 @@ class RustLibWire implements BaseWire {
       >('frbgen_skotiq_bridge_cst_new_list_switch_info');
   late final _cst_new_list_switch_info = _cst_new_list_switch_infoPtr
       .asFunction<ffi.Pointer<wire_cst_list_switch_info> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_tracked_guide_star> cst_new_list_tracked_guide_star(
+    int len,
+  ) {
+    return _cst_new_list_tracked_guide_star(len);
+  }
+
+  late final _cst_new_list_tracked_guide_starPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_tracked_guide_star> Function(ffi.Int32)
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_tracked_guide_star');
+  late final _cst_new_list_tracked_guide_star =
+      _cst_new_list_tracked_guide_starPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_tracked_guide_star> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_tracking_rate> cst_new_list_tracking_rate(int len) {
     return _cst_new_list_tracking_rate(len);
@@ -19079,34 +18034,6 @@ final class wire_cst_secondary_rig_config_api extends ffi.Struct {
   external ffi.Pointer<ffi.Double> site_elevation_m;
 }
 
-final class wire_cst_record_string_i_32 extends ffi.Struct {
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
-
-  @ffi.Int32()
-  external int field1;
-}
-
-final class wire_cst_list_record_string_i_32 extends ffi.Struct {
-  external ffi.Pointer<wire_cst_record_string_i_32> ptr;
-
-  @ffi.Int32()
-  external int len;
-}
-
-final class wire_cst_list_bool extends ffi.Struct {
-  external ffi.Pointer<ffi.Bool> ptr;
-
-  @ffi.Int32()
-  external int len;
-}
-
-final class wire_cst_list_prim_f_64_loose extends ffi.Struct {
-  external ffi.Pointer<ffi.Double> ptr;
-
-  @ffi.Int32()
-  external int len;
-}
-
 final class wire_cst_record_string_f_64 extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
 
@@ -19133,26 +18060,6 @@ final class wire_cst_list_record_string_map_string_f_64_none
 
   @ffi.Int32()
   external int len;
-}
-
-final class wire_cst_recovery_config_update extends ffi.Struct {
-  @ffi.Double()
-  external double retry_interval_secs;
-
-  @ffi.Double()
-  external double max_duration_secs;
-
-  @ffi.Bool()
-  external bool stop_tracking_during_recovery;
-
-  @ffi.Bool()
-  external bool abort_on_meridian;
-
-  @ffi.Bool()
-  external bool audible_alert_when_entered;
-
-  @ffi.Bool()
-  external bool park_and_close_when_recovery_gives_up;
 }
 
 final class wire_cst_observer_location extends ffi.Struct {
@@ -20542,6 +19449,8 @@ final class wire_cst_SequencerEvent_Error extends ffi.Struct {
 
   @ffi.Int32()
   external int kind;
+
+  external ffi.Pointer<ffi.Int32> notice;
 }
 
 final class wire_cst_SequencerEvent_MeridianFlipOutcome extends ffi.Struct {
@@ -20982,6 +19891,8 @@ final class wire_cst_SequencerEvent_DecisionLogged extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> node_id;
 
   external ffi.Pointer<ffi.Int64> sequence_run_id;
+
+  external ffi.Pointer<ffi.Int32> notice;
 }
 
 final class SequencerEventKind extends ffi.Union {
@@ -21482,6 +20393,38 @@ final class wire_cst_list_star_crop_api extends ffi.Struct {
   external int len;
 }
 
+final class wire_cst_tracked_guide_star extends ffi.Struct {
+  @ffi.Uint32()
+  external int id;
+
+  @ffi.Double()
+  external double x;
+
+  @ffi.Double()
+  external double y;
+
+  @ffi.Double()
+  external double flux;
+
+  @ffi.Double()
+  external double snr;
+
+  @ffi.Bool()
+  external bool is_lock;
+
+  external ffi.Pointer<ffi.Double> residual;
+
+  @ffi.Double()
+  external double weight;
+}
+
+final class wire_cst_list_tracked_guide_star extends ffi.Struct {
+  external ffi.Pointer<wire_cst_tracked_guide_star> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_api_depth_floor_suggestion extends ffi.Struct {
   @ffi.Double()
   external double floor_adu;
@@ -21720,6 +20663,8 @@ final class wire_cst_camera_status extends ffi.Struct {
 
   @ffi.Uint32()
   external int max_adu;
+
+  external ffi.Pointer<ffi.Uint32> saturation_adu;
 
   @ffi.Bool()
   external bool can_cool;
@@ -22085,6 +21030,68 @@ final class wire_cst_focuser_status extends ffi.Struct {
   external bool has_temperature;
 }
 
+final class wire_cst_guide_star_image extends ffi.Struct {
+  @ffi.Uint32()
+  external int frame;
+
+  @ffi.Uint32()
+  external int width;
+
+  @ffi.Uint32()
+  external int height;
+
+  @ffi.Double()
+  external double star_x;
+
+  @ffi.Double()
+  external double star_y;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> pixels;
+}
+
+final class wire_cst_guider_calibration extends ffi.Struct {
+  @ffi.Bool()
+  external bool is_calibrated;
+
+  external ffi.Pointer<ffi.Double> ra_angle;
+
+  external ffi.Pointer<ffi.Double> dec_angle;
+
+  external ffi.Pointer<ffi.Double> ra_rate;
+
+  external ffi.Pointer<ffi.Double> dec_rate;
+}
+
+final class wire_cst_guider_status extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
+  @ffi.Bool()
+  external bool connected;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> state;
+
+  @ffi.Double()
+  external double rms_ra;
+
+  @ffi.Double()
+  external double rms_dec;
+
+  @ffi.Double()
+  external double rms_total;
+
+  @ffi.Double()
+  external double snr;
+
+  @ffi.Double()
+  external double star_mass;
+
+  external ffi.Pointer<ffi.Double> pixel_scale;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> stop_reason;
+
+  external ffi.Pointer<wire_cst_list_tracked_guide_star> tracked_stars;
+}
+
 final class wire_cst_mount_guard_solve extends ffi.Struct {
   @ffi.Double()
   external double ra_hours;
@@ -22182,64 +21189,6 @@ final class wire_cst_mount_time_info extends ffi.Struct {
 
   @ffi.Double()
   external double utc_offset_hours;
-}
-
-final class wire_cst_phd_2_calibration_data extends ffi.Struct {
-  @ffi.Bool()
-  external bool is_calibrated;
-
-  external ffi.Pointer<ffi.Double> ra_angle;
-
-  external ffi.Pointer<ffi.Double> dec_angle;
-
-  external ffi.Pointer<ffi.Double> ra_rate;
-
-  external ffi.Pointer<ffi.Double> dec_rate;
-}
-
-final class wire_cst_phd_2_star_image extends ffi.Struct {
-  @ffi.Uint32()
-  external int frame;
-
-  @ffi.Uint32()
-  external int width;
-
-  @ffi.Uint32()
-  external int height;
-
-  @ffi.Double()
-  external double star_x;
-
-  @ffi.Double()
-  external double star_y;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> pixels;
-}
-
-final class wire_cst_phd_2_status extends ffi.Struct {
-  @ffi.Bool()
-  external bool connected;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> state;
-
-  @ffi.Double()
-  external double rms_ra;
-
-  @ffi.Double()
-  external double rms_dec;
-
-  @ffi.Double()
-  external double rms_total;
-
-  @ffi.Double()
-  external double snr;
-
-  @ffi.Double()
-  external double star_mass;
-
-  external ffi.Pointer<ffi.Double> pixel_scale;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> stop_reason;
 }
 
 final class wire_cst_plate_solve_result extends ffi.Struct {
@@ -22646,6 +21595,10 @@ final class wire_cst_SkotiqError_DeviceBusy extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_operation;
 }
 
+final class wire_cst_SkotiqError_InvalidState extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
 final class wire_cst_SkotiqError_ImageError extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
 }
@@ -22778,6 +21731,8 @@ final class SkotiqErrorKind extends ffi.Union {
   external wire_cst_SkotiqError_NotSupported NotSupported;
 
   external wire_cst_SkotiqError_DeviceBusy DeviceBusy;
+
+  external wire_cst_SkotiqError_InvalidState InvalidState;
 
   external wire_cst_SkotiqError_ImageError ImageError;
 

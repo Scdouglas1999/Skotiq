@@ -81,9 +81,7 @@
 
 ## filterwheel.is_connected [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.is_connected [http 400]
 > GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=0]
@@ -159,9 +157,7 @@
 
 ## filterwheel.name [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.name [http 400]
 > GET /api/v1/filterwheel/#/name query[ClientID=<id>&ClientTransactionID=0]
@@ -189,9 +185,7 @@
 
 ## filterwheel.description [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.description [http 400]
 > GET /api/v1/filterwheel/#/description query[ClientID=<id>&ClientTransactionID=0]
@@ -219,9 +213,7 @@
 
 ## filterwheel.driver_version [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.driver_version [http 400]
 > GET /api/v1/filterwheel/#/driverversion query[ClientID=<id>&ClientTransactionID=0]
@@ -249,9 +241,7 @@
 
 ## filterwheel.driver_info [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.driver_info [http 400]
 > GET /api/v1/filterwheel/#/driverinfo query[ClientID=<id>&ClientTransactionID=0]
@@ -279,9 +269,7 @@
 
 ## filterwheel.interface_version [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.interface_version [http 400]
 > GET /api/v1/filterwheel/#/interfaceversion query[ClientID=<id>&ClientTransactionID=0]
@@ -309,9 +297,7 @@
 
 ## filterwheel.supported_actions [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.supported_actions [http 400]
 > GET /api/v1/filterwheel/#/supportedactions query[ClientID=<id>&ClientTransactionID=0]
@@ -339,9 +325,7 @@
 
 ## filterwheel.position [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.position [http 400]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -385,9 +369,7 @@
 
 ## filterwheel.position [ascom 0x40C without Value]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 108)
+= Err(Device error 1036: Action not implemented)
 
 ## filterwheel.position [ascom 0x500]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -411,9 +393,7 @@
 
 ## filterwheel.position [wrong value type]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: invalid type: map, expected i32 at line 1 column 91)
+= Err(Parse error: invalid type: map, expected i32)
 
 ## filterwheel.set_position [ok]
 > PUT /api/v1/filterwheel/#/position query[] form[ClientID=<id>&ClientTransactionID=0&Position=3]
@@ -505,9 +485,7 @@
 
 ## filterwheel.is_moving [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.is_moving [http 400]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -535,9 +513,7 @@
 
 ## filterwheel.names [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.names [http 400]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
@@ -565,9 +541,7 @@
 
 ## filterwheel.focus_offsets [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.focus_offsets [http 400]
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=0]
@@ -597,12 +571,8 @@
 
 ## filterwheel.get_status [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.get_status [http 400]
 > GET /api/v1/filterwheel/#/connected query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -639,12 +609,8 @@
 
 ## filterwheel.get_filter_info [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=<txn>]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.get_filter_info [http 400]
 > GET /api/v1/filterwheel/#/focusoffsets query[ClientID=<id>&ClientTransactionID=<txn>]
@@ -680,9 +646,7 @@
 
 ## filterwheel.set_filter_by_name [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.set_filter_by_name [http 400]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
@@ -710,9 +674,7 @@
 
 ## filterwheel.set_filter_by_name(missing) [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.set_filter_by_name(missing) [http 400]
 > GET /api/v1/filterwheel/#/names query[ClientID=<id>&ClientTransactionID=0]
@@ -741,9 +703,7 @@
 
 ## filterwheel.current_filter_name [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.current_filter_name [http 400]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
@@ -772,9 +732,7 @@
 
 ## filterwheel.current_focus_offset [ascom 0x4FF without Value]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=1]
-> GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=2]
-= Err(Retry exhausted after 3 attempts: Request failed: error decoding response body: missing field `Value` at line 1 column 110)
+= Err(Device error 1279: Unspecified driver fault)
 
 ## filterwheel.current_focus_offset [http 400]
 > GET /api/v1/filterwheel/#/position query[ClientID=<id>&ClientTransactionID=0]

@@ -146,7 +146,10 @@ impl DeviceManager {
         // Parse INDI device ID: indi:host:port:device_name
         let (host, port, device_name) = Self::parse_indi_device_id(&info.id)?;
         let server_key = format!("{host}:{port}");
-        let client = self.indi_server(&host, port).await?;
+        let client = self
+            .indi_server(&host, port)
+            .await
+            .map_err(|e| e.to_string())?;
 
         // Use the client to connect the device
         let mut locked_client = client.write().await;
@@ -158,7 +161,10 @@ impl DeviceManager {
             }
         }
 
-        locked_client.connect_and_confirm(&device_name).await?;
+        locked_client
+            .connect_and_confirm(&device_name)
+            .await
+            .map_err(|e| e.to_string())?;
 
         drop(locked_client);
         if let Some(handle) = handle(info, client, &device_name) {

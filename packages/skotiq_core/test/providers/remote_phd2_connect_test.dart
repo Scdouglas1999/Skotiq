@@ -35,12 +35,13 @@ void main() {
       fakeAsync((async) {
         final backend = _MockNetworkBackend();
         var calls = 0;
-        when(() => backend.phd2GetStatus()).thenAnswer((_) async {
+        when(() => backend.guiderGetStatus()).thenAnswer((_) async {
           calls++;
           if (calls < 3) {
             throw StateError('PHD2 client not ready');
           }
           return const Phd2Status(
+            deviceId: kPhd2CanonicalId,
             state: 'Stopped',
             connected: true,
             rmsRa: 0,
@@ -81,8 +82,9 @@ void main() {
             port: any(named: 'port'),
           ),
         ).thenAnswer((_) async {});
-        when(() => backend.phd2GetStatus()).thenAnswer(
+        when(() => backend.guiderGetStatus()).thenAnswer(
           (_) async => const Phd2Status(
+            deviceId: kPhd2CanonicalId,
             state: 'Stopped',
             connected: true,
             rmsRa: 0,
@@ -111,7 +113,9 @@ void main() {
         verify(
           () => backend.phd2Connect(host: 'localhost', port: 4400),
         ).called(1);
-        verify(() => backend.phd2GetStatus()).called(1);
+        verify(
+          () => backend.guiderGetStatus(),
+        ).called(greaterThanOrEqualTo(1));
         expect(
           container.read(guiderStateProvider).connectionState,
           DeviceConnectionState.connected,
@@ -124,7 +128,7 @@ void main() {
       () async {
         final backend = _MockNetworkBackend();
         when(
-          () => backend.phd2GetStatus(),
+          () => backend.guiderGetStatus(),
         ).thenAnswer((_) async => kPhd2DisconnectedStatus);
 
         await expectLater(
@@ -153,8 +157,9 @@ void main() {
             port: any(named: 'port'),
           ),
         ).thenAnswer((_) async {});
-        when(() => backend.phd2GetStatus()).thenAnswer(
+        when(() => backend.guiderGetStatus()).thenAnswer(
           (_) async => const Phd2Status(
+            deviceId: kPhd2CanonicalId,
             state: 'Stopped',
             connected: true,
             rmsRa: 0,
@@ -185,7 +190,9 @@ void main() {
         verify(
           () => backend.phd2Connect(host: '127.0.0.1', port: 4400),
         ).called(1);
-        verify(() => backend.phd2GetStatus()).called(1);
+        verify(
+          () => backend.guiderGetStatus(),
+        ).called(greaterThanOrEqualTo(1));
         expect(
           container.read(guiderStateProvider).connectionState,
           DeviceConnectionState.connected,

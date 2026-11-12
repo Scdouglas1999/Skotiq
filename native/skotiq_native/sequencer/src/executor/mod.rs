@@ -58,9 +58,8 @@ const DEFAULT_SAFETY_CHECK_INTERVAL_SECS: u64 = 30;
 /// converge and the run carries on at the pre-autofocus position: a trigger's
 /// refocus, an Autofocus node, a recovery node's refocus, an exposure trigger's
 /// refocus and the post-flip refocus all write it. The app raises its
-/// "Autofocus failed — continuing" notification from this row, so the Replay
-/// screen's copy, the notification and the tests that pin the policy cannot
-/// drift apart.
+/// "Autofocus failed — continuing" notification from the row's
+/// [`crate::decision::RunNotice::AutofocusContinued`].
 pub const AUTOFOCUS_TRIGGER_CONTINUED_SUMMARY: &str =
     "Autofocus failed — continuing with last-good focus";
 
@@ -104,7 +103,7 @@ pub use lifecycle::{RunStopping, StopOrigin};
 pub use monitoring::*;
 pub(crate) use preflight::*;
 pub(crate) use recovery_ops::*;
-pub use run_config::{CameraFileSaving, RunConfig, RunConfigStore};
+pub use run_config::{ArchiveFormat, CameraFileSaving, FrameFormat, RunConfig, RunConfigStore};
 use run_config::{RunStaging, SkyFeed};
 pub(crate) use run_state::{RunCell, RunControl};
 use trigger_context::*;
@@ -288,6 +287,14 @@ impl SequenceExecutor {
         self.run_state.get()
     }
 
+    pub fn handle(&self) -> ExecutorHandle {
+        ExecutorHandle {
+            run_state: self.run_state.clone(),
+            settings: self.settings.clone(),
+            trigger_manager: self.trigger_manager.clone(),
+        }
+    }
+
     pub fn get_progress(&self) -> SequenceProgress {
         self.run_state.progress()
     }
@@ -323,11 +330,78 @@ impl Default for SequenceExecutor {
     }
 }
 
-static EXECUTOR: std::sync::OnceLock<Arc<RwLock<SequenceExecutor>>> = std::sync::OnceLock::new();
+/// The parts of an executor that callers outside a run read and change
+/// without holding the executor: the run's state and progress, and the
+/// operator's settings. Each has its own lock, so a status read or a settings
+/// change never waits behind a start, a stop or each other.
+#[derive(Clone)]
+pub struct ExecutorHandle {
+    run_state: RunCell,
+    settings: RunConfigStore,
+    trigger_manager: Arc<RwLock<TriggerManager>>,
+}
 
-/// Get the global executor instance
+impl ExecutorHandle {
+    pub fn state(&self) -> ExecutorState {
+        self.run_state.get()
+    }
+
+    pub fn progress(&self) -> SequenceProgress {
+        self.run_state.progress()
+    }
+
+    /// The current operator settings.
+    pub fn run_config(&self) -> RunConfig {
+        self.settings.snapshot()
+    }
+
+    /// Replace the operator settings. Each section that differs from the
+    /// current value takes effect and is announced once; equal sections do
+    /// nothing. A value that fails [`RunConfig::validate`] changes nothing
+    /// and is refused with the reason.
+    pub async fn apply_run_config(&self, config: RunConfig) -> Result<(), String> {
+        self.settings
+            .apply(config, &self.trigger_manager, &self.run_state)
+            .await
+    }
+
+    /// Change some of the operator settings, on the terms of
+    /// [`Self::apply_run_config`].
+    pub async fn update_run_config(&self, edit: impl FnOnce(&mut RunConfig)) -> Result<(), String> {
+        self.settings
+            .update(&self.trigger_manager, &self.run_state, edit)
+            .await
+    }
+}
+
+struct GlobalExecutor {
+    executor: Arc<RwLock<SequenceExecutor>>,
+    handle: ExecutorHandle,
+}
+
+static EXECUTOR: std::sync::OnceLock<GlobalExecutor> = std::sync::OnceLock::new();
+
+fn global_executor() -> &'static GlobalExecutor {
+    EXECUTOR.get_or_init(|| {
+        let executor = SequenceExecutor::new();
+        let handle = executor.handle();
+        GlobalExecutor {
+            executor: Arc::new(RwLock::new(executor)),
+            handle,
+        }
+    })
+}
+
+/// The process's executor. Take it for write only to change what the
+/// executor itself holds (the loaded sequence, the run, its wiring), and only
+/// briefly; read status and change settings through [`executor_handle`].
 pub fn get_executor() -> &'static Arc<RwLock<SequenceExecutor>> {
-    EXECUTOR.get_or_init(|| Arc::new(RwLock::new(SequenceExecutor::new())))
+    &global_executor().executor
+}
+
+/// The handle of the process's executor.
+pub fn executor_handle() -> &'static ExecutorHandle {
+    &global_executor().handle
 }
 
 /// What a trigger-fired autofocus failure costs the run, and therefore what the
@@ -412,14 +486,57 @@ pub(crate) fn autofocus_trigger_unguided_hold(
     }
 }
 
-/// What the run records and tells the operator when an autofocus does not
-/// converge and imaging continues.
-pub(crate) struct AutofocusTriggerContinuation {
-    /// Replay row (`SystemEvent`) naming the focus the run decided to keep. The
-    /// app's "Autofocus failed — continuing" notification is raised from it.
+/// What the run records and tells the operator about a happening it carries
+/// on through: an autofocus that did not converge, a quality problem.
+pub(crate) struct ContinuedHappening {
+    /// Replay row (`SystemEvent`) the app raises the notification from; it
+    /// carries the notice.
     pub(crate) decision: crate::decision::DecisionEvent,
     /// One-line notice for the run's warnings.
     pub(crate) operator_message: String,
+    notice: crate::decision::RunNotice,
+}
+
+/// The run's warning line for a continued happening, marked with the notice its
+/// decision row carries so the app lists it without telling it a second time.
+pub(crate) struct NoticeLine {
+    notice: crate::decision::RunNotice,
+    pub(crate) message: String,
+}
+
+impl NoticeLine {
+    pub(crate) fn into_event(self) -> ExecutorEvent {
+        ExecutorEvent::NoticedWarning {
+            notice: self.notice,
+            message: self.message,
+        }
+    }
+}
+
+impl ContinuedHappening {
+    fn new(
+        notice: crate::decision::RunNotice,
+        decision: crate::decision::DecisionEvent,
+        operator_message: String,
+    ) -> Self {
+        Self {
+            decision: decision.with_notice(notice),
+            operator_message,
+            notice,
+        }
+    }
+
+    /// The decision row and the warning line, to be sent where the run sends
+    /// each.
+    pub(crate) fn split(self) -> (crate::decision::DecisionEvent, NoticeLine) {
+        (
+            self.decision,
+            NoticeLine {
+                notice: self.notice,
+                message: self.operator_message,
+            },
+        )
+    }
 }
 
 /// The continuation record for any autofocus that did not converge while the
@@ -433,7 +550,7 @@ pub(crate) fn autofocus_failure_continuation(
     position_before: Option<i32>,
     position_after: Option<i32>,
     origin_restored: Option<bool>,
-) -> AutofocusTriggerContinuation {
+) -> ContinuedHappening {
     let mut details = serde_json::json!({
         "source": source,
         "reason": reason,
@@ -470,23 +587,21 @@ pub(crate) fn autofocus_failure_continuation(
         ),
     };
 
-    AutofocusTriggerContinuation {
+    ContinuedHappening::new(
+        crate::decision::RunNotice::AutofocusContinued,
         decision,
         operator_message,
-    }
+    )
 }
 
 /// Summary of the decision row written when the software judged something bad
 /// — guiding, pointing or settling — and the run carried on because the
 /// operator has not asked it to stop for that. The app raises its "Problem
-/// noticed — the run continues" notification from this row and matches the
-/// text verbatim.
+/// noticed — the run continues" notification from the row's
+/// [`crate::decision::RunNotice::ProblemNoticed`].
 pub const QUALITY_PROBLEM_CONTINUED_SUMMARY: &str = "Problem noticed — the run continues";
 
-/// How the run's Warning for such a problem ends. The app raises the problem's
-/// notice from the decision row and lists the Warning with the run's warnings,
-/// so it does not toast a Warning ending in these words a second time; it
-/// matches the text verbatim.
+/// How the run's Warning for such a problem ends.
 pub const QUALITY_PROBLEM_CONTINUES_NOTE: &str = "The run continues. To have problems like this \
      stop the run instead, turn on Stop the run for quality problems in Settings > Sequencer.";
 
@@ -499,7 +614,7 @@ pub(crate) fn quality_problem_continuation(
     source: &str,
     problem: &str,
     context: serde_json::Value,
-) -> AutofocusTriggerContinuation {
+) -> ContinuedHappening {
     let mut details = serde_json::json!({
         "source": source,
         "problem": problem,
@@ -508,14 +623,15 @@ pub(crate) fn quality_problem_continuation(
     {
         details.extend(context);
     }
-    AutofocusTriggerContinuation {
-        decision: crate::decision::DecisionEvent::new(
+    ContinuedHappening::new(
+        crate::decision::RunNotice::ProblemNoticed,
+        crate::decision::DecisionEvent::new(
             crate::decision::DecisionCategory::SystemEvent,
             QUALITY_PROBLEM_CONTINUED_SUMMARY.to_string(),
             details,
         ),
-        operator_message: format!("{source}: {problem} {QUALITY_PROBLEM_CONTINUES_NOTE}"),
-    }
+        format!("{source}: {problem} {QUALITY_PROBLEM_CONTINUES_NOTE}"),
+    )
 }
 
 #[cfg(test)]

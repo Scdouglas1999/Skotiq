@@ -7,10 +7,9 @@
 // runtime; this page only tunes the *default* the executor uses when a
 // node has no own block.
 //
-// The settings are persisted via `AppSettingsNotifier.setAdaptiveExposure*`
-// and pushed to the executor via
-// `backend.sequencerUpdateDefaultAdaptiveExposure` (or the clear
-// equivalent when the master toggle is off).
+// The settings are persisted via `AppSettingsNotifier.setAdaptiveExposure*`;
+// the run configuration (`RunConfigSync`) carries them to the executor, as
+// no default at all when the master toggle is off.
 
 import 'dart:async';
 

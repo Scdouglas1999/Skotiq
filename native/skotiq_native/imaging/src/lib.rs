@@ -15,7 +15,7 @@
 pub mod background_extraction; // NEW: DBE/ABE-style background gradient extraction
 pub mod buffer_pool;
 pub mod calibration;
-pub mod calibration_master_stream; // Memory-bounded dark/bias masters straight from FITS files
+pub mod calibration_master_stream; // Memory-bounded dark/bias masters straight from frame files
 pub mod calibration_masters; // NEW: Master-flat build + cosmetic (hot/cold) correction
 pub mod color_calibration; // NEW: Photometric color calibration (per-channel white balance)
 pub mod deconvolution; // NEW: PSF estimation + Richardson-Lucy deconvolution
@@ -42,7 +42,7 @@ mod phd2;
 mod platesolve;
 mod frame_io;
 mod raw;
-mod raw_clock;
+mod raw_exif;
 pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
 pub mod registration; // NEW: High-quality star-based registration
 mod resample;
@@ -97,171 +97,6 @@ pub use xisf::{
 };
 
 use rayon::prelude::*;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ImageFormat {
-    #[default]
-    Fits,
-    Xisf,
-    Tiff,
-    Png,
-    Jpeg,
-    // RAW formats
-    CanonCR2,
-    CanonCR3,
-    NikonNEF,
-    SonyARW,
-    FujifilmRAF,
-    PentaxPEF,
-    OlympusORF,
-    PanasonicRW2,
-    AdobeDNG,
-    GenericRAW,
-}
-
-impl ImageFormat {
-    pub fn extension(&self) -> &'static str {
-        match self {
-            ImageFormat::Fits => "fits",
-            ImageFormat::Xisf => "xisf",
-            ImageFormat::Tiff => "tiff",
-            ImageFormat::Png => "png",
-            ImageFormat::Jpeg => "jpg",
-            ImageFormat::CanonCR2 => "cr2",
-            ImageFormat::CanonCR3 => "cr3",
-            ImageFormat::NikonNEF => "nef",
-            ImageFormat::SonyARW => "arw",
-            ImageFormat::FujifilmRAF => "raf",
-            ImageFormat::PentaxPEF => "pef",
-            ImageFormat::OlympusORF => "orf",
-            ImageFormat::PanasonicRW2 => "rw2",
-            ImageFormat::AdobeDNG => "dng",
-            ImageFormat::GenericRAW => "raw",
-        }
-    }
-
-    pub fn from_extension(ext: &str) -> Option<Self> {
-        match ext.to_lowercase().as_str() {
-            "fits" | "fit" | "fts" => Some(ImageFormat::Fits),
-            "xisf" | "xish" => Some(ImageFormat::Xisf),
-            "tiff" | "tif" => Some(ImageFormat::Tiff),
-            "png" => Some(ImageFormat::Png),
-            "jpg" | "jpeg" => Some(ImageFormat::Jpeg),
-            // RAW formats
-            "cr2" => Some(ImageFormat::CanonCR2),
-            "cr3" => Some(ImageFormat::CanonCR3),
-            "nef" | "nrw" => Some(ImageFormat::NikonNEF),
-            "arw" | "srf" | "sr2" => Some(ImageFormat::SonyARW),
-            "raf" => Some(ImageFormat::FujifilmRAF),
-            "pef" => Some(ImageFormat::PentaxPEF),
-            "dng" => Some(ImageFormat::AdobeDNG),
-            "orf" => Some(ImageFormat::OlympusORF),
-            "rw2" => Some(ImageFormat::PanasonicRW2),
-            "raw" | "crw" | "mrw" | "erf" | "3fr" => Some(ImageFormat::GenericRAW),
-            _ => None,
-        }
-    }
-
-    /// Detect image format from magic bytes (file signature)
-    /// Returns None if format cannot be determined
-    pub fn from_magic_bytes(data: &[u8]) -> Option<Self> {
-        if data.len() < 16 {
-            return None;
-        }
-
-        // FITS: "SIMPLE  ="
-        if data.starts_with(b"SIMPLE  =") {
-            return Some(ImageFormat::Fits);
-        }
-
-        // XISF: "XISF0100"
-        if data.starts_with(b"XISF0100") {
-            return Some(ImageFormat::Xisf);
-        }
-
-        // TIFF: "II" (little-endian) or "MM" (big-endian) followed by 42 (0x2A)
-        if (data[0..2] == [0x49, 0x49] || data[0..2] == [0x4D, 0x4D])
-            && (data[2] == 0x2A || data[3] == 0x2A)
-        {
-            // Could be TIFF or various RAW formats that use TIFF container
-            // Check for specific RAW signatures
-
-            // Canon CR2: TIFF header + "CR" at offset 8-9
-            if data.len() > 10 && &data[8..10] == b"CR" {
-                return Some(ImageFormat::CanonCR2);
-            }
-
-            // Nikon NEF: Check for "NIKON" in first 1024 bytes
-            if data.len() > 1024 && data[..1024].windows(5).any(|w| w == b"NIKON") {
-                return Some(ImageFormat::NikonNEF);
-            }
-
-            // Sony ARW: Check for "SONY" signature
-            if data.len() > 1024 && data[..1024].windows(4).any(|w| w == b"SONY") {
-                return Some(ImageFormat::SonyARW);
-            }
-
-            // Olympus ORF: Check for "OLYMP" signature
-            if data.len() > 1024 && data[..1024].windows(5).any(|w| w == b"OLYMP") {
-                return Some(ImageFormat::OlympusORF);
-            }
-
-            // Pentax PEF: Check for "PENTAX" signature
-            if data.len() > 1024 && data[..1024].windows(6).any(|w| w == b"PENTAX") {
-                return Some(ImageFormat::PentaxPEF);
-            }
-
-            // Panasonic RW2: Check for "Panasonic"
-            if data.len() > 1024 && data[..1024].windows(9).any(|w| w == b"Panasonic") {
-                return Some(ImageFormat::PanasonicRW2);
-            }
-
-            // Generic TIFF if no RAW signature found
-            return Some(ImageFormat::Tiff);
-        }
-
-        // Canon CR3: ISO Base Media File Format (ftyp box)
-        if data.len() > 12
-            && &data[4..8] == b"ftyp"
-            && (&data[8..12] == b"crx " || data[8..11] == *b"cr3")
-        {
-            return Some(ImageFormat::CanonCR3);
-        }
-
-        // Fujifilm RAF: "FUJIFILMCCD-RAW"
-        if data.starts_with(b"FUJIFILMCCD-RAW") {
-            return Some(ImageFormat::FujifilmRAF);
-        }
-
-        // PNG: 0x89 "PNG" 0x0D 0x0A 0x1A 0x0A
-        if data.starts_with(&[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) {
-            return Some(ImageFormat::Png);
-        }
-
-        // JPEG: 0xFF 0xD8 0xFF
-        if data.starts_with(&[0xFF, 0xD8, 0xFF]) {
-            return Some(ImageFormat::Jpeg);
-        }
-
-        None
-    }
-
-    pub fn is_raw(&self) -> bool {
-        matches!(
-            self,
-            ImageFormat::CanonCR2
-                | ImageFormat::CanonCR3
-                | ImageFormat::NikonNEF
-                | ImageFormat::SonyARW
-                | ImageFormat::FujifilmRAF
-                | ImageFormat::PentaxPEF
-                | ImageFormat::OlympusORF
-                | ImageFormat::PanasonicRW2
-                | ImageFormat::AdobeDNG
-                | ImageFormat::GenericRAW
-        )
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PixelType {
@@ -481,14 +316,13 @@ impl ImageData {
     }
 }
 
+/// A frame read from disk with what describes it.
 #[derive(Debug)]
 pub struct ImageReadResult {
     pub image: ImageData,
-    pub format: ImageFormat,
-    pub header: std::collections::HashMap<String, String>,
-    /// The frame's color filter at its pixel (0, 0), read from the typed
-    /// header before it was flattened (the flattened text has lost the types
-    /// and the subframe offsets it is composed from). `None` for a mono frame.
+    /// The file's metadata, cards in file order with their comments.
+    pub header: FitsHeader,
+    /// The frame's color filter at its pixel (0, 0). `None` for a mono frame.
     pub cfa: Option<ColorFilterArray>,
 }
 
@@ -763,139 +597,58 @@ pub fn write_jpeg(path: &std::path::Path, image: &ImageData, quality: u8) -> Res
     Ok(())
 }
 
-/// Read an image file in any format the app opens, with its metadata
-/// flattened to value text.
+/// Read a frame in any format the app opens, with its metadata and color
+/// filter.
 pub fn read_image(path: &std::path::Path) -> Result<ImageReadResult, String> {
-    let format = frame_format(path).map_err(|e| e.to_string())?;
     let (image, header) = read_frame(path).map_err(|e| e.to_string())?;
-    // Read the color filter before the header is flattened: the flattened
-    // form has lost the types and the subframe offsets it is composed from.
     let cfa = read_color_filter_array(&header);
-    let flattened = header
-        .keywords
-        .into_iter()
-        .map(|(k, v)| (k, v.to_header_string()))
-        .collect();
-    Ok(ImageReadResult {
-        image,
-        format,
-        header: flattened,
-        cfa,
-    })
+    Ok(ImageReadResult { image, header, cfa })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// A calibrated frame must inherit the light frame's science metadata as
-    /// real FITS cards.
-    ///
-    /// The calibrate-and-save path reads the light with `read_image`, carries
-    /// `ImageReadResult::header` over into a fresh `FitsHeader`, and writes it.
-    /// While the flattening used `format!("{:?}", value)` that shipped
-    /// `EXPTIME  = 'Float(120.0)'` and `GAIN = 'Integer(100)'` — every value a
-    /// string carrying its Rust variant name, so our own `get_float` and every
-    /// external tool read nothing.
+    /// The header comes back as the file holds it: typed values, card order,
+    /// comments and COMMENT/HISTORY lines.
     #[test]
-    fn calibrated_frame_header_carries_numeric_exptime_and_gain() {
+    fn read_image_keeps_the_header_as_written() {
         let dir = std::env::temp_dir().join(format!(
-            "skotiq-header-carry-{}-{}",
+            "skotiq-read-image-header-{}-{}",
             std::process::id(),
             line!()
         ));
         std::fs::create_dir_all(&dir).expect("create temp dir");
         let light = dir.join("light.fits");
-        let calibrated = dir.join("calibrated.fits");
 
         let image = ImageData::from_u16(2, 2, 1, &[100, 200, 300, 400]);
         let mut source = FitsHeader::new();
+        source.set_string("OBJECT", "61");
         source.set_float("EXPTIME", 120.0);
+        source.set_comment("EXPTIME", "exposure time (s)");
         source.set_int("GAIN", 100);
-        source.set_string("FILTER", "Ha");
         source.set_bool("FOCUSED", true);
         source.set_string("DARKFILE", "/data/darks/master_dark.fits");
+        source.add_comment("taken with Skotiq");
+        source.add_history("calibrated");
         write_fits(&light, &image, &source).expect("write light frame");
 
         let read = read_image(&light).expect("read light frame");
-
-        // The flattened header must carry plain value text, never Rust Debug.
-        for (key, value) in &read.header {
-            assert!(
-                !value.contains("Float(")
-                    && !value.contains("Integer(")
-                    && !value.contains("String(")
-                    && !value.contains("Boolean("),
-                "{key} flattened to Rust variant syntax: {value}"
-            );
-        }
-        assert_eq!(
-            read.header.get("EXPTIME").map(String::as_str),
-            Some("120.0")
-        );
-        assert_eq!(read.header.get("GAIN").map(String::as_str), Some("100"));
-        assert_eq!(read.header.get("FILTER").map(String::as_str), Some("Ha"));
-
-        // Reproduce the calibrate-and-save carry-over.
-        let mut carried = FitsHeader::new();
-        for (key, value) in &read.header {
-            carried.set_value_token(key, value);
-        }
-        carried.set_string("CALSTAT", "calibrated by Skotiq");
-        write_fits(&calibrated, &image, &carried).expect("write calibrated frame");
-
-        let (_, round_tripped) = read_fits(&calibrated).expect("read calibrated frame");
-        assert_eq!(round_tripped.get_float("EXPTIME"), Some(120.0));
-        assert_eq!(round_tripped.get_int("GAIN"), Some(100));
-        assert_eq!(round_tripped.get_string("FILTER"), Some("Ha"));
-        assert_eq!(
-            round_tripped.get("FOCUSED").and_then(|v| v.as_bool()),
-            Some(true)
-        );
-        // A path value must survive intact: it is not a card body, so the
-        // `/ comment` split must not be applied to it.
-        assert_eq!(
-            round_tripped.get_string("DARKFILE"),
-            Some("/data/darks/master_dark.fits")
-        );
-        assert_eq!(
-            round_tripped.get_string("CALSTAT"),
-            Some("calibrated by Skotiq")
-        );
-
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// A caller that has not migrated off `set_string` must still get a clean,
-    /// readable string card out of the flattened header — never the doubly
-    /// quoted `'''Ha'''` that quoting the flattened text would produce.
-    #[test]
-    fn flattened_header_survives_a_plain_set_string_carry_over() {
-        let dir = std::env::temp_dir().join(format!(
-            "skotiq-header-setstring-{}-{}",
-            std::process::id(),
-            line!()
-        ));
-        std::fs::create_dir_all(&dir).expect("create temp dir");
-        let light = dir.join("light.fits");
-        let copy = dir.join("copy.fits");
-
-        let image = ImageData::from_u16(2, 2, 1, &[1, 2, 3, 4]);
-        let mut source = FitsHeader::new();
-        source.set_string("FILTER", "Ha");
-        source.set_float("EXPTIME", 120.0);
-        write_fits(&light, &image, &source).expect("write light frame");
-
-        let read = read_image(&light).expect("read light frame");
-        let mut carried = FitsHeader::new();
-        for (key, value) in &read.header {
-            carried.set_string(key, value);
-        }
-        write_fits(&copy, &image, &carried).expect("write copy");
-
-        let (_, round_tripped) = read_fits(&copy).expect("read copy");
-        assert_eq!(round_tripped.get_string("FILTER"), Some("Ha"));
-        assert_eq!(round_tripped.get_string("EXPTIME"), Some("120.0"));
+        let header = &read.header;
+        assert_eq!(header.get_string("OBJECT"), Some("61"));
+        assert_eq!(header.get_float("EXPTIME"), Some(120.0));
+        assert_eq!(header.get_comment("EXPTIME"), Some("exposure time (s)"));
+        assert_eq!(header.get_int("GAIN"), Some(100));
+        assert_eq!(header.get_bool("FOCUSED"), Some(true));
+        assert_eq!(header.get_string("DARKFILE"), Some("/data/darks/master_dark.fits"));
+        assert_eq!(header.comments, vec!["taken with Skotiq".to_string()]);
+        assert_eq!(header.history, vec!["calibrated".to_string()]);
+        let order: Vec<&str> = header
+            .cards()
+            .map(|(key, _, _)| key)
+            .filter(|key| source.get(key).is_some())
+            .collect();
+        assert_eq!(order, ["OBJECT", "EXPTIME", "GAIN", "FOCUSED", "DARKFILE"]);
 
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -1036,7 +789,6 @@ mod tests {
     fn read_image_exposes_the_color_filter_of_cfa_fits() {
         let fixture = write_temp_fits("rggb", Some(("RGGB", 0, 0)));
         let result = read_image(&fixture.path).expect("read_image should succeed for CFA FITS");
-        assert_eq!(result.format, ImageFormat::Fits);
         assert_eq!(result.cfa, Some(ColorFilterArray::Bayer(BayerPattern::RGGB)));
     }
 
@@ -1061,7 +813,6 @@ mod tests {
         // A mono frame must never take the one-shot-color path.
         let fixture = write_temp_fits("mono", None);
         let result = read_image(&fixture.path).expect("read_image should succeed for mono FITS");
-        assert_eq!(result.format, ImageFormat::Fits);
         assert_eq!(result.cfa, None);
     }
 }

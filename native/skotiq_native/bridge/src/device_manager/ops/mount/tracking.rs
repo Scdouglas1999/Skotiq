@@ -54,12 +54,13 @@ impl DeviceManager {
                     if let Some(mount) = mount {
                         let mut mount = mount.write().await;
                         return mount.set_tracking(enabled).await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to set ASCOM mount {} tracking={}: {}",
                                     device_id, enabled, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -73,12 +74,13 @@ impl DeviceManager {
                 let mut native_mounts = self.native_mounts.write().await;
                 if let Some(mount) = native_mounts.get_mut(device_id) {
                     return mount.set_tracking(enabled).await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to set native mount {} tracking={}: {}",
                                 device_id, enabled, e
                             ),
+                            e,
                         )
                     });
                 }
@@ -91,12 +93,13 @@ impl DeviceManager {
                 let mounts = self.alpaca_mounts.read().await;
                 if let Some(mount) = mounts.get(device_id) {
                     return mount.set_tracking(enabled).await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to set Alpaca mount {} tracking={}: {}",
                                 device_id, enabled, e
                             ),
+                            e,
                         )
                     });
                 }
@@ -112,12 +115,13 @@ impl DeviceManager {
                     if let Some(client) = clients.get(&server_key) {
                         let mount = skotiq_indi::IndiMount::new(client.clone(), &device_name);
                         return mount.set_tracking(enabled).await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to set INDI mount {} tracking={}: {}",
                                     device_name, enabled, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -191,7 +195,7 @@ impl DeviceManager {
                         return mount
                             .pulse_guide(dir, duration_ms)
                             .await
-                            .map_err(DeviceOpError::driver);
+                            .map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -205,7 +209,7 @@ impl DeviceManager {
                     return mount
                         .pulse_guide(dir, duration_ms)
                         .await
-                        .map_err(DeviceOpError::driver);
+                        .map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -234,7 +238,7 @@ impl DeviceManager {
                     return mount
                         .pulse_guide(alpaca_dir, duration_i32)
                         .await
-                        .map_err(DeviceOpError::driver);
+                        .map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -250,7 +254,7 @@ impl DeviceManager {
                         return mount
                             .pulse_guide(dir, duration_ms)
                             .await
-                            .map_err(DeviceOpError::driver);
+                            .map_err(DeviceOpError::from);
                     }
                     return Err(DeviceOpError::not_connected(
                         Some(device_id.to_string()),
@@ -271,8 +275,7 @@ impl DeviceManager {
                 // dithering and the correction loop cannot be exercised
                 // without a mount.
                 crate::device_manager::ops::sim_gate::require_mount_connected()
-                    .await
-                    .map_err(DeviceOpError::driver)?;
+                    .await?;
                 crate::api::devices::simulation::advance_sim_guide_pulse(
                     &direction_lower,
                     duration_ms,
@@ -305,7 +308,7 @@ impl DeviceManager {
                         return mount
                             .set_tracking_rate_raw(rate)
                             .await
-                            .map_err(DeviceOpError::driver);
+                            .map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -333,7 +336,7 @@ impl DeviceManager {
                     return mount
                         .set_tracking_rate(tracking_rate)
                         .await
-                        .map_err(DeviceOpError::driver);
+                        .map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -391,7 +394,7 @@ impl DeviceManager {
                         return mount
                             .get_tracking_rate_raw()
                             .await
-                            .map_err(DeviceOpError::driver);
+                            .map_err(DeviceOpError::from);
                     }
                 }
                 Err(DeviceOpError::not_connected(
@@ -405,7 +408,7 @@ impl DeviceManager {
                     let rate = mount
                         .get_tracking_rate()
                         .await
-                        .map_err(DeviceOpError::driver)?;
+                        .map_err(DeviceOpError::from)?;
                     // Why: `TrackingRate` is a C-like enum
                     // (Sidereal=0, Lunar=1, Solar=2, King=3); `as i32`
                     // extracts the discriminant — SAFE narrowing.

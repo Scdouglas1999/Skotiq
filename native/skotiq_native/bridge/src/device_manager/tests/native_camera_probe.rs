@@ -118,6 +118,7 @@ impl CameraDriver for ThermometerlessCamera {
             bit_depth: 14,
             color: true,
             bayer_pattern: None,
+            saturation_adu: None,
         }
     }
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {

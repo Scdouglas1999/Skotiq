@@ -28,6 +28,8 @@ typedef struct skotiq_raw_info_t {
     int raw_height;
     int raw_bps;
     unsigned white_level;
+    /* Smallest per-channel linear maximum the file records (0: none). */
+    unsigned linear_max;
     unsigned filters;
     int colors;
     int dng_version;
@@ -93,6 +95,13 @@ int skotiq_raw_describe(libraw_data_t *p, skotiq_raw_info_t *info) {
     info->raw_height = p->sizes.raw_height;
     info->raw_bps = p->color.raw_bps;
     info->white_level = p->color.maximum;
+    /* long[4] in LibRaw 0.21, unsigned[4] in 0.22. */
+    for (int c = 0; c < 4; c++) {
+        long value = (long)p->color.linear_max[c];
+        if (value > 0 && (info->linear_max == 0 || (unsigned)value < info->linear_max)) {
+            info->linear_max = (unsigned)value;
+        }
+    }
     info->filters = p->idata.filters;
     info->colors = p->idata.colors;
     info->dng_version = (int)p->idata.dng_version;

@@ -41,7 +41,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 telescope
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Why: every `CanXxx` flag below maps to an OPTIONAL ASCOM telescope
@@ -109,7 +109,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 camera
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Why: ASCOM ICameraV3 capability struct. `CameraXSize/YSize` and `MaxADU`
@@ -118,6 +118,7 @@ pub(crate) async fn get_alpaca_capabilities(
             // will see "0x0 sensor" and disconnect). All `Can*` and `MaxBinX/Y` are
             // optional; defaulting bin to 1 means "no binning supported", which
             // matches the ASCOM convention for cameras that omit `MaxBinX`.
+            let controls = camera.controls().await;
             let caps = CameraCapabilities {
                 // Why: ICameraV3.CameraXSize is mandatory but treating 0 as "unknown
                 // sensor" lets the dialog open even if the driver flakes out on first
@@ -164,8 +165,18 @@ pub(crate) async fn get_alpaca_capabilities(
                     .await
                     .map(is_colour_sensor)
                     .unwrap_or(false),
-                exposure_min: None, // Alpaca lacks exposure_min method
-                exposure_max: None, // Alpaca lacks exposure_max method
+                can_set_gain: controls.gain.is_present(),
+                gain_min: controls.gain.range().map(|(min, _)| min),
+                gain_max: controls.gain.range().map(|(_, max)| max),
+                can_set_offset: controls.offset.is_present(),
+                offset_min: controls.offset.range().map(|(min, _)| min),
+                offset_max: controls.offset.range().map(|(_, max)| max),
+                can_asymmetric_bin: camera.can_asymmetric_bin().await.unwrap_or(false),
+                can_get_cooler_power: camera.can_get_cooler_power().await.unwrap_or(false),
+                // CoolerOn is NotImplemented on a camera without a cooler.
+                can_set_cooler: camera.cooler_on().await.is_ok(),
+                exposure_min: camera.exposure_min().await.ok(),
+                exposure_max: camera.exposure_max().await.ok(),
                 // Why: ASCOM/Alpaca ICameraV3 exposes SetCCDTemperature (the
                 // setpoint) but NO min/max bounds for it — the spec defines no
                 // achievable-range property. None = "range unknown"; the UI shows

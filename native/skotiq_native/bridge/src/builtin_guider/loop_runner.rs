@@ -493,6 +493,11 @@ pub(crate) async fn run_guiding_loop(
             // tracked star drifted this frame, not just the aggregate centroid.
             record_per_star_residuals(&mut guard.reference_stars, &frame.stars, desired);
             update_snapshot_from_frame(&mut guard, &frame, 50);
+            if guard.paused {
+                guard.last_status.state = "Paused".to_string();
+                guard.last_frame = Some(frame.clone());
+                continue;
+            }
             let offset_arcsec =
                 guide_offset_arcsec(offset, frame.pixel_scale_arcsec).ok_or_else(|| {
                     SkotiqError::OperationFailed(

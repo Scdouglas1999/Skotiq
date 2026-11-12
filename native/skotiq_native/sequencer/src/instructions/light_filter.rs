@@ -115,7 +115,7 @@ async fn move_for_capture(
     ctx: &InstructionContext,
     fw_id: &str,
     slot: &(i32, String),
-) -> Result<(), String> {
+) -> Result<(), DeviceFailure> {
     move_filter_wheel(
         ctx,
         fw_id,
@@ -185,6 +185,7 @@ pub(crate) async fn leave_dark_slot_for_capture(
                  moving it to \"{}\" failed: {error}",
                 slot.1
             ))
+            .caused_by(&error.error)
         }));
     }
     let message = format!(
@@ -250,6 +251,7 @@ pub(crate) async fn select_step_filter(
                 "{step} could not move to filter \"{}\": {error}",
                 slot.1
             ))
+            .caused_by(&error.error)
         }));
     }
     let message = format!("{step}: moved the filter wheel to \"{}\"", slot.1);

@@ -85,7 +85,11 @@ class HostGuiderStatusNotifier extends StateNotifier<HostGuiderStatus?> {
       if (after != null) {
         _eventState = after;
         if (known != null && known.state != after) {
-          state = (deviceId: known.deviceId, state: after, status: known.status);
+          state = (
+            deviceId: known.deviceId,
+            state: after,
+            status: known.status,
+          );
         }
       }
       if (_statusChangingEvents.contains(event.eventType)) _request();
@@ -112,7 +116,7 @@ class HostGuiderStatusNotifier extends StateNotifier<HostGuiderStatus?> {
     }
     _reading = true;
     try {
-      final status = await backend.guiderGetStatus(deviceId: deviceId);
+      final status = await backend.guiderGetStatus();
       if (mounted && identical(_ref.read(backendProvider), backend)) {
         state = (deviceId: deviceId, state: _eventState, status: status);
       }

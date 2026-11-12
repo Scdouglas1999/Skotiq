@@ -7,13 +7,12 @@
 //! Run one vendor per process with only that vendor's fake on the loader path:
 //! `tests/fake_sdk_linux/build_fakes.py <dir>`, then
 //! `LD_LIBRARY_PATH=<dir>/<vendor> cargo test --release -p skotiq_native --test cooler_state_fake_sdk -- --ignored <vendor>`.
-//! (The SVBony fake predates entry points that driver requires and does not
-//! load; FLI is covered in `fli_fake_sdk.rs`.)
+//! (FLI is covered in `fli_fake_sdk.rs`.)
 
 #![cfg(unix)]
 
 use skotiq_device::{CameraDriver, CameraStatus, DeviceDriver, DriverError};
-use skotiq_native::vendor::{atik, moravian, player_one, qhy, touptek, zwo};
+use skotiq_native::vendor::{atik, moravian, player_one, qhy, svbony, touptek, zwo};
 
 /// What a driver's SDK can say about the cooler.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -121,6 +120,8 @@ async fn player_one_reports_the_cooler_the_camera_holds() {
     .await;
 }
 
+/// A Touptek camera opens cooling at its model's own set-point (the fake's
+/// 0 C), whatever the last session set, and the driver reports that.
 #[tokio::test]
 #[ignore = "needs the Touptek fake on LD_LIBRARY_PATH (see the file header)"]
 async fn touptek_reports_the_cooler_the_camera_holds() {
@@ -132,6 +133,27 @@ async fn touptek_reports_the_cooler_the_camera_holds() {
         || {
             (0..count)
                 .map(|i| touptek::TouptekCamera::new(i, "OGMA"))
+                .collect()
+        },
+        Readback::Switch,
+        Some(true),
+    )
+    .await;
+}
+
+#[tokio::test]
+#[ignore = "needs the SVBony fake on LD_LIBRARY_PATH (see the file header)"]
+async fn svbony_reports_the_cooler_the_camera_holds() {
+    let ids: Vec<i32> = svbony::discover_devices()
+        .await
+        .expect("discover")
+        .iter()
+        .map(|c| c.camera_id)
+        .collect();
+    reconnect_while_cooling(
+        || {
+            ids.iter()
+                .map(|&id| svbony::SvbonyCamera::new(id))
                 .collect()
         },
         Readback::Both,
@@ -183,24 +205,21 @@ async fn qhy_reports_a_cooler_it_cannot_read_as_unknown() {
 #[tokio::test]
 #[ignore = "needs the Moravian fake on LD_LIBRARY_PATH (see the file header)"]
 async fn moravian_reports_a_cooler_it_cannot_read_as_unknown() {
-    let ids: Vec<_> = moravian::discover_devices()
+    let addresses: Vec<String> = moravian::discover_devices()
         .await
         .expect("discover")
         .iter()
-        .map(|c| c.camera_id)
+        .map(|c| c.address())
         .collect();
-    reconnect_while_cooling(
-        || {
-            ids.iter()
-                .map(|&id| moravian::MoravianCamera::new(id))
-                .collect()
-        },
-        Readback::None,
-        None,
-    )
-    .await;
+    let cameras = || -> Vec<moravian::MoravianCamera> {
+        addresses
+            .iter()
+            .map(|a| moravian::MoravianCamera::from_address(a).expect("an address"))
+            .collect()
+    };
+    reconnect_while_cooling(cameras, Readback::None, None).await;
     // Cooling needs a set-point the camera cannot report: one is never invented.
-    let mut camera = cooled_camera(ids.iter().map(|&id| moravian::MoravianCamera::new(id))).await;
+    let mut camera = cooled_camera(cameras()).await;
     assert!(matches!(
         camera.set_cooler(true, None).await,
         Err(DriverError::InvalidParameter(_))

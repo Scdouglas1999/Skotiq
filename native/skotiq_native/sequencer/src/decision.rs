@@ -102,6 +102,22 @@ impl DecisionCategory {
     }
 }
 
+/// A happening the run carries on through and tells the operator about once.
+/// Its decision row carries the notice and is what the app raises the
+/// notification from; the run's Warning for it
+/// ([`crate::executor::ExecutorEvent::NoticedWarning`]) carries the same
+/// notice, so the app lists that Warning without telling it a second time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum RunNotice {
+    /// An autofocus did not converge and imaging continues on the last-good
+    /// focus.
+    AutofocusContinued,
+    /// A streak of rejected frames reached the operator's notify limit.
+    RejectStreak,
+    /// A quality problem the operator has not asked to stop the run for.
+    ProblemNoticed,
+}
+
 /// A single decision recorded during sequence execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DecisionEvent {
@@ -125,6 +141,9 @@ pub struct DecisionEvent {
     /// the typed field is preserved for upcoming offline replay tooling).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sequence_run_id: Option<i64>,
+    /// Set on the row of a happening the operator is told about once.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notice: Option<RunNotice>,
 }
 
 impl DecisionEvent {
@@ -138,7 +157,14 @@ impl DecisionEvent {
             details,
             node_id: None,
             sequence_run_id: None,
+            notice: None,
         }
+    }
+
+    /// Mark the row as the one the operator is told about (builder-style).
+    pub fn with_notice(mut self, notice: RunNotice) -> Self {
+        self.notice = Some(notice);
+        self
     }
 
     /// Attach a node id (builder-style).

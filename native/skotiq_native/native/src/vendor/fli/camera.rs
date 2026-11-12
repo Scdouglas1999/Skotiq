@@ -119,6 +119,7 @@ impl FliCamera {
             bit_depth: 16,
             color: false,
             bayer_pattern: None,
+            saturation_adu: None,
         };
 
         // libfli publishes no per-model capability table, so only the API's own

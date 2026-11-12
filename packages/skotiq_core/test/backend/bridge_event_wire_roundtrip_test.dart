@@ -103,6 +103,11 @@ void main() {
         message: 'Autofocus frame not saved',
         kind: bridge.SequencerErrorKind.standalone,
       ),
+      const bridge.SequencerEvent.error(
+        message: 'Center: Failed to center. The run continues.',
+        kind: bridge.SequencerErrorKind.advisory,
+        notice: bridge.SequencerNotice.problemNoticed,
+      ),
       const bridge.SequencerEvent.meridianFlipOutcome(
         outcome: 'succeeded',
         targetName: 'M31',
@@ -202,6 +207,14 @@ void main() {
         detailsJson: '{}',
         nodeId: 'n1',
         sequenceRunId: 12,
+      ),
+      const bridge.SequencerEvent.decisionLogged(
+        timestampIso: '2026-10-21T22:04:00Z',
+        category: 'system_event',
+        summary: 'Frames rejected in a row — the run continues',
+        detailsJson: '{"consecutive_rejects":3}',
+        sequenceRunId: 12,
+        notice: bridge.SequencerNotice.rejectStreak,
       ),
     ];
     for (final event in variants) {

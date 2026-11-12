@@ -1,6 +1,6 @@
 //! The scripted sessions and port scans, one golden transcript each.
 
-use super::fakes::{self, Knobs, Lx200Flavor};
+use super::fakes::{self, IoptronDialect, Knobs, Lx200Flavor};
 use super::skywatcher_sessions::{philadelphia, session_clock};
 use super::{assert_waited, check_transcript, isolate_park_state, FakeMount};
 use crate::vendor::ioptron::{self, IOptronMount};
@@ -165,14 +165,52 @@ async fn skywatcher_session() {
     check_transcript("skywatcher_session", &fake.lines());
 }
 
-#[tokio::test]
-async fn ioptron_session() {
+async fn ioptron_session(name: &str, dialect: IoptronDialect, model_code: &'static str) {
     let _park_state = isolate_park_state().await;
     let knobs = Arc::new(Knobs::default());
-    let fake = FakeMount::spawn(b'#', fakes::ioptron(None, knobs.clone()));
+    let fake = FakeMount::spawn(
+        b'#',
+        fakes::ioptron(dialect, model_code, None, knobs.clone()),
+    );
     let mut mount = IOptronMount::new(fake.path.clone(), None);
     full_session(&fake, &knobs, &mut mount).await;
-    check_transcript("ioptron_session", &fake.lines());
+    check_transcript(name, &fake.lines());
+}
+
+/// A CEM40 on firmware 210101 or later.
+#[tokio::test]
+async fn ioptron_v3_session() {
+    ioptron_session("ioptron_v3_session", IoptronDialect::V3, "0040").await;
+}
+
+#[tokio::test]
+async fn ioptron_v25_session() {
+    ioptron_session("ioptron_v25_session", IoptronDialect::V25, "0060").await;
+}
+
+/// An alt-azimuth mount takes no pulse guiding and has no side of pier.
+#[tokio::test]
+async fn ioptron_alt_azimuth_mount() {
+    let knobs = Arc::new(Knobs::default());
+    let fake = FakeMount::spawn(
+        b'#',
+        fakes::ioptron(IoptronDialect::V25, "5035", None, knobs),
+    );
+    let mut mount = IOptronMount::new(fake.path.clone(), None);
+    let _ = step!(fake, "connect", mount.connect().await);
+    fake.mark(&fake.scrub(&format!(
+        "  name={} can_pulse_guide={}",
+        mount.name(),
+        mount.can_pulse_guide()
+    )));
+    let _ = step!(
+        fake,
+        "pulse_guide(North, 40)",
+        mount.pulse_guide(GuideDirection::North, 40).await
+    );
+    let _ = step!(fake, "get_side_of_pier", mount.get_side_of_pier().await);
+    let _ = step!(fake, "disconnect", mount.disconnect().await);
+    check_transcript("ioptron_alt_azimuth", &fake.lines());
 }
 
 async fn lx200_session(
@@ -364,7 +402,10 @@ async fn ioptron_connect_to_a_silent_port() {
 #[tokio::test]
 async fn ioptron_connect_falls_back_to_the_fast_baud_rate() {
     let knobs = Arc::new(Knobs::default());
-    let fake = FakeMount::spawn(b'#', fakes::ioptron(Some(115200), knobs));
+    let fake = FakeMount::spawn(
+        b'#',
+        fakes::ioptron(IoptronDialect::V3, "0040", Some(115200), knobs),
+    );
     let mut mount = IOptronMount::new(fake.path.clone(), None);
     let _ = step!(fake, "connect", mount.connect().await);
     assert_waited(
@@ -380,6 +421,25 @@ async fn ioptron_connect_falls_back_to_the_fast_baud_rate() {
     let _ = step!(fake, "is_slewing", mount.is_slewing().await);
     let _ = step!(fake, "disconnect", mount.disconnect().await);
     check_transcript("ioptron_connect_fast_baud_fallback", &fake.lines());
+}
+
+/// Firmware from before 2016 answers the model code but not `:GLS#`.
+#[tokio::test]
+async fn ioptron_connect_refuses_firmware_without_the_status_query() {
+    let knobs = Arc::new(Knobs::default());
+    let fake = FakeMount::spawn(
+        b'#',
+        fakes::ioptron(IoptronDialect::Pre2016, "0045", None, knobs),
+    );
+    let mut mount = IOptronMount::new(fake.path.clone(), None);
+    let _ = step!(fake, "connect", mount.connect().await);
+    assert_waited(
+        fake.time_on_the_wire(),
+        Duration::from_secs(5),
+        "iOptron connect to old firmware",
+    );
+    fake.mark(&format!("  connected={}", mount.is_connected()));
+    check_transcript("ioptron_connect_pre2016_firmware", &fake.lines());
 }
 
 #[tokio::test]
@@ -515,14 +575,29 @@ fn skywatcher_scan() {
 #[test]
 fn ioptron_scan() {
     let silent = FakeMount::spawn(b'#', fakes::silent());
-    let fast = FakeMount::spawn(b'#', fakes::ioptron(Some(115200), Arc::default()));
-    let fakes = [("silent", &silent), ("answers-at-115200", &fast)];
+    let v3 = FakeMount::spawn(
+        b'#',
+        fakes::ioptron(IoptronDialect::V3, "0120", Some(115200), Arc::default()),
+    );
+    let v25 = FakeMount::spawn(
+        b'#',
+        fakes::ioptron(IoptronDialect::V25, "0045", Some(9600), Arc::default()),
+    );
+    let fakes = [
+        ("silent", &silent),
+        ("v3-at-115200", &v3),
+        ("v25-at-9600", &v25),
+    ];
 
     let started = Instant::now();
     let found = ioptron::scan_port_list(scan_list(&fakes));
+    // Silent port: two baud rates, each a 100 ms settle, a 500 ms read
+    // timeout and a 50 ms release. The v3 mount: one such miss, then four
+    // 100 ms settles and a release. The v2.5 mount: four settles and a
+    // release.
     assert_waited(
         started.elapsed(),
-        Duration::from_millis(2300),
+        Duration::from_millis(2850),
         "iOptron scan",
     );
 

@@ -50,7 +50,10 @@ impl FrameStoreOps for UnifiedDeviceOps {
     }
 
     fn frame_file_extension(&self) -> &'static str {
-        crate::capture_file_format::extension()
+        skotiq_sequencer::executor_handle()
+            .run_config()
+            .frame_format
+            .extension()
     }
 
     async fn measure_light_frame(

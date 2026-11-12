@@ -32,10 +32,6 @@ mod switch;
 // compile.
 pub mod connect_verify;
 
-// Same reasoning: which cooler properties may be written is pure policy over
-// the driver's declared capabilities.
-pub mod cooler_policy;
-
 /// ASCOM device information discovered from Windows Registry
 #[derive(Debug, Clone)]
 pub struct AscomDevice {

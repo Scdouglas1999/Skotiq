@@ -261,17 +261,6 @@ extension _SequencerLifecycle on SequencerHandlers {
         // Passing `false` is always permitted (only enabling simulation is
         // gated off in release builds).
         await backend.sequencerSetSimulationMode(false);
-        // Weather-safety-off gating: this bare path skips the Dart executor's
-        // runtime-config sync (which pushes the effective fail mode), so mirror
-        // it here. With weather safety disabled the always-armed Rust
-        // WeatherUnsafe trigger would otherwise fail-closed on a rig with no
-        // safety-monitor device and abort the run (see _startNativeExecution).
-        final weatherSafetyEnabled = container
-            .read(weatherSettingsProvider)
-            .weatherSafetyEnabled;
-        if (!weatherSafetyEnabled) {
-          await backend.sequencerSetSafetyFailMode('fail_open');
-        }
         // Wire the session's CONNECTED devices into the native executor. The
         // Dart-orchestrated start path does this from the device-state
         // providers; this bare path did not, so `executor.camera_id` stayed

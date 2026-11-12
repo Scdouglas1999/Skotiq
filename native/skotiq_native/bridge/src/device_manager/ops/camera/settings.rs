@@ -99,12 +99,13 @@ impl DeviceManager {
                     if let Some(camera) = cameras.get(device_id) {
                         let mut camera = camera.write().await;
                         return camera.set_gain(gain).await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to set ASCOM camera {} gain to {}: {}",
                                     device_id, gain, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -117,7 +118,13 @@ impl DeviceManager {
             Some(DriverType::Alpaca) => {
                 let cameras = self.alpaca_cameras.read().await;
                 if let Some(camera) = cameras.get(device_id) {
-                    return camera.set_gain(gain).await.map_err(DeviceOpError::from);
+                    let wire = camera
+                        .controls()
+                        .await
+                        .gain
+                        .to_wire(gain, "Gain")
+                        .map_err(DeviceOpError::from)?;
+                    return camera.set_gain(wire).await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -128,12 +135,13 @@ impl DeviceManager {
                 let mut native_cameras = self.native_cameras.write().await;
                 if let Some(camera) = native_cameras.get_mut(device_id) {
                     return camera.set_gain(gain).await.map_err(|e| {
-                        DeviceOpError::hardware(
+                        DeviceOpError::caused_by(
                             Some(device_id.to_string()),
                             format!(
                                 "Failed to set native SDK camera {} gain to {}: {}",
                                 device_id, gain, e
                             ),
+                            e,
                         )
                     });
                 }
@@ -160,9 +168,10 @@ impl DeviceManager {
                         )
                         .await
                         .map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!("Failed to set INDI camera gain: {}", e),
+                                e,
                             )
                         })?;
                     return Ok(());
@@ -234,7 +243,13 @@ impl DeviceManager {
             Some(DriverType::Alpaca) => {
                 let cameras = self.alpaca_cameras.read().await;
                 if let Some(camera) = cameras.get(device_id) {
-                    return camera.set_offset(offset).await.map_err(DeviceOpError::from);
+                    let wire = camera
+                        .controls()
+                        .await
+                        .offset
+                        .to_wire(offset, "Offset")
+                        .map_err(DeviceOpError::from)?;
+                    return camera.set_offset(wire).await.map_err(DeviceOpError::from);
                 }
                 Err(DeviceOpError::not_connected(
                     Some(device_id.to_string()),
@@ -269,9 +284,10 @@ impl DeviceManager {
                         )
                         .await
                         .map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!("Failed to set INDI camera offset: {}", e),
+                                e,
                             )
                         })?;
                     return Ok(());
@@ -504,9 +520,10 @@ impl DeviceManager {
                                     .set_switch(&device_name, prop_name, &element, true)
                                     .await
                                     .map_err(|e| {
-                                        DeviceOpError::hardware(
+                                        DeviceOpError::caused_by(
                                             Some(device_id.to_string()),
                                             format!("Failed to set INDI readout mode: {}", e),
+                                            e,
                                         )
                                     })?;
                                 return Ok(());
@@ -666,12 +683,13 @@ impl DeviceManager {
                                 Some(t) => format!("{}C", t),
                                 None => "unchanged".to_string(),
                             };
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                 "Failed to set ASCOM camera {} cooler (enabled={}, target={}): {}",
                                 device_id, enabled, target, e
                             ),
+                                e,
                             )
                         })?;
                         return Ok(());
@@ -685,10 +703,15 @@ impl DeviceManager {
             Some(DriverType::Alpaca) => {
                 let cameras = self.alpaca_cameras.read().await;
                 if let Some(camera) = cameras.get(device_id) {
-                    camera.set_cooler_on(enabled).await?;
-                    if let Some(temp) = target_temp {
+                    let setpoint = skotiq_device::ascom::camera::cooler_setpoint_to_write(
+                        enabled,
+                        target_temp,
+                        camera.can_set_ccd_temperature().await.ok(),
+                    );
+                    if let Some(temp) = setpoint {
                         camera.set_ccd_temperature(temp).await?;
                     }
+                    camera.set_cooler_on(enabled).await?;
                     return Ok(());
                 }
                 Err(DeviceOpError::not_connected(

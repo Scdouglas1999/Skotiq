@@ -13,7 +13,7 @@ import '../../models/settings/app_settings.dart' as models;
 /// What this role deliberately does NOT own:
 ///   * Live device commands — see [DeviceBackend].
 ///   * Sequencer runtime configuration (which uses some of the same fields
-///     such as location) — see [SequencerBackend.sequencerUpdateLocation].
+///     such as location) — see [SequencerBackend.sequencerApplyRunConfig].
 ///     Persistent settings vs. in-flight executor state are deliberately
 ///     separate writers; the bridge is responsible for keeping them in sync
 ///     when the user edits one or the other.
@@ -21,7 +21,6 @@ import '../../models/settings/app_settings.dart' as models;
 ///     [DiagnosticsBackend.getLocationFromInternet], which is a network
 ///     fetch, not a persistence operation.
 abstract class ProfileSettingsBackend {
-
   Future<List<EquipmentProfile>> getProfiles();
 
   Future<void> saveProfile(EquipmentProfile profile);

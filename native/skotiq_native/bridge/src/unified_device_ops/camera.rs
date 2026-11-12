@@ -75,7 +75,7 @@ impl CameraOps for UnifiedDeviceOps {
         .inspect_err(|_e| {
             exposure.end(false, EventSeverity::Error);
         })
-        .map_err(|e| format!("Exposure failed: {}", e))?;
+        .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
         if let Err(e) = wait_for_camera_exposure_complete(
             camera_id,
@@ -86,7 +86,7 @@ impl CameraOps for UnifiedDeviceOps {
             || async {
                 mgr.camera_is_exposure_complete(camera_id)
                     .await
-                    .map_err(|e| e.to_string())
+                    .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
             },
         )
         .await
@@ -127,7 +127,12 @@ impl CameraOps for UnifiedDeviceOps {
         {
             Ok(inner) => inner.map_err(|e| {
                 exposure.end(false, EventSeverity::Error);
-                format!("Failed to download image: {}", e)
+                match device_error(skotiq_sequencer::DeviceKind::Camera)(e) {
+                    DeviceError::Failed(message) => {
+                        DeviceError::Failed(format!("Failed to download image: {message}"))
+                    }
+                    other => other,
+                }
             })?,
             Err(_) => {
                 exposure.end(false, EventSeverity::Error);
@@ -300,7 +305,7 @@ impl CameraOps for UnifiedDeviceOps {
         get_device_manager()
             .camera_abort_exposure(camera_id)
             .await
-            .map_err(|e| format!("Abort failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
     }
 
     async fn camera_set_cooler(
@@ -319,13 +324,13 @@ impl CameraOps for UnifiedDeviceOps {
         // `DeviceManager::camera_set_cooler` publishes the cooling event.
         set_camera_cooler(camera_id.to_string(), enabled as u8, Some(target_temp))
             .await
-            .map_err(|e| format!("Cooler control failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
     }
 
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
         let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
         status
             .sensor_temp
@@ -335,7 +340,7 @@ impl CameraOps for UnifiedDeviceOps {
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
         let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
         status
             .cooler_power
@@ -345,14 +350,14 @@ impl CameraOps for UnifiedDeviceOps {
     async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
         let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
         Ok(status.cooler_on)
     }
 
     async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
         let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
         Ok(status
             .target_temp
             .filter(|_| status.cooler_on == Some(true)))
@@ -361,7 +366,7 @@ impl CameraOps for UnifiedDeviceOps {
     async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
         let status = get_camera_status(camera_id.to_string())
             .await
-            .map_err(|e| format!("Failed to get camera status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
 
         // A driver with nothing to say reports 0.0 here, which is not a pitch —
         // writing it would tell a solver the sensor has zero-sized pixels.

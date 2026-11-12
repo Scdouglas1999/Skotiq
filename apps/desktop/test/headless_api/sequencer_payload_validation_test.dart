@@ -114,25 +114,6 @@ void main() {
       );
     });
 
-    test(
-      'adaptive-exposure per-filter maps keep their nested field path',
-      () async {
-        await expectBadRequest(
-          handlers.handleSequencerUpdateDefaultAdaptiveExposure,
-          '/api/sequencer/update-default-adaptive-exposure',
-          {
-            'enabled': true,
-            'targetSnr': 10.0,
-            'referenceSkyBrightnessMag': 21.0,
-            'minExposureSecs': 1.0,
-            'maxExposureSecs': 300.0,
-            'perFilterMinSecs': {'L': 'short'},
-          },
-          'perFilterMinSecs.L',
-        );
-      },
-    );
-
     test('carry-over nested map keeps its nested field path', () async {
       await expectBadRequest(
         handlers.handleSequencerUpdatePendingIntegrationCarryOver,

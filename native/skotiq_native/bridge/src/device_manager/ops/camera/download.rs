@@ -17,12 +17,13 @@ impl DeviceManager {
                     if let Some(camera) = cameras.get(device_id) {
                         let mut camera = camera.write().await;
                         return camera.download_image().await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to download image from ASCOM camera {}: {}",
                                     device_id, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -38,12 +39,13 @@ impl DeviceManager {
                     // Use the new download_image_data method
                     let (width, height, pixels) =
                         camera.download_image_data().await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to download image from Alpaca camera {}: {}",
                                     device_id, e
                                 ),
+                                e,
                             )
                         })?;
 
@@ -51,8 +53,9 @@ impl DeviceManager {
                     // Same as the INDI path below: record a failed read as UNKNOWN
                     // rather than 0, so it cannot outrank the configured gain and
                     // mislabel the frame's FITS header.
+                    let controls = camera.controls().await;
                     let gain = match camera.gain().await {
-                        Ok(g) => g,
+                        Ok(g) => controls.gain.from_wire(g),
                         Err(e) => {
                             warn!(
                                 "Failed to read camera gain for {}: {}. Recording it as \
@@ -63,7 +66,7 @@ impl DeviceManager {
                         }
                     };
                     let offset = match camera.offset().await {
-                        Ok(o) => o,
+                        Ok(o) => controls.offset.from_wire(o),
                         Err(e) => {
                             warn!(
                                 "Failed to read camera offset for {}: {}. Recording it as \

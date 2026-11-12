@@ -10,7 +10,7 @@
 //     own tables gets those tables in the shape the services gave them.
 //
 // Later schema versions that change a table on purpose are applied to the
-// base explicitly (`_withV66`), so nothing else can change unnoticed.
+// base explicitly (`_withV67`), so nothing else can change unnoticed.
 //
 // `fixtures/README.md` says how the fixtures were made.
 import 'dart:convert';
@@ -47,18 +47,18 @@ const _onceLazyTables = {
   'conversational_builds',
 };
 
-/// What schema 66 changed since the base build: a calibration library's gain
+/// What schema 67 changed since the base build: a calibration library's gain
 /// and offset may be empty (a camera without those controls), so the two
 /// tables are rebuilt with the columns nullable and without a default.
-const _v66NullableColumns = {
+const _v67NullableColumns = {
   'dark_library': {'gain', 'offset'},
   'flat_library': {'gain', 'offset'},
 };
 
-/// [tables] (a `dumpSchema` table map) as schema 66 leaves it.
-Map<dynamic, dynamic> _withV66(Map<dynamic, dynamic> tables) {
+/// [tables] (a `dumpSchema` table map) as schema 67 leaves it.
+Map<dynamic, dynamic> _withV67(Map<dynamic, dynamic> tables) {
   final out = jsonDecode(jsonEncode(tables)) as Map;
-  _v66NullableColumns.forEach((table, columns) {
+  _v67NullableColumns.forEach((table, columns) {
     for (final column in (out[table] as Map)['columns'] as List) {
       if (columns.contains((column as Map)['name'])) {
         column['notnull'] = 0;
@@ -69,8 +69,8 @@ Map<dynamic, dynamic> _withV66(Map<dynamic, dynamic> tables) {
   return out;
 }
 
-/// `dumpMasterSql` without the rows of the tables schema 66 rebuilt.
-Map<String, String?> _outsideV66(Map<String, String?> master, raw.Database db) {
+/// `dumpMasterSql` without the rows of the tables schema 67 rebuilt.
+Map<String, String?> _outsideV67(Map<String, String?> master, raw.Database db) {
   final rebuilt = {
     for (final row in db.select(
       'SELECT type, name FROM sqlite_master WHERE tbl_name IN '
@@ -120,7 +120,7 @@ void main() {
   group('a database written by the raw-DDL build', () {
     test('opens with its schema and row counts unchanged', () async {
       final file = _unpackPopulatedFixture(dir);
-      final masterBefore = _withRaw(file, (db) => _outsideV66(dumpMasterSql(db), db));
+      final masterBefore = _withRaw(file, (db) => _outsideV67(dumpMasterSql(db), db));
       final tablesBefore = _withRaw(file, dumpSchema)['tables']! as Map;
       final countsBefore = _withRaw(file, dumpRowCounts);
       expect(
@@ -134,20 +134,20 @@ void main() {
       _withRaw(file, (db) {
         expect(db.select('PRAGMA integrity_check').first.values, ['ok']);
         expect(db.select('PRAGMA foreign_key_check'), isEmpty);
-        expect(db.select('PRAGMA user_version').first.values, [66]);
+        expect(db.select('PRAGMA user_version').first.values, [67]);
       });
       // Same tables, same indexes, same SQL text: nothing was rebuilt,
-      // altered or added but the two tables schema 66 rebuilt, which keep
+      // altered or added but the two tables schema 67 rebuilt, which keep
       // their structure apart from the nullable columns.
       expect(
-        _withRaw(file, (db) => _outsideV66(dumpMasterSql(db), db)),
+        _withRaw(file, (db) => _outsideV67(dumpMasterSql(db), db)),
         masterBefore,
       );
       final tablesAfter = jsonDecode(
         jsonEncode(_withRaw(file, dumpSchema)['tables']),
       ) as Map;
-      final expected = _withV66(tablesBefore);
-      for (final table in _v66NullableColumns.keys) {
+      final expected = _withV67(tablesBefore);
+      for (final table in _v67NullableColumns.keys) {
         expect(tablesAfter[table], expected[table], reason: table);
       }
 
@@ -318,7 +318,7 @@ void main() {
     await _openAndClose(file);
 
     _withRaw(file, (db) {
-      expect(db.select('PRAGMA user_version').first.values, [66]);
+      expect(db.select('PRAGMA user_version').first.values, [67]);
       expect(db.select('SELECT COUNT(*) AS n FROM sky_tiles').first['n'], 2);
       expect(
         db.select(
@@ -344,7 +344,7 @@ void main() {
               as Map<String, dynamic>;
 
       final freshTables = fresh['tables']! as Map;
-      final baseTables = _withV66(base['tables'] as Map);
+      final baseTables = _withV67(base['tables'] as Map);
       expect(freshTables.keys.toSet(), {
         ...baseTables.keys,
         ..._onceLazyTables,

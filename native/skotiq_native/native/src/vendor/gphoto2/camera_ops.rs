@@ -542,6 +542,7 @@ impl CameraDriver for GPhoto2Camera {
             bit_depth: self.bit_depth,
             color: self.is_color,
             bayer_pattern: Some(BayerPattern::Rggb),
+            saturation_adu: self.measured_saturation_level,
         }
     }
 

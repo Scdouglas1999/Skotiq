@@ -1,0 +1,7 @@
+call connect
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :MountInfo#
+< 0045
+> :GLS#
+  -> Err(SdkError("The iOptron mount on <PORT> (model code 0045) did not answer the status query :GLS# (Operation timeout: iOptron command response timed out). Its firmware predates the 2016 command set Skotiq speaks: update the mount and hand controller firmware with iOptron's upgrade utility, then connect again."))
+  connected=false

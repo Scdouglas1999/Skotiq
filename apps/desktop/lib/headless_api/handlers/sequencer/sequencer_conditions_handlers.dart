@@ -82,28 +82,6 @@ extension _SequencerConditions on SequencerHandlers {
     return jsonOk({'status': 'ok'});
   }
 
-  /// POST /api/sequencer/weather-resume-after — `{"seconds": 300}`.
-  Future<Response> _handleSequencerWeatherResumeAfter(Request request) async {
-    _logInfo('[API] POST /api/sequencer/weather-resume-after');
-    final payload = await readJsonObject(request);
-    final seconds = optionalInt(payload, 'seconds', min: 0, max: 24 * 3600);
-    if (seconds == null) {
-      throw BadRequestError(
-        field: 'seconds',
-        expected: 'integer',
-        message: 'seconds is required',
-      );
-    }
-    await container
-        .read(safetyConfigStoreProvider)
-        .setRequiredSafeDurationSeconds(seconds);
-    await container
-        .read(sequencerBackendProvider)
-        .sequencerSetWeatherResumeAfterSafeSecs(seconds);
-    container.invalidate(weatherDecisionPolicyProvider);
-    return jsonOk({'status': 'ok'});
-  }
-
   /// GET /api/sequencer/cloud-motion.
   ///
   /// Returns `{"cloud_motion": "<json>"}` (or `null`) so the remote run

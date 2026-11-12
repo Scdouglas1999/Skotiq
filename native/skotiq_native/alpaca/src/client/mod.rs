@@ -60,6 +60,32 @@ fn decode_put_response<T: DeserializeOwned + 'static>(
     serde_json::from_value(value_json).map_err(|e| AlpacaError::RequestFailed(e.to_string()))
 }
 
+/// Decode the JSON body of an Alpaca GET.
+///
+/// The device's error number is read before the value: a server may leave
+/// `Value` out of an error reply, and decoding the value first turned the
+/// device's `NotImplemented` into a retried "missing field Value" failure.
+fn decode_get_response<T: DeserializeOwned>(raw: serde_json::Value) -> Result<T, AlpacaError> {
+    let error_number = raw
+        .get("ErrorNumber")
+        .and_then(serde_json::Value::as_i64)
+        .unwrap_or(0) as i32;
+    if error_number != 0 {
+        return Err(AlpacaError::DeviceError {
+            code: error_number,
+            message: raw
+                .get("ErrorMessage")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("")
+                .to_string(),
+        });
+    }
+    let value = raw.get("Value").cloned().ok_or_else(|| {
+        AlpacaError::ParseError("Alpaca reply has neither a Value nor an error".to_string())
+    })?;
+    serde_json::from_value(value).map_err(AlpacaError::from)
+}
+
 /// Alpaca API response wrapper
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -295,16 +321,7 @@ impl AlpacaClient {
                     });
                 }
 
-                let alpaca_response: AlpacaResponse<T> = response.json().await?;
-
-                if alpaca_response.error_number != 0 {
-                    return Err(AlpacaError::DeviceError {
-                        code: alpaca_response.error_number,
-                        message: alpaca_response.error_message,
-                    });
-                }
-
-                Ok(alpaca_response.value)
+                decode_get_response(response.json().await?)
             }
         })
         .await
@@ -354,15 +371,7 @@ impl AlpacaClient {
                     });
                 }
 
-                let alpaca_response: AlpacaResponse<T> = response.json().await?;
-                if alpaca_response.error_number != 0 {
-                    return Err(AlpacaError::DeviceError {
-                        code: alpaca_response.error_number,
-                        message: alpaca_response.error_message,
-                    });
-                }
-
-                Ok(alpaca_response.value)
+                decode_get_response(response.json().await?)
             }
         })
         .await
@@ -447,16 +456,7 @@ impl AlpacaClient {
             });
         }
 
-        let alpaca_response: AlpacaResponse<T> = response.json().await?;
-
-        if alpaca_response.error_number != 0 {
-            return Err(AlpacaError::DeviceError {
-                code: alpaca_response.error_number,
-                message: alpaca_response.error_message,
-            });
-        }
-
-        Ok(alpaca_response.value)
+        decode_get_response(response.json().await?)
     }
 
     /// Make a PUT request, waiting as long as `wait` allows.

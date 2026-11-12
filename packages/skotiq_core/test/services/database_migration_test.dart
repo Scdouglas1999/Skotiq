@@ -802,10 +802,10 @@ CREATE TABLE captured_images (
     },
   );
 
-  test('fresh database is at schema 66 with stacked_results table', () async {
+  test('fresh database is at schema 67 with stacked_results table', () async {
     final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
     try {
-      expect(db.schemaVersion, equals(66));
+      expect(db.schemaVersion, equals(67));
 
       // v48 (Night Narrator): the narrator_events table must exist on a
       // fresh install (drift createAll) just like on the upgrade path.
@@ -897,13 +897,13 @@ CREATE TABLE captured_images (
   });
 
   test(
-    'v65 libraries keep their rows and take masters without gain or offset',
+    'v66 libraries keep their rows and take masters without gain or offset',
     () async {
-      final tempDir = await Directory.systemTemp.createTemp('skotiq_v65_');
+      final tempDir = await Directory.systemTemp.createTemp('skotiq_v66_');
       final dbFile = File('${tempDir.path}/skotiq.db');
       final setupDb = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
       try {
-        // The v65 tables, gain and offset NOT NULL DEFAULT 0.
+        // The v66 tables, gain and offset NOT NULL DEFAULT 0.
         await setupDb.customStatement('DROP TABLE IF EXISTS dark_library');
         await setupDb.customStatement(
           'CREATE TABLE dark_library (id INTEGER PRIMARY KEY AUTOINCREMENT, '
@@ -935,7 +935,7 @@ CREATE TABLE captured_images (
           'INSERT INTO flat_library (file_path, "filter", created_at) '
           "VALUES ('/flats/l.fits', 'L', 1)",
         );
-        await setupDb.customStatement('PRAGMA user_version = 65');
+        await setupDb.customStatement('PRAGMA user_version = 66');
       } finally {
         await setupDb.close();
       }
@@ -998,7 +998,7 @@ CREATE TABLE captured_images (
           .customSelect('PRAGMA user_version')
           .getSingle();
       expect(upgradedVersion.data['user_version'], equals(db.schemaVersion));
-      expect(db.schemaVersion, equals(66));
+      expect(db.schemaVersion, equals(67));
 
       final tableRow = await db
           .customSelect(

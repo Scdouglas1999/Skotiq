@@ -185,7 +185,6 @@ export 'src/models/import/canonical_sequence_node.dart';
 export 'src/models/import/import_result.dart';
 
 export 'src/providers/app_version_provider.dart';
-export 'src/providers/camera_file_saving_sync.dart';
 export 'src/providers/focuser_backlash_calibration_provider.dart';
 export 'src/providers/focuser_backlash_provider.dart';
 export 'src/providers/database_provider.dart';
@@ -209,7 +208,6 @@ export 'src/providers/framing_image_cache_provider.dart';
 // gating the GPU-composited tiled survey background. Renders inside the framing
 // path (not the planetarium renderer).
 export 'src/providers/hips_framing_provider.dart';
-export 'src/providers/capture_file_format_sync.dart';
 export 'src/providers/imaging_provider.dart';
 export 'src/providers/imaging_viewer_state_provider.dart';
 export 'src/providers/sequence_provider.dart';
@@ -218,6 +216,8 @@ export 'src/models/sequence/validation/structural_rules.dart';
 export 'src/models/sequence/validation/validation_issue.dart';
 export 'src/models/sequence/sequence_editor_exceptions.dart';
 export 'src/providers/sequence/remote_sequence_editor_sync.dart';
+export 'src/providers/sequence/run_config_sync.dart'
+    show runConfigSyncProvider, RunConfigSync;
 export 'src/providers/sequence_stats_provider.dart';
 export 'src/models/sequence/terminal_run_result.dart';
 // The one predicate every surface asks before calling a run's end an error.
@@ -410,6 +410,7 @@ export 'src/providers/async_scope.dart';
 export 'src/backend/bridge_events.dart'
     hide SkotiqEvent, EventCategory, EventSeverity;
 export 'src/backend/sequencer_error_kind.dart';
+export 'src/backend/sequencer_notice.dart';
 // Per-frame capture truth carried on FrameAccepted/FrameRejected. Exported so
 // the surfaces that persist or assert on a sequenced frame read the event's
 // key names from one place rather than re-spelling them.

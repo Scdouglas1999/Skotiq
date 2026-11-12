@@ -18,7 +18,7 @@ fn trigger_continuation(
     position_before: Option<i32>,
     position_after: Option<i32>,
     origin_restored: Option<bool>,
-) -> AutofocusTriggerContinuation {
+) -> ContinuedHappening {
     autofocus_failure_continuation(
         "Autofocus trigger 'Autofocus Interval'",
         serde_json::json!({
@@ -53,6 +53,10 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
         "Autofocus failed — continuing with last-good focus"
     );
     assert_eq!(
+        continuation.decision.notice,
+        Some(crate::decision::RunNotice::AutofocusContinued)
+    );
+    assert_eq!(
         continuation.decision.details["focuser_position_before"],
         serde_json::json!(21_400)
     );
@@ -69,6 +73,14 @@ fn a_failed_autofocus_trigger_records_the_focus_the_run_kept() {
         "the operator must be told the run carried on: {}",
         continuation.operator_message
     );
+    let (_, line) = continuation.split();
+    assert!(matches!(
+        line.into_event(),
+        ExecutorEvent::NoticedWarning {
+            notice: crate::decision::RunNotice::AutofocusContinued,
+            ..
+        }
+    ));
 }
 
 /// A failed RETURN move is a different night: the motor is parked somewhere
@@ -1787,7 +1799,14 @@ async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
     drop(rx);
     executor.command_tx = Some(tx);
 
-    executor.update_location(Some(39.97), Some(-75.36)).await;
+    executor
+        .handle()
+        .update_run_config(|config| {
+            config.latitude = Some(39.97);
+            config.longitude = Some(-75.36);
+        })
+        .await
+        .unwrap();
 
     let manager = executor.trigger_manager.read().await;
     let state = manager.state();

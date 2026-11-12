@@ -1,6 +1,120 @@
 //! `CameraDriver` implementation for `SvbonyCamera`.
 
 use super::*;
+use std::time::{Duration, Instant};
+
+/// How long one SVBGetVideoData call may hold the SDK lock while a frame is
+/// awaited. A second SVBony camera on the same SDK (a guide camera beside the
+/// main one) gets the lock between calls.
+const FRAME_POLL_MS: c_int = 200;
+
+/// How long after the exposure ends the frame may take to arrive (readout and
+/// USB transfer). INDI retries for about 50 s (svbony_base.cpp:255-350).
+const READOUT_ALLOWANCE: Duration = Duration::from_secs(30);
+
+/// Wait for a frame left from an exposure that was not read. INDI reads one
+/// with a 1 s wait before each exposure (svbony_base.cpp:84-89, 190-193).
+const UNREAD_FRAME_WAIT_MS: c_int = 1000;
+
+/// Wait for a frame already in the SDK's buffer before triggering.
+const BUFFERED_FRAME_WAIT_MS: c_int = 50;
+
+/// SVBSendSoftTrigger tries, 100 ms apart (svbony_base.cpp:204-220).
+const TRIGGER_TRIES: u32 = 3;
+
+/// The frame size the SDK will deliver, under a lock the caller holds.
+fn sdk_roi_size(sdk: &SvbonySdk, camera_id: c_int) -> Result<(c_int, c_int), DriverError> {
+    let (mut start_x, mut start_y, mut width, mut height, mut bin) = (0, 0, 0, 0, 0);
+    // SAFETY: the camera is open; all five out-pointers are distinct c_int stack locals.
+    let result = unsafe {
+        (sdk.get_roi_format)(
+            camera_id,
+            &mut start_x,
+            &mut start_y,
+            &mut width,
+            &mut height,
+            &mut bin,
+        )
+    };
+    check(result, "read the readout region")?;
+    Ok((width, height))
+}
+
+impl SvbonyCamera {
+    fn buffer_for(&mut self, roi: Roi) -> Result<usize, DriverError> {
+        let size =
+            calculate_buffer_size_i32(roi.width, roi.height, self.image_type.bytes_per_sample())?;
+        if self.image_buffer.len() < size {
+            self.image_buffer.resize(size, 0);
+        }
+        Ok(size)
+    }
+
+    /// One SVBGetVideoData call into the frame buffer, under a lock the
+    /// caller holds. The buffer must hold `size` bytes.
+    fn read_frame(&mut self, sdk: &SvbonySdk, size: usize, wait_ms: c_int) -> SvbError {
+        let size = c_long::try_from(size).unwrap_or(c_long::MAX);
+        // SAFETY: `image_buffer` holds at least `size` bytes (buffer_for), which
+        // is what the SDK is told it may write; the camera is open.
+        let result = unsafe {
+            (sdk.get_video_data)(
+                self.camera_id,
+                self.image_buffer.as_mut_ptr(),
+                size,
+                wait_ms,
+            )
+        };
+        SvbError::from_i32(result)
+    }
+
+    /// Read and drop frames left in the SDK's buffer, under a lock the caller
+    /// holds, with capture running.
+    fn drain_frames(&mut self, sdk: &SvbonySdk, size: usize) {
+        let mut wait_ms = if self.unread_frame {
+            UNREAD_FRAME_WAIT_MS
+        } else {
+            BUFFERED_FRAME_WAIT_MS
+        };
+        let mut dropped = 0;
+        while dropped < 4 && self.read_frame(sdk, size, wait_ms) == SvbError::Success {
+            dropped += 1;
+            wait_ms = BUFFERED_FRAME_WAIT_MS;
+        }
+        if dropped > 0 {
+            tracing::info!(
+                "SVBony {}: dropped {} frame(s) left from an earlier exposure",
+                self.core.name,
+                dropped
+            );
+        }
+        self.unread_frame = false;
+    }
+
+    fn send_trigger(&self, sdk: &SvbonySdk) -> Result<(), DriverError> {
+        let trigger = sdk.send_soft_trigger.ok_or(DriverError::NotSupported)?;
+        let mut last = SvbError::Success;
+        for attempt in 0..TRIGGER_TRIES {
+            if attempt > 0 {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            // SAFETY: the camera is open, in soft-trigger mode and capturing.
+            last = SvbError::from_i32(unsafe { trigger(self.camera_id) });
+            if last == SvbError::Success {
+                return Ok(());
+            }
+        }
+        Err(last.to_native_error("start the exposure (soft trigger)"))
+    }
+
+    /// Stop capture after a failed exposure step and leave the camera ready
+    /// for the next one.
+    fn end_failed_exposure(&mut self, sdk: &SvbonySdk) {
+        stop_capture(sdk, self.camera_id);
+        self.unread_frame = self.capture == Capture::SoftTrigger;
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
+    }
+}
 
 #[async_trait]
 impl CameraDriver for SvbonyCamera {
@@ -11,9 +125,8 @@ impl CameraDriver for SvbonyCamera {
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
         self.core.require_connected()?;
 
-        // Get sensor temperature and cooler power using async methods that take the SDK lock
-        let sensor_temp = if self.core.capabilities.can_cool {
-            self.get_control_value_async(SvbControlType::CurrentTemperature)
+        let sensor_temp = if self.controls.has(SvbControlType::CurrentTemperature) {
+            self.control(SvbControlType::CurrentTemperature)
                 .await
                 .map(|v| v as f64 / 10.0)
                 .ok()
@@ -21,22 +134,22 @@ impl CameraDriver for SvbonyCamera {
             None
         };
 
-        // The camera's own cooler registers; the last command answers for a
-        // read that fails.
+        // The camera's own cooler registers; the last read-back or command
+        // answers for a read that fails.
         let (cooler_on, target_temp, cooler_power) = if self.core.capabilities.can_cool {
             let cached = self.core.cooler();
             let enabled = self
-                .get_control_value_async(SvbControlType::CoolerEnable)
+                .control(SvbControlType::CoolerEnable)
                 .await
                 .ok()
                 .map(|v| v != 0);
             let target = self
-                .get_control_value_async(SvbControlType::TargetTemperature)
+                .control(SvbControlType::TargetTemperature)
                 .await
                 .ok()
                 .map(|v| v as f64 / 10.0);
             let power = self
-                .get_control_value_async(SvbControlType::CoolerPower)
+                .control(SvbControlType::CoolerPower)
                 .await
                 .map(|v| v as f64)
                 .ok();
@@ -76,42 +189,42 @@ impl CameraDriver for SvbonyCamera {
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
         self.core.require_connected()?;
+        let micros = exposure_micros(
+            params.duration_secs,
+            self.controls.get(SvbControlType::Exposure),
+        )?;
+        let roi = self.roi_for(params.bin_x, params.bin_y, params.subframe.as_ref())?;
+        let size = self.buffer_for(roi)?;
 
-        let sdk = SvbonySdk::installed()?;
-
-        // Set gain if provided (these methods take the SDK lock internally)
+        let sdk = SvbonySdk::lock().await?;
+        stop_capture(&sdk, self.camera_id);
         if let Some(gain) = params.gain {
-            self.set_gain(gain).await?;
+            self.core.gain =
+                self.set_and_read_back(&sdk, SvbControlType::Gain, i64::from(gain))? as i32;
         }
-
         if let Some(offset) = params.offset {
-            self.set_offset(offset).await?;
+            self.core.offset =
+                self.set_and_read_back(&sdk, SvbControlType::BlackLevel, i64::from(offset))? as i32;
         }
+        self.apply_roi(&sdk, roi, params.subframe.is_some())?;
+        let micros = self.set_and_read_back(&sdk, SvbControlType::Exposure, micros)?;
 
-        self.set_binning(params.bin_x, params.bin_y).await?;
-
-        self.set_subframe(params.subframe.clone()).await?;
-
-        let sdk = sdk.lock().await;
-
-        // Set exposure time (in microseconds).
-        // Why: max exposure is configured well below 1 hour (3.6e9 us); f64 -> i64 with
-        // saturation handles negative or NaN duration as 0 / i64::MAX respectively, both
-        // of which the SDK rejects safely. Real astrophotography exposures cap at ~hours.
-        let exposure_us = (params.duration_secs * 1_000_000.0) as i64;
-        self.set_control_value(&sdk, SvbControlType::Exposure, exposure_us)?;
-
-        // Start video capture mode (SVBony uses video mode for exposures)
-        // SAFETY: `self.camera_id` validated by SVBOpenCamera in connect(); SVBStartVideoCapture takes a single c_int and is the contractual entry point to begin capture per SVBCameraSDK.h.
+        // SAFETY: the camera is open and its region and format are set.
         let result = unsafe { (sdk.start_video_capture)(self.camera_id) };
-        if SvbError::from_i32(result) != SvbError::Success {
-            return Err(SvbError::from_i32(result).to_native_error("start exposure"));
+        check(result, "start capture")?;
+
+        if self.capture == Capture::SoftTrigger {
+            self.drain_frames(&sdk, size);
+            if let Err(e) = self.send_trigger(&sdk) {
+                self.end_failed_exposure(&sdk);
+                return Err(e);
+            }
+            self.unread_frame = true;
         }
 
-        self.core.exposure_started_at = Some(std::time::Instant::now());
-        self.core.exposure_duration = params.duration_secs;
+        self.core.exposure_started_at = Some(Instant::now());
+        self.core.exposure_duration = micros as f64 / 1_000_000.0;
         self.core.state = CameraState::Exposing;
-
         Ok(())
     }
 
@@ -119,12 +232,9 @@ impl CameraDriver for SvbonyCamera {
         self.core.require_connected()?;
 
         let sdk = SvbonySdk::lock().await?;
-
-        // SAFETY: `self.camera_id` validated by SVBOpenCamera in connect(); SVBStopVideoCapture takes a single c_int and is idempotent.
+        // SAFETY: the camera is open; SVBStopVideoCapture takes a single c_int.
         let result = unsafe { (sdk.stop_video_capture)(self.camera_id) };
-        if SvbError::from_i32(result) != SvbError::Success {
-            return Err(SvbError::from_i32(result).to_native_error("abort exposure"));
-        }
+        check(result, "abort the exposure")?;
 
         self.core.state = CameraState::Idle;
         self.core.exposure_started_at = None;
@@ -150,126 +260,79 @@ impl CameraDriver for SvbonyCamera {
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
         self.core.require_connected()?;
-
-        let sdk = SvbonySdk::lock().await?;
-
-        let mut start_x: c_int = 0;
-        let mut start_y: c_int = 0;
-        let mut width: c_int = 0;
-        let mut height: c_int = 0;
-        let mut bin: c_int = 0;
-        // SAFETY: `self.camera_id` validated; all five `&mut` out-pointers reference distinct c_int stack locals, matching SVBGetROIFormat's signature.
-        let result = unsafe {
-            (sdk.get_roi_format)(
-                self.camera_id,
-                &mut start_x,
-                &mut start_y,
-                &mut width,
-                &mut height,
-                &mut bin,
-            )
+        let (width, height) = {
+            let sdk = SvbonySdk::lock().await?;
+            sdk_roi_size(&sdk, self.camera_id)?
         };
-        if SvbError::from_i32(result) != SvbError::Success {
-            return Err(SvbError::from_i32(result).to_native_error("get ROI format"));
+        let size = calculate_buffer_size_i32(width, height, self.image_type.bytes_per_sample())?;
+        if self.image_buffer.len() < size {
+            self.image_buffer.resize(size, 0);
         }
+        let exposure_end = self
+            .core
+            .exposure_started_at
+            .map(|start| start + Duration::from_secs_f64(self.core.exposure_duration))
+            .unwrap_or_else(Instant::now);
+        let deadline = exposure_end.max(Instant::now()) + READOUT_ALLOWANCE;
 
-        // Confirm the current wire format. If the SDK cannot answer, retain the
-        // format that connect successfully negotiated.
-        let mut image_type = self.image_type as c_int;
-        // SAFETY: `self.camera_id` is connected and
-        // `&mut image_type` is a valid c_int out-pointer.
-        let image_type_result =
-            unsafe { (sdk.get_output_image_type)(self.camera_id, &mut image_type) };
-        if SvbError::from_i32(image_type_result) == SvbError::Success {
-            self.image_type = match image_type {
-                value if value == SvbImgType::Raw8 as c_int => SvbImgType::Raw8,
-                value if value == SvbImgType::Raw16 as c_int => SvbImgType::Raw16,
-                value => {
-                    return Err(DriverError::SdkError(format!(
-                        "SVBony reported unsupported output image type: {}",
-                        value
+        self.core.state = CameraState::Downloading;
+        let sdk = loop {
+            let sdk = SvbonySdk::lock().await?;
+            match self.read_frame(&sdk, size, FRAME_POLL_MS) {
+                SvbError::Success => break sdk,
+                SvbError::Timeout if Instant::now() < deadline => {
+                    drop(sdk);
+                    tokio::task::yield_now().await;
+                }
+                SvbError::Timeout => {
+                    self.end_failed_exposure(&sdk);
+                    return Err(DriverError::Timeout(format!(
+                        "{} sent no frame within {} s after the {} s exposure ended. Check the USB cable and hub, and that no other program has the camera open",
+                        self.core.name,
+                        READOUT_ALLOWANCE.as_secs(),
+                        self.core.exposure_duration
                     )));
                 }
-            };
-        } else {
-            tracing::warn!(
-                "Could not confirm SVBony output image type; using negotiated {:?}",
-                self.image_type
-            );
-        }
-
-        // Size and decode according to the actual negotiated wire format.
-        let bytes_per_pixel = match self.image_type {
-            SvbImgType::Raw8 => 1,
-            SvbImgType::Raw16 => 2,
+                error => {
+                    self.end_failed_exposure(&sdk);
+                    return Err(error.to_native_error("download the frame"));
+                }
+            }
         };
-        let buffer_size = calculate_buffer_size_i32(width, height, bytes_per_pixel)?;
+        stop_capture(&sdk, self.camera_id);
+        self.unread_frame = false;
 
-        if self.image_buffer.len() < buffer_size {
-            self.image_buffer.resize(buffer_size, 0);
-        }
-
-        // Get image data with timeout
-        self.core.state = CameraState::Downloading;
-        // SAFETY: `self.camera_id` validated; `self.image_buffer.as_mut_ptr()` points to at least `buffer_size` bytes (resized above via `image_buffer.resize(buffer_size, 0)`), which is what we pass as the third argument so SVBGetVideoData will not write past the allocation. The 5000 ms timeout is documented as block-with-deadline behavior in SVBCameraSDK.h.
-        let result = unsafe {
-            (sdk.get_video_data)(
-                self.camera_id,
-                self.image_buffer.as_mut_ptr(),
-                buffer_size as c_long,
-                5000, // 5 second timeout
-            )
-        };
-
-        if SvbError::from_i32(result) != SvbError::Success {
-            self.core.state = CameraState::Error;
-            return Err(SvbError::from_i32(result).to_native_error("download image"));
-        }
-
-        // SAFETY: `self.camera_id` valid; SVBStopVideoCapture is idempotent and takes a single c_int.
-        let _ = unsafe { (sdk.stop_video_capture)(self.camera_id) };
-
-        // Convert the negotiated wire format to the pipeline's u16 pixels.
-        // RAW8 samples keep their own value here (no scaling to 16 bits).
-        let data = unpack_samples(
-            &self.image_buffer[..buffer_size],
-            match self.image_type {
-                SvbImgType::Raw8 => SampleLayout::U8Unscaled,
-                SvbImgType::Raw16 => SampleLayout::U16Little,
-            },
-        );
-
-        // Get temperature for metadata (while we hold the SDK lock)
-        let temperature = if self.core.capabilities.can_cool {
-            self.get_control_value(&sdk, SvbControlType::CurrentTemperature)
+        let data = unpack_samples(&self.image_buffer[..size], self.image_type.sample_layout());
+        let temperature = if self.controls.has(SvbControlType::CurrentTemperature) {
+            read_control(&sdk, self.camera_id, SvbControlType::CurrentTemperature)
                 .map(|v| v as f64 / 10.0)
                 .ok()
         } else {
             None
         };
-        let gain =
-            svb_control_value_to_i32(self.get_control_value(&sdk, SvbControlType::Gain)?, "gain")?;
+        let gain = svb_control_value_to_i32(
+            read_control(&sdk, self.camera_id, SvbControlType::Gain)?,
+            "gain",
+        )?;
         let offset = svb_control_value_to_i32(
-            self.get_control_value(&sdk, SvbControlType::BlackLevel)?,
+            read_control(&sdk, self.camera_id, SvbControlType::BlackLevel)?,
             "offset",
         )?;
 
         self.core.state = CameraState::Idle;
         self.core.exposure_started_at = None;
 
-        let width = roi_dimension("SVBony", "width", width)?;
-        let height = roi_dimension("SVBony", "height", height)?;
-        let bits_per_pixel = match self.image_type {
-            SvbImgType::Raw8 => 8,
-            SvbImgType::Raw16 => self.core.sensor_info.bit_depth,
+        let bits_per_pixel = match self.image_type.bytes_per_sample() {
+            1 => 8,
+            _ => self.core.sensor_info.bit_depth,
         };
         Ok(Frame {
             gain,
             offset,
             temperature,
             ..self.core.frame(
-                width,
-                height,
+                roi_dimension("SVBony", "width", width)?,
+                roi_dimension("SVBony", "height", height)?,
                 data,
                 bits_per_pixel,
                 self.core.sensor_info.bayer_pattern,
@@ -288,20 +351,30 @@ impl CameraDriver for SvbonyCamera {
             return Err(DriverError::NotSupported);
         }
 
-        // Use async methods that take the SDK lock
-        self.set_control_value_async(SvbControlType::CoolerEnable, if enabled { 1 } else { 0 })
-            .await?;
+        let sdk = SvbonySdk::lock().await?;
+        write_control(
+            &sdk,
+            self.camera_id,
+            SvbControlType::CoolerEnable as c_int,
+            i64::from(enabled),
+        )?;
         // Only when the caller named a setpoint, and only while cooling:
         // switching off needs no target temperature.
         if let Some(target) = target_temp.filter(|_| enabled) {
-            // SVBony uses temperature * 10.
-            // Why: target is f64 Celsius typically in [-50.0, 50.0]; multiplied by 10
-            // it fits trivially in i64. f64 -> i64 saturating cast is well-defined for
-            // finite values in this range; NaN sentinel would be clamped to 0.
-            self.set_control_value_async(SvbControlType::TargetTemperature, (target * 10.0) as i64)
-                .await?;
+            if !target.is_finite() {
+                return Err(DriverError::InvalidParameter(format!(
+                    "SVBony cooler target must be a temperature, got {}",
+                    target
+                )));
+            }
+            // SVB_TARGET_TEMPERATURE is in 0.1 C (SVBCameraSDK.h).
+            let tenths = self.set_and_read_back(
+                &sdk,
+                SvbControlType::TargetTemperature,
+                (target * 10.0).round() as i64,
+            )?;
             self.core
-                .update_cooler(|cooler| cooler.target_c = Some(target));
+                .update_cooler(|cooler| cooler.target_c = Some(tenths as f64 / 10.0));
         }
 
         self.core
@@ -311,14 +384,10 @@ impl CameraDriver for SvbonyCamera {
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
         self.core.require_connected()?;
-        if !self.core.capabilities.can_cool {
+        if !self.controls.has(SvbControlType::CurrentTemperature) {
             return Err(DriverError::NotSupported);
         }
-
-        // Use async method that takes the SDK lock
-        let value = self
-            .get_control_value_async(SvbControlType::CurrentTemperature)
-            .await?;
+        let value = self.control(SvbControlType::CurrentTemperature).await?;
         Ok(value as f64 / 10.0)
     }
 
@@ -327,102 +396,47 @@ impl CameraDriver for SvbonyCamera {
         if !self.core.capabilities.can_cool {
             return Err(DriverError::NotSupported);
         }
-
-        // Use async method that takes the SDK lock
-        let value = self
-            .get_control_value_async(SvbControlType::CoolerPower)
-            .await?;
+        let value = self.control(SvbControlType::CoolerPower).await?;
         Ok(value as f64)
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
-        // Use async method that takes the SDK lock.
-        // Why: i32 -> i64 is widening (sign-extended); always safe.
-        self.set_control_value_async(SvbControlType::Gain, gain as i64)
-            .await?;
-        self.core.gain = gain;
+        self.core.require_connected()?;
+        let sdk = SvbonySdk::lock().await?;
+        self.core.gain =
+            self.set_and_read_back(&sdk, SvbControlType::Gain, i64::from(gain))? as i32;
         Ok(())
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
-        let value = self.get_control_value_async(SvbControlType::Gain).await?;
+        let value = self.control(SvbControlType::Gain).await?;
         svb_control_value_to_i32(value, "gain")
     }
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
-        // Use async method that takes the SDK lock.
-        // Why: i32 -> i64 is widening (sign-extended); always safe.
-        self.set_control_value_async(SvbControlType::BlackLevel, offset as i64)
-            .await?;
-        self.core.offset = offset;
+        self.core.require_connected()?;
+        let sdk = SvbonySdk::lock().await?;
+        self.core.offset =
+            self.set_and_read_back(&sdk, SvbControlType::BlackLevel, i64::from(offset))? as i32;
         Ok(())
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
-        let value = self
-            .get_control_value_async(SvbControlType::BlackLevel)
-            .await?;
+        let value = self.control(SvbControlType::BlackLevel).await?;
         svb_control_value_to_i32(value, "offset")
     }
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
-
-        // SVBony only supports symmetric binning
-        let bin = bin_x.min(bin_y);
-        if bin > self.core.capabilities.max_bin_x {
+        if self.core.state == CameraState::Exposing {
             return Err(DriverError::InvalidParameter(format!(
-                "Binning {} exceeds max {}",
-                bin, self.core.capabilities.max_bin_x
+                "{} is exposing; binning changes after the frame",
+                self.core.name
             )));
         }
-
-        if bin < 1 {
-            return Err(DriverError::InvalidParameter(format!(
-                "SVBony binning must be >= 1, got bin_x={} bin_y={}",
-                bin_x, bin_y
-            )));
-        }
-        let sdk = SvbonySdk::installed()?;
-
-        // Why: sensor_info.width/height are u32 (<= 16k on SVBony hardware); converting
-        // to i32 via try_from is the right way to fail closed on any pathological value.
-        // bin is already validated > 0.
-        let width_i32 = i32::try_from(self.core.sensor_info.width).map_err(|_| {
-            DriverError::SdkError(format!(
-                "SVBony sensor width does not fit in i32: {}",
-                self.core.sensor_info.width
-            ))
-        })?;
-        let height_i32 = i32::try_from(self.core.sensor_info.height).map_err(|_| {
-            DriverError::SdkError(format!(
-                "SVBony sensor height does not fit in i32: {}",
-                self.core.sensor_info.height
-            ))
-        })?;
-        let width = width_i32 / bin;
-        let height = height_i32 / bin;
-
-        let sdk = sdk.lock().await;
-
-        // SAFETY: `self.camera_id` validated; all six arguments are POD c_int (no out-pointers). `width`/`height` were computed from sensor_info divided by `bin` which is ≥ 1 (bin_x.min(bin_y)) and clamped by capabilities.max_bin_x, so dimensions stay within the sensor.
-        let result = unsafe {
-            (sdk.set_roi_format)(
-                self.camera_id,
-                0,
-                0,
-                width as c_int,
-                height as c_int,
-                bin as c_int,
-            )
-        };
-        if SvbError::from_i32(result) != SvbError::Success {
-            return Err(SvbError::from_i32(result).to_native_error("set binning"));
-        }
-
-        self.core.bin_x = bin;
-        self.core.bin_y = bin;
-        Ok(())
+        let roi = self.roi_for(bin_x, bin_y, None)?;
+        let sdk = SvbonySdk::lock().await?;
+        self.apply_roi(&sdk, roi, false)
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
@@ -431,89 +445,15 @@ impl CameraDriver for SvbonyCamera {
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
         self.core.require_connected()?;
-
-        let sdk = SvbonySdk::installed()?;
-
-        // Why: SubFrame coordinates are u32, SDK wants c_int (i32). Surface a too-large
-        // u32 as InvalidParameter rather than wrap. current_bin_{x,y} must be > 0; we
-        // validated this at set_binning entry but defend here in case caller skipped it.
-        let (start_x, start_y, width, height) = match &subframe {
-            Some(sf) => (
-                c_int::try_from(sf.start_x).map_err(|_| {
-                    DriverError::InvalidParameter(format!(
-                        "SVBony subframe start_x exceeds c_int: {}",
-                        sf.start_x
-                    ))
-                })?,
-                c_int::try_from(sf.start_y).map_err(|_| {
-                    DriverError::InvalidParameter(format!(
-                        "SVBony subframe start_y exceeds c_int: {}",
-                        sf.start_y
-                    ))
-                })?,
-                c_int::try_from(sf.width).map_err(|_| {
-                    DriverError::InvalidParameter(format!(
-                        "SVBony subframe width exceeds c_int: {}",
-                        sf.width
-                    ))
-                })?,
-                c_int::try_from(sf.height).map_err(|_| {
-                    DriverError::InvalidParameter(format!(
-                        "SVBony subframe height exceeds c_int: {}",
-                        sf.height
-                    ))
-                })?,
-            ),
-            None => {
-                let bin_x_u32 = u32::try_from(self.core.bin_x.max(1)).map_err(|_| {
-                    DriverError::InvalidParameter(format!(
-                        "SVBony current_bin_x not representable as u32: {}",
-                        self.core.bin_x
-                    ))
-                })?;
-                let bin_y_u32 = u32::try_from(self.core.bin_y.max(1)).map_err(|_| {
-                    DriverError::InvalidParameter(format!(
-                        "SVBony current_bin_y not representable as u32: {}",
-                        self.core.bin_y
-                    ))
-                })?;
-                let binned_w = self.core.sensor_info.width / bin_x_u32;
-                let binned_h = self.core.sensor_info.height / bin_y_u32;
-                let w_ci = c_int::try_from(binned_w).map_err(|_| {
-                    DriverError::SdkError(format!(
-                        "SVBony binned width does not fit in c_int: {}",
-                        binned_w
-                    ))
-                })?;
-                let h_ci = c_int::try_from(binned_h).map_err(|_| {
-                    DriverError::SdkError(format!(
-                        "SVBony binned height does not fit in c_int: {}",
-                        binned_h
-                    ))
-                })?;
-                (0, 0, w_ci, h_ci)
-            }
-        };
-
-        let sdk = sdk.lock().await;
-
-        // SAFETY: `self.camera_id` validated; all six arguments are POD c_int (no out-pointers). `start_x/start_y/width/height` come from either the caller-supplied SubFrame (validated by upstream subframe logic) or default to full-sensor dimensions scaled by current binning, so the SDK clamps to sensor bounds.
-        let result = unsafe {
-            (sdk.set_roi_format)(
-                self.camera_id,
-                start_x,
-                start_y,
-                width,
-                height,
-                self.core.bin_x as c_int,
-            )
-        };
-        if SvbError::from_i32(result) != SvbError::Success {
-            return Err(SvbError::from_i32(result).to_native_error("set subframe"));
+        if self.core.state == CameraState::Exposing {
+            return Err(DriverError::InvalidParameter(format!(
+                "{} is exposing; the subframe changes after the frame",
+                self.core.name
+            )));
         }
-
-        self.core.subframe = subframe;
-        Ok(())
+        let roi = self.roi_for(self.core.bin_x, self.core.bin_y, subframe.as_ref())?;
+        let sdk = SvbonySdk::lock().await?;
+        self.apply_roi(&sdk, roi, subframe.is_some())
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
@@ -547,35 +487,48 @@ impl CameraDriver for SvbonyCamera {
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
         self.core.require_connected()?;
-
-        // Use async method that takes the SDK lock.
-        // Why: gain min/max are small non-negative integers (<= ~720 per SVBony spec)
-        // returned as i64 from the control range API. `as i32` saturating truncation is
-        // safe in this range.
-        let (min, max) = self.get_control_range_async(SvbControlType::Gain).await?;
-        Ok((min as i32, max as i32))
+        let gain = self
+            .controls
+            .get(SvbControlType::Gain)
+            .ok_or(DriverError::NotSupported)?;
+        Ok((
+            svb_control_value_to_i32(gain.min, "gain minimum")?,
+            svb_control_value_to_i32(gain.max, "gain maximum")?,
+        ))
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
         self.core.require_connected()?;
-
-        // SVBony uses BlackLevel as the offset control (use async method that takes the SDK lock).
-        // Why: BlackLevel min/max are small non-negative integers (<= ~512) returned as
-        // i64. `as i32` saturating truncation is safe in this range.
-        let (min, max) = self
-            .get_control_range_async(SvbControlType::BlackLevel)
-            .await?;
-        Ok((min as i32, max as i32))
+        let offset = self
+            .controls
+            .get(SvbControlType::BlackLevel)
+            .ok_or(DriverError::NotSupported)?;
+        Ok((
+            svb_control_value_to_i32(offset.min, "offset minimum")?,
+            svb_control_value_to_i32(offset.max, "offset maximum")?,
+        ))
     }
 
-    /// Surface the SDK-advertised recommended settings.
-    ///
-    /// SVBony's `SvbControlCaps` includes a per-control `default_value` field.
-    /// For the Gain control this is the value the SDK's auto-exposure logic
-    /// starts at — SVBony's per-camera documentation lists this as the
-    /// recommended unity-gain starting point. For BlackLevel (offset) it is
-    /// the manufacturer-recommended bias value.
-    ///
+    async fn get_exposure_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
+        self.core.require_connected()?;
+        Ok(self
+            .controls
+            .get(SvbControlType::Exposure)
+            .map(|c| (c.min as f64 / 1_000_000.0, c.max as f64 / 1_000_000.0)))
+    }
+
+    async fn get_cooler_temp_range(&self) -> Result<Option<(f64, f64)>, DriverError> {
+        self.core.require_connected()?;
+        if !self.core.capabilities.can_cool {
+            return Ok(None);
+        }
+        Ok(self
+            .controls
+            .get(SvbControlType::TargetTemperature)
+            .map(|c| (c.min as f64 / 10.0, c.max as f64 / 10.0)))
+    }
+
+    /// The default values SVBGetControlCaps reports for Gain and BlackLevel.
     /// SVBony does not expose an HCG transition through the SDK.
     async fn get_recommended_settings(
         &self,
@@ -584,39 +537,16 @@ impl CameraDriver for SvbonyCamera {
 
         let mut out = skotiq_device::camera::CameraRecommendedSettings::default();
         let mut notes: Vec<String> = Vec::new();
-
-        match self.get_control_caps_async(SvbControlType::Gain).await {
-            Ok((_min, _max, default)) => {
-                // i64 -> i32 saturating: SVBony gain caps fit in i32 (<= ~720).
-                let gain = default.clamp(i32::MIN as i64, i32::MAX as i64) as i32;
-                out.unity_gain = Some(gain);
-                notes.push(format!("SVBony SDK reports default gain = {}", gain));
-            }
-            Err(DriverError::NotSupported) => {
-                // Camera doesn't expose this control. Honest "no recommendation".
-            }
-            Err(e) => {
-                tracing::warn!("SVBony: failed to query gain control caps: {:?}", e);
-            }
+        if let Some(gain) = self.controls.get(SvbControlType::Gain) {
+            let gain = svb_control_value_to_i32(gain.default, "default gain")?;
+            out.unity_gain = Some(gain);
+            notes.push(format!("SVBony SDK reports default gain = {}", gain));
         }
-
-        match self
-            .get_control_caps_async(SvbControlType::BlackLevel)
-            .await
-        {
-            Ok((_min, _max, default)) => {
-                let off = default.clamp(i32::MIN as i64, i32::MAX as i64) as i32;
-                out.default_offset = Some(off);
-                notes.push(format!("SVBony SDK reports default offset = {}", off));
-            }
-            Err(DriverError::NotSupported) => {
-                // Camera doesn't expose offset control.
-            }
-            Err(e) => {
-                tracing::warn!("SVBony: failed to query offset control caps: {:?}", e);
-            }
+        if let Some(offset) = self.controls.get(SvbControlType::BlackLevel) {
+            let offset = svb_control_value_to_i32(offset.default, "default offset")?;
+            out.default_offset = Some(offset);
+            notes.push(format!("SVBony SDK reports default offset = {}", offset));
         }
-
         out.notes = notes.join("; ");
         Ok(out)
     }
