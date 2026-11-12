@@ -8,7 +8,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/notification_service.dart';
 
 import '../notification/recording_router.dart';

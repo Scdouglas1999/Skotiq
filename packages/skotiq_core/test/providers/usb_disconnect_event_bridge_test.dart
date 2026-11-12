@@ -17,6 +17,7 @@ import 'package:skotiq_core/src/services/usb_disconnect_log.dart';
 
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {

@@ -103,6 +103,7 @@ import 'skotiq_exception.dart'
 import 'package:skotiq_remote_protocol/wire_models.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/notes/journal_note.dart';
+import '../models/backend/backend_types.dart';
 
 // The rows the host writes and this client reads.
 export 'package:skotiq_remote_protocol/wire_models.dart';

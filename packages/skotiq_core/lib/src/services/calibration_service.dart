@@ -20,6 +20,7 @@ import '../settings/store_settings.dart';
 import '../utils/host_paths.dart';
 import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
+import '../database/daos/settings_dao.dart';
 
 /// Sentinel object used by [CalibrationSettings.copyWith] to distinguish
 /// "parameter not passed" from an explicit `null`.

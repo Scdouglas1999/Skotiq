@@ -25,7 +25,7 @@ import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';
 import '../providers/device_connection_progress_provider.dart';
 import 'smart_notification_service.dart';
-import '../backend/skotiq_backend.dart' hide TrackingRate;
+import '../backend/skotiq_backend.dart';
 import '../backend/device_connect_exception.dart';
 import '../backend/skotiq_exception.dart' show ConnectionException;
 import '../models/equipment/equipment_models.dart';
@@ -53,10 +53,7 @@ import '../models/focuser_backlash_calibration.dart';
 import '../models/mount_site_reconciliation.dart';
 import '../providers/mount_site_provider.dart';
 import '../backend/remote_host.dart';
-
-// Re-export backend types so importers of this file get them too.
-export '../models/backend/device_types.dart' show DeviceType, DriverType;
-export '../models/backend/device_info.dart' show DeviceInfo;
+import '../models/backend/backend_types.dart';
 
 part 'device_service/event_handling.dart';
 part 'device_service/control_helpers.dart';

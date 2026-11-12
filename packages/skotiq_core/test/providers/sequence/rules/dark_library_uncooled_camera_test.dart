@@ -23,6 +23,7 @@ import 'package:skotiq_core/src/providers/equipment/camera_state_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/preflight_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _StubCamera extends CameraStateNotifier {
   _StubCamera(super.ref, CameraStateSnapshot initial) {

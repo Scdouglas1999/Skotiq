@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
-import '../../services/device_service.dart';
 import 'unified_device.dart';
+import '../backend/backend_types.dart';
 
 enum DiscoveryStatus {
   /// Not yet started

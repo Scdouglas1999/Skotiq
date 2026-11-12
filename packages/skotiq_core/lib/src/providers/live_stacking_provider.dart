@@ -10,6 +10,7 @@ import '../services/live_stacking_service.dart';
 import '../services/logging_service.dart';
 import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
+import '../models/backend/backend_types.dart';
 
 /// Current state of the live stacking session.
 enum LiveStackingStatus {

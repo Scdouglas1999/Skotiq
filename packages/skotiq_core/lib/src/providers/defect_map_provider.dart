@@ -16,6 +16,7 @@ import 'backend_provider.dart';
 import 'capability_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart';
+import '../database/daos/settings_dao.dart';
 
 const Object _defectMapSettingsSentinel = Object();
 const Object _defectMapUiSentinel = Object();

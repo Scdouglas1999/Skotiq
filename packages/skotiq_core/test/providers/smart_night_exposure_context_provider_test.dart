@@ -14,6 +14,7 @@ import 'package:skotiq_core/src/providers/session_optimizer_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/sensor_specs/camera_sensor_specs.dart';
 import 'package:skotiq_core/src/services/smart_night/hardware_specs_service.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 final _initialSettingsProvider = Provider<AppSettingsState>(
   (_) => throw UnimplementedError('Override in test'),

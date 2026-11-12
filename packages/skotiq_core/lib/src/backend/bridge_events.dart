@@ -13,18 +13,13 @@
 /// [skotiqEventsProvider] and the network/FFI backends are assignable to
 /// the names imported from here without any adaptation.
 ///
-/// Note on naming: the wire/JSON event model used across the network boundary
-/// (`src/models/backend/event_types.dart`) also defines `SkotiqEvent`,
-/// `EventCategory`, and `EventSeverity`, but it is intentionally NOT surfaced
-/// through the aggregate barrel — only this typed bridge surface is — so there
-/// is no collision for consumers of `package:skotiq_core/skotiq_core.dart`.
+/// `SkotiqEvent`, `EventCategory` and `EventSeverity` are in
+/// `bridge_event_union.dart`: the wire/JSON event model
+/// (`src/models/backend/event_types.dart`) has types of the same three names.
 library;
 
 export 'package:skotiq_bridge/skotiq_bridge.dart'
     show
-        SkotiqEvent,
-        EventCategory,
-        EventSeverity,
         EventPayload,
         EventPayload_Equipment,
         EventPayload_Imaging,

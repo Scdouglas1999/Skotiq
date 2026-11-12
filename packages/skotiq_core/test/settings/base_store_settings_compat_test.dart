@@ -44,6 +44,7 @@ import 'package:skotiq_core/src/providers/session_optimizer_provider.dart'
 import 'package:skotiq_core/src/services/home_assistant/home_assistant_discovery_config.dart';
 import 'package:skotiq_core/src/services/push_notification_service.dart'
     show PushNotificationConfig;
+import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 
 const _fixturePath = 'test/fixtures/settings/base_store_settings.json';
 

@@ -19,6 +19,10 @@ import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../providers/settings_provider.dart';
 import '../services/hardware_presets/hardware_presets_service.dart';
+import '../database/daos/settings_dao.dart';
+import '../models/backend/backend_types.dart';
+import '../settings/app_settings_state.g.dart';
+import '../settings/store_settings.dart';
 
 /// Bootstrap gate read by the `EquipmentOnboardingLauncher` widget on app
 /// launch. Resolves true only when there are zero equipment profiles AND the

@@ -20,6 +20,7 @@ import 'package:skotiq_core/src/providers/sequence/rules/sky_readiness_rules.dar
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
 import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _FakeAppSettings extends AppSettingsNotifier {
   _FakeAppSettings(this._initial);

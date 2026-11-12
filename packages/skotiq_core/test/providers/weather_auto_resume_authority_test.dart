@@ -16,6 +16,7 @@ import 'package:skotiq_core/src/providers/weather_providers.dart';
 import 'package:skotiq_core/src/services/safe_rig_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {

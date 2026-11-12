@@ -30,6 +30,8 @@ import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/equipment_health_service.dart';
 import 'package:skotiq_core/src/services/time_sync_service.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/settings/preflight_strictness.dart';
 
 // Test scaffolding.
 

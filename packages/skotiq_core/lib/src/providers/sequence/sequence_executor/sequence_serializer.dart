@@ -13,6 +13,7 @@ import '../../focuser_backlash_provider.dart'
 import '../../meridian_flip_provider.dart';
 import '../../settings_provider.dart';
 import '../sequencer_defaults.dart';
+import '../../../settings/app_settings_state.g.dart';
 
 /// Translates the Dart sequence model into the JSON the Rust executor loads.
 ///

@@ -12,6 +12,7 @@ import '../settings_provider.dart';
 import 'focus_compensation_rule.dart';
 import 'focuser_state_provider.dart';
 import 'focuser_temperature_poller.dart';
+import '../../settings/app_settings_state.g.dart';
 
 /// Applies the operator's temperature coefficient (steps per °C, set in
 /// Equipment → Settings → Focuser) continuously while the focuser is

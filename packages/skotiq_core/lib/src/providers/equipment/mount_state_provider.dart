@@ -5,7 +5,6 @@ import '../../models/equipment/equipment_models.dart';
 import '../../models/backend/device_types.dart' show DeviceType, PierSide;
 import 'device_read_health_provider.dart';
 import 'device_connection_notifier.dart';
-import '../../services/device_service.dart';
 import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
 

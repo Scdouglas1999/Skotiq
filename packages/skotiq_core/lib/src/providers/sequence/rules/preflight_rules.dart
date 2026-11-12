@@ -23,6 +23,7 @@ import '../../../errors/error_text.dart';
 import '../../settings_provider.dart';
 import '../sequence_validation.dart';
 import '../../../models/sequence/validation/validation_issue.dart';
+import '../../../settings/preflight_strictness.dart';
 
 // Pre-flight check validation rules.
 //

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import '../models/equipment/unified_device.dart';
-import 'device_service.dart';
+import '../models/backend/backend_types.dart';
 
 /// Service for matching and grouping devices from different backends
 /// that represent the same physical hardware.

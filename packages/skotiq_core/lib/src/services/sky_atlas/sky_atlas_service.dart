@@ -16,8 +16,6 @@ import 'sky_atlas_seam.dart';
 import '../../utils/skotiq_data_directory.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-export '../../settings/store_settings.dart' show defaultSkyAtlasLimitGb;
-
 part 'sky_atlas_service/atlas_models.dart';
 part 'sky_atlas_service/internals.dart';
 

@@ -9,8 +9,8 @@
 /// type of its own. [SequencerRunEvent] decodes it as [DitherPerformed].
 library;
 
-import '../../backend/skotiq_backend.dart';
 import 'sequencer_run_event.dart';
+import '../../models/backend/backend_types.dart';
 
 /// `detail_kind` the bridge gives a performed dither. Must stay equal to
 /// `DITHER_PERFORMED_DETAIL_KIND` in the native bridge.

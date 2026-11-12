@@ -21,6 +21,9 @@ import 'package:skotiq_core/src/services/science/science_processing_service.dart
 
 import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/utils/host_paths.dart';
 
 /// No-op science processor for capture-pipeline tests.
 ///

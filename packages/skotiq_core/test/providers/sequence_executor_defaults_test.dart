@@ -12,6 +12,7 @@ import 'package:skotiq_core/src/services/scheduler/horizon_profile.dart'
 import 'package:skotiq_core/src/providers/sequence/sequence_executor.dart';
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Forces appSettingsProvider into a known state without spinning up
 /// the real AsyncNotifier (which reads from SQLite).

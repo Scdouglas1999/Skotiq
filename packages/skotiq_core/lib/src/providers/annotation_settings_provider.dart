@@ -4,6 +4,7 @@ import '../models/annotation_settings.dart';
 import '../services/logging_service.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
+import '../database/daos/settings_dao.dart';
 
 const builtInAnnotationPresets = <AnnotationPreset>[
   AnnotationPreset(

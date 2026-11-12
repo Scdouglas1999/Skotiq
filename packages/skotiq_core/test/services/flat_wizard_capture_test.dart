@@ -22,6 +22,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 /// Let queued microtasks/timers drain so an in-flight `exposeAndAwait` reaches
 /// its wait state before the test emits an event or cancels.

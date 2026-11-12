@@ -11,6 +11,7 @@ import '../settings_provider.dart';
 import 'host_settings_store.dart';
 import 'publishing_settings_dao.dart';
 import 'remote_settings_dao.dart';
+import '../../settings/app_settings_state.g.dart';
 
 export 'host_settings_store.dart'
     show

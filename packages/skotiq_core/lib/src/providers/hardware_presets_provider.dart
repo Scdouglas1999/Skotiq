@@ -7,6 +7,7 @@ import '../models/hardware_presets/hardware_preset_models.dart';
 import '../services/hardware_presets/hardware_presets_service.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';
+import '../database/daos/settings_dao.dart';
 
 /// Riverpod plumbing for the hardware-presets library.
 ///

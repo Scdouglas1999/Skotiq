@@ -38,6 +38,7 @@ import '../models/errors/skotiq_error.dart' as dart_error;
 import 'bridge_event_mapper.dart' show recoveryFieldsFromTyped;
 import '../services/ip_geolocation.dart';
 import 'frame_capture_metadata.dart';
+import '../models/backend/backend_types.dart';
 
 part 'ffi_backend/native_runtime.dart';
 part 'ffi_backend/event_mapping.dart';

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 class _SettingsNotifier extends AppSettingsNotifier {
   final AppSettingsState _settings;
