@@ -38,6 +38,10 @@ struct DocMount {
     code: &'static str,
     baud: u32,
     equatorial: bool,
+    /// v2.5 "Mount Motion" and "Position": `:MP1#`, `:MP0#`, `:SPA`, `:SPH`
+    /// "only available to CEM60 series, CEM40 series, iEQ45 Pro EQ and AA
+    /// mode, and iEQ30 Pro".
+    parks: bool,
     ra_hours: f64,
     dec_deg: f64,
     alt_deg: f64,
@@ -62,6 +66,8 @@ struct DocMount {
     park_alt_deg: Option<f64>,
     park_az_deg: Option<f64>,
     slew_reply: u8,
+    /// What `:SHE0#` and `:SHE1#` answer.
+    hemisphere_reply: u8,
     pulses: Vec<Pulse>,
     unanswered: Vec<String>,
 }
@@ -75,6 +81,8 @@ impl DocMount {
             code,
             baud,
             equatorial,
+            parks: language == Language::V3
+                || !["0010", "0011", "0025", "0026", "5010", "5035"].contains(&code),
             ra_hours: 3.25,
             dec_deg: -12.5,
             alt_deg: 41.5,
@@ -95,6 +103,7 @@ impl DocMount {
             park_alt_deg: None,
             park_az_deg: None,
             slew_reply: b'1',
+            hemisphere_reply: b'1',
             pulses: Vec::new(),
             unanswered: Vec::new(),
         }
@@ -147,6 +156,14 @@ impl DocMount {
         let v3 = self.language == Language::V3;
         let one = || Some("1".to_string());
         match command {
+            _ if !self.parks
+                && [":MP1#", ":MP0#", ":SPA", ":SPH"]
+                    .iter()
+                    .any(|park| command.starts_with(park)) =>
+            {
+                self.unanswered.push(command.to_string());
+                return None;
+            }
             ":MountInfo#" => return Some(self.code.to_string()),
             ":FW1#" => return Some("210105210105#".into()),
             ":FW2#" => return Some("210105210105#".into()),
@@ -278,13 +295,11 @@ impl DocMount {
                 self.daylight_saving = true;
                 return one();
             }
-            ":SHE0#" => {
-                self.hemisphere_digit = b'0';
-                return one();
-            }
-            ":SHE1#" => {
-                self.hemisphere_digit = b'1';
-                return one();
+            ":SHE0#" | ":SHE1#" => {
+                if self.hemisphere_reply == b'1' {
+                    self.hemisphere_digit = command.as_bytes()[4];
+                }
+                return Some((self.hemisphere_reply as char).to_string());
             }
             _ => {}
         }
@@ -534,6 +549,49 @@ async fn gotos_and_syncs_send_the_target_in_each_languages_units() {
 }
 
 #[tokio::test]
+async fn v25_mounts_without_the_park_commands_say_so_at_once() {
+    for code in ["0010", "0011", "0025", "0026", "5010", "5035"] {
+        let (fake, state) = spawn(DocMount::new(Language::V25, code, 9600, code != "5035"));
+        let mut mount = connected(&fake, &state).await;
+        assert!(!mount.can_set_park(), "{code}");
+        let started = std::time::Instant::now();
+        assert!(
+            matches!(mount.park().await, Err(DriverError::NotSupported)),
+            "{code}"
+        );
+        assert!(
+            matches!(mount.unpark().await, Err(DriverError::NotSupported)),
+            "{code}"
+        );
+        assert!(
+            matches!(mount.set_park().await, Err(DriverError::NotSupported)),
+            "{code}"
+        );
+        assert!(
+            matches!(mount.is_parked().await, Err(DriverError::NotSupported)),
+            "{code}"
+        );
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(1),
+            "{code}"
+        );
+        assert!(
+            state.lock().unwrap().unanswered.is_empty(),
+            "{code}: {:?}",
+            state.lock().unwrap().unanswered
+        );
+    }
+    for code in ["0030", "0040", "0043", "0045", "0046", "0060"] {
+        let (fake, state) = spawn(DocMount::new(Language::V25, code, 9600, code != "0046"));
+        let mut mount = connected(&fake, &state).await;
+        assert!(mount.can_set_park(), "{code}");
+        mount.park().await.expect(code);
+        assert!(mount.is_parked().await.expect(code), "{code}");
+        mount.unpark().await.expect(code);
+    }
+}
+
+#[tokio::test]
 async fn a_refused_goto_is_an_error() {
     let (fake, state) = spawn(DocMount::new(Language::V3, "0120", 115200, true));
     let mut mount = connected(&fake, &state).await;
@@ -738,6 +796,9 @@ async fn the_site_round_trips_east_positive_in_each_languages_units() {
                     "{language:?}: lon {lon} -> {}",
                     s.longitude_deg
                 );
+                // `:SHE0#` southern, `:SHE1#` northern; `:GLS#` reports it.
+                let northern = if lat < 0.0 { b'0' } else { b'1' };
+                assert_eq!(s.hemisphere_digit, northern, "{language:?}: lat {lat}");
             }
             let site = mount.get_site().await.unwrap();
             assert!(
@@ -751,6 +812,26 @@ async fn the_site_round_trips_east_positive_in_each_languages_units() {
                 site.longitude_deg
             );
         }
+    }
+}
+
+#[tokio::test]
+async fn a_refused_hemisphere_leaves_the_site_written() {
+    for (language, baud) in [(Language::V25, 9600), (Language::V3, 115200)] {
+        let (fake, state) = spawn(DocMount::new(language, "0045", baud, true));
+        let mut mount = connected(&fake, &state).await;
+        state.lock().unwrap().hemisphere_reply = b'0';
+        mount
+            .set_site(MountSiteInfo {
+                latitude_deg: -33.86,
+                longitude_deg: 151.21,
+                elevation_m: None,
+            })
+            .await
+            .expect("a site the mount took is written even when its hemisphere is not");
+        let s = state.lock().unwrap();
+        assert!(close(s.latitude_deg, -33.86, 1.0 / 3600.0), "{language:?}");
+        assert_eq!(s.hemisphere_digit, b'1', "{language:?}");
     }
 }
 

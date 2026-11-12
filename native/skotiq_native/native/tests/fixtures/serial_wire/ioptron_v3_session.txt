@@ -151,6 +151,8 @@ call set_site(40.007714, -75.397448)
 < 1
 > :SLA+14402777#
 < 1
+> :SHE1#
+< 1
   -> Ok(())
 call get_clock
 > :GUT#
