@@ -208,7 +208,7 @@ mixin _NetworkBackendStackingOperations on _NetworkBackendTransport {
     }
     final createdAtRaw = json['createdAt'];
     final createdAt = createdAtRaw is String
-        ? DateTime.tryParse(createdAtRaw)
+        ? tryParseWireTime(createdAtRaw)
         : null;
     if (createdAt == null) {
       throw FormatException(
