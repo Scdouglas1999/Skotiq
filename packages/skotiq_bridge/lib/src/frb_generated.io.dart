@@ -4360,39 +4360,53 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       return;
     }
     if (apiObj is EquipmentEvent_MountSlewStarted) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_ra = cst_encode_f_64(apiObj.ra);
       var pre_dec = cst_encode_f_64(apiObj.dec);
       wireObj.tag = 5;
+      wireObj.kind.MountSlewStarted.device_id = pre_device_id;
       wireObj.kind.MountSlewStarted.ra = pre_ra;
       wireObj.kind.MountSlewStarted.dec = pre_dec;
       return;
     }
     if (apiObj is EquipmentEvent_MountSlewCompleted) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_ra = cst_encode_f_64(apiObj.ra);
       var pre_dec = cst_encode_f_64(apiObj.dec);
       wireObj.tag = 6;
+      wireObj.kind.MountSlewCompleted.device_id = pre_device_id;
       wireObj.kind.MountSlewCompleted.ra = pre_ra;
       wireObj.kind.MountSlewCompleted.dec = pre_dec;
       return;
     }
     if (apiObj is EquipmentEvent_MountTrackingStarted) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
       wireObj.tag = 7;
+      wireObj.kind.MountTrackingStarted.device_id = pre_device_id;
       return;
     }
     if (apiObj is EquipmentEvent_MountTrackingStopped) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
       wireObj.tag = 8;
+      wireObj.kind.MountTrackingStopped.device_id = pre_device_id;
       return;
     }
     if (apiObj is EquipmentEvent_MountParkStarted) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
       wireObj.tag = 9;
+      wireObj.kind.MountParkStarted.device_id = pre_device_id;
       return;
     }
     if (apiObj is EquipmentEvent_MountParkCompleted) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
       wireObj.tag = 10;
+      wireObj.kind.MountParkCompleted.device_id = pre_device_id;
       return;
     }
     if (apiObj is EquipmentEvent_MountUnparked) {
+      var pre_device_id = cst_encode_String(apiObj.deviceId);
       wireObj.tag = 11;
+      wireObj.kind.MountUnparked.device_id = pre_device_id;
       return;
     }
     if (apiObj is EquipmentEvent_FocuserMoveStarted) {
@@ -4411,19 +4425,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.FocuserMoveCompleted.position = pre_position;
       return;
     }
-    if (apiObj is EquipmentEvent_FocuserTemperatureChanged) {
-      var pre_temperature = cst_encode_f_64(apiObj.temperature);
-      wireObj.tag = 14;
-      wireObj.kind.FocuserTemperatureChanged.temperature = pre_temperature;
-      return;
-    }
     if (apiObj is EquipmentEvent_FilterChanging) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_from_position = cst_encode_i_32(apiObj.fromPosition);
       var pre_to_position = cst_encode_i_32(apiObj.toPosition);
       var pre_filter_name = cst_encode_opt_String(apiObj.filterName);
       var pre_from_filter_name = cst_encode_opt_String(apiObj.fromFilterName);
-      wireObj.tag = 15;
+      wireObj.tag = 14;
       wireObj.kind.FilterChanging.device_id = pre_device_id;
       wireObj.kind.FilterChanging.from_position = pre_from_position;
       wireObj.kind.FilterChanging.to_position = pre_to_position;
@@ -4435,7 +4443,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_position = cst_encode_i_32(apiObj.position);
       var pre_filter_name = cst_encode_opt_String(apiObj.filterName);
-      wireObj.tag = 16;
+      wireObj.tag = 15;
       wireObj.kind.FilterChanged.device_id = pre_device_id;
       wireObj.kind.FilterChanged.position = pre_position;
       wireObj.kind.FilterChanged.filter_name = pre_filter_name;
@@ -4444,7 +4452,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_RotatorMoveStarted) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_target_angle = cst_encode_f_64(apiObj.targetAngle);
-      wireObj.tag = 17;
+      wireObj.tag = 16;
       wireObj.kind.RotatorMoveStarted.device_id = pre_device_id;
       wireObj.kind.RotatorMoveStarted.target_angle = pre_target_angle;
       return;
@@ -4452,7 +4460,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_RotatorMoveCompleted) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_angle = cst_encode_f_64(apiObj.angle);
-      wireObj.tag = 18;
+      wireObj.tag = 17;
       wireObj.kind.RotatorMoveCompleted.device_id = pre_device_id;
       wireObj.kind.RotatorMoveCompleted.angle = pre_angle;
       return;
@@ -4460,7 +4468,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_CameraCoolingStarted) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_target_temp = cst_encode_f_64(apiObj.targetTemp);
-      wireObj.tag = 19;
+      wireObj.tag = 18;
       wireObj.kind.CameraCoolingStarted.device_id = pre_device_id;
       wireObj.kind.CameraCoolingStarted.target_temp = pre_target_temp;
       return;
@@ -4468,20 +4476,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_CameraCoolingReached) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_temperature = cst_encode_f_64(apiObj.temperature);
-      wireObj.tag = 20;
+      wireObj.tag = 19;
       wireObj.kind.CameraCoolingReached.device_id = pre_device_id;
       wireObj.kind.CameraCoolingReached.temperature = pre_temperature;
       return;
     }
     if (apiObj is EquipmentEvent_CameraWarmingStarted) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
-      wireObj.tag = 21;
+      wireObj.tag = 20;
       wireObj.kind.CameraWarmingStarted.device_id = pre_device_id;
       return;
     }
     if (apiObj is EquipmentEvent_CameraWarmingCompleted) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
-      wireObj.tag = 22;
+      wireObj.tag = 21;
       wireObj.kind.CameraWarmingCompleted.device_id = pre_device_id;
       return;
     }
@@ -4491,7 +4499,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_cooler_power = cst_encode_opt_box_autoadd_f_64(
         apiObj.coolerPower,
       );
-      wireObj.tag = 23;
+      wireObj.tag = 22;
       wireObj.kind.CameraTemperatureChanged.device_id = pre_device_id;
       wireObj.kind.CameraTemperatureChanged.temperature = pre_temperature;
       wireObj.kind.CameraTemperatureChanged.cooler_power = pre_cooler_power;
@@ -4503,7 +4511,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_offset = cst_encode_i_32(apiObj.offset);
       var pre_bin_x = cst_encode_i_32(apiObj.binX);
       var pre_bin_y = cst_encode_i_32(apiObj.binY);
-      wireObj.tag = 24;
+      wireObj.tag = 23;
       wireObj.kind.CameraSettingsChanged.device_id = pre_device_id;
       wireObj.kind.CameraSettingsChanged.gain = pre_gain;
       wireObj.kind.CameraSettingsChanged.offset = pre_offset;
@@ -4515,7 +4523,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_interval_secs = cst_encode_u_64(apiObj.intervalSecs);
-      wireObj.tag = 25;
+      wireObj.tag = 24;
       wireObj.kind.HeartbeatStarted.device_type = pre_device_type;
       wireObj.kind.HeartbeatStarted.device_id = pre_device_id;
       wireObj.kind.HeartbeatStarted.interval_secs = pre_interval_secs;
@@ -4524,7 +4532,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_HeartbeatStopped) {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
-      wireObj.tag = 26;
+      wireObj.tag = 25;
       wireObj.kind.HeartbeatStopped.device_type = pre_device_type;
       wireObj.kind.HeartbeatStopped.device_id = pre_device_id;
       return;
@@ -4537,7 +4545,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
         apiObj.consecutiveFailures,
       );
       var pre_last_rtt_ms = cst_encode_opt_box_autoadd_u_64(apiObj.lastRttMs);
-      wireObj.tag = 27;
+      wireObj.tag = 26;
       wireObj.kind.HeartbeatStatusChanged.device_type = pre_device_type;
       wireObj.kind.HeartbeatStatusChanged.device_id = pre_device_id;
       wireObj.kind.HeartbeatStatusChanged.status = pre_status;
@@ -4551,7 +4559,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_attempt = cst_encode_u_32(apiObj.attempt);
       var pre_max_attempts = cst_encode_u_32(apiObj.maxAttempts);
-      wireObj.tag = 28;
+      wireObj.tag = 27;
       wireObj.kind.HeartbeatReconnecting.device_type = pre_device_type;
       wireObj.kind.HeartbeatReconnecting.device_id = pre_device_id;
       wireObj.kind.HeartbeatReconnecting.attempt = pre_attempt;
@@ -4562,7 +4570,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_type = cst_encode_String(apiObj.deviceType);
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_after_attempts = cst_encode_u_32(apiObj.afterAttempts);
-      wireObj.tag = 29;
+      wireObj.tag = 28;
       wireObj.kind.HeartbeatReconnected.device_type = pre_device_type;
       wireObj.kind.HeartbeatReconnected.device_id = pre_device_id;
       wireObj.kind.HeartbeatReconnected.after_attempts = pre_after_attempts;
@@ -4575,7 +4583,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_name = cst_encode_String(apiObj.name);
       var pre_display_name = cst_encode_String(apiObj.displayName);
       var pre_unique_id = cst_encode_opt_String(apiObj.uniqueId);
-      wireObj.tag = 30;
+      wireObj.tag = 29;
       wireObj.kind.DeviceDiscovered.device_class = pre_device_class;
       wireObj.kind.DeviceDiscovered.driver = pre_driver;
       wireObj.kind.DeviceDiscovered.id = pre_id;
@@ -4588,7 +4596,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_class = cst_encode_String(apiObj.deviceClass);
       var pre_driver = cst_encode_String(apiObj.driver);
       var pre_id = cst_encode_String(apiObj.id);
-      wireObj.tag = 31;
+      wireObj.tag = 30;
       wireObj.kind.DeviceLost.device_class = pre_device_class;
       wireObj.kind.DeviceLost.driver = pre_driver;
       wireObj.kind.DeviceLost.id = pre_id;
@@ -18199,6 +18207,8 @@ final class wire_cst_EquipmentEvent_Error extends ffi.Struct {
 }
 
 final class wire_cst_EquipmentEvent_MountSlewStarted extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
   @ffi.Double()
   external double ra;
 
@@ -18207,11 +18217,33 @@ final class wire_cst_EquipmentEvent_MountSlewStarted extends ffi.Struct {
 }
 
 final class wire_cst_EquipmentEvent_MountSlewCompleted extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+
   @ffi.Double()
   external double ra;
 
   @ffi.Double()
   external double dec;
+}
+
+final class wire_cst_EquipmentEvent_MountTrackingStarted extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+}
+
+final class wire_cst_EquipmentEvent_MountTrackingStopped extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+}
+
+final class wire_cst_EquipmentEvent_MountParkStarted extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+}
+
+final class wire_cst_EquipmentEvent_MountParkCompleted extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
+}
+
+final class wire_cst_EquipmentEvent_MountUnparked extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id;
 }
 
 final class wire_cst_EquipmentEvent_FocuserMoveStarted extends ffi.Struct {
@@ -18226,12 +18258,6 @@ final class wire_cst_EquipmentEvent_FocuserMoveCompleted extends ffi.Struct {
 
   @ffi.Int32()
   external int position;
-}
-
-final class wire_cst_EquipmentEvent_FocuserTemperatureChanged
-    extends ffi.Struct {
-  @ffi.Double()
-  external double temperature;
 }
 
 final class wire_cst_EquipmentEvent_FilterChanging extends ffi.Struct {
@@ -18406,12 +18432,19 @@ final class EquipmentEventKind extends ffi.Union {
 
   external wire_cst_EquipmentEvent_MountSlewCompleted MountSlewCompleted;
 
+  external wire_cst_EquipmentEvent_MountTrackingStarted MountTrackingStarted;
+
+  external wire_cst_EquipmentEvent_MountTrackingStopped MountTrackingStopped;
+
+  external wire_cst_EquipmentEvent_MountParkStarted MountParkStarted;
+
+  external wire_cst_EquipmentEvent_MountParkCompleted MountParkCompleted;
+
+  external wire_cst_EquipmentEvent_MountUnparked MountUnparked;
+
   external wire_cst_EquipmentEvent_FocuserMoveStarted FocuserMoveStarted;
 
   external wire_cst_EquipmentEvent_FocuserMoveCompleted FocuserMoveCompleted;
-
-  external wire_cst_EquipmentEvent_FocuserTemperatureChanged
-  FocuserTemperatureChanged;
 
   external wire_cst_EquipmentEvent_FilterChanging FilterChanging;
 

@@ -40,22 +40,27 @@ sealed class EquipmentEvent with _$EquipmentEvent {
     required String message,
   }) = EquipmentEvent_Error;
   const factory EquipmentEvent.mountSlewStarted({
+    required String deviceId,
     required double ra,
     required double dec,
   }) = EquipmentEvent_MountSlewStarted;
   const factory EquipmentEvent.mountSlewCompleted({
+    required String deviceId,
     required double ra,
     required double dec,
   }) = EquipmentEvent_MountSlewCompleted;
-  const factory EquipmentEvent.mountTrackingStarted() =
-      EquipmentEvent_MountTrackingStarted;
-  const factory EquipmentEvent.mountTrackingStopped() =
-      EquipmentEvent_MountTrackingStopped;
-  const factory EquipmentEvent.mountParkStarted() =
+  const factory EquipmentEvent.mountTrackingStarted({
+    required String deviceId,
+  }) = EquipmentEvent_MountTrackingStarted;
+  const factory EquipmentEvent.mountTrackingStopped({
+    required String deviceId,
+  }) = EquipmentEvent_MountTrackingStopped;
+  const factory EquipmentEvent.mountParkStarted({required String deviceId}) =
       EquipmentEvent_MountParkStarted;
-  const factory EquipmentEvent.mountParkCompleted() =
+  const factory EquipmentEvent.mountParkCompleted({required String deviceId}) =
       EquipmentEvent_MountParkCompleted;
-  const factory EquipmentEvent.mountUnparked() = EquipmentEvent_MountUnparked;
+  const factory EquipmentEvent.mountUnparked({required String deviceId}) =
+      EquipmentEvent_MountUnparked;
   const factory EquipmentEvent.focuserMoveStarted({
     required String deviceId,
     required int targetPosition,
@@ -64,9 +69,6 @@ sealed class EquipmentEvent with _$EquipmentEvent {
     required String deviceId,
     required int position,
   }) = EquipmentEvent_FocuserMoveCompleted;
-  const factory EquipmentEvent.focuserTemperatureChanged({
-    required double temperature,
-  }) = EquipmentEvent_FocuserTemperatureChanged;
 
   /// Positions are the wheel's 0-based slots; the names are the profile's
   /// names for the slots moved from and to, when it has them.

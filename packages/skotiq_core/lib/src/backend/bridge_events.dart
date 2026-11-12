@@ -61,7 +61,6 @@ export 'package:skotiq_bridge/skotiq_bridge.dart'
         EquipmentEvent_MountUnparked,
         EquipmentEvent_FocuserMoveStarted,
         EquipmentEvent_FocuserMoveCompleted,
-        EquipmentEvent_FocuserTemperatureChanged,
         EquipmentEvent_FilterChanging,
         EquipmentEvent_FilterChanged,
         EquipmentEvent_RotatorMoveStarted,

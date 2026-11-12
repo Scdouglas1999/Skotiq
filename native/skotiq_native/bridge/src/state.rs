@@ -306,32 +306,14 @@ impl AppState {
     /// Create and publish an equipment event
     /// Returns the event ID
     pub fn publish_equipment_event(&self, event: EquipmentEvent, severity: EventSeverity) -> u64 {
-        // Extract device_id from the event for context
-        let device_id = match &event {
-            EquipmentEvent::Connecting { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Connected { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Disconnected { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::PropertyChanged { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Error { device_id, .. } => Some(device_id.clone()),
-            _ => None,
-        };
-
-        if let Some(ref device_id) = device_id {
-            self.event_bus.publish_device_event(
-                severity,
-                EventCategory::Equipment,
-                EventPayload::Equipment(event),
-                device_id,
-                None,
-            )
-        } else {
-            self.event_bus.publish_with_tracking(
-                severity,
-                EventCategory::Equipment,
-                EventPayload::Equipment(event),
-                None,
-            )
-        }
+        let device_id = event.device_id().to_string();
+        self.event_bus.publish_device_event(
+            severity,
+            EventCategory::Equipment,
+            EventPayload::Equipment(event),
+            &device_id,
+            None,
+        )
     }
 
     /// Create and publish an imaging event

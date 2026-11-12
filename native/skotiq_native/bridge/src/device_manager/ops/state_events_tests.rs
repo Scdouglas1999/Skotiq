@@ -221,7 +221,7 @@ async fn an_unknown_device_publishes_nothing() {
                     ..
                 }
                 | EquipmentEvent::RotatorMoveStarted { .. }
-                | EquipmentEvent::MountParkStarted
+                | EquipmentEvent::MountParkStarted { .. }
         )),
         "{events:?}"
     );
@@ -515,7 +515,7 @@ async fn every_mount_path_publishes_once() {
     assert_eq!(
         one(&events, &|e| matches!(
             e,
-            EquipmentEvent::MountTrackingStopped
+            EquipmentEvent::MountTrackingStopped { device_id } if device_id == MOUNT
         )),
         1,
         "{events:?}"
@@ -528,7 +528,7 @@ async fn every_mount_path_publishes_once() {
     assert_eq!(
         one(&events, &|e| matches!(
             e,
-            EquipmentEvent::MountTrackingStarted
+            EquipmentEvent::MountTrackingStarted { device_id } if device_id == MOUNT
         )),
         1,
         "{events:?}"
@@ -541,7 +541,7 @@ async fn every_mount_path_publishes_once() {
     assert_eq!(
         one(
             &events,
-            &|e| matches!(e, EquipmentEvent::MountSlewStarted { ra, dec } if *ra == 5.5 && *dec == 20.0)
+            &|e| matches!(e, EquipmentEvent::MountSlewStarted { device_id, ra, dec } if device_id == MOUNT && *ra == 5.5 && *dec == 20.0)
         ),
         1,
         "api slew: {events:?}"
@@ -574,10 +574,13 @@ async fn every_mount_path_publishes_once() {
     let events = drain(&mut rx);
     assert_eq!(
         (
-            one(&events, &|e| matches!(e, EquipmentEvent::MountParkStarted)),
+            one(
+                &events,
+                &|e| matches!(e, EquipmentEvent::MountParkStarted { device_id } if device_id == MOUNT)
+            ),
             one(&events, &|e| matches!(
                 e,
-                EquipmentEvent::MountParkCompleted
+                EquipmentEvent::MountParkCompleted { device_id } if device_id == MOUNT
             )),
         ),
         (1, 1),
@@ -589,7 +592,10 @@ async fn every_mount_path_publishes_once() {
         .unwrap();
     let events = drain(&mut rx);
     assert_eq!(
-        one(&events, &|e| matches!(e, EquipmentEvent::MountUnparked)),
+        one(
+            &events,
+            &|e| matches!(e, EquipmentEvent::MountUnparked { device_id } if device_id == MOUNT)
+        ),
         1,
         "{events:?}"
     );
@@ -600,10 +606,13 @@ async fn every_mount_path_publishes_once() {
     let events = drain(&mut rx);
     assert_eq!(
         (
-            one(&events, &|e| matches!(e, EquipmentEvent::MountParkStarted)),
+            one(
+                &events,
+                &|e| matches!(e, EquipmentEvent::MountParkStarted { device_id } if device_id == MOUNT)
+            ),
             one(&events, &|e| matches!(
                 e,
-                EquipmentEvent::MountParkCompleted
+                EquipmentEvent::MountParkCompleted { device_id } if device_id == MOUNT
             )),
         ),
         (1, 1),
@@ -613,7 +622,10 @@ async fn every_mount_path_publishes_once() {
     ops.mount_unpark(MOUNT).await.unwrap();
     let events = drain(&mut rx);
     assert_eq!(
-        one(&events, &|e| matches!(e, EquipmentEvent::MountUnparked)),
+        one(
+            &events,
+            &|e| matches!(e, EquipmentEvent::MountUnparked { device_id } if device_id == MOUNT)
+        ),
         1,
         "{events:?}"
     );

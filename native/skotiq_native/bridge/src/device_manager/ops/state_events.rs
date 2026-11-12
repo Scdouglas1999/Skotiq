@@ -233,6 +233,7 @@ impl DeviceManager {
                 Ok(progress) if progress.near_target => {
                     app_state.publish_equipment_event(
                         EquipmentEvent::MountSlewCompleted {
+                            device_id: mount_id,
                             ra: ra_hours,
                             dec: dec_degrees,
                         },

@@ -561,14 +561,36 @@ typedef struct wire_cst_EquipmentEvent_Error {
 } wire_cst_EquipmentEvent_Error;
 
 typedef struct wire_cst_EquipmentEvent_MountSlewStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   double ra;
   double dec;
 } wire_cst_EquipmentEvent_MountSlewStarted;
 
 typedef struct wire_cst_EquipmentEvent_MountSlewCompleted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   double ra;
   double dec;
 } wire_cst_EquipmentEvent_MountSlewCompleted;
+
+typedef struct wire_cst_EquipmentEvent_MountTrackingStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountTrackingStarted;
+
+typedef struct wire_cst_EquipmentEvent_MountTrackingStopped {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountTrackingStopped;
+
+typedef struct wire_cst_EquipmentEvent_MountParkStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountParkStarted;
+
+typedef struct wire_cst_EquipmentEvent_MountParkCompleted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountParkCompleted;
+
+typedef struct wire_cst_EquipmentEvent_MountUnparked {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountUnparked;
 
 typedef struct wire_cst_EquipmentEvent_FocuserMoveStarted {
   struct wire_cst_list_prim_u_8_strict *device_id;
@@ -579,10 +601,6 @@ typedef struct wire_cst_EquipmentEvent_FocuserMoveCompleted {
   struct wire_cst_list_prim_u_8_strict *device_id;
   int32_t position;
 } wire_cst_EquipmentEvent_FocuserMoveCompleted;
-
-typedef struct wire_cst_EquipmentEvent_FocuserTemperatureChanged {
-  double temperature;
-} wire_cst_EquipmentEvent_FocuserTemperatureChanged;
 
 typedef struct wire_cst_EquipmentEvent_FilterChanging {
   struct wire_cst_list_prim_u_8_strict *device_id;
@@ -695,9 +713,13 @@ typedef union EquipmentEventKind {
   struct wire_cst_EquipmentEvent_Error Error;
   struct wire_cst_EquipmentEvent_MountSlewStarted MountSlewStarted;
   struct wire_cst_EquipmentEvent_MountSlewCompleted MountSlewCompleted;
+  struct wire_cst_EquipmentEvent_MountTrackingStarted MountTrackingStarted;
+  struct wire_cst_EquipmentEvent_MountTrackingStopped MountTrackingStopped;
+  struct wire_cst_EquipmentEvent_MountParkStarted MountParkStarted;
+  struct wire_cst_EquipmentEvent_MountParkCompleted MountParkCompleted;
+  struct wire_cst_EquipmentEvent_MountUnparked MountUnparked;
   struct wire_cst_EquipmentEvent_FocuserMoveStarted FocuserMoveStarted;
   struct wire_cst_EquipmentEvent_FocuserMoveCompleted FocuserMoveCompleted;
-  struct wire_cst_EquipmentEvent_FocuserTemperatureChanged FocuserTemperatureChanged;
   struct wire_cst_EquipmentEvent_FilterChanging FilterChanging;
   struct wire_cst_EquipmentEvent_FilterChanged FilterChanged;
   struct wire_cst_EquipmentEvent_RotatorMoveStarted RotatorMoveStarted;

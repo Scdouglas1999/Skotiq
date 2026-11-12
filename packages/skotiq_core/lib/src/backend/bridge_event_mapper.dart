@@ -108,7 +108,6 @@ const Map<core.EventCategory, Set<String>> _faithfulCoreEventTypes = {
     'MountUnparked',
     'FocuserMoveStarted',
     'FocuserMoveCompleted',
-    'FocuserTemperatureChanged',
     'FilterChanging',
     'FilterChanged',
     'RotatorMoveStarted',
@@ -737,22 +736,34 @@ bridge.EquipmentEvent _equipmentEventFromCore(
 ) {
   switch (eventType) {
     case 'MountParkCompleted':
-      return const bridge.EquipmentEvent.mountParkCompleted();
+      return bridge.EquipmentEvent.mountParkCompleted(
+        deviceId: _deviceIdOrEmpty(data),
+      );
     case 'MountUnparked':
-      return const bridge.EquipmentEvent.mountUnparked();
+      return bridge.EquipmentEvent.mountUnparked(
+        deviceId: _deviceIdOrEmpty(data),
+      );
     case 'MountParkStarted':
-      return const bridge.EquipmentEvent.mountParkStarted();
+      return bridge.EquipmentEvent.mountParkStarted(
+        deviceId: _deviceIdOrEmpty(data),
+      );
     case 'MountTrackingStarted':
-      return const bridge.EquipmentEvent.mountTrackingStarted();
+      return bridge.EquipmentEvent.mountTrackingStarted(
+        deviceId: _deviceIdOrEmpty(data),
+      );
     case 'MountTrackingStopped':
-      return const bridge.EquipmentEvent.mountTrackingStopped();
+      return bridge.EquipmentEvent.mountTrackingStopped(
+        deviceId: _deviceIdOrEmpty(data),
+      );
     case 'MountSlewStarted':
       return bridge.EquipmentEvent.mountSlewStarted(
+        deviceId: _deviceIdOrEmpty(data),
         ra: _doubleField(data, 'ra'),
         dec: _doubleField(data, 'dec'),
       );
     case 'MountSlewCompleted':
       return bridge.EquipmentEvent.mountSlewCompleted(
+        deviceId: _deviceIdOrEmpty(data),
         ra: _doubleField(data, 'ra'),
         dec: _doubleField(data, 'dec'),
       );
@@ -765,10 +776,6 @@ bridge.EquipmentEvent _equipmentEventFromCore(
       return bridge.EquipmentEvent.focuserMoveCompleted(
         deviceId: _deviceIdOrEmpty(data),
         position: _optionalInt(data, 'position') ?? 0,
-      );
-    case 'FocuserTemperatureChanged':
-      return bridge.EquipmentEvent.focuserTemperatureChanged(
-        temperature: _doubleField(data, 'temperature'),
       );
     case 'FilterChanging':
       return bridge.EquipmentEvent.filterChanging(

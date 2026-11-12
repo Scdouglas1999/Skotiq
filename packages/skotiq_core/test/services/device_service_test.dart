@@ -425,6 +425,37 @@ void main() {
       expect(container.read(mountStateProvider).isTracking, isTrue);
     });
 
+    test('a tracking event of another mount leaves the slot alone', () async {
+      final mountNotifier = container.read(mountStateProvider.notifier);
+      mountNotifier.setConnecting('mount-1');
+      mountNotifier.setConnected();
+      mountNotifier.setTracking(false);
+
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'MountTrackingStarted',
+          data: {'device_id': 'mount-2'},
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(container.read(mountStateProvider).isTracking, isFalse);
+
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'MountTrackingStarted',
+          data: {'device_id': 'mount-1'},
+        ),
+      );
+      await Future.delayed(const Duration(milliseconds: 50));
+      expect(container.read(mountStateProvider).isTracking, isTrue);
+    });
+
     test('MountTrackingStopped sets tracking false', () async {
       final mountNotifier = container.read(mountStateProvider.notifier);
       mountNotifier.setConnecting('mount-1');

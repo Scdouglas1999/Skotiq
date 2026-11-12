@@ -8768,35 +8768,54 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                 };
             }
             5 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_ra = <f64>::sse_decode(deserializer);
                 let mut var_dec = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::MountSlewStarted {
+                    device_id: var_deviceId,
                     ra: var_ra,
                     dec: var_dec,
                 };
             }
             6 => {
+                let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_ra = <f64>::sse_decode(deserializer);
                 let mut var_dec = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::MountSlewCompleted {
+                    device_id: var_deviceId,
                     ra: var_ra,
                     dec: var_dec,
                 };
             }
             7 => {
-                return crate::event::equipment::EquipmentEvent::MountTrackingStarted;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountTrackingStarted {
+                    device_id: var_deviceId,
+                };
             }
             8 => {
-                return crate::event::equipment::EquipmentEvent::MountTrackingStopped;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountTrackingStopped {
+                    device_id: var_deviceId,
+                };
             }
             9 => {
-                return crate::event::equipment::EquipmentEvent::MountParkStarted;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountParkStarted {
+                    device_id: var_deviceId,
+                };
             }
             10 => {
-                return crate::event::equipment::EquipmentEvent::MountParkCompleted;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountParkCompleted {
+                    device_id: var_deviceId,
+                };
             }
             11 => {
-                return crate::event::equipment::EquipmentEvent::MountUnparked;
+                let mut var_deviceId = <String>::sse_decode(deserializer);
+                return crate::event::equipment::EquipmentEvent::MountUnparked {
+                    device_id: var_deviceId,
+                };
             }
             12 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
@@ -8815,12 +8834,6 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                 };
             }
             14 => {
-                let mut var_temperature = <f64>::sse_decode(deserializer);
-                return crate::event::equipment::EquipmentEvent::FocuserTemperatureChanged {
-                    temperature: var_temperature,
-                };
-            }
-            15 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_fromPosition = <i32>::sse_decode(deserializer);
                 let mut var_toPosition = <i32>::sse_decode(deserializer);
@@ -8834,7 +8847,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     from_filter_name: var_fromFilterName,
                 };
             }
-            16 => {
+            15 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_position = <i32>::sse_decode(deserializer);
                 let mut var_filterName = <Option<String>>::sse_decode(deserializer);
@@ -8844,7 +8857,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     filter_name: var_filterName,
                 };
             }
-            17 => {
+            16 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_targetAngle = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::RotatorMoveStarted {
@@ -8852,7 +8865,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     target_angle: var_targetAngle,
                 };
             }
-            18 => {
+            17 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_angle = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::RotatorMoveCompleted {
@@ -8860,7 +8873,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     angle: var_angle,
                 };
             }
-            19 => {
+            18 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_targetTemp = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraCoolingStarted {
@@ -8868,7 +8881,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     target_temp: var_targetTemp,
                 };
             }
-            20 => {
+            19 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_temperature = <f64>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraCoolingReached {
@@ -8876,19 +8889,19 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     temperature: var_temperature,
                 };
             }
-            21 => {
+            20 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraWarmingStarted {
                     device_id: var_deviceId,
                 };
             }
-            22 => {
+            21 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraWarmingCompleted {
                     device_id: var_deviceId,
                 };
             }
-            23 => {
+            22 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_temperature = <f64>::sse_decode(deserializer);
                 let mut var_coolerPower = <Option<f64>>::sse_decode(deserializer);
@@ -8898,7 +8911,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     cooler_power: var_coolerPower,
                 };
             }
-            24 => {
+            23 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_gain = <i32>::sse_decode(deserializer);
                 let mut var_offset = <i32>::sse_decode(deserializer);
@@ -8912,7 +8925,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     bin_y: var_binY,
                 };
             }
-            25 => {
+            24 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_intervalSecs = <u64>::sse_decode(deserializer);
@@ -8922,7 +8935,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     interval_secs: var_intervalSecs,
                 };
             }
-            26 => {
+            25 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::HeartbeatStopped {
@@ -8930,7 +8943,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     device_id: var_deviceId,
                 };
             }
-            27 => {
+            26 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_status =
@@ -8945,7 +8958,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     last_rtt_ms: var_lastRttMs,
                 };
             }
-            28 => {
+            27 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_attempt = <u32>::sse_decode(deserializer);
@@ -8957,7 +8970,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     max_attempts: var_maxAttempts,
                 };
             }
-            29 => {
+            28 => {
                 let mut var_deviceType = <String>::sse_decode(deserializer);
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_afterAttempts = <u32>::sse_decode(deserializer);
@@ -8967,7 +8980,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     after_attempts: var_afterAttempts,
                 };
             }
-            30 => {
+            29 => {
                 let mut var_deviceClass = <String>::sse_decode(deserializer);
                 let mut var_driver = <String>::sse_decode(deserializer);
                 let mut var_id = <String>::sse_decode(deserializer);
@@ -8983,7 +8996,7 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
                     unique_id: var_uniqueId,
                 };
             }
-            31 => {
+            30 => {
                 let mut var_deviceClass = <String>::sse_decode(deserializer);
                 let mut var_driver = <String>::sse_decode(deserializer);
                 let mut var_id = <String>::sse_decode(deserializer);
@@ -13863,31 +13876,35 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 message.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::equipment::EquipmentEvent::MountSlewStarted { ra, dec } => [
+            crate::event::equipment::EquipmentEvent::MountSlewStarted { device_id, ra, dec } => [
                 5.into_dart(),
+                device_id.into_into_dart().into_dart(),
                 ra.into_into_dart().into_dart(),
                 dec.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::equipment::EquipmentEvent::MountSlewCompleted { ra, dec } => [
+            crate::event::equipment::EquipmentEvent::MountSlewCompleted { device_id, ra, dec } => [
                 6.into_dart(),
+                device_id.into_into_dart().into_dart(),
                 ra.into_into_dart().into_dart(),
                 dec.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::equipment::EquipmentEvent::MountTrackingStarted => {
-                [7.into_dart()].into_dart()
+            crate::event::equipment::EquipmentEvent::MountTrackingStarted { device_id } => {
+                [7.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::equipment::EquipmentEvent::MountTrackingStopped => {
-                [8.into_dart()].into_dart()
+            crate::event::equipment::EquipmentEvent::MountTrackingStopped { device_id } => {
+                [8.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::equipment::EquipmentEvent::MountParkStarted => {
-                [9.into_dart()].into_dart()
+            crate::event::equipment::EquipmentEvent::MountParkStarted { device_id } => {
+                [9.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::equipment::EquipmentEvent::MountParkCompleted => {
-                [10.into_dart()].into_dart()
+            crate::event::equipment::EquipmentEvent::MountParkCompleted { device_id } => {
+                [10.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
-            crate::event::equipment::EquipmentEvent::MountUnparked => [11.into_dart()].into_dart(),
+            crate::event::equipment::EquipmentEvent::MountUnparked { device_id } => {
+                [11.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
+            }
             crate::event::equipment::EquipmentEvent::FocuserMoveStarted {
                 device_id,
                 target_position,
@@ -13906,9 +13923,6 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 position.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::equipment::EquipmentEvent::FocuserTemperatureChanged { temperature } => {
-                [14.into_dart(), temperature.into_into_dart().into_dart()].into_dart()
-            }
             crate::event::equipment::EquipmentEvent::FilterChanging {
                 device_id,
                 from_position,
@@ -13916,7 +13930,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 filter_name,
                 from_filter_name,
             } => [
-                15.into_dart(),
+                14.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 from_position.into_into_dart().into_dart(),
                 to_position.into_into_dart().into_dart(),
@@ -13929,7 +13943,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 position,
                 filter_name,
             } => [
-                16.into_dart(),
+                15.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 position.into_into_dart().into_dart(),
                 filter_name.into_into_dart().into_dart(),
@@ -13939,13 +13953,13 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 target_angle,
             } => [
-                17.into_dart(),
+                16.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 target_angle.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::equipment::EquipmentEvent::RotatorMoveCompleted { device_id, angle } => [
-                18.into_dart(),
+                17.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 angle.into_into_dart().into_dart(),
             ]
@@ -13954,7 +13968,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 target_temp,
             } => [
-                19.into_dart(),
+                18.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 target_temp.into_into_dart().into_dart(),
             ]
@@ -13963,23 +13977,23 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 temperature,
             } => [
-                20.into_dart(),
+                19.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 temperature.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::equipment::EquipmentEvent::CameraWarmingStarted { device_id } => {
-                [21.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
+                [20.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
             crate::event::equipment::EquipmentEvent::CameraWarmingCompleted { device_id } => {
-                [22.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
+                [21.into_dart(), device_id.into_into_dart().into_dart()].into_dart()
             }
             crate::event::equipment::EquipmentEvent::CameraTemperatureChanged {
                 device_id,
                 temperature,
                 cooler_power,
             } => [
-                23.into_dart(),
+                22.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 temperature.into_into_dart().into_dart(),
                 cooler_power.into_into_dart().into_dart(),
@@ -13992,7 +14006,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 bin_x,
                 bin_y,
             } => [
-                24.into_dart(),
+                23.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 gain.into_into_dart().into_dart(),
                 offset.into_into_dart().into_dart(),
@@ -14005,7 +14019,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 interval_secs,
             } => [
-                25.into_dart(),
+                24.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 interval_secs.into_into_dart().into_dart(),
@@ -14015,7 +14029,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_type,
                 device_id,
             } => [
-                26.into_dart(),
+                25.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
             ]
@@ -14027,7 +14041,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 consecutive_failures,
                 last_rtt_ms,
             } => [
-                27.into_dart(),
+                26.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 status.into_into_dart().into_dart(),
@@ -14041,7 +14055,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 attempt,
                 max_attempts,
             } => [
-                28.into_dart(),
+                27.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 attempt.into_into_dart().into_dart(),
@@ -14053,7 +14067,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 device_id,
                 after_attempts,
             } => [
-                29.into_dart(),
+                28.into_dart(),
                 device_type.into_into_dart().into_dart(),
                 device_id.into_into_dart().into_dart(),
                 after_attempts.into_into_dart().into_dart(),
@@ -14067,7 +14081,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 display_name,
                 unique_id,
             } => [
-                30.into_dart(),
+                29.into_dart(),
                 device_class.into_into_dart().into_dart(),
                 driver.into_into_dart().into_dart(),
                 id.into_into_dart().into_dart(),
@@ -14081,7 +14095,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 driver,
                 id,
             } => [
-                31.into_dart(),
+                30.into_dart(),
                 device_class.into_into_dart().into_dart(),
                 driver.into_into_dart().into_dart(),
                 id.into_into_dart().into_dart(),
@@ -17914,30 +17928,37 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 <String>::sse_encode(device_id, serializer);
                 <String>::sse_encode(message, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountSlewStarted { ra, dec } => {
+            crate::event::equipment::EquipmentEvent::MountSlewStarted { device_id, ra, dec } => {
                 <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(ra, serializer);
                 <f64>::sse_encode(dec, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountSlewCompleted { ra, dec } => {
+            crate::event::equipment::EquipmentEvent::MountSlewCompleted { device_id, ra, dec } => {
                 <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(ra, serializer);
                 <f64>::sse_encode(dec, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountTrackingStarted => {
+            crate::event::equipment::EquipmentEvent::MountTrackingStarted { device_id } => {
                 <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountTrackingStopped => {
+            crate::event::equipment::EquipmentEvent::MountTrackingStopped { device_id } => {
                 <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountParkStarted => {
+            crate::event::equipment::EquipmentEvent::MountParkStarted { device_id } => {
                 <i32>::sse_encode(9, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountParkCompleted => {
+            crate::event::equipment::EquipmentEvent::MountParkCompleted { device_id } => {
                 <i32>::sse_encode(10, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
-            crate::event::equipment::EquipmentEvent::MountUnparked => {
+            crate::event::equipment::EquipmentEvent::MountUnparked { device_id } => {
                 <i32>::sse_encode(11, serializer);
+                <String>::sse_encode(device_id, serializer);
             }
             crate::event::equipment::EquipmentEvent::FocuserMoveStarted {
                 device_id,
@@ -17955,10 +17976,6 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(position, serializer);
             }
-            crate::event::equipment::EquipmentEvent::FocuserTemperatureChanged { temperature } => {
-                <i32>::sse_encode(14, serializer);
-                <f64>::sse_encode(temperature, serializer);
-            }
             crate::event::equipment::EquipmentEvent::FilterChanging {
                 device_id,
                 from_position,
@@ -17966,7 +17983,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 filter_name,
                 from_filter_name,
             } => {
-                <i32>::sse_encode(15, serializer);
+                <i32>::sse_encode(14, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(from_position, serializer);
                 <i32>::sse_encode(to_position, serializer);
@@ -17978,7 +17995,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 position,
                 filter_name,
             } => {
-                <i32>::sse_encode(16, serializer);
+                <i32>::sse_encode(15, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(position, serializer);
                 <Option<String>>::sse_encode(filter_name, serializer);
@@ -17987,12 +18004,12 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 target_angle,
             } => {
-                <i32>::sse_encode(17, serializer);
+                <i32>::sse_encode(16, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(target_angle, serializer);
             }
             crate::event::equipment::EquipmentEvent::RotatorMoveCompleted { device_id, angle } => {
-                <i32>::sse_encode(18, serializer);
+                <i32>::sse_encode(17, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(angle, serializer);
             }
@@ -18000,7 +18017,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 target_temp,
             } => {
-                <i32>::sse_encode(19, serializer);
+                <i32>::sse_encode(18, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(target_temp, serializer);
             }
@@ -18008,16 +18025,16 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 temperature,
             } => {
-                <i32>::sse_encode(20, serializer);
+                <i32>::sse_encode(19, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(temperature, serializer);
             }
             crate::event::equipment::EquipmentEvent::CameraWarmingStarted { device_id } => {
-                <i32>::sse_encode(21, serializer);
+                <i32>::sse_encode(20, serializer);
                 <String>::sse_encode(device_id, serializer);
             }
             crate::event::equipment::EquipmentEvent::CameraWarmingCompleted { device_id } => {
-                <i32>::sse_encode(22, serializer);
+                <i32>::sse_encode(21, serializer);
                 <String>::sse_encode(device_id, serializer);
             }
             crate::event::equipment::EquipmentEvent::CameraTemperatureChanged {
@@ -18025,7 +18042,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 temperature,
                 cooler_power,
             } => {
-                <i32>::sse_encode(23, serializer);
+                <i32>::sse_encode(22, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <f64>::sse_encode(temperature, serializer);
                 <Option<f64>>::sse_encode(cooler_power, serializer);
@@ -18037,7 +18054,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 bin_x,
                 bin_y,
             } => {
-                <i32>::sse_encode(24, serializer);
+                <i32>::sse_encode(23, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(gain, serializer);
                 <i32>::sse_encode(offset, serializer);
@@ -18049,7 +18066,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 interval_secs,
             } => {
-                <i32>::sse_encode(25, serializer);
+                <i32>::sse_encode(24, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u64>::sse_encode(interval_secs, serializer);
@@ -18058,7 +18075,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_type,
                 device_id,
             } => {
-                <i32>::sse_encode(26, serializer);
+                <i32>::sse_encode(25, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
             }
@@ -18069,7 +18086,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 consecutive_failures,
                 last_rtt_ms,
             } => {
-                <i32>::sse_encode(27, serializer);
+                <i32>::sse_encode(26, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <crate::event::equipment::HeartbeatStatus>::sse_encode(status, serializer);
@@ -18082,7 +18099,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 attempt,
                 max_attempts,
             } => {
-                <i32>::sse_encode(28, serializer);
+                <i32>::sse_encode(27, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u32>::sse_encode(attempt, serializer);
@@ -18093,7 +18110,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 device_id,
                 after_attempts,
             } => {
-                <i32>::sse_encode(29, serializer);
+                <i32>::sse_encode(28, serializer);
                 <String>::sse_encode(device_type, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <u32>::sse_encode(after_attempts, serializer);
@@ -18106,7 +18123,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 display_name,
                 unique_id,
             } => {
-                <i32>::sse_encode(30, serializer);
+                <i32>::sse_encode(29, serializer);
                 <String>::sse_encode(device_class, serializer);
                 <String>::sse_encode(driver, serializer);
                 <String>::sse_encode(id, serializer);
@@ -18119,7 +18136,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 driver,
                 id,
             } => {
-                <i32>::sse_encode(31, serializer);
+                <i32>::sse_encode(30, serializer);
                 <String>::sse_encode(device_class, serializer);
                 <String>::sse_encode(driver, serializer);
                 <String>::sse_encode(id, serializer);
@@ -22220,6 +22237,7 @@ mod io {
                 5 => {
                     let ans = unsafe { self.kind.MountSlewStarted };
                     crate::event::equipment::EquipmentEvent::MountSlewStarted {
+                        device_id: ans.device_id.cst_decode(),
                         ra: ans.ra.cst_decode(),
                         dec: ans.dec.cst_decode(),
                     }
@@ -22227,15 +22245,41 @@ mod io {
                 6 => {
                     let ans = unsafe { self.kind.MountSlewCompleted };
                     crate::event::equipment::EquipmentEvent::MountSlewCompleted {
+                        device_id: ans.device_id.cst_decode(),
                         ra: ans.ra.cst_decode(),
                         dec: ans.dec.cst_decode(),
                     }
                 }
-                7 => crate::event::equipment::EquipmentEvent::MountTrackingStarted,
-                8 => crate::event::equipment::EquipmentEvent::MountTrackingStopped,
-                9 => crate::event::equipment::EquipmentEvent::MountParkStarted,
-                10 => crate::event::equipment::EquipmentEvent::MountParkCompleted,
-                11 => crate::event::equipment::EquipmentEvent::MountUnparked,
+                7 => {
+                    let ans = unsafe { self.kind.MountTrackingStarted };
+                    crate::event::equipment::EquipmentEvent::MountTrackingStarted {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
+                8 => {
+                    let ans = unsafe { self.kind.MountTrackingStopped };
+                    crate::event::equipment::EquipmentEvent::MountTrackingStopped {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
+                9 => {
+                    let ans = unsafe { self.kind.MountParkStarted };
+                    crate::event::equipment::EquipmentEvent::MountParkStarted {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
+                10 => {
+                    let ans = unsafe { self.kind.MountParkCompleted };
+                    crate::event::equipment::EquipmentEvent::MountParkCompleted {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
+                11 => {
+                    let ans = unsafe { self.kind.MountUnparked };
+                    crate::event::equipment::EquipmentEvent::MountUnparked {
+                        device_id: ans.device_id.cst_decode(),
+                    }
+                }
                 12 => {
                     let ans = unsafe { self.kind.FocuserMoveStarted };
                     crate::event::equipment::EquipmentEvent::FocuserMoveStarted {
@@ -22251,12 +22295,6 @@ mod io {
                     }
                 }
                 14 => {
-                    let ans = unsafe { self.kind.FocuserTemperatureChanged };
-                    crate::event::equipment::EquipmentEvent::FocuserTemperatureChanged {
-                        temperature: ans.temperature.cst_decode(),
-                    }
-                }
-                15 => {
                     let ans = unsafe { self.kind.FilterChanging };
                     crate::event::equipment::EquipmentEvent::FilterChanging {
                         device_id: ans.device_id.cst_decode(),
@@ -22266,7 +22304,7 @@ mod io {
                         from_filter_name: ans.from_filter_name.cst_decode(),
                     }
                 }
-                16 => {
+                15 => {
                     let ans = unsafe { self.kind.FilterChanged };
                     crate::event::equipment::EquipmentEvent::FilterChanged {
                         device_id: ans.device_id.cst_decode(),
@@ -22274,47 +22312,47 @@ mod io {
                         filter_name: ans.filter_name.cst_decode(),
                     }
                 }
-                17 => {
+                16 => {
                     let ans = unsafe { self.kind.RotatorMoveStarted };
                     crate::event::equipment::EquipmentEvent::RotatorMoveStarted {
                         device_id: ans.device_id.cst_decode(),
                         target_angle: ans.target_angle.cst_decode(),
                     }
                 }
-                18 => {
+                17 => {
                     let ans = unsafe { self.kind.RotatorMoveCompleted };
                     crate::event::equipment::EquipmentEvent::RotatorMoveCompleted {
                         device_id: ans.device_id.cst_decode(),
                         angle: ans.angle.cst_decode(),
                     }
                 }
-                19 => {
+                18 => {
                     let ans = unsafe { self.kind.CameraCoolingStarted };
                     crate::event::equipment::EquipmentEvent::CameraCoolingStarted {
                         device_id: ans.device_id.cst_decode(),
                         target_temp: ans.target_temp.cst_decode(),
                     }
                 }
-                20 => {
+                19 => {
                     let ans = unsafe { self.kind.CameraCoolingReached };
                     crate::event::equipment::EquipmentEvent::CameraCoolingReached {
                         device_id: ans.device_id.cst_decode(),
                         temperature: ans.temperature.cst_decode(),
                     }
                 }
-                21 => {
+                20 => {
                     let ans = unsafe { self.kind.CameraWarmingStarted };
                     crate::event::equipment::EquipmentEvent::CameraWarmingStarted {
                         device_id: ans.device_id.cst_decode(),
                     }
                 }
-                22 => {
+                21 => {
                     let ans = unsafe { self.kind.CameraWarmingCompleted };
                     crate::event::equipment::EquipmentEvent::CameraWarmingCompleted {
                         device_id: ans.device_id.cst_decode(),
                     }
                 }
-                23 => {
+                22 => {
                     let ans = unsafe { self.kind.CameraTemperatureChanged };
                     crate::event::equipment::EquipmentEvent::CameraTemperatureChanged {
                         device_id: ans.device_id.cst_decode(),
@@ -22322,7 +22360,7 @@ mod io {
                         cooler_power: ans.cooler_power.cst_decode(),
                     }
                 }
-                24 => {
+                23 => {
                     let ans = unsafe { self.kind.CameraSettingsChanged };
                     crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                         device_id: ans.device_id.cst_decode(),
@@ -22332,7 +22370,7 @@ mod io {
                         bin_y: ans.bin_y.cst_decode(),
                     }
                 }
-                25 => {
+                24 => {
                     let ans = unsafe { self.kind.HeartbeatStarted };
                     crate::event::equipment::EquipmentEvent::HeartbeatStarted {
                         device_type: ans.device_type.cst_decode(),
@@ -22340,14 +22378,14 @@ mod io {
                         interval_secs: ans.interval_secs.cst_decode(),
                     }
                 }
-                26 => {
+                25 => {
                     let ans = unsafe { self.kind.HeartbeatStopped };
                     crate::event::equipment::EquipmentEvent::HeartbeatStopped {
                         device_type: ans.device_type.cst_decode(),
                         device_id: ans.device_id.cst_decode(),
                     }
                 }
-                27 => {
+                26 => {
                     let ans = unsafe { self.kind.HeartbeatStatusChanged };
                     crate::event::equipment::EquipmentEvent::HeartbeatStatusChanged {
                         device_type: ans.device_type.cst_decode(),
@@ -22357,7 +22395,7 @@ mod io {
                         last_rtt_ms: ans.last_rtt_ms.cst_decode(),
                     }
                 }
-                28 => {
+                27 => {
                     let ans = unsafe { self.kind.HeartbeatReconnecting };
                     crate::event::equipment::EquipmentEvent::HeartbeatReconnecting {
                         device_type: ans.device_type.cst_decode(),
@@ -22366,7 +22404,7 @@ mod io {
                         max_attempts: ans.max_attempts.cst_decode(),
                     }
                 }
-                29 => {
+                28 => {
                     let ans = unsafe { self.kind.HeartbeatReconnected };
                     crate::event::equipment::EquipmentEvent::HeartbeatReconnected {
                         device_type: ans.device_type.cst_decode(),
@@ -22374,7 +22412,7 @@ mod io {
                         after_attempts: ans.after_attempts.cst_decode(),
                     }
                 }
-                30 => {
+                29 => {
                     let ans = unsafe { self.kind.DeviceDiscovered };
                     crate::event::equipment::EquipmentEvent::DeviceDiscovered {
                         device_class: ans.device_class.cst_decode(),
@@ -22385,7 +22423,7 @@ mod io {
                         unique_id: ans.unique_id.cst_decode(),
                     }
                 }
-                31 => {
+                30 => {
                     let ans = unsafe { self.kind.DeviceLost };
                     crate::event::equipment::EquipmentEvent::DeviceLost {
                         device_class: ans.device_class.cst_decode(),
@@ -30712,9 +30750,13 @@ mod io {
         Error: wire_cst_EquipmentEvent_Error,
         MountSlewStarted: wire_cst_EquipmentEvent_MountSlewStarted,
         MountSlewCompleted: wire_cst_EquipmentEvent_MountSlewCompleted,
+        MountTrackingStarted: wire_cst_EquipmentEvent_MountTrackingStarted,
+        MountTrackingStopped: wire_cst_EquipmentEvent_MountTrackingStopped,
+        MountParkStarted: wire_cst_EquipmentEvent_MountParkStarted,
+        MountParkCompleted: wire_cst_EquipmentEvent_MountParkCompleted,
+        MountUnparked: wire_cst_EquipmentEvent_MountUnparked,
         FocuserMoveStarted: wire_cst_EquipmentEvent_FocuserMoveStarted,
         FocuserMoveCompleted: wire_cst_EquipmentEvent_FocuserMoveCompleted,
-        FocuserTemperatureChanged: wire_cst_EquipmentEvent_FocuserTemperatureChanged,
         FilterChanging: wire_cst_EquipmentEvent_FilterChanging,
         FilterChanged: wire_cst_EquipmentEvent_FilterChanged,
         RotatorMoveStarted: wire_cst_EquipmentEvent_RotatorMoveStarted,
@@ -30772,14 +30814,41 @@ mod io {
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_EquipmentEvent_MountSlewStarted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
         ra: f64,
         dec: f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
     pub struct wire_cst_EquipmentEvent_MountSlewCompleted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
         ra: f64,
         dec: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountTrackingStarted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountTrackingStopped {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountParkStarted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountParkCompleted {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_EquipmentEvent_MountUnparked {
+        device_id: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -30792,11 +30861,6 @@ mod io {
     pub struct wire_cst_EquipmentEvent_FocuserMoveCompleted {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         position: i32,
-    }
-    #[repr(C)]
-    #[derive(Clone, Copy)]
-    pub struct wire_cst_EquipmentEvent_FocuserTemperatureChanged {
-        temperature: f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
