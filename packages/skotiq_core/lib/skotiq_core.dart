@@ -240,10 +240,13 @@ export 'src/providers/secondary_rig_provider.dart';
 export 'src/providers/campaign_rollup_provider.dart';
 export 'src/providers/import_provider.dart';
 export 'src/providers/session_provider.dart';
-// Hide settings_provider's legacy HorizonProfile so the scheduler's
-// samples-based HorizonProfile (services/scheduler/horizon_profile.dart) wins
-// at the barrel. Direct importers of settings_provider.dart still see it.
-export 'src/providers/settings_provider.dart' hide HorizonProfile;
+export 'src/providers/settings_provider.dart';
+export 'src/models/site/bortle_scale.dart';
+export 'src/models/site/location_settings.dart';
+// Hide the legacy settings HorizonProfile so the scheduler's samples-based
+// HorizonProfile (services/scheduler/horizon_profile.dart) wins at the barrel.
+// Direct importers of site_horizon_profile.dart still see it.
+export 'src/models/site/site_horizon_profile.dart' hide HorizonProfile;
 export 'src/providers/clock_provider.dart';
 export 'src/providers/profiles_provider.dart';
 export 'src/providers/armed_start_provider.dart';
@@ -485,6 +488,7 @@ export 'src/services/catalog_overlay_service.dart';
 export 'src/providers/catalog_overlay_provider.dart';
 export 'src/providers/current_frame_analysis_provider.dart';
 export 'src/providers/frame_record_updates.dart';
+export 'src/models/site/learned_obstruction.dart';
 export 'src/providers/frame_watch_settings_provider.dart';
 export 'src/services/annotation_service.dart';
 export 'src/services/annotation_export.dart';
@@ -493,8 +497,8 @@ export 'src/services/scheduler/integration_goal_service.dart';
 export 'src/services/scheduler/target_constraint_service.dart';
 export 'src/services/scheduler/scheduler_queue_service.dart';
 // Two HorizonProfile classes exist in the codebase:
-//   * settings_provider.dart::HorizonProfile  - legacy 8-point compass profile
-//     stored as JSON in app_settings.horizon_profile_json
+//   * models/site/site_horizon_profile.dart::HorizonProfile  - legacy 8-point
+//     compass profile stored as JSON in app_settings.horizon_profile_json
 //   * services/scheduler/horizon_profile.dart::HorizonProfile  - newer
 //     samples-based profile persisted in the horizon_profiles table
 // The legacy one is still referenced by target_suggestion_service.dart via a

@@ -5,7 +5,7 @@
 // the factory constructors without the alias.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/models/site/site_horizon_profile.dart';
 
 void main() {
   group('HorizonProfile.parseHorizonText', () {

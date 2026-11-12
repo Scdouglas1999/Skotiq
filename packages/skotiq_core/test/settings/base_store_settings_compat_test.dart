@@ -24,6 +24,7 @@ import 'package:skotiq_core/src/providers/constellation_provider.dart'
     show resolveConstellationAccountId, resolveConstellationCredentials;
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/frame_watch_settings_provider.dart';
+import 'package:skotiq_core/src/models/site/learned_obstruction.dart';
 import 'package:skotiq_core/src/providers/glance_mode_provider.dart';
 import 'package:skotiq_core/src/providers/home_assistant_provider.dart';
 import 'package:skotiq_core/src/providers/host_settings/host_settings_providers.dart'

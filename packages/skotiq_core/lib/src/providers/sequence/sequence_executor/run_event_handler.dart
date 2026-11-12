@@ -14,6 +14,7 @@ import '../../../services/logging_service.dart';
 import '../../../utils/remote_path.dart';
 import '../../equipment_provider.dart';
 import '../../frame_watch_settings_provider.dart';
+import '../../../models/site/learned_obstruction.dart';
 import '../../settings_provider.dart' show appObserverLocationProvider;
 import '../../focuser_backlash_provider.dart'
     show focuserBacklashOfferSessionProvider;
