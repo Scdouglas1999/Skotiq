@@ -1105,7 +1105,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlSkip': 'Skip step',
     'nightCtlStop': 'Stop',
     'nightCtlStopHold': 'Hold to stop',
-    'nightCtlStopSemantics': 'Stop the run. Press and hold to confirm.',
+    'nightCtlStopSemantics': 'Stop the run',
     'nightCtlEditPlan': 'Edit plan',
     'nightCtlStartNow': 'Start now',
     'nightCtlCancelArmedHint': 'Cancels Start at dark',
@@ -2727,8 +2727,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtlSkip': 'Saltar paso',
     'nightCtlStop': 'Detener',
     'nightCtlStopHold': 'Mantén para detener',
-    'nightCtlStopSemantics':
-        'Detener la sesión. Mantén pulsado para confirmar.',
+    'nightCtlStopSemantics': 'Detener la sesión',
     'nightCtlEditPlan': 'Editar plan',
     'nightCtlStartNow': 'Empezar ahora',
     'nightCtlCancelArmedHint': 'Cancela el inicio al oscurecer',
