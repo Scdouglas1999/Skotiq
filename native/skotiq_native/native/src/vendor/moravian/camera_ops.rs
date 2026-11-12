@@ -5,25 +5,23 @@ use super::*;
 #[async_trait]
 impl CameraDriver for MoravianCamera {
     fn capabilities(&self) -> CameraCapabilities {
-        self.capabilities.clone()
+        self.core.capabilities.clone()
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
-        self.sensor_info.clone()
+        self.core.sensor_info.clone()
     }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         let current_temp = {
             let mut value: c_float = 0.0;
-            // SAFETY: self.connected was checked at entry so the handle is open; `&mut value` is a valid stack out-pointer to a c_float.
+            // SAFETY: the connection was checked at entry so the handle is open; `&mut value` is a valid stack out-pointer to a c_float.
             if unsafe { (sdk.get_value)(handle, GV_CHIP_TEMPERATURE, &mut value) } >= 0 {
                 Some(value as f64)
             } else {
@@ -33,7 +31,7 @@ impl CameraDriver for MoravianCamera {
 
         let cooler_power = {
             let mut value: c_float = 0.0;
-            // SAFETY: self.connected was checked at entry; `&mut value` is a valid stack out-pointer to a c_float.
+            // SAFETY: the connection was checked at entry; `&mut value` is a valid stack out-pointer to a c_float.
             if unsafe { (sdk.get_value)(handle, GV_POWER_UTILIZATION, &mut value) } >= 0 {
                 Some(value as f64)
             } else {
@@ -42,11 +40,11 @@ impl CameraDriver for MoravianCamera {
         };
 
         // Calculate exposure remaining from elapsed time when exposing.
-        let exposure_remaining = if self.state == CameraState::Exposing {
-            match self.exposure_started_at {
+        let exposure_remaining = if self.core.state == CameraState::Exposing {
+            match self.core.exposure_started_at {
                 Some(started) => {
                     let elapsed_secs = started.elapsed().as_secs_f64();
-                    Some((self.exposure_duration - elapsed_secs).max(0.0))
+                    Some((self.core.exposure_duration - elapsed_secs).max(0.0))
                 }
                 None => {
                     tracing::warn!(
@@ -60,25 +58,23 @@ impl CameraDriver for MoravianCamera {
         };
 
         Ok(CameraStatus {
-            state: self.state,
+            state: self.core.state,
             sensor_temp: current_temp,
             cooler_power,
-            target_temp: Some(self.target_temp),
-            cooler_on: self.cooler_on,
-            gain: self.current_gain,
-            offset: self.current_offset,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
+            target_temp: Some(self.core.cooler().target_c),
+            cooler_on: self.core.cooler().enabled,
+            gain: self.core.gain,
+            offset: self.core.offset,
+            bin_x: self.core.bin_x,
+            bin_y: self.core.bin_y,
             exposure_remaining,
         })
     }
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        if self.state == CameraState::Exposing {
+        if self.core.state == CameraState::Exposing {
             return Err(DriverError::SdkError("Camera is already exposing".into()));
         }
 
@@ -86,25 +82,26 @@ impl CameraDriver for MoravianCamera {
 
         // Compute the binned, y-flipped ROI the current SDK expects on
         // start_exposure (the legacy SDK applied the ROI at download time).
-        let bin_x = u32::try_from(self.current_bin_x).map_err(|_| {
+        let bin_x = u32::try_from(self.core.bin_x).map_err(|_| {
             DriverError::InvalidParameter(format!(
                 "Moravian current_bin_x not representable as u32: {}",
-                self.current_bin_x
+                self.core.bin_x
             ))
         })?;
-        let bin_y = u32::try_from(self.current_bin_y).map_err(|_| {
+        let bin_y = u32::try_from(self.core.bin_y).map_err(|_| {
             DriverError::InvalidParameter(format!(
                 "Moravian current_bin_y not representable as u32: {}",
-                self.current_bin_y
+                self.core.bin_y
             ))
         })?;
         let subframe = self
+            .core
             .subframe
             .as_ref()
             .map(|sf| (sf.start_x, sf.start_y, sf.width, sf.height));
         let roi = compute_binned_roi(
-            self.sensor_info.width,
-            self.sensor_info.height,
+            self.core.sensor_info.width,
+            self.core.sensor_info.height,
             bin_x,
             bin_y,
             subframe,
@@ -120,9 +117,9 @@ impl CameraDriver for MoravianCamera {
         {
             let sdk = sdk.lock().await;
 
-            let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+            let handle = self.handle.0;
 
-            // SAFETY: self.connected was checked at entry so the handle is open; exp_time/use_shutter/x/y/w/h are passed by value and the ROI was bounds-checked by compute_binned_roi against the binned sensor extent.
+            // SAFETY: the connection was checked at entry so the handle is open; exp_time/use_shutter/x/y/w/h are passed by value and the ROI was bounds-checked by compute_binned_roi against the binned sensor extent.
             let ret = unsafe {
                 (sdk.start_exposure)(
                     handle,
@@ -139,23 +136,23 @@ impl CameraDriver for MoravianCamera {
                 let msg = unsafe { sdk_last_error(&sdk, handle) };
                 tracing::error!(
                     "Moravian gxccd_start_exposure() failed for camera '{}': {} (duration {:.3}s, ROI {}x{}+{}+{})",
-                    self.name, msg, params.duration_secs, roi.w, roi.h, roi.x, roi.y
+                    self.core.name, msg, params.duration_secs, roi.w, roi.h, roi.x, roi.y
                 );
                 return Err(DriverError::SdkError(format!(
                     "Failed to start exposure on Moravian camera '{}': {}",
-                    self.name, msg
+                    self.core.name, msg
                 )));
             }
 
-            self.exposure_duration = params.duration_secs;
-            self.exposure_started_at = Some(std::time::Instant::now());
+            self.core.exposure_duration = params.duration_secs;
+            self.core.exposure_started_at = Some(std::time::Instant::now());
             self.last_frame_dims = Some((roi.w as u32, roi.h as u32));
-            self.state = CameraState::Exposing;
+            self.core.state = CameraState::Exposing;
 
             tracing::info!(
                 "Started {:.3}s exposure on Moravian camera '{}' (ROI {}x{})",
                 params.duration_secs,
-                self.name,
+                self.core.name,
                 roi.w,
                 roi.h
             );
@@ -173,41 +170,37 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         // Abort, discarding the frame (download = false), matching the reference
         // (mi_ccd.cpp:534). Abort is a best-effort cleanup path: log a failure
         // but still reset local state so the orchestrator is not wedged.
-        // SAFETY: self.connected was checked at entry so the handle is open; gxccd_abort_exposure takes the handle plus a GxBool (download=0) by value.
+        // SAFETY: the connection was checked at entry so the handle is open; gxccd_abort_exposure takes the handle plus a GxBool (download=0) by value.
         let ret = unsafe { (sdk.abort_exposure)(handle, 0) };
         if ret < 0 {
             // SAFETY: handle is the open camera handle.
             let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::warn!(
                 "Moravian gxccd_abort_exposure() failed for camera '{}': {}",
-                self.name,
+                self.core.name,
                 msg
             );
         }
 
-        self.state = CameraState::Idle;
-        self.exposure_started_at = None;
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
         self.last_frame_dims = None;
-        tracing::info!("Aborted exposure on Moravian camera '{}'", self.name);
+        tracing::info!("Aborted exposure on Moravian camera '{}'", self.core.name);
 
         Ok(())
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = MoravianSdk::installed()?;
 
@@ -255,17 +248,17 @@ impl CameraDriver for MoravianCamera {
         loop {
             let ready = {
                 let sdk = sdk.lock().await;
-                let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+                let handle = self.handle.0;
                 let mut ready: GxBool = 0;
-                // SAFETY: self.connected was checked at entry so the handle is open; `&mut ready` is a valid stack out-pointer to a GxBool.
+                // SAFETY: the connection was checked at entry so the handle is open; `&mut ready` is a valid stack out-pointer to a GxBool.
                 let ret = unsafe { (sdk.image_ready)(handle, &mut ready) };
                 if ret < 0 {
                     // SAFETY: handle is the open camera handle.
                     let msg = unsafe { sdk_last_error(&sdk, handle) };
-                    self.state = CameraState::Error;
+                    self.core.state = CameraState::Error;
                     return Err(DriverError::SdkError(format!(
                         "Moravian gxccd_image_ready() failed for camera '{}': {}",
-                        self.name, msg
+                        self.core.name, msg
                     )));
                 }
                 ready != 0
@@ -274,41 +267,41 @@ impl CameraDriver for MoravianCamera {
                 break;
             }
             if std::time::Instant::now() >= deadline {
-                self.state = CameraState::Error;
+                self.core.state = CameraState::Error;
                 return Err(DriverError::SdkError(format!(
                     "Timed out after {}s waiting for Moravian camera '{}' image readout",
-                    READOUT_TIMEOUT_SECS, self.name
+                    READOUT_TIMEOUT_SECS, self.core.name
                 )));
             }
             tokio::time::sleep(tokio::time::Duration::from_millis(READOUT_POLL_MS)).await;
         }
 
-        self.state = CameraState::Downloading;
+        self.core.state = CameraState::Downloading;
 
         // Read the frame and capture temperature under a single lock hold.
         let sdk = sdk.lock().await;
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         // Allocate the exact buffer (binned_w * binned_h pixels, 16-bit each).
         let mut data: Vec<u16> = vec![0u16; buffer_size];
 
-        // SAFETY: handle is open (self.connected checked at entry); `data` is `vec![0u16; buffer_size]` where buffer_size = binned_width * binned_height, so `byte_count = buffer_size * 2` is the exact byte length passed as `size_t` — the SDK cannot overrun; `data.as_mut_ptr() as *mut c_void` provides a valid non-null buffer pointer.
+        // SAFETY: handle is open (connection checked at entry); `data` is `vec![0u16; buffer_size]` where buffer_size = binned_width * binned_height, so `byte_count = buffer_size * 2` is the exact byte length passed as `size_t` — the SDK cannot overrun; `data.as_mut_ptr() as *mut c_void` provides a valid non-null buffer pointer.
         let ret = unsafe { (sdk.read_image)(handle, data.as_mut_ptr() as *mut c_void, byte_count) };
         if ret < 0 {
             // SAFETY: handle is the open camera handle.
             let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::error!(
                 "Moravian gxccd_read_image() failed for camera '{}': {} ({}x{} pixels, {} bytes)",
-                self.name,
+                self.core.name,
                 msg,
                 binned_width,
                 binned_height,
                 byte_count
             );
-            self.state = CameraState::Error;
+            self.core.state = CameraState::Error;
             return Err(DriverError::SdkError(format!(
                 "Failed to download image from Moravian camera '{}': {}",
-                self.name, msg
+                self.core.name, msg
             )));
         }
 
@@ -317,8 +310,8 @@ impl CameraDriver for MoravianCamera {
         // (mi_ccd.cpp:657 `mirror_image`).
         mirror_vertical_u16(&mut data, binned_width as usize, binned_height as usize);
 
-        self.state = CameraState::Idle;
-        self.exposure_started_at = None;
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
         self.last_frame_dims = None;
 
         // Get temperature while we still hold the mutex.
@@ -332,44 +325,31 @@ impl CameraDriver for MoravianCamera {
             }
         };
 
-        let metadata = ImageMetadata {
-            exposure_time: self.exposure_duration,
-            gain: self.current_gain,
-            offset: self.current_offset,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
+        Ok(Frame {
             temperature,
-            timestamp: chrono::Utc::now(),
-            subframe: self.subframe.clone(),
-            readout_mode: None,
-            vendor_data: VendorFeatures::default(),
-            camera_file: None,
-        };
-
-        Ok(ImageData {
-            width: binned_width,
-            height: binned_height,
-            data,
-            bits_per_pixel: self.sensor_info.bit_depth,
-            bayer_pattern: self.sensor_info.bayer_pattern,
-            metadata,
-        })
+            ..self.core.frame(
+                binned_width,
+                binned_height,
+                data,
+                self.core.sensor_info.bit_depth,
+                self.core.sensor_info.bayer_pattern,
+            )
+        }
+        .into_image())
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        if self.state != CameraState::Exposing {
+        if self.core.state != CameraState::Exposing {
             return Ok(true);
         }
 
-        let started_at = match self.exposure_started_at {
+        let started_at = match self.core.exposure_started_at {
             Some(started) => started,
             None => return Ok(false),
         };
-        Ok(started_at.elapsed().as_secs_f64() >= self.exposure_duration.max(0.0))
+        Ok(started_at.elapsed().as_secs_f64() >= self.core.exposure_duration.max(0.0))
     }
 
     async fn set_cooler(
@@ -377,48 +357,48 @@ impl CameraDriver for MoravianCamera {
         enabled: bool,
         target_temp: Option<f64>,
     ) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        if !self.capabilities.can_cool {
+        if !self.core.capabilities.can_cool {
             return Err(DriverError::NotSupported);
         }
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         if enabled {
             // gxccd_set_temperature *is* the enable here, so cooling needs a
             // setpoint; when the caller names none we reuse the one this
             // driver already holds rather than inventing a temperature.
-            let target = target_temp.unwrap_or(self.target_temp);
-            // SAFETY: self.connected was checked at entry so handle is open; gxccd_set_temperature takes the handle plus a c_float by value.
+            let target = target_temp.unwrap_or(self.core.cooler().target_c);
+            // SAFETY: the connection was checked at entry so handle is open; gxccd_set_temperature takes the handle plus a c_float by value.
             let ret = unsafe { (sdk.set_temperature)(handle, target as c_float) };
             if ret < 0 {
                 // SAFETY: handle is the open camera handle.
                 let msg = unsafe { sdk_last_error(&sdk, handle) };
                 tracing::error!(
                     "Moravian gxccd_set_temperature() failed for camera '{}': {} (target {:.1} C)",
-                    self.name,
+                    self.core.name,
                     msg,
                     target
                 );
                 return Err(DriverError::SdkError(format!(
                     "Failed to set cooler temperature to {:.1} C on Moravian camera '{}': {}",
-                    target, self.name, msg
+                    target, self.core.name, msg
                 )));
             }
-            self.cooler_on = true;
-            self.target_temp = target;
+            self.core.update_cooler(|cooler| {
+                cooler.enabled = true;
+                cooler.target_c = target;
+            });
             tracing::info!("Moravian cooler enabled: target {} C", target);
         } else {
             // Warm up: a high setpoint turns the cooler fully off (mi_ccd.cpp:35).
             // No caller setpoint is involved or needed.
-            // SAFETY: handle is open (self.connected checked at entry); gxccd_set_temperature accepts the handle and a c_float by value.
+            // SAFETY: handle is open (connection checked at entry); gxccd_set_temperature accepts the handle and a c_float by value.
             unsafe { (sdk.set_temperature)(handle, TEMP_COOLER_OFF) };
-            self.cooler_on = false;
+            self.core.update_cooler(|cooler| cooler.enabled = false);
             tracing::info!("Moravian cooler disabled");
         }
 
@@ -426,16 +406,14 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         let mut value: c_float = 0.0;
-        // SAFETY: self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_float.
+        // SAFETY: the connection was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_float.
         if unsafe { (sdk.get_value)(handle, GV_CHIP_TEMPERATURE, &mut value) } >= 0 {
             Ok(value as f64)
         } else {
@@ -449,16 +427,14 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn get_cooler_power(&self) -> Result<f64, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         let mut value: c_float = 0.0;
-        // SAFETY: self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_float.
+        // SAFETY: the connection was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_float.
         if unsafe { (sdk.get_value)(handle, GV_POWER_UTILIZATION, &mut value) } >= 0 {
             Ok(value as f64)
         } else {
@@ -472,11 +448,9 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        if !self.capabilities.can_set_gain {
+        if !self.core.capabilities.can_set_gain {
             return Err(DriverError::NotSupported);
         }
 
@@ -487,26 +461,26 @@ impl CameraDriver for MoravianCamera {
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
-        // SAFETY: self.connected and capabilities.can_set_gain were checked at entry so the handle is open and the camera supports gain; gxccd_set_gain takes the handle and a u16 by value.
+        // SAFETY: the connection and capabilities.can_set_gain were checked at entry so the handle is open and the camera supports gain; gxccd_set_gain takes the handle and a u16 by value.
         let ret = unsafe { (sdk.set_gain)(handle, gain_u16) };
         if ret < 0 {
             // SAFETY: handle is the open camera handle.
             let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::error!(
                 "Moravian gxccd_set_gain() failed for camera '{}': {} (requested {})",
-                self.name,
+                self.core.name,
                 msg,
                 gain
             );
             return Err(DriverError::SdkError(format!(
                 "Failed to set gain to {} on Moravian camera '{}': {}",
-                gain, self.name, msg
+                gain, self.core.name, msg
             )));
         }
 
-        self.current_gain = gain;
+        self.core.gain = gain;
         Ok(())
     }
 
@@ -515,52 +489,48 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        if !self.capabilities.can_set_binning && (bin_x > 1 || bin_y > 1) {
+        if !self.core.capabilities.can_set_binning && (bin_x > 1 || bin_y > 1) {
             return Err(DriverError::NotSupported);
         }
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
-        // SAFETY: self.connected was checked at entry so the handle is open; gxccd_set_binning takes the handle plus two c_int values by value.
+        // SAFETY: the connection was checked at entry so the handle is open; gxccd_set_binning takes the handle plus two c_int values by value.
         let ret = unsafe { (sdk.set_binning)(handle, bin_x as c_int, bin_y as c_int) };
         if ret < 0 {
             // SAFETY: handle is the open camera handle.
             let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::error!(
                 "Moravian gxccd_set_binning() failed for camera '{}': {} (requested {}x{}, max {}x{})",
-                self.name,
+                self.core.name,
                 msg,
                 bin_x,
                 bin_y,
-                self.capabilities.max_bin_x,
-                self.capabilities.max_bin_y
+                self.core.capabilities.max_bin_x,
+                self.core.capabilities.max_bin_y
             );
             return Err(DriverError::SdkError(format!(
                 "Failed to set binning to {}x{} on Moravian camera '{}': {} (max {}x{})",
                 bin_x,
                 bin_y,
-                self.name,
+                self.core.name,
                 msg,
-                self.capabilities.max_bin_x,
-                self.capabilities.max_bin_y
+                self.core.capabilities.max_bin_x,
+                self.core.capabilities.max_bin_y
             )));
         }
 
-        self.current_bin_x = bin_x;
-        self.current_bin_y = bin_y;
+        self.core.bin_x = bin_x;
+        self.core.bin_y = bin_y;
         Ok(())
     }
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // The current SDK validates the ROI on gxccd_start_exposure, so there is
         // no separate "adjust subframe" call. We validate the top-down, unbinned
@@ -568,7 +538,7 @@ impl CameraDriver for MoravianCamera {
         // ROI is derived at start_exposure (compute_binned_roi).
         match subframe {
             Some(sf) => {
-                if !self.capabilities.can_subframe {
+                if !self.core.capabilities.can_subframe {
                     return Err(DriverError::NotSupported);
                 }
                 if sf.width == 0 || sf.height == 0 {
@@ -582,21 +552,21 @@ impl CameraDriver for MoravianCamera {
                 let y_end = sf.start_y.checked_add(sf.height).ok_or_else(|| {
                     DriverError::InvalidParameter("Moravian subframe y extent overflow".into())
                 })?;
-                if x_end > self.sensor_info.width || y_end > self.sensor_info.height {
+                if x_end > self.core.sensor_info.width || y_end > self.core.sensor_info.height {
                     return Err(DriverError::InvalidParameter(format!(
                         "Moravian subframe ({}, {}) {}x{} exceeds sensor {}x{}",
                         sf.start_x,
                         sf.start_y,
                         sf.width,
                         sf.height,
-                        self.sensor_info.width,
-                        self.sensor_info.height
+                        self.core.sensor_info.width,
+                        self.core.sensor_info.height
                     )));
                 }
-                self.subframe = Some(sf);
+                self.core.subframe = Some(sf);
             }
             None => {
-                self.subframe = None;
+                self.core.subframe = None;
             }
         }
 
@@ -604,7 +574,7 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
-        Ok(self.current_gain)
+        Ok(self.core.gain)
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
@@ -612,21 +582,19 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
-        Ok((self.current_bin_x, self.current_bin_y))
+        Ok((self.core.bin_x, self.core.bin_y))
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         let num_modes = {
             let mut value: c_int = 0;
-            // SAFETY: self.connected was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_int.
+            // SAFETY: the connection was checked at entry so handle is open; `&mut value` is a valid stack out-pointer to a c_int.
             if unsafe { (sdk.get_integer_parameter)(handle, GIP_READ_MODES, &mut value) } >= 0 {
                 value
             } else {
@@ -680,29 +648,27 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn set_readout_mode(&mut self, mode: &ReadoutMode) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let sdk = MoravianSdk::lock().await?;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
-        // SAFETY: self.connected was checked at entry so the handle is open; gxccd_set_read_mode takes the handle plus a c_int index by value.
+        // SAFETY: the connection was checked at entry so the handle is open; gxccd_set_read_mode takes the handle plus a c_int index by value.
         let ret = unsafe { (sdk.set_read_mode)(handle, mode.index as c_int) };
         if ret < 0 {
             // SAFETY: handle is the open camera handle.
             let msg = unsafe { sdk_last_error(&sdk, handle) };
             tracing::error!(
                 "Moravian gxccd_set_read_mode() failed for camera '{}': {} (mode {} '{}')",
-                self.name,
+                self.core.name,
                 msg,
                 mode.index,
                 mode.name
             );
             return Err(DriverError::SdkError(format!(
                 "Failed to set readout mode '{}' (index {}) on Moravian camera '{}': {}",
-                mode.name, mode.index, self.name, msg
+                mode.name, mode.index, self.core.name, msg
             )));
         }
 
@@ -716,9 +682,7 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // The gX SDK publishes no gain bounds, and the range genuinely differs between
         // the CCD and CMOS model lines; report the absence rather than one invented
@@ -727,9 +691,7 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         Err(DriverError::NotSupported)
     }
