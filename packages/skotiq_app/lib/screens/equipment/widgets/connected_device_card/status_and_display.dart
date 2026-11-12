@@ -405,9 +405,16 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
 
       case DeviceType.dome:
         final state = ref.watch(domeStateProvider);
+        // A dome that cannot turn (a roll-off roof) has no azimuth; its
+        // driver's status carries 0 in that place.
+        final hasAzimuth = gateCapability<DomeCapabilities>(
+          ref.watch(equipmentDomeCapabilitiesProvider(state.deviceId ?? '')),
+          (caps) => caps.canSetAzimuth,
+          loadingDefault: true,
+        );
         return [
           _DeviceMetric(
-            value: state.azimuth?.toStringAsFixed(1),
+            value: hasAzimuth ? state.azimuth?.toStringAsFixed(1) : null,
             unit: '°',
             label: 'Azimuth',
           ),
