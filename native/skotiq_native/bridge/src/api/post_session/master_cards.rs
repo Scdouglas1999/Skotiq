@@ -120,19 +120,7 @@ pub(crate) fn attach_wcs(
         return None;
     }
     let (w, h) = size;
-    let mut wcs = WcsInfo::from_plate_solve(
-        result.ra,
-        result.dec,
-        result.rotation,
-        result.pixel_scale,
-        w,
-        h,
-    );
-    wcs.cd1_1 = result.cd1_1;
-    wcs.cd1_2 = result.cd1_2;
-    wcs.cd2_1 = result.cd2_1;
-    wcs.cd2_2 = result.cd2_2;
-    add_wcs_headers(header, &wcs);
+    skotiq_imaging::SipWcs::from_plate_solve(&result, w, h)?.write_to_header(header);
     Some(WcsAttachment {
         description: "ASTAP solve of the integrated master".to_string(),
         inherited: false,

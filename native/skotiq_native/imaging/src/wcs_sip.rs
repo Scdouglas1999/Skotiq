@@ -102,55 +102,36 @@ pub struct SipWcs {
 }
 
 impl SipWcs {
-    /// Build from the plate solver's result. The CD matrix and every SIP
-    /// coefficient list carry straight over (same row-major packing); the
-    /// reference pixel is the image centre, matching
-    /// [`crate::WcsInfo::from_plate_solve`]. Returns `None` if the solve failed
-    /// or the CD matrix is degenerate (so the caller never folds a frame whose
-    /// astrometry cannot be inverted).
-    pub fn from_plate_solve(r: &crate::platesolve::PlateSolveResult) -> Option<Self> {
-        if !r.success {
+    /// The WCS of a solve of a `width` × `height` frame: the solved position
+    /// (the solver's reference point, which the result reports for the
+    /// frame's centre pixel), the solver's own CD matrix (it carries any skew
+    /// and mirroring) and its SIP polynomials. A solver that gave no usable CD
+    /// matrix gets one from its scale and rotation ([`Self::from_pointing`]).
+    ///
+    /// `None` for a failed solve, or one whose astrometry cannot be inverted,
+    /// so no caller stamps or folds a frame by a projection that is not one.
+    pub fn from_plate_solve(
+        r: &crate::platesolve::PlateSolveResult,
+        width: u32,
+        height: u32,
+    ) -> Option<Self> {
+        if !r.success || width == 0 || height == 0 {
             return None;
         }
-        // The solver records the CD matrix directly; if it is zero (no WCS was
-        // parsed) reconstruct the isotropic CD from ra/dec/scale/rotation exactly
-        // as `WcsInfo::from_plate_solve` does, so a solve with only scalar
-        // astrometry still yields a usable (CD-only) projection.
-        let (cd1_1, cd1_2, cd2_1, cd2_2) =
-            if r.cd1_1 == 0.0 && r.cd1_2 == 0.0 && r.cd2_1 == 0.0 && r.cd2_2 == 0.0 {
-                let scale_deg = r.pixel_scale / 3600.0;
-                let rot = r.rotation.to_radians();
-                let (c, s) = (rot.cos(), rot.sin());
-                (-scale_deg * c, scale_deg * s, scale_deg * s, scale_deg * c)
-            } else {
-                (r.cd1_1, r.cd1_2, r.cd2_1, r.cd2_2)
-            };
-        // CRPIX is the image centre. `field_width / pixel_scale` recovers the
-        // pixel width from the solved field; fall back to a finite guard so a
-        // bogus solve produces `None` rather than a NaN reference pixel.
-        let scale_arcsec = r.pixel_scale;
-        let (crpix1, crpix2) = if scale_arcsec.is_finite() && scale_arcsec > 0.0 {
-            let w = (r.field_width * 3600.0 / scale_arcsec).round();
-            let h = (r.field_height * 3600.0 / scale_arcsec).round();
-            // Without a field size the centre is unknown; a reference pixel at
-            // the corner would misplace every star by half the diagonal.
-            if !(w >= 1.0 && h >= 1.0) {
-                return None;
-            }
-            (w / 2.0, h / 2.0)
-        } else {
-            // No usable scale -> a CRPIX of zero is wrong; refuse rather than lie.
-            return None;
+        let pointing = Self::from_pointing(r.ra, r.dec, r.rotation, r.pixel_scale, width, height);
+        let solved = Self {
+            cd1_1: r.cd1_1,
+            cd1_2: r.cd1_2,
+            cd2_1: r.cd2_1,
+            cd2_2: r.cd2_2,
+            ..pointing.clone()
         };
-        let candidate = Self {
-            crval1: r.ra,
-            crval2: r.dec,
-            crpix1: crpix1 + 0.5,
-            crpix2: crpix2 + 0.5,
-            cd1_1,
-            cd1_2,
-            cd2_1,
-            cd2_2,
+        let linear = if solved.is_invertible() {
+            solved
+        } else {
+            pointing
+        };
+        let wcs = Self {
             a_order: r.a_order,
             b_order: r.b_order,
             a_coeffs: r.a_coeffs.clone(),
@@ -159,12 +140,36 @@ impl SipWcs {
             bp_order: r.bp_order,
             ap_coeffs: r.ap_coeffs.clone(),
             bp_coeffs: r.bp_coeffs.clone(),
+            ..linear
         };
-        if candidate.is_invertible() {
-            Some(candidate)
-        } else {
-            None
-        }
+        wcs.is_invertible().then_some(wcs)
+    }
+
+    /// A distortion-free WCS for a `width` × `height` frame centred on
+    /// `(ra, dec)` degrees, at `scale_arcsec` per pixel, rotated by
+    /// `rotation_deg` east of north, with the sky's own parity (east left of
+    /// north).
+    pub fn from_pointing(
+        ra: f64,
+        dec: f64,
+        rotation_deg: f64,
+        scale_arcsec: f64,
+        width: u32,
+        height: u32,
+    ) -> Self {
+        let scale_deg = scale_arcsec / 3600.0;
+        let (sin, cos) = rotation_deg.to_radians().sin_cos();
+        // The centre of an N-pixel axis is (N + 1) / 2 in 1-based FITS pixels.
+        Self::tan_only(
+            ra,
+            dec,
+            (f64::from(width) + 1.0) / 2.0,
+            (f64::from(height) + 1.0) / 2.0,
+            -scale_deg * cos,
+            scale_deg * sin,
+            scale_deg * sin,
+            scale_deg * cos,
+        )
     }
 
     /// The astrometry a FITS header carries, or `None` when it carries none.
@@ -278,8 +283,7 @@ impl SipWcs {
         }
     }
 
-    /// The linear (CD-only) part, the form the capture path stamps on a
-    /// freshly solved frame.
+    /// The linear (CD-only) part.
     pub fn cd_only(&self) -> WcsInfo {
         WcsInfo {
             crval1: self.crval1,
@@ -563,7 +567,12 @@ fn linear_part(header: &FitsHeader) -> Option<[f64; 4]> {
             pc[2].unwrap_or(0.0),
             pc[3].unwrap_or(1.0),
         ];
-        Some([cdelt1 * pc1_1, cdelt1 * pc1_2, cdelt2 * pc2_1, cdelt2 * pc2_2])
+        Some([
+            cdelt1 * pc1_1,
+            cdelt1 * pc1_2,
+            cdelt2 * pc2_1,
+            cdelt2 * pc2_2,
+        ])
     } else if cd.iter().any(Option::is_some) {
         Some(cd.map(|v| v.unwrap_or(0.0)))
     } else if cdelt.iter().any(Option::is_some) {
@@ -683,7 +692,7 @@ mod tests {
     use crate::platesolve::PlateSolveResult;
 
     /// A representative CD matrix: ~2 arcsec/px, ~12° rotation, RA-flipped (the
-    /// sign convention of `WcsInfo::from_plate_solve`). Reference pixel at the
+    /// sign convention of `SipWcs::from_pointing`). Reference pixel at the
     /// centre of a 2048×2048 frame (1-based FITS CRPIX).
     fn sample_wcs() -> SipWcs {
         let scale = 2.0 / 3600.0; // deg/px
@@ -783,14 +792,21 @@ mod tests {
         let mut header = FitsHeader::new();
         header.set_string("OBJECT", "M 42");
         earlier.write_to_header(&mut header);
-        for (key, value) in [("PC1_1", 0.5), ("PC2_2", 0.5), ("CDELT1", 1e-3), ("PV2_1", 0.1)] {
+        for (key, value) in [
+            ("PC1_1", 0.5),
+            ("PC2_2", 0.5),
+            ("CDELT1", 1e-3),
+            ("PV2_1", 0.1),
+        ] {
             header.set_float(key, value);
         }
 
         let later = SipWcs::tan_only(84.0, -5.0, 10.5, 20.5, -1e-4, 0.0, 0.0, 1e-4);
         later.write_to_header(&mut header);
         assert_eq!(SipWcs::from_header(&header), Some(later));
-        for key in ["A_ORDER", "A_2_0", "B_ORDER", "PC1_1", "PC2_2", "CDELT1", "PV2_1"] {
+        for key in [
+            "A_ORDER", "A_2_0", "B_ORDER", "PC1_1", "PC2_2", "CDELT1", "PV2_1",
+        ] {
             assert!(header.get(key).is_none(), "{key} outlived the new solution");
         }
         assert_eq!(header.get_string("CTYPE1"), Some("RA---TAN"));
@@ -970,19 +986,47 @@ mod tests {
             b_coeffs: sip_coeffs(2),
             ..Default::default()
         };
-        let wcs = SipWcs::from_plate_solve(&r).expect("buildable");
+        let wcs = SipWcs::from_plate_solve(&r, 2000, 1500).expect("buildable");
         assert_eq!(wcs.a_order, 2);
         assert_eq!(wcs.a_coeffs, sip_coeffs(2));
-        // CRPIX is the (1-based) image centre derived from the field size.
-        assert!((wcs.crpix1 - 1000.5).abs() < 1.0);
-        assert!((wcs.crpix2 - 750.5).abs() < 1.0);
-        assert!(wcs.is_invertible());
-        // A failed solve yields None.
+        assert_eq!(
+            (wcs.crpix1, wcs.crpix2),
+            (1000.5, 750.5),
+            "the frame's centre"
+        );
+        assert_eq!((wcs.cd1_1, wcs.cd2_2), (-scale_deg, scale_deg));
+
+        // A solver that gave no CD matrix is placed by its scale and rotation.
+        let scalar = PlateSolveResult {
+            cd1_1: 0.0,
+            cd2_2: 0.0,
+            rotation: 30.0,
+            ..r.clone()
+        };
+        let rebuilt = SipWcs::from_plate_solve(&scalar, 2000, 1500).expect("buildable");
+        let pointing = SipWcs::from_pointing(200.0, 30.0, 30.0, scale, 2000, 1500);
+        assert_eq!(
+            [rebuilt.cd1_1, rebuilt.cd1_2, rebuilt.cd2_1, rebuilt.cd2_2],
+            [
+                pointing.cd1_1,
+                pointing.cd1_2,
+                pointing.cd2_1,
+                pointing.cd2_2
+            ]
+        );
+        assert!((rebuilt.pixel_scale_arcsec() - scale).abs() < 1e-9);
+
         let failed = PlateSolveResult {
             success: false,
             ..r.clone()
         };
-        assert!(SipWcs::from_plate_solve(&failed).is_none());
+        assert!(SipWcs::from_plate_solve(&failed, 2000, 1500).is_none());
+        assert!(SipWcs::from_plate_solve(&r, 0, 1500).is_none());
+        let nothing = PlateSolveResult {
+            pixel_scale: 0.0,
+            ..scalar
+        };
+        assert!(SipWcs::from_plate_solve(&nothing, 2000, 1500).is_none());
     }
 
     #[test]
