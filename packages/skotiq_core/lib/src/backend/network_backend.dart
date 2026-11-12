@@ -389,6 +389,12 @@ abstract class _NetworkBackendTransport {
   /// requested.
   bool get isAuthTokenRejected => _authRejected;
 
+  /// What the host's `/api/info` said about itself at the last handshake:
+  /// every client has to present a pairing credential. Null before the first
+  /// handshake and for a host that does not say.
+  bool? get hostRequiresPairing => _hostRequiresPairing;
+  bool? _hostRequiresPairing;
+
   /// Stream of WebSocket ping/pong round-trip times. Emits a [Duration]
   /// every time the server's pong is received after we send a ping.
   /// Subscribers (e.g. the mobile NetworkStatusIndicator) use this to
