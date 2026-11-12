@@ -50,23 +50,26 @@ import 'webdav_sync_target.dart';
 // Settings keys (app_settings table) — non-secret config + sync state.
 
 class SyncSettingsKeys {
-  static const provider = 'cloud_sync_provider';
-  static const serverUrl = 'cloud_sync_server_url';
-  static const username = 'cloud_sync_username';
-  static const machineName = 'cloud_sync_machine_name';
-  static const autoPush = 'cloud_sync_auto_push';
-  static const retainCount = 'cloud_sync_retain_count';
-  static const lastPushAt = 'cloud_sync_last_push_at';
-  static const lastError = 'cloud_sync_last_error';
+  /// Prefix of every cloud backup row.
+  static const prefix = 'cloud_sync_';
+
+  static const provider = '${prefix}provider';
+  static const serverUrl = '${prefix}server_url';
+  static const username = '${prefix}username';
+  static const machineName = '${prefix}machine_name';
+  static const autoPush = '${prefix}auto_push';
+  static const retainCount = '${prefix}retain_count';
+  static const lastPushAt = '${prefix}last_push_at';
+  static const lastError = '${prefix}last_error';
 
   // S3-compatible (AWS / MinIO / Backblaze B2) non-secret config. The S3
   // secret key is NOT here — it lives in the keyring via
   // [SecretField.cloudSyncS3SecretKey], exactly like the WebDAV password.
-  static const s3Endpoint = 'cloud_sync_s3_endpoint';
-  static const s3Region = 'cloud_sync_s3_region';
-  static const s3Bucket = 'cloud_sync_s3_bucket';
-  static const s3AccessKey = 'cloud_sync_s3_access_key';
-  static const s3PathStyle = 'cloud_sync_s3_path_style';
+  static const s3Endpoint = '${prefix}s3_endpoint';
+  static const s3Region = '${prefix}s3_region';
+  static const s3Bucket = '${prefix}s3_bucket';
+  static const s3AccessKey = '${prefix}s3_access_key';
+  static const s3PathStyle = '${prefix}s3_path_style';
 }
 
 /// Cloud-backup provider kind. The string [key] is the stable persisted

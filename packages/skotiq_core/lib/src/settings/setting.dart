@@ -59,6 +59,7 @@ sealed class Setting<T> {
     this.feeds,
     this.seed,
     this.seeded = false,
+    this.credential = false,
   });
 
   /// Name of the field on `AppSettingsState`.
@@ -87,6 +88,11 @@ sealed class Setting<T> {
   /// A fresh install starts with a row holding [fallback]. Without one the
   /// setting simply reads as [fallback] until it is changed.
   final bool seeded;
+
+  /// It holds a credential, such as a webhook URL or an API key. A linked
+  /// client changes it only with admin access to the host; the host refuses
+  /// the change from any lesser credential.
+  final bool credential;
 
   bool get hasInstallRow => seeded || seed != null;
 
@@ -401,6 +407,7 @@ final class TextSetting extends Setting<String> {
     super.feeds,
     super.seed,
     super.seeded,
+    super.credential,
   });
 
   /// When set, any other stored or received text reads as [fallback].

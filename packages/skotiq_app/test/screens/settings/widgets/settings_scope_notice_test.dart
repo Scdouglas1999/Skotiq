@@ -18,12 +18,18 @@ class _BackendNotifier extends BackendNotifier {
   }
 }
 
-Future<void> _pump(WidgetTester tester, String key, SkotiqBackend? backend) {
+Future<void> _pump(
+  WidgetTester tester,
+  String key,
+  SkotiqBackend? backend, {
+  LinkedRig? rig,
+}) {
   return tester.pumpWidget(
     ProviderScope(
       overrides: [
         if (backend != null)
           backendProvider.overrideWith((ref) => _BackendNotifier(ref, backend)),
+        if (rig != null) launchLinkedRigProvider.overrideWithValue(rig),
       ],
       child: MaterialApp(
         theme: SkotiqTheme.dark,
@@ -50,7 +56,7 @@ void main() {
     final backend = _MockNetworkBackend();
     when(() => backend.serverHost).thenReturn('192.168.1.100');
     await _pump(tester, 'appearance', backend);
-    expect(find.textContaining('Saved on this computer only'), findsOneWidget);
+    expect(find.textContaining('Saved on this device only'), findsOneWidget);
   });
 
   // SY-13: Annotations said "Saved on the imaging host" while its overlay
@@ -61,7 +67,7 @@ void main() {
     final backend = _MockNetworkBackend();
     when(() => backend.serverHost).thenReturn('192.168.1.100');
     await _pump(tester, 'annotations', backend);
-    expect(find.textContaining('Saved on this computer only'), findsOneWidget);
+    expect(find.textContaining('Saved on this device only'), findsOneWidget);
     expect(find.textContaining('imaging host (192'), findsNothing);
     for (final key in const [
       'annotation_settings',
@@ -81,6 +87,49 @@ void main() {
     when(() => backend.serverHost).thenReturn('192.168.1.100');
     await _pump(tester, 'connection', backend);
     expect(find.textContaining('Saved on'), findsNothing);
+  });
+
+  // Owner 2026-11-11: a link paired the normal way (one tap, control access)
+  // changes the host's app settings, so the notice no longer says the host
+  // refuses them.
+  testWidgets('a one-tap link is told where a change is saved, not refused', (
+    tester,
+  ) async {
+    final backend = _MockNetworkBackend();
+    when(() => backend.serverHost).thenReturn('192.168.1.100');
+    await _pump(
+      tester,
+      'general',
+      backend,
+      rig: LinkedRig(
+        host: '192.168.1.100',
+        port: 8080,
+        name: 'home',
+        tokenScope: 'control',
+        pairedAt: DateTime.utc(2026, 11, 11),
+      ),
+    );
+    expect(
+      find.textContaining('Saved on the imaging host (192.168.1.100)'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('refuses'), findsNothing);
+    expect(find.byType(SkotiqButton), findsNothing);
+  });
+
+  testWidgets('the host\'s updates and decision log are the host\'s', (
+    tester,
+  ) async {
+    final backend = _MockNetworkBackend();
+    when(() => backend.serverHost).thenReturn('192.168.1.100');
+    for (final key in const ['updates', 'replay-debug']) {
+      await _pump(tester, key, backend);
+      expect(
+        find.textContaining('Saved on the imaging host'),
+        findsOneWidget,
+        reason: key,
+      );
+    }
   });
 
   testWidgets('the machine that owns the rig shows nothing', (tester) async {

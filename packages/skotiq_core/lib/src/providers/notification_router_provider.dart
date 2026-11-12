@@ -58,9 +58,6 @@ import 'ui_notification_provider.dart';
 
 const String _kRoutingMatrixSettingKey = 'notification_routing_matrix';
 
-String _transportSettingKey(NotificationTransportKind kind) =>
-    'notification_transport_${kind.storageKey}';
-
 /// Serializes persistence operations while still returning an independent
 /// future to each caller. Notification settings are edited from several
 /// controls on the same screen; without a queue, two rapid read-modify-write
@@ -293,7 +290,7 @@ class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
     final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.email),
+      NotificationTransportKind.email.settingKey,
     );
     // A missing blob is a legitimate first-run default; a present-but-corrupt
     // blob must surface as an error rather than silently reverting to defaults
@@ -341,7 +338,7 @@ class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.email),
+        settingKey: NotificationTransportKind.email.settingKey,
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.emailPassword: config.password},
       );
@@ -363,7 +360,7 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
     final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.webhookGeneric),
+      NotificationTransportKind.webhookGeneric.settingKey,
     );
     // Missing blob → first-run default; corrupt blob → surface the error.
     final WebhookTransportConfig base;
@@ -446,9 +443,7 @@ class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(
-          NotificationTransportKind.webhookGeneric,
-        ),
+        settingKey: NotificationTransportKind.webhookGeneric.settingKey,
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {
           SecretField.genericWebhookUrl: config.url,
@@ -475,7 +470,7 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
     final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.pushover),
+      NotificationTransportKind.pushover.settingKey,
     );
     final PushoverTransportConfig base = raw == null
         ? const PushoverTransportConfig()
@@ -519,7 +514,7 @@ class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.pushover),
+        settingKey: NotificationTransportKind.pushover.settingKey,
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {
           SecretField.pushoverApiToken: config.apiToken,
@@ -560,7 +555,7 @@ class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
     final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.telegram),
+      NotificationTransportKind.telegram.settingKey,
     );
     final TelegramTransportConfig base = raw == null
         ? const TelegramTransportConfig()
@@ -603,7 +598,7 @@ class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.telegram),
+        settingKey: NotificationTransportKind.telegram.settingKey,
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.telegramBotToken: config.botToken},
       );
@@ -625,7 +620,7 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
     final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.discord),
+      NotificationTransportKind.discord.settingKey,
     );
     final DiscordTransportConfig base = raw == null
         ? const DiscordTransportConfig()
@@ -671,7 +666,7 @@ class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.discord),
+        settingKey: NotificationTransportKind.discord.settingKey,
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.discordWebhookUrl: config.webhookUrl},
       );
@@ -702,9 +697,7 @@ class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
     await ref.read(notificationSecretsMigrationProvider.future);
     final dao = ref.read(settingsDaoProvider);
     final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.getSetting(
-      _transportSettingKey(NotificationTransportKind.mqtt),
-    );
+    final raw = await dao.getSetting(NotificationTransportKind.mqtt.settingKey);
     final MqttTransportConfig base = raw == null
         ? const MqttTransportConfig()
         : _decodeMqtt(raw);
@@ -746,7 +739,7 @@ class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        settingKey: _transportSettingKey(NotificationTransportKind.mqtt),
+        settingKey: NotificationTransportKind.mqtt.settingKey,
         encodedConfig: jsonEncode(nonSecret.toJson()),
         secretValues: {SecretField.mqttPassword: config.password ?? ''},
       );

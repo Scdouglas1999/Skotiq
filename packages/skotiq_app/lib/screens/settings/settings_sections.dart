@@ -95,11 +95,10 @@ enum SettingsSectionId {
 
   logs('logs', SettingsGroupId.advanced),
   backup('backup', SettingsGroupId.advanced),
-  updates('updates', SettingsGroupId.advanced, scope: SettingsScope.thisDevice),
+  updates('updates', SettingsGroupId.advanced),
   rigCatalogs('rig-catalogs', SettingsGroupId.advanced),
   capturedImages('captured-images', SettingsGroupId.advanced),
-  replayDebug('replay-debug', SettingsGroupId.advanced,
-      scope: SettingsScope.thisDevice);
+  replayDebug('replay-debug', SettingsGroupId.advanced);
 
   const SettingsSectionId(
     this.key,

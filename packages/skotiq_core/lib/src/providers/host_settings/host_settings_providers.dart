@@ -18,6 +18,7 @@ export 'host_settings_store.dart'
         HostSettingsStoreSupport,
         HostSettingUnavailableError;
 export 'remote_settings_dao.dart' show RemoteSettingsDao, AppSettingsRows;
+export 'credential_settings.dart';
 export 'settings_key_scope.dart';
 
 /// Bumped when the settings rows change underneath the providers that read
@@ -79,6 +80,16 @@ final hostSettingsStoreSupportProvider =
       await store.ensureLoaded();
       return store.support;
     });
+
+/// On a linked client, whether its credential has admin access to the host,
+/// which credential settings need ([isCredentialSettingKey]). Null when this
+/// app owns the hardware itself or the host does not say.
+final hostAdminAccessProvider = FutureProvider<bool?>((ref) async {
+  final store = ref.watch(hostSettingsStoreProvider);
+  if (store == null) return null;
+  await store.ensureLoaded();
+  return store.adminAccess;
+});
 
 /// The DAO the machine that owns the hardware reads `app_settings` through:
 /// its own database, announcing host-owned writes to linked clients.

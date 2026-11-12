@@ -331,7 +331,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Allow settings changes from here'), findsOneWidget);
+    expect(find.text('Link with admin access'), findsOneWidget);
     expect(find.byKey(const ValueKey('link.oneTap')), findsNothing);
     expect(find.byKey(const ValueKey('link.code')), findsOneWidget);
   });

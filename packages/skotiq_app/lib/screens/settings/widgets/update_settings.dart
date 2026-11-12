@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'admin_only.dart';
 import 'settings_widgets.dart';
 
 /// Remote appliance update management (OTA).
@@ -409,7 +410,12 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
           const SizedBox(height: 12),
           _buildStatusCard(colors),
           const SizedBox(height: 12),
-          _buildActions(colors),
+          if (hostRefusesAdminOnly(ref))
+            const AdminOnlyBanner(
+              title: 'Updates are installed on the imaging computer',
+            )
+          else
+            _buildActions(colors),
           if (_loadError != null) ...[
             const SizedBox(height: 12),
             _InfoCard(

@@ -47,6 +47,18 @@ abstract final class AppSettingsCodec {
         setting.key,
   });
 
+  /// Rows that hold a credential ([Setting.credential]).
+  static final Set<String> credentialKeys = Set.unmodifiable({
+    for (final setting in kAppSettingsTable)
+      if (setting.credential) ...setting.keys,
+  });
+
+  /// Wire fields of the typed settings that hold a credential.
+  static final Set<String> credentialWireKeys = Set.unmodifiable({
+    for (final setting in _byWire.values)
+      if (setting.credential) setting.wire,
+  });
+
   /// The setting stored under [key], if any.
   static Setting<Object?>? settingForKey(String key) => _byKey[key];
 

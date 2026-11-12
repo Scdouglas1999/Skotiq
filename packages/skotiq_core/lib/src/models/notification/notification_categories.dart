@@ -215,6 +215,13 @@ enum NotificationTransportKind {
 
   String get storageKey => name;
 
+  /// Prefix of the `app_settings` rows holding each transport's settings.
+  static const String settingKeyPrefix = 'notification_transport_';
+
+  /// The `app_settings` row holding this transport's settings. Its secrets
+  /// are kept in the keyring, not in the row.
+  String get settingKey => '$settingKeyPrefix$storageKey';
+
   static NotificationTransportKind? fromStorageKey(String key) {
     for (final t in NotificationTransportKind.values) {
       if (t.name == key) return t;

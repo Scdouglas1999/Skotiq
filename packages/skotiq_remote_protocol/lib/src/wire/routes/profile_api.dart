@@ -34,13 +34,7 @@ enum ProfileApi implements ApiEndpoint {
       scope: ApiScope.control,
     ),
   ),
-  updateSettings(
-    ApiRoute.post(
-      '/api/settings',
-      resource: ApiResource.system,
-      scope: ApiScope.admin,
-    ),
-  ),
+  updateSettings(ApiRoute.post('/api/settings', resource: ApiResource.system)),
   getSettingsStore(
     ApiRoute.get(
       '/api/settings/store',
@@ -49,11 +43,7 @@ enum ProfileApi implements ApiEndpoint {
     ),
   ),
   updateSettingsStore(
-    ApiRoute.post(
-      '/api/settings/store',
-      resource: ApiResource.settings,
-      scope: ApiScope.admin,
-    ),
+    ApiRoute.post('/api/settings/store', resource: ApiResource.settings),
   ),
   getMeridianFlipSettings(
     ApiRoute.get(
@@ -66,7 +56,6 @@ enum ProfileApi implements ApiEndpoint {
     ApiRoute.post(
       '/api/settings/meridian-flip',
       resource: ApiResource.settings,
-      scope: ApiScope.admin,
     ),
   ),
   getHomeAssistantSettings(
@@ -91,11 +80,7 @@ enum ProfileApi implements ApiEndpoint {
     ),
   ),
   setLocation(
-    ApiRoute.post(
-      '/api/settings/location',
-      resource: ApiResource.settings,
-      scope: ApiScope.admin,
-    ),
+    ApiRoute.post('/api/settings/location', resource: ApiResource.settings),
   ),
   getLocationFromInternet(
     ApiRoute.get('/api/location', resource: ApiResource.system),

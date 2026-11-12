@@ -9,6 +9,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import '../../../services/push_delivery_targets_provider.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/tutorial_keys/settings_keys.dart';
+import 'admin_only.dart';
 import 'notification_routing_settings.dart';
 import 'settings_widgets.dart';
 
@@ -671,19 +672,21 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     icon: LucideIcons.messageSquare,
                     title: 'Webhook URL',
                     subtitle: 'Discord channel webhook for notifications',
-                    trailing: settingsTrailingTextInput(
-                      context: context,
-                      controller: _discordController,
-                      authoritativeValue: settings.discordWebhook,
-                      authorityKey: authority,
-                      hint: 'https://discord.com/api/webhooks/...',
-                      isMobile: widget.isMobile,
-                      obscure: true,
-                      onChanged: (value) {
-                        return ref
-                            .read(appSettingsProvider.notifier)
-                            .setDiscordWebhook(value);
-                      },
+                    trailing: AdminOnlyControl(
+                      child: settingsTrailingTextInput(
+                        context: context,
+                        controller: _discordController,
+                        authoritativeValue: settings.discordWebhook,
+                        authorityKey: authority,
+                        hint: 'https://discord.com/api/webhooks/...',
+                        isMobile: widget.isMobile,
+                        obscure: true,
+                        onChanged: (value) {
+                          return ref
+                              .read(appSettingsProvider.notifier)
+                              .setDiscordWebhook(value);
+                        },
+                      ),
                     ),
                   ),
                   SettingRow(
@@ -710,36 +713,40 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     icon: LucideIcons.key,
                     title: 'API key',
                     subtitle: 'Pushover application API key',
-                    trailing: SettingsTextInput(
-                      controller: _pushoverKeyController,
-                      authoritativeValue: settings.pushoverKey,
-                      authorityKey: authority,
-                      hint: 'API key',
-                      width: 200,
-                      obscure: true,
-                      onChanged: (value) {
-                        return ref
-                            .read(appSettingsProvider.notifier)
-                            .setPushoverKey(value);
-                      },
+                    trailing: AdminOnlyControl(
+                      child: SettingsTextInput(
+                        controller: _pushoverKeyController,
+                        authoritativeValue: settings.pushoverKey,
+                        authorityKey: authority,
+                        hint: 'API key',
+                        width: 200,
+                        obscure: true,
+                        onChanged: (value) {
+                          return ref
+                              .read(appSettingsProvider.notifier)
+                              .setPushoverKey(value);
+                        },
+                      ),
                     ),
                   ),
                   SettingRow(
                     icon: LucideIcons.user,
                     title: 'User key',
                     subtitle: 'Pushover user/group key',
-                    trailing: SettingsTextInput(
-                      controller: _pushoverUserController,
-                      authoritativeValue: settings.pushoverUser,
-                      authorityKey: authority,
-                      hint: 'User key',
-                      width: 200,
-                      obscure: true,
-                      onChanged: (value) {
-                        return ref
-                            .read(appSettingsProvider.notifier)
-                            .setPushoverUser(value);
-                      },
+                    trailing: AdminOnlyControl(
+                      child: SettingsTextInput(
+                        controller: _pushoverUserController,
+                        authoritativeValue: settings.pushoverUser,
+                        authorityKey: authority,
+                        hint: 'User key',
+                        width: 200,
+                        obscure: true,
+                        onChanged: (value) {
+                          return ref
+                              .read(appSettingsProvider.notifier)
+                              .setPushoverUser(value);
+                        },
+                      ),
                     ),
                   ),
                   SettingRow(

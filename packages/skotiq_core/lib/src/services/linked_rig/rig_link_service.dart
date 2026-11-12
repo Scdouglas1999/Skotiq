@@ -129,8 +129,8 @@ class RigLinkService {
   }
 
   /// Pairing with the short code the host shows (`WORD-WORD-NNNN`).
-  /// [fullAccess] asks for admin scope, which lets this desktop change the
-  /// host's settings too.
+  /// [fullAccess] asks for admin scope, which lets this desktop manage the
+  /// host's stored passwords, backups, plugins and updates too.
   Future<RigPairing> pairWithCode(
     DiscoveredServer host, {
     required String code,

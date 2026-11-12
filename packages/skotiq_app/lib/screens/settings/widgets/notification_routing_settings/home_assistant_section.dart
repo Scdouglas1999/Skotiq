@@ -146,6 +146,22 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The section edits the host's MQTT broker, whose password the host
+    // keeps, so the host serves it only to a link with admin access.
+    if (hostRefusesAdminOnly(ref)) {
+      return const SettingsSection(
+        title: 'Home Assistant (imaging host)',
+        children: [
+          SettingRow(
+            icon: LucideIcons.home,
+            title: 'Publish to Home Assistant',
+            subtitle: 'Uses the imaging host\'s MQTT broker and its password.',
+            trailing: AdminOnlyNotice(),
+            stackOnMobile: true,
+          ),
+        ],
+      );
+    }
     final hostAsync = ref.watch(remoteHomeAssistantHostSettingsProvider);
     return hostAsync.when(
       loading: () => const SettingsSection(

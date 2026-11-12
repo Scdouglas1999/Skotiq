@@ -113,7 +113,7 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
   /// The host's `app_settings` key/value rows that are not part of the
   /// [models.AppSettings] wire model, or null when the host predates
   /// `GET /api/settings/store` and answers 404.
-  Future<Map<String, String>?> getSettingsStore() {
+  Future<HostSettingsRows?> getSettingsStore() {
     return _retryableRequest(() async {
       const endpoint = 'settings/store';
       final response = await _sendWithAuthRefresh(
@@ -136,8 +136,12 @@ mixin _NetworkBackendImagingProfileOperations on _NetworkBackendTransport {
           'GET /api/settings/store returned no settings object (HTTP 200)',
         );
       }
-      return settings.map(
-        (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+      final adminAccess = json['adminAccess'];
+      return HostSettingsRows(
+        settings.map(
+          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+        ),
+        adminAccess: adminAccess is bool ? adminAccess : null,
       );
     });
   }

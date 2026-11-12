@@ -16,7 +16,8 @@ abstract interface class HostRigSettings {
     required String? commandId,
   });
 
-  Future<Map<String, String>?> getSettingsStore();
+  /// Null when the host predates `GET /api/settings/store`.
+  Future<HostSettingsRows?> getSettingsStore();
 
   Future<void> updateSettingsStore(
     Map<String, String> settings, {
@@ -36,4 +37,15 @@ abstract interface class HostRigSettings {
   Future<Map<String, String>> getSmartNightSettings();
 
   Future<void> updateSmartNightSettings(Map<String, String> settings);
+}
+
+/// The imaging host's key/value settings rows as this client may see them.
+class HostSettingsRows {
+  const HostSettingsRows(this.values, {this.adminAccess});
+
+  final Map<String, String> values;
+
+  /// Whether this client's credential has admin access to the host, which
+  /// credential settings need. Null when the host does not say.
+  final bool? adminAccess;
 }

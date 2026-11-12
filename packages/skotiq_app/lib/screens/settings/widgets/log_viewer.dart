@@ -12,6 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../services/file_download_service.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../../accessible_dropdown.dart';
+import 'admin_only.dart';
 import 'settings_widgets.dart' show settingsPagePadding;
 
 part 'log_viewer_parts/_export_seams.dart';
@@ -449,13 +450,17 @@ class _LogViewerState extends ConsumerState<LogViewer>
             isLoading: _isDownloadingFile,
             onPressed: _isActionBusy ? null : _downloadLogFile,
           ),
-        SkotiqButton(
-          label: _isClearing ? 'Clearing...' : 'Clear',
-          icon: LucideIcons.trash2,
-          variant: ButtonVariant.destructive,
-          size: ButtonSize.small,
-          isLoading: _isClearing,
-          onPressed: _isActionBusy ? null : _confirmClearLogs,
+        AdminOnlyControl(
+          text: 'Clear the logs on the imaging computer, or link with admin '
+              'access.',
+          child: SkotiqButton(
+            label: _isClearing ? 'Clearing...' : 'Clear',
+            icon: LucideIcons.trash2,
+            variant: ButtonVariant.destructive,
+            size: ButtonSize.small,
+            isLoading: _isClearing,
+            onPressed: _isActionBusy ? null : _confirmClearLogs,
+          ),
         ),
       ],
     );

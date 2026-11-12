@@ -66,7 +66,13 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         // NOT part of this test: they must not silently re-enable auth after an
         // operator asked for an open server, which is why `_pairedSessionTokens`
         // is not consulted here.
-        if (!isAuthRequired) return innerHandler(request);
+        if (!isAuthRequired) {
+          return innerHandler(
+            request.change(
+              context: {ctx.authGrantContextKey: HeadlessAuthGrant.admin()},
+            ),
+          );
+        }
 
         // Skip auth for the declared public surface (exact paths plus the two
         // SPA bundle roots) — the same declaration /api/info publishes.
@@ -156,6 +162,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
                   request,
                   identity: computeServerFingerprint(queryToken),
                   routeClass: route.bucket,
+                  grant: queryGrant,
                 ),
               );
             }
@@ -346,6 +353,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             request,
             identity: computeServerFingerprint(token),
             routeClass: route.bucket,
+            grant: tokenGrant,
           ),
         );
       };
@@ -364,11 +372,13 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
     Request request, {
     required String identity,
     required ApiBucket routeClass,
+    HeadlessAuthGrant? grant,
   }) {
     return request.change(
       context: {
         HeadlessApiServer._authIdentityContextKey: identity,
         HeadlessApiServer._authRouteClassContextKey: routeClass,
+        if (grant != null) ctx.authGrantContextKey: grant,
       },
     );
   }

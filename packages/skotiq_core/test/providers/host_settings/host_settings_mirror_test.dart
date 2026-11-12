@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
+import 'package:skotiq_core/src/backend/roles/host_data/host_rig_settings.dart'
+    show HostSettingsRows;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/models/backend/host_mutation_event.dart';
@@ -33,11 +35,13 @@ class _Host {
     required this.settings,
     Map<String, String>? store,
     this.servesStore = true,
+    this.adminAccess,
   }) : store = store ?? {};
 
   models.AppSettings settings;
   final Map<String, String> store;
   final bool servesStore;
+  final bool? adminAccess;
   final Map<String, String> science = {};
   final Map<String, String> smartNight = {};
   int storeFetches = 0;
@@ -53,7 +57,9 @@ class _Host {
     when(() => backend.getSettings()).thenAnswer((_) async => settings);
     when(() => backend.getSettingsStore()).thenAnswer((_) async {
       storeFetches++;
-      return servesStore ? Map.of(store) : null;
+      return servesStore
+          ? HostSettingsRows(Map.of(store), adminAccess: adminAccess)
+          : null;
     });
     when(
       () => backend.updateSettingsStore(any(), remove: any(named: 'remove')),
@@ -215,6 +221,29 @@ void main() {
       expect(await localRows().getSetting('sequencer_dither_pixels'), '1.0');
     },
   );
+
+  test(
+    'the host says whether this link may change credential settings',
+    () async {
+      for (final access in const [true, false, null]) {
+        await connect(
+          _Host(settings: const models.AppSettings(), adminAccess: access),
+        );
+        expect(
+          await container.read(hostAdminAccessProvider.future),
+          access,
+          reason: '$access',
+        );
+      }
+    },
+  );
+
+  test('a host too old to serve its rows does not say', () async {
+    await connect(
+      _Host(settings: const models.AppSettings(), servesStore: false),
+    );
+    expect(await container.read(hostAdminAccessProvider.future), isNull);
+  });
 
   test('presentation preferences stay on this computer', () async {
     await connect(

@@ -9,7 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_desktop/headless_api/auth_policy.dart';
 import 'package:skotiq_desktop/headless_api/handlers/profile_handlers.dart';
+import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -48,24 +50,40 @@ void main() {
     await db.close();
   });
 
-  Future<Response> post(Map<String, Object?> body) => translateHandlerErrors(
+  Map<String, Object> grantOf(HeadlessTokenScope scope) => {
+    authGrantContextKey: HeadlessAuthGrant.fromCoarse(scope),
+  };
+
+  Future<Response> post(
+    Map<String, Object?> body, {
+    HeadlessTokenScope scope = HeadlessTokenScope.control,
+  }) => translateHandlerErrors(
     handlers.handleUpdateSettingsStore(
       Request(
         'POST',
         Uri.parse('http://localhost/api/settings/store'),
         body: jsonEncode(body),
+        context: grantOf(scope),
       ),
     ),
   );
 
-  Future<Map<String, dynamic>> getStore() async {
+  Future<Map<String, dynamic>> getStoreBody({
+    HeadlessTokenScope scope = HeadlessTokenScope.control,
+  }) async {
     final response = await handlers.handleGetSettingsStore(
-      Request('GET', Uri.parse('http://localhost/api/settings/store')),
+      Request(
+        'GET',
+        Uri.parse('http://localhost/api/settings/store'),
+        context: grantOf(scope),
+      ),
     );
     expect(response.statusCode, HttpStatus.ok);
-    final body = jsonDecode(await response.readAsString()) as Map;
-    return (body['settings'] as Map).cast<String, dynamic>();
+    return jsonDecode(await response.readAsString()) as Map<String, dynamic>;
   }
+
+  Future<Map<String, dynamic>> getStore() async =>
+      ((await getStoreBody())['settings'] as Map).cast<String, dynamic>();
 
   test('serves host-owned rows and keeps this screen\'s preferences', () async {
     await db.settingsDao.setSettings({
@@ -225,5 +243,78 @@ void main() {
       'merge': {'imaging_capture_settings_profile_1': 'gain=5'},
     });
     expect(response.statusCode, HttpStatus.badRequest);
+  });
+
+  test('says whether the asking link has admin access', () async {
+    await container.read(appSettingsProvider.future);
+    expect((await getStoreBody())['adminAccess'], isFalse);
+    expect(
+      (await getStoreBody(scope: HeadlessTokenScope.admin))['adminAccess'],
+      isTrue,
+    );
+  });
+
+  test('a row saying where the host sends a credential changes only with '
+      'admin access', () async {
+    await container.read(appSettingsProvider.future);
+    const mail = 'notification_transport_email';
+    const backupTarget = 'cloud_sync_server_url';
+    await db.settingsDao.setSettings({
+      mail: '{"host":"smtp.example.org"}',
+      backupTarget: 'https://dav.example.org',
+    });
+
+    for (final body in [
+      {
+        'settings': {mail: '{"host":"smtp.attacker.example"}'},
+      },
+      {
+        'merge': {
+          mail: {'host': 'smtp.attacker.example'},
+        },
+      },
+      {
+        'remove': [backupTarget],
+      },
+    ]) {
+      final response = await post(body);
+      expect(response.statusCode, HttpStatus.forbidden, reason: '$body');
+      final error = jsonDecode(await response.readAsString()) as Map;
+      expect(error['code'], 'credential_setting');
+    }
+    expect(
+      await db.settingsDao.getSetting(mail),
+      '{"host":"smtp.example.org"}',
+    );
+    expect(
+      await db.settingsDao.getSetting(backupTarget),
+      'https://dav.example.org',
+    );
+    expect(announced, isEmpty);
+
+    final response = await post({
+      'settings': {mail: '{"host":"smtp.new.example"}'},
+    }, scope: HeadlessTokenScope.admin);
+    expect(response.statusCode, HttpStatus.ok);
+    expect(
+      await db.settingsDao.getSetting(mail),
+      '{"host":"smtp.new.example"}',
+    );
+  });
+
+  test('a request the auth middleware never saw is not admin', () async {
+    await container.read(appSettingsProvider.future);
+    final response = await translateHandlerErrors(
+      handlers.handleUpdateSettingsStore(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/settings/store'),
+          body: jsonEncode({
+            'settings': {'notification_transport_email': '{}'},
+          }),
+        ),
+      ),
+    );
+    expect(response.statusCode, HttpStatus.forbidden);
   });
 }
