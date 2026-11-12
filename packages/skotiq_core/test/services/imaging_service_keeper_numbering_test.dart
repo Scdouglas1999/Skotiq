@@ -19,6 +19,7 @@ import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/clock_provider.dart';
+import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
@@ -213,6 +214,10 @@ void main() {
     );
     addTearDown(container.dispose);
     await container.read(appSettingsProvider.future);
+    // Two tests build a second container while the first is alive. Both open
+    // the same database file, so the first must have finished opening it
+    // before the second runs its start-up check on it.
+    await container.read(databaseProvider).customSelect('SELECT 1').get();
     return container;
   }
 
