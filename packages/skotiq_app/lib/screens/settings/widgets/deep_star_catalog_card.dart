@@ -309,7 +309,7 @@ class _DeepStarCatalogCardState extends ConsumerState<DeepStarCatalogCard> {
               Text(
                 '${_progress!.verifying ? "Verifying" : "Downloading"} '
                 '${_progress!.tilesDone}/${_progress!.tilesTotal} • '
-                '${(_progress!.bytesDone / 1024).toStringAsFixed(0)} KiB',
+                '${ByteFormat.size(_progress!.bytesDone)}',
                 style: SkotiqTypography.captionSm.copyWith(
                   color: colors.textSecondary,
                 ),

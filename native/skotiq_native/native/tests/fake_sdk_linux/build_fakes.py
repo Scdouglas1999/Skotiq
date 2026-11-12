@@ -10,10 +10,9 @@ under the name the Linux loader looks for, after instrumenting every exported
 function to append `Name(scalar args)` to `$FAKE_SDK_TRACE` and, for a gap of
 100 ms or more since the previous call, a line to `$FAKE_SDK_TRACE.timing`.
 
-The SVBony, Touptek and Moravian fakes predate the entry points those drivers
-now require (SVBGetSensorPixelSize and the current property struct; pull-mode
-callbacks; the gxccd API), so their libraries fail to load and their sessions
-record the same load error before and after.
+The SVBony fake predates the entry points that driver now requires
+(SVBGetSensorPixelSize and the current property struct), so its library fails
+to load and its session records the same load error before and after.
 """
 import os, pathlib, re, subprocess, sys
 

@@ -99,8 +99,8 @@ void main() {
           (ref, sessionId) =>
               Stream.value(const <ScienceFrameQualityMetricsRow>[]),
         ),
-        sessionTileMetricsProvider.overrideWith(
-          (ref, sessionId) => Stream.value(const <ScienceTileMetricRow>[]),
+        frameTileMetricsProvider.overrideWith(
+          (ref, frame) => Stream.value(const <ScienceTileMetricRow>[]),
         ),
         sessionResidualVectorsProvider.overrideWith(
           (ref, sessionId) =>

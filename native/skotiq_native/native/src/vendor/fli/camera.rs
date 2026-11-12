@@ -4,31 +4,20 @@ use super::*;
 
 pub struct FliCamera {
     pub(crate) device_path: String,
-    pub(crate) device_id: String,
-    pub(crate) name: String,
+    pub(crate) core: CameraCore,
     pub(crate) handle: FliDev,
-    pub(crate) connected: bool,
-    pub(crate) capabilities: CameraCapabilities,
-    pub(crate) sensor_info: SensorInfo,
-    pub(crate) state: CameraState,
     // Visible area (where actual image is)
     pub(crate) visible_ul_x: i32,
     pub(crate) visible_ul_y: i32,
     pub(crate) visible_lr_x: i32,
     pub(crate) visible_lr_y: i32,
-    pub(crate) current_bin_x: i32,
-    pub(crate) current_bin_y: i32,
-    pub(crate) subframe: Option<SubFrame>,
-    pub(crate) cooler_on: bool,
-    pub(crate) target_temp: f64,
-    pub(crate) exposure_duration: f64,
 }
 
 impl std::fmt::Debug for FliCamera {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FliCamera")
-            .field("device_id", &self.device_id)
-            .field("name", &self.name)
+            .field("device_id", &self.core.device_id)
+            .field("name", &self.core.name)
             .field("device_path", &self.device_path)
             .finish()
     }
@@ -39,23 +28,16 @@ impl FliCamera {
         let device_id = device_path.replace("/", "_").replace("\\", "_");
         Self {
             device_path: device_path.clone(),
-            device_id: format!("fli_{}", device_id),
-            name: "FLI Camera".to_string(),
+            core: CameraCore::new(
+                format!("fli_{}", device_id),
+                "FLI Camera".to_string(),
+                -10.0,
+            ),
             handle: FLI_INVALID_DEVICE,
-            connected: false,
-            capabilities: CameraCapabilities::default(),
-            sensor_info: SensorInfo::default(),
-            state: CameraState::Idle,
             visible_ul_x: 0,
             visible_ul_y: 0,
             visible_lr_x: 0,
             visible_lr_y: 0,
-            current_bin_x: 1,
-            current_bin_y: 1,
-            subframe: None,
-            cooler_on: false,
-            target_temp: -10.0,
-            exposure_duration: 0.0,
         }
     }
 }
@@ -63,11 +45,11 @@ impl FliCamera {
 #[async_trait]
 impl DeviceDriver for FliCamera {
     fn id(&self) -> &str {
-        &self.device_id
+        &self.core.device_id
     }
 
     fn name(&self) -> &str {
-        &self.name
+        &self.core.name
     }
 
     fn vendor(&self) -> Vendor {
@@ -75,11 +57,11 @@ impl DeviceDriver for FliCamera {
     }
 
     fn is_connected(&self) -> bool {
-        self.connected
+        self.core.connected
     }
 
     async fn connect(&mut self) -> Result<(), DriverError> {
-        if self.connected {
+        if self.core.connected {
             return Ok(());
         }
 
@@ -114,7 +96,7 @@ impl DeviceDriver for FliCamera {
         // SAFETY: self.handle was just successfully opened above; model_buf is a 128-byte stack array with truthful length passed to SDK.
         if unsafe { (sdk.get_model)(self.handle, model_buf.as_mut_ptr(), model_buf.len()) } == 0 {
             // SAFETY: model_buf is 128 bytes; FLI SDK guarantees NUL-termination on success.
-            self.name = unsafe { CStr::from_ptr(model_buf.as_ptr()) }
+            self.core.name = unsafe { CStr::from_ptr(model_buf.as_ptr()) }
                 .to_string_lossy()
                 .to_string();
         }
@@ -210,7 +192,7 @@ impl DeviceDriver for FliCamera {
             FliCapabilityAnswer::NotSupported(code) => {
                 tracing::warn!(
                     "FLI camera '{}' has no selectable bit depth (FLISetBitDepth returned {}); treating it as 16-bit only, which is the mode being selected",
-                    self.name,
+                    self.core.name,
                     code
                 );
             }
@@ -233,7 +215,7 @@ impl DeviceDriver for FliCamera {
         if !can_cool {
             tracing::warn!(
                 "FLI camera '{}' did not report a CCD temperature (error code {}); reporting no cooling",
-                self.name,
+                self.core.name,
                 temp_result
             );
         }
@@ -242,7 +224,7 @@ impl DeviceDriver for FliCamera {
         // above. libfli reports no colour-filter-array information and delivers frames
         // with no Bayer metadata, so frames are published as mono; a one-shot-colour
         // FLI body is therefore not debayered.
-        self.sensor_info = SensorInfo {
+        self.core.sensor_info = SensorInfo {
             width,
             height,
             pixel_size_x: pixel_x,
@@ -257,7 +239,7 @@ impl DeviceDriver for FliCamera {
         // the API's own documented limits and the probe above are asserted here:
         // FLISetHBin/FLISetVBin accept 1..=16 (libfli.c:696, :857), and gain and
         // offset have no SDK control at all.
-        self.capabilities = CameraCapabilities {
+        self.core.capabilities = CameraCapabilities {
             can_cool,
             can_set_gain: false,
             can_set_offset: false,
@@ -278,27 +260,27 @@ impl DeviceDriver for FliCamera {
             return Err(error);
         }
 
-        self.connected = true;
-        self.state = CameraState::Idle;
+        self.core.connected = true;
+        self.core.state = CameraState::Idle;
 
         tracing::info!(
             "Connected to FLI camera: {} ({}x{})",
-            self.name,
-            self.sensor_info.width,
-            self.sensor_info.height
+            self.core.name,
+            self.core.sensor_info.width,
+            self.core.sensor_info.height
         );
 
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
+        if !self.core.connected {
             return Ok(());
         }
 
         let sdk = FliSdk::lock().await?;
 
-        // SAFETY: self.handle is valid because self.connected was true (only set after successful connect()).
+        // SAFETY: self.handle is valid because the camera is connected (only set after successful connect()).
         let _ = unsafe { (sdk.cancel_exposure)(self.handle) };
 
         // SAFETY: self.handle was successfully opened during connect(). FLIClose pairs with FLIOpen.
@@ -306,10 +288,10 @@ impl DeviceDriver for FliCamera {
         check_fli_error(result, "close camera")?;
 
         self.handle = FLI_INVALID_DEVICE;
-        self.connected = false;
-        self.state = CameraState::Idle;
+        self.core.connected = false;
+        self.core.state = CameraState::Idle;
 
-        tracing::info!("Disconnected from FLI camera: {}", self.name);
+        tracing::info!("Disconnected from FLI camera: {}", self.core.name);
 
         Ok(())
     }

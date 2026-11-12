@@ -2,11 +2,14 @@
 
 use super::{closed, Exclusive, RigDriver};
 use crate::api::devices::simulation::get_sim_filterwheel;
+use crate::device_capabilities::FilterWheelCapabilities;
 use crate::device_manager::ops::{sim_faults, sim_gate};
 use crate::dispatch::DeviceOpError;
+use crate::error::SkotiqError;
 use async_trait::async_trait;
 use skotiq_alpaca::AlpacaFilterWheel;
 use skotiq_device::{DriverError, FilterWheelDriver};
+use skotiq_indi::names as indi;
 use skotiq_indi::IndiFilterWheel;
 use std::time::Duration;
 
@@ -32,12 +35,16 @@ pub(crate) trait FilterWheel: RigDriver {
 
     /// Stores `names` in the wheel, slot 0 first.
     async fn set_names(&self, names: Vec<String>) -> Result<(), DeviceOpError>;
+
+    /// The slots, their names and offsets, whether they can be renamed, and
+    /// where the wheel is now.
+    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError>;
 }
 
 /// A vendor SDK filter wheel.
 pub(crate) struct VendorFilterWheel {
     device_id: String,
-    pub(crate) driver: Exclusive<Box<dyn FilterWheelDriver + Send + Sync>>,
+    driver: Exclusive<Box<dyn FilterWheelDriver + Send + Sync>>,
 }
 
 impl VendorFilterWheel {
@@ -167,6 +174,32 @@ impl FilterWheel for VendorFilterWheel {
         }
         Ok(())
     }
+
+    async fn capabilities(&self, _device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
+        // Vendor SDKs that keep no filter labels (the ZWO EFW) refuse the read
+        // on first connect; the app then labels the slots by number.
+        let filter_names = self
+            .driver
+            .read()
+            .await
+            .get_filter_names()
+            .await
+            .unwrap_or_default();
+        let current_position = self.driver.read().await.get_position().await.ok();
+        // A busy SDK reads as a wheel at rest; the status poll corrects it.
+        let is_moving = self.driver.read().await.is_moving().await.unwrap_or(false);
+        let position_count = self.driver.read().await.get_filter_count();
+        Ok(FilterWheelCapabilities {
+            position_count,
+            current_position,
+            filter_names,
+            is_moving,
+            // `FilterWheelDriver` requires `set_filter_name`: every vendor
+            // wheel can be renamed (a ZWO EFW keeps the names it is given).
+            can_set_filter_names: true,
+            ..Default::default()
+        })
+    }
 }
 
 /// An ASCOM filter wheel. Every call is a command on the wrapper's channel,
@@ -174,7 +207,7 @@ impl FilterWheel for VendorFilterWheel {
 #[cfg(windows)]
 pub(crate) struct AscomWheel {
     device_id: String,
-    pub(crate) driver: Exclusive<crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper>,
+    driver: Exclusive<crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper>,
 }
 
 #[cfg(windows)]
@@ -265,6 +298,35 @@ impl FilterWheel for AscomWheel {
         tracing::warn!("filter_wheel_set_filter_names: {}", msg);
         Err(DeviceOpError::unsupported(msg))
     }
+
+    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
+        // A failed Names read is not a wheel without filters: a 0-slot wheel
+        // makes the scheduler reject every filtered target. ASCOM Names is
+        // one of the reads that intermittently throws 0x80020009 headless.
+        let filter_names = self
+            .driver
+            .read()
+            .await
+            .get_filter_names()
+            .await
+            .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
+        // An empty list is a wheel without custom names; it still has the
+        // slots the driver reports.
+        let slot_count = self.driver.read().await.get_filter_count();
+        let current_position = self.driver.read().await.get_position().await.ok();
+        Ok(FilterWheelCapabilities {
+            position_count: if filter_names.is_empty() {
+                slot_count
+            } else {
+                i32::try_from(filter_names.len()).unwrap_or(i32::MAX)
+            },
+            current_position,
+            filter_names,
+            focus_offsets: Vec::new(),
+            can_set_focus_offsets: false,
+            ..Default::default()
+        })
+    }
 }
 
 #[async_trait]
@@ -314,6 +376,41 @@ impl FilterWheel for AlpacaFilterWheel {
         let msg = "Alpaca filter names are read-only and cannot be set programmatically";
         tracing::warn!("filter_wheel_set_filter_names: {}", msg);
         Err(DeviceOpError::unsupported(msg))
+    }
+
+    async fn capabilities(&self, device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
+        // A failed Names read is not a wheel without filters: a 0-slot wheel
+        // makes the scheduler reject every filtered target. An empty list
+        // that the wheel did answer is passed on as it is.
+        let filter_names = self.names().await.map_err(|e| {
+            SkotiqError::connection_failed(
+                device_id,
+                format!("Failed to read Alpaca filter wheel names: {e}"),
+            )
+        })?;
+        // No offsets only loses per-filter focus compensation, so the read
+        // goes on, but says so: it looks the same as a wheel with none set.
+        let focus_offsets = match self.focus_offsets().await {
+            Ok(offsets) => offsets,
+            Err(e) => {
+                tracing::warn!(
+                    "Alpaca filter wheel {}: focus-offset read failed ({}); per-filter \
+                     focus compensation will be skipped for this wheel.",
+                    device_id,
+                    e
+                );
+                Vec::new()
+            }
+        };
+        Ok(FilterWheelCapabilities {
+            position_count: filter_names.len() as i32,
+            current_position: AlpacaFilterWheel::position(self).await.ok(),
+            filter_names,
+            focus_offsets,
+            // Alpaca has no IsMoving for a wheel; motion is position -1.
+            is_moving: false,
+            ..Default::default()
+        })
     }
 }
 
@@ -393,6 +490,49 @@ impl FilterWheel for IndiWheel {
         tracing::warn!("filter_wheel_set_filter_names: {}", msg);
         Err(DeviceOpError::unsupported(msg))
     }
+
+    /// The slot count is the FILTER_SLOT range when the driver publishes
+    /// one, otherwise the number of names.
+    async fn capabilities(&self, _device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
+        use skotiq_indi::IndiPermission;
+        let device_name = self.wheel.device_name();
+        let filter_names = self.wheel.get_names().await.unwrap_or_default();
+        let (slot_limits, name_property_writable) = {
+            let client = self.wheel.client().read().await;
+            let limits = client
+                .get_number_limits(device_name, indi::FILTER_SLOT, indi::FILTER_SLOT_VALUE)
+                .await;
+            let writable = client
+                .get_properties(device_name)
+                .await
+                .iter()
+                .find(|p| p.name == indi::FILTER_NAME)
+                .is_some_and(|p| {
+                    matches!(
+                        p.perm,
+                        IndiPermission::WriteOnly | IndiPermission::ReadWrite
+                    )
+                });
+            (limits, writable)
+        };
+        let position_count = slot_limits
+            .and_then(|limits| match (limits.min, limits.max) {
+                // A whole number of slots, so the cast is exact.
+                (Some(min), Some(max)) if max >= min => Some((max - min + 1.0).round() as i32),
+                _ => None,
+            })
+            .or_else(|| i32::try_from(filter_names.len()).ok())
+            .unwrap_or(0);
+        Ok(FilterWheelCapabilities {
+            position_count,
+            current_position: self.wheel.get_position().await.ok(),
+            filter_names,
+            focus_offsets: Vec::new(),
+            is_moving: self.wheel.is_moving().await,
+            can_set_filter_names: name_property_writable,
+            can_set_focus_offsets: false,
+        })
+    }
 }
 
 /// The simulated filter wheel singleton.
@@ -467,6 +607,21 @@ impl FilterWheel for SimFilterWheel {
             fw.status.filter_names[slot] = name;
         }
         Ok(())
+    }
+
+    /// The slots and names the simulated wheel turns between; where it is
+    /// now is left to the live readings, as the capability cache refreshes
+    /// them.
+    async fn capabilities(&self, _device_id: &str) -> Result<FilterWheelCapabilities, SkotiqError> {
+        let sim = get_sim_filterwheel().read().await.status.clone();
+        Ok(FilterWheelCapabilities {
+            position_count: sim.filter_count,
+            filter_names: sim.filter_names,
+            focus_offsets: vec![0, 10, 20, 30, 100, 120, 140],
+            can_set_filter_names: true,
+            can_set_focus_offsets: true,
+            ..Default::default()
+        })
     }
 }
 

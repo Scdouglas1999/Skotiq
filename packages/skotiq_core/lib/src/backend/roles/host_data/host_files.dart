@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../services/disk_space_service.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart';
 
 /// The file system of a linked imaging host: the folders it will write to and
 /// the files it can send to this device.

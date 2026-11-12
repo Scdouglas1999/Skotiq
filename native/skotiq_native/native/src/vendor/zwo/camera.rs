@@ -1,31 +1,7 @@
 //! `ZwoCamera` state and inherent helpers.
 
 use super::*;
-
-/// Locally-tracked cooler state.
-///
-/// The ZWO SDK does not expose a reliable boolean read of "is the cooler currently
-/// commanded on?". `ASIGetControlValue(ASI_COOLER_ON)` is queried first and used
-/// when it succeeds; if the SDK call fails or the camera lacks a cooler, the value
-/// last written via `set_cooler` is the canonical source of truth. Without this
-/// `get_status` would have to lie and report `cooler_on: false` after the user
-/// commanded it on.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct CoolerState {
-    pub(crate) enabled: bool,
-    pub(crate) target_c: f64,
-}
-
-impl Default for CoolerState {
-    fn default() -> Self {
-        // -10 C is the documented power-on default the SDK picks for the target
-        // register; using it here keeps `target_temp` consistent across drivers.
-        Self {
-            enabled: false,
-            target_c: -10.0,
-        }
-    }
-}
+use crate::camera_core::CoolerState;
 
 /// The cooler set-point a ZWO camera can hold for a requested `target_c`:
 /// `ASI_TARGET_TEMP` is whole degrees Celsius, so the request rounds to the
@@ -125,7 +101,9 @@ pub struct ZwoCamera {
     // cannot leave status permanently stuck at Downloading.
     pub(crate) exposure_active: AtomicBool,
     pub(crate) current_subframe: Option<SubFrame>,
-    // Locally-tracked cooler command (last set_cooler) — see CoolerState docs.
+    /// The last `set_cooler` command. `ASIGetControlValue(ASI_COOLER_ON)` is
+    /// read first in `get_status`; this answers when that read fails or the
+    /// camera has no cooler, so status never reports off after an on command.
     pub(crate) cooler_state: Mutex<CoolerState>,
     pub(crate) temperature_skip_first_pending: Mutex<bool>,
 }
@@ -148,7 +126,8 @@ impl ZwoCamera {
             exposure_time: 0.0,
             exposure_active: AtomicBool::new(false),
             current_subframe: None,
-            cooler_state: Mutex::new(CoolerState::default()),
+            // -10 C is the power-on value the SDK holds in its target register.
+            cooler_state: Mutex::new(CoolerState::off(-10.0)),
             temperature_skip_first_pending: Mutex::new(false),
         }
     }

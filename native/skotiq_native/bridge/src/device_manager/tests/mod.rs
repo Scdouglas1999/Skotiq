@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
+mod capabilities;
 mod guards;
 mod heartbeat_config;
 mod heartbeat_events;
@@ -22,6 +23,7 @@ mod listing_order;
 mod mount_home;
 mod mount_ops;
 mod mount_set_park;
+mod native_camera_probe;
 mod reconnect_state;
 mod simulator;
 mod switch_ops;

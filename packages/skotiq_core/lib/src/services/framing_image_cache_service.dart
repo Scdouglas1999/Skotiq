@@ -6,7 +6,7 @@ import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 
-import '../providers/framing_provider.dart' show SurveySource;
+import '../models/framing_models.dart' show SurveySource;
 import '../utils/skotiq_data_directory.dart';
 
 /// Result of a [FramingImageCacheService.saveSurveyImage] call.

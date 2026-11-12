@@ -1,16 +1,16 @@
 //! `DeviceDriver` / `CameraDriver` / `Drop` implementations for `TouptekCamera`.
 
 use super::*;
-use crate::camera_core::{unpack_samples, SampleLayout};
+use crate::camera_core::{unpack_samples, Frame, SampleLayout};
 
 #[async_trait]
 impl DeviceDriver for TouptekCamera {
     fn id(&self) -> &str {
-        &self.device_id
+        &self.core.device_id
     }
 
     fn name(&self) -> &str {
-        &self.name
+        &self.core.name
     }
 
     fn vendor(&self) -> Vendor {
@@ -18,11 +18,11 @@ impl DeviceDriver for TouptekCamera {
     }
 
     fn is_connected(&self) -> bool {
-        self.connected
+        self.core.connected
     }
 
     async fn connect(&mut self) -> Result<(), DriverError> {
-        if self.connected {
+        if self.core.connected {
             return Ok(());
         }
 
@@ -74,15 +74,12 @@ impl DeviceDriver for TouptekCamera {
                 Ok(h)
             })?;
 
-            {
-                let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-                *h = HandleWrapper(handle);
-            }
+            self.handle = SdkHandle(handle);
 
             // Get serial number, resolution, gain range, and raw Bayer pattern
             // (all synchronous).
             let (serial_number, bayer_pattern, raw_bit_depth, sdk_size, gain_range) = {
-                let handle_val = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+                let handle_val = self.handle.0;
 
                 with_sdk(&lock, &brand, |sdk| {
                     let mut sn_buf = [0 as c_char; 64];
@@ -140,7 +137,7 @@ impl DeviceDriver for TouptekCamera {
                         );
                         None
                     } else {
-                        self.current_gain = i32::from(gain_def);
+                        self.core.gain = i32::from(gain_def);
                         Some((i32::from(gain_min), i32::from(gain_max)))
                     };
                     if gain_range.is_none() {
@@ -149,7 +146,7 @@ impl DeviceDriver for TouptekCamera {
                         let mut gain: u16 = 0;
                         // SAFETY: `handle_val` valid; `&mut gain` is a valid stack out-pointer for the SDK's unsigned-short gain value.
                         if unsafe { (sdk.get_expo_again)(handle_val, &mut gain) } >= 0 {
-                            self.current_gain = i32::from(gain);
+                            self.core.gain = i32::from(gain);
                         }
                     }
 
@@ -182,7 +179,7 @@ impl DeviceDriver for TouptekCamera {
         let bit_depth = raw_bit_depth.unwrap_or(16);
         let (sensor_width, sensor_height) =
             sdk_size.unwrap_or((device_info.width, device_info.height));
-        self.sensor_info = SensorInfo {
+        self.core.sensor_info = SensorInfo {
             width: sensor_width,
             height: sensor_height,
             pixel_size_x: device_info.pixel_size_x as f64,
@@ -192,7 +189,7 @@ impl DeviceDriver for TouptekCamera {
             color: (device_info.model_flags & OGMACAM_FLAG_MONO) == 0,
             bayer_pattern,
         };
-        self.name = match serial_number {
+        self.core.name = match serial_number {
             Some(serial) => format!("{} ({})", device_info.name, serial),
             None => device_info.name.clone(),
         };
@@ -203,7 +200,7 @@ impl DeviceDriver for TouptekCamera {
         let can_bin = (self.model_flags & OGMACAM_FLAG_BINSKIP_SUPPORTED) != 0;
         let can_subframe = (self.model_flags & OGMACAM_FLAG_ROI_HARDWARE) != 0;
 
-        self.capabilities = CameraCapabilities {
+        self.core.capabilities = CameraCapabilities {
             can_cool: can_cool && can_set_temp,
             can_set_gain: true,
             can_set_offset: false, // Touptek doesn't have separate offset
@@ -225,7 +222,7 @@ impl DeviceDriver for TouptekCamera {
             tracing::debug!(
                 "Applying DelayAfterConnect quirk: sleeping {}ms before starting pull mode on {}",
                 delay_ms,
-                self.name
+                self.core.name
             );
             tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
         }
@@ -236,7 +233,7 @@ impl DeviceDriver for TouptekCamera {
         // put_Option from the callback context). This mirrors indi_toupbase Connect ordering.
         let start_result: Result<(usize, usize), DriverError> = {
             let lock = TOUPTEK_SDK_LOCK.lock().await;
-            let handle_val = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+            let handle_val = self.handle.0;
 
             // Heap-stable state whose address we hand to the SDK as the callback context.
             // Boxing guarantees the pointee address survives `self` being moved into the
@@ -246,7 +243,7 @@ impl DeviceDriver for TouptekCamera {
                 error: AtomicBool::new(false),
             });
             let ctx = &*event_state as *const TouptekEventState as *mut c_void;
-            let name = self.name.clone();
+            let name = self.core.name.clone();
 
             let r = with_sdk(&lock, &brand, |sdk| {
                 let close_with_error = |operation: &str, rc: i32| {
@@ -338,29 +335,26 @@ impl DeviceDriver for TouptekCamera {
             }
             Err(e) => {
                 // Handle was closed inside the closure; forget the now-dangling pointer.
-                {
-                    let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-                    *h = HandleWrapper(std::ptr::null_mut());
-                }
+                self.handle = SdkHandle(std::ptr::null_mut());
                 return Err(e);
             }
         }
 
-        self.connected = true;
-        self.state = CameraState::Idle;
+        self.core.connected = true;
+        self.core.state = CameraState::Idle;
 
         tracing::info!(
             "Connected to Touptek camera: {} ({}x{})",
-            self.name,
-            self.sensor_info.width,
-            self.sensor_info.height
+            self.core.name,
+            self.core.sensor_info.width,
+            self.core.sensor_info.height
         );
 
         Ok(())
     }
 
     async fn disconnect(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
+        if !self.core.connected {
             return Ok(());
         }
 
@@ -368,7 +362,7 @@ impl DeviceDriver for TouptekCamera {
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         // Teardown order is load-bearing: stop the pull-mode stream, then close the handle,
         // and only THEN drop the event-state box. Stop()+Close() quiesce the SDK's internal
@@ -378,7 +372,7 @@ impl DeviceDriver for TouptekCamera {
             // SAFETY: `handle` loaded from `self.handle`. Ogmacam_Stop
             // halts pull mode and joins the streaming thread; idempotent, handle-only arg.
             let _ = unsafe { (sdk.stop)(handle) };
-            // SAFETY: `handle` valid (connected==true checked at top).
+            // SAFETY: `handle` valid (the camera is connected, checked at top).
             // Ogmacam_Close is the contractual release for Ogmacam_Open.
             unsafe { (sdk.close)(handle) };
             Ok(())
@@ -387,17 +381,14 @@ impl DeviceDriver for TouptekCamera {
         // Safe now: Stop()+Close() returned, so the SDK will not invoke the callback again.
         self.event_state = None;
 
-        {
-            let mut h = self.handle.lock().unwrap_or_else(|e| e.into_inner());
-            *h = HandleWrapper(std::ptr::null_mut());
-        }
-        self.connected = false;
-        self.state = CameraState::Idle;
-        self.exposure_started_at = None;
+        self.handle = SdkHandle(std::ptr::null_mut());
+        self.core.connected = false;
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
         self.pull_bytes_per_pixel = 0;
         self.pull_channels = 0;
 
-        tracing::info!("Disconnected from Touptek camera: {}", self.name);
+        tracing::info!("Disconnected from Touptek camera: {}", self.core.name);
 
         Ok(())
     }
@@ -411,7 +402,7 @@ impl Drop for TouptekCamera {
         // thread could dispatch the callback into freed state. The normal path (disconnect)
         // has cleared the handle and `event_state`, so this is a no-op then. Checking the
         // handle rather than `connected` also covers cancellation during the pre-stream delay.
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
         if !handle.is_null() {
             let mut quiesced = false;
             // Drop cannot await the async vendor lock. Only touch the SDK if try_lock
@@ -437,7 +428,7 @@ impl Drop for TouptekCamera {
             } else {
                 tracing::warn!(
                     "Could not acquire Touptek SDK mutex while dropping '{}'; leaking callback state for memory safety",
-                    self.name
+                    self.core.name
                 );
             }
 
@@ -449,36 +440,34 @@ impl Drop for TouptekCamera {
                 }
             }
         }
-        self.connected = false;
+        self.core.connected = false;
     }
 }
 
 #[async_trait]
 impl CameraDriver for TouptekCamera {
     fn capabilities(&self) -> CameraCapabilities {
-        self.capabilities.clone()
+        self.core.capabilities.clone()
     }
 
     fn get_sensor_info(&self) -> SensorInfo {
-        self.sensor_info.clone()
+        self.core.sensor_info.clone()
     }
 
     async fn get_status(&self) -> Result<CameraStatus, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let brand = self.brand.clone();
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         let current_temp = with_sdk(&lock, &brand, |sdk| {
             let mut temp: i16 = 0;
-            // SAFETY: `handle` was just loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid Ogmacam_Open handle; `&mut temp` is a valid stack out-pointer to i16. Ogmacam_get_Temperature writes temperature in 0.1°C units per the SDK header.
+            // SAFETY: `handle` was just loaded from `self.handle` while connected, guaranteeing a valid Ogmacam_Open handle; `&mut temp` is a valid stack out-pointer to i16. Ogmacam_get_Temperature writes temperature in 0.1°C units per the SDK header.
             let result = unsafe { (sdk.get_temperature)(handle, &mut temp) };
-            touptek_temperature_result(&self.name, result, temp)
+            touptek_temperature_result(&self.core.name, result, temp)
         })?;
 
         // Touptek's common SDK surface used here does not expose an
@@ -487,9 +476,9 @@ impl CameraDriver for TouptekCamera {
         // telemetry, not as a control hint.
         let cooler_power = None;
 
-        let exposure_remaining = if self.state == CameraState::Exposing {
-            self.exposure_started_at.map(|started_at| {
-                (self.exposure_duration - started_at.elapsed().as_secs_f64()).max(0.0)
+        let exposure_remaining = if self.core.state == CameraState::Exposing {
+            self.core.exposure_started_at.map(|started_at| {
+                (self.core.exposure_duration - started_at.elapsed().as_secs_f64()).max(0.0)
             })
         } else {
             None
@@ -497,23 +486,21 @@ impl CameraDriver for TouptekCamera {
         let gain = self.read_gain_locked(&lock, handle)?;
 
         Ok(CameraStatus {
-            state: self.state,
+            state: self.core.state,
             sensor_temp: Some(current_temp),
             cooler_power,
-            target_temp: Some(self.target_temp),
-            cooler_on: self.cooler_on,
+            target_temp: Some(self.core.cooler().target_c),
+            cooler_on: self.core.cooler().enabled,
             gain,
-            offset: self.current_offset,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
+            offset: self.core.offset,
+            bin_x: self.core.bin_x,
+            bin_y: self.core.bin_y,
             exposure_remaining,
         })
     }
 
     async fn start_exposure(&mut self, params: ExposureParams) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         if let Some(gain) = params.gain {
             self.set_gain(gain).await?;
@@ -528,10 +515,10 @@ impl CameraDriver for TouptekCamera {
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         // Set exposure time and fire ONE software-triggered frame, all within the SDK lock.
-        let name = self.name.clone();
+        let name = self.core.name.clone();
         with_sdk(&lock, &brand, |sdk| {
             // Clear the frame-arrival flags for THIS exposure BEFORE triggering, so the poll
             // in download_image only observes the frame produced by the trigger below (and not
@@ -542,7 +529,7 @@ impl CameraDriver for TouptekCamera {
             }
 
             let exposure_us = (params.duration_secs * 1_000_000.0) as c_uint;
-            // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid Ogmacam_Open handle. Ogmacam_put_ExpoTime takes (handle, c_uint microseconds) POD per the SDK header.
+            // SAFETY: `handle` was loaded from `self.handle` while connected, guaranteeing a valid Ogmacam_Open handle. Ogmacam_put_ExpoTime takes (handle, c_uint microseconds) POD per the SDK header.
             let result = unsafe { (sdk.put_expo_time)(handle, exposure_us) };
             if result < 0 {
                 tracing::error!(
@@ -574,30 +561,28 @@ impl CameraDriver for TouptekCamera {
             Ok(())
         })?;
 
-        self.exposure_duration = params.duration_secs;
-        self.exposure_started_at = Some(std::time::Instant::now());
-        self.state = CameraState::Exposing;
+        self.core.exposure_duration = params.duration_secs;
+        self.core.exposure_started_at = Some(std::time::Instant::now());
+        self.core.state = CameraState::Exposing;
 
         Ok(())
     }
 
     async fn abort_exposure(&mut self) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let brand = self.brand.clone();
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
-        let name = self.name.clone();
+        let name = self.core.name.clone();
         with_sdk(&lock, &brand, |sdk| {
             // Cancel the software trigger with Trigger(0) — NOT Stop(), which would tear down
             // the pull-mode stream and break all subsequent exposures. This matches
             // indi_toupbase AbortExposure (Trigger(m_Handle, 0)) and keeps pull mode running.
-            // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid handle; Ogmacam_Trigger takes (handle, c_ushort) POD per the SDK header.
+            // SAFETY: `handle` was loaded from `self.handle` while connected, guaranteeing a valid handle; Ogmacam_Trigger takes (handle, c_ushort) POD per the SDK header.
             let result = unsafe { (sdk.trigger)(handle, 0) };
             if result < 0 {
                 tracing::error!(
@@ -619,22 +604,20 @@ impl CameraDriver for TouptekCamera {
             es.error.store(false, Ordering::SeqCst);
         }
 
-        self.state = CameraState::Idle;
-        self.exposure_started_at = None;
-        tracing::info!("Aborted exposure on Touptek camera '{}'", self.name);
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
+        tracing::info!("Aborted exposure on Touptek camera '{}'", self.core.name);
         Ok(())
     }
 
     async fn download_image(&mut self) -> Result<ImageData, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // Wait for the software-triggered frame to arrive. The SDK's pull-mode callback flips
         // `image_ready` on EVENT_IMAGE and `error` on EVENT_ERROR/DISCONNECTED/NOFRAMETIMEOUT.
         // We poll the atomics WITHOUT holding the Touptek SDK lock so unrelated SDK calls aren't
         // blocked for the whole exposure. Timeout = exposure + margin (>= the SDK frame timeout).
-        let timeout_secs = self.exposure_duration * 1.1 + 5.0;
+        let timeout_secs = self.core.exposure_duration * 1.1 + 5.0;
         let poll_start = std::time::Instant::now();
         loop {
             let (ready, errored) = {
@@ -649,22 +632,22 @@ impl CameraDriver for TouptekCamera {
                 )
             };
             if errored {
-                self.state = CameraState::Idle;
-                self.exposure_started_at = None;
+                self.core.state = CameraState::Idle;
+                self.core.exposure_started_at = None;
                 return Err(DriverError::SdkError(format!(
                     "Touptek camera '{}' reported an error/disconnect during exposure",
-                    self.name
+                    self.core.name
                 )));
             }
             if ready {
                 break;
             }
             if poll_start.elapsed().as_secs_f64() > timeout_secs {
-                self.state = CameraState::Idle;
-                self.exposure_started_at = None;
+                self.core.state = CameraState::Idle;
+                self.core.exposure_started_at = None;
                 return Err(DriverError::Timeout(format!(
                     "Touptek camera '{}' did not deliver a frame within {:.1}s",
-                    self.name, timeout_secs
+                    self.core.name, timeout_secs
                 )));
             }
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
@@ -674,7 +657,7 @@ impl CameraDriver for TouptekCamera {
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         let output_pixel_stride = self
             .pull_bytes_per_pixel
@@ -685,7 +668,7 @@ impl CameraDriver for TouptekCamera {
         if self.pull_bytes_per_pixel != 2 || self.pull_channels != 1 {
             return Err(DriverError::SdkError(format!(
                 "Touptek camera '{}' is not configured for 16-bit single-channel RAW output ({} bytes/channel, {} channels)",
-                self.name, self.pull_bytes_per_pixel, self.pull_channels
+                self.core.name, self.pull_bytes_per_pixel, self.pull_channels
             )));
         }
 
@@ -695,15 +678,15 @@ impl CameraDriver for TouptekCamera {
         // SDK lacks the symbol we fall back to the ROI (or full sensor) dims, which are an
         // UPPER BOUND on the delivered frame (binning only shrinks), so the buffer is never
         // too small. The delivered frame is then sliced to `info.width`/`info.height`.
-        let fallback_dims: (usize, usize) = match &self.subframe {
+        let fallback_dims: (usize, usize) = match &self.core.subframe {
             Some(sf) => (sf.width as usize, sf.height as usize),
             None => (
-                self.sensor_info.width as usize,
-                self.sensor_info.height as usize,
+                self.core.sensor_info.width as usize,
+                self.core.sensor_info.height as usize,
             ),
         };
 
-        let name = self.name.clone();
+        let name = self.core.name.clone();
         let (data, out_width, out_height) = with_sdk(&lock, &brand, |sdk| {
             let (buf_w, buf_h) = if let Some(get_final) = sdk.get_final_size {
                 let mut fw: c_int = 0;
@@ -791,38 +774,25 @@ impl CameraDriver for TouptekCamera {
             Ok((data, info.width, info.height))
         })?;
 
-        self.state = CameraState::Idle;
-        self.exposure_started_at = None;
+        self.core.state = CameraState::Idle;
+        self.core.exposure_started_at = None;
         let gain = self.read_gain_locked(&lock, handle)?;
 
-        let metadata = ImageMetadata {
-            exposure_time: self.exposure_duration,
+        Ok(Frame {
             gain,
-            offset: self.current_offset,
-            bin_x: self.current_bin_x,
-            bin_y: self.current_bin_y,
-            temperature: None,
-            timestamp: chrono::Utc::now(),
-            subframe: self.subframe.clone(),
-            readout_mode: None,
-            vendor_data: VendorFeatures::default(),
-            camera_file: None,
-        };
-
-        Ok(ImageData {
-            width: out_width,
-            height: out_height,
-            data,
-            bits_per_pixel: self.sensor_info.bit_depth,
-            bayer_pattern: self.sensor_info.bayer_pattern,
-            metadata,
-        })
+            ..self.core.frame(
+                out_width,
+                out_height,
+                data,
+                self.core.sensor_info.bit_depth,
+                self.core.sensor_info.bayer_pattern,
+            )
+        }
+        .into_image())
     }
 
     async fn is_exposure_complete(&self) -> Result<bool, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
         // The pull-mode event callback flips these when the SDK delivers a frame (image_ready)
         // or reports a fault (error). Reflecting them here lets the shared poll loop
         // (`wait_for_exposure`) actually complete; returning `true` on error lets the
@@ -832,7 +802,7 @@ impl CameraDriver for TouptekCamera {
                 return Ok(true);
             }
         }
-        Ok(self.state != CameraState::Exposing)
+        Ok(self.core.state != CameraState::Exposing)
     }
 
     async fn set_cooler(
@@ -840,11 +810,9 @@ impl CameraDriver for TouptekCamera {
         enabled: bool,
         target_temp: Option<f64>,
     ) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        if !self.capabilities.can_cool {
+        if !self.core.capabilities.can_cool {
             return Err(DriverError::NotSupported);
         }
 
@@ -856,11 +824,11 @@ impl CameraDriver for TouptekCamera {
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
-        let name = self.name.clone();
+        let name = self.core.name.clone();
         with_sdk(&lock, &brand, |sdk| {
-            // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid handle. Ogmacam_put_Option takes (handle, c_uint option_id, c_int value) POD — OGMACAM_OPTION_TEC=0x08 with 0/1 toggles the thermoelectric cooler per the SDK header.
+            // SAFETY: `handle` was loaded from `self.handle` while connected, guaranteeing a valid handle. Ogmacam_put_Option takes (handle, c_uint option_id, c_int value) POD — OGMACAM_OPTION_TEC=0x08 with 0/1 toggles the thermoelectric cooler per the SDK header.
             let result = unsafe {
                 (sdk.put_option)(handle, OGMACAM_OPTION_TEC, if enabled { 1 } else { 0 })
             };
@@ -902,44 +870,40 @@ impl CameraDriver for TouptekCamera {
             Ok(())
         })?;
 
-        self.cooler_on = enabled;
-        if let Some(target) = target_temp {
-            self.target_temp = target;
-        }
+        self.core.update_cooler(|cooler| {
+            cooler.enabled = enabled;
+            if let Some(target) = target_temp {
+                cooler.target_c = target;
+            }
+        });
         Ok(())
     }
 
     async fn get_temperature(&self) -> Result<f64, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let brand = self.brand.clone();
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         with_sdk(&lock, &brand, |sdk| {
             let mut temp: i16 = 0;
-            // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid handle; `&mut temp` is a valid stack out-pointer to i16. Ogmacam_get_Temperature writes the sensor reading in 0.1°C units per the SDK header.
+            // SAFETY: `handle` was loaded from `self.handle` while connected, guaranteeing a valid handle; `&mut temp` is a valid stack out-pointer to i16. Ogmacam_get_Temperature writes the sensor reading in 0.1°C units per the SDK header.
             let result = unsafe { (sdk.get_temperature)(handle, &mut temp) };
-            touptek_temperature_result(&self.name, result, temp)
+            touptek_temperature_result(&self.core.name, result, temp)
         })
     }
 
     async fn get_cooler_power(&self) -> Result<f64, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         Err(DriverError::NotSupported)
     }
 
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // Why: Touptek gain is a u16 (range 100..=10000 per the SDK header). A negative
         // i32 or one > u16::MAX is a caller bug, so we surface InvalidParameter rather
@@ -955,11 +919,11 @@ impl CameraDriver for TouptekCamera {
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
-        let name = self.name.clone();
+        let name = self.core.name.clone();
         with_sdk(&lock, &brand, |sdk| {
-            // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid handle. Ogmacam_put_ExpoAGain takes (handle, u16 gain) POD per the SDK header. SDK clamps to its supported range.
+            // SAFETY: `handle` was loaded from `self.handle` while connected, guaranteeing a valid handle. Ogmacam_put_ExpoAGain takes (handle, u16 gain) POD per the SDK header. SDK clamps to its supported range.
             let result = unsafe { (sdk.put_expo_again)(handle, gain_u16) };
             if result < 0 {
                 tracing::error!(
@@ -974,22 +938,20 @@ impl CameraDriver for TouptekCamera {
             Ok(())
         })?;
 
-        self.current_gain = gain;
+        self.core.gain = gain;
         Ok(())
     }
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         // Touptek doesn't have a separate offset control
-        self.current_offset = offset;
+        self.core.offset = offset;
         Ok(())
     }
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
-        if !self.capabilities.can_set_binning && (bin_x > 1 || bin_y > 1) {
+        if !self.core.capabilities.can_set_binning && (bin_x > 1 || bin_y > 1) {
             return Err(DriverError::NotSupported);
         }
 
@@ -997,15 +959,15 @@ impl CameraDriver for TouptekCamera {
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
         // Touptek uses combined binning value
         let bin_mode = bin_x.max(bin_y);
-        let name = self.name.clone();
-        let max_bx = self.capabilities.max_bin_x;
-        let max_by = self.capabilities.max_bin_y;
+        let name = self.core.name.clone();
+        let max_bx = self.core.capabilities.max_bin_x;
+        let max_by = self.core.capabilities.max_bin_y;
         with_sdk(&lock, &brand, |sdk| {
-            // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid handle; Ogmacam_put_Option takes (handle, c_uint option_id, c_int value) POD — OGMACAM_OPTION_BINNING=0x01 with the symmetric bin factor per the SDK header. `bin_mode` is already validated (≤ capabilities.max_bin_x).
+            // SAFETY: `handle` was loaded from `self.handle` while connected, guaranteeing a valid handle; Ogmacam_put_Option takes (handle, c_uint option_id, c_int value) POD — OGMACAM_OPTION_BINNING=0x01 with the symmetric bin factor per the SDK header. `bin_mode` is already validated (≤ capabilities.max_bin_x).
             let result = unsafe { (sdk.put_option)(handle, OGMACAM_OPTION_BINNING, bin_mode) };
             if result < 0 {
                 tracing::error!(
@@ -1020,28 +982,26 @@ impl CameraDriver for TouptekCamera {
             Ok(())
         })?;
 
-        self.current_bin_x = bin_x;
-        self.current_bin_y = bin_y;
+        self.core.bin_x = bin_x;
+        self.core.bin_y = bin_y;
         Ok(())
     }
 
     async fn set_subframe(&mut self, subframe: Option<SubFrame>) -> Result<(), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let brand = self.brand.clone();
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
 
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
 
-        let name = self.name.clone();
-        let sensor_w = self.sensor_info.width;
-        let sensor_h = self.sensor_info.height;
+        let name = self.core.name.clone();
+        let sensor_w = self.core.sensor_info.width;
+        let sensor_h = self.core.sensor_info.height;
 
         if let Some(sf) = &subframe {
-            if !self.capabilities.can_subframe {
+            if !self.core.capabilities.can_subframe {
                 return Err(DriverError::NotSupported);
             }
 
@@ -1050,7 +1010,7 @@ impl CameraDriver for TouptekCamera {
             let sw = sf.width;
             let sh = sf.height;
             with_sdk(&lock, &brand, |sdk| {
-                // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid handle; Ogmacam_put_Roi takes (handle, c_uint x, c_uint y, c_uint width, c_uint height) POD per the SDK header. The caller-supplied SubFrame values are validated by the SDK against sensor bounds (returns < 0 on out-of-range).
+                // SAFETY: `handle` was loaded from `self.handle` while connected, guaranteeing a valid handle; Ogmacam_put_Roi takes (handle, c_uint x, c_uint y, c_uint width, c_uint height) POD per the SDK header. The caller-supplied SubFrame values are validated by the SDK against sensor bounds (returns < 0 on out-of-range).
                 let result = unsafe { (sdk.put_roi)(handle, sx, sy, sw, sh) };
                 if result < 0 {
                     tracing::error!(
@@ -1067,7 +1027,7 @@ impl CameraDriver for TouptekCamera {
         } else {
             // Reset to full frame
             with_sdk(&lock, &brand, |sdk| {
-                // SAFETY: `handle` was loaded from `self.handle` under its Mutex with `connected == true` guaranteeing a valid handle; (0, 0, sensor_w, sensor_h) is the full sensor area from SensorInfo populated by connect() via get_size, so it is within the SDK's accepted range.
+                // SAFETY: `handle` was loaded from `self.handle` while connected, guaranteeing a valid handle; (0, 0, sensor_w, sensor_h) is the full sensor area from SensorInfo populated by connect() via get_size, so it is within the SDK's accepted range.
                 let result = unsafe { (sdk.put_roi)(handle, 0, 0, sensor_w, sensor_h) };
                 if result < 0 {
                     tracing::error!(
@@ -1083,26 +1043,24 @@ impl CameraDriver for TouptekCamera {
             })?;
         }
 
-        self.subframe = subframe;
+        self.core.subframe = subframe;
         Ok(())
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
-        let handle = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle = self.handle.0;
         self.read_gain_locked(&lock, handle)
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
-        Ok(self.current_offset)
+        Ok(self.core.offset)
     }
 
     async fn get_binning(&self) -> Result<(i32, i32), DriverError> {
-        Ok((self.current_bin_x, self.current_bin_y))
+        Ok((self.core.bin_x, self.core.bin_y))
     }
 
     async fn get_readout_modes(&self) -> Result<Vec<ReadoutMode>, DriverError> {
@@ -1127,12 +1085,10 @@ impl CameraDriver for TouptekCamera {
     }
 
     async fn get_vendor_features(&self) -> Result<VendorFeatures, DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         let lock = TOUPTEK_SDK_LOCK.lock().await;
-        let handle_val = self.handle.lock().unwrap_or_else(|e| e.into_inner()).0;
+        let handle_val = self.handle.0;
 
         with_sdk(&lock, &self.brand, |sdk| {
             // Each probe leaves its field `None` when the camera declines it, so an
@@ -1167,24 +1123,20 @@ impl CameraDriver for TouptekCamera {
     }
 
     async fn get_gain_range(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // Bounds captured from get_ExpoAGainRange at connect, in the SDK's percent-step
         // units where 100 == 1x.
         self.gain_range.ok_or_else(|| {
             DriverError::SdkError(format!(
                 "Touptek camera '{}' did not report a gain range at connect",
-                self.name
+                self.core.name
             ))
         })
     }
 
     async fn get_offset_range(&self) -> Result<(i32, i32), DriverError> {
-        if !self.connected {
-            return Err(DriverError::NotConnected);
-        }
+        self.core.require_connected()?;
 
         // The ToupTek-family SDK exposes no offset control, so there is no range to
         // report — black level is set through put_Option, not a gain-style bound.

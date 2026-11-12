@@ -11,6 +11,7 @@ import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/host_settings/host_settings_providers.dart';
 import 'package:skotiq_core/src/providers/imaging_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import '../harness/in_memory_database.dart';
 
 const _profile = EquipmentProfileModel(id: 1, name: 'Rig');

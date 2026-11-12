@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
 import '../models/errors/skotiq_error.dart';
-import '../providers/settings_provider.dart' show LocationSettings;
+import '../models/site/location_settings.dart' show LocationSettings;
 
 /// Resolve an approximate observing site from the machine's public IP.
 ///

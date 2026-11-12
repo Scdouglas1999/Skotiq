@@ -1028,9 +1028,9 @@ const FUJIFILM_DISCOVER: Discover = Discover::Sdk(|| {
     })
 });
 
-/// The X Acquire SDK opens a body by serial number only after a detect pass
-/// has listed it, and the sensor geometry comes from the product name the
-/// detect pass reports.
+/// The body must be in the SDK's current camera list: connecting opens it by
+/// its place in that list, found from this address, and the sensor geometry
+/// comes from the product name the list reports.
 #[cfg(target_os = "windows")]
 const FUJIFILM_OPEN: Open = Open::AfterDiscovery(|address, _name| {
     Box::pin(async move {

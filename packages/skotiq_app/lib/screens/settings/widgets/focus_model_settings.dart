@@ -32,7 +32,10 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   Object? _clearToken;
   bool _clearConfirmationOpen = false;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
-  int _loadGeneration = 0;
+
+  /// Model loads (the newest wins) and clears on the host; a host change
+  /// drops what the old host answers.
+  late final _hostScopes = ref.backendScopes(alive: () => mounted);
 
   RemoteHost? get _backend {
     return ref.read(backendProvider).remoteHost;
@@ -45,7 +48,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
       backendProvider,
       (previous, next) {
         if (identical(previous, next) || !mounted) return;
-        _loadGeneration++;
+        _hostScopes.cancelAll();
         setState(() {
           _model = null;
           _error = null;
@@ -68,8 +71,8 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
   }
 
   Future<void> _refresh() async {
-    final backend = _backend;
-    final generation = ++_loadGeneration;
+    final load = _hostScopes.beginLatest();
+    final backend = load.value.remoteHost;
     if (backend == null) {
       if (!mounted) return;
       setState(() {
@@ -85,13 +88,13 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     });
     try {
       final model = await backend.focusModels.getFocusModel();
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (load.isStale) return;
       setState(() {
         _model = model;
         _loading = false;
       });
     } catch (e) {
-      if (!_isCurrentLoad(backend, generation)) return;
+      if (load.isStale) return;
       setState(() {
         _loading = false;
         _error = userFacingError(e);
@@ -99,15 +102,13 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     }
   }
 
-  bool _isCurrentLoad(RemoteHost backend, int generation) =>
-      mounted && generation == _loadGeneration && identical(_backend, backend);
-
-  bool _isCurrentClear(RemoteHost backend, Object token) =>
-      mounted && identical(_clearToken, token) && identical(_backend, backend);
+  bool _isCurrentClear(AsyncScope<SkotiqBackend> clear, Object token) =>
+      clear.isCurrent && identical(_clearToken, token);
 
   Future<void> _clear() async {
     if (_loading || _clearToken != null || _clearConfirmationOpen) return;
-    final backend = _backend;
+    final clear = _hostScopes.begin();
+    final backend = clear.value.remoteHost;
     if (backend == null) return;
     setState(() => _clearConfirmationOpen = true);
     final bool confirmed;
@@ -126,7 +127,7 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     }
     if (!mounted) return;
     if (!confirmed) return;
-    if (!identical(_backend, backend)) {
+    if (clear.isStale) {
       context.showErrorSnackBar(
         'Connected rig changed; focus model data was not cleared',
       );
@@ -136,15 +137,15 @@ class _FocusModelSettingsState extends ConsumerState<FocusModelSettings> {
     setState(() => _clearToken = token);
     try {
       await backend.focusModels.clearFocusModelData();
-      if (mounted && _isCurrentClear(backend, token)) {
+      if (mounted && _isCurrentClear(clear, token)) {
         context.showSuccessSnackBar('Focus model data cleared');
       }
     } catch (e) {
-      if (mounted && _isCurrentClear(backend, token)) {
+      if (mounted && _isCurrentClear(clear, token)) {
         context.showErrorSnackBar('Clear failed: ${userFacingError(e)}');
       }
     } finally {
-      if (_isCurrentClear(backend, token)) {
+      if (_isCurrentClear(clear, token)) {
         setState(() => _clearToken = null);
         await _refresh();
       }

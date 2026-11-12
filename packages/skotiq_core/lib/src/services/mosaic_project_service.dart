@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/integrated_masters_dao.dart';
+import '../providers/database_provider.dart';
 import '../database/daos/mosaic_panels_dao.dart';
 import '../database/daos/mosaic_projects_dao.dart';
 import '../database/daos/targets_dao.dart';
@@ -16,7 +17,6 @@ import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_settings.dart';
 import '../models/imaging/mosaic_project.dart';
 import '../models/imaging/mosaic_stitch_result.dart';
-import '../providers/database_provider.dart';
 import 'mosaic_service.dart';
 import 'post_session_integration_service.dart';
 import 'post_session_seam.dart';

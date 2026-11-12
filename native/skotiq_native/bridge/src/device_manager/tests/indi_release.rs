@@ -72,18 +72,14 @@ async fn published_disconnected(
 }
 
 /// A camera or mount on a server Skotiq has no connection to cannot be
-/// released, and the disconnect says so, but the device still leaves the
-/// connected list and the app is told.
+/// released, and the disconnect says so, but the device still reads
+/// disconnected and the app is told.
 #[tokio::test]
 async fn an_indi_mount_that_cannot_be_released_is_still_disconnected() {
     let manager = build_device_manager();
     let id = "indi:127.0.0.1:1:Fake Mount";
     let info = build_mount_info(id, DriverType::Indi);
-    manager.register_device(info.clone(), false).await;
-    manager
-        .app_state
-        .register_device(info, ConnectionState::Connected)
-        .await;
+    manager.register_device(info, false).await;
     let mut rx = manager.app_state.event_bus.subscribe();
 
     let error = manager
@@ -93,11 +89,15 @@ async fn an_indi_mount_that_cannot_be_released_is_still_disconnected() {
 
     assert!(error.contains("not found"), "{error}");
     assert!(published_disconnected(&mut rx, id).await);
-    assert!(manager
-        .app_state
-        .get_device(DeviceType::Mount, id)
-        .await
-        .is_none());
+    assert_eq!(
+        manager
+            .devices
+            .read()
+            .await
+            .get(id)
+            .map(|d| d.connection_state),
+        Some(ConnectionState::Disconnected)
+    );
 }
 
 /// An INDI focuser is released through its handle like any other device;
@@ -109,11 +109,7 @@ async fn an_indi_focuser_whose_driver_never_confirms_is_still_disconnected() {
     let port = client.read().await.port();
     let id = format!("indi:127.0.0.1:{port}:{FOCUSER}");
     let info = focuser_info(&id);
-    manager.register_device(info.clone(), false).await;
-    manager
-        .app_state
-        .register_device(info, ConnectionState::Connected)
-        .await;
+    manager.register_device(info, false).await;
     manager.handles.insert(
         &id,
         DeviceHandle::Focuser(Arc::new(IndiFocuserHandle::new(&id, client, FOCUSER))),
@@ -127,11 +123,15 @@ async fn an_indi_focuser_whose_driver_never_confirms_is_still_disconnected() {
 
     assert!(error.contains("confirm disconnection"), "{error}");
     assert!(published_disconnected(&mut rx, &id).await);
-    assert!(manager
-        .app_state
-        .get_device(DeviceType::Focuser, &id)
-        .await
-        .is_none());
+    assert_eq!(
+        manager
+            .devices
+            .read()
+            .await
+            .get(id.as_str())
+            .map(|d| d.connection_state),
+        Some(ConnectionState::Disconnected)
+    );
     assert!(manager.handles.get(&id).is_none());
 }
 

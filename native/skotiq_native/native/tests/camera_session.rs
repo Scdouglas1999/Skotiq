@@ -66,8 +66,15 @@ fn frame_text(frame: Result<ImageData, DriverError>) -> String {
                 }
             }
             image.metadata.timestamp = chrono::DateTime::<chrono::Utc>::UNIX_EPOCH;
+            let expected_pixels = image.width as usize * image.height as usize;
+            let count_note = if image.data.len() == expected_pixels {
+                ""
+            } else {
+                "PIXEL COUNT IS NOT WIDTH x HEIGHT "
+            };
             format!(
-                "Ok {}x{} pixels={} fnv1a={:016x} bits_per_pixel={} bayer={:?} metadata={:?}",
+                "Ok {}{}x{} pixels={} fnv1a={:016x} bits_per_pixel={} bayer={:?} metadata={:?}",
+                count_note,
                 image.width,
                 image.height,
                 image.data.len(),

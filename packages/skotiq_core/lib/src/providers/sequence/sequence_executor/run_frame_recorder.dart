@@ -6,7 +6,7 @@ import 'package:path/path.dart' as p;
 import '../../../backend/remote_host.dart';
 import '../../../backend/frame_capture_metadata.dart';
 import '../../../backend/skotiq_backend.dart';
-import '../../../database/daos/campaigns_dao.dart' show campaignsDaoProvider;
+import '../../database_provider.dart' show campaignsDaoProvider;
 import '../../../models/imaging/imaging_models.dart';
 import '../../../services/capture_preview_loader.dart';
 import '../../../services/frame_quality_score.dart';

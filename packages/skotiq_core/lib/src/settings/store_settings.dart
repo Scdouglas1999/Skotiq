@@ -1091,10 +1091,16 @@ abstract final class StoreSettings {
   /// Each notification transport's server and account. The passwords, tokens
   /// and webhook addresses are in the host's keyring.
   static const notificationTransports = SettingFamily(
-    NotificationTransportKind.settingKeyPrefix,
+    'notification_transport_',
     sync: SettingSync.hostStore,
     adminOnly: AdminOnly.credentialTarget,
   );
+
+  /// [transport]'s row of [notificationTransports]: its config as a JSON
+  /// document without the secrets, or nothing saved.
+  static OptionalTextSetting notificationTransport(
+    NotificationTransportKind transport,
+  ) => notificationTransports.row(transport.storageKey);
 
   /// Where the host's cloud backup goes. Its password or secret key is in the
   /// host's keyring.

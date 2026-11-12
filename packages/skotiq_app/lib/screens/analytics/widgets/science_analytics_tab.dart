@@ -11,6 +11,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as path;
 
 import '../../../utils/exported_file_reveal.dart';
+import '../../../utils/frame_rows_hold.dart';
 import '../../accessible_dropdown.dart';
 import '../analytics_screen.dart'
     show dbSessionImagesProvider, standaloneImagesProvider;
@@ -134,6 +135,8 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
   // explorer and insights panels track the latest frame.
   int? _selectedFrameImageId;
 
+  final _frameTiles = FrameRowsHold<ScienceTileMetricRow>();
+
   // Session chosen in the session bar. Null means "follow the live session, or
   // the most recent one with light frames".
   int? _selectedSessionId;
@@ -255,9 +258,14 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       frameMetrics = resolvedRows(
         ref.watch(sessionFrameQualityMetricsProvider(activeSessionId)),
       );
-      tileMetrics = resolvedRows(
-        ref.watch(sessionTileMetricsProvider(activeSessionId)),
+      final frameTiles = ref.watch(
+        frameTileMetricsProvider(
+          (sessionId: activeSessionId, capturedImageId: _selectedFrameImageId),
+        ),
       );
+      track(frameTiles);
+      tileMetrics =
+          _frameTiles.rowsFor(activeSessionId, frameTiles.valueOrNull);
     } else {
       final sessionlessPhotometry = ref.watch(sessionlessPhotometryProvider);
       track(sessionlessPhotometry);
@@ -286,8 +294,9 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       frameMetrics = resolvedRows(
         ref.watch(sessionlessFrameQualityMetricsProvider),
       );
-      tileMetrics = resolvedRows(
-        ref.watch(sessionlessTileMetricsProvider),
+      tileMetrics = _tileMetricSnapshotForImage(
+        resolvedRows(ref.watch(sessionlessTileMetricsProvider)),
+        _selectedFrameImageId,
       );
     }
 
@@ -322,8 +331,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
 
     final latestPsfTiles = _latestPsfSnapshot(psfTiles);
     final latestResiduals = _latestResidualSnapshot(residuals);
-    final latestTileMetrics =
-        _tileMetricSnapshotForImage(tileMetrics, _selectedFrameImageId);
     // Memoized via Riverpod so a re-render that doesn't change the underlying
     // PSF/residual snapshots reuses the prior analysis instead of recomputing
     // it on every frame.
@@ -549,7 +556,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
           if (isNarrow) ...[
             ScienceSurfaceExplorer(
               colors: colors,
-              tiles: latestTileMetrics,
+              tiles: tileMetrics,
             ),
             const SizedBox(height: 12),
             ScienceOverlayComposer(colors: colors),
@@ -580,7 +587,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
                   flex: 2,
                   child: ScienceSurfaceExplorer(
                     colors: colors,
-                    tiles: latestTileMetrics,
+                    tiles: tileMetrics,
                   ),
                 ),
                 const SizedBox(width: 12),

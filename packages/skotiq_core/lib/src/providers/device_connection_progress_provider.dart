@@ -20,11 +20,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/backend/device_types.dart' show guideCameraLabel;
 import '../services/device_exceptions.dart';
-
-/// The sweep's name for the built-in guider's camera, which is a profile
-/// field and not a device slot.
-const String guideCameraLabel = 'guide camera';
 
 /// Snapshot of the currently-active "Connect All" sweep.
 class DeviceConnectionProgressState {

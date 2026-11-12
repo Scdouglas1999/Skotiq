@@ -3,30 +3,39 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
+import '../../device.dart';
 import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Set filter wheel position. Simulators go through the `DeviceManager` like
-/// every other driver, so the move publishes its events whoever asked.
-Future<void> filterWheelSetPosition({
+/// Get filter wheel status
+Future<FilterWheelStatus> apiGetFilterwheelStatus({required String deviceId}) =>
+    RustLib.instance.api.crateApiDevicesFilterWheelApiGetFilterwheelStatus(
+      deviceId: deviceId,
+    );
+
+/// Set filter wheel position
+Future<void> apiFilterwheelSetPosition({
   required String deviceId,
   required int position,
-}) => RustLib.instance.api.crateApiDevicesFilterWheelFilterWheelSetPosition(
+}) => RustLib.instance.api.crateApiDevicesFilterWheelApiFilterwheelSetPosition(
   deviceId: deviceId,
   position: position,
 );
 
-/// Set camera gain
-Future<void> setCameraGain({required String deviceId, required int gain}) =>
-    RustLib.instance.api.crateApiDevicesFilterWheelSetCameraGain(
+/// Get filter names
+Future<List<String>> apiFilterwheelGetNames({required String deviceId}) =>
+    RustLib.instance.api.crateApiDevicesFilterWheelApiFilterwheelGetNames(
       deviceId: deviceId,
-      gain: gain,
     );
 
-/// Set camera offset
-Future<void> setCameraOffset({required String deviceId, required int offset}) =>
-    RustLib.instance.api.crateApiDevicesFilterWheelSetCameraOffset(
+/// Set filter names on a filter wheel
+/// This pushes user-defined filter names from the equipment profile to the hardware driver.
+Future<void> apiFilterwheelSetFilterNames({
+  required String deviceId,
+  required List<String> names,
+}) =>
+    RustLib.instance.api.crateApiDevicesFilterWheelApiFilterwheelSetFilterNames(
       deviceId: deviceId,
-      offset: offset,
+      names: names,
     );

@@ -348,7 +348,7 @@ impl DeviceDriver for AtikCamera {
         // Warm up cooler gracefully. If the camera refuses the warm-up it stays at its
         // cold setpoint until power is removed — a thermal-shock risk the operator can
         // only act on if we say it happened.
-        if self.core.cooler.enabled {
+        if self.core.cooler().enabled {
             // SAFETY: handle is valid (connected=true); ArtemisCoolerWarmUp
             // takes only the handle, no out-pointers.
             let warm_up_result = unsafe { (sdk.cooler_warm_up)(handle) };

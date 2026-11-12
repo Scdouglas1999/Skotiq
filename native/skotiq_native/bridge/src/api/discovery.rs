@@ -456,8 +456,9 @@ async fn scan_ascom_for_type(_device_type: DeviceType) -> Result<Vec<DeviceInfo>
 /// Holds the timestamp of the last broadcast plus the full, canonical list of
 /// every Alpaca device it returned, tagged with its mapped [`DeviceType`]. A
 /// `None` value means "no sweep has run yet (or the last one expired)".
-static ALPACA_SWEEP_CACHE: OnceLock<Mutex<Option<(Instant, Vec<(DeviceType, DeviceInfo)>)>>> =
-    OnceLock::new();
+type AlpacaSweep = Option<(Instant, Vec<(DeviceType, DeviceInfo)>)>;
+
+static ALPACA_SWEEP_CACHE: OnceLock<Mutex<AlpacaSweep>> = OnceLock::new();
 
 /// Get or initialize the Alpaca sweep cache.
 ///
@@ -471,8 +472,13 @@ static ALPACA_SWEEP_CACHE: OnceLock<Mutex<Option<(Instant, Vec<(DeviceType, Devi
 /// remaining types filter the same canonical list within the TTL window. The
 /// device IDs are unchanged, so the downstream per-(type, driver) cache and
 /// the Dart-side dedupe see identical results either way.
-fn alpaca_sweep_cache() -> &'static Mutex<Option<(Instant, Vec<(DeviceType, DeviceInfo)>)>> {
+fn alpaca_sweep_cache() -> &'static Mutex<AlpacaSweep> {
     ALPACA_SWEEP_CACHE.get_or_init(|| Mutex::new(None))
+}
+
+/// Forget the last Alpaca sweep, so the next scan broadcasts again.
+pub(crate) async fn forget_alpaca_sweep() {
+    *alpaca_sweep_cache().lock().await = None;
 }
 
 /// Maps an Alpaca device type to Skotiq's [`DeviceType`].
@@ -523,20 +529,11 @@ fn alpaca_device_info(
     }
 }
 
-/// Counts how many real UDP broadcasts the sweep cache has triggered. Used by
-/// tests to assert that scanning several types within the TTL only broadcasts
-/// once; in production it is a cheap diagnostic counter.
-static ALPACA_SWEEP_BROADCAST_COUNT: AtomicU64 = AtomicU64::new(0);
-
 /// Run the Alpaca UDP broadcast once and map every returned device into the
-/// canonical `(DeviceType, DeviceInfo)` list. Increments the broadcast counter.
+/// canonical `(DeviceType, DeviceInfo)` list.
 async fn run_alpaca_sweep() -> Vec<(DeviceType, DeviceInfo)> {
-    use skotiq_alpaca::discover_all_devices;
-
-    ALPACA_SWEEP_BROADCAST_COUNT.fetch_add(1, Ordering::Relaxed);
-    let alpaca_devs = discover_all_devices(Duration::from_secs(2)).await;
-
-    alpaca_devs
+    alpaca_broadcast()
+        .await
         .iter()
         .map(|dev| {
             let dt = alpaca_device_type(dev.device_type);
@@ -545,36 +542,53 @@ async fn run_alpaca_sweep() -> Vec<(DeviceType, DeviceInfo)> {
         .collect()
 }
 
+#[cfg(not(test))]
+async fn alpaca_broadcast() -> Vec<skotiq_alpaca::AlpacaDevice> {
+    skotiq_alpaca::discover_all_devices(Duration::from_secs(2)).await
+}
+
+/// Tests never broadcast: real devices answer on the LAN this runs on.
+#[cfg(test)]
+async fn alpaca_broadcast() -> Vec<skotiq_alpaca::AlpacaDevice> {
+    Vec::new()
+}
+
 async fn scan_alpaca_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, String> {
-    // Why: Alpaca discovery is a single broadcast that returns *all* device
-    // types at once. `api_discover_devices` asks one type at a time, so we
-    // cache the full sweep here to prevent a 10× re-broadcast (one per type)
-    // for what is logically a single scan. The first type to ask triggers
-    // exactly one broadcast; the other types filter the same cached list
-    // within `DISCOVERY_CACHE_TTL`. Every type filters the identical canonical
-    // list, so no device is missed or duplicated and all IDs are unchanged.
-    let mut guard = alpaca_sweep_cache().lock().await;
+    let mut sweep = alpaca_sweep_cache().lock().await;
+    Ok(devices_from_sweep(&mut sweep, device_type, run_alpaca_sweep).await)
+}
 
-    let needs_sweep = match guard.as_ref() {
-        Some((ts, _)) => ts.elapsed() >= DISCOVERY_CACHE_TTL,
-        None => true,
-    };
-
-    if needs_sweep {
-        let full_list = run_alpaca_sweep().await;
-        *guard = Some((Instant::now(), full_list));
-    }
-
-    let (_, devices) = guard
+/// The devices of `device_type` in the cached sweep, running `sweep` first
+/// when there is none or it is older than `DISCOVERY_CACHE_TTL`.
+///
+/// Why: Alpaca discovery is a single broadcast that returns *all* device
+/// types at once. `api_discover_devices` asks one type at a time, so the full
+/// sweep is cached to prevent a 10× re-broadcast (one per type) for what is
+/// logically a single scan. Every type filters the identical canonical list,
+/// so no device is missed or duplicated and all IDs are unchanged.
+async fn devices_from_sweep<F, Fut>(
+    cached: &mut AlpacaSweep,
+    device_type: DeviceType,
+    sweep: F,
+) -> Vec<DeviceInfo>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Vec<(DeviceType, DeviceInfo)>>,
+{
+    let fresh = cached
         .as_ref()
-        .expect("sweep cache is populated above when stale/empty");
-
-    let out = devices
+        .is_some_and(|(at, _)| at.elapsed() < DISCOVERY_CACHE_TTL);
+    if !fresh {
+        *cached = Some((Instant::now(), sweep().await));
+    }
+    let (_, devices) = cached
+        .as_ref()
+        .expect("the sweep is cached above when missing or stale");
+    devices
         .iter()
         .filter(|(dt, _)| *dt == device_type)
         .map(|(_, info)| info.clone())
-        .collect();
-    Ok(out)
+        .collect()
 }
 
 async fn scan_native_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, String> {
@@ -1234,13 +1248,9 @@ mod tests {
         assert!(entry.result.is_err());
     }
 
-    /// The Alpaca sweep cache must serve every device type from a single
-    /// broadcast within the TTL window. We seed the sweep cache with a
-    /// synthetic full list (one device per type), record the broadcast counter,
-    /// then call `scan_alpaca_for_type` for two different types. Because the
-    /// seeded entry is fresh, neither call may broadcast (the counter is
-    /// unchanged), and each call must return ONLY the devices matching its
-    /// requested type — proving the 10× re-broadcast is eliminated.
+    /// One Alpaca sweep serves every device type within the TTL: three type
+    /// scans of a fresh sweep run no broadcast, and each returns only its
+    /// own type.
     #[tokio::test]
     async fn alpaca_sweep_cache_serves_multiple_types_from_one_broadcast() {
         let camera = make_device(
@@ -1261,54 +1271,91 @@ mod tests {
             DeviceType::Focuser,
             DriverType::Alpaca,
         );
+        let mut cached: AlpacaSweep = Some((
+            Instant::now(),
+            vec![
+                (DeviceType::Camera, camera.clone()),
+                (DeviceType::Mount, mount.clone()),
+                (DeviceType::Focuser, focuser.clone()),
+            ],
+        ));
+        let broadcasts = AtomicU64::new(0);
+        let sweep = || async {
+            broadcasts.fetch_add(1, Ordering::Relaxed);
+            Vec::new()
+        };
 
-        // Seed a fresh sweep so no real broadcast is needed.
-        {
-            let mut guard = alpaca_sweep_cache().lock().await;
-            *guard = Some((
-                Instant::now(),
-                vec![
-                    (DeviceType::Camera, camera.clone()),
-                    (DeviceType::Mount, mount.clone()),
-                    (DeviceType::Focuser, focuser.clone()),
-                ],
-            ));
-        }
-
-        let before = ALPACA_SWEEP_BROADCAST_COUNT.load(Ordering::Relaxed);
-
-        // First type filters the cached sweep.
-        let cameras = scan_alpaca_for_type(DeviceType::Camera)
-            .await
-            .expect("camera scan ok");
+        let cameras = devices_from_sweep(&mut cached, DeviceType::Camera, sweep).await;
         assert_eq!(cameras.len(), 1, "exactly one camera in the seeded sweep");
         assert_eq!(cameras[0].id, camera.id);
-
-        // Second type, within TTL, must reuse the SAME sweep — no rebroadcast.
-        let mounts = scan_alpaca_for_type(DeviceType::Mount)
-            .await
-            .expect("mount scan ok");
+        let mounts = devices_from_sweep(&mut cached, DeviceType::Mount, sweep).await;
         assert_eq!(mounts.len(), 1, "exactly one mount in the seeded sweep");
         assert_eq!(mounts[0].id, mount.id);
-
-        // A type with no matching device returns an empty list, not the whole
-        // sweep — filtering is correct.
-        let rotators = scan_alpaca_for_type(DeviceType::Rotator)
-            .await
-            .expect("rotator scan ok");
+        let rotators = devices_from_sweep(&mut cached, DeviceType::Rotator, sweep).await;
         assert!(rotators.is_empty(), "no rotator in the seeded sweep");
 
-        let after = ALPACA_SWEEP_BROADCAST_COUNT.load(Ordering::Relaxed);
-        assert_eq!(
-            before, after,
-            "all three type scans must be served from the single seeded sweep — zero broadcasts"
-        );
+        assert_eq!(broadcasts.load(Ordering::Relaxed), 0);
+        assert_eq!(cached.as_ref().map(|(_, d)| d.len()), Some(3));
+    }
 
-        // The sweep cache is still populated and still holds the full,
-        // canonical list (reused across all three calls).
-        let guard = alpaca_sweep_cache().lock().await;
-        let (_, devices) = guard.as_ref().expect("sweep cache populated");
-        assert_eq!(devices.len(), 3, "the full sweep list is unchanged");
+    /// A stale sweep is replaced by a new broadcast.
+    #[tokio::test]
+    async fn a_stale_alpaca_sweep_broadcasts_again() {
+        let old = make_device(
+            "alpaca:http://10.0.0.6:11111:Camera:0",
+            "Gone Camera",
+            DeviceType::Camera,
+            DriverType::Alpaca,
+        );
+        let new = make_device(
+            "alpaca:http://10.0.0.7:11111:Camera:0",
+            "New Camera",
+            DeviceType::Camera,
+            DriverType::Alpaca,
+        );
+        let mut cached: AlpacaSweep = Some((
+            Instant::now() - DISCOVERY_CACHE_TTL,
+            vec![(DeviceType::Camera, old)],
+        ));
+        let cameras = devices_from_sweep(&mut cached, DeviceType::Camera, || async {
+            vec![(DeviceType::Camera, new.clone())]
+        })
+        .await;
+        assert_eq!(
+            cameras.iter().map(|d| d.id.as_str()).collect::<Vec<_>>(),
+            [new.id.as_str()]
+        );
+    }
+
+    /// Rescan forgets the Alpaca sweep with every other discovery cache: an
+    /// Alpaca server started just before Rescan is found by it, not after the
+    /// sweep's TTL runs out.
+    #[tokio::test]
+    async fn invalidating_discovery_forgets_the_alpaca_sweep() {
+        let stale_id = "alpaca:http://10.0.0.8:11111:Camera:0";
+        *alpaca_sweep_cache().lock().await = Some((
+            Instant::now(),
+            vec![(
+                DeviceType::Camera,
+                make_device(
+                    stale_id,
+                    "Stale Camera",
+                    DeviceType::Camera,
+                    DriverType::Alpaca,
+                ),
+            )],
+        ));
+
+        crate::api::api_invalidate_discovery_cache().await;
+
+        let cached = alpaca_sweep_cache().lock().await;
+        let still_listed = cached
+            .as_ref()
+            .is_some_and(|(_, devices)| devices.iter().any(|(_, d)| d.id == stale_id));
+        assert!(
+            !still_listed,
+            "the sweep from before the rescan is still served"
+        );
     }
 
     /// Independent (device_type, driver) entries must NOT share storage. A

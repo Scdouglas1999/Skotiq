@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../services/end_of_night_calibration/eon_service.dart';
 
 /// The night a linked imaging host is running: its scheduled start, its
 /// end-of-night steps, its manual loop and its history.

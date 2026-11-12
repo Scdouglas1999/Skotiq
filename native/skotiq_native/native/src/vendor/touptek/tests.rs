@@ -81,9 +81,11 @@ fn touptek_temperature_result_propagates_sdk_error() {
 #[tokio::test]
 async fn touptek_get_cooler_power_reports_not_supported_instead_of_estimate() {
     let mut camera = TouptekCamera::new(0, "OGMA");
-    camera.connected = true;
-    camera.cooler_on = true;
-    camera.target_temp = -10.0;
+    camera.core.connected = true;
+    camera.core.update_cooler(|cooler| {
+        cooler.enabled = true;
+        cooler.target_c = -10.0;
+    });
 
     let err = camera.get_cooler_power().await.unwrap_err();
     assert!(matches!(err, DriverError::NotSupported));
@@ -208,7 +210,7 @@ fn touptek_no_sdk_loaded_error_names_each_attempted_brand() {
 #[tokio::test]
 async fn gain_range_reports_the_bounds_the_camera_gave() {
     let mut camera = TouptekCamera::new(0, "OGMA");
-    camera.connected = true;
+    camera.core.connected = true;
     camera.gain_range = Some((100, 10000));
 
     assert_eq!(camera.get_gain_range().await.unwrap(), (100, 10000));
@@ -219,7 +221,7 @@ async fn gain_range_reports_the_bounds_the_camera_gave() {
 #[tokio::test]
 async fn gain_range_without_an_sdk_report_is_an_error_not_a_default() {
     let mut camera = TouptekCamera::new(0, "OGMA");
-    camera.connected = true;
+    camera.core.connected = true;
     camera.gain_range = None;
 
     match camera.get_gain_range().await {
@@ -235,7 +237,7 @@ async fn gain_range_without_an_sdk_report_is_an_error_not_a_default() {
 #[tokio::test]
 async fn offset_range_reports_not_supported() {
     let mut camera = TouptekCamera::new(0, "OGMA");
-    camera.connected = true;
+    camera.core.connected = true;
 
     assert!(matches!(
         camera.get_offset_range().await,

@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../models/replay_decision.dart';
 
 /// The sequencer decision log of a linked imaging host and its logging settings.
 ///

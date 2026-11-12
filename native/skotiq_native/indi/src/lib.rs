@@ -49,6 +49,11 @@ macro_rules! indi_device {
                 &self.device_name
             }
 
+            /// The shared server connection this device is reached through.
+            pub fn client(&self) -> &std::sync::Arc<tokio::sync::RwLock<$crate::IndiClient>> {
+                &self.client
+            }
+
             /// Connects the device and returns once the driver confirms it.
             pub async fn connect(&self) -> $crate::IndiResult<()> {
                 self.client

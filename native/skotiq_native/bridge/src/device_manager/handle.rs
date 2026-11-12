@@ -5,27 +5,26 @@
 //! error. Which protocol answers is decided once, at connect.
 
 use crate::device::{DeviceType, DriverType};
+use crate::device_capabilities::DeviceCapabilities;
+use crate::device_manager::accessory::{self, Dome, Rotator, SafetyMonitor, Weather};
 use crate::device_manager::ops::sim_gate;
 use crate::device_manager::rig::filter_wheel::FilterWheel;
 use crate::device_manager::rig::focuser::Focuser;
 use crate::device_manager::rig::RigDriver;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::DeviceOpError;
-use skotiq_device::{
-    AccessoryDriver, CoverCalibratorDriver, DomeDriver, DriverError, RotatorDriver,
-    SafetyMonitorDriver, SwitchDriver, WeatherDriver,
-};
-use std::any::Any;
+use crate::error::SkotiqError;
+use skotiq_device::{AccessoryDriver, CoverCalibratorDriver, DriverError, SwitchDriver};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub(crate) enum DeviceHandle {
-    Dome(Arc<dyn DomeDriver>),
-    Rotator(Arc<dyn RotatorDriver>),
+    Dome(Arc<dyn Dome>),
+    Rotator(Arc<dyn Rotator>),
     Switch(Arc<dyn SwitchDriver>),
-    Weather(Arc<dyn WeatherDriver>),
-    SafetyMonitor(Arc<dyn SafetyMonitorDriver>),
+    Weather(Arc<dyn Weather>),
+    SafetyMonitor(Arc<dyn SafetyMonitor>),
     CoverCalibrator(Arc<dyn CoverCalibratorDriver>),
     FilterWheel(Arc<dyn FilterWheel>),
     Focuser(Arc<dyn Focuser>),
@@ -76,15 +75,36 @@ impl DeviceHandle {
         }
     }
 
-    /// The driver behind the handle as its concrete type, for the capability
-    /// probes that read what only one protocol's driver offers.
-    fn concrete<T: Any + Send + Sync>(self) -> Option<Arc<T>> {
-        let any: Arc<dyn Any + Send + Sync> = match self {
-            DeviceHandle::FilterWheel(d) => d,
-            DeviceHandle::Focuser(d) => d,
-            _ => return None,
-        };
-        any.downcast().ok()
+    /// What the device supports, and the live readings that share the
+    /// capability structs, as its driver reports them.
+    pub(crate) async fn capabilities(
+        &self,
+        device_id: &str,
+    ) -> Result<DeviceCapabilities, SkotiqError> {
+        Ok(match self {
+            DeviceHandle::Dome(d) => DeviceCapabilities::Dome(d.capabilities(device_id).await?),
+            DeviceHandle::Rotator(d) => {
+                DeviceCapabilities::Rotator(d.capabilities(device_id).await?)
+            }
+            DeviceHandle::Switch(d) => {
+                DeviceCapabilities::Switch(accessory::switch_capabilities(d.as_ref()).await)
+            }
+            DeviceHandle::Weather(d) => {
+                DeviceCapabilities::Weather(d.capabilities(device_id).await?)
+            }
+            DeviceHandle::SafetyMonitor(d) => {
+                DeviceCapabilities::SafetyMonitor(d.capabilities(device_id).await?)
+            }
+            DeviceHandle::CoverCalibrator(d) => DeviceCapabilities::CoverCalibrator(
+                accessory::cover_calibrator_capabilities(d.as_ref()).await,
+            ),
+            DeviceHandle::FilterWheel(d) => {
+                DeviceCapabilities::FilterWheel(d.capabilities(device_id).await?)
+            }
+            DeviceHandle::Focuser(d) => {
+                DeviceCapabilities::Focuser(d.capabilities(device_id).await?)
+            }
+        })
     }
 }
 
@@ -108,11 +128,6 @@ impl Handles {
             .write()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .insert(device_id.to_string(), handle)
-    }
-
-    /// The driver of `device_id` when it is connected through a `T`.
-    pub(crate) fn concrete<T: Any + Send + Sync>(&self, device_id: &str) -> Option<Arc<T>> {
-        self.get(device_id)?.concrete()
     }
 
     pub(crate) fn remove(&self, device_id: &str) -> Option<DeviceHandle> {
@@ -204,7 +219,12 @@ impl DeviceManager {
         .await
     }
 
-    pub(crate) async fn dome(&self, device_id: &str) -> Result<Arc<dyn DomeDriver>, DeviceOpError> {
+    /// The handle of a registered, connected device of a type that has one.
+    pub(crate) async fn handle(&self, device_id: &str) -> Result<DeviceHandle, DeviceOpError> {
+        self.connected(device_id, Some).await
+    }
+
+    pub(crate) async fn dome(&self, device_id: &str) -> Result<Arc<dyn Dome>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Dome(d) => Some(d),
             _ => None,
@@ -215,7 +235,7 @@ impl DeviceManager {
     pub(crate) async fn rotator(
         &self,
         device_id: &str,
-    ) -> Result<Arc<dyn RotatorDriver>, DeviceOpError> {
+    ) -> Result<Arc<dyn Rotator>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Rotator(d) => Some(d),
             _ => None,
@@ -237,7 +257,7 @@ impl DeviceManager {
     pub(crate) async fn weather(
         &self,
         device_id: &str,
-    ) -> Result<Arc<dyn WeatherDriver>, DeviceOpError> {
+    ) -> Result<Arc<dyn Weather>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::Weather(d) => Some(d),
             _ => None,
@@ -248,7 +268,7 @@ impl DeviceManager {
     pub(crate) async fn safety_monitor(
         &self,
         device_id: &str,
-    ) -> Result<Arc<dyn SafetyMonitorDriver>, DeviceOpError> {
+    ) -> Result<Arc<dyn SafetyMonitor>, DeviceOpError> {
         self.connected(device_id, |h| match h {
             DeviceHandle::SafetyMonitor(d) => Some(d),
             _ => None,

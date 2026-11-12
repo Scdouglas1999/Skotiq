@@ -9,6 +9,7 @@ enum AscomSafetyMonitorCommand {
     Connect(oneshot::Sender<Result<(), String>>),
     Disconnect(oneshot::Sender<Result<(), String>>),
     IsSafe(oneshot::Sender<Result<bool, String>>),
+    DriverInfo(oneshot::Sender<Result<String, String>>),
 }
 
 pub struct AscomSafetyMonitorWrapper {
@@ -56,6 +57,9 @@ impl AscomSafetyMonitorWrapper {
                     }
                     AscomSafetyMonitorCommand::IsSafe(reply) => {
                         let _ = reply.send(safety_monitor.is_safe().map_err(|e| e.to_string()));
+                    }
+                    AscomSafetyMonitorCommand::DriverInfo(reply) => {
+                        let _ = reply.send(safety_monitor.driver_info().map_err(|e| e.to_string()));
                     }
                 }
                 PumpOutcome::DidWork
@@ -117,5 +121,14 @@ impl AscomSafetyMonitorWrapper {
             .await
             .map_err(|error| format!("Send error: {}", error))?;
         Self::recv_with_timeout(rx, Timeouts::property_read(), "is_safe").await
+    }
+
+    pub async fn driver_info(&self) -> Result<String, String> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(AscomSafetyMonitorCommand::DriverInfo(tx))
+            .await
+            .map_err(|error| format!("Send error: {}", error))?;
+        Self::recv_with_timeout(rx, Timeouts::property_read(), "driver_info").await
     }
 }

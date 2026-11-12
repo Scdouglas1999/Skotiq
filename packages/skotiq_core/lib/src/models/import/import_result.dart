@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import '../../providers/sequence/sequence_validation.dart';
+import '../sequence/validation/validation_issue.dart';
 import '../sequence/sequence_models.dart';
 import 'canonical_sequence_node.dart';
 
