@@ -2,8 +2,6 @@
 
 #[doc(hidden)]
 pub use async_trait::async_trait;
-#[doc(hidden)]
-pub use skotiq_imaging::FrameTrail;
 
 /// Implement capability traits for a wrapper by forwarding every method,
 /// defaulted ones included, to one of its fields.
@@ -325,20 +323,8 @@ macro_rules! forward_device_ops {
                 async fn save_fits(&self, image_data: &$crate::device_ops::ImageData, file_path: &str, frame_ctx: &$crate::scheduling::FrameContext) -> $crate::device_ops::DeviceResult<()> {
                     self.$field.save_fits(image_data, file_path, frame_ctx).await
                 }
-                async fn calculate_image_hfr(&self, image_data: &$crate::device_ops::ImageData) -> $crate::device_ops::DeviceResult<Option<f64>> {
-                    self.$field.calculate_image_hfr(image_data).await
-                }
-                async fn detect_stars_in_image(&self, image_data: &$crate::device_ops::ImageData) -> $crate::device_ops::DeviceResult<Vec<(f64, f64, f64)>> {
-                    self.$field.detect_stars_in_image(image_data).await
-                }
-                async fn measure_frame_eccentricity(&self, image_data: &$crate::device_ops::ImageData) -> $crate::device_ops::DeviceResult<Option<f64>> {
-                    self.$field.measure_frame_eccentricity(image_data).await
-                }
-                async fn measure_frame_trail(&self, image_data: &$crate::device_ops::ImageData) -> $crate::device_ops::DeviceResult<Option<$crate::device_ops::forward::FrameTrail>> {
-                    self.$field.measure_frame_trail(image_data).await
-                }
-                async fn measure_frame_star_shape(&self, image_data: &$crate::device_ops::ImageData) -> $crate::device_ops::DeviceResult<Option<$crate::device_ops::FrameStarShape>> {
-                    self.$field.measure_frame_star_shape(image_data).await
+                async fn measure_light_frame(&self, image_data: &$crate::device_ops::ImageData) -> $crate::device_ops::DeviceResult<$crate::device_ops::LightFrameMeasurement> {
+                    self.$field.measure_light_frame(image_data).await
                 }
             }
         };
