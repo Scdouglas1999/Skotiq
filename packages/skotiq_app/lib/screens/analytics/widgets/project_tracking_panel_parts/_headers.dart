@@ -14,7 +14,7 @@ class _CleanupHeaderRow extends ConsumerWidget {
     WidgetRef ref,
     int count,
   ) async {
-    final authority = ref.read(backendProvider);
+    final host = ref.backendScope();
     final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -49,7 +49,7 @@ class _CleanupHeaderRow extends ConsumerWidget {
 
     if (confirmed != true) return;
     if (!context.mounted) return;
-    if (!identical(ref.read(backendProvider), authority)) {
+    if (host.isStale) {
       ref.invalidate(untrackedTargetsCountProvider);
       context.showWarningSnackBar(
         'Imaging host changed. Cleanup was canceled.',
@@ -58,14 +58,11 @@ class _CleanupHeaderRow extends ConsumerWidget {
     }
 
     try {
-      final hostRecords = authority.remoteHost?.imagingRecords;
+      final hostRecords = host.value.remoteHost?.imagingRecords;
       final deleted = hostRecords != null
           ? await hostRecords.removeUntrackedTargets()
           : await ref.read(targetsDaoProvider).deleteUntrackedTargets();
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
+      if (!context.mounted || host.isStale) return;
       ref.invalidate(allDbTargetsProvider);
       ref.invalidate(favoriteDbTargetsProvider);
       ref.invalidate(untrackedTargetsCountProvider);
@@ -73,10 +70,7 @@ class _CleanupHeaderRow extends ConsumerWidget {
         'Removed $deleted untracked target${deleted == 1 ? '' : 's'}',
       );
     } catch (e) {
-      if (!context.mounted ||
-          !identical(ref.read(backendProvider), authority)) {
-        return;
-      }
+      if (!context.mounted || host.isStale) return;
       context.showErrorSnackBar(
           'Failed to remove untracked targets: ${userFacingError(e)}');
     }
