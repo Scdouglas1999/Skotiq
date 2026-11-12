@@ -14,6 +14,7 @@ import 'backend_provider.dart';
 import '../backend/remote_host.dart';
 import '../backend/roles/host_data/host_records.dart';
 import 'database_provider.dart';
+import 'sequence/run_record.dart';
 import 'sequence/run_stop_classification.dart';
 
 /// Statistics collected during a sequence execution run.
@@ -462,12 +463,10 @@ final sessionDiagnosticsDaoProvider = Provider<SessionDiagnosticsDao>((ref) {
 
 /// Live stats tracker for the currently running sequence.
 /// Null when no sequence is running.
-final liveSequenceStatsProvider = StateProvider<SequenceRunStats?>(
-  (ref) => null,
-);
+final liveSequenceStatsProvider = runRecordProvider.select((run) => run.stats);
 
 /// The database row ID of the current run (for updating on completion).
-final currentRunIdProvider = StateProvider<int?>((ref) => null);
+final currentRunIdProvider = runRecordProvider.select((run) => run.runId);
 
 /// Immutable, one-shot result of a fully-finalized sequence run.
 ///
@@ -515,28 +514,19 @@ class SequenceTerminalRunResult {
   final int? dbSessionId;
 }
 
-/// The most recent fully-finalized run result, or null before any run has
-/// terminated this session. Published exactly once per terminal run by the
-/// executor; the sequencer screen reacts to it to open the Session Report with
-/// the correct, immutable run/session ids.
-final sequenceTerminalRunResultProvider =
-    StateProvider<SequenceTerminalRunResult?>((ref) => null);
-
-/// The imaging host's last terminal run result, on a linked client; null on
-/// the host and before the host has reported one. Kept apart from
-/// [sequenceTerminalRunResultProvider] because a change of that one opens the
-/// Session Report and starts end-of-night work, which a client joining after
-/// the run must not do.
-final hostTerminalRunResultProvider = StateProvider<SequenceTerminalRunResult?>(
-  (ref) => null,
+/// The result of the last run this app finalized, or null before any run has
+/// terminated this session and on a linked client. Published exactly once per
+/// terminal run by the executor; a change opens the Session Report and starts
+/// end-of-night work, which a client joining after the host's run must not do,
+/// so the host's result is not shown here (see [shownTerminalRunResultProvider]).
+final sequenceTerminalRunResultProvider = runRecordProvider.select(
+  (run) => run.terminalFromHost ? null : run.terminal,
 );
 
 /// The last terminal run result the screens describe: this app's own run, or
 /// on a linked client the host's.
-final shownTerminalRunResultProvider = Provider<SequenceTerminalRunResult?>(
-  (ref) =>
-      ref.watch(sequenceTerminalRunResultProvider) ??
-      ref.watch(hostTerminalRunResultProvider),
+final shownTerminalRunResultProvider = runRecordProvider.select(
+  (run) => run.terminal,
 );
 
 /// The last imaging run, retained when automatic calibration replaces the live
@@ -547,8 +537,8 @@ class CompletedImagingRun {
   final SequenceRunStats? stats;
 }
 
-final completedImagingRunProvider = StateProvider<CompletedImagingRun?>(
-  (ref) => null,
+final completedImagingRunProvider = runRecordProvider.select(
+  (run) => run.completedImagingRun,
 );
 
 /// The recorded sequence runs of whichever machine is the imaging host.

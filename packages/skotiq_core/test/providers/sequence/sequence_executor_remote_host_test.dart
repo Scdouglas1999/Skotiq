@@ -147,8 +147,9 @@ void main() {
     when(
       () => host.sequencerGetStatus(),
     ).thenAnswer((_) async => _status('idle'));
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.running;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
 
     await container
         .read(sequenceExecutorProvider)

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -27,7 +26,6 @@ class PendingSessionReportsCard extends ConsumerWidget {
     final pending = ref.watch(pendingSessionReportsProvider);
     if (pending.isEmpty) return const SizedBox.shrink();
 
-    final time = DateFormat.Hm();
     // Newest first: the last run of the night is the one being asked about.
     final ordered = pending.reversed.toList();
 
@@ -84,7 +82,7 @@ class PendingSessionReportsCard extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Finished ${time.format(report.endedAt)}',
+                      'Finished ${ClockFormat.hm(report.endedAt.toLocal())}',
                       style: TextStyle(
                         fontSize: SkotiqTypography.fontSize13,
                         color: colors.textPrimary,

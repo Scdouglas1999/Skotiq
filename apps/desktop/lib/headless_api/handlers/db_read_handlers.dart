@@ -194,7 +194,7 @@ class DbReadHandlers implements RouteSource {
     _logInfo('[API] POST /api/notes-journal');
     final payload = await readJsonObject(request);
     final timestampRaw = requireString(payload, 'timestamp');
-    final timestamp = DateTime.tryParse(timestampRaw);
+    final timestamp = tryParseWireTime(timestampRaw);
     if (timestamp == null) {
       throw BadRequestError(
         field: 'timestamp',
@@ -508,7 +508,7 @@ class DbReadHandlers implements RouteSource {
       'height': row.height,
       'masterDarkPath': row.masterDarkPath,
       'masterFrameCount': row.masterFrameCount,
-      'createdAt': row.createdAt.toIso8601String(),
+      'createdAt': row.createdAt.toWireTime(),
     };
   }
 
@@ -556,7 +556,7 @@ class DbReadHandlers implements RouteSource {
       'twilightPhase': row.twilightPhase,
       'gain': row.gain,
       'binning': row.binning,
-      'timestamp': row.timestamp.toIso8601String(),
+      'timestamp': row.timestamp.toWireTime(),
     };
   }
 

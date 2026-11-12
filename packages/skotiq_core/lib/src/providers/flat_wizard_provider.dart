@@ -87,10 +87,6 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   @visibleForTesting
   void Function(Object error)? debugRemoteFaultSink;
 
-  /// Settings key the persisted global-settings JSON blob lives under (the six
-  /// user-facing fields — save path, targets, frame count, subfolder toggles).
-  static const String _globalSettingsKey = 'flat_wizard_global_settings';
-
   /// Bumped on every user settings edit. The async hydrate captures this before
   /// its DB read and re-checks it afterward; a hydrate that resolves AFTER the
   /// user (or a run) has already touched the settings is discarded so it cannot

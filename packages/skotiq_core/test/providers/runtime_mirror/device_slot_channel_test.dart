@@ -1,6 +1,8 @@
 // A linked client shows the host's devices as the host's own window does:
 // which device each slot holds, its connection state, and its readings.
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
@@ -16,6 +18,14 @@ void _connect(
 ) {
   notifier.setConnecting(deviceId, deviceName);
   notifier.setConnected();
+}
+
+/// What a client's own connect needs from its link to the host.
+void _clientConnects(MockLinkBackend backend) {
+  when(
+    () => backend.polarAlignmentEvents,
+  ).thenAnswer((_) => const Stream.empty());
+  when(() => backend.getConnectedDevices()).thenAnswer((_) async => const []);
 }
 
 void main() {
@@ -256,6 +266,154 @@ void main() {
     final camera = client.container.read(cameraStateProvider);
     expect(camera.lastSuccessfulCommunication!.isAfter(first), isTrue);
     expect(camera.isHealthy, isTrue);
+  });
+
+  group('what the client does with a slot it did not get from the host', () {
+    // A linked client's Disconnect all let go of the guide camera first; the
+    // host's notice of that emptied the client's camera slot, so the client
+    // never asked for the imaging camera and the host kept it connected.
+    test('the host letting go of the guide camera leaves the imaging camera '
+        'in its slot', () async {
+      final host = mirrorHost();
+      final camera = host.container.read(cameraStateProvider.notifier);
+      _connect(camera, 'sim_camera_1', 'Simulated Camera');
+      await settle(_slotInterval);
+      final client = mirrorClient(host.container);
+      await hydrateHostRuntimeState(client.container, client.backend);
+
+      // The host's own window applies the guider releasing its camera; the
+      // camera slot is not the guide camera's.
+      await applyRemoteSyncEvent(
+        host.container,
+        buildHostMutationEvent(
+          entityType: HostMutationEntity.equipment,
+          action: HostMutationAction.disconnected,
+          entityId: 'sim_camera_2',
+          extra: {'deviceType': 'camera', 'deviceId': 'sim_camera_2'},
+        ),
+      );
+      await settle(_slotInterval);
+      await hydrateHostRuntimeState(client.container, client.backend);
+
+      final shown = client.container.read(cameraStateProvider);
+      expect(shown.deviceId, 'sim_camera_1');
+      expect(shown.connectionState, DeviceConnectionState.connected);
+
+      camera.setDisconnected();
+      await settle(_slotInterval);
+      await hydrateHostRuntimeState(client.container, client.backend);
+      expect(
+        client.container.read(cameraStateProvider).connectionState,
+        DeviceConnectionState.disconnected,
+      );
+    });
+
+    test('a slot showing a failed connect keeps showing it through the '
+        'host\'s Disconnected and its empty slot', () async {
+      final host = mirrorHost();
+      final client = mirrorClient(host.container);
+      client.container.read(focuserStateProvider.notifier)
+        ..setConnecting('sim_focuser_1', 'Simulated Focuser')
+        ..connectFailed(StateError('unplugged'));
+
+      await applyRemoteSyncEvent(
+        client.container,
+        const SkotiqEvent(
+          timestamp: 1,
+          severity: EventSeverity.info,
+          category: EventCategory.equipment,
+          eventType: 'Disconnected',
+          data: {'device_type': 'focuser', 'device_id': 'sim_focuser_1'},
+        ),
+        networkBackend: client.backend,
+      );
+      await hydrateHostRuntimeState(client.container, client.backend);
+
+      final slot = client.container.read(focuserStateProvider);
+      expect(slot.connectionState, DeviceConnectionState.error);
+      expect(slot.retryDeviceId, 'sim_focuser_1');
+    });
+
+    // The host's refusal can reach a client ahead of the host's value from
+    // while the connect ran; that value put the failed slot back to
+    // connecting, where nothing ended it.
+    test('a host value from before the refusal of this client\'s connect '
+        'leaves the slot failed', () async {
+      final client = mirrorClient(
+        null,
+        snapshot: () => const [
+          HostRuntimeUpdate(
+            channel: 'device.focuser',
+            revision: 5,
+            value: {
+              'state': 'connecting',
+              'deviceId': 'sim_focuser_1',
+              'deviceName': 'Simulated Focuser',
+            },
+          ),
+        ],
+      );
+      _clientConnects(client.backend);
+      when(
+        () => client.backend.connectDevice(DeviceType.focuser, 'sim_focuser_1'),
+      ).thenThrow(StateError('unplugged'));
+      await expectLater(
+        client.container
+            .read(deviceServiceProvider)
+            .connect(DeviceType.focuser, 'sim_focuser_1'),
+        throwsA(isA<StateError>()),
+      );
+
+      await hydrateHostRuntimeState(client.container, client.backend);
+
+      final slot = client.container.read(focuserStateProvider);
+      expect(slot.connectionState, DeviceConnectionState.error);
+      expect(slot.retryDeviceId, 'sim_focuser_1');
+    });
+
+    test('a connect this client asked for and still in flight is not undone '
+        'by a host that does not show the device yet', () async {
+      final host = mirrorHost();
+      final client = mirrorClient(host.container);
+      _clientConnects(client.backend);
+      final hostAnswers = Completer<void>();
+      when(
+        () => client.backend.connectDevice(DeviceType.focuser, 'sim_focuser_1'),
+      ).thenAnswer((_) => hostAnswers.future);
+      final connecting = client.container
+          .read(focuserStateProvider.notifier)
+          .connect('sim_focuser_1', deviceName: 'Simulated Focuser');
+      await settle();
+      expect(
+        client.container.read(focuserStateProvider).connectionState,
+        DeviceConnectionState.connecting,
+      );
+
+      await hydrateHostRuntimeState(client.container, client.backend);
+      await mirrorDevicesOfOlderHost(
+        client.container,
+        client.backend,
+        isCurrent: () => true,
+      );
+
+      final slot = client.container.read(focuserStateProvider);
+      expect(slot.connectionState, DeviceConnectionState.connecting);
+      expect(slot.deviceId, 'sim_focuser_1');
+      hostAnswers.completeError(StateError('gave up'));
+      await connecting;
+    });
+
+    test('a slot holding no device is never touched', () async {
+      final host = mirrorHost();
+      final client = mirrorClient(host.container);
+      var changes = 0;
+      for (final slot in deviceSlots) {
+        client.container.listen(slot.state, (_, _) => changes++);
+      }
+      await hydrateHostRuntimeState(client.container, client.backend);
+      await hydrateHostRuntimeState(client.container, client.backend);
+      expect(changes, 0);
+    });
   });
 
   group('a host older than the device channels', () {

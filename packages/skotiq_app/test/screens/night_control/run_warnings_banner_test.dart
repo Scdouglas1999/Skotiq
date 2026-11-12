@@ -34,7 +34,9 @@ Future<ProviderContainer> _pump(
   double width = 1316,
 }) async {
   final container = ProviderContainer(
-    overrides: [liveSequenceStatsProvider.overrideWith((ref) => stats)],
+    overrides: [runRecordProvider.overrideWith(
+      (ref) => RunRecordNotifier(ref, RunRecord(stats: stats)),
+)],
   );
   addTearDown(container.dispose);
   tester.view.physicalSize = Size(width, 600);
@@ -86,14 +88,12 @@ void main() {
     await tester.pump();
     expect(find.textContaining('run warning'), findsNothing);
 
-    container.read(liveSequenceStatsProvider.notifier).state =
-        _stats(const [_center, _limit]);
+    container.read(runRecordProvider.notifier).setStats(_stats(const [_center, _limit]));
     await tester.pump();
     expect(find.textContaining('run warning'), findsNothing,
         reason: 'the same warnings again stay hidden');
 
-    container.read(liveSequenceStatsProvider.notifier).state =
-        _stats(const [_center, _limit, _early]);
+    container.read(runRecordProvider.notifier).setStats(_stats(const [_center, _limit, _early]));
     await tester.pump();
     expect(find.text('3 run warnings'), findsOneWidget);
     expect(find.text(_early), findsOneWidget);

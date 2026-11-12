@@ -15,6 +15,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
         TailnetDetector,
         buildSkotiqServerUri,
         kDefaultHeadlessPort;
+import 'package:skotiq_remote_protocol/wire.dart' show WireTime, tryParseWireTime;
 import 'package:path/path.dart' as p;
 import '../models/settings/app_settings.dart' as models;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -388,6 +389,12 @@ abstract class _NetworkBackendTransport {
   /// Cleared when the token is swapped or an explicit reconnect is
   /// requested.
   bool get isAuthTokenRejected => _authRejected;
+
+  /// What the host's `/api/info` said about itself at the last handshake:
+  /// every client has to present a pairing credential. Null before the first
+  /// handshake and for a host that does not say.
+  bool? get hostRequiresPairing => _hostRequiresPairing;
+  bool? _hostRequiresPairing;
 
   /// Stream of WebSocket ping/pong round-trip times. Emits a [Duration]
   /// every time the server's pong is received after we send a ping.

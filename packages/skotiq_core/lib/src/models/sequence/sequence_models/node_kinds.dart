@@ -907,16 +907,6 @@ final _stackBroadcast = NodeField<LiveStackingNode, bool>(
   (n) => n.broadcastEnabled,
   FieldCodec.flag,
 );
-final _stackPort = NodeField<LiveStackingNode, int>(
-  'broadcastPort',
-  (n) => n.broadcastPort,
-  FieldCodec.integer,
-);
-final _stackPath = NodeField<LiveStackingNode, String>(
-  'broadcastPath',
-  (n) => n.broadcastPath,
-  FieldCodec.text,
-);
 final _stackToken = NodeField<LiveStackingNode, String?>(
   'authToken',
   (n) => n.authToken,
@@ -2005,8 +1995,6 @@ abstract final class NodeKinds {
       _stackMethod,
       _stackMaxFrames,
       _stackBroadcast,
-      _stackPort,
-      _stackPath,
       _stackToken,
       _stackWatermark,
       _stackThumbWidth,
@@ -2017,8 +2005,6 @@ abstract final class NodeKinds {
       stackMethod: v(_stackMethod),
       maxFramesToStack: v(_stackMaxFrames),
       broadcastEnabled: v(_stackBroadcast),
-      broadcastPort: v(_stackPort),
-      broadcastPath: v(_stackPath),
       authToken: v(_stackToken),
       watermarkText: v(_stackWatermark),
       thumbnailWidth: v(_stackThumbWidth),
@@ -2031,7 +2017,6 @@ abstract final class NodeKinds {
     diff: [
       NodeDiffLine.of(_stackMode, 'Mode', (v) => v.label),
       NodeDiffLine.of(_stackMethod, 'Stack method', (v) => v.label),
-      NodeDiffLine.of(_stackPort, 'Broadcast port'),
       NodeDiffLine.of(_stackBroadcast, 'Broadcast enabled'),
       NodeDiffLine.summary('Public access', (n) => '${n.isPublic}'),
       NodeDiffLine.of(_stackWatermark, 'Watermark', _orNone),

@@ -5,6 +5,8 @@
 /// wrong type throws.
 library;
 
+import '../wire_time.dart';
+
 /// Wire form of a row in the `dark_library` Drift table, plus an
 /// on-disk presence check the server performs at list time.
 class RemoteDarkLibraryEntry {
@@ -114,7 +116,7 @@ class RemoteDarkLibraryEntry {
     'height': height,
     'masterPath': masterPath,
     'frameCount': frameCount,
-    'createdAt': createdAt.toUtc().toIso8601String(),
+    'createdAt': createdAt.toWireTime(),
     'fileSize': fileSize,
     'fileExists': fileExists,
   };
@@ -179,7 +181,7 @@ class RemoteFlatHistoryEntry {
     'skyAduRate': skyAduRate,
     'twilightPhase': twilightPhase,
     'equipmentProfileId': equipmentProfileId,
-    'createdAt': createdAt.toUtc().toIso8601String(),
+    'createdAt': createdAt.toWireTime(),
   };
 }
 
@@ -276,7 +278,7 @@ class RemoteDefectMap {
     'height': height,
     'temperatureBucketDecicelsius': temperatureBucketDecicelsius,
     'defectivePixelCount': defectivePixelCount,
-    'lastRebuiltAt': lastRebuiltAt.toUtc().toIso8601String(),
+    'lastRebuiltAt': lastRebuiltAt.toWireTime(),
     'sourceFilePath': sourceFilePath,
     'fileSize': fileSize,
     'fileExists': fileExists,
@@ -332,7 +334,7 @@ class DarkUploadMetadata {
 
 DateTime? _parseDate(Object? raw) {
   if (raw == null) return null;
-  if (raw is String) return DateTime.tryParse(raw);
+  if (raw is String) return tryParseWireTime(raw);
   if (raw is num) return DateTime.fromMillisecondsSinceEpoch(raw.toInt());
   return null;
 }

@@ -1,5 +1,7 @@
 part of '../scheduler_provider.dart';
 
+const int _diskWarningBytes = 8 * 1024 * 1024 * 1024;
+
 /// Host-authoritative state consumed by the scheduler tab on a remote client.
 /// Readiness is computed on the scheduler host and sent to remote clients.
 /// Scheduler sequences center each target, so a usable plate solver is required.
@@ -129,20 +131,24 @@ final schedulerStartReadinessProvider = Provider<SchedulerStartReadiness>((
         );
       } else if (snapshot.freeBytes < kSafetyMarginBytes) {
         issues.add(
-          const SchedulerReadinessIssue(
+          SchedulerReadinessIssue(
             id: SchedulerReadinessIssueId.disk,
             severity: SchedulerReadinessSeverity.blocker,
             title: 'Disk space',
-            detail: 'Less than 2 GB remains on the capture volume.',
+            detail:
+                'Less than ${ByteFormat.size(kSafetyMarginBytes)} remains on '
+                'the capture volume.',
           ),
         );
-      } else if (snapshot.freeBytes < 8 * 1024 * 1024 * 1024) {
+      } else if (snapshot.freeBytes < _diskWarningBytes) {
         issues.add(
-          const SchedulerReadinessIssue(
+          SchedulerReadinessIssue(
             id: SchedulerReadinessIssueId.disk,
             severity: SchedulerReadinessSeverity.warning,
             title: 'Disk space',
-            detail: 'Less than 8 GB remains on the capture volume.',
+            detail:
+                'Less than ${ByteFormat.size(_diskWarningBytes)} remains on '
+                'the capture volume.',
           ),
         );
       }

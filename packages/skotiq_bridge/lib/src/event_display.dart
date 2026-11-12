@@ -33,12 +33,6 @@ String skotiqEventDisplayTitle(SkotiqEvent event) {
     case EventPayload_Guiding(field0: final v):
       return _guidingTitle(v);
     case EventPayload_Sequencer(field0: final v):
-      // The executor's advisories ride the error payload at warning severity;
-      // they are notices about the run, not errors in it.
-      if (v is SequencerEvent_Error &&
-          event.severity == EventSeverity.warning) {
-        return 'Sequencer notice';
-      }
       return _sequencerTitle(v);
     case EventPayload_Safety(field0: final v):
       return _safetyTitle(v);
@@ -121,18 +115,17 @@ bool isCriticalEvent(SkotiqEvent event) {
       _ => false,
     },
     EventPayload_Sequencer(field0: final v) => switch (v) {
-      // `SequencerEvent.Error` is the one payload that carries TWO severities
-      // by design: the executor has no separate warning payload, so
-      // `ExecutorEvent::Warning` rides this variant at
-      // `EventSeverity.warning` (see the bridge's sequencer event mapping).
-      // Escalating on the payload type alone gave a non-fatal preflight
-      // advisory a red "Critical - Sequencer" toast, a persistent Run
-      // Dashboard banner and an audible alert, on a run that went on to
-      // finish 3/3. The allow-list is documented as error-severity events;
-      // this is that rule, written down.
-      SequencerEvent_Error() =>
-        event.severity == EventSeverity.error ||
-            event.severity == EventSeverity.critical,
+      // A note or a problem the run carried on through is never a critical
+      // alert: escalating on the payload type alone gave a non-fatal
+      // preflight advisory a red "Critical - Sequencer" toast, a persistent
+      // Run Dashboard banner and an audible alert, on a run that went on to
+      // finish 3/3. The severity is checked as well because the one-shot
+      // operations publish their progress on this payload at info.
+      SequencerEvent_Error(kind: final kind) =>
+        kind != SequencerErrorKind.advisory &&
+            kind != SequencerErrorKind.stepProblem &&
+            (event.severity == EventSeverity.error ||
+                event.severity == EventSeverity.critical),
       // A terminal run failure escalates like any other error; off this
       // allow-list it would be downgraded to a scrolling feed row.
       SequencerEvent_Failed() => true,
@@ -424,7 +417,14 @@ String _sequencerTitle(SequencerEvent v) {
     SequencerEvent_TargetCompleted() => 'Target complete',
     SequencerEvent_ExposureStarted() => 'Exposure started',
     SequencerEvent_ExposureCompleted() => 'Exposure complete',
-    SequencerEvent_Error() => 'Sequencer error',
+    // One payload, several meanings; the host says which.
+    SequencerEvent_Error(kind: final kind) => switch (kind) {
+      SequencerErrorKind.advisory => 'Sequencer notice',
+      SequencerErrorKind.stepProblem => 'Step problem, run continues',
+      SequencerErrorKind.runHeld => 'Run paused',
+      SequencerErrorKind.stepFailed => 'Sequencer error',
+      SequencerErrorKind.standalone => 'Operation error',
+    },
     SequencerEvent_MeridianFlipOutcome(outcome: final o) => switch (o) {
       // Sent when the mount reaches its new side; the verdict follows.
       'pier_changed' => 'Meridian flip: mount on the new pier side',

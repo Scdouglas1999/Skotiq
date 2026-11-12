@@ -173,8 +173,9 @@ void main() {
         overrides: [inMemoryDatabaseOverride()],
       );
       addTearDown(container.dispose);
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       expect(container.read(currentSequenceProvider), isNull);
 
       final fileService = container.read(sequenceFileServiceProvider);

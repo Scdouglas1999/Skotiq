@@ -281,6 +281,48 @@ void main() {
       expect(rollup.isComplete, isTrue);
     });
 
+    test('two goals in one filter share its time across their rows', () async {
+      final targetId = await createTarget('Soul');
+      final sId = await insertSession(
+        targetId: targetId,
+        name: 'Night',
+        startTime: DateTime.utc(2026, 3, 1, 22),
+        endTime: DateTime.utc(2026, 3, 2, 2),
+        successfulExposures: 15,
+        totalIntegrationSecs: 4500,
+      );
+      for (var i = 0; i < 15; i++) {
+        await insertLight(
+          sessionId: sId,
+          targetId: targetId,
+          filter: 'Ha',
+          exposure: 300,
+        );
+      }
+      for (final exposure in [300.0, 600.0]) {
+        await goalService.upsert(
+          IntegrationGoal(
+            targetId: targetId,
+            filter: 'Ha',
+            exposureSeconds: exposure,
+            frameCount: 10,
+            createdAt: DateTime.utc(2026, 2, 1),
+          ),
+        );
+      }
+
+      final rollup = await service.buildForTarget(targetId);
+      final rows = rollup.filters;
+      expect(rows, hasLength(2));
+      expect(
+        rows.map((r) => r.capturedIntegrationSecs),
+        unorderedEquals([3000.0, 1500.0]),
+      );
+      expect(rows.fold(0, (sum, r) => sum + r.capturedFrames), 15);
+      expect(rollup.totalCapturedIntegrationSecs, 4500);
+      expect(rollup.goalDoneSecs, 4500);
+    });
+
     test('throws StateError for unknown target id', () async {
       await expectLater(
         service.buildForTarget(99999),

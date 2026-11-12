@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1336701731;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -671445970;
 
 // Section: executor
 
@@ -4055,6 +4055,24 @@ fn wire__crate__api__devices__simulation__mount__api_mount_unpark_impl(
                     .await,
                 )
             }
+        },
+    )
+}
+fn wire__crate__api__heartbeat__api_native_reconnected_device_types_impl(
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_native_reconnected_device_types",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            transform_result_dco::<_, _, ()>((move || {
+                let output_ok = Result::<_, ()>::Ok(
+                    crate::api::heartbeat::api_native_reconnected_device_types(),
+                )?;
+                Ok(output_ok)
+            })())
         },
     )
 }
@@ -8561,6 +8579,19 @@ impl CstDecode<crate::device::PierSide> for i32 {
         }
     }
 }
+impl CstDecode<crate::event::sequencer::SequencerErrorKind> for i32 {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> crate::event::sequencer::SequencerErrorKind {
+        match self {
+            0 => crate::event::sequencer::SequencerErrorKind::Advisory,
+            1 => crate::event::sequencer::SequencerErrorKind::StepProblem,
+            2 => crate::event::sequencer::SequencerErrorKind::RunHeld,
+            3 => crate::event::sequencer::SequencerErrorKind::StepFailed,
+            4 => crate::event::sequencer::SequencerErrorKind::Standalone,
+            _ => unreachable!("Invalid variant for SequencerErrorKind: {}", self),
+        }
+    }
+}
 impl CstDecode<crate::device::ShutterState> for i32 {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> crate::device::ShutterState {
@@ -9061,6 +9092,9 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingStats {
         let mut var_avgMatchedPairs = <f64>::sse_decode(deserializer);
         let mut var_avgAlignmentResidual = <f64>::sse_decode(deserializer);
         let mut var_totalSigmaRejectedPixels = <u64>::sse_decode(deserializer);
+        let mut var_otherFilterFrames = <u32>::sse_decode(deserializer);
+        let mut var_lastOtherFilter = <Option<String>>::sse_decode(deserializer);
+        let mut var_filter = <Option<String>>::sse_decode(deserializer);
         return crate::api::imaging::ApiLiveStackingStats {
             stacked_frame_count: var_stackedFrameCount,
             total_frames_attempted: var_totalFramesAttempted,
@@ -9068,6 +9102,9 @@ impl SseDecode for crate::api::imaging::ApiLiveStackingStats {
             avg_matched_pairs: var_avgMatchedPairs,
             avg_alignment_residual: var_avgAlignmentResidual,
             total_sigma_rejected_pixels: var_totalSigmaRejectedPixels,
+            other_filter_frames: var_otherFilterFrames,
+            last_other_filter: var_lastOtherFilter,
+            filter: var_filter,
         };
     }
 }
@@ -10953,6 +10990,18 @@ impl SseDecode for Vec<crate::device::DeviceInfo> {
     }
 }
 
+impl SseDecode for Vec<crate::device::DeviceType> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<crate::device::DeviceType>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::state::EquipmentProfile> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -11214,8 +11263,6 @@ impl SseDecode for crate::api::sequencer::mosaic::LiveStackingBroadcastSnapshot 
         let mut var_mode = <String>::sse_decode(deserializer);
         let mut var_stackMethod = <String>::sse_decode(deserializer);
         let mut var_broadcastEnabled = <bool>::sse_decode(deserializer);
-        let mut var_broadcastPort = <u16>::sse_decode(deserializer);
-        let mut var_broadcastPath = <String>::sse_decode(deserializer);
         let mut var_authToken = <String>::sse_decode(deserializer);
         let mut var_watermarkTemplate = <String>::sse_decode(deserializer);
         let mut var_thumbnailWidth = <u32>::sse_decode(deserializer);
@@ -11227,8 +11274,6 @@ impl SseDecode for crate::api::sequencer::mosaic::LiveStackingBroadcastSnapshot 
             mode: var_mode,
             stack_method: var_stackMethod,
             broadcast_enabled: var_broadcastEnabled,
-            broadcast_port: var_broadcastPort,
-            broadcast_path: var_broadcastPath,
             auth_token: var_authToken,
             watermark_template: var_watermarkTemplate,
             thumbnail_width: var_thumbnailWidth,
@@ -12530,6 +12575,21 @@ impl SseDecode for crate::api::secondary_rig::SecondaryRigStatusApi {
     }
 }
 
+impl SseDecode for crate::event::sequencer::SequencerErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::event::sequencer::SequencerErrorKind::Advisory,
+            1 => crate::event::sequencer::SequencerErrorKind::StepProblem,
+            2 => crate::event::sequencer::SequencerErrorKind::RunHeld,
+            3 => crate::event::sequencer::SequencerErrorKind::StepFailed,
+            4 => crate::event::sequencer::SequencerErrorKind::Standalone,
+            _ => unreachable!("Invalid variant for SequencerErrorKind: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::event::sequencer::SequencerEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12624,8 +12684,11 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
             }
             13 => {
                 let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_kind =
+                    <crate::event::sequencer::SequencerErrorKind>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerEvent::Error {
                     message: var_message,
+                    kind: var_kind,
                 };
             }
             14 => {
@@ -14203,6 +14266,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::ApiLiveStackingStats
             self.total_sigma_rejected_pixels
                 .into_into_dart()
                 .into_dart(),
+            self.other_filter_frames.into_into_dart().into_dart(),
+            self.last_other_filter.into_into_dart().into_dart(),
+            self.filter.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -16003,8 +16069,6 @@ impl flutter_rust_bridge::IntoDart
             self.mode.into_into_dart().into_dart(),
             self.stack_method.into_into_dart().into_dart(),
             self.broadcast_enabled.into_into_dart().into_dart(),
-            self.broadcast_port.into_into_dart().into_dart(),
-            self.broadcast_path.into_into_dart().into_dart(),
             self.auth_token.into_into_dart().into_dart(),
             self.watermark_template.into_into_dart().into_dart(),
             self.thumbnail_width.into_into_dart().into_dart(),
@@ -16986,6 +17050,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::secondary_rig::SecondaryRigSt
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerErrorKind {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Advisory => 0.into_dart(),
+            Self::StepProblem => 1.into_dart(),
+            Self::RunHeld => 2.into_dart(),
+            Self::StepFailed => 3.into_dart(),
+            Self::Standalone => 4.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::event::sequencer::SequencerErrorKind
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerErrorKind>
+    for crate::event::sequencer::SequencerErrorKind
+{
+    fn into_into_dart(self) -> crate::event::sequencer::SequencerErrorKind {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -17057,9 +17145,12 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
                 duration_secs.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::event::sequencer::SequencerEvent::Error { message } => {
-                [13.into_dart(), message.into_into_dart().into_dart()].into_dart()
-            }
+            crate::event::sequencer::SequencerEvent::Error { message, kind } => [
+                13.into_dart(),
+                message.into_into_dart().into_dart(),
+                kind.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::event::sequencer::SequencerEvent::MeridianFlipOutcome {
                 outcome,
                 target_name,
@@ -18594,6 +18685,9 @@ impl SseEncode for crate::api::imaging::ApiLiveStackingStats {
         <f64>::sse_encode(self.avg_matched_pairs, serializer);
         <f64>::sse_encode(self.avg_alignment_residual, serializer);
         <u64>::sse_encode(self.total_sigma_rejected_pixels, serializer);
+        <u32>::sse_encode(self.other_filter_frames, serializer);
+        <Option<String>>::sse_encode(self.last_other_filter, serializer);
+        <Option<String>>::sse_encode(self.filter, serializer);
     }
 }
 
@@ -20068,6 +20162,16 @@ impl SseEncode for Vec<crate::device::DeviceInfo> {
     }
 }
 
+impl SseEncode for Vec<crate::device::DeviceType> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::device::DeviceType>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::state::EquipmentProfile> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20275,8 +20379,6 @@ impl SseEncode for crate::api::sequencer::mosaic::LiveStackingBroadcastSnapshot 
         <String>::sse_encode(self.mode, serializer);
         <String>::sse_encode(self.stack_method, serializer);
         <bool>::sse_encode(self.broadcast_enabled, serializer);
-        <u16>::sse_encode(self.broadcast_port, serializer);
-        <String>::sse_encode(self.broadcast_path, serializer);
         <String>::sse_encode(self.auth_token, serializer);
         <String>::sse_encode(self.watermark_template, serializer);
         <u32>::sse_encode(self.thumbnail_width, serializer);
@@ -21193,6 +21295,25 @@ impl SseEncode for crate::api::secondary_rig::SecondaryRigStatusApi {
     }
 }
 
+impl SseEncode for crate::event::sequencer::SequencerErrorKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::event::sequencer::SequencerErrorKind::Advisory => 0,
+                crate::event::sequencer::SequencerErrorKind::StepProblem => 1,
+                crate::event::sequencer::SequencerErrorKind::RunHeld => 2,
+                crate::event::sequencer::SequencerErrorKind::StepFailed => 3,
+                crate::event::sequencer::SequencerErrorKind::Standalone => 4,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::event::sequencer::SequencerEvent {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -21269,9 +21390,10 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
                 <u32>::sse_encode(total, serializer);
                 <f64>::sse_encode(duration_secs, serializer);
             }
-            crate::event::sequencer::SequencerEvent::Error { message } => {
+            crate::event::sequencer::SequencerEvent::Error { message, kind } => {
                 <i32>::sse_encode(13, serializer);
                 <String>::sse_encode(message, serializer);
+                <crate::event::sequencer::SequencerErrorKind>::sse_encode(kind, serializer);
             }
             crate::event::sequencer::SequencerEvent::MeridianFlipOutcome {
                 outcome,
@@ -22584,6 +22706,9 @@ mod io {
                 avg_matched_pairs: self.avg_matched_pairs.cst_decode(),
                 avg_alignment_residual: self.avg_alignment_residual.cst_decode(),
                 total_sigma_rejected_pixels: self.total_sigma_rejected_pixels.cst_decode(),
+                other_filter_frames: self.other_filter_frames.cst_decode(),
+                last_other_filter: self.last_other_filter.cst_decode(),
+                filter: self.filter.cst_decode(),
             }
         }
     }
@@ -24236,6 +24361,16 @@ mod io {
             vec.into_iter().map(CstDecode::cst_decode).collect()
         }
     }
+    impl CstDecode<Vec<crate::device::DeviceType>> for *mut wire_cst_list_device_type {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> Vec<crate::device::DeviceType> {
+            let vec = unsafe {
+                let wrap = flutter_rust_bridge::for_generated::box_from_leak_ptr(self);
+                flutter_rust_bridge::for_generated::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            };
+            vec.into_iter().map(CstDecode::cst_decode).collect()
+        }
+    }
     impl CstDecode<Vec<crate::state::EquipmentProfile>> for *mut wire_cst_list_equipment_profile {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> Vec<crate::state::EquipmentProfile> {
@@ -24480,8 +24615,6 @@ mod io {
                 mode: self.mode.cst_decode(),
                 stack_method: self.stack_method.cst_decode(),
                 broadcast_enabled: self.broadcast_enabled.cst_decode(),
-                broadcast_port: self.broadcast_port.cst_decode(),
-                broadcast_path: self.broadcast_path.cst_decode(),
                 auth_token: self.auth_token.cst_decode(),
                 watermark_template: self.watermark_template.cst_decode(),
                 thumbnail_width: self.thumbnail_width.cst_decode(),
@@ -25191,6 +25324,7 @@ mod io {
                     let ans = unsafe { self.kind.Error };
                     crate::event::sequencer::SequencerEvent::Error {
                         message: ans.message.cst_decode(),
+                        kind: ans.kind.cst_decode(),
                     }
                 }
                 14 => {
@@ -26252,6 +26386,9 @@ mod io {
                 avg_matched_pairs: Default::default(),
                 avg_alignment_residual: Default::default(),
                 total_sigma_rejected_pixels: Default::default(),
+                other_filter_frames: Default::default(),
+                last_other_filter: core::ptr::null_mut(),
+                filter: core::ptr::null_mut(),
             }
         }
     }
@@ -26989,8 +27126,6 @@ mod io {
                 mode: core::ptr::null_mut(),
                 stack_method: core::ptr::null_mut(),
                 broadcast_enabled: Default::default(),
-                broadcast_port: Default::default(),
-                broadcast_path: core::ptr::null_mut(),
                 auth_token: core::ptr::null_mut(),
                 watermark_template: core::ptr::null_mut(),
                 thumbnail_width: Default::default(),
@@ -29660,6 +29795,12 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types(
+    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
+        wire__crate__api__heartbeat__api_native_reconnected_device_types_impl()
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_perform_meridian_flip(
         port_: i64,
         mount_id: *mut wire_cst_list_prim_u_8_strict,
@@ -31991,6 +32132,17 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_device_type(
+        len: i32,
+    ) -> *mut wire_cst_list_device_type {
+        let wrap = wire_cst_list_device_type {
+            ptr: flutter_rust_bridge::for_generated::new_leak_vec_ptr(Default::default(), len),
+            len,
+        };
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(wrap)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_list_equipment_profile(
         len: i32,
     ) -> *mut wire_cst_list_equipment_profile {
@@ -32470,6 +32622,9 @@ mod io {
         avg_matched_pairs: f64,
         avg_alignment_residual: f64,
         total_sigma_rejected_pixels: u64,
+        other_filter_frames: u32,
+        last_other_filter: *mut wire_cst_list_prim_u_8_strict,
+        filter: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -33543,6 +33698,12 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_list_device_type {
+        ptr: *mut i32,
+        len: i32,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_list_equipment_profile {
         ptr: *mut wire_cst_equipment_profile,
         len: i32,
@@ -33686,8 +33847,6 @@ mod io {
         mode: *mut wire_cst_list_prim_u_8_strict,
         stack_method: *mut wire_cst_list_prim_u_8_strict,
         broadcast_enabled: bool,
-        broadcast_port: u16,
-        broadcast_path: *mut wire_cst_list_prim_u_8_strict,
         auth_token: *mut wire_cst_list_prim_u_8_strict,
         watermark_template: *mut wire_cst_list_prim_u_8_strict,
         thumbnail_width: u32,
@@ -34295,6 +34454,7 @@ mod io {
     #[derive(Clone, Copy)]
     pub struct wire_cst_SequencerEvent_Error {
         message: *mut wire_cst_list_prim_u_8_strict,
+        kind: i32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

@@ -40,8 +40,6 @@ ProviderContainer _container(Sequence sequence) {
       n.state = sequence;
       return n;
     }),
-    sequenceExecutionStateProvider
-        .overrideWith((ref) => SequenceExecutionState.idle),
   ]);
   addTearDown(container.dispose);
   return container;

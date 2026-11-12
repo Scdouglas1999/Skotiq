@@ -3109,13 +3109,31 @@
       return;
     }
     try {
-      const result = await api.autofocusStart(state.focuserDeviceId, state.cameraDeviceId);
-      state.lastAutofocusResult = result;
+      const started = await api.autofocusStart(state.focuserDeviceId, state.cameraDeviceId);
       addLogEntry('focuser', 'Autofocus started');
       showToast('Autofocus started');
+      const result = await api.followJob(started, { timeoutMs: 1800000 });
+      state.lastAutofocusResult = result;
       renderFocuserPanel();
+      const best = wireNumber(result && result.bestPosition);
+      const hfr = wireNumber(result && result.bestHfr);
+      const summary = 'Autofocus finished' +
+        (best != null ? ' at ' + Math.round(best) : '') +
+        (hfr != null ? ', HFR ' + hfr.toFixed(2) : '');
+      addLogEntry('focuser', summary);
+      showToast(summary);
     } catch (e) {
-      showToast('Autofocus failed: ' + e.message, 'error');
+      if (e && e.kind === 'job_cancelled') {
+        addLogEntry('focuser', 'Autofocus cancelled');
+        showToast('Autofocus cancelled');
+        return;
+      }
+      // The host's reason arrives wrapped in its own "failed" prefixes.
+      const why = String((e && e.message) || e)
+        .replace(/^Operation failed:\s*/, '')
+        .replace(/^Autofocus failed:\s*/, '');
+      addLogEntry('error', 'Autofocus failed: ' + why);
+      showToast('Autofocus failed: ' + why, 'error');
     }
   }
 
@@ -5956,18 +5974,23 @@
       // Hint with current mount position if we have one — speeds up the solve
       // substantially compared to a blind solve, especially on phones over
       // a slow link where every retry counts.
-      const hint = state.mountStatus
-        ? {
-            ra: state.mountStatus.rightAscension,
-            dec: state.mountStatus.declination,
-          }
+      // The mount reports RA in hours; the solver takes its hint, and gives
+      // its answer, in degrees.
+      const mountRaHours = state.mountStatus
+        ? wireNumber(state.mountStatus.rightAscension)
+        : null;
+      const hint = mountRaHours != null
+        ? { ra: mountRaHours * 15, dec: state.mountStatus.declination }
         : {};
       const result = await api.plateSolve(filePath, hint);
       state.lastPlateSolve = result;
 
+      // A host from before a failed solve ended its job `failed` reports the
+      // failure inside a finished job's result.
       if (!result || !result.success) {
-        const msg = result && result.error ? result.error : 'Plate solve failed';
-        throw new Error(msg);
+        throw new Error(
+          result && result.error ? result.error : 'the solver found no solution',
+        );
       }
 
       // Make the position-angle available to the rotator panel exactly the
@@ -5978,10 +6001,11 @@
         renderRotatorPanel();
       }
 
+      const solvedRaHours = solvedRaInHours(result);
       renderPlateSolveResult(result, filePath);
       const solvedRotation = wireNumber(result.rotation);
       addLogEntry('imaging',
-        'Plate-solve: RA ' + formatRA(result.ra) +
+        'Plate-solve: RA ' + formatRA(solvedRaHours) +
         ' Dec ' + formatDec(result.dec) +
         (solvedRotation != null ? ' PA ' + solvedRotation.toFixed(2) + '°' : ''));
 
@@ -5990,7 +6014,20 @@
           showToast('No mount connected — solved but cannot sync', 'error');
           return;
         }
-        await api.mountSync(state.mountDeviceId, result.ra, result.dec);
+        // The solve stands whatever the sync does: a refused sync is told as
+        // that, with the host's reason, under the solved position.
+        try {
+          if (solvedRaHours == null) {
+            throw new Error('the solve reported no right ascension to sync to');
+          }
+          await api.mountSync(state.mountDeviceId, solvedRaHours, result.dec);
+        } catch (syncError) {
+          const why = serverMessageOf(syncError);
+          if (resultEl) resultEl.textContent += '\nMount not synced: ' + why;
+          addLogEntry('error', 'Mount sync failed: ' + why);
+          showToast('Solved, but the mount was not synced: ' + why, 'error');
+          return;
+        }
         addLogEntry('mount', 'Mount synced to plate-solved RA/Dec');
         showToast('Plate-solved and synced mount');
       } else {
@@ -6003,11 +6040,35 @@
     }
   }
 
+  /// The reason a request was refused, in the host's words when its answer
+  /// carried a message, else the error's own.
+  function serverMessageOf(e) {
+    const body = e && e.detail && e.detail.body;
+    if (body) {
+      try {
+        const parsed = JSON.parse(body);
+        if (parsed && typeof parsed.message === 'string' && parsed.message) {
+          return parsed.message;
+        }
+      } catch (_) {
+        // Not JSON: the error's own text is all there is.
+      }
+    }
+    return e && e.message ? e.message : String(e);
+  }
+
+  /// A solve's right ascension in hours, which is what the mount and the
+  /// readouts use. The solver reports degrees.
+  function solvedRaInHours(result) {
+    const degrees = wireNumber(result && result.ra);
+    return degrees != null ? degrees / 15 : null;
+  }
+
   function renderPlateSolveResult(result, filePath) {
     const el = document.getElementById('plate-solve-result');
     if (!el) return;
     const lines = [];
-    lines.push('RA  ' + formatRA(result.ra));
+    lines.push('RA  ' + formatRA(solvedRaInHours(result)));
     lines.push('Dec ' + formatDec(result.dec));
     const pixelScale = wireNumber(result.pixelScale);
     if (pixelScale != null) {
@@ -6818,13 +6879,16 @@
     setWizardError('framing-modal', '');
     try {
       const { ra, dec } = readFramingCoordinates();
-      document.getElementById('framing-action-status').textContent =
-        'Centering on target (plate-solve iteration)...';
+      const statusEl = document.getElementById('framing-action-status');
+      statusEl.textContent = 'Centering on target (plate-solve iteration)...';
       const result = await api.framingCenterOnTarget(ra, dec, {
         maxIterations: 5,
         toleranceArcsec: 30.0,
         exposureTime: 3.0,
         binning: 2,
+        onProgress: (job) => {
+          if (job && job.progressMessage) statusEl.textContent = job.progressMessage;
+        },
       });
       // An unreported iteration count reads '--', not 0: "0 iter" claims the
       // centering converged without moving, which is a result nobody sent.
@@ -6832,17 +6896,26 @@
       const iters = iterCount != null ? String(iterCount) : '--';
       const offset = wireNumber(result && result.finalOffsetArcsec);
       const off = offset != null ? offset.toFixed(1) + '"' : '--';
-      if (result && result.success) {
-        document.getElementById('framing-action-status').textContent =
-          'Centered (' + iters + ' iter, residual ' + off + ')';
-        addLogEntry('mount', 'Framing: centered (' + iters + ' iter)');
-        showToast('Centered on target');
-      } else {
-        const err = result && result.errorMessage ? result.errorMessage : 'unknown failure';
-        throw new Error('Centering failed: ' + err);
+      // A failed centering ends its job `failed` and is thrown above; a host
+      // from before that reports it inside a finished job's result.
+      if (!result || !result.success) {
+        throw new Error(
+          result && result.errorMessage
+            ? result.errorMessage
+            : 'the host gave no reason',
+        );
       }
+      statusEl.textContent = 'Centered (' + iters + ' iter, residual ' + off + ')';
+      addLogEntry('mount', 'Framing: centered (' + iters + ' iter)');
+      showToast('Centered on target');
     } catch (e) {
-      setWizardError('framing-modal', e.message);
+      const cancelled = e && e.kind === 'job_cancelled';
+      document.getElementById('framing-action-status').textContent =
+        cancelled ? 'Centering cancelled' : 'Centering failed';
+      setWizardError(
+        'framing-modal',
+        cancelled ? 'Centering was cancelled.' : 'Centering failed: ' + e.message,
+      );
       addLogEntry('error', describeApiError(e, 'Centering'));
     }
   }

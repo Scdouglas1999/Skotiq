@@ -8,6 +8,7 @@ import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/template_snippet.dart';
 import '../../services/sequence_file_service.dart';
 import '../sequence_provider.dart' show sequenceExecutionStateProvider;
+import 'filter_name_matching.dart';
 import 'sequence_editor_exceptions.dart';
 import 'target_catalog_coordinate_sync.dart';
 import 'sequence_undo_batch.dart';
@@ -474,14 +475,20 @@ class CurrentSequenceNotifier extends StateNotifier<Sequence?>
   /// Restores the stashed sequence verbatim — including its dirty flag — so the
   /// operator gets their unsaved work back exactly as it was when the planner
   /// took over. When nothing was stashed (the operator started the planner from
-  /// an empty editor) the canvas is cleared.
+  /// an empty editor) the planner's sequence stays loaded as the operator's:
+  /// there is nothing to give back, and it is the plan the night's results
+  /// belong to. Cleared instead, a stopped one-tap night read "No plan
+  /// loaded" over the frames it had just taken.
   void releaseOwnership() {
     if (_owner == ActivePlanOwner.manual) return;
 
-    _undoStack.clear();
-    _redoStack.clear();
-    state = _stashedManualSequence;
-    _dirty = _stashedManualDirty;
+    final stashed = _stashedManualSequence;
+    if (stashed != null) {
+      _undoStack.clear();
+      _redoStack.clear();
+      state = stashed;
+      _dirty = _stashedManualDirty;
+    }
     _stashedManualSequence = null;
     _stashedManualDirty = false;
     _setOwner(ActivePlanOwner.manual);

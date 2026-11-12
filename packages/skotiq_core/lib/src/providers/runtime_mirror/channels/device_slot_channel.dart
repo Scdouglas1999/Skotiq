@@ -1,5 +1,6 @@
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
+import '../../../services/device_service_lifecycle.dart';
 import '../../device_heartbeat_health_provider.dart';
 import '../../equipment/device_slots.dart';
 import '../../profiles_provider.dart';
@@ -66,6 +67,7 @@ class DeviceSlotChannel
     final notifier = readDeviceConnectionNotifier(context.reader, slot.type);
     final shownId = notifier.deviceId;
     final deviceId = jsonString(value?['deviceId']);
+    if (_ownConnectHolds(context.reader, deviceId)) return;
     final state = jsonString(value?['state']);
     final readings = value?['readings'];
     final decoder = slot.readings;
@@ -87,6 +89,16 @@ class DeviceSlotChannel
           .read(deviceHeartbeatHealthProvider.notifier)
           .clearDevice(shownId);
     }
+  }
+
+  /// Whether a connect this client asked for owns the slot: in flight (the
+  /// host shows the device only once it is up) or just failed (a host value
+  /// from before the refusal would put the failed slot back to connecting).
+  bool _ownConnectHolds(Object reader, String? hostDeviceId) {
+    final shown = readDeviceSlot(reader, slot.type).retryDeviceId;
+    return (shown != null && DeviceServiceLifecycle.hasOwnConnectOf(shown)) ||
+        (hostDeviceId != null &&
+            DeviceServiceLifecycle.hasOwnConnectOf(hostDeviceId));
   }
 
   static DeviceError? _error(Object? json) {
@@ -147,6 +159,11 @@ Future<void> mirrorDevicesOfOlderHost(
         .firstOrNull;
     final shown = readDeviceSlot(reader, type);
     if (device == null && shown.deviceId == null) continue;
+    final ownConnect = shown.retryDeviceId ?? device?.id;
+    if (ownConnect != null &&
+        DeviceServiceLifecycle.hasOwnConnectOf(ownConnect)) {
+      continue;
+    }
     if (device != null &&
         shown.deviceId == device.id &&
         shown.connectionState == DeviceConnectionState.connected) {

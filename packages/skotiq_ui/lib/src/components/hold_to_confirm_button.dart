@@ -19,7 +19,10 @@ import 'package:flutter/services.dart';
 /// imaging sequence). A hold gesture is deliberate but does not block the
 /// user from seeing what the rest of the screen is doing.
 ///
-/// Accessibility: respects [MediaQueryData.disableAnimations]. When animations
+/// Accessibility: a screen reader's activate or long-press action confirms
+/// at once; choosing the button and activating it is already deliberate, and
+/// such a user may have no way to hold. Respects
+/// [MediaQueryData.disableAnimations]. When animations
 /// are disabled (e.g., a screen-reader user has "Reduce Motion" on) the
 /// progress ring is not drawn, but the hold gesture is still required —
 /// the callback fires after [duration] of continuous press, with no visual
@@ -39,8 +42,8 @@ class HoldToConfirmButton extends StatefulWidget {
   final Duration duration;
 
   /// What the gesture asks for, e.g. "Hold to stop": the tooltip on hover,
-  /// while the user holds and after a press too short to count. If null,
-  /// the semantics label stands in.
+  /// while the user holds and after a press too short to count. Null
+  /// reads "Press and hold to confirm".
   final String? confirmText;
 
   /// When false, all gestures are ignored and the visual stays in its
@@ -53,8 +56,8 @@ class HoldToConfirmButton extends StatefulWidget {
 
   final double ringStrokeWidth;
 
-  /// Semantics label override for screen readers. Defaults to
-  /// "Press and hold to confirm".
+  /// What the button does, for screen readers ("Stop the run"). It names the
+  /// action, not the hold: their activate action confirms at once.
   final String? semanticsLabel;
 
   const HoldToConfirmButton({
@@ -161,6 +164,12 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
     }
   }
 
+  void _confirmFromSemantics() {
+    if (!widget.enabled) return;
+    HapticFeedback.heavyImpact();
+    widget.onConfirmed();
+  }
+
   Offset? _pressedAt;
 
   void _onPointerDown(PointerDownEvent event) {
@@ -208,15 +217,18 @@ class _HoldToConfirmButtonState extends State<HoldToConfirmButton>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ringColor = widget.holdColor ?? theme.colorScheme.error;
-    final ask =
-        widget.confirmText ??
-        widget.semanticsLabel ??
-        'Press and hold to confirm';
+    final ask = widget.confirmText ?? 'Press and hold to confirm';
 
+    // A pointer has to hold; assistive technology has no stray touches, so
+    // its activate and long-press actions confirm at once. Without them a
+    // screen reader could read the button and never press it.
+    final confirm = widget.enabled ? _confirmFromSemantics : null;
     return Semantics(
       button: true,
       enabled: widget.enabled,
-      label: widget.semanticsLabel ?? 'Press and hold to confirm',
+      label: widget.semanticsLabel ?? 'Confirm',
+      onTap: confirm,
+      onLongPress: confirm,
       child: Tooltip(
         key: _tooltip,
         message: widget.enabled ? ask : '',

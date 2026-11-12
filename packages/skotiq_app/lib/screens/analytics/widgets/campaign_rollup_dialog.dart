@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -91,11 +90,11 @@ class _Body extends StatelessWidget {
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return kReadoutUnknown;
-    return DateFormat('MMM d, yyyy').format(dt);
+    return ClockFormat.monthDayYear(dt.toLocal());
   }
 
   String _formatDateTime(DateTime dt) =>
-      DateFormat('MMM d, yyyy HH:mm').format(dt);
+      ClockFormat.monthDayYearHm(dt.toLocal());
 
   @override
   Widget build(BuildContext context) {

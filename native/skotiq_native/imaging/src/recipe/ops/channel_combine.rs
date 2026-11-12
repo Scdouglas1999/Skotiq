@@ -31,6 +31,19 @@
 //!      by `haRedWeight` (and into the luminance by `haLuminanceWeight`).
 //!    * `sho`: SII → red, Ha → green, OIII → blue; `hoo`: Ha → red, OIII → green
 //!      and blue. OIII and SII are scaled onto Ha so stars come out neutral.
+//!    * `custom`: the same matched Ha, OIII and SII planes, each channel the
+//!      weighted sum `mix` states: `R = a·Ha + b·OIII + c·SII`, as a PixelMath
+//!      expression over LinearFit-matched masters computes it. The weights are
+//!      applied as given and a row is not rescaled to sum to one. The one
+//!      thing added is a constant per channel, `P · (1 − a − b − c)` with `P`
+//!      the sky level the matched planes share: a linear master sits on a sky
+//!      pedestal far larger than its nebula, so a row summing to 1.5 would
+//!      otherwise lift that channel's whole background by half the pedestal
+//!      and every later step, measured for a neutral sky, would render a flat
+//!      color cast. With the constant a weight scales a master's signal above
+//!      the sky and the sky stays where the palettes leave it; for a row
+//!      summing to one it is zero and the result is the PixelMath sum exactly.
+//!      `sho` and `hoo` are this with fixed weights of one.
 //!    * `osc`: one-shot-color masters averaged.
 //! 5. For `lrgb` and `haLrgb` the luminance master, fitted onto the RGB's own
 //!    luminance, sets each pixel's lightness and the RGB its chromaticity
@@ -64,13 +77,14 @@ use serde::Deserialize;
 use serde_json::{json, Map, Value};
 
 use crate::recipe::composite::align::{warp_window, Affine2, Rect};
-use crate::recipe::composite::filters::{FilterRole, Palette};
+use crate::recipe::composite::filters::{ChannelMix, FilterRole, Palette, NARROWBAND_ROLES};
 use crate::recipe::composite::flatten::{
     apply_background, apply_throughput, flatten_chroma, measure_background, measure_throughput,
     FieldStars, Surface, CHROMA_BOX_DEFAULT,
 };
 use crate::recipe::composite::mix::{
-    apply_luminance, blend, psf_match_sigmas, robust_fit, weighted_mean, LinearFit,
+    apply_luminance, background_and_noise, blend, psf_match_sigmas, robust_fit, weighted_mean,
+    LinearFit,
 };
 use crate::recipe::{DarkroomOp, OpApplied, OpContext, OpError, OpImage, OpStage};
 
@@ -138,6 +152,8 @@ struct RawParams {
     #[serde(default)]
     ha_luminance_weight: Option<f64>,
     #[serde(default)]
+    mix: Option<BTreeMap<String, BTreeMap<String, f64>>>,
+    #[serde(default)]
     flatten: Option<Value>,
 }
 
@@ -163,7 +179,41 @@ struct Settings {
     star_sigma: std::collections::BTreeMap<String, f64>,
     ha_red_weight: f64,
     ha_luminance_weight: f64,
+    /// The weights a narrowband palette combines by: the palette's own for
+    /// `sho` and `hoo`, the stored `mix` for `custom`, `None` otherwise.
+    mix: Option<ChannelMix>,
     flatten: Option<FlattenSpec>,
+}
+
+/// Read the `mix` parameter: rows named red, green and blue, each mapping a
+/// narrowband role to its weight.
+fn read_mix(raw: &BTreeMap<String, BTreeMap<String, f64>>) -> Result<ChannelMix, OpError> {
+    if let Some(unknown) = raw
+        .keys()
+        .find(|k| !ChannelMix::CHANNELS.contains(&k.as_str()))
+    {
+        return Err(invalid(format!(
+            "mix has no channel named '{unknown}'; its rows are red, green and blue"
+        )));
+    }
+    let (lo, hi) = ChannelMix::WEIGHT_RANGE;
+    let mut rows: [Vec<(FilterRole, f64)>; 3] = Default::default();
+    for (row, channel) in rows.iter_mut().zip(ChannelMix::CHANNELS) {
+        for (name, weight) in raw.get(channel).into_iter().flatten() {
+            let role = FilterRole::from_wire(name)
+                .filter(|role| NARROWBAND_ROLES.contains(role))
+                .ok_or_else(|| {
+                    invalid(format!(
+                        "mix.{channel} names '{name}'; a mix reads hAlpha, oiii and sii"
+                    ))
+                })?;
+            row.push((
+                role,
+                range(&format!("mix.{channel}.{name}"), *weight, lo, hi)?,
+            ));
+        }
+    }
+    Ok(ChannelMix(rows))
 }
 
 /// The `flatten` parameter: what is pinned, and the chroma lattice's box.
@@ -295,7 +345,49 @@ fn palette_roles(palette: Palette, inputs: &[Input]) -> Vec<FilterRole> {
         Palette::Sho => vec![FilterRole::Sii, FilterRole::HAlpha, FilterRole::Oiii],
         Palette::Hoo => vec![FilterRole::HAlpha, FilterRole::Oiii],
         Palette::Osc => vec![FilterRole::Color],
+        Palette::Custom => NARROWBAND_ROLES
+            .iter()
+            .filter(|role| inputs.iter().any(|i| &i.role == *role))
+            .cloned()
+            .collect(),
     }
+}
+
+/// The mix `palette` combines by, checked against the masters listed.
+fn settle_mix(
+    palette: Palette,
+    stored: Option<ChannelMix>,
+    inputs: &[Input],
+) -> Result<Option<ChannelMix>, OpError> {
+    if palette != Palette::Custom {
+        return Ok(palette.mix());
+    }
+    let mix = stored.ok_or_else(|| {
+        invalid("a custom mix needs 'mix': the weight of each master in red, green and blue")
+    })?;
+    if palette_roles(palette, inputs).len() < 2 {
+        return Err(invalid(
+            "a custom mix needs at least two of Ha, OIII and SII and fewer are listed",
+        ));
+    }
+    for (row, channel) in mix.0.iter().zip(ChannelMix::CHANNELS) {
+        if let Some((role, _)) = row
+            .iter()
+            .find(|(role, _)| !inputs.iter().any(|i| &i.role == role))
+        {
+            return Err(invalid(format!(
+                "mix.{channel} gives a weight to {} and no {} master is listed",
+                role.short_name(),
+                role.short_name()
+            )));
+        }
+        if !row.iter().any(|(_, weight)| *weight > 0.0) {
+            return Err(invalid(format!(
+                "the {channel} channel has no master with a weight above 0, so it would be empty"
+            )));
+        }
+    }
+    Ok(Some(mix))
 }
 
 fn read_settings(params: &Value) -> Result<Settings, OpError> {
@@ -434,6 +526,11 @@ fn read_settings(params: &Value) -> Result<Settings, OpError> {
             Some(out)
         }
     };
+    let mix = settle_mix(
+        palette,
+        raw.mix.as_ref().map(read_mix).transpose()?,
+        &inputs,
+    )?;
     Ok(Settings {
         palette,
         inputs,
@@ -469,6 +566,7 @@ fn read_settings(params: &Value) -> Result<Settings, OpError> {
             0.0,
             1.0,
         )?,
+        mix,
         flatten: raw.flatten.as_ref().map(read_flatten).transpose()?,
     })
 }
@@ -699,20 +797,12 @@ impl DarkroomOp for ChannelCombineV1 {
                     invalid("the palette's red, green and blue masters are missing")
                 })?
             }
-            Palette::Sho => {
-                let ha = take(FilterRole::HAlpha).remove(0);
-                let s = take(FilterRole::Sii).remove(0);
-                let o = take(FilterRole::Oiii).remove(0);
-                let fs = fits.get("siiToHAlpha", &s, &ha, "matching SII to Ha")?;
-                let fo = fits.get("oiiiToHAlpha", &o, &ha, "matching OIII to Ha")?;
-                [mapped(&s, fs), ha, mapped(&o, fo)]
-            }
-            Palette::Hoo => {
-                let ha = take(FilterRole::HAlpha).remove(0);
-                let o = take(FilterRole::Oiii).remove(0);
-                let fo = fits.get("oiiiToHAlpha", &o, &ha, "matching OIII to Ha")?;
-                let o = mapped(&o, fo);
-                [ha, o.clone(), o]
+            Palette::Sho | Palette::Hoo | Palette::Custom => {
+                let mix = settings
+                    .mix
+                    .as_ref()
+                    .ok_or_else(|| invalid("the palette carries no channel mix"))?;
+                mix_narrowband(&by_role, mix, &mut fits)?
             }
         };
 
@@ -793,11 +883,99 @@ impl DarkroomOp for ChannelCombineV1 {
             "fitsPinned": settings.fits.as_ref().is_some_and(|f| !f.is_empty()),
         });
         let mut measurement = measurement;
+        if let Some(mix) = &settings.mix {
+            measurement["mix"] = mix.to_json();
+        }
         if settings.flatten.is_some() {
             measurement["flatten"] = Value::Object(flatten_report);
         }
         Ok(OpApplied::measured(combined, measurement))
     }
+}
+
+/// Red, green and blue as `mix` weighs the narrowband planes of `by_role`.
+///
+/// Every line is first matched onto one anchor (Ha when it is there, otherwise
+/// the first of SII and OIII) so the stars carry the same flux in each plane and
+/// come out neutral under equal weights. The match is what PixInsight's
+/// LinearFit does to the masters before a PixelMath mix; the weights then apply
+/// to the matched planes exactly as written, and each channel's sky is held at
+/// the level the matched planes share (see the module documentation).
+fn mix_narrowband(
+    by_role: &BTreeMap<FilterRole, Vec<Vec<f32>>>,
+    mix: &ChannelMix,
+    fits: &mut Fits<'_>,
+) -> Result<[Vec<f32>; 3], OpError> {
+    let anchor = [FilterRole::HAlpha, FilterRole::Sii, FilterRole::Oiii]
+        .into_iter()
+        .find(|role| by_role.contains_key(role))
+        .ok_or_else(|| invalid("the palette's narrowband masters are missing"))?;
+    let anchor_plane = &by_role[&anchor][0];
+    let anchor_wire = anchor.as_wire();
+    let mut matched: BTreeMap<FilterRole, Vec<f32>> = BTreeMap::new();
+    for role in NARROWBAND_ROLES {
+        let Some(planes) = by_role.get(&role) else {
+            continue;
+        };
+        if role == anchor {
+            continue;
+        }
+        let key = format!(
+            "{}To{}{}",
+            role.as_wire(),
+            anchor_wire[..1].to_uppercase(),
+            &anchor_wire[1..]
+        );
+        let fit = fits.get(
+            &key,
+            &planes[0],
+            anchor_plane,
+            &format!("matching {} to {}", role.short_name(), anchor.short_name()),
+        )?;
+        matched.insert(role, mapped(&planes[0], fit));
+    }
+    let plane_of = |role: &FilterRole| -> Result<&Vec<f32>, OpError> {
+        if *role == anchor {
+            Ok(anchor_plane)
+        } else {
+            matched.get(role).ok_or_else(|| {
+                invalid(format!(
+                    "the mix reads a {} master and none is listed",
+                    role.short_name()
+                ))
+            })
+        }
+    };
+    let pedestal = background_and_noise(anchor_plane).0;
+    let channel = |row: &[(FilterRole, f64)]| -> Result<Vec<f32>, OpError> {
+        let terms: Vec<(&Vec<f32>, f64)> = row
+            .iter()
+            .filter(|(_, weight)| *weight != 0.0)
+            .map(|(role, weight)| Ok((plane_of(role)?, *weight)))
+            .collect::<Result<_, OpError>>()?;
+        // A lone weight of one is the plane itself, bit for bit.
+        if let [(plane, weight)] = terms[..] {
+            if weight == 1.0 {
+                return Ok(plane.clone());
+            }
+        }
+        let total: f64 = terms.iter().map(|(_, weight)| weight).sum();
+        let sky_hold = pedestal * (1.0 - total);
+        Ok((0..anchor_plane.len())
+            .map(|i| {
+                (terms
+                    .iter()
+                    .map(|(plane, weight)| plane[i] as f64 * weight)
+                    .sum::<f64>()
+                    + sky_hold) as f32
+            })
+            .collect())
+    };
+    Ok([
+        channel(&mix.0[0])?,
+        channel(&mix.0[1])?,
+        channel(&mix.0[2])?,
+    ])
 }
 
 /// Flatten every registered plane: divide out its throughput relative to the

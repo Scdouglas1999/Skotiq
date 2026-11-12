@@ -60,8 +60,9 @@ final nightRunPhaseProvider = Provider<NightRunPhase>((ref) {
   // that never ran.
   final ended = ref.watch(lastEndedRunProvider);
   if (ended != null &&
-      ended.sequenceId ==
-          ref.watch(currentSequenceProvider.select((s) => s?.id))) {
+      ended.ranLoadedPlan(
+        ref.watch(currentSequenceProvider.select((s) => s?.id)),
+      )) {
     return NightRunPhase.finished;
   }
   final tree = ref.watch(nightPlanTreeProvider);

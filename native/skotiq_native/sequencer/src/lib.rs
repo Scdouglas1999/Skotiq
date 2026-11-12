@@ -790,10 +790,10 @@ impl LiveStackingMode {
 
 /// Configuration for the [`NodeType::LiveStacking`] node.
 ///
-/// All ports / paths are validated by the editor-side validation rules
-/// (see Dart `LiveStackingPortClashRule` / `LiveStackingNoExposureRule`).
-/// The Rust runtime does not re-validate — invalid configs are caught
-/// before the sequence starts.
+/// The broadcast is served by the host's API server under `/broadcast`, on
+/// that server's port; the node carries no address of its own. Sequences
+/// saved while it did (`broadcast_port`, `broadcast_path`) still load: serde
+/// ignores the unknown keys.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LiveStackingConfig {
     /// `BroadcastOnly` or `RecordAndBroadcast`.
@@ -812,17 +812,6 @@ pub struct LiveStackingConfig {
     /// this mid-sequence by editing the node when paused.
     #[serde(default = "default_broadcast_enabled")]
     pub broadcast_enabled: bool,
-    /// TCP port the broadcast service binds. Defaults to 8081 to stay
-    /// out of the headless API server (default 8080) and the web
-    /// dashboard. The Dart `LiveStackingPortClashRule` errors if this
-    /// matches the headless API port.
-    #[serde(default = "default_broadcast_port")]
-    pub broadcast_port: u16,
-    /// HTTP path prefix the broadcast service serves under. Default
-    /// `/broadcast`. Allows the user to host the broadcast under a
-    /// vanity prefix at outreach events.
-    #[serde(default = "default_broadcast_path")]
-    pub broadcast_path: String,
     /// Optional shared secret. When `Some` and non-empty, every
     /// broadcast endpoint requires `?token=…` matching this value.
     /// `None` (or `Some("")`) = public access.
@@ -858,14 +847,6 @@ fn default_broadcast_enabled() -> bool {
     true
 }
 
-fn default_broadcast_port() -> u16 {
-    8081
-}
-
-fn default_broadcast_path() -> String {
-    "/broadcast".to_string()
-}
-
 fn default_thumbnail_width() -> u32 {
     1280
 }
@@ -881,8 +862,6 @@ impl Default for LiveStackingConfig {
             stack_method: StackMethod::default(),
             max_frames_to_stack: 0,
             broadcast_enabled: default_broadcast_enabled(),
-            broadcast_port: default_broadcast_port(),
-            broadcast_path: default_broadcast_path(),
             auth_token: None,
             watermark_text: None,
             thumbnail_width: default_thumbnail_width(),
@@ -3194,9 +3173,10 @@ mod live_stacking_config_tests {
 
         let config: LiveStackingConfig = serde_json::from_str(json)
             .expect("legacy config with now-removed OSC keys must still deserialize");
-        // The broadcast-relevant fields still load.
-        assert_eq!(config.broadcast_port, 8081);
-        assert_eq!(config.broadcast_path, "/broadcast");
+        // The fields the broadcast still has load; the port and path a
+        // node once carried are ignored with the rest.
+        assert_eq!(config.mode, crate::LiveStackingMode::RecordAndBroadcast);
+        assert!(config.broadcast_enabled);
     }
 
     /// An empty persisted blob must load entirely via serde defaults.

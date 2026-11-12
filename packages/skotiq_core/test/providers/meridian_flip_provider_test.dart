@@ -18,8 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_astro/skotiq_astro.dart'
-    show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
@@ -405,8 +404,9 @@ void main() {
         await container
             .read(globalMeridianFlipSettingsProvider.notifier)
             .setStandaloneMonitoringEnabled(true);
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.running);
 
         final monitor = container.read(
           meridianFlipStandaloneMonitorProvider.notifier,
@@ -619,8 +619,9 @@ void main() {
           dec: -20,
         ),
       );
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
 
       final succeeded = await container
           .read(meridianFlipStandaloneMonitorProvider.notifier)
@@ -723,7 +724,10 @@ void main() {
       );
       expect(lst * 15.0, closeTo(197.693195, 1e-4));
       // HA = LST - RA, positive => west of meridian / already flipped.
-      expect(AstronomyCalculations.hourAngleHours(lst - 2.0, lst), closeTo(2.0, 1e-9));
+      expect(
+        AstronomyCalculations.hourAngleHours(lst - 2.0, lst),
+        closeTo(2.0, 1e-9),
+      );
     });
   });
 }

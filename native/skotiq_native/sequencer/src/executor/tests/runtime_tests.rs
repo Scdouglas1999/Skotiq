@@ -3209,7 +3209,8 @@ async fn drift_recenter_on_cloud(stop_on_quality_problems: bool) -> FailedRecent
                         return;
                     }
                 }
-                Ok(ExecutorEvent::Error { message }) => {
+                // Why the run is paused, never an error of the run.
+                Ok(ExecutorEvent::RunHeld { message }) => {
                     let done = message.contains("recenter failed");
                     errors.push(message);
                     if done {

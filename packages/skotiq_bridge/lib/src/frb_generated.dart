@@ -121,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1336701731;
+  int get rustContentHash => -671445970;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -816,6 +816,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiDevicesSimulationMountApiMountUnpark({
     required String deviceId,
   });
+
+  List<DeviceType> crateApiHeartbeatApiNativeReconnectedDeviceTypes();
 
   Future<void> crateApiSequencerLifecycleApiPerformMeridianFlip({
     required String mountId,
@@ -6784,6 +6786,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_mount_unpark",
         argNames: ["deviceId"],
+      );
+
+  @override
+  List<DeviceType> crateApiHeartbeatApiNativeReconnectedDeviceTypes() {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          return wire
+              .wire__crate__api__heartbeat__api_native_reconnected_device_types();
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_device_type,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiHeartbeatApiNativeReconnectedDeviceTypesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiHeartbeatApiNativeReconnectedDeviceTypesConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_native_reconnected_device_types",
+        argNames: [],
       );
 
   @override
@@ -13071,8 +13099,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiLiveStackingStats dco_decode_api_live_stacking_stats(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return ApiLiveStackingStats(
       stackedFrameCount: dco_decode_u_32(arr[0]),
       totalFramesAttempted: dco_decode_u_32(arr[1]),
@@ -13080,6 +13108,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       avgMatchedPairs: dco_decode_f_64(arr[3]),
       avgAlignmentResidual: dco_decode_f_64(arr[4]),
       totalSigmaRejectedPixels: dco_decode_u_64(arr[5]),
+      otherFilterFrames: dco_decode_u_32(arr[6]),
+      lastOtherFilter: dco_decode_opt_String(arr[7]),
+      filter: dco_decode_opt_String(arr[8]),
     );
   }
 
@@ -14670,6 +14701,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DeviceType> dco_decode_list_device_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_device_type).toList();
+  }
+
+  @protected
   List<EquipmentProfile> dco_decode_list_equipment_profile(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_equipment_profile).toList();
@@ -14825,21 +14862,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return LiveStackingBroadcastSnapshot(
       nodeId: dco_decode_String(arr[0]),
       mode: dco_decode_String(arr[1]),
       stackMethod: dco_decode_String(arr[2]),
       broadcastEnabled: dco_decode_bool(arr[3]),
-      broadcastPort: dco_decode_u_16(arr[4]),
-      broadcastPath: dco_decode_String(arr[5]),
-      authToken: dco_decode_String(arr[6]),
-      watermarkTemplate: dco_decode_String(arr[7]),
-      thumbnailWidth: dco_decode_u_32(arr[8]),
-      thumbnailHeight: dco_decode_u_32(arr[9]),
-      maxFramesToStack: dco_decode_u_32(arr[10]),
-      activatedAtUnixMillis: dco_decode_i_64(arr[11]),
+      authToken: dco_decode_String(arr[4]),
+      watermarkTemplate: dco_decode_String(arr[5]),
+      thumbnailWidth: dco_decode_u_32(arr[6]),
+      thumbnailHeight: dco_decode_u_32(arr[7]),
+      maxFramesToStack: dco_decode_u_32(arr[8]),
+      activatedAtUnixMillis: dco_decode_i_64(arr[9]),
     );
   }
 
@@ -15784,6 +15819,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerErrorKind dco_decode_sequencer_error_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SequencerErrorKind.values[raw as int];
+  }
+
+  @protected
   SequencerEvent dco_decode_sequencer_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -15840,7 +15881,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           durationSecs: dco_decode_f_64(raw[3]),
         );
       case 13:
-        return SequencerEvent_Error(message: dco_decode_String(raw[1]));
+        return SequencerEvent_Error(
+          message: dco_decode_String(raw[1]),
+          kind: dco_decode_sequencer_error_kind(raw[2]),
+        );
       case 14:
         return SequencerEvent_MeridianFlipOutcome(
           outcome: dco_decode_String(raw[1]),
@@ -17020,6 +17064,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_avgMatchedPairs = sse_decode_f_64(deserializer);
     var var_avgAlignmentResidual = sse_decode_f_64(deserializer);
     var var_totalSigmaRejectedPixels = sse_decode_u_64(deserializer);
+    var var_otherFilterFrames = sse_decode_u_32(deserializer);
+    var var_lastOtherFilter = sse_decode_opt_String(deserializer);
+    var var_filter = sse_decode_opt_String(deserializer);
     return ApiLiveStackingStats(
       stackedFrameCount: var_stackedFrameCount,
       totalFramesAttempted: var_totalFramesAttempted,
@@ -17027,6 +17074,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       avgMatchedPairs: var_avgMatchedPairs,
       avgAlignmentResidual: var_avgAlignmentResidual,
       totalSigmaRejectedPixels: var_totalSigmaRejectedPixels,
+      otherFilterFrames: var_otherFilterFrames,
+      lastOtherFilter: var_lastOtherFilter,
+      filter: var_filter,
     );
   }
 
@@ -19138,6 +19188,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<DeviceType> sse_decode_list_device_type(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DeviceType>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_device_type(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<EquipmentProfile> sse_decode_list_equipment_profile(
     SseDeserializer deserializer,
   ) {
@@ -19410,8 +19472,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_mode = sse_decode_String(deserializer);
     var var_stackMethod = sse_decode_String(deserializer);
     var var_broadcastEnabled = sse_decode_bool(deserializer);
-    var var_broadcastPort = sse_decode_u_16(deserializer);
-    var var_broadcastPath = sse_decode_String(deserializer);
     var var_authToken = sse_decode_String(deserializer);
     var var_watermarkTemplate = sse_decode_String(deserializer);
     var var_thumbnailWidth = sse_decode_u_32(deserializer);
@@ -19423,8 +19483,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       mode: var_mode,
       stackMethod: var_stackMethod,
       broadcastEnabled: var_broadcastEnabled,
-      broadcastPort: var_broadcastPort,
-      broadcastPath: var_broadcastPath,
       authToken: var_authToken,
       watermarkTemplate: var_watermarkTemplate,
       thumbnailWidth: var_thumbnailWidth,
@@ -20733,6 +20791,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerErrorKind sse_decode_sequencer_error_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SequencerErrorKind.values[inner];
+  }
+
+  @protected
   SequencerEvent sse_decode_sequencer_event(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -20805,7 +20872,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         );
       case 13:
         var var_message = sse_decode_String(deserializer);
-        return SequencerEvent_Error(message: var_message);
+        var var_kind = sse_decode_sequencer_error_kind(deserializer);
+        return SequencerEvent_Error(message: var_message, kind: var_kind);
       case 14:
         var var_outcome = sse_decode_String(deserializer);
         var var_targetName = sse_decode_String(deserializer);
@@ -21930,6 +21998,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
   int cst_encode_shutter_state(ShutterState raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
@@ -22314,6 +22388,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.avgMatchedPairs, serializer);
     sse_encode_f_64(self.avgAlignmentResidual, serializer);
     sse_encode_u_64(self.totalSigmaRejectedPixels, serializer);
+    sse_encode_u_32(self.otherFilterFrames, serializer);
+    sse_encode_opt_String(self.lastOtherFilter, serializer);
+    sse_encode_opt_String(self.filter, serializer);
   }
 
   @protected
@@ -24091,6 +24168,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_device_type(
+    List<DeviceType> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_device_type(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_equipment_profile(
     List<EquipmentProfile> self,
     SseSerializer serializer,
@@ -24366,8 +24455,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.mode, serializer);
     sse_encode_String(self.stackMethod, serializer);
     sse_encode_bool(self.broadcastEnabled, serializer);
-    sse_encode_u_16(self.broadcastPort, serializer);
-    sse_encode_String(self.broadcastPath, serializer);
     sse_encode_String(self.authToken, serializer);
     sse_encode_String(self.watermarkTemplate, serializer);
     sse_encode_u_32(self.thumbnailWidth, serializer);
@@ -25393,6 +25480,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sequencer_error_kind(
+    SequencerErrorKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_sequencer_event(
     SequencerEvent self,
     SseSerializer serializer,
@@ -25464,9 +25560,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_u_32(frame, serializer);
         sse_encode_u_32(total, serializer);
         sse_encode_f_64(durationSecs, serializer);
-      case SequencerEvent_Error(message: final message):
+      case SequencerEvent_Error(message: final message, kind: final kind):
         sse_encode_i_32(13, serializer);
         sse_encode_String(message, serializer);
+        sse_encode_sequencer_error_kind(kind, serializer);
       case SequencerEvent_MeridianFlipOutcome(
         outcome: final outcome,
         targetName: final targetName,

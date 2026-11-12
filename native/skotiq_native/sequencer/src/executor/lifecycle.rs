@@ -62,7 +62,7 @@ impl StopOrigin {
         }
     }
 }
-use crate::NodeId;
+use crate::{ExecutorState, NodeId};
 use std::sync::atomic::Ordering;
 
 impl SequenceExecutor {
@@ -93,6 +93,18 @@ impl SequenceExecutor {
         }
         self.emit_manual_intervention("resume", serde_json::json!({}));
         Ok(())
+    }
+
+    /// Whether a run is under way: started and not yet at its end. Such a run
+    /// announces its own end.
+    pub fn has_run_in_flight(&self) -> bool {
+        matches!(
+            self.run_state.get(),
+            ExecutorState::Running
+                | ExecutorState::Paused
+                | ExecutorState::Recovering
+                | ExecutorState::Stopping
+        )
     }
 
     /// Stop the sequence. Sets the shared cancellation flag *before* sending

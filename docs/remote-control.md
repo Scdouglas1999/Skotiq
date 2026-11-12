@@ -81,6 +81,7 @@ in `linked_rig.json` in the same folder.
 | Sequences, profiles, framing, calibration frames | yes | yes |
 | The imaging computer's settings, observing site, meridian flip settings | yes | yes |
 | Stored credentials: Discord webhook, Pushover keys, Home Assistant and mail servers, cloud backup target | no | yes |
+| Programs the imaging computer runs: ASTAP, Astrometry.net `solve-field`, PHD2 executable paths | no | yes |
 | Plugins, backups, host folder browser, updates, catalogs, clearing logs | no | yes |
 
 A linked desktop or phone changes the imaging computer's settings mid-session
@@ -89,7 +90,9 @@ running sequence picks up the ones it uses. Credentials stay with a link that
 has admin access, which needs the code, because a code proves someone can see
 the imaging computer's screen. Where a setting or page needs that access, the
 row says **Change this on the imaging computer, or link with admin access**,
-and a desktop offers **Link with admin access**, which asks for the code.
+and a desktop offers **Link with admin access**, which asks for the code. A
+link without admin access sees whether each stored credential is set, never
+the credential itself.
 
 ### When the link breaks
 

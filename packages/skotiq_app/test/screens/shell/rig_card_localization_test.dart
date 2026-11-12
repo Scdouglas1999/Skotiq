@@ -59,6 +59,7 @@ void main() {
       'statusNoMount',
       'statusNoGuider',
       'statusNoFocuser',
+      'statusNoFilterWheel',
       'statusReady',
       'statusConnected',
     ]) {

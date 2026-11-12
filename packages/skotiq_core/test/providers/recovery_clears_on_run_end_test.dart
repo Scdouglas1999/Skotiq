@@ -31,8 +31,9 @@ void main() {
       ],
     );
     container.read(recoveryEventBridgeProvider);
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.recovering;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.recovering);
     container
         .read(currentRecoveryProvider.notifier)
         .update(_guideStarRecovery());
@@ -48,14 +49,15 @@ void main() {
     SequenceExecutionState.failed,
   ]) {
     test('the recovery clears when the run ends ${ended.name}', () {
-      container.read(sequenceExecutionStateProvider.notifier).state = ended;
+      container.read(runRecordProvider.notifier).setLifecycle(ended);
       expect(container.read(currentRecoveryProvider), isNull);
     });
   }
 
   test('a pause during the recovery keeps it', () {
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.paused;
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.paused);
     expect(container.read(currentRecoveryProvider), isNotNull);
   });
 }

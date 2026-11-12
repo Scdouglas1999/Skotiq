@@ -10,6 +10,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
 import '../utils/skotiq_data_directory.dart';
 
 import '../settings/app_settings_install_rows.dart';
+import '../settings/store_settings.dart';
 import 'integrity_check.dart' as integrity;
 import 'integrity_check.dart'
     show DatabaseRecoveryMarker, QuarantinedDatabaseCheck;

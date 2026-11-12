@@ -2,8 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/node_exposure_tally.dart';
+import '../../sequence/run_record.dart';
 import '../../sequence/sequence_progress.dart';
-import '../../sequence_stats_provider.dart' show currentRunIdProvider;
 import '../../session_provider.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
@@ -109,8 +109,6 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null || context.networkBackend == null) return;
-    // A client that started the run has its own executor attached to it.
-    if (context.read(currentRunIdProvider) != null) return;
 
     final progress = value['progress'];
     if (progress is Map) {
@@ -127,7 +125,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
       final percent = progress['nodePercent'];
       final detail = progress['nodeDetail'];
       context
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .mirrorHostProgress(
             SequenceProgress(
               currentNodeId: jsonString(progress['currentNodeId']),
@@ -169,7 +167,7 @@ class SequenceRunChannel extends RuntimeMirrorChannel<SequenceRunSnapshot> {
 
     final tally = value['tally'];
     if (tally is Map) {
-      context.read(nodeExposureTallyProvider.notifier).mirrorHostTally({
+      context.read(runRecordProvider.notifier).mirrorHostTally({
         for (final e in tally.entries)
           if (e.key is String &&
               e.value is List &&

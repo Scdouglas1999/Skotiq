@@ -175,7 +175,7 @@ class SequenceMinimap extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final progress = ref.watch(sequenceProgressProvider);
+    final progress = ref.watch(sequenceStepProgressProvider);
     final selectedId = ref.watch(selectedNodeIdProvider);
     final entries =
         sequenceMapEntries(sequence, ref.watch(visibleNodeOrderProvider));

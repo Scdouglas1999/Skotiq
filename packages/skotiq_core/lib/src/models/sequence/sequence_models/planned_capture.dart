@@ -1,28 +1,33 @@
-// One walk that answers "what does this subtree actually plan to capture?" for
-// every sequencer surface that quotes a frame count or an integration time.
-//
-// WHY THIS EXISTS: the target header card and the library card's preview each
-// grew their own recursive walk. Both drifted from the model's own counting
-// (`Sequence.totalExposures` / `Sequence._countExposures`) in the same
-// direction — they ignored loop multipliers, so a Quick-Start-Wizard sequence
-// (`Capture Loop ×10` wrapping one exposure node) was reported as "1 planned
-// exposures · 2m" next to a toolbar reading "10 frames" — and the library
-// preview ignored SmartExposure entirely, printing "No exposures" for a
-// target whose only imager is a Smart Exposure node.
-//
-// The multiplier rules mirror `Sequence._countExposures` exactly:
-//   * a `count` loop multiplies its whole subtree by `repeatCount`;
-//   * every other loop kind keeps the single-pass multiplier (so a total is
-//     never unbounded) and raises [PlannedCapture.hasUnboundedRepeat] so the
-//     caller can say the figure is a per-pass floor rather than the plan;
-//   * disabled nodes contribute nothing — they will not run.
-//
-// A `loopUntilStopped` SmartExposure has no fixed count at all: its per-plan
-// counts are ignored by the executor, so its frames are NOT folded into
-// [PlannedCapture.frames]; the budget (if any) is reported separately.
+part of '../sequence_models.dart';
 
-import 'package:skotiq_core/skotiq_core.dart';
+/// How many frames a step takes each time it runs, and how long they expose.
+/// Every surface that quotes a frame count reads these (through
+/// [plannedCaptureUnder] when loops are involved), so the tree, the totals,
+/// pre-flight and progress agree.
+///
+/// A Smart Exposure looping until stopped has no count: the run ignores its
+/// per-filter counts and reports no total, so it contributes nothing here
+/// and says so through [capturesUntilStopped].
+extension NodeFrames on SequenceNode {
+  int get framesPerPass =>
+      kind.captures(this).fold(0, (sum, run) => sum + run.count);
 
+  double get integrationSecsPerPass => kind
+      .captures(this)
+      .fold(0, (sum, run) => sum + run.exposureSecs * run.count);
+
+  bool get capturesUntilStopped {
+    final node = this;
+    return node is SmartExposureNode && node.loopUntilStopped;
+  }
+}
+
+/// What a subtree plans to capture.
+///
+/// A `count` loop multiplies its subtree by its repeat count. Every other
+/// loop keeps the single-pass figure (a total is never unbounded) and sets
+/// [hasUnboundedRepeat], so a caller can say the figure is a per-pass floor.
+/// Disabled steps contribute nothing.
 class PlannedCapture {
   /// Frames with a known, bounded count (loop multipliers applied).
   final int frames;
@@ -99,9 +104,11 @@ PlannedCapture plannedCaptureUnder(Sequence sequence, String rootId) {
       integrationSecs += secs;
       addFilter(run.filter, secs);
     }
-    if (node is SmartExposureNode && node.loopUntilStopped) {
+    if (node.capturesUntilStopped) {
       hasOpenEndedLoop = true;
-      openEndedBudgetSecs += node.integrationBudgetSecs * mult;
+      if (node is SmartExposureNode) {
+        openEndedBudgetSecs += node.integrationBudgetSecs * mult;
+      }
     }
 
     var childMult = mult;

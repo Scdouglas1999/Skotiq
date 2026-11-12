@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../utils/snackbar_helper.dart';
 import '../../widgets/remote_host_path_dialog.dart';
+import 'widgets/admin_only.dart';
 import 'widgets/plate_solve_parameters_section.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/solver_detection_card.dart';
@@ -230,7 +231,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
       }
     } catch (e) {
       if (!mounted || !identical(ref.read(backendProvider), authority)) return;
-      context.showErrorSnackBar('Failed to save plate-solver settings: ${userFacingError(e)}');
+      context.showErrorSnackBar(
+          'Failed to save plate-solver settings: ${userFacingError(e)}');
     }
   }
 
@@ -338,6 +340,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     required PlateSolverSettingsState uiState,
     required SkotiqBackend authority,
   }) {
+    final canChoosePath = !hostRefusesAdminOnly(ref);
     return SettingsPage(
       title: 'Plate solving',
       description:
@@ -393,11 +396,13 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               subtitle: preference.astapPath.isEmpty
                   ? (detection.astapPath ?? 'Auto-detect — not found')
                   : preference.astapPath,
-              trailing: SettingsPathInput(
-                key: const ValueKey('plate_solver_astap_path'),
-                path: preference.astapPath,
-                onBrowse: () => _browseAstapExecutable(preference),
-                authorityKey: authority,
+              trailing: AdminOnlyControl(
+                child: SettingsPathInput(
+                  key: const ValueKey('plate_solver_astap_path'),
+                  path: preference.astapPath,
+                  onBrowse: () => _browseAstapExecutable(preference),
+                  authorityKey: authority,
+                ),
               ),
             ),
             SettingRow(
@@ -419,7 +424,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               subtitle: _verifyAstapSubtitle(
                   detection: detection,
                   preference: preference,
-                  uiState: uiState),
+                  uiState: uiState,
+                  canChoosePath: canChoosePath),
               trailing: SkotiqButton(
                 label: uiState.verifying ? 'Verifying…' : 'Verify',
                 icon: LucideIcons.play,
@@ -444,11 +450,13 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               subtitle: preference.astrometryPath.isEmpty
                   ? (detection.astrometryPath ?? 'Auto-detect — not found')
                   : preference.astrometryPath,
-              trailing: SettingsPathInput(
-                key: const ValueKey('plate_solver_astrometry_path'),
-                path: preference.astrometryPath,
-                onBrowse: () => _browseAstrometryExecutable(preference),
-                authorityKey: authority,
+              trailing: AdminOnlyControl(
+                child: SettingsPathInput(
+                  key: const ValueKey('plate_solver_astrometry_path'),
+                  path: preference.astrometryPath,
+                  onBrowse: () => _browseAstrometryExecutable(preference),
+                  authorityKey: authority,
+                ),
               ),
             ),
             SettingRow(
@@ -457,7 +465,8 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               subtitle: _verifyAstrometrySubtitle(
                   detection: detection,
                   preference: preference,
-                  uiState: uiState),
+                  uiState: uiState,
+                  canChoosePath: canChoosePath),
               trailing: SkotiqButton(
                 label: uiState.verifying ? 'Verifying…' : 'Verify',
                 icon: LucideIcons.play,
@@ -544,10 +553,13 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     required PlateSolverDetection detection,
     required PlateSolverPreference preference,
     required PlateSolverSettingsState uiState,
+    required bool canChoosePath,
   }) {
     final target = _resolveAstapTarget(detection, preference);
     if (target == null) {
-      return 'No ASTAP path to verify. Browse for one above first.';
+      return canChoosePath
+          ? 'No ASTAP path to verify. Browse for one above first.'
+          : 'No ASTAP path to verify. Set one on the imaging computer first.';
     }
     if (uiState.astapVerifyError != null) {
       return 'Last verify failed: ${uiState.astapVerifyError}';
@@ -563,10 +575,14 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     required PlateSolverDetection detection,
     required PlateSolverPreference preference,
     required PlateSolverSettingsState uiState,
+    required bool canChoosePath,
   }) {
     final target = _resolveAstrometryTarget(detection, preference);
     if (target == null) {
-      return 'No solve-field path to verify. Browse for one above first.';
+      return canChoosePath
+          ? 'No solve-field path to verify. Browse for one above first.'
+          : 'No solve-field path to verify. Set one on the imaging computer '
+              'first.';
     }
     if (uiState.astrometryVerifyError != null) {
       return 'Last verify failed: ${uiState.astrometryVerifyError}';

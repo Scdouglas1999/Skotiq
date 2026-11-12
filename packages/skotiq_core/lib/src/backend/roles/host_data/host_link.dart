@@ -21,6 +21,11 @@ abstract interface class HostLink {
   /// The token this client presents to the host, or null before pairing.
   String? get authToken;
 
+  /// Whether the host said, when this client connected, that every client
+  /// has to present a pairing credential. Null before the first connection
+  /// and for a host that does not say.
+  bool? get hostRequiresPairing;
+
   /// True once the host refused this client's token. Requests are pointless
   /// until the user pairs again.
   bool get isAuthTokenRejected;

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io' show HttpStatus;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/database_entities.dart' as settings_models;
@@ -10,6 +9,7 @@ import 'package:skotiq_core/database_entities.dart' as settings_models;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:shelf/shelf.dart';
 
+import '../admin_only_settings.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
@@ -365,6 +365,10 @@ class ProfileHandlers implements RouteSource {
     'location',
   };
 
+  /// Keys of the settings document that are not app settings: the site
+  /// mirror, and what `GET /api/settings` says about it.
+  static const _documentOnlyKeys = <String>{..._siteKeys, 'locationStatus'};
+
   Future<Response> handleGetSettings(Request request) async {
     // Read from the DB-backed settings notifier (the desktop's source of
     // truth) rather than the Rust bridge, which only carries the ~7
@@ -398,13 +402,19 @@ class ProfileHandlers implements RouteSource {
     settings['elevation'] = site?.elevation;
     settings['locationStatus'] = site == null ? 'not configured' : 'configured';
 
-    return jsonOk({"settings": settings});
+    return jsonOk({
+      "settings": requestHasAdminAccess(request)
+          ? settings
+          : withCredentialsHidden(settings),
+    });
   }
 
   /// The host's `app_settings` key/value rows that linked clients mirror:
   /// every row except the presentation preferences of this computer's own
   /// screen. The rows the settings notifier owns are served from its state, so
   /// a value it holds but has not persisted yet is not reported as missing.
+  /// A request without admin access reads whether each credential is set,
+  /// not its value.
   Future<Response> handleGetSettingsStore(Request request) async {
     final rows = await container.read(settingsDaoProvider).getAllSettings();
     final current = await container.read(appSettingsProvider.future);
@@ -417,9 +427,10 @@ class ProfileHandlers implements RouteSource {
       for (final key in AppSettingsNotifier.hostStoreKeys)
         if (owned[key] != null) key: owned[key]!,
     };
+    final adminAccess = requestHasAdminAccess(request);
     return jsonOk({
-      'settings': settings,
-      'adminAccess': requestHasAdminAccess(request),
+      'settings': adminAccess ? settings : rowsWithCredentialsHidden(settings),
+      'adminAccess': adminAccess,
     });
   }
 
@@ -431,8 +442,8 @@ class ProfileHandlers implements RouteSource {
   /// writing either kind straight to the database would leave the host's
   /// in-memory copy stale and the next settings save would revert it.
   /// Presentation preferences of this computer's screen are refused too, and
-  /// so are rows holding a credential ([isCredentialSettingKey]) unless the
-  /// request has admin access.
+  /// so are rows the settings catalog keeps for admin links ([adminOnlyRow])
+  /// unless the request has admin access.
   Future<Response> handleUpdateSettingsStore(Request request) async {
     _logInfo('[API] POST /api/settings/store');
     final payload = await readJsonObject(request);
@@ -509,10 +520,10 @@ class ProfileHandlers implements RouteSource {
       }
     }
 
-    _refuseCredentialChange(request, [
+    refuseAdminOnlyChange(request, {
       for (final key in {...settings.keys, ...remove, ...merge.keys})
-        if (isCredentialSettingKey(key)) key,
-    ]);
+        if (adminOnlyRow(key) case final reason?) key: reason,
+    });
 
     final notifierRows = {
       for (final entry in settings.entries)
@@ -557,25 +568,6 @@ class ProfileHandlers implements RouteSource {
       'removed': remove,
       if (merged.isNotEmpty) 'merged': merged,
     });
-  }
-
-  /// Refuses a write naming the credential [settings] unless [request] has
-  /// admin access. A linked client paired the ordinary way may change the
-  /// host's settings, but not the credentials the host signs in with.
-  static void _refuseCredentialChange(Request request, List<String> settings) {
-    if (settings.isEmpty || requestHasAdminAccess(request)) return;
-    settings.sort();
-    final one = settings.length == 1;
-    throw HandlerFailure(
-      code: 'credential_setting',
-      statusCode: HttpStatus.forbidden,
-      message:
-          '${settings.join(', ')} ${one ? 'holds a credential' : 'hold credentials'}, '
-          'which only a link with admin access can change. Change '
-          '${one ? 'it' : 'them'} on the imaging computer, or link with admin '
-          'access.',
-      details: {'settings': settings, 'requiredLevel': 'admin'},
-    );
   }
 
   /// `payload[field]` as a map of key to JSON object, or empty when absent.
@@ -794,7 +786,11 @@ class ProfileHandlers implements RouteSource {
     // just wrote.
     final commandId = request.headers['x-skotiq-command-id'];
     final payload = await readJsonObject(request);
-    final settingsJson = requireObject(payload, 'settings');
+    // A caller without admin access read each set credential as the marker;
+    // posted back, it is not a change.
+    final settingsJson = withoutCredentialMarkers(
+      requireObject(payload, 'settings'),
+    );
 
     final backend = container.read(profileSettingsBackendProvider);
     final settingsNotifier = container.read(appSettingsProvider.notifier);
@@ -837,15 +833,41 @@ class ProfileHandlers implements RouteSource {
     final previousJson = previous == null
         ? const <String, dynamic>{}
         : jsonDecode(jsonEncode(previous.toJson())) as Map<String, dynamic>;
-    // A full snapshot carries every credential field back unchanged; only a
-    // field whose value would change counts as changing a credential.
-    _refuseCredentialChange(request, [
-      for (final key in AppSettingsNotifier.credentialWireKeys)
-        if (settingsJson.containsKey(key) &&
-            (previous == null ||
-                !_settingsValueEquals(settingsJson[key], previousJson[key])))
+    bool changes(String key) =>
+        settingsJson.containsKey(key) &&
+        !(previousJson.containsKey(key) &&
+            _settingsValueEquals(settingsJson[key], previousJson[key]));
+    // A full snapshot carries every admin-only field back unchanged; only a
+    // field whose value would change counts as changing it.
+    refuseAdminOnlyChange(request, {
+      for (final MapEntry(:key, :value)
+          in AppSettingsNotifier.adminOnlyWireFields.entries)
+        if (changes(key)) key: value,
+    });
+    // The settings document also carries fields no setting stands behind
+    // (the update channel, for one). Sent back as they were read they mean
+    // nothing; a changed one would be dropped, so it is refused.
+    final unkeptAsRead = previous == null
+        ? const settings_models.AppSettings().toJson()
+        : previousJson;
+    final unkept = [
+      for (final MapEntry(:key, :value) in settingsJson.entries)
+        if (!AppSettingsNotifier.wireFields.contains(key) &&
+            !_documentOnlyKeys.contains(key) &&
+            !_settingsValueEquals(value, unkeptAsRead[key]))
           key,
-    ]);
+    ]..sort();
+    if (unkept.isNotEmpty) {
+      final single = unkept.length == 1;
+      throw BadRequestError(
+        field: 'settings.${unkept.first}',
+        expected: 'a setting the imaging computer keeps',
+        message:
+            '${unkept.join(', ')} ${single ? 'is not a setting' : 'are not '
+                      'settings'} the imaging computer keeps here, so '
+            'nothing was changed.',
+      );
+    }
     final mergedJson = <String, dynamic>{...previousJson, ...settingsJson};
 
     // WHAT THIS SAVE MAY DO TO THE OBSERVER SITE.
@@ -1080,7 +1102,7 @@ class ProfileHandlers implements RouteSource {
   /// Fan out one `settings.changed` event per
   /// changed field between [previous] and [next]. When [previous] is
   /// null, the entire `next` snapshot is emitted as a single event with
-  /// key `__snapshot__` so the client can still rehydrate.
+  /// key [settingsSnapshotKey] so the client can still rehydrate.
   ///
   /// `commandId` is stamped onto `correlatingCommandId` so the
   /// originating client can filter its own echo.
@@ -1109,7 +1131,7 @@ class ProfileHandlers implements RouteSource {
     if (previous == null) {
       // First-write or recovery path: emit a full snapshot so the
       // remote applies the entire object at once.
-      emit(buildEvent(key: '__snapshot__', value: next.toJson()));
+      emit(buildEvent(key: settingsSnapshotKey, value: next.toJson()));
       return;
     }
 

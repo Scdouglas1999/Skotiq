@@ -6,6 +6,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_app/screens/night_control/data/plan/night_header_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
@@ -72,6 +73,10 @@ db.ImagingSession _session(int id, DateTime start, String status) =>
       autofocusCount: 0,
     );
 
+/// The host's id for the plan the client shows. A plan's id is made where the
+/// plan is opened, so it is never the client's id for the same plan.
+const _hostPlanId = 'the-plan-as-the-host-opened-it';
+
 /// Apply what the host's runtime mirror publishes for its run record.
 void _hostRecord(
   ProviderContainer client,
@@ -79,6 +84,8 @@ void _hostRecord(
   SequenceTerminalRunResult? terminal,
   CompletedImagingRun? imagingRun,
   LastEndedRun? lastEnded,
+  bool lastEndedPlanLoaded = true,
+  SequenceStopDecision? stopEvidence,
   DateTime? runStartedAt,
 }) {
   applyHostRuntimeUpdate(
@@ -90,6 +97,8 @@ void _hostRecord(
         terminal: terminal,
         imagingRun: imagingRun,
         lastEnded: lastEnded,
+        lastEndedPlanLoaded: lastEnded != null && lastEndedPlanLoaded,
+        stopEvidence: stopEvidence,
         runStartedAt: runStartedAt,
       )),
     ),
@@ -179,7 +188,7 @@ void main() {
       ),
       imagingRun: CompletedImagingRun(imaging, _stats(5, 1)),
       lastEnded: LastEndedRun(
-        sequenceId: plan.sequence.id,
+        sequenceId: _hostPlanId,
         endedAt: runStart.add(const Duration(minutes: 22)),
       ),
       runStartedAt: runStart.add(const Duration(minutes: 19)),
@@ -202,6 +211,40 @@ void main() {
       {for (final row in plan0.rows) row.filter: row.framesDone},
       {'L': 3, 'Ha': 2},
     );
+  });
+
+  test('a run the host ended for another plan does not finish the plan this '
+      'client shows', () async {
+    final plan = TwoTargetPlan();
+    final backend = _link();
+    final client = planContainer(
+      now: evening,
+      sequence: plan.sequence,
+      backend: backend,
+    );
+    addTearDown(client.dispose);
+    client.read(lastEndedRunProvider);
+
+    LastEndedRun ended() => LastEndedRun(
+          sequenceId: _hostPlanId,
+          endedAt: DateTime(2026, 10, 19, 20, 5),
+        );
+    _hostRecord(client, backend, lastEnded: ended());
+    expect(client.read(nightRunPhaseProvider), NightRunPhase.finished);
+
+    // Nothing here says who ended it: the host's record does.
+    expect(client.read(nightHeaderProvider).ending, NightRunEnding.ended);
+    _hostRecord(
+      client,
+      backend,
+      lastEnded: ended(),
+      stopEvidence: const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+    );
+    expect(client.read(nightHeaderProvider).ending, NightRunEnding.stopped);
+
+    // The host has since opened another plan.
+    _hostRecord(client, backend, lastEnded: ended(), lastEndedPlanLoaded: false);
+    expect(client.read(nightRunPhaseProvider), isNot(NightRunPhase.finished));
   });
 
   test('SY-25: a client restarted during a paused run counts the run frames',
@@ -232,10 +275,10 @@ void main() {
       ),
       // What this client saw arrive since it restarted: nothing.
       sessionFrames: const [],
+      // The start as a client that missed it records it: when it joined.
+      run: RunRecord(startedAt: now),
       extra: [
         allDbImagesProvider.overrideWith((ref) => Stream.value(rows)),
-        // The start as a client that missed it records it: when it joined.
-        runStartedAtProvider.overrideWith((ref) => now),
       ],
     );
     addTearDown(client.dispose);
@@ -299,7 +342,7 @@ void main() {
       terminal: result,
       imagingRun: CompletedImagingRun(result, _stats(3, 1)),
       lastEnded: LastEndedRun(
-        sequenceId: plan.sequence.id,
+        sequenceId: _hostPlanId,
         endedAt: runStart.add(const Duration(minutes: 10)),
       ),
       runStartedAt: runStart,

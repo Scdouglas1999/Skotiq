@@ -48,6 +48,26 @@ class _InvalidWireValue {
   const _InvalidWireValue();
 }
 
+/// Why a linked client changes a setting only with admin access to the host.
+enum AdminOnly {
+  /// Its value is a credential, such as a webhook URL or an API key. A link
+  /// without admin access also reads only whether it is set.
+  credential,
+
+  /// It says where the host sends a credential it keeps in its keyring: a
+  /// server, an account, a broker. Pointing it elsewhere hands that
+  /// credential over. Its own value is not secret.
+  credentialTarget,
+
+  /// It names a program or script the host runs, or chooses which of them
+  /// run.
+  hostProgram,
+
+  /// It is part of what stays with admin links: the host's backups, where it
+  /// downloads from, and how it is reached.
+  administration,
+}
+
 sealed class Setting<T> {
   const Setting(
     this.field,
@@ -59,7 +79,7 @@ sealed class Setting<T> {
     this.feeds,
     this.seed,
     this.seeded = false,
-    this.credential = false,
+    this.adminOnly,
   });
 
   /// Name of the field on `AppSettingsState`.
@@ -89,10 +109,9 @@ sealed class Setting<T> {
   /// setting simply reads as [fallback] until it is changed.
   final bool seeded;
 
-  /// It holds a credential, such as a webhook URL or an API key. A linked
-  /// client changes it only with admin access to the host; the host refuses
-  /// the change from any lesser credential.
-  final bool credential;
+  /// Set when a linked client changes it only with admin access to the host,
+  /// and why. The host refuses the change from any lesser link.
+  final AdminOnly? adminOnly;
 
   bool get hasInstallRow => seeded || seed != null;
 
@@ -108,9 +127,17 @@ sealed class Setting<T> {
   /// The rows that store [value].
   Map<String, String> toRows(T value) => {key: encode(value)};
 
+  /// The value held in [rows], or [fallback] when they hold none.
+  T valueIn(Map<String, String> rows) => fromRows(rows, fallback);
+
   T decode(String? raw, T orElse);
 
   String encode(T value);
+
+  /// The value [raw] holds, for a feature that stops rather than run on a row
+  /// it cannot read: no row, or an empty one, reads as [fallback], and text
+  /// that is not a value of this setting throws [FormatException].
+  T decodeStrict(String? raw) => decode(raw, fallback);
 
   Object? toJson(T value) => value;
 
@@ -149,17 +176,40 @@ final class BoolSetting extends Setting<bool> {
     super.field,
     super.key,
     super.fallback, {
+    this.unreadableIsFallback = false,
     super.sync,
     super.wireKey,
     super.clientKeepsOwn,
     super.feeds,
     super.seed,
     super.seeded,
+    super.adminOnly,
   });
 
+  /// Text that is neither `true` nor `false` reads as the value given when
+  /// nothing is stored, instead of as off. Set for the switches whose own
+  /// readers, before they were declared here, took anything but `false` as on.
+  final bool unreadableIsFallback;
+
   @override
-  bool decode(String? raw, bool orElse) =>
-      raw == null ? orElse : raw.toLowerCase() == 'true';
+  bool decode(String? raw, bool orElse) {
+    if (raw == null) return orElse;
+    if (!unreadableIsFallback) return raw.toLowerCase() == 'true';
+    return _named(raw) ?? orElse;
+  }
+
+  @override
+  bool decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return fallback;
+    return _named(raw) ??
+        (throw FormatException('$key is "$raw", expected true or false'));
+  }
+
+  static bool? _named(String raw) => switch (raw.trim().toLowerCase()) {
+    'true' => true,
+    'false' => false,
+    _ => null,
+  };
 
   @override
   String encode(bool value) => value.toString();
@@ -219,6 +269,7 @@ final class IntSetting extends Setting<int> {
     super.feeds,
     super.seed,
     super.seeded,
+    super.adminOnly,
   });
 
   /// Bounds a stored or received value is held to.
@@ -248,6 +299,15 @@ final class IntSetting extends Setting<int> {
   @override
   int decode(String? raw, int orElse) =>
       _bound(raw == null ? orElse : int.tryParse(raw) ?? orElse);
+
+  @override
+  int decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return _bound(fallback);
+    return _bound(
+      int.tryParse(raw.trim()) ??
+          (throw FormatException('$key is "$raw", expected a whole number')),
+    );
+  }
 
   @override
   String encode(int value) => value.toString();
@@ -305,7 +365,21 @@ final class DoubleSetting extends Setting<double> {
 
   @override
   double decode(String? raw, double orElse) =>
-      _bound(raw == null ? orElse : double.tryParse(raw) ?? orElse);
+      _bound(raw == null ? orElse : _finite(raw) ?? orElse);
+
+  @override
+  double decodeStrict(String? raw) {
+    if (raw == null || raw.isEmpty) return _bound(fallback);
+    return _bound(
+      _finite(raw.trim()) ??
+          (throw FormatException('$key is "$raw", expected a number')),
+    );
+  }
+
+  static double? _finite(String raw) {
+    final value = double.tryParse(raw);
+    return value != null && value.isFinite ? value : null;
+  }
 
   @override
   String encode(double value) => value.toString();
@@ -407,7 +481,7 @@ final class TextSetting extends Setting<String> {
     super.feeds,
     super.seed,
     super.seeded,
-    super.credential,
+    super.adminOnly,
   });
 
   /// When set, any other stored or received text reads as [fallback].
@@ -484,6 +558,7 @@ final class OptionalTextSetting extends Setting<String?> {
     super.wireKey,
     super.feeds,
     super.seeded,
+    super.adminOnly,
   }) : super(field, key, null);
 
   /// Row text that stands for "not set": `null` or the empty string.
@@ -706,11 +781,22 @@ String dartStringLiteral(String value) {
 /// Rows whose keys start with [prefix] and always live on the same machine:
 /// one row per host or per id, or a feature's group of rows.
 final class SettingFamily {
-  const SettingFamily(this.prefix, {required this.sync});
+  const SettingFamily(this.prefix, {required this.sync, this.adminOnly});
 
   final String prefix;
 
   final SettingSync sync;
 
+  /// As [Setting.adminOnly], for every row of the family.
+  final AdminOnly? adminOnly;
+
   bool holds(String key) => key.startsWith(prefix);
+
+  /// The row of this family for [id], holding text or a document.
+  OptionalTextSetting row(String id) => OptionalTextSetting(
+    '$prefix$id',
+    '$prefix$id',
+    unsetText: '',
+    sync: sync,
+  );
 }

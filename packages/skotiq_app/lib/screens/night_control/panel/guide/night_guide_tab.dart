@@ -19,25 +19,25 @@ import '../../../../widgets/phd2_connection_dialog.dart';
 import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
-import '../mount/night_panel_parts.dart';
+import '../panel_widgets.dart';
 import 'guide_metrics.dart';
 import 'guide_sections.dart';
 
 /// The state label and its tone for a PHD2 state.
-(String key, MetricGridTone tone) nightGuiderStateKey(Phd2State state) =>
+(String key, MetricTone tone) nightGuiderStateKey(Phd2State state) =>
     switch (state) {
-      Phd2State.stopped => ('nightScopeGuideStopped', MetricGridTone.neutral),
-      Phd2State.selected => ('nightScopeGuideSelected', MetricGridTone.neutral),
-      Phd2State.looping => ('nightScopeGuideLooping', MetricGridTone.warning),
+      Phd2State.stopped => ('nightScopeGuideStopped', MetricTone.neutral),
+      Phd2State.selected => ('nightScopeGuideSelected', MetricTone.neutral),
+      Phd2State.looping => ('nightScopeGuideLooping', MetricTone.warning),
       Phd2State.calibrating => (
           'nightScopeGuideCalibrating',
-          MetricGridTone.warning
+          MetricTone.warning
         ),
-      Phd2State.guiding => ('nightScopeGuideGuiding', MetricGridTone.good),
-      Phd2State.settling => ('nightScopeGuideSettling', MetricGridTone.warning),
-      Phd2State.paused => ('nightScopeGuidePaused', MetricGridTone.warning),
-      Phd2State.lostLock => ('nightScopeGuideLostLock', MetricGridTone.bad),
-      Phd2State.unknown => ('nightScopeGuideUnknown', MetricGridTone.warning),
+      Phd2State.guiding => ('nightScopeGuideGuiding', MetricTone.good),
+      Phd2State.settling => ('nightScopeGuideSettling', MetricTone.warning),
+      Phd2State.paused => ('nightScopeGuidePaused', MetricTone.warning),
+      Phd2State.lostLock => ('nightScopeGuideLostLock', MetricTone.bad),
+      Phd2State.unknown => ('nightScopeGuideUnknown', MetricTone.warning),
     };
 
 class NightGuideTab extends ConsumerWidget {
@@ -48,9 +48,9 @@ class NightGuideTab extends ConsumerWidget {
     final guider = ref.watch(guiderStateProvider);
     final connected = guider.connectionState == DeviceConnectionState.connected;
     if (!connected) {
-      return const NightPanelScroll(children: [_NoGuiderSection()]);
+      return const NightPanelBody(children: [_NoGuiderSection()]);
     }
-    return const NightPanelScroll(
+    return const NightPanelBody(
       children: [
         _GuiderSection(),
         NightGuideStarSection(),
@@ -75,7 +75,6 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final guider = ref.watch(guiderStateProvider);
     final canCommand = ref.watch(backendCanCommandProvider);
     final connecting = _connecting ||
@@ -92,7 +91,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     return NightPanelSection(
       title: l10n.text('nightScopePhd2'),
       trailing: l10n.text('nightScopeNotConnected'),
-      trailingColor: colors.warning,
+      trailingTone: MetricTone.warning,
       children: [
         NightPanelNote(l10n.text('nightScopeGuideNoPhd2')),
         NightPanelButtonGrid(
@@ -129,12 +128,11 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     bool connecting,
   ) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     if (profileGuider.kind == ProfileGuiderKind.none) {
       return NightPanelSection(
         title: l10n.text('nightScopeGuider'),
         trailing: l10n.text('nightScopeNotConnected'),
-        trailingColor: colors.warning,
+        trailingTone: MetricTone.warning,
         children: [NightPanelNote(l10n.text('nightScopeGuideNone'))],
       );
     }
@@ -146,7 +144,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     return NightPanelSection(
       title: l10n.text('nightScopeGuider'),
       trailing: l10n.text('nightScopeNotConnected'),
-      trailingColor: colors.warning,
+      trailingTone: MetricTone.warning,
       children: [
         NightPanelNote(l10n.text('nightScopeGuideNoDevice')),
         NightPanelButtonGrid(
@@ -228,7 +226,6 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final colors = context.skotiqColors;
     final guider = ref.watch(guiderStateProvider);
     final state = ref.watch(phd2StateProvider);
     final stats = ref.watch(guideStatsProvider);
@@ -316,7 +313,7 @@ class _GuiderSectionState extends ConsumerState<_GuiderSection> {
           ? l10n.text('nightScopePhd2')
           : (guider.deviceName ?? l10n.text('nightScopeGuider')),
       trailing: l10n.text(stateKey),
-      trailingColor: MetricGrid.valueColor(tone, colors),
+      trailingTone: tone,
       children: [
         NightPanelValues(
           items: metrics,

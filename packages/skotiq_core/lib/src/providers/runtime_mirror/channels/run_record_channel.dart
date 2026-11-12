@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../models/backend/sequencer_status.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../sequence/last_ended_run.dart';
+import '../../sequence/run_record.dart';
+import '../../sequence/run_stop_classification.dart';
+import '../../sequence/sequence_progress.dart';
+import '../../sequence/sequence_selection.dart';
 import '../../sequence_stats_provider.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
@@ -11,17 +15,26 @@ typedef RunRecordSnapshot = ({
   SequenceTerminalRunResult? terminal,
   CompletedImagingRun? imagingRun,
   LastEndedRun? lastEnded,
+  bool lastEndedPlanLoaded,
+  SequenceStopDecision? stopEvidence,
   DateTime? runStartedAt,
 });
 
-final _runRecordSnapshotProvider = Provider<RunRecordSnapshot>(
-  (ref) => (
+final _runRecordSnapshotProvider = Provider<RunRecordSnapshot>((ref) {
+  final lastEnded = ref.watch(lastEndedRunProvider);
+  return (
     terminal: ref.watch(sequenceTerminalRunResultProvider),
     imagingRun: ref.watch(completedImagingRunProvider),
-    lastEnded: ref.watch(lastEndedRunProvider),
+    lastEnded: lastEnded,
+    lastEndedPlanLoaded:
+        lastEnded != null &&
+        lastEnded.ranLoadedPlan(
+          ref.watch(currentSequenceProvider.select((s) => s?.id)),
+        ),
+    stopEvidence: ref.watch(sequenceStopEvidenceProvider),
     runStartedAt: ref.watch(runStartedAtProvider),
-  ),
-);
+  );
+});
 
 /// Wire name of [RunRecordChannel].
 const String runRecordChannelKey = 'runRecord';
@@ -60,7 +73,13 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
           : {
               'sequenceId': lastEnded.sequenceId,
               'endedAt': lastEnded.endedAt.toUtc().millisecondsSinceEpoch,
+              // The client cannot tell by the id: its id for the same plan
+              // is its own.
+              'planLoaded': value.lastEndedPlanLoaded,
             },
+      // Who ended the run. A client learns it from the run's events only
+      // while it is connected and listening; the host always knows.
+      'stop': _encodeStop(value.stopEvidence),
       'runStartedAt': value.runStartedAt?.toUtc().millisecondsSinceEpoch,
     };
   }
@@ -68,8 +87,6 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null || context.networkBackend == null) return;
-    // A client that started the run has its own executor attached to it.
-    if (context.read(currentRunIdProvider) != null) return;
 
     final terminal = _decodeResult(value['terminal']);
     final rawImagingRun = value['imagingRun'];
@@ -89,20 +106,51 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
       final sequenceId = jsonString(rawLastEnded['sequenceId']);
       final endedAt = jsonInstant(rawLastEnded['endedAt']);
       if (sequenceId != null && endedAt != null) {
+        final planLoaded = rawLastEnded['planLoaded'];
         lastEnded = LastEndedRun(
           sequenceId: sequenceId,
           endedAt: endedAt.toLocal(),
+          planLoadedOnHost: planLoaded is bool ? planLoaded : null,
         );
       }
     }
 
-    context.read(hostTerminalRunResultProvider.notifier).state = terminal;
-    context.read(completedImagingRunProvider.notifier).state = imagingRun;
-    context.read(lastEndedRunProvider.notifier).mirrorHost(lastEnded);
-    context.read(runStartedAtProvider.notifier).state = jsonInstant(
-      value['runStartedAt'],
-    )?.toLocal();
+    final run = context.read(runRecordProvider.notifier);
+    run.mirrorHostRunRecord(
+      terminal: terminal,
+      completedImagingRun: imagingRun,
+      lastEnded: lastEnded,
+      startedAt: jsonInstant(value['runStartedAt'])?.toLocal(),
+    );
+    // A host from before this field says nothing; what the client gathered
+    // from the events stands.
+    if (value.containsKey('stop')) {
+      run.setStopEvidence(_decodeStop(value['stop']));
+    }
   }
+}
+
+Map<String, dynamic>? _encodeStop(SequenceStopDecision? stop) => stop == null
+    ? null
+    : {
+        'author': stop.author.name,
+        'origin': stop.origin,
+        'originLabel': stop.originLabel,
+        'parked': stop.parked,
+      };
+
+SequenceStopDecision? _decodeStop(Object? raw) {
+  if (raw is! Map) return null;
+  final author = SequenceStopAuthor.values
+      .where((a) => a.name == raw['author'])
+      .firstOrNull;
+  if (author == null) return null;
+  return SequenceStopDecision(
+    author,
+    origin: jsonString(raw['origin']),
+    originLabel: jsonString(raw['originLabel']),
+    parked: raw['parked'] == true,
+  );
 }
 
 Map<String, dynamic>? _encodeResult(SequenceTerminalRunResult? result) {

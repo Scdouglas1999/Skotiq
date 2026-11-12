@@ -325,7 +325,7 @@ void main() {
       await executor.start();
       // The headless route calls this directly; it can land on an executor
       // that already has a subscription.
-      await executor.attachHostListenersForNativeRun();
+      await executor.startLoadedRun();
       emitExposureCompleted();
       await pumpEvents();
 

@@ -16,6 +16,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:skotiq_app/router/app_routes.dart';
+import 'package:skotiq_app/screens/planner/planner_route.dart';
 
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
@@ -296,6 +299,48 @@ void main() {
         find.byType(WeekForecastStrip, skipOffstage: false),
         findsNothing,
       );
+    });
+
+    // Read from code and seen on Analytics: after the tab was changed by
+    // hand the location still named the link's tab, so the same link again
+    // went nowhere.
+    testWidgets('a link to a tab works again after the tab was changed by hand',
+        (tester) async {
+      sizeDesktop(tester);
+      final router = GoRouter(
+        initialLocation: AppRoutes.planner(tab: PlannerTab.projects),
+        routes: [
+          GoRoute(
+            path: AppRoute.planner.path,
+            builder: (context, state) => Scaffold(
+              body: PlannerScreen(
+                initialTab:
+                    PlannerTab.fromQuery(state.uri.queryParameters['tab']),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [..._allTabOverrides()],
+          child: MaterialApp.router(
+            theme: SkotiqTheme.dark,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 200));
+      _expectSelected(tester, 'Projects');
+
+      await tester.tap(find.text('Schedule').first);
+      await tester.pump(const Duration(milliseconds: 200));
+      _expectSelected(tester, 'Schedule');
+
+      router.go(AppRoutes.planner(tab: PlannerTab.projects));
+      await tester.pump(const Duration(milliseconds: 200));
+      _expectSelected(tester, 'Projects');
     });
 
     testWidgets('?tab=projects selects the Projects tab on initial render',

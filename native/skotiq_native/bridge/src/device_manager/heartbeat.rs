@@ -184,16 +184,7 @@ impl DeviceManager {
         // which that check also recovers.
         if *driver_type != DriverType::Indi {
             if let Some(handle) = self.handles.get(device_id) {
-                return Ok(match handle.accessory().heartbeat().await {
-                    Ok(()) => {
-                        tracing::trace!("{} heartbeat: healthy", device_id);
-                        true
-                    }
-                    Err(e) => {
-                        tracing::debug!("{} heartbeat failed: {}", device_id, e);
-                        false
-                    }
-                });
+                return handle.heartbeat(device_id).await;
             }
         }
         match driver_type {
@@ -243,23 +234,11 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{
-            get_sim_camera_for, get_sim_cover_calibrator, get_sim_dome, get_sim_filterwheel,
-            get_sim_focuser, get_sim_mount, get_sim_rotator, get_sim_safety_monitor,
-            get_sim_switch, get_sim_weather,
-        };
+        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_mount};
 
         let connected = match device_type {
             DeviceType::Camera => get_sim_camera_for(device_id).read().await.status.connected,
             DeviceType::Mount => get_sim_mount().read().await.status.connected,
-            DeviceType::Focuser => get_sim_focuser().read().await.status.connected,
-            DeviceType::FilterWheel => get_sim_filterwheel().read().await.status.connected,
-            DeviceType::Rotator => get_sim_rotator().read().await.status.connected,
-            DeviceType::Dome => get_sim_dome().read().await.status.connected,
-            DeviceType::Weather => get_sim_weather().read().await.connected,
-            DeviceType::SafetyMonitor => get_sim_safety_monitor().read().await.status.connected,
-            DeviceType::Switch => get_sim_switch().read().await.connected,
-            DeviceType::CoverCalibrator => get_sim_cover_calibrator().read().await.connected,
             other => {
                 return Err(format!(
                     "simulator health check: no simulator implementation for device type {:?} (id '{}')",

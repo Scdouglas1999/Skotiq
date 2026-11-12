@@ -90,7 +90,7 @@ class _YourSkyOffNoticeDialogState
   bool _busy = false;
   String? _error;
 
-  String get _size => (widget.bytes / 1e9).toStringAsFixed(1);
+  String get _size => ByteFormat.size(widget.bytes);
 
   Future<void> _finish(Future<void> Function() action) async {
     setState(() {
@@ -123,7 +123,7 @@ class _YourSkyOffNoticeDialogState
       builder: (confirmContext) => AlertDialog(
         title: const Text('Delete Your sky data?'),
         content: Text(
-          'This permanently deletes $_size GB of sky atlas tiles. Your '
+          'This permanently deletes $_size of sky atlas tiles. Your '
           'frames are not touched, and region names are kept. This cannot be '
           'undone.',
         ),
@@ -162,7 +162,7 @@ class _YourSkyOffNoticeDialogState
             Text(
               'Skotiq no longer builds the Your sky atlas unless you turn it '
               'on, so it is off on this machine now. The atlas it built '
-              'before holds $_size GB and has been kept.',
+              'before holds $_size and has been kept.',
             ),
             const SizedBox(height: SkotiqTokens.spaceMd),
             Text(

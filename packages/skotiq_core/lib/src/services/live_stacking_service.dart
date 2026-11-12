@@ -128,6 +128,17 @@ class LiveStackingStats {
   final double avgAlignmentResidual;
   final int totalSigmaRejectedPixels;
 
+  /// The filter the stack is of: its reference frame's. Null when that frame
+  /// named none, and from a host that does not report it.
+  final String? filter;
+
+  /// Frames left out because they were taken through another filter than
+  /// [filter]. They are not attempts: nothing was aligned.
+  final int otherFilterFrames;
+
+  /// The filter of the most recent such frame; null when it had none.
+  final String? lastOtherFilter;
+
   const LiveStackingStats({
     this.stackedFrameCount = 0,
     this.totalFramesAttempted = 0,
@@ -135,7 +146,26 @@ class LiveStackingStats {
     this.avgMatchedPairs = 0.0,
     this.avgAlignmentResidual = 0.0,
     this.totalSigmaRejectedPixels = 0,
+    this.filter,
+    this.otherFilterFrames = 0,
+    this.lastOtherFilter,
   });
+
+  /// Why frames were left out of the stack for their filter and what to do
+  /// about it; null when none were.
+  String? get otherFilterNote {
+    if (otherFilterFrames == 0) return null;
+    final stack = filter == null ? 'unfiltered frames' : '$filter frames';
+    final latest = lastOtherFilter == null
+        ? 'no filter'
+        : 'the $lastOtherFilter filter';
+    return otherFilterFrames == 1
+        ? 'It was taken with $latest and this stack is of $stack. To stack '
+              'it, stop and start a new live stack.'
+        : 'They were taken with another filter (most recently $latest) and '
+              'this stack is of $stack. To stack them, stop and start a new '
+              'live stack.';
+  }
 }
 
 /// Thrown when the stacker refuses the frame it was handed.
@@ -681,6 +711,9 @@ class LiveStackingService {
       avgMatchedPairs: bridgeStats.avgMatchedPairs,
       avgAlignmentResidual: bridgeStats.avgAlignmentResidual,
       totalSigmaRejectedPixels: bridgeStats.totalSigmaRejectedPixels.toInt(),
+      filter: bridgeStats.filter,
+      otherFilterFrames: bridgeStats.otherFilterFrames,
+      lastOtherFilter: bridgeStats.lastOtherFilter,
     );
   }
 

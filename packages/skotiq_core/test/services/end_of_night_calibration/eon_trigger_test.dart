@@ -244,14 +244,16 @@ void main() {
 
     void finishRun(int generation, int runId, String status) {
       container
-          .read(sequenceTerminalRunResultProvider.notifier)
-          .state = SequenceTerminalRunResult(
-        generation: generation,
-        outcome: SequenceExecutionState.completed,
-        runStatus: status,
-        runId: runId,
-        dbSessionId: null,
-      );
+          .read(runRecordProvider.notifier)
+          .publishTerminal(
+            SequenceTerminalRunResult(
+              generation: generation,
+              outcome: SequenceExecutionState.completed,
+              runStatus: status,
+              runId: runId,
+              dbSessionId: null,
+            ),
+          );
     }
 
     Future<void> settle() async {
@@ -295,19 +297,24 @@ void main() {
     test('an operator stop does not start it; the dawn trigger does', () async {
       await enable(true);
       await recordRunFrame(9, 'light');
-      container.read(sequenceStopEvidenceProvider.notifier).state =
-          const SequenceStopDecision(SequenceStopAuthor.operatorPress);
+      container
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+          );
       finishRun(1, 9, 'stopped');
       await settle();
       expect(rig.calls, isEmpty);
 
       container
-          .read(sequenceStopEvidenceProvider.notifier)
-          .state = const SequenceStopDecision(
-        SequenceStopAuthor.system,
-        origin: 'dawn_approaching',
-        parked: true,
-      );
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(
+              SequenceStopAuthor.system,
+              origin: 'dawn_approaching',
+              parked: true,
+            ),
+          );
       finishRun(2, 9, 'stopped');
       await settle();
       expect(rig.calls, contains('run'));
@@ -317,12 +324,14 @@ void main() {
       await enable(true);
       await recordRunFrame(10, 'light');
       container
-          .read(sequenceStopEvidenceProvider.notifier)
-          .state = const SequenceStopDecision(
-        SequenceStopAuthor.system,
-        origin: 'dawn_approaching',
-        parked: true,
-      );
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(
+              SequenceStopAuthor.system,
+              origin: 'dawn_approaching',
+              parked: true,
+            ),
+          );
       container.read(mountStateProvider.notifier).setConnecting('mount');
       when(() => backend.getMountStatus('mount')).thenAnswer(
         (_) async => MountStatus.fromJson({'connected': true, 'parked': true}),
@@ -348,12 +357,14 @@ void main() {
         await enable(true);
         await recordRunFrame(10, 'light');
         container
-            .read(sequenceStopEvidenceProvider.notifier)
-            .state = sequenceStopTriggerDecision(
-          triggerId: 'dawn_approaching',
-          triggerName: 'Dawn Approaching',
-          action: 'ParkAndAbort',
-        );
+            .read(runRecordProvider.notifier)
+            .setStopEvidence(
+              sequenceStopTriggerDecision(
+                triggerId: 'dawn_approaching',
+                triggerName: 'Dawn Approaching',
+                action: 'ParkAndAbort',
+              ),
+            );
         container.read(mountStateProvider.notifier).setConnecting('mount');
         when(() => backend.getMountStatus('mount')).thenAnswer(
           (_) async =>
@@ -386,8 +397,11 @@ void main() {
     test('an operator stop settles at once as not ending the night', () async {
       await enable(true);
       await recordRunFrame(12, 'light');
-      container.read(sequenceStopEvidenceProvider.notifier).state =
-          const SequenceStopDecision(SequenceStopAuthor.operatorPress);
+      container
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+          );
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
@@ -429,20 +443,25 @@ void main() {
     test('a manual run after an operator stop queues the night', () async {
       await enable(true);
       await recordRunFrame(15, 'light');
-      container.read(sequenceStopEvidenceProvider.notifier).state =
-          const SequenceStopDecision(SequenceStopAuthor.operatorPress);
+      container
+          .read(runRecordProvider.notifier)
+          .setStopEvidence(
+            const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+          );
       final coordinator = container.read(
         endOfNightCalibrationCoordinatorProvider,
       );
       container
-          .read(sequenceTerminalRunResultProvider.notifier)
-          .state = const SequenceTerminalRunResult(
-        generation: 1,
-        outcome: SequenceExecutionState.idle,
-        runStatus: 'stopped',
-        runId: 15,
-        dbSessionId: 40,
-      );
+          .read(runRecordProvider.notifier)
+          .publishTerminal(
+            const SequenceTerminalRunResult(
+              generation: 1,
+              outcome: SequenceExecutionState.idle,
+              runStatus: 'stopped',
+              runId: 15,
+              dbSessionId: 40,
+            ),
+          );
       await coordinator.nightSettled(1);
       expect(container.read(nightIntegrationRequestProvider), isNull);
 

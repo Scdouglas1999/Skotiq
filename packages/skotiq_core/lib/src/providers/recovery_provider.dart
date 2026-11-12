@@ -412,7 +412,7 @@ RecoveryPhase _phaseFromTyped(String phase) {
 void _applyRecoveryEvent(Ref ref, RecoveryEventEnvelope envelope) {
   final currentNotifier = ref.read(currentRecoveryProvider.notifier);
   final historyNotifier = ref.read(recoveryHistoryProvider.notifier);
-  final progressNotifier = ref.read(sequenceProgressProvider.notifier);
+  final progressNotifier = ref.read(runRecordProvider.notifier);
 
   switch (envelope.kind) {
     case RecoveryEventKind.started:
@@ -422,7 +422,7 @@ void _applyRecoveryEvent(Ref ref, RecoveryEventEnvelope envelope) {
       // notifier so the dashboard's other panels (status bar, mobile
       // playback bar, sequence progress card) react to recovery without
       // having to subscribe to currentRecoveryProvider individually.
-      progressNotifier.updateState(SequenceExecutionState.recovering);
+      progressNotifier.showPhase(SequenceExecutionState.recovering);
       break;
     case RecoveryEventKind.completed:
       currentNotifier.clear();
@@ -443,7 +443,7 @@ void _applyRecoveryEvent(Ref ref, RecoveryEventEnvelope envelope) {
       );
       // Recovery succeeded — the Rust executor flips back to Running.
       // Mirror that on the Dart side so the LED returns to green.
-      progressNotifier.updateState(SequenceExecutionState.running);
+      progressNotifier.showPhase(SequenceExecutionState.running);
       break;
     case RecoveryEventKind.gaveUp:
       currentNotifier.clear();
@@ -459,7 +459,7 @@ void _applyRecoveryEvent(Ref ref, RecoveryEventEnvelope envelope) {
         ),
       );
       // Recovery exhausted — the Rust executor flips to Failed.
-      progressNotifier.updateState(SequenceExecutionState.failed);
+      progressNotifier.showPhase(SequenceExecutionState.failed);
       break;
   }
 }

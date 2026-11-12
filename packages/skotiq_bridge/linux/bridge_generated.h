@@ -944,8 +944,6 @@ typedef struct wire_cst_live_stacking_broadcast_snapshot {
   struct wire_cst_list_prim_u_8_strict *mode;
   struct wire_cst_list_prim_u_8_strict *stack_method;
   bool broadcast_enabled;
-  uint16_t broadcast_port;
-  struct wire_cst_list_prim_u_8_strict *broadcast_path;
   struct wire_cst_list_prim_u_8_strict *auth_token;
   struct wire_cst_list_prim_u_8_strict *watermark_template;
   uint32_t thumbnail_width;
@@ -1151,6 +1149,7 @@ typedef struct wire_cst_SequencerEvent_ExposureCompleted {
 
 typedef struct wire_cst_SequencerEvent_Error {
   struct wire_cst_list_prim_u_8_strict *message;
+  int32_t kind;
 } wire_cst_SequencerEvent_Error;
 
 typedef struct wire_cst_SequencerEvent_MeridianFlipOutcome {
@@ -1563,6 +1562,11 @@ typedef struct wire_cst_list_device_info {
   int32_t len;
 } wire_cst_list_device_info;
 
+typedef struct wire_cst_list_device_type {
+  int32_t *ptr;
+  int32_t len;
+} wire_cst_list_device_type;
+
 typedef struct wire_cst_list_equipment_profile {
   struct wire_cst_equipment_profile *ptr;
   int32_t len;
@@ -1720,6 +1724,9 @@ typedef struct wire_cst_api_live_stacking_stats {
   double avg_matched_pairs;
   double avg_alignment_residual;
   uint64_t total_sigma_rejected_pixels;
+  uint32_t other_filter_frames;
+  struct wire_cst_list_prim_u_8_strict *last_other_filter;
+  struct wire_cst_list_prim_u_8_strict *filter;
 } wire_cst_api_live_stacking_stats;
 
 typedef struct wire_cst_api_live_stacking_result {
@@ -3040,6 +3047,8 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_moun
 void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__api_mount_unpark(int64_t port_,
                                                                                          struct wire_cst_list_prim_u_8_strict *device_id);
 
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types(void);
+
 void frbgen_skotiq_bridge_wire__crate__api__sequencer__lifecycle__api_perform_meridian_flip(int64_t port_,
                                                                                             struct wire_cst_list_prim_u_8_strict *mount_id,
                                                                                             struct wire_cst_list_prim_u_8_strict *camera_id,
@@ -3828,6 +3837,8 @@ struct wire_cst_list_detected_star_info *frbgen_skotiq_bridge_cst_new_list_detec
 
 struct wire_cst_list_device_info *frbgen_skotiq_bridge_cst_new_list_device_info(int32_t len);
 
+struct wire_cst_list_device_type *frbgen_skotiq_bridge_cst_new_list_device_type(int32_t len);
+
 struct wire_cst_list_equipment_profile *frbgen_skotiq_bridge_cst_new_list_equipment_profile(int32_t len);
 
 struct wire_cst_list_focus_data_point *frbgen_skotiq_bridge_cst_new_list_focus_data_point(int32_t len);
@@ -3939,6 +3950,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_bool);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_detected_star_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_device_info);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_device_type);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_equipment_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_focus_data_point);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_mount_guard_status);
@@ -4107,6 +4119,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_extract_background);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_enhance__api_reduce_stars_preview);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_get_device_health);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_native_reconnected_device_types);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_start_device_heartbeat);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_stop_device_heartbeat);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__hotplug__api_rescan_devices);

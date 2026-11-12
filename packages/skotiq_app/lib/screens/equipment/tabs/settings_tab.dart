@@ -373,8 +373,11 @@ class _BuiltinGuiderSettingsCardState
   bool _saving = false;
   String? _loadError;
   BuiltinGuiderConfig _lastApplied = BuiltinGuiderConfig.defaults;
-  int _backendGeneration = 0;
-  int _loadGeneration = 0;
+  // Canceled on a host change, so work begun under a host stays stale even
+  // if the app links back to it.
+  late final AsyncScopes<SkotiqBackend> _hostScopes = ref.backendScopes(
+    alive: () => mounted,
+  );
 
   @override
   void initState() {
@@ -396,8 +399,7 @@ class _BuiltinGuiderSettingsCardState
     }
     ref.listenManual<SkotiqBackend>(backendProvider, (previous, next) {
       if (identical(previous, next)) return;
-      _backendGeneration++;
-      _loadGeneration++;
+      _hostScopes.cancelAll();
       setState(() {
         _initialized = false;
         _loading = true;
@@ -415,18 +417,10 @@ class _BuiltinGuiderSettingsCardState
     // current config regardless of connection state, so we read it directly
     // through the backend. Rust returns the in-memory default when the
     // guider hasn't been connected, which is exactly what we want to show.
-    final backend = ref.read(backendProvider);
-    final backendGeneration = _backendGeneration;
-    final loadGeneration = ++_loadGeneration;
+    final host = _hostScopes.beginLatest();
     try {
-      final config = await backend.builtinGuiderGetConfig();
-      if (!_isCurrentBackend(
-        backend,
-        backendGeneration,
-        loadGeneration: loadGeneration,
-      )) {
-        return;
-      }
+      final config = await host.value.builtinGuiderGetConfig();
+      if (host.isStale) return;
       _applyToControllers(config);
       setState(() {
         _lastApplied = config;
@@ -434,13 +428,7 @@ class _BuiltinGuiderSettingsCardState
         _initialized = true;
       });
     } catch (e) {
-      if (!_isCurrentBackend(
-        backend,
-        backendGeneration,
-        loadGeneration: loadGeneration,
-      )) {
-        return;
-      }
+      if (host.isStale) return;
       setState(() {
         _loadError = userFacingError(e);
         _loading = false;
@@ -456,17 +444,6 @@ class _BuiltinGuiderSettingsCardState
       _loadError = null;
     });
     _loadInitialConfig();
-  }
-
-  bool _isCurrentBackend(
-    SkotiqBackend backend,
-    int backendGeneration, {
-    int? loadGeneration,
-  }) {
-    return mounted &&
-        backendGeneration == _backendGeneration &&
-        (loadGeneration == null || loadGeneration == _loadGeneration) &&
-        identical(backend, ref.read(backendProvider));
   }
 
   void _applyToControllers(BuiltinGuiderConfig config) {
@@ -589,8 +566,7 @@ class _BuiltinGuiderSettingsCardState
       settleSleepMs: settleSleep,
     );
 
-    final backend = ref.read(backendProvider);
-    final backendGeneration = _backendGeneration;
+    final host = _hostScopes.begin();
     setState(() => _saving = true);
     try {
       // When the built-in guider is connected, the riverpod notifier owns the
@@ -602,15 +578,15 @@ class _BuiltinGuiderSettingsCardState
             .read(builtinGuiderConfigProvider.notifier)
             .updateConfig(newConfig);
       } else {
-        await backend.builtinGuiderSetConfig(newConfig);
+        await host.value.builtinGuiderSetConfig(newConfig);
       }
-      if (!_isCurrentBackend(backend, backendGeneration)) return;
+      if (host.isStale) return;
       setState(() => _lastApplied = newConfig);
     } catch (e) {
-      if (!mounted || !_isCurrentBackend(backend, backendGeneration)) return;
+      if (host.isStale) return;
       context.showErrorSnackBar('Failed to apply settings: ${userFacingError(e)}');
     } finally {
-      if (_isCurrentBackend(backend, backendGeneration)) {
+      if (host.isCurrent) {
         setState(() => _saving = false);
       }
     }
@@ -619,24 +595,23 @@ class _BuiltinGuiderSettingsCardState
   Future<void> _resetDefaults() async {
     if (_saving) return;
     const defaults = BuiltinGuiderConfig.defaults;
-    final backend = ref.read(backendProvider);
-    final backendGeneration = _backendGeneration;
+    final host = _hostScopes.begin();
     setState(() => _saving = true);
     try {
       final isConnected = ref.read(isBuiltinGuiderProvider);
       if (isConnected) {
         await ref.read(builtinGuiderConfigProvider.notifier).resetToDefaults();
       } else {
-        await backend.builtinGuiderSetConfig(defaults);
+        await host.value.builtinGuiderSetConfig(defaults);
       }
-      if (!_isCurrentBackend(backend, backendGeneration)) return;
+      if (host.isStale) return;
       _applyToControllers(defaults);
       setState(() => _lastApplied = defaults);
     } catch (e) {
-      if (!mounted || !_isCurrentBackend(backend, backendGeneration)) return;
+      if (host.isStale) return;
       context.showErrorSnackBar('Failed to reset settings: ${userFacingError(e)}');
     } finally {
-      if (_isCurrentBackend(backend, backendGeneration)) {
+      if (host.isCurrent) {
         setState(() => _saving = false);
       }
     }

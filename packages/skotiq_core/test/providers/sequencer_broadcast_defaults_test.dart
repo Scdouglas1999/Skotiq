@@ -47,7 +47,6 @@ void main() {
     test('first build returns sane initial defaults', () async {
       await _warmAndPump(container);
       final defaults = container.read(sequencerDefaultsProvider);
-      expect(defaults.livestackingDefaultPort, 8081);
       expect(defaults.livestackingPublicByDefault, isFalse);
       expect(
         defaults.livestackingDefaultStackMethod,
@@ -66,7 +65,6 @@ void main() {
       final notifier = container.read(sequencerDefaultsProvider.notifier);
 
       await notifier.updateLiveStackingDefaults(
-        defaultPort: 9090,
         publicByDefault: true,
         defaultStackMethod: LiveStackingMethod.medianRej,
         defaultWatermark: r'M31 — L ${integration.hms}',
@@ -75,7 +73,6 @@ void main() {
       );
 
       final after = container.read(sequencerDefaultsProvider);
-      expect(after.livestackingDefaultPort, 9090);
       expect(after.livestackingPublicByDefault, isTrue);
       expect(
         after.livestackingDefaultStackMethod,
@@ -90,7 +87,6 @@ void main() {
 
       // Verify the SettingsDao persisted everything verbatim.
       final dao = container.read(settingsDaoProvider);
-      expect(await dao.getSetting('livestacking_default_port'), '9090');
       expect(await dao.getSetting('livestacking_public_by_default'), 'true');
       expect(
         await dao.getSetting('livestacking_default_stack_method'),

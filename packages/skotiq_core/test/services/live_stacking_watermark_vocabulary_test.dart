@@ -14,7 +14,6 @@ LiveStackingNode _node(String watermark) => LiveStackingNode(
   name: 'Live Stacking',
   mode: LiveStackingMode.broadcastOnly,
   stackMethod: LiveStackingMethod.average,
-  broadcastPort: 8081,
   watermarkText: watermark,
 );
 

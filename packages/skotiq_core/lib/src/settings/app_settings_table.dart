@@ -48,6 +48,7 @@ const List<Setting<Object?>> kAppSettingsTable = [
     true,
     seeded: true,
   ),
+
   /// `dark` or `light`.
   TextSetting('theme', 'theme', 'dark', clientKeepsOwn: true, seeded: true),
 
@@ -284,11 +285,24 @@ const List<Setting<Object?>> kAppSettingsTable = [
     null,
     sync: SettingSync.thisComputer,
   ),
+
   /// The label of the native plate-solver preference, kept as a stored copy
   /// for export. The preference itself is the authority.
   TextSetting('plateSolver', 'plate_solver', 'ASTAP', seed: 'Auto'),
-  TextSetting('astapPath', 'astap_path', '', seeded: true),
-  TextSetting('astrometryPath', 'astrometry_path', '', seeded: true),
+  TextSetting(
+    'astapPath',
+    'astap_path',
+    '',
+    seeded: true,
+    adminOnly: AdminOnly.hostProgram,
+  ),
+  TextSetting(
+    'astrometryPath',
+    'astrometry_path',
+    '',
+    seeded: true,
+    adminOnly: AdminOnly.hostProgram,
+  ),
   IntSetting('plateSolveTimeout', 'plate_solve_timeout', 60, seeded: true),
   DoubleSetting(
     'plateSolveSearchRadius',
@@ -298,7 +312,13 @@ const List<Setting<Object?>> kAppSettingsTable = [
   ),
   BoolSetting('blindSolve', 'blind_solve', false, seeded: true),
   BoolSetting('centeringSyncMount', 'centering_sync_mount', true, seeded: true),
-  TextSetting('phd2Path', 'phd2_path', '', seeded: true),
+  TextSetting(
+    'phd2Path',
+    'phd2_path',
+    '',
+    seeded: true,
+    adminOnly: AdminOnly.hostProgram,
+  ),
   TextSetting('phd2Host', 'phd2_host', 'localhost', seeded: true),
   IntSetting('phd2Port', 'phd2_port', 4400, seeded: true),
   BoolSetting(
@@ -312,21 +332,21 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'discord_webhook',
     '',
     seeded: true,
-    credential: true,
+    adminOnly: AdminOnly.credential,
   ),
   TextSetting(
     'pushoverKey',
     'pushover_key',
     '',
     seeded: true,
-    credential: true,
+    adminOnly: AdminOnly.credential,
   ),
   TextSetting(
     'pushoverUser',
     'pushover_user',
     '',
     seeded: true,
-    credential: true,
+    adminOnly: AdminOnly.credential,
   ),
   BoolSetting(
     'notifyOnSequenceComplete',
@@ -398,13 +418,21 @@ const List<Setting<Object?>> kAppSettingsTable = [
     'catalog_base_url',
     '',
     sync: SettingSync.hostStore,
+    adminOnly: AdminOnly.administration,
   ),
-  BoolSetting('webServerEnabled', 'web_server_enabled', false, seeded: true),
+  BoolSetting(
+    'webServerEnabled',
+    'web_server_enabled',
+    false,
+    seeded: true,
+    adminOnly: AdminOnly.administration,
+  ),
   IntSetting(
     'webServerPort',
     'web_server_port',
     kDefaultHeadlessPort,
     seeded: true,
+    adminOnly: AdminOnly.administration,
   ),
   IntSetting('defaultGain', 'default_gain', 100, seeded: true),
   IntSetting('defaultOffset', 'default_offset', 50, seeded: true),

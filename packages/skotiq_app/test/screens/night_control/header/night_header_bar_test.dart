@@ -307,7 +307,7 @@ void main() {
       );
       final node = tester.getSemantics(find.byType(HoldToConfirmButton));
       expect(node.hint, 'The run has stopped and is saving its results');
-      expect(node.label, contains('Press and hold'));
+      expect(node.label, 'Stop the run');
       handle.dispose();
     });
 

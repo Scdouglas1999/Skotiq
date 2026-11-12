@@ -116,6 +116,55 @@ class ScienceSettings {
     this.scienceGuideCollapsed = false,
   });
 
+  /// What the stored [rows] hold. A switch or number that cannot be read
+  /// throws [FormatException] rather than reading as its default: Science
+  /// does not run on settings the operator did not choose.
+  factory ScienceSettings.fromRows(Map<String, String> rows) {
+    T read<T>(Setting<T> setting) => setting.decodeStrict(rows[setting.key]);
+    return ScienceSettings(
+      advancedModeEnabled: read(StoreSettings.scienceAdvancedMode),
+      overlayEnabled: read(StoreSettings.scienceOverlay),
+      photometryEnabled: read(StoreSettings.sciencePhotometry),
+      photometricCalibrationEnabled: read(
+        StoreSettings.sciencePhotometricCalibration,
+      ),
+      transparencyEnabled: read(StoreSettings.scienceTransparency),
+      psfMapEnabled: read(StoreSettings.sciencePsfMap),
+      astrometricResidualsEnabled: read(
+        StoreSettings.scienceAstrometricResiduals,
+      ),
+      movingObjectsEnabled: read(StoreSettings.scienceMovingObjects),
+      skyAtlasEnabled: read(StoreSettings.scienceSkyAtlas),
+      skyAtlasLimitGb: parseSkyAtlasLimitGb(
+        rows[StoreSettings.scienceSkyAtlasLimitGb.key],
+      ),
+      narrowbandRatiosEnabled: read(StoreSettings.scienceNarrowbandRatios),
+      frameQualityMapsEnabled: read(StoreSettings.scienceFrameQualityMaps),
+      surface3dEnabled: read(StoreSettings.scienceSurface3d),
+      manualPurgeOnly: read(StoreSettings.scienceManualPurgeOnly),
+      fitsHeaderWritebackEnabled: read(
+        StoreSettings.scienceFitsHeaderWriteback,
+      ),
+      mpcObservatoryCode: read(StoreSettings.scienceMpcObservatoryCode),
+      aavsoObserverCode: read(StoreSettings.scienceAavsoObserverCode),
+      observerName: read(StoreSettings.scienceObserverName),
+      mpcAstrometricCatalog: read(StoreSettings.scienceMpcAstrometricCatalog),
+      tnsBotId: read(StoreSettings.scienceTnsBotId),
+      tnsBotName: read(StoreSettings.scienceTnsBotName),
+      tnsReportingGroupId: read(StoreSettings.scienceTnsReportingGroupId),
+      tnsDataSourceId: read(StoreSettings.scienceTnsDataSourceId),
+      tnsReporterName: read(StoreSettings.scienceTnsReporterName),
+      tnsUseSandbox: read(StoreSettings.scienceTnsUseSandbox),
+      // Frame grading was first a switch of the application settings; either
+      // one being on grades frames.
+      autoFrameGradingEnabled:
+          read(StoreSettings.scienceAutoFrameGrading) ||
+          read(AppSettingDefs.enableImageGrading),
+      frameGradeRulesJson: read(StoreSettings.scienceFrameGradeRules),
+      scienceGuideCollapsed: read(StoreSettings.scienceGuideCollapsed),
+    );
+  }
+
   /// Rules applied by [FrameAutoGrader] and shown in the Image Grader UI.
   FrameGradeRules resolvedFrameGradeRules() {
     final parsed = FrameGradeRules.fromJsonString(frameGradeRulesJson);
@@ -199,98 +248,9 @@ class ScienceSettings {
 }
 
 class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
-  static const _keys = {
-    'advancedMode': 'science.advanced_mode.enabled',
-    'overlay': 'science.overlay.enabled',
-    'photometry': 'science.feature.photometry',
-    'photometricCalibration': 'science.feature.photometric_calibration',
-    'transparency': 'science.feature.transparency',
-    'psfMap': 'science.feature.psf_map',
-    'astrometricResiduals': 'science.feature.astrometric_residuals',
-    'movingObjects': 'science.feature.moving_objects',
-    'narrowbandRatios': 'science.feature.narrowband_ratios',
-    'frameQualityMaps': 'science.feature.frame_quality_maps',
-    'surface3d': 'science.feature.surface3d',
-    'skyAtlas': 'science.feature.sky_atlas',
-    'skyAtlasLimitGb': skyAtlasLimitSettingKey,
-    'manualPurgeOnly': 'science.retention.manual_purge_only',
-    'fitsHeaderWriteback': 'science.writeback.fits_header_enabled',
-    'mpcObservatoryCode': 'science.mpc.observatory_code',
-    'aavsoObserverCode': 'science.aavso.observer_code',
-    'observerName': 'science.observer.name',
-    'mpcAstrometricCatalog': 'science.mpc.ast_cat',
-    'tnsBotId': 'science.tns.bot_id',
-    'tnsBotName': 'science.tns.bot_name',
-    'tnsReportingGroupId': 'science.tns.group_id',
-    'tnsDataSourceId': 'science.tns.source_id',
-    'tnsReporterName': 'science.tns.reporter',
-    'tnsUseSandbox': 'science.tns.use_sandbox',
-    'autoFrameGrading': 'science.grading.auto_enabled',
-    'frameGradeRules': 'science.grading.rules_json',
-    'guideCollapsed': 'science.guide.collapsed',
-  };
-
   @override
-  Future<ScienceSettings> build() async {
-    final settings = await _loadScienceSettingsMap(ref);
-
-    return ScienceSettings(
-      advancedModeEnabled: _parseBool(settings[_keys['advancedMode']], false),
-      overlayEnabled: _parseBool(settings[_keys['overlay']], true),
-      photometryEnabled: _parseBool(settings[_keys['photometry']], true),
-      photometricCalibrationEnabled: _parseBool(
-        settings[_keys['photometricCalibration']],
-        true,
-      ),
-      transparencyEnabled: _parseBool(settings[_keys['transparency']], true),
-      psfMapEnabled: _parseBool(settings[_keys['psfMap']], true),
-      astrometricResidualsEnabled: _parseBool(
-        settings[_keys['astrometricResiduals']],
-        true,
-      ),
-      movingObjectsEnabled: _parseBool(settings[_keys['movingObjects']], false),
-      skyAtlasEnabled: _parseBool(settings[_keys['skyAtlas']], false),
-      skyAtlasLimitGb: parseSkyAtlasLimitGb(settings[_keys['skyAtlasLimitGb']]),
-      narrowbandRatiosEnabled: _parseBool(
-        settings[_keys['narrowbandRatios']],
-        false,
-      ),
-      frameQualityMapsEnabled: _parseBool(
-        settings[_keys['frameQualityMaps']],
-        true,
-      ),
-      surface3dEnabled: _parseBool(settings[_keys['surface3d']], true),
-      manualPurgeOnly: _parseBool(settings[_keys['manualPurgeOnly']], true),
-      fitsHeaderWritebackEnabled: _parseBool(
-        settings[_keys['fitsHeaderWriteback']],
-        true,
-      ),
-      mpcObservatoryCode: settings[_keys['mpcObservatoryCode']] ?? '',
-      aavsoObserverCode: settings[_keys['aavsoObserverCode']] ?? '',
-      observerName: settings[_keys['observerName']] ?? '',
-      mpcAstrometricCatalog: settings[_keys['mpcAstrometricCatalog']] ?? '',
-      tnsBotId: _parseInt(settings[_keys['tnsBotId']], _keys['tnsBotId']!),
-      tnsBotName: settings[_keys['tnsBotName']] ?? '',
-      tnsReportingGroupId: _parseInt(
-        settings[_keys['tnsReportingGroupId']],
-        _keys['tnsReportingGroupId']!,
-      ),
-      tnsDataSourceId: _parseInt(
-        settings[_keys['tnsDataSourceId']],
-        _keys['tnsDataSourceId']!,
-      ),
-      tnsReporterName: settings[_keys['tnsReporterName']] ?? '',
-      tnsUseSandbox: _parseBool(settings[_keys['tnsUseSandbox']], false),
-      autoFrameGradingEnabled:
-          _parseBool(settings[_keys['autoFrameGrading']], false) ||
-          _parseBool(settings['image_grading_enabled'], false),
-      frameGradeRulesJson: settings[_keys['frameGradeRules']],
-      scienceGuideCollapsed: _parseBool(
-        settings[_keys['guideCollapsed']],
-        false,
-      ),
-    );
-  }
+  Future<ScienceSettings> build() async =>
+      ScienceSettings.fromRows(await _loadScienceSettingsMap(ref));
 
   Future<void> _writeTail = Future<void>.value();
 
@@ -314,39 +274,47 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
     return result;
   }
 
-  Future<void> _update(
-    Map<String, String> values,
+  Future<void> _update<T>(
+    Setting<T> setting,
+    T value,
     ScienceSettings Function(ScienceSettings current) change,
   ) {
     return _serialized((current) async {
       final updated = change(current);
-      await _writeScienceSettings(ref, values);
+      await _writeScienceSettings(ref, setting.toRows(value));
       state = AsyncData(updated);
     });
   }
 
-  Future<void> setAdvancedModeEnabled(bool enabled) => _update({
-    _keys['advancedMode']!: enabled.toString(),
-  }, (current) => current.copyWith(advancedModeEnabled: enabled));
+  Future<void> setAdvancedModeEnabled(bool enabled) => _update(
+    StoreSettings.scienceAdvancedMode,
+    enabled,
+    (current) => current.copyWith(advancedModeEnabled: enabled),
+  );
 
-  Future<void> setOverlayEnabled(bool enabled) => _update({
-    _keys['overlay']!: enabled.toString(),
-  }, (current) => current.copyWith(overlayEnabled: enabled));
+  Future<void> setOverlayEnabled(bool enabled) => _update(
+    StoreSettings.scienceOverlay,
+    enabled,
+    (current) => current.copyWith(overlayEnabled: enabled),
+  );
+
+  static const _featureSettings = {
+    ScienceFeature.photometry: StoreSettings.sciencePhotometry,
+    ScienceFeature.photometricCalibration:
+        StoreSettings.sciencePhotometricCalibration,
+    ScienceFeature.transparency: StoreSettings.scienceTransparency,
+    ScienceFeature.psfMap: StoreSettings.sciencePsfMap,
+    ScienceFeature.astrometricResiduals:
+        StoreSettings.scienceAstrometricResiduals,
+    ScienceFeature.movingObjects: StoreSettings.scienceMovingObjects,
+    ScienceFeature.narrowbandRatios: StoreSettings.scienceNarrowbandRatios,
+    ScienceFeature.frameQualityMaps: StoreSettings.scienceFrameQualityMaps,
+    ScienceFeature.skyAtlas: StoreSettings.scienceSkyAtlas,
+    ScienceFeature.surface3d: StoreSettings.scienceSurface3d,
+  };
 
   Future<void> setFeatureEnabled(ScienceFeature feature, bool enabled) {
-    final key = switch (feature) {
-      ScienceFeature.photometry => _keys['photometry']!,
-      ScienceFeature.photometricCalibration => _keys['photometricCalibration']!,
-      ScienceFeature.transparency => _keys['transparency']!,
-      ScienceFeature.psfMap => _keys['psfMap']!,
-      ScienceFeature.astrometricResiduals => _keys['astrometricResiduals']!,
-      ScienceFeature.movingObjects => _keys['movingObjects']!,
-      ScienceFeature.narrowbandRatios => _keys['narrowbandRatios']!,
-      ScienceFeature.frameQualityMaps => _keys['frameQualityMaps']!,
-      ScienceFeature.skyAtlas => _keys['skyAtlas']!,
-      ScienceFeature.surface3d => _keys['surface3d']!,
-    };
-    return _update({key: enabled.toString()}, (current) {
+    return _update(_featureSettings[feature]!, enabled, (current) {
       return switch (feature) {
         ScienceFeature.photometry => current.copyWith(
           photometryEnabled: enabled,
@@ -377,55 +345,79 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
   }
 
   Future<void> setSkyAtlasLimitGb(int gb) {
-    final value = gb < 0 ? 0 : gb;
-    return _update({
-      _keys['skyAtlasLimitGb']!: value.toString(),
-    }, (current) => current.copyWith(skyAtlasLimitGb: value));
+    final value = StoreSettings.scienceSkyAtlasLimitGb.clean(gb);
+    return _update(
+      StoreSettings.scienceSkyAtlasLimitGb,
+      value,
+      (current) => current.copyWith(skyAtlasLimitGb: value),
+    );
   }
 
-  Future<void> setMpcObservatoryCode(String code) => _update({
-    _keys['mpcObservatoryCode']!: code,
-  }, (current) => current.copyWith(mpcObservatoryCode: code));
+  Future<void> setMpcObservatoryCode(String code) => _update(
+    StoreSettings.scienceMpcObservatoryCode,
+    code,
+    (current) => current.copyWith(mpcObservatoryCode: code),
+  );
 
-  Future<void> setAavsoObserverCode(String code) => _update({
-    _keys['aavsoObserverCode']!: code,
-  }, (current) => current.copyWith(aavsoObserverCode: code));
+  Future<void> setAavsoObserverCode(String code) => _update(
+    StoreSettings.scienceAavsoObserverCode,
+    code,
+    (current) => current.copyWith(aavsoObserverCode: code),
+  );
 
-  Future<void> setObserverName(String name) => _update({
-    _keys['observerName']!: name,
-  }, (current) => current.copyWith(observerName: name));
+  Future<void> setObserverName(String name) => _update(
+    StoreSettings.scienceObserverName,
+    name,
+    (current) => current.copyWith(observerName: name),
+  );
 
-  Future<void> setMpcAstrometricCatalog(String catalog) => _update({
-    _keys['mpcAstrometricCatalog']!: catalog,
-  }, (current) => current.copyWith(mpcAstrometricCatalog: catalog));
+  Future<void> setMpcAstrometricCatalog(String catalog) => _update(
+    StoreSettings.scienceMpcAstrometricCatalog,
+    catalog,
+    (current) => current.copyWith(mpcAstrometricCatalog: catalog),
+  );
 
-  Future<void> setTnsBotId(int id) => _update({
-    _keys['tnsBotId']!: id.toString(),
-  }, (current) => current.copyWith(tnsBotId: id));
+  Future<void> setTnsBotId(int id) => _update(
+    StoreSettings.scienceTnsBotId,
+    id,
+    (current) => current.copyWith(tnsBotId: id),
+  );
 
-  Future<void> setTnsBotName(String name) => _update({
-    _keys['tnsBotName']!: name,
-  }, (current) => current.copyWith(tnsBotName: name));
+  Future<void> setTnsBotName(String name) => _update(
+    StoreSettings.scienceTnsBotName,
+    name,
+    (current) => current.copyWith(tnsBotName: name),
+  );
 
-  Future<void> setTnsReportingGroupId(int id) => _update({
-    _keys['tnsReportingGroupId']!: id.toString(),
-  }, (current) => current.copyWith(tnsReportingGroupId: id));
+  Future<void> setTnsReportingGroupId(int id) => _update(
+    StoreSettings.scienceTnsReportingGroupId,
+    id,
+    (current) => current.copyWith(tnsReportingGroupId: id),
+  );
 
-  Future<void> setTnsDataSourceId(int id) => _update({
-    _keys['tnsDataSourceId']!: id.toString(),
-  }, (current) => current.copyWith(tnsDataSourceId: id));
+  Future<void> setTnsDataSourceId(int id) => _update(
+    StoreSettings.scienceTnsDataSourceId,
+    id,
+    (current) => current.copyWith(tnsDataSourceId: id),
+  );
 
-  Future<void> setTnsReporterName(String name) => _update({
-    _keys['tnsReporterName']!: name,
-  }, (current) => current.copyWith(tnsReporterName: name));
+  Future<void> setTnsReporterName(String name) => _update(
+    StoreSettings.scienceTnsReporterName,
+    name,
+    (current) => current.copyWith(tnsReporterName: name),
+  );
 
-  Future<void> setTnsUseSandbox(bool enabled) => _update({
-    _keys['tnsUseSandbox']!: enabled.toString(),
-  }, (current) => current.copyWith(tnsUseSandbox: enabled));
+  Future<void> setTnsUseSandbox(bool enabled) => _update(
+    StoreSettings.scienceTnsUseSandbox,
+    enabled,
+    (current) => current.copyWith(tnsUseSandbox: enabled),
+  );
 
-  Future<void> setFitsHeaderWritebackEnabled(bool enabled) => _update({
-    _keys['fitsHeaderWriteback']!: enabled.toString(),
-  }, (current) => current.copyWith(fitsHeaderWritebackEnabled: enabled));
+  Future<void> setFitsHeaderWritebackEnabled(bool enabled) => _update(
+    StoreSettings.scienceFitsHeaderWriteback,
+    enabled,
+    (current) => current.copyWith(fitsHeaderWritebackEnabled: enabled),
+  );
 
   Future<void> setAutoFrameGradingEnabled(bool enabled) {
     return _serialized((current) async {
@@ -433,46 +425,29 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
       await ref
           .read(appSettingsProvider.notifier)
           .setEnableImageGrading(enabled);
-      await _writeScienceSettings(ref, {
-        _keys['autoFrameGrading']!: enabled.toString(),
-      });
+      await _writeScienceSettings(
+        ref,
+        StoreSettings.scienceAutoFrameGrading.toRows(enabled),
+      );
       state = AsyncData(current.copyWith(autoFrameGradingEnabled: enabled));
     });
   }
 
-  Future<void> setScienceGuideCollapsed(bool collapsed) => _update({
-    _keys['guideCollapsed']!: collapsed.toString(),
-  }, (current) => current.copyWith(scienceGuideCollapsed: collapsed));
+  Future<void> setScienceGuideCollapsed(bool collapsed) => _update(
+    StoreSettings.scienceGuideCollapsed,
+    collapsed,
+    (current) => current.copyWith(scienceGuideCollapsed: collapsed),
+  );
 
   Future<void> setFrameGradeRules(FrameGradeRules rules) {
-    final json = rules.isEmpty ? '' : rules.toJsonString();
+    final json = rules.isEmpty ? null : rules.toJsonString();
     return _update(
-      {_keys['frameGradeRules']!: json},
-      (current) => json.isEmpty
+      StoreSettings.scienceFrameGradeRules,
+      json,
+      (current) => json == null
           ? current.copyWith(clearFrameGradeRulesJson: true)
           : current.copyWith(frameGradeRulesJson: json),
     );
-  }
-
-  bool _parseBool(String? value, bool fallback) {
-    if (value == null || value.isEmpty) return fallback;
-    switch (value.toLowerCase()) {
-      case 'true':
-        return true;
-      case 'false':
-        return false;
-      default:
-        throw FormatException('Invalid persisted boolean "$value"');
-    }
-  }
-
-  int _parseInt(String? value, String key) {
-    if (value == null || value.isEmpty) return 0;
-    final parsed = int.tryParse(value);
-    if (parsed == null) {
-      throw FormatException('Invalid persisted integer for $key: "$value"');
-    }
-    return parsed;
   }
 }
 

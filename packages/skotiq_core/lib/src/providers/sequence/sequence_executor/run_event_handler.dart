@@ -5,7 +5,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../backend/bridge_events.dart'
-    show depthGoalCompletedDetail, triggerActionText;
+    show SequencerErrorKind, depthGoalCompletedDetail, triggerActionText;
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/replay_decision.dart' show DecisionCategory;
 import '../../../models/sequence/instruction_progress_detail.dart';
@@ -21,16 +21,16 @@ import '../../plugin_node_dispatcher.dart';
 import '../../replay_debug_provider.dart';
 import '../../sequence_provider.dart'
     show
-        recordRunEventStopEvidence,
+        foldRunEvent,
+        runRecordProvider,
+        RunRecordNotifier,
         sequenceExecutionStateProvider,
         sequenceProgressProvider,
-        SequenceProgressNotifier,
         sequenceStopEvidenceProvider;
 import '../../sequence_stats_provider.dart';
 import '../../session_provider.dart';
 import '../exposure_progress_vocabulary.dart';
 import '../log_rate_limiter.dart';
-import '../node_exposure_tally.dart';
 import '../run_stop_classification.dart';
 import '../sequencer_defaults.dart';
 import '../sequencer_run_event.dart';
@@ -124,18 +124,15 @@ class RunEventHandler {
       return;
     }
 
-    applyRunEventToNodeExposureTally(
-      _ref.read(nodeExposureTallyProvider.notifier),
-      event,
-    );
-    // Authorship rows precede the cause-neutral cancel notice, so they are
-    // folded as they arrive.
-    recordRunEventStopEvidence(_ref.read, event);
-
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    // The record's own fold first; what follows adds what only the executor
+    // knows and words the progress message for the run view.
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
+    foldRunEvent(progressNotifier, event, executorDecidesLifecycle: true);
     switch (event) {
       case NodeStarted():
-        _onNodeStarted(event, progressNotifier);
+        // Frame indices restart at 1 for every node, so a verdict an aborted
+        // burst never completed must not survive into this node's frame 1.
+        _frames.clearVerdicts();
       case NodeCompleted():
         _onNodeCompleted(event, progressNotifier);
       case ExposureStarted():
@@ -180,9 +177,6 @@ class RunEventHandler {
       case TriggerFired():
         _onTriggerFired(event, progressNotifier);
       case RunStarted():
-        // A new run answers for itself: the previous run's stop cause must not
-        // be read as this one's.
-        _ref.read(sequenceStopEvidenceProvider.notifier).state = null;
         _targetSkippedAtEntry = false;
         _setExecutionState(SequenceExecutionState.running);
       case RunPaused():
@@ -235,27 +229,9 @@ class RunEventHandler {
     }
   }
 
-  void _onNodeStarted(
-    NodeStarted event,
-    SequenceProgressNotifier progressNotifier,
-  ) {
-    final nodeId = event.nodeId;
-    if (nodeId != null) {
-      progressNotifier.updateProgress(
-        currentNodeId: nodeId,
-        currentNodeName: event.nodeType,
-        currentNodeStatus: NodeStatus.running,
-      );
-      progressNotifier.updateNodeStatus(nodeId, NodeStatus.running);
-    }
-    // Frame indices restart at 1 for every node, so a verdict an aborted burst
-    // never completed must not survive into this node's frame 1.
-    _frames.clearVerdicts();
-  }
-
   void _onNodeCompleted(
     NodeCompleted event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final nodeId = event.nodeId;
     if (nodeId == null) return;
@@ -288,7 +264,7 @@ class RunEventHandler {
 
   void _onExposureStarted(
     ExposureStarted event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final frame = event.frame ?? 0;
     final total = event.total ?? 0;
@@ -314,7 +290,7 @@ class RunEventHandler {
 
   void _onExposureCompleted(
     ExposureCompleted event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final frame = event.frame ?? 0;
     final total = event.total ?? 1;
@@ -337,12 +313,6 @@ class RunEventHandler {
       _eta.recordFrame(durationSecs + defaults.frameDownloadOverheadSecs);
     }
     progressNotifier.updateProgress(completedExposures: frame);
-    // Keyed on the originating event: the DeviceService pump sees the same
-    // event, and only one of the two may add its shutter time.
-    progressNotifier.recordCompletedFrameIntegration(
-      eventKey: '${event.timestamp}:$frame',
-      durationSecs: durationSecs,
-    );
     final nodeId = _ref.read(sequenceProgressProvider).currentNodeId;
     if (nodeId != null) {
       progressNotifier.updateNodeProgress(
@@ -358,11 +328,11 @@ class RunEventHandler {
 
   void _onSequencerError(
     SequencerError event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final message = event.message ?? 'Unknown error';
-    // An advisory shares the Error payload; it is a warning on the run, never
-    // a fault on a node.
+    // A note, or a problem the run carried on through, shares the Error
+    // payload; it is a warning on the run, never a fault on a node.
     if (event.isAdvisory) {
       _warn(message);
       progressNotifier.updateProgress(message: message);
@@ -394,7 +364,10 @@ class RunEventHandler {
     if (nodeId != null) {
       progressNotifier.updateNodeProgress(nodeId, 0.0, 'Error: $message');
     }
-    _escalateRunningToRecovering();
+    // A run held for the operator is paused, which its own event says.
+    if (event.kind != SequencerErrorKind.runHeld) {
+      _escalateRunningToRecovering();
+    }
   }
 
   /// A mid-run fault is not terminal (recovery may still salvage the run), but
@@ -409,7 +382,7 @@ class RunEventHandler {
 
   void _onStructuredProgress(
     StructuredInstructionProgress event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     // A Change Filter instruction is the only place the running filter is
     // named when the exposure node itself has none.
@@ -433,7 +406,7 @@ class RunEventHandler {
 
   void _onInstructionProgress(
     InstructionProgress event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final instruction = event.instruction ?? '';
     final percent = event.progressPercent ?? 0.0;
@@ -455,10 +428,7 @@ class RunEventHandler {
     }
   }
 
-  void _onTriggerFired(
-    TriggerFired event,
-    SequenceProgressNotifier progressNotifier,
-  ) {
+  void _onTriggerFired(TriggerFired event, RunRecordNotifier progressNotifier) {
     final triggerName = event.triggerName ?? 'Unknown trigger';
     final action = triggerActionText(event.action ?? '');
     _stats.update((stats) => stats.recordTriggerFire());
@@ -502,7 +472,7 @@ class RunEventHandler {
   /// of it, and put the run's account of it on the run record.
   void _onHorizonObstruction(
     HorizonObstructionDetected event,
-    SequenceProgressNotifier progressNotifier,
+    RunRecordNotifier progressNotifier,
   ) {
     final site = _ref.read(appObserverLocationProvider);
     final latitude = event.latitude ?? site?.latitude;
@@ -820,7 +790,7 @@ class RunEventHandler {
   /// twelve-minute recovery and after it, with the mount on the east side.
   /// The verdict that follows does not count it again.
   void _handleMeridianFlipOutcome(MeridianFlipOutcome event) {
-    final progressNotifier = _ref.read(sequenceProgressProvider.notifier);
+    final progressNotifier = _ref.read(runRecordProvider.notifier);
     final outcome = event.outcome ?? 'unknown';
     final targetName = event.targetName ?? 'target';
     final attempts = event.attempts ?? 0;

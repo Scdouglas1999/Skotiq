@@ -176,39 +176,15 @@ class _ConnectAllProgressChip extends StatelessWidget {
   }
 }
 
-/// `[dot] N connected` in the page header — the ONE place this screen states
+/// `[dot] N connected` in the page header: the one place this screen states
 /// how many devices are up.
-/// How many devices are connected right now, across every slot.
-///
-/// Shared so the header chip and the header's "Disconnect all" agree by
-/// construction: an action that disconnects everything must appear exactly when
-/// the chip says there is something to disconnect, and two copies of this list
-/// would drift the first time a slot was added.
-int equipmentConnectedCount(WidgetRef ref) {
-  final connectionStates = <DeviceConnectionState>[
-    ref.watch(cameraStateProvider).connectionState,
-    ref.watch(mountStateProvider).connectionState,
-    ref.watch(focuserStateProvider).connectionState,
-    ref.watch(filterWheelStateProvider).connectionState,
-    ref.watch(guiderStateProvider).connectionState,
-    ref.watch(rotatorStateProvider).connectionState,
-    ref.watch(domeStateProvider).connectionState,
-    ref.watch(weatherStateProvider).connectionState,
-    ref.watch(safetyMonitorStateProvider).connectionState,
-    ref.watch(switchStateProvider).connectionState,
-    ref.watch(coverCalibratorStateProvider).connectionState,
-  ];
-  return connectionStates
-      .where((state) => state == DeviceConnectionState.connected)
-      .length;
-}
-
 class _ConnectionStatusSummary extends ConsumerWidget {
   const _ConnectionStatusSummary();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final connectedCount = equipmentConnectedCount(ref);
+    final rig = ref.watch(rigDevicesProvider);
+    final connectedCount = rig.connected;
 
     if (connectedCount == 0) {
       return const SkotiqChip(label: 'Nothing connected', dot: true);
@@ -218,7 +194,7 @@ class _ConnectionStatusSummary extends ConsumerWidget {
     // the header read a green "9 connected" while the persistent bottom status
     // bar read "My Equipment 4/4" — two numbers, one screen, no explanation, and
     // the five extra devices silently vanished on the next launch.
-    final sessionOnly = ref.watch(sessionOnlyConnectedSlotsProvider).length;
+    final sessionOnly = rig.sessionOnly.length;
 
     return Tooltip(
       message: sessionOnly > 0
@@ -290,7 +266,7 @@ class _DeviceDashboard extends ConsumerWidget {
     // the profile is already in scope, and handed to each card as a plain flag —
     // a single card must not depend on the profiles provider (on a remote backend
     // that starts a periodic host poll).
-    final sessionOnlySlots = ref.watch(sessionOnlyConnectedSlotsProvider);
+    final sessionOnlySlots = ref.watch(rigDevicesProvider).sessionOnly;
     bool adHoc(DeviceType slot) => sessionOnlySlots.contains(slot);
 
     final connectedCards = <Widget>[

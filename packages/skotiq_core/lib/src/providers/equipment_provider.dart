@@ -11,6 +11,7 @@ export 'equipment/cover_calibrator_state_provider.dart';
 export 'equipment/dome_state_provider.dart';
 export 'equipment/filter_wheel_state_provider.dart';
 export 'equipment/focuser_state_provider.dart';
+export 'equipment/focus_compensation_rule.dart';
 export 'equipment/focuser_temp_compensation_provider.dart';
 export 'equipment/focuser_temperature_poller.dart';
 export 'equipment/guider_state_provider.dart';

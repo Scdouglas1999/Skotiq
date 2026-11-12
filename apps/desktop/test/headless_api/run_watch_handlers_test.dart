@@ -65,7 +65,7 @@ void main() {
     test('a failed progress read reports unknown, not idle', () async {
       final failing = ProviderContainer(
         overrides: [
-          sequenceProgressProvider.overrideWith(
+          runRecordProvider.overrideWith(
             (ref) => throw StateError('provider not wired'),
           ),
         ],
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('the first thing a run reports puts the figures back', () async {
-      container.read(sequenceProgressProvider.notifier).setTotals(12, 24.0);
+      container.read(runRecordProvider.notifier).setTotals(12, 24.0);
 
       final response = await translateHandlerErrors(
         handlers.handleSnapshot(
@@ -150,12 +150,9 @@ void main() {
     // snapshot used to publish that zero as a known denominator, and the phone
     // rendered "24s / 0s" — a total the run had already passed.
     test('an unknown integration total is null, never zero', () async {
-      final progress = container.read(sequenceProgressProvider.notifier);
+      final progress = container.read(runRecordProvider.notifier);
       progress.setTotals(12);
-      progress.recordCompletedFrameIntegration(
-        eventKey: 'frame-1',
-        durationSecs: 2.0,
-      );
+      progress.addCompletedIntegration(2.0);
 
       final response = await translateHandlerErrors(
         handlers.handleSnapshot(
@@ -172,7 +169,7 @@ void main() {
     });
 
     test('a real integration total is published as measured', () async {
-      final progress = container.read(sequenceProgressProvider.notifier);
+      final progress = container.read(runRecordProvider.notifier);
       progress.setTotals(12, 24.0);
 
       final response = await translateHandlerErrors(
@@ -194,7 +191,7 @@ void main() {
       'a native run reports its target name with the sky marked unknown',
       () async {
         container
-            .read(sequenceProgressProvider.notifier)
+            .read(runRecordProvider.notifier)
             .updateProgress(currentTarget: 'D1 Simulated Field');
 
         final response = await translateHandlerErrors(

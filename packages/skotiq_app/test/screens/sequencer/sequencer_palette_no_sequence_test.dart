@@ -25,8 +25,6 @@ void main() {
       size: const Size(1800, 1000),
       extraOverrides: [
         currentSequenceProvider.overrideWith((_) => notifier),
-        sequenceExecutionStateProvider
-            .overrideWith((ref) => SequenceExecutionState.idle),
         ledgerClockProvider
             .overrideWith((ref) => const Stream<DateTime>.empty()),
       ],

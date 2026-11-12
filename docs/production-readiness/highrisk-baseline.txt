@@ -104,7 +104,6 @@ native/skotiq_native/bridge/src/device_capabilities/types.rs	unreadable_properti
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = device_id_str.parse::<i32>().ok();
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = idx_str.parse::<i32>().ok();
 native/skotiq_native/bridge/src/device_id/mod.rs	parse_native	highrisk	1	baseline	let device_index = payload.parse::<i32>().ok();
-native/skotiq_native/bridge/src/device_manager/connection.rs	DeviceManager	highrisk	1	baseline	/// `connect_simulator`): a silent no-op would hide bugs where the user
 native/skotiq_native/bridge/src/device_manager/motion_guard/tests.rs	the_simulated_runaway_is_caught_and_recovered_end_to_end	highrisk	2	baseline	mgr.mount_get_status(device_id).await.ok();
 native/skotiq_native/bridge/src/device_manager/ops/backstop.rs	publish_backstop	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/backstop_tests.rs	a_wheel_moved_outside_skotiq_publishes_filter_changed_with_its_name	highrisk	1	baseline	.unwrap_or_default();

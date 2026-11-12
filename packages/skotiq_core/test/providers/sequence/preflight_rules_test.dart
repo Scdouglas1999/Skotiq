@@ -372,7 +372,7 @@ void main() {
 
       expect(issues, isNotEmpty);
       expect(issues.first.title, 'Missing Dark Frames');
-      expect(issues.first.description, contains('temp=15.0C'));
+      expect(issues.first.description, contains(', 15.0°C, binning'));
       expect(
         issues.first.description,
         contains('Temperatures are the setpoints this sequence cools to.'),

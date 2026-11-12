@@ -2,6 +2,8 @@
 /// snapshots and admission answers describe it.
 library;
 
+import '../wire_time.dart';
+
 /// One job. [state] stays a string so a host that adds a lifecycle phase
 /// does not break older clients.
 class RemoteJob {
@@ -83,8 +85,8 @@ class RemoteJob {
     if (deviceId != null) 'deviceId': deviceId,
     if (commandId != null) 'commandId': commandId,
     'state': state,
-    if (createdAt != null) 'createdAt': createdAt!.toUtc().toIso8601String(),
-    if (updatedAt != null) 'updatedAt': updatedAt!.toUtc().toIso8601String(),
+    if (createdAt != null) 'createdAt': createdAt!.toWireTime(),
+    if (updatedAt != null) 'updatedAt': updatedAt!.toWireTime(),
     if (progress != null) 'progress': progress,
     if (progressMessage != null) 'progressMessage': progressMessage,
     if (result != null) 'result': result,
@@ -114,6 +116,6 @@ class RemoteJob {
 
   static DateTime? _parseDate(Object? raw) {
     if (raw is! String) return null;
-    return DateTime.tryParse(raw);
+    return tryParseWireTime(raw);
   }
 }

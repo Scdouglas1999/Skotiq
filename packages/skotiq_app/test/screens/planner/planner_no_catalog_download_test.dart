@@ -125,8 +125,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('The planner needs the object catalog'), findsOneWidget);
-    expect(find.textContaining('about 60 MB'), findsOneWidget);
-    final button = find.widgetWithText(SkotiqButton, 'Download catalogs (60 MB)');
+    expect(find.textContaining('about 60 MiB'), findsOneWidget);
+    final button = find.widgetWithText(SkotiqButton, 'Download catalogs (60 MiB)');
     expect(button, findsOneWidget);
 
     await tester.tap(button);

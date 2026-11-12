@@ -201,7 +201,7 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
         ),
         // LiveStacking — EAA / outreach broadcast node.
         // Defaults pulled from settings so the palette-drop user gets a
-        // working private broadcast on the user's chosen port; flipping
+        // working private broadcast; flipping
         // to public is an explicit edit in the properties panel.
         NodePaletteItem(
           name: 'Live stacking',
@@ -209,7 +209,6 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
           description:
               'Broadcast a building live stack to a public/private URL',
           createNode: () => LiveStackingNode(
-            broadcastPort: defaults.livestackingDefaultPort,
             stackMethod: defaults.livestackingDefaultStackMethod,
             watermarkText: defaults.livestackingDefaultWatermark,
             // The palette default is *private* (no public access)

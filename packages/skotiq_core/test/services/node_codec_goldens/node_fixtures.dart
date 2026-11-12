@@ -391,8 +391,6 @@ List<SequenceNode> fullNodes() => [
     stackMethod: LiveStackingMethod.sigma,
     maxFramesToStack: 50,
     broadcastEnabled: false,
-    broadcastPort: 9090,
-    broadcastPath: '/live',
     authToken: 'secret-token',
     watermarkText: 'Backyard',
     thumbnailWidth: 1920,

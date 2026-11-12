@@ -124,6 +124,8 @@ extension _NetworkBackendConnectionLifecycle on _NetworkBackendTransport {
     // propagates to [connect], which surfaces it as a terminal
     // [BackendConnectionState.error] rather than spinning on reconnect.
     _verifyPinnedFingerprint(info['fingerprint']);
+    final authRequired = info['authRequired'];
+    _hostRequiresPairing = authRequired is bool ? authRequired : null;
     // Surface the server instance UUID so the WS connect can decide
     // whether the seq cursor we cached on the previous attachment is still
     // valid against the server we're about to talk to. If the field is

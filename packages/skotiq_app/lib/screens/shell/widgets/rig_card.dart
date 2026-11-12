@@ -10,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/device_format_utils.dart';
+import '../../../utils/device_type_ui.dart';
 import '../../../widgets/operation_status_bar.dart';
 import '../../settings/settings_sections.dart';
 import '../../../utils/guide_distance.dart';
@@ -191,6 +192,14 @@ class RigCard extends ConsumerWidget {
 
   static const double _dotSize = 7.0;
 
+  /// The four devices the card always lists, present or not.
+  static const Set<DeviceType> _alwaysListed = {
+    DeviceType.camera,
+    DeviceType.mount,
+    DeviceType.guider,
+    DeviceType.focuser,
+  };
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
@@ -259,15 +268,12 @@ class RigCard extends ConsumerWidget {
         guiderState.connectionState == DeviceConnectionState.connected;
     final focuserConnected =
         focuserState.connectionState == DeviceConnectionState.connected;
-    final filterWheelConnected =
-        filterWheelState.connectionState == DeviceConnectionState.connected;
     final rotatorState = ref.watch(
       rotatorStateProvider.select(
         (s) => (connectionState: s.connectionState, position: s.position),
       ),
     );
-    final rotatorConnected =
-        rotatorState.connectionState == DeviceConnectionState.connected;
+    final rig = ref.watch(rigDevicesProvider);
 
     // The row's VALUE is the device name, or the phrase for its absence —
     // never "Camera: ASI2600MM". The glyph carries the role; spelling it out
@@ -387,45 +393,19 @@ class RigCard extends ConsumerWidget {
         mono: focuserConnected && focuserState.position != null,
         trailingChild: const _TempCompMark(),
       ),
-      // Only when connected: a filter wheel is optional equipment, and a
-      // permanent "No filter wheel" row on a rig that has never had one is
-      // the card reporting the absence of something nobody asked for.
-      if (filterWheelConnected)
-        Builder(
-          builder: (context) {
-            final filter =
-                filterWheelState.filterName ?? l10n.text('statusReady');
-            return _RigRow(
-              icon: LucideIcons.disc,
-              dotTone: InstrumentTone.success,
-              value: filter,
-              semanticLabel: '${l10n.text('statusFilterWheel')}, $filter',
-              isExpanded: true,
-              isMenuItem: !isExpanded,
-              route: AppRoute.equipment.path,
-            );
-          },
-        ),
-      // Optional equipment too, so only when connected; without it the card
-      // counted one device fewer than the Equipment screen.
-      if (rotatorConnected)
-        Builder(
-          builder: (context) {
-            final position = rotatorState.position;
-            final value = position == null
-                ? l10n.text('statusReady')
-                : '${position.toStringAsFixed(1)}°';
-            return _RigRow(
-              icon: LucideIcons.rotateCw,
-              dotTone: InstrumentTone.success,
-              value: value,
-              semanticLabel: 'Rotator, $value',
-              isExpanded: true,
-              isMenuItem: !isExpanded,
-              route: AppRoute.equipment.path,
-            );
-          },
-        ),
+      // Optional equipment has a row when it is part of the rig: the active
+      // profile assigns it, or it is connected. A permanent "No filter wheel"
+      // on a rig that has never had one reports the absence of something
+      // nobody asked for; hiding a profile's filter wheel while it is down
+      // made the card count fewer devices than the profile holds.
+      for (final device in rig.devices)
+        if (!_alwaysListed.contains(device.type))
+          _OptionalDeviceRow(
+            type: device.type,
+            isMenuItem: !isExpanded,
+            filterName: filterWheelState.filterName,
+            rotatorPosition: rotatorState.position,
+          ),
     ];
 
     return Padding(
@@ -459,14 +439,8 @@ class RigCard extends ConsumerWidget {
                 ...deviceRows
               else
                 _RigSummary(
-                  connectedCount: [
-                    cameraConnected,
-                    mountConnected,
-                    guiderConnected,
-                    focuserConnected,
-                    filterWheelConnected,
-                    rotatorConnected,
-                  ].where((connected) => connected).length,
+                  connectedCount: rig.connected,
+                  totalCount: rig.total,
                   deviceRows: deviceRows,
                 ),
               _SavePathRow(isExpanded: isExpanded),
@@ -504,11 +478,88 @@ class RigCard extends ConsumerWidget {
           : InstrumentTone.idle;
 }
 
+/// A row for a device the card lists only while it is part of the rig.
+class _OptionalDeviceRow extends ConsumerWidget {
+  final DeviceType type;
+  final bool isMenuItem;
+  final String? filterName;
+  final double? rotatorPosition;
+
+  const _OptionalDeviceRow({
+    required this.type,
+    required this.isMenuItem,
+    required this.filterName,
+    required this.rotatorPosition,
+  });
+
+  /// The phrase for the device's absence, named like the always-listed
+  /// four: a column of rows all reading "Disconnected" says which state
+  /// every device is in and which device none of them is.
+  String get _absentKey => switch (type) {
+        DeviceType.camera => 'statusNoCamera',
+        DeviceType.mount => 'statusNoMount',
+        DeviceType.guider => 'statusNoGuider',
+        DeviceType.focuser => 'statusNoFocuser',
+        DeviceType.filterWheel => 'statusNoFilterWheel',
+        DeviceType.rotator => 'statusNoRotator',
+        DeviceType.dome => 'statusNoDome',
+        DeviceType.weather => 'statusNoWeather',
+        DeviceType.safetyMonitor => 'statusNoSafetyMonitor',
+        DeviceType.switch_ => 'statusNoSwitch',
+        DeviceType.coverCalibrator => 'statusNoCoverCalibrator',
+      };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = context.l10n;
+    final slot = ref.watch(
+      type.slot.state.select(
+        (s) => (connectionState: s.connectionState, deviceName: s.deviceName),
+      ),
+    );
+    final connected = slot.connectionState == DeviceConnectionState.connected;
+    final ready = l10n.text('statusReady');
+    final value = !connected
+        ? l10n.text(_absentKey)
+        : switch (type) {
+            DeviceType.filterWheel => filterName ?? ready,
+            DeviceType.rotator => rotatorPosition == null
+                ? ready
+                : '${rotatorPosition!.toStringAsFixed(1)}°',
+            _ => slot.deviceName ?? ready,
+          };
+    final role = type == DeviceType.filterWheel
+        ? l10n.text('statusFilterWheel')
+        : type.displayName;
+    return _RigRow(
+      icon: type.icon,
+      dotTone: connected ? InstrumentTone.success : InstrumentTone.idle,
+      value: value,
+      semanticLabel: deviceRowSemanticLabel(
+        role,
+        connected: connected,
+        value: value,
+        l10n: l10n,
+      ),
+      isExpanded: true,
+      isMenuItem: isMenuItem,
+      route: AppRoute.equipment.path,
+    );
+  }
+}
+
 class _RigSummary extends StatefulWidget {
+  /// From [rigDevicesProvider], not from the rows: the card always lists a
+  /// camera, mount, guider and focuser, whether or not the rig has them.
   final int connectedCount;
+  final int totalCount;
   final List<Widget> deviceRows;
 
-  const _RigSummary({required this.connectedCount, required this.deviceRows});
+  const _RigSummary({
+    required this.connectedCount,
+    required this.totalCount,
+    required this.deviceRows,
+  });
 
   @override
   State<_RigSummary> createState() => _RigSummaryState();
@@ -529,7 +580,8 @@ class _RigSummaryState extends State<_RigSummary> {
     final deviceRows = widget.deviceRows;
     final colors = SkotiqColors.of(context);
     final l10n = context.l10n;
-    final missingCount = deviceRows.length - connectedCount;
+    final totalCount = widget.totalCount;
+    final missingCount = totalCount - connectedCount;
     final label = '${l10n.text('navEquipment')}: '
         '$connectedCount ${l10n.text('statusConnected').toLowerCase()}, '
         '$missingCount ${l10n.text('disconnected').toLowerCase()}';
@@ -577,7 +629,7 @@ class _RigSummaryState extends State<_RigSummary> {
                 children: [
                   Icon(LucideIcons.plug, size: 20, color: color),
                   const SizedBox(height: 4),
-                  Text('$connectedCount/${deviceRows.length}',
+                  Text('$connectedCount/$totalCount',
                       style:
                           SkotiqTypography.monoCaption.copyWith(color: color)),
                 ],

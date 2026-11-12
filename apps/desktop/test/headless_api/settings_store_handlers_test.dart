@@ -254,6 +254,27 @@ void main() {
     );
   });
 
+  test('a link without admin access reads whether a credential row is set, '
+      'never its value', () async {
+    await db.settingsDao.setSettings({
+      'discord_webhook': 'https://discord.com/api/webhooks/1/secret',
+      'pushover_user': '',
+    });
+    await container.read(appSettingsProvider.future);
+
+    final control = await getStore();
+    expect(control['discord_webhook'], credentialSetMarker);
+    expect(control['pushover_user'], '');
+
+    final admin =
+        (await getStoreBody(scope: HeadlessTokenScope.admin))['settings']
+            as Map;
+    expect(
+      admin['discord_webhook'],
+      'https://discord.com/api/webhooks/1/secret',
+    );
+  });
+
   test('a row saying where the host sends a credential changes only with '
       'admin access', () async {
     await container.read(appSettingsProvider.future);
@@ -299,6 +320,53 @@ void main() {
     expect(
       await db.settingsDao.getSetting(mail),
       '{"host":"smtp.new.example"}',
+    );
+  });
+
+  // Plugins are admin only (/api/plugins/*); the key/value store is not a way
+  // around that.
+  test('which plugins run changes only with admin access', () async {
+    await container.read(appSettingsProvider.future);
+    const plugins = 'plugin_enablement';
+    await db.settingsDao.setSetting(plugins, '{"com.example.plugin":false}');
+
+    for (final body in [
+      {
+        'settings': {plugins: '{"com.example.plugin":true}'},
+      },
+      {
+        'merge': {
+          plugins: {'com.example.plugin': true},
+        },
+      },
+      {
+        'remove': [plugins],
+      },
+    ]) {
+      for (final scope in const [
+        HeadlessTokenScope.control,
+        HeadlessTokenScope.view,
+      ]) {
+        final response = await post(body, scope: scope);
+        expect(response.statusCode, HttpStatus.forbidden, reason: '$body');
+        final error = jsonDecode(await response.readAsString()) as Map;
+        expect(error['code'], 'host_program_setting', reason: '$body');
+        expect(error['settings'], [plugins]);
+      }
+    }
+    expect(
+      await db.settingsDao.getSetting(plugins),
+      '{"com.example.plugin":false}',
+    );
+    expect(announced, isEmpty);
+
+    final response = await post({
+      'settings': {plugins: '{"com.example.plugin":true}'},
+    }, scope: HeadlessTokenScope.admin);
+    expect(response.statusCode, HttpStatus.ok);
+    expect(
+      await db.settingsDao.getSetting(plugins),
+      '{"com.example.plugin":true}',
     );
   });
 

@@ -307,8 +307,9 @@ void main() {
         const deviceId = TestFixtures.cameraId;
         final callOrder = <String>[];
 
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.running);
         container.read(cameraStateProvider.notifier)
           ..setAutoReconnect(false)
           ..setConnecting(deviceId, 'Test Camera')
@@ -342,8 +343,9 @@ void main() {
       () async {
         const deviceId = TestFixtures.mountId;
 
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.paused;
+        container
+            .read(runRecordProvider.notifier)
+            .setLifecycle(SequenceExecutionState.paused);
         container.read(mountStateProvider.notifier)
           ..setAutoReconnect(false)
           ..setConnecting(deviceId, 'Test Mount')

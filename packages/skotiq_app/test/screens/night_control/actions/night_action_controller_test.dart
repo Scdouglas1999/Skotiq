@@ -240,7 +240,7 @@ void main() {
 
       final done = c.read(nightActionApiProvider).snapshot();
       await settle();
-      c.read(sequenceExecutionStateProvider.notifier).state = running;
+      c.read(runRecordProvider.notifier).setLifecycle(running);
       await done;
 
       expect(h.ops.calls, ['pause']);

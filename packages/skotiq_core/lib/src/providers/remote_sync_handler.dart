@@ -7,11 +7,11 @@ import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../backend/bridge_event_mapper.dart' show tryBridgeEventFromCoreEvent;
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
-import '../models/sequence/sequence_models.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/backend/host_runtime_update.dart';
 import '../models/imaging/imaging_models.dart'
     show CapturePreviewSource, ExposureSettings, FramePurpose;
+import '../services/device_service_lifecycle.dart';
 import '../services/capture_preview_loader.dart'
     show capturePreviewPublisherProvider, capturedImageDataFromResult;
 import '../services/imaging_service.dart'
@@ -40,13 +40,10 @@ import 'scheduler_provider.dart'
         integrationGoalsStreamProvider,
         schedulerPreviewDecisionProvider,
         targetConstraintsStreamProvider;
+import 'sequence/sequencer_run_event.dart' show SequencerRunEvent;
 import 'sequence_provider.dart';
 import 'sequence_stats_provider.dart'
-    show
-        currentRunIdProvider,
-        sequenceRunsProvider,
-        liveSequenceStatsProvider,
-        SequenceRunStats;
+    show sequenceRunsProvider, SequenceRunStats;
 import 'session_provider.dart';
 import 'plate_solver_provider.dart'
     show plateSolverDetectionProvider, plateSolverPreferenceProvider;

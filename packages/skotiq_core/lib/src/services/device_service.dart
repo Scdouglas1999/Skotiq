@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/equipment_provider.dart';
+import '../errors/error_text.dart';
+import 'device_service/connect_attempts.dart';
 import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
@@ -115,6 +117,10 @@ class DeviceService {
   Timer? _focuserMoveSettleWatch;
   late final Phd2Launcher _phd2Launcher;
   late final DeviceReconnectCoordinator _reconnectCoordinator;
+
+  /// Where each of this service's own connects stands; consulted before a
+  /// native connection event writes a slot.
+  final ConnectAttempts _attempts = ConnectAttempts();
   late final DeviceHeartbeatRouter _heartbeat;
   late final SwitchChannelService _switchChannels;
 
@@ -239,6 +245,10 @@ class DeviceService {
 
   /// The backend whose events this service is listening to.
   SkotiqBackend get eventSource => _backend;
+
+  /// Whether a connect of [deviceId] made through this service is in flight
+  /// or has just failed, so the slot is that connect's to write.
+  bool hasOwnConnectOf(String deviceId) => _attempts.isOwn(deviceId);
 
   /// True on a companion: the imaging host owns every device, so this client
   /// never tears one down to clean up after its own failed request.
@@ -398,6 +408,7 @@ class DeviceService {
     _focuserMoveSettleWatch?.cancel();
     _focuserMoveSettleWatch = null;
     _reconnectCoordinator.cancelAll();
+    _attempts.dispose();
   }
 
   /// Discover available devices of a specific type

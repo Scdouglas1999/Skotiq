@@ -361,8 +361,6 @@
   {
     "authToken": null,
     "broadcastEnabled": true,
-    "broadcastPath": "/broadcast",
-    "broadcastPort": 8081,
     "comment": null,
     "isEnabled": true,
     "maxFramesToStack": 0,

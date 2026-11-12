@@ -194,8 +194,9 @@ void main() {
     test('throws SequenceLockedException while a run is active', () {
       final c = _newContainer();
       _notifier(c).createSequence();
-      c.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      c
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
       expect(
         () => _notifier(c).loadCopyForEditing(_sourceSequence()),
         throwsA(isA<SequenceLockedException>()),

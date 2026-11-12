@@ -56,8 +56,6 @@ import 'push_notification_provider.dart';
 import 'settings_provider.dart';
 import 'ui_notification_provider.dart';
 
-const String _kRoutingMatrixSettingKey = 'notification_routing_matrix';
-
 /// Serializes persistence operations while still returning an independent
 /// future to each caller. Notification settings are edited from several
 /// controls on the same screen; without a queue, two rapid read-modify-write
@@ -165,9 +163,6 @@ final notificationSecretsMigrationProvider = FutureProvider<bool>((ref) async {
   return store.migrateFromPlaintext(dao);
 });
 
-const String _kLegacyCredentialsCarriedKey =
-    'notification_legacy_credentials_carried_v1';
-
 /// The routing rows the pre-router senders posted every message of: the
 /// built-in alerts travel under `custom`, the morning message under
 /// `darkroomDraftReady`.
@@ -193,7 +188,9 @@ final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
   final dao = ref.read(settingsDaoProvider);
   final secrets = ref.read(secretsStoreProvider);
   try {
-    if (await dao.getSetting(_kLegacyCredentialsCarriedKey) == 'true') return;
+    if (await dao.read(StoreSettings.legacyNotificationCredentialsCarried)) {
+      return;
+    }
     final settings = await ref.read(appSettingsProvider.future);
     final webhook = settings.discordWebhook.trim();
     final token = settings.pushoverKey.trim();
@@ -216,7 +213,7 @@ final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
     }
 
     if (carried.isNotEmpty) {
-      final raw = await dao.getSetting(_kRoutingMatrixSettingKey);
+      final raw = await dao.read(StoreSettings.notificationRouting);
       var matrix = raw == null
           ? NotificationRoutingMatrix.defaults()
           : NotificationRoutingMatrix.fromJson(
@@ -235,12 +232,12 @@ final legacyNotificationCredentialsProvider = FutureProvider<void>((ref) async {
           ),
         );
       }
-      await dao.setSetting(
-        _kRoutingMatrixSettingKey,
+      await dao.write(
+        StoreSettings.notificationRouting,
         jsonEncode(matrix.toJson()),
       );
     }
-    await dao.setSetting(_kLegacyCredentialsCarriedKey, 'true');
+    await dao.write(StoreSettings.legacyNotificationCredentialsCarried, true);
   } catch (e, stackTrace) {
     developer.log(
       '[NotificationProviders] Could not carry the earlier Discord/Pushover '
@@ -755,7 +752,7 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
   Future<NotificationRoutingMatrix> build() async {
     await ref.read(legacyNotificationCredentialsProvider.future);
     final dao = ref.read(settingsDaoProvider);
-    final raw = await dao.getSetting(_kRoutingMatrixSettingKey);
+    final raw = await dao.read(StoreSettings.notificationRouting);
     if (raw == null) return NotificationRoutingMatrix.defaults();
     try {
       return NotificationRoutingMatrix.fromJson(
@@ -782,8 +779,8 @@ class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>
 
   Future<void> _persist(NotificationRoutingMatrix matrix) async {
     final dao = ref.read(settingsDaoProvider);
-    await dao.setSetting(
-      _kRoutingMatrixSettingKey,
+    await dao.write(
+      StoreSettings.notificationRouting,
       jsonEncode(matrix.toJson()),
     );
     if (!identical(ref.read(settingsDaoProvider), dao)) {
@@ -979,6 +976,9 @@ final notificationRouterProvider = Provider<NotificationRouter>((ref) {
   // and Pushover through the three app settings that sync here. Whatever it
   // changes becomes the transport config.
   ref.listen(appSettingsProvider, (prev, next) {
+    // On a linked client these settings mirror the host's, as markers when
+    // the link has no admin access; they are not this computer's credentials.
+    if (ref.read(diagnosticsBackendProvider).remoteHost != null) return;
     final before = prev?.valueOrNull;
     final after = next.valueOrNull;
     if (before == null || after == null) return;

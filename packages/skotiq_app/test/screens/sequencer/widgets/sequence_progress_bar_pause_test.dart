@@ -42,11 +42,15 @@ Widget _harness({
 }) {
   return ProviderScope(
     overrides: [
-      sequenceExecutionStateProvider.overrideWith((ref) => execState),
-      if (progress != null)
-        sequenceProgressProvider.overrideWith(
-          (ref) => _FixedProgressNotifier(progress),
+      runRecordProvider.overrideWith(
+        (ref) => RunRecordNotifier(
+          ref,
+          RunRecord(
+            lifecycle: execState,
+            progress: progress ?? const SequenceProgress(),
+          ),
         ),
+      ),
     ],
     child: MaterialApp(
       theme: SkotiqTheme.dark,
@@ -60,12 +64,6 @@ Widget _harness({
       ),
     ),
   );
-}
-
-class _FixedProgressNotifier extends SequenceProgressNotifier {
-  _FixedProgressNotifier(SequenceProgress initial) {
-    state = initial;
-  }
 }
 
 void main() {
@@ -94,8 +92,7 @@ void main() {
         final container = ProviderScope.containerOf(
           tester.element(find.byType(SequenceProgressBar)),
         );
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.paused;
+        container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.paused);
         await tester.pump(const Duration(milliseconds: 16));
 
         expect(runningController.isAnimating, isFalse,
@@ -116,8 +113,7 @@ void main() {
         final container = ProviderScope.containerOf(
           tester.element(find.byType(SequenceProgressBar)),
         );
-        container.read(sequenceExecutionStateProvider.notifier).state =
-            SequenceExecutionState.running;
+        container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
         await tester.pump(const Duration(milliseconds: 16));
 
         expect(controller.isAnimating, isTrue,

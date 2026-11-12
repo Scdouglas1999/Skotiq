@@ -806,6 +806,15 @@ class ApiLiveStackingStats {
   final double avgAlignmentResidual;
   final BigInt totalSigmaRejectedPixels;
 
+  /// Frames left out for being taken through another filter than the stack's.
+  final int otherFilterFrames;
+
+  /// The filter of the most recent such frame.
+  final String? lastOtherFilter;
+
+  /// The filter the stack is of; `None` when its reference named none.
+  final String? filter;
+
   const ApiLiveStackingStats({
     required this.stackedFrameCount,
     required this.totalFramesAttempted,
@@ -813,6 +822,9 @@ class ApiLiveStackingStats {
     required this.avgMatchedPairs,
     required this.avgAlignmentResidual,
     required this.totalSigmaRejectedPixels,
+    required this.otherFilterFrames,
+    this.lastOtherFilter,
+    this.filter,
   });
 
   @override
@@ -822,7 +834,10 @@ class ApiLiveStackingStats {
       rejectedAlignmentFailures.hashCode ^
       avgMatchedPairs.hashCode ^
       avgAlignmentResidual.hashCode ^
-      totalSigmaRejectedPixels.hashCode;
+      totalSigmaRejectedPixels.hashCode ^
+      otherFilterFrames.hashCode ^
+      lastOtherFilter.hashCode ^
+      filter.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -834,7 +849,10 @@ class ApiLiveStackingStats {
           rejectedAlignmentFailures == other.rejectedAlignmentFailures &&
           avgMatchedPairs == other.avgMatchedPairs &&
           avgAlignmentResidual == other.avgAlignmentResidual &&
-          totalSigmaRejectedPixels == other.totalSigmaRejectedPixels;
+          totalSigmaRejectedPixels == other.totalSigmaRejectedPixels &&
+          otherFilterFrames == other.otherFilterFrames &&
+          lastOtherFilter == other.lastOtherFilter &&
+          filter == other.filter;
 }
 
 /// Autofocus configuration for API

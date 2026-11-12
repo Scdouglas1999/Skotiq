@@ -232,14 +232,13 @@ class CatalogHandlers implements RouteSource {
                 sink.update(
                   downloaded / total,
                   'Downloading $name: '
-                  '${(downloaded / 1024 / 1024).toStringAsFixed(1)} MB / '
-                  '${(total / 1024 / 1024).toStringAsFixed(1)} MB',
+                  '${ByteFormat.size(downloaded)} of ${ByteFormat.size(total)}',
                 );
               } else {
                 sink.update(
                   null,
                   'Downloading $name: '
-                  '${(downloaded / 1024 / 1024).toStringAsFixed(1)} MB',
+                  '${ByteFormat.size(downloaded)}',
                 );
               }
             },

@@ -16,32 +16,62 @@ const String kFilterNameMismatchCode = 'filter_name_mismatch';
 /// Mirrors `normalize_filter_name` in `bridge/src/filter_matching.rs`, which
 /// is how a Change Filter step finds its slot at run time.
 String canonicalFilterName(String name) {
-  final normalized =
-      name.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+  final normalized = name.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
   return switch (normalized) {
-    'LUMINANCE' || 'LUM' || 'CLEAR' => 'L',
+    'LUMINANCE' || 'LUMINOSITY' || 'LUM' || 'CLEAR' => 'L',
     'RED' => 'R',
     'GREEN' => 'G',
     'BLUE' => 'B',
-    'HALPHA' || 'HA' || 'H' => 'HA',
-    'OIII' || 'O3' || 'OXYGENIII' => 'OIII',
-    'SII' || 'S2' || 'SULFURII' => 'SII',
+    'HALPHA' || 'HA' || 'H' || 'HYDROGEN' || 'HYDROGENALPHA' => 'HA',
+    'OIII' || 'O3' || 'OXYGEN' || 'OXYGENIII' => 'OIII',
+    'SII' ||
+    'S2' ||
+    'SULFUR' ||
+    'SULPHUR' ||
+    'SULFURII' ||
+    'SULPHURII' => 'SII',
+    'NII' || 'N2' || 'NITROGEN' || 'NITROGENII' => 'NII',
     _ => normalized,
   };
 }
 
-/// The filter in [available] that [requested] means: the same name ignoring
-/// case, else the one with the same [canonicalFilterName]. Null when none.
-String? matchingFilterName(String requested, Iterable<String> available) {
-  final wanted = requested.trim().toLowerCase();
-  for (final name in available) {
-    if (name.trim().toLowerCase() == wanted) return name;
-  }
+/// The 0-based slot in [available] that [requested] means: the same name
+/// ignoring case and surrounding space, else the first with the same
+/// [canonicalFilterName], else the first whose canonical name contains the
+/// request's or is contained in it ("Ha" finds "Ha 7nm"). A blank name or
+/// request matches nothing. Null when none.
+///
+/// The same rule as `find_filter_match` in `bridge/src/filter_matching.rs`,
+/// which picks the slot at run time; both are tested against
+/// `test/fixtures/filter_matching_cases.json`.
+int? matchingFilterIndex(String requested, List<String> available) {
   final canonical = canonicalFilterName(requested);
-  for (final name in available) {
-    if (canonicalFilterName(name) == canonical) return name;
+  if (canonical.isEmpty) return null;
+  final wanted = requested.trim().toLowerCase();
+  var index = available.indexWhere(
+    (name) => name.trim().toLowerCase() == wanted,
+  );
+  if (index < 0) {
+    index = available.indexWhere(
+      (name) => canonicalFilterName(name) == canonical,
+    );
   }
-  return null;
+  if (index < 0) {
+    index = available.indexWhere((name) {
+      final other = canonicalFilterName(name);
+      return other.isNotEmpty &&
+          (other.contains(canonical) || canonical.contains(other));
+    });
+  }
+  return index < 0 ? null : index;
+}
+
+/// The name in [available] that [requested] means (see
+/// [matchingFilterIndex]). Null when none.
+String? matchingFilterName(String requested, Iterable<String> available) {
+  final names = available.toList();
+  final index = matchingFilterIndex(requested, names);
+  return index == null ? null : names[index];
 }
 
 /// Every filter name [sequence]'s enabled steps use.

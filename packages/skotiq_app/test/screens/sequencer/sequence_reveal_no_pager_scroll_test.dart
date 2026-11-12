@@ -94,8 +94,6 @@ void main() {
             notifier.state = sequence;
             return notifier;
           }),
-          sequenceExecutionStateProvider
-              .overrideWith((ref) => SequenceExecutionState.idle),
           // The ledger ETA clock is a real periodic stream; in the fake-async
           // zone its timer outlives every pump and fails teardown.
           ledgerClockProvider
@@ -189,7 +187,7 @@ void main() {
 
     await expectRevealMovesOnlyTheTree(tester, () async {
       handle.container
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .updateProgress(currentNodeId: seed.lastExposureId);
     });
   });

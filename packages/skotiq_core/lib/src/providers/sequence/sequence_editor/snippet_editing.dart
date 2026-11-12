@@ -223,7 +223,7 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
         if (node is ExposureNode &&
             node.filter != null &&
             node.filter!.isNotEmpty) {
-          final matchedIndex = _matchFilterToProfile(
+          final matchedIndex = matchingFilterIndex(
             node.filter!,
             profileFilterNames,
           );
@@ -238,7 +238,7 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
             );
           }
         } else if (node is FilterChangeNode) {
-          final matchedIndex = _matchFilterToProfile(
+          final matchedIndex = matchingFilterIndex(
             node.filterName,
             profileFilterNames,
           );
@@ -322,76 +322,5 @@ extension CurrentSequenceSnippetEditing on CurrentSequenceNotifier {
       },
     };
     return SequenceFileService().nodeFromMap(stored);
-  }
-
-  /// Common abbreviation map for filter name matching.
-  /// Maps normalized template names to possible profile name patterns.
-  static const _filterAbbreviations = <String, List<String>>{
-    'l': ['lum', 'luminance', 'luminosity', 'clear'],
-    'r': ['red'],
-    'g': ['green'],
-    'b': ['blue'],
-    'ha': ['halpha', 'h-alpha', 'h_alpha', 'hydrogen', 'hydrogen-alpha'],
-    'oiii': ['o3', 'oxygen', 'oxygeniii'],
-    'sii': ['s2', 'sulfur', 'sulphur', 'sulfurii'],
-    'nii': ['n2', 'nitrogen', 'nitrogenii'],
-  };
-
-  /// Try to match a template filter name to one of the profile filter names.
-  /// Returns the matched index (0-based) or null if no match found.
-  int? _matchFilterToProfile(String templateFilter, List<String> profileNames) {
-    final templateLower = templateFilter.toLowerCase().trim();
-    if (templateLower.isEmpty) return null;
-
-    // Pass 1: Exact match (case-insensitive)
-    for (int i = 0; i < profileNames.length; i++) {
-      if (profileNames[i].toLowerCase().trim() == templateLower) return i;
-    }
-
-    // Pass 2: Profile name starts with template name (e.g. "L" matches "Lum")
-    for (int i = 0; i < profileNames.length; i++) {
-      final profileLower = profileNames[i].toLowerCase().trim();
-      if (profileLower.startsWith(templateLower)) return i;
-    }
-
-    // Pass 3: Template name starts with profile name (e.g. "Luminance" matches "Lum")
-    for (int i = 0; i < profileNames.length; i++) {
-      final profileLower = profileNames[i].toLowerCase().trim();
-      if (templateLower.startsWith(profileLower) && profileLower.isNotEmpty) {
-        return i;
-      }
-    }
-
-    // Pass 4: Known abbreviation matching
-    final knownAliases = _filterAbbreviations[templateLower];
-    if (knownAliases != null) {
-      for (int i = 0; i < profileNames.length; i++) {
-        final profileLower = profileNames[i].toLowerCase().trim();
-        for (final alias in knownAliases) {
-          if (profileLower == alias ||
-              profileLower.startsWith(alias) ||
-              alias.startsWith(profileLower)) {
-            return i;
-          }
-        }
-      }
-    }
-
-    // Pass 5: Reverse — match abbreviation aliases against profile names.
-    for (final entry in _filterAbbreviations.entries) {
-      for (final alias in entry.value) {
-        if (alias == templateLower || templateLower.startsWith(alias)) {
-          for (int i = 0; i < profileNames.length; i++) {
-            final profileLower = profileNames[i].toLowerCase().trim();
-            if (profileLower.startsWith(entry.key) ||
-                entry.key.startsWith(profileLower)) {
-              return i;
-            }
-          }
-        }
-      }
-    }
-
-    return null;
   }
 }

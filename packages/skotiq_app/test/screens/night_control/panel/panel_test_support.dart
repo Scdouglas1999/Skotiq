@@ -24,6 +24,7 @@ import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/camera/camera_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/focus/focus_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/night_right_panel.dart';
+import 'package:skotiq_app/screens/night_control/panel/overview/after_run_section.dart';
 import 'package:skotiq_app/screens/night_control/panel/panel_ops.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -296,6 +297,13 @@ List<Override> panelOverrides({
       ),
       nightLogProvider.overrideWithValue(board.log),
       nightBeforeYouStartProvider.overrideWithValue(board.checklist),
+      nightAfterRunProvider.overrideWithValue(
+        const NightAfterRunVm(
+          sessionId: 7,
+          mountUnparked: true,
+          coolerOn: true,
+        ),
+      ),
       nightManualActionsProvider.overrideWithValue(board.actions),
       nightActionStateProvider.overrideWithValue(board.actionState),
       nightActionApiProvider.overrideWithValue(api ?? FakeActionApi()),

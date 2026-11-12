@@ -198,23 +198,22 @@ void main() {
     }
   });
 
-  test('an Error keeps its severity, so an advisory is not a fault', () {
-    for (final e in both(
-      const bridge.SequencerEvent.error(message: 'no plate solver'),
-      severity: EventSeverity.warning,
-    )) {
-      expect(
-        e,
-        isA<SequencerError>().having((e) => e.isAdvisory, 'advisory', isTrue),
-      );
-    }
-    for (final e in both(
-      const bridge.SequencerEvent.error(message: 'camera lost'),
-    )) {
-      expect(
-        e,
-        isA<SequencerError>().having((e) => e.isAdvisory, 'advisory', isFalse),
-      );
+  test('an Error keeps its kind on both transports, so a note or a problem '
+      'the run carried on through is not a fault', () {
+    for (final kind in bridge.SequencerErrorKind.values) {
+      for (final e in both(
+        bridge.SequencerEvent.error(message: 'what happened', kind: kind),
+        severity: kind.runContinues
+            ? EventSeverity.warning
+            : EventSeverity.error,
+      )) {
+        expect(
+          e,
+          isA<SequencerError>()
+              .having((e) => e.kind, 'kind', kind)
+              .having((e) => e.isAdvisory, 'advisory', kind.runContinues),
+        );
+      }
     }
   });
 

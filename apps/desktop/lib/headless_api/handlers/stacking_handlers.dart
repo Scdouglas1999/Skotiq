@@ -268,6 +268,20 @@ class StackingHandlers implements RouteSource {
       );
     }
 
+    // Taken through another filter than the stack's: left out before any
+    // alignment and counted in `otherFilterFrames`. The engine's sentence
+    // names both filters.
+    final otherFilter = text.indexOf('frame of another filter not stacked');
+    if (otherFilter >= 0) {
+      return HandlerFailure(
+        code: 'frame_other_filter',
+        message: error.toString().substring(otherFilter),
+        statusCode: 422,
+        details: {'imagePath': imagePath},
+        cause: error,
+      );
+    }
+
     // A path the caller got wrong is the caller's error, not a host fault.
     if (text.contains('no such file') ||
         text.contains('failed to read frame') ||
@@ -675,5 +689,8 @@ class StackingHandlers implements RouteSource {
     'avgMatchedPairs': s.avgMatchedPairs,
     'avgAlignmentResidual': s.avgAlignmentResidual,
     'totalSigmaRejectedPixels': s.totalSigmaRejectedPixels,
+    'filter': s.filter,
+    'otherFilterFrames': s.otherFilterFrames,
+    'lastOtherFilter': s.lastOtherFilter,
   };
 }

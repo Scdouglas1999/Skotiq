@@ -132,7 +132,9 @@ void main() {
       expect(editor.isDirty, isTrue);
     });
 
-    test('releaseOwnership with empty manual editor clears the canvas', () {
+    // Cleared, a stopped one-tap night read "No plan loaded" over the
+    // frames it had just taken.
+    test('releaseOwnership with nothing stashed keeps the plan that ran', () {
       final c = newContainer();
       final editor = c.read(currentSequenceProvider.notifier);
 
@@ -145,7 +147,8 @@ void main() {
       expect(c.read(currentSequenceProvider), isNotNull);
 
       editor.releaseOwnership();
-      expect(c.read(currentSequenceProvider), isNull);
+      expect(c.read(currentSequenceProvider)!.name, 'Autopilot Plan');
+      expect(editor.isDirty, isFalse);
       expect(c.read(activePlanOwnerProvider), ActivePlanOwner.manual);
     });
 

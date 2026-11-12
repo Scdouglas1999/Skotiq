@@ -274,16 +274,14 @@ pub(crate) async fn get_ascom_capabilities(
         // wrapper. A throwaway COM object for the same ProgID is not an
         // independent client: ASCOM local servers commonly share `Connected`
         // state, so a probe that connects or disconnects its own object mutates
-        // the live session. The "we don't have a wrapper yet" comment that used
-        // to justify the throwaway here was stale — `DeviceManager` has held
-        // `ascom_focusers` (populated on connect, see
-        // `device_manager::connection`) for as long as the other typed maps.
-        let live_wrapper = {
-            let manager = crate::api::get_device_manager();
-            manager.ascom_focusers.read().await.get(device_id).cloned()
-        };
-        let readings = if let Some(wrapper) = live_wrapper {
-            wrapper
+        // the live session.
+        let live_wrapper =
+            crate::api::get_device_manager()
+                .handles
+                .concrete::<crate::device_manager::rig::focuser::AscomFocuser>(device_id);
+        let readings = if let Some(focuser) = live_wrapper {
+            focuser
+                .driver
                 .read()
                 .await
                 .capability_readings()
@@ -343,17 +341,12 @@ pub(crate) async fn get_ascom_capabilities(
         // As with cameras and mounts, prefer the live registered wrapper. A
         // throwaway COM object can share and then tear down the live driver's
         // connection when its probe disconnects.
-        let live_wrapper = {
-            let manager = crate::api::get_device_manager();
-            manager
-                .ascom_filter_wheels
-                .read()
-                .await
-                .get(device_id)
-                .cloned()
-        };
-        if let Some(wrapper) = live_wrapper {
-            let wrapper = wrapper.read().await;
+        let live_wrapper =
+            crate::api::get_device_manager()
+                .handles
+                .concrete::<crate::device_manager::rig::filter_wheel::AscomWheel>(device_id);
+        if let Some(wheel) = live_wrapper {
+            let wrapper = wheel.driver.read().await;
             // A FAILED names read must not masquerade as "this wheel has zero
             // filters". `unwrap_or_default()` here turned any read error into an
             // empty list and hence `position_count: 0`, which is

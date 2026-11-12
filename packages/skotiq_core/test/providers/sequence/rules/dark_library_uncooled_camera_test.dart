@@ -165,8 +165,8 @@ void main() {
         (ref) => rule.validate(_lightSequence(), ValidationContext(ref)),
       );
       expect(issues, isNotEmpty);
-      expect(issues.first.description, contains('temp=20.0C'));
-      expect(issues.first.description, isNot(contains('temp=-10.0C')));
+      expect(issues.first.description, contains(', 20.0°C,'));
+      expect(issues.first.description, isNot(contains('-10.0°C')));
       expect(issues.first.description, contains('no cooler'));
     },
   );

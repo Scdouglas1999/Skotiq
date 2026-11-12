@@ -1,6 +1,9 @@
 /// Sequencer status and checkpoint types.
 library;
 
+import 'package:skotiq_remote_protocol/wire.dart'
+    show WireTime, parseWireTime, tryParseWireTime;
+
 class SequencerStatus {
   /// Current state (idle, running, paused, stopped, error)
   final String state;
@@ -133,10 +136,10 @@ class SequencerRunVitals {
   factory SequencerRunVitals.fromJson(Map<String, dynamic> json) {
     return SequencerRunVitals(
       startTime:
-          DateTime.tryParse(json['startTime'] as String? ?? '') ??
+          tryParseWireTime(json['startTime'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
       endTime: json['endTime'] is String
-          ? DateTime.tryParse(json['endTime'] as String)
+          ? tryParseWireTime(json['endTime'] as String)
           : null,
       framesCaptured: (json['framesCaptured'] as num?)?.toInt() ?? 0,
       framesRejected: (json['framesRejected'] as num?)?.toInt() ?? 0,
@@ -156,8 +159,8 @@ class SequencerRunVitals {
   }
 
   Map<String, dynamic> toJson() => {
-    'startTime': startTime.toIso8601String(),
-    if (endTime != null) 'endTime': endTime!.toIso8601String(),
+    'startTime': startTime.toWireTime(),
+    if (endTime != null) 'endTime': endTime!.toWireTime(),
     'framesCaptured': framesCaptured,
     'framesRejected': framesRejected,
     'integrationSecs': integrationSecs,
@@ -218,7 +221,7 @@ class CheckpointInfo {
   factory CheckpointInfo.fromJson(Map<String, dynamic> json) {
     return CheckpointInfo(
       sequenceName: json['sequenceName'] as String,
-      timestamp: DateTime.parse(json['timestamp'] as String),
+      timestamp: parseWireTime(json['timestamp'] as String),
       completedExposures: json['completedExposures'] as int,
       completedIntegrationSecs: (json['completedIntegrationSecs'] as num)
           .toDouble(),
@@ -235,7 +238,7 @@ class CheckpointInfo {
 
   Map<String, dynamic> toJson() => {
     'sequenceName': sequenceName,
-    'timestamp': timestamp.toIso8601String(),
+    'timestamp': timestamp.toWireTime(),
     'completedExposures': completedExposures,
     'completedIntegrationSecs': completedIntegrationSecs,
     'canResume': canResume,

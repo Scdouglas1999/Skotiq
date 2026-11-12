@@ -42,7 +42,10 @@ bridge_event.SkotiqEvent _sequencerError(int id, String message) =>
       severity: bridge_event.EventSeverity.error,
       category: bridge_event.EventCategory.sequencer,
       payload: bridge_event.EventPayload.sequencer(
-        bridge_event.SequencerEvent.error(message: message),
+        bridge_event.SequencerEvent.error(
+          message: message,
+          kind: bridge_event.SequencerErrorKind.stepFailed,
+        ),
       ),
     );
 

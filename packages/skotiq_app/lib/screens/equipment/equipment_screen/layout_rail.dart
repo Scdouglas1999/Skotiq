@@ -258,8 +258,9 @@ class _ProfileBlock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
     final model = profile;
-    final assigned = ref.watch(assignedProfileDeviceTypesProvider).length;
-    final unsaved = ref.watch(sessionOnlyConnectedSlotsProvider).length;
+    final rig = ref.watch(rigDevicesProvider);
+    final assigned = rig.assigned.length;
+    final unsaved = rig.sessionOnly.length;
 
     final meta = <String>[
       if (model?.isDefault ?? false) 'Default profile',
@@ -465,7 +466,7 @@ class _SaveSessionDevicesButtonState
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(activeEquipmentProfileProvider);
-    final slots = ref.watch(sessionOnlyConnectedSlotsProvider);
+    final slots = ref.watch(rigDevicesProvider).sessionOnly;
     final profileId = profile?.id;
     if (profileId == null || slots.isEmpty) return const SizedBox.shrink();
 

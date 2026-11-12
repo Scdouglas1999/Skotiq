@@ -18,6 +18,13 @@ class _DarkroomHistoryPanel extends StatefulWidget {
   final void Function(int index) onToggle;
   final void Function(int index, String name, Object? value) onParamChanged;
 
+  /// Sets parameters the operation reads together, as one edit.
+  final void Function(
+    int index,
+    Map<String, Object?> changes, {
+    required String coalesceKey,
+  }) onParamsChanged;
+
   /// Takes the step out of the recipe. Journalled, so Undo restores it.
   final void Function(int index) onRemove;
 
@@ -33,6 +40,7 @@ class _DarkroomHistoryPanel extends StatefulWidget {
     required this.state,
     required this.onToggle,
     required this.onParamChanged,
+    required this.onParamsChanged,
     required this.onRemove,
     required this.onReorder,
     required this.onInsert,
@@ -71,11 +79,42 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// recognizer of whichever slider is being held.
   int _orderGeneration = 0;
 
+  /// The recipe whose custom channel mix was opened on arrival. A custom mix
+  /// is a recipe made to have its weights set, so its card opens with them
+  /// showing; it is opened once, so closing it holds.
+  int? _mixOpenedFor;
+
+  /// The step whose channel mix is still to be scrolled into the panel: the
+  /// stack's viewport is a few hundred pixels and the weights sit below the
+  /// card's header, so opening the card alone leaves them under the fold.
+  Object? _mixToReveal;
+
+  @override
+  void initState() {
+    super.initState();
+    _openCustomMix();
+  }
+
   @override
   void didUpdateWidget(covariant _DarkroomHistoryPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!_sameOrder(oldWidget.state.steps, widget.state.steps)) {
       _orderGeneration++;
+    }
+    _openCustomMix();
+  }
+
+  void _openCustomMix() {
+    final recipe = widget.state.recipeId;
+    final steps = widget.state.steps;
+    if (recipe == null || recipe == _mixOpenedFor || steps.isEmpty) return;
+    _mixOpenedFor = recipe;
+    for (var i = 0; i < steps.length; i++) {
+      if (steps[i].opId == 'channel_combine' &&
+          steps[i].params['palette'] == 'custom') {
+        _expanded.add(i);
+        _mixToReveal = steps[i].identity;
+      }
     }
   }
 
@@ -418,12 +457,19 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
               if (expanded && spec != null) ...[
                 const SizedBox(height: SkotiqTokens.spaceSm),
                 for (final param in spec.params)
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      bottom: SkotiqTokens.spaceMd,
+                  if (_paramApplies(step, param))
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: SkotiqTokens.spaceMd,
+                      ),
+                      child: param.kind == DarkroomParamKind.channelMix &&
+                              identical(_mixToReveal, step.identity)
+                          ? _DarkroomRevealOnce(
+                              onRevealed: () => _mixToReveal = null,
+                              child: _paramControl(colors, index, step, param),
+                            )
+                          : _paramControl(colors, index, step, param),
                     ),
-                    child: _paramControl(colors, index, step, param),
-                  ),
               ],
             ],
           ),
@@ -776,6 +822,13 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
     );
   }
 
+  /// Whether [step] has anything for [spec]'s control to edit. A channel mix
+  /// weighs narrowband masters, so a combination without two of them has no
+  /// rows to draw.
+  static bool _paramApplies(DarkroomStep step, DarkroomParamSpec spec) =>
+      spec.kind != DarkroomParamKind.channelMix ||
+      darkroomMixRolesOf(step).length >= 2;
+
   /// One control per registry-documented parameter.
   ///
   /// The registry owns the type, the range and the default; nothing here
@@ -820,6 +873,17 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
         );
       case DarkroomParamKind.object:
         control = _measuredValue(colors, spec, effective);
+      case DarkroomParamKind.channelMix:
+        control = _DarkroomChannelMixControl(
+          step: step,
+          spec: spec,
+          presets: widget.state.catalog?.channelMixes ?? const [],
+          onChanged: (changes) => widget.onParamsChanged(
+            index,
+            changes,
+            coalesceKey: spec.name,
+          ),
+        );
       case DarkroomParamKind.numberList:
       case DarkroomParamKind.unrepresented:
         control = _readOnlyValue(colors, spec, effective);
@@ -850,7 +914,14 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
                 ),
               ),
             ),
-            if (!present)
+            if (spec.kind == DarkroomParamKind.channelMix)
+              _DarkroomTag(
+                label: _channelMixName(step),
+                tooltip: 'A palette is a fixed set of weights. Changing any '
+                    'weight makes the step a custom mix, and the weights are '
+                    'stored in this recipe.',
+              )
+            else if (!present)
               _DarkroomTag(
                 label: 'default',
                 tooltip: 'This recipe stores no value for "${spec.name}", so '
@@ -886,7 +957,9 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
               ),
             ),
           ),
-        if (!spec.independent && spec.kind != DarkroomParamKind.object)
+        if (!spec.independent &&
+            spec.kind != DarkroomParamKind.object &&
+            spec.kind != DarkroomParamKind.channelMix)
           Padding(
             padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceXs),
             child: Text(
@@ -900,6 +973,17 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
         control,
       ],
     );
+  }
+
+  /// What the step's weights are known as: the palette's name, or a custom
+  /// mix.
+  String _channelMixName(DarkroomStep step) {
+    final palette = step.params['palette'];
+    for (final preset in widget.state.catalog?.channelMixes ??
+        const <DarkroomChannelMixPreset>[]) {
+      if (preset.palette == palette) return preset.shortName;
+    }
+    return 'Custom mix';
   }
 
   Widget _numberControl(

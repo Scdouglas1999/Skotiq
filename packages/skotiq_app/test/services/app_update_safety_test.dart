@@ -33,8 +33,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      container.read(sequenceExecutionStateProvider.notifier).state =
-          SequenceExecutionState.running;
+      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
 
       await expectLater(
         container.read(updateSafetyProbeProvider.future),

@@ -59,3 +59,96 @@ impl SequenceExecutor {
         Ok(true)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::device_ops::NullDeviceOps;
+    use crate::{DelayConfig, NodeDefinition, NodeType, SequenceDefinition};
+
+    fn waiting_plan() -> SequenceDefinition {
+        let mut sequence = SequenceDefinition::new("Long wait".to_string());
+        sequence.nodes.push(NodeDefinition {
+            id: "wait".to_string(),
+            name: "Wait".to_string(),
+            node_type: NodeType::Delay(DelayConfig { seconds: 120.0 }),
+            enabled: true,
+            children: vec![],
+        });
+        sequence.root_node_id = Some("wait".to_string());
+        sequence
+    }
+
+    /// What the run announced within `window`: its state changes, and how
+    /// many errors of any kind.
+    async fn announced(
+        events: &mut broadcast::Receiver<ExecutorEvent>,
+        window: std::time::Duration,
+    ) -> (Vec<ExecutorState>, usize) {
+        let mut states = Vec::new();
+        let mut errors = 0;
+        let deadline = tokio::time::Instant::now() + window;
+        while let Ok(Ok(event)) = tokio::time::timeout_at(deadline, events.recv()).await {
+            match event {
+                ExecutorEvent::StateChanged(state) => states.push(state),
+                ExecutorEvent::Error { .. }
+                | ExecutorEvent::RunHeld { .. }
+                | ExecutorEvent::StepProblem { .. }
+                | ExecutorEvent::SequenceFailed { .. } => errors += 1,
+                _ => {}
+            }
+        }
+        (states, errors)
+    }
+
+    /// A mount fault pauses the run, and the run says so once: the device
+    /// layer's alarm is the notice, so the hold raises no error, and a
+    /// runaway that ends in a lost position holds the same run a second time
+    /// without a second "Sequence paused".
+    #[tokio::test]
+    async fn a_mount_fault_hold_pauses_the_run_and_announces_it_once() {
+        let mut executor = SequenceExecutor::new();
+        executor.set_device_ops(Arc::new(NullDeviceOps));
+        executor
+            .load_sequence(waiting_plan())
+            .expect("sequence loads");
+        let mut events = executor.subscribe();
+        executor.start().await.expect("run starts");
+        // What the start announced is not under test.
+        announced(&mut events, std::time::Duration::from_millis(300)).await;
+
+        let held = executor
+            .hold_for_mount_fault("the mount moved on its own")
+            .await
+            .expect("the hold is accepted");
+        let held_again = executor
+            .hold_for_mount_fault("the mount lost its position")
+            .await
+            .expect("the second hold is accepted");
+        let (states, errors) = announced(&mut events, std::time::Duration::from_millis(500)).await;
+
+        assert!(held && held_again);
+        assert_eq!(states, vec![ExecutorState::Paused]);
+        assert_eq!(errors, 0, "a hold is not an error of the run");
+        assert_eq!(
+            executor.get_progress().message.as_deref(),
+            Some("Paused: the mount lost its position")
+        );
+        executor.stop().await.expect("the run stops");
+    }
+
+    #[tokio::test]
+    async fn with_no_run_there_is_nothing_to_hold() {
+        let executor = SequenceExecutor::new();
+        let mut events = executor.subscribe();
+
+        let held = executor
+            .hold_for_mount_fault("the mount moved on its own")
+            .await
+            .expect("the call is accepted");
+        let (states, _) = announced(&mut events, std::time::Duration::from_millis(100)).await;
+
+        assert!(!held);
+        assert!(states.is_empty());
+    }
+}

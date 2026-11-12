@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 // The selector provider is not re-exported through the core barrel; the
@@ -694,7 +693,9 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                         const SizedBox(width: 6),
                         Text(
                           isRunning
-                              ? 'Stacking'
+                              ? stats.filter == null
+                                  ? 'Stacking'
+                                  : 'Stacking ${stats.filter}'
                               : isError
                                   ? 'Error'
                                   : 'Idle',
@@ -774,6 +775,18 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
             ),
           ),
           const SizedBox(height: 20),
+
+          if (isRunning && stats.otherFilterNote != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
+              child: SkotiqBanner(
+                title: stats.otherFilterFrames == 1
+                    ? '1 frame left out'
+                    : '${stats.otherFilterFrames} frames left out',
+                message: stats.otherFilterNote!,
+                tone: BannerTone.info,
+              ),
+            ),
 
           SkotiqPanel(
             head: PanelHead(label: 'Statistics'),

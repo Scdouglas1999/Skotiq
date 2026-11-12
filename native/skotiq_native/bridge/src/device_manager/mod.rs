@@ -14,11 +14,12 @@ pub(crate) mod motion_guard;
 pub(crate) mod ops;
 pub(crate) mod policy;
 pub(crate) mod read_health;
+pub(crate) mod rig;
 pub(crate) mod simulated;
 
 use crate::device::*;
 use crate::state::SharedAppState;
-use skotiq_device::{CameraDriver, DeviceDriver, FilterWheelDriver, FocuserDriver, MountDriver};
+use skotiq_device::{CameraDriver, DeviceDriver, MountDriver};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -130,7 +131,8 @@ pub struct DeviceManager {
     /// Flag to stop the reconnection task
     stop_reconnect: Arc<RwLock<bool>>,
 
-    /// The connected devices that have a handle (the accessory types).
+    /// The connected devices that have a handle: the accessory types and the
+    /// rig types listed in [`rig`].
     pub(crate) handles: handle::Handles,
 
     pub(crate) native_devices: RwLock<HashMap<String, Box<dyn DeviceDriver>>>,
@@ -143,16 +145,6 @@ pub struct DeviceManager {
     pub(crate) ascom_mounts:
         RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::mount::AscomMountWrapper>>>>,
 
-    #[cfg(windows)]
-    pub(crate) ascom_focusers:
-        RwLock<HashMap<String, Arc<RwLock<crate::ascom_wrapper::focuser::AscomFocuserWrapper>>>>,
-
-    /// Active ASCOM filter wheel wrappers
-    #[cfg(windows)]
-    pub(crate) ascom_filter_wheels: RwLock<
-        HashMap<String, Arc<RwLock<crate::ascom_wrapper::filterwheel::AscomFilterWheelWrapper>>>,
-    >,
-
     /// Active INDI clients (key: "host:port")
     pub(crate) indi_clients: RwLock<HashMap<String, Arc<RwLock<skotiq_indi::IndiClient>>>>,
 
@@ -160,20 +152,8 @@ pub struct DeviceManager {
 
     pub(crate) alpaca_mounts: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaTelescope>>>,
 
-    pub(crate) alpaca_focusers: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFocuser>>>,
-
-    /// Active Alpaca filter wheel clients
-    pub(crate) alpaca_filter_wheels: RwLock<HashMap<String, Arc<skotiq_alpaca::AlpacaFilterWheel>>>,
-
     /// Active Native SDK cameras (stored separately for typed access)
     pub(crate) native_cameras: RwLock<HashMap<String, Box<dyn CameraDriver + Send + Sync>>>,
-
-    /// Active Native SDK focusers (stored separately for typed access)
-    pub(crate) native_focusers: RwLock<HashMap<String, Box<dyn FocuserDriver + Send + Sync>>>,
-
-    /// Active Native SDK filter wheels (stored separately for typed access)
-    pub(crate) native_filter_wheels:
-        RwLock<HashMap<String, Box<dyn FilterWheelDriver + Send + Sync>>>,
 
     /// Active Native SDK mounts (stored separately for typed access)
     pub(crate) native_mounts: RwLock<HashMap<String, Box<dyn MountDriver + Send + Sync>>>,
@@ -370,18 +350,10 @@ impl DeviceManager {
             ascom_cameras: RwLock::new(HashMap::new()),
             #[cfg(windows)]
             ascom_mounts: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_focusers: RwLock::new(HashMap::new()),
-            #[cfg(windows)]
-            ascom_filter_wheels: RwLock::new(HashMap::new()),
             indi_clients: RwLock::new(HashMap::new()),
             alpaca_cameras: RwLock::new(HashMap::new()),
             alpaca_mounts: RwLock::new(HashMap::new()),
-            alpaca_focusers: RwLock::new(HashMap::new()),
-            alpaca_filter_wheels: RwLock::new(HashMap::new()),
             native_cameras: RwLock::new(HashMap::new()),
-            native_focusers: RwLock::new(HashMap::new()),
-            native_filter_wheels: RwLock::new(HashMap::new()),
             native_mounts: RwLock::new(HashMap::new()),
             heartbeat_tasks: RwLock::new(HashMap::new()),
             reconnect_cancel_tokens: RwLock::new(HashMap::new()),

@@ -99,20 +99,7 @@ class CampaignRollupService {
       goals: goals,
       oldTotalGoalSecs: target.goalIntegrationSecs,
     );
-    final filters = [
-      for (final f in accepted)
-        CampaignFilterRollup(
-          filter: f.filter,
-          capturedFrames: f.frames,
-          capturedIntegrationSecs: f.seconds,
-          goalExposureSecs: null,
-          goalFrames: null,
-          meanCapturedExposureSecs: f.frames > 0 ? f.seconds / f.frames : null,
-        ),
-    ];
-    // Honor goals even when no light frames have been captured yet so the
-    // UI can show a 0% progress bar for the new campaign.
-    _attachGoalsToFilters(filters, goals);
+    final filters = _filterRows(accepted, goals);
 
     final targetSecsBySession = <int, double>{};
     for (final frame in lightFrames) {
@@ -209,59 +196,58 @@ class CampaignRollupService {
     );
   }
 
-  /// Merge integration-goal rows into the per-filter list. Goals that have
-  /// no captured frames yet are appended as zero-frame rows so the panel
-  /// can show the goal even before the first night.
-  void _attachGoalsToFilters(
-    List<CampaignFilterRollup> filters,
+  /// One row per goal, holding the share of its filter's accepted time that
+  /// goal counts ([acceptedPerGoal]), then one row per captured filter no goal
+  /// names. A goal with no frames yet still has its row, so the panel shows
+  /// the goal before the first night.
+  List<CampaignFilterRollup> _filterRows(
+    List<FilterIntegration> accepted,
     List<IntegrationGoal> goals,
   ) {
-    if (goals.isEmpty) return;
-    final byKey = <String, CampaignFilterRollup>{
-      for (final f in filters) f.filter.toLowerCase(): f,
-    };
-    final merged = <CampaignFilterRollup>[];
-    final consumed = <String>{};
-    // First update existing filter rows in place by replacement.
-    for (final goal in goals) {
-      final key = goal.filter.toLowerCase();
-      final existing = byKey[key];
-      if (existing != null) {
-        merged.add(
-          CampaignFilterRollup(
-            filter: existing.filter,
-            capturedFrames: existing.capturedFrames,
-            capturedIntegrationSecs: existing.capturedIntegrationSecs,
-            goalExposureSecs: goal.exposureSeconds,
-            goalFrames: goal.frameCount,
-            meanCapturedExposureSecs: existing.meanCapturedExposureSecs,
-          ),
-        );
-        consumed.add(key);
-      } else {
-        // Goal exists with no captured frames yet — show a goal-only row.
-        merged.add(
-          CampaignFilterRollup(
-            filter: goal.filter,
-            capturedFrames: 0,
-            capturedIntegrationSecs: 0.0,
-            goalExposureSecs: goal.exposureSeconds,
-            goalFrames: goal.frameCount,
-            meanCapturedExposureSecs: null,
-          ),
-        );
-      }
+    final shares = acceptedPerGoal(accepted, goals);
+    final named = <String>{};
+    final rows = <CampaignFilterRollup>[];
+    for (var i = 0; i < goals.length; i++) {
+      final goal = goals[i];
+      final share = shares[i];
+      // The spelling the frames carry, which also names the unfiltered group.
+      final group = acceptedInGoalFilter(accepted, goal.filter);
+      named.add(group.filter.toLowerCase());
+      rows.add(
+        CampaignFilterRollup(
+          filter: group.filter.trim().isEmpty ? 'Unfiltered' : group.filter,
+          capturedFrames: share.frames,
+          capturedIntegrationSecs: share.seconds,
+          goalExposureSecs: goal.exposureSeconds,
+          goalFrames: goal.frameCount,
+          meanCapturedExposureSecs: group.frames > 0
+              ? group.seconds / group.frames
+              : null,
+        ),
+      );
     }
-    // Carry through any captured filters with no matching goal.
-    for (final entry in byKey.entries) {
-      if (!consumed.contains(entry.key)) merged.add(entry.value);
+    for (final f in accepted) {
+      if (named.contains(f.filter.toLowerCase())) continue;
+      rows.add(
+        CampaignFilterRollup(
+          filter: f.filter,
+          capturedFrames: f.frames,
+          capturedIntegrationSecs: f.seconds,
+          goalExposureSecs: null,
+          goalFrames: null,
+          meanCapturedExposureSecs: f.frames > 0 ? f.seconds / f.frames : null,
+        ),
+      );
     }
-    merged.sort(
-      (a, b) => a.filter.toLowerCase().compareTo(b.filter.toLowerCase()),
-    );
-    filters
-      ..clear()
-      ..addAll(merged);
+    // Sorted by index so two goals in one filter keep their goal order.
+    final order = List<int>.generate(rows.length, (i) => i)
+      ..sort((a, b) {
+        final byName = rows[a].filter.toLowerCase().compareTo(
+          rows[b].filter.toLowerCase(),
+        );
+        return byName != 0 ? byName : a.compareTo(b);
+      });
+    return [for (final i in order) rows[i]];
   }
 }
 

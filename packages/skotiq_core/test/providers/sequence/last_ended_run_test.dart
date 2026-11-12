@@ -15,15 +15,15 @@ void main() {
           .read(currentSequenceProvider.notifier)
           .createSequence(name: 'M35');
       final id = container.read(currentSequenceProvider)!.id;
-      final execution = container.read(sequenceExecutionStateProvider.notifier);
+      final execution = container.read(runRecordProvider.notifier);
 
-      execution.state = SequenceExecutionState.running;
+      execution.setLifecycle(SequenceExecutionState.running);
       expect(container.read(lastEndedRunProvider), isNull);
-      execution.state = SequenceExecutionState.stopping;
-      execution.state = SequenceExecutionState.idle;
+      execution.setLifecycle(SequenceExecutionState.stopping);
+      execution.setLifecycle(SequenceExecutionState.idle);
       expect(container.read(lastEndedRunProvider)?.sequenceId, id);
 
-      execution.state = SequenceExecutionState.running;
+      execution.setLifecycle(SequenceExecutionState.running);
       expect(container.read(lastEndedRunProvider), isNull);
     },
   );

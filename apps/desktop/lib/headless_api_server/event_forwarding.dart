@@ -77,19 +77,32 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
     );
   }
 
-  /// Serialise a stamped event and push to every connected socket.
+  /// Serialise a stamped event and push to every connected socket, with
+  /// credential values hidden from sockets without admin access.
   void _emitStampedEvent(SkotiqEvent stamped) {
     if (_sockets.isEmpty) return;
     final jsonEvent = _encodeStampedEventForWire(stamped);
     if (jsonEvent == null) return;
+    final limited = eventWithCredentialsHidden(stamped);
+    final limitedJson = identical(limited, stamped)
+        ? jsonEvent
+        : _encodeStampedEventForWire(limited);
     for (final socket in List.of(_sockets)) {
+      final frame = _adminSockets.contains(socket) ? jsonEvent : limitedJson;
+      if (frame == null) continue;
       try {
-        socket.sink.add(jsonEvent);
+        socket.sink.add(frame);
       } catch (e) {
         _logWarning('Error broadcasting to socket: $e');
       }
     }
   }
+
+  /// [event] as [socket] may receive it.
+  SkotiqEvent _eventFor(WebSocketChannel socket, SkotiqEvent event) =>
+      _adminSockets.contains(socket)
+      ? event
+      : eventWithCredentialsHidden(event);
 
   /// Encode a stamped event into the WebSocket wire envelope. Returns
   /// null if encoding failed (logged inside).

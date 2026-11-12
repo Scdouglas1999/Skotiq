@@ -110,36 +110,42 @@ void _finishNight(ProviderContainer host) {
     runId: 41,
     dbSessionId: 113,
   );
-  host.read(completedImagingRunProvider.notifier).state = CompletedImagingRun(
-    imaging,
-    stats,
-  );
   host
-      .read(sequenceTerminalRunResultProvider.notifier)
-      .state = const SequenceTerminalRunResult(
-    generation: 5,
-    outcome: SequenceExecutionState.idle,
-    runStatus: 'stopped',
-    runId: 42,
-    dbSessionId: 114,
-    isCalibration: true,
-  );
+      .read(runRecordProvider.notifier)
+      .setCompletedImagingRun(CompletedImagingRun(imaging, stats));
   host
-      .read(lastEndedRunProvider.notifier)
-      .mirrorHost(
-        LastEndedRun(
-          sequenceId: 'plan-ngc7331',
-          endedAt: DateTime(2026, 11, 3, 18, 36),
+      .read(runRecordProvider.notifier)
+      .publishTerminal(
+        const SequenceTerminalRunResult(
+          generation: 5,
+          outcome: SequenceExecutionState.idle,
+          runStatus: 'stopped',
+          runId: 42,
+          dbSessionId: 114,
+          isCalibration: true,
         ),
       );
-  host.read(runStartedAtProvider.notifier).state = DateTime(
-    2026,
-    11,
-    3,
-    18,
-    33,
-  );
+  host
+      .read(runRecordProvider.notifier)
+      .seed(
+        (run) => run.copyWith(
+          lastEnded: LastEndedRun(
+            sequenceId: 'plan-ngc7331',
+            endedAt: DateTime(2026, 11, 3, 18, 36),
+          ),
+        ),
+      );
+  host
+      .read(runRecordProvider.notifier)
+      .seed((run) => run.copyWith(startedAt: DateTime(2026, 11, 3, 18, 33)));
 }
+
+Sequence _plan(String id, String name) => Sequence(
+  id: id,
+  name: name,
+  createdAt: DateTime(2026, 11, 3),
+  modifiedAt: DateTime(2026, 11, 3),
+);
 
 /// Let the host's publisher see the change (derived providers notify on the
 /// next frame; throttled channels after their interval).
@@ -180,16 +186,85 @@ void main() {
     },
   );
 
+  // A plan's id is made where the plan is opened and is not in its document:
+  // the host's copy and the client's copy of one plan have different ids. The
+  // client compared the two, so a run stopped from it (or ended at dawn) read
+  // as a plan that never ran.
+  test('a client knows the ended run ran the plan it shows although its id '
+      'for that plan is its own', () async {
+    final host = _host();
+    addTearDown(host.dispose);
+    host
+        .read(currentSequenceProvider.notifier)
+        .applyPeerEdit(_plan('host-id', 'M 31'), dirty: false);
+    host
+        .read(runRecordProvider.notifier)
+        .mirrorHostRunRecord(
+          terminal: null,
+          completedImagingRun: null,
+          lastEnded: LastEndedRun(
+            sequenceId: 'host-id',
+            endedAt: DateTime(2026, 11, 3, 18, 36),
+          ),
+          startedAt: null,
+        );
+    await _published();
+
+    final backend = _clientBackend(host);
+    final client = _client(backend);
+    addTearDown(client.dispose);
+    client.read(lastEndedRunProvider);
+    await hydrateHostRuntimeState(client, backend);
+
+    final ended = client.read(lastEndedRunProvider)!;
+    expect(ended.planLoadedOnHost, isTrue);
+    expect(client.read(sequenceStopEvidenceProvider), isNull);
+    expect(ended.ranLoadedPlan('client-id'), isTrue);
+
+    // The host knows the operator stopped it; this client was not listening
+    // to the run's events when that was said.
+    host
+        .read(runRecordProvider.notifier)
+        .setStopEvidence(
+          const SequenceStopDecision(SequenceStopAuthor.operatorPress),
+        );
+    await _published();
+    await hydrateHostRuntimeState(client, backend);
+    expect(
+      client.read(sequenceStopEvidenceProvider)?.author,
+      SequenceStopAuthor.operatorPress,
+    );
+
+    // The host opens another plan: the ended run is no longer this plan's.
+    host
+        .read(currentSequenceProvider.notifier)
+        .applyPeerEdit(_plan('other', 'M 33'), dirty: false);
+    await _published();
+    await hydrateHostRuntimeState(client, backend);
+
+    expect(
+      client.read(lastEndedRunProvider)!.ranLoadedPlan('client-id'),
+      isFalse,
+    );
+  });
+
+  test('a host that does not say whether the plan is loaded is read by the '
+      'plan id, as before', () {
+    final ended = LastEndedRun(
+      sequenceId: 'plan',
+      endedAt: DateTime(2026, 11, 3, 18, 36),
+    );
+    expect(ended.ranLoadedPlan('plan'), isTrue);
+    expect(ended.ranLoadedPlan('another'), isFalse);
+    expect(ended.ranLoadedPlan(null), isFalse);
+  });
+
   test('a client that joins a live run keeps the host start time', () async {
     final host = _host();
     addTearDown(host.dispose);
-    host.read(runStartedAtProvider.notifier).state = DateTime(
-      2026,
-      11,
-      3,
-      20,
-      20,
-    );
+    host
+        .read(runRecordProvider.notifier)
+        .seed((run) => run.copyWith(startedAt: DateTime(2026, 11, 3, 20, 20)));
     await _published();
 
     final backend = _clientBackend(host);
@@ -200,8 +275,9 @@ void main() {
     await hydrateHostRuntimeState(client, backend);
     // The run's state reaches the client after the record (a status poll or
     // event): this client sees it go live now, the host saw it at 20:20.
-    client.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.paused;
+    client
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.paused);
 
     expect(client.read(runStartedAtProvider), DateTime(2026, 11, 3, 20, 20));
   });

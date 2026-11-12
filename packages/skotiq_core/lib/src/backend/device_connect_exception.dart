@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../models/errors/server_error.dart';
 import 'bridge_error_message.dart';
 
@@ -28,6 +30,13 @@ String connectFailureReason(Object error) {
     DeviceConnectException(:final cause) => connectFailureReason(cause),
     ServerError(:final message) => message,
     StateError(:final message) => message,
+    // The device was not refused; nobody answered in time, and the driver
+    // may still be opening it.
+    TimeoutException(:final duration) =>
+      duration == null
+          ? 'No answer in time. It may still be connecting.'
+          : 'No answer after ${duration.inSeconds} s. It may still be '
+                'connecting.',
     _ => bridgeErrorMessage(error) ?? error.toString(),
   };
   const dartException = 'Exception: ';

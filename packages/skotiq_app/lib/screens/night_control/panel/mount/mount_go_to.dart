@@ -23,7 +23,7 @@ import '../../actions/manual_action_gating.dart';
 import '../../actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import 'night_mount_tab.dart';
-import 'night_panel_parts.dart';
+import '../panel_widgets.dart';
 
 /// An object the Go to field resolved, J2000.
 @immutable

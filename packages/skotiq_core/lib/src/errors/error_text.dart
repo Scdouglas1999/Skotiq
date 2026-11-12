@@ -23,6 +23,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:http/http.dart' as http;
 
 import '../backend/bridge_error_message.dart';
+import '../backend/device_connect_exception.dart';
 import '../backend/skotiq_exception.dart' as backend;
 import '../models/errors/server_error.dart';
 import '../models/errors/skotiq_error.dart';
@@ -113,6 +114,9 @@ ErrorText describeError(Object? error, {ErrorDomain? domain}) {
 /// This is the seam for typed native errors: a new typed error gets a line
 /// here and every screen shows it correctly.
 String? _typedMessage(Object error) {
+  // Before the bridge's rendering: the exception's own text is the technical
+  // one ("Failed to connect to <id> via native bridge: ...").
+  if (error is DeviceConnectException) return connectFailureReason(error);
   final bridged = bridgeErrorMessage(error);
   if (bridged != null) return bridged;
   if (error is SkotiqError) return error.userMessage;

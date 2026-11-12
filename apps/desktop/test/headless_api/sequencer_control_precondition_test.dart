@@ -174,7 +174,7 @@ void main() {
         () => backend.sequencerGetStatus(),
       ).thenAnswer((_) async => _status('running'));
       container
-          .read(sequenceProgressProvider.notifier)
+          .read(runRecordProvider.notifier)
           .updateProgress(currentTarget: 'M Long Field');
 
       final response = await handlers.handleSequencerStatus(

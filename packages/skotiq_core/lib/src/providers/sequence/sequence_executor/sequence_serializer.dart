@@ -819,8 +819,6 @@ class SequenceSerializer {
           'stack_method': n.stackMethod.storageKey,
           'max_frames_to_stack': n.maxFramesToStack,
           'broadcast_enabled': n.broadcastEnabled,
-          'broadcast_port': n.broadcastPort,
-          'broadcast_path': n.broadcastPath,
           'auth_token': n.authToken,
           'watermark_text': n.watermarkText,
           'thumbnail_width': n.thumbnailWidth,

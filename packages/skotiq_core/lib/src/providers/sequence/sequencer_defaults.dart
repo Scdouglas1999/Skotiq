@@ -76,10 +76,6 @@ class SequencerDefaults {
   final double frameDownloadOverheadSecs;
 
   // LiveStacking defaults (palette + properties editor)
-  /// Default TCP port the broadcast endpoints bind to. 8081 keeps clear
-  /// of the headless API server's default (8080) and the dashboard.
-  final int livestackingDefaultPort;
-
   /// Whether new LiveStacking nodes default to a public-access (no
   /// auth token) broadcast. Off by default — public outreach must be
   /// an explicit choice, not the accidental default.
@@ -125,7 +121,6 @@ class SequencerDefaults {
     required this.exposureBinning,
     required this.exposureDitherEvery,
     this.frameDownloadOverheadSecs = 2.0,
-    required this.livestackingDefaultPort,
     required this.livestackingPublicByDefault,
     required this.livestackingDefaultStackMethod,
     required this.livestackingDefaultWatermark,
@@ -163,7 +158,6 @@ class SequencerDefaults {
       exposureOffset: value(StoreSettings.sequencerExposureOffset),
       exposureBinning: value(StoreSettings.sequencerExposureBinning),
       exposureDitherEvery: value(StoreSettings.sequencerExposureDitherEvery),
-      livestackingDefaultPort: value(StoreSettings.liveStackingPort),
       livestackingPublicByDefault: value(
         StoreSettings.liveStackingPublicByDefault,
       ),
@@ -203,7 +197,6 @@ class SequencerDefaults {
     StoreSettings.sequencerExposureOffset,
     StoreSettings.sequencerExposureBinning,
     StoreSettings.sequencerExposureDitherEvery,
-    StoreSettings.liveStackingPort,
     StoreSettings.liveStackingPublicByDefault,
     StoreSettings.liveStackingStackMethod,
     StoreSettings.liveStackingWatermark,
@@ -230,7 +223,6 @@ class SequencerDefaults {
     BinningMode? exposureBinning,
     int? exposureDitherEvery,
     double? frameDownloadOverheadSecs,
-    int? livestackingDefaultPort,
     bool? livestackingPublicByDefault,
     LiveStackingMethod? livestackingDefaultStackMethod,
     Object? livestackingDefaultWatermark = _sentinel,
@@ -259,8 +251,6 @@ class SequencerDefaults {
       exposureBinning: exposureBinning ?? this.exposureBinning,
       frameDownloadOverheadSecs:
           frameDownloadOverheadSecs ?? this.frameDownloadOverheadSecs,
-      livestackingDefaultPort:
-          livestackingDefaultPort ?? this.livestackingDefaultPort,
       livestackingPublicByDefault:
           livestackingPublicByDefault ?? this.livestackingPublicByDefault,
       livestackingDefaultStackMethod:
@@ -318,9 +308,8 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
 
   /// Persist the LiveStacking palette defaults so a
   /// "drop a Live Stacking node" emits a node with the user's preferred
-  /// port / stack method / watermark template.
+  /// stack method / watermark template.
   Future<void> updateLiveStackingDefaults({
-    int? defaultPort,
     bool? publicByDefault,
     LiveStackingMethod? defaultStackMethod,
     Object? defaultWatermark = _sentinel,
@@ -329,14 +318,6 @@ class SequencerDefaultsNotifier extends StateNotifier<SequencerDefaults> {
   }) async {
     final values = <SettingValue<Object?>>[];
 
-    if (defaultPort != null) {
-      // The Rust LiveStackingPortClashRule fails sequences that ship
-      // with broadcast_port == 0 or matching the headless API server's
-      // port. Editor surfaces that validation; the settings store
-      // simply persists the raw value so re-edits are not lossy.
-      values.add(StoreSettings.liveStackingPort.to(defaultPort));
-      state = state.copyWith(livestackingDefaultPort: defaultPort);
-    }
     if (publicByDefault != null) {
       values.add(StoreSettings.liveStackingPublicByDefault.to(publicByDefault));
       state = state.copyWith(livestackingPublicByDefault: publicByDefault);

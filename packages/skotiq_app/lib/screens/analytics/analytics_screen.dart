@@ -18,7 +18,6 @@ import 'package:skotiq_core/skotiq_core.dart';
 // unimplemented on Linux/Windows and threw an internal API name at the user.
 import '../../utils/darkroom_navigation.dart';
 import '../../utils/exported_file_reveal.dart';
-import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/snackbar_helper.dart';
@@ -92,6 +91,15 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     }
   }
 
+  /// A tab picked by hand goes into the location. Left as the link that
+  /// opened Analytics, the location still named that link's tab, so
+  /// following the same link again changed nothing and the tab stayed where
+  /// the operator had moved it.
+  void _writeLocation(AnalyticsTab tab, [ScienceTab? scienceView]) {
+    GoRouter.maybeOf(context)
+        ?.go(AppRoutes.analytics(tab: tab, scienceView: scienceView));
+  }
+
   /// The Analytics sub-tabs, in [AnalyticsTab] enum order. Each carries an icon
   /// so [AdaptiveTabBar] can collapse to icon-only on a compact phone instead
   /// of overflowing, and a [AdaptiveTab.buttonKey] for the tutorial spotlight.
@@ -150,7 +158,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               tabs: AdaptiveTabBar(
                 tabs: tabs,
                 selectedIndex: _currentSubTab,
-                onSelected: (index) => setState(() => _currentSubTab = index),
+                onSelected: (index) {
+                  setState(() => _currentSubTab = index);
+                  _writeLocation(AnalyticsTab.values[index]);
+                },
               ),
             ),
 
@@ -165,6 +176,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   const _EquipmentStatsTab(),
                   ScienceWorkspaceView(
                     initialView: widget.initialScienceView,
+                    onViewPicked: (view) =>
+                        _writeLocation(AnalyticsTab.science, view),
                     showHeader: false,
                   ),
                   const DiagnosticsTabContent(),

@@ -173,8 +173,6 @@
     "n-LiveStacking": {
       "authToken": "secret-token",
       "broadcastEnabled": false,
-      "broadcastPath": "/live",
-      "broadcastPort": 9090,
       "childIds": [],
       "comment": "live note",
       "id": "n-LiveStacking",

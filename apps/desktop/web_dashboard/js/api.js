@@ -219,6 +219,46 @@ class SkotiqApi {
     return this._request('POST', path, body);
   }
 
+  /// Follow a job the host queued to its end and return its result.
+  ///
+  /// A job-returning action answers `{jobId, status}` at once and does the
+  /// work afterwards; `started` is that answer. A host that ran the work
+  /// before answering sends the result itself, which is returned as it is.
+  /// A job that fails or is cancelled is thrown with the host's reason, kind
+  /// `job_failed` / `job_cancelled`; one still running after `timeoutMs` is
+  /// thrown as `job_timeout` and keeps running on the host.
+  async followJob(started, opts) {
+    const jobId = started && started.jobId;
+    if (!jobId) return started;
+    const o = opts || {};
+    const timeoutMs = o.timeoutMs != null ? o.timeoutMs : 600000;
+    const pollMs = o.pollMs != null ? o.pollMs : 1000;
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const job = await this._get('/api/jobs/' + encodeURIComponent(jobId));
+      const state = job && job.state;
+      if (state === 'succeeded') return job.result || {};
+      if (state === 'failed' || state === 'cancelled') {
+        const error = (job && job.error) || {};
+        throw new SkotiqApiError(
+          state === 'failed' ? 'job_failed' : 'job_cancelled',
+          error.message || (state === 'failed' ? 'The host reported a failure' : 'Cancelled'),
+          { jobId, code: error.code, details: error.details },
+        );
+      }
+      if (o.onProgress) o.onProgress(job);
+      if (Date.now() >= deadline) {
+        throw new SkotiqApiError(
+          'job_timeout',
+          'No result after ' + Math.round(timeoutMs / 60000) +
+            ' min; it is still running on the host',
+          { jobId },
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+    }
+  }
+
   async _put(path, body) {
     return this._request('PUT', path, body);
   }
@@ -726,7 +766,8 @@ class SkotiqApi {
 
   // Autofocus requires a camera + exposure parameters; the dashboard sends
   // sensible defaults from the connected camera's last gain and a 3s sub.
-  // Step sizes mirror the desktop AutofocusDialog defaults.
+  // Step sizes mirror the desktop AutofocusDialog defaults. Answers as soon
+  // as the sweep is queued; `followJob` gives its result.
   async autofocusStart(deviceId, cameraId, opts) {
     return this._post('/api/focuser/autofocus/start', {
       deviceId,
@@ -1165,12 +1206,13 @@ class SkotiqApi {
   // captured image (the desktop's AutoSaveService writes it to disk before
   // the row lands in the images table) and feeds the resulting filePath in.
   async plateSolve(imagePath, hint) {
-    return this._post('/api/plate-solve', {
+    const started = await this._post('/api/plate-solve', {
       imagePath,
       ra: hint && hint.ra,
       dec: hint && hint.dec,
       fov: hint && hint.fov,
     });
+    return this.followJob(started, { timeoutMs: 330000 });
   }
 
   // Most-recent captured image — used so the plate-solve panel can solve
@@ -1484,7 +1526,7 @@ class SkotiqApi {
   // configured plate-solver settings to drive the mount onto the target.
   async framingCenterOnTarget(ra, dec, opts) {
     const o = opts || {};
-    return this._request('POST', '/api/framing/center-on-target', {
+    const started = await this._request('POST', '/api/framing/center-on-target', {
       ra,
       dec,
       maxIterations: o.maxIterations != null ? o.maxIterations : 5,
@@ -1493,9 +1535,10 @@ class SkotiqApi {
       binning: o.binning != null ? o.binning : 2,
       gain: o.gain != null ? o.gain : 100,
       syncMount: o.syncMount != null ? o.syncMount : false,
+    });
     // Centering can iterate up to maxIterations plate-solves; allow a long
     // window so a 5-iteration run with 3s exposures + a slow solver completes.
-    }, 600000);
+    return this.followJob(started, { timeoutMs: 600000, onProgress: o.onProgress });
   }
 
   // Rotate to a chosen sky PA — used by the framing wizard's rotation step

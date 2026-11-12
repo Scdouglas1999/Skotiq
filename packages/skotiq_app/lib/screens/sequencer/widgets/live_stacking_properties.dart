@@ -131,8 +131,6 @@ class _LiveStackingPropertiesState
       stackMethod: n.stackMethod,
       maxFramesToStack: n.maxFramesToStack,
       broadcastEnabled: n.broadcastEnabled,
-      broadcastPort: n.broadcastPort,
-      broadcastPath: n.broadcastPath,
       authToken: clearAuthToken ? null : n.authToken,
       watermarkText: clearWatermark ? null : n.watermarkText,
       thumbnailWidth: n.thumbnailWidth,

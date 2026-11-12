@@ -476,14 +476,17 @@ extension _SkotiqDatabaseSchemaHelpers on SkotiqDatabase {
     if (marker.isNotEmpty) return;
     final row = await customSelect(
       'SELECT value FROM app_settings WHERE key = ?',
-      variables: [Variable.withString('science.feature.sky_atlas')],
+      variables: [Variable.withString(StoreSettings.scienceSkyAtlas.key)],
     ).getSingleOrNull();
     final value = row?.read<String>('value').trim().toLowerCase();
     if (value != 'false') {
       await customStatement(
         'INSERT INTO app_settings (key, value) VALUES (?, ?) '
         'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-        ['science.feature.sky_atlas', 'false'],
+        [
+          StoreSettings.scienceSkyAtlas.key,
+          StoreSettings.scienceSkyAtlas.encode(false),
+        ],
       );
       await customStatement(
         'INSERT INTO app_settings (key, value) VALUES (?, ?) '

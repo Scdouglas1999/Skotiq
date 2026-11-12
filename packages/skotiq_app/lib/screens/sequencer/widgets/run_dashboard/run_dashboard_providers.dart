@@ -911,8 +911,12 @@ bool isUserFacingRunEvent(sk_events.SkotiqEvent event) {
   final payload = event.payload;
   if (payload is sk_events.EventPayload_Equipment) {
     final equipment = payload.field0;
+    // A property change is how a device's state reaches the screens that
+    // show it (filter names, a camera setting, autofocus progress); the
+    // feed read "Property changed · Filter Wheel · FilterNames".
     return equipment is! sk_events.EquipmentEvent_HeartbeatStarted &&
-        equipment is! sk_events.EquipmentEvent_HeartbeatStopped;
+        equipment is! sk_events.EquipmentEvent_HeartbeatStopped &&
+        equipment is! sk_events.EquipmentEvent_PropertyChanged;
   }
   if (payload is sk_events.EventPayload_System) {
     final system = payload.field0;
@@ -1108,7 +1112,12 @@ bool _routerClassifierAlreadyPushes(sk_events.SkotiqEvent event) {
         _ => false,
       },
     sk_events.EventPayload_Sequencer(field0: final v) => switch (v) {
-        sk_events.SequencerEvent_Error() => true,
+        // A failed step is pushed by the router as the run's failure, when
+        // the run does fail. A pause for the operator and a hand-started
+        // operation's error have no router notice that carries the reason,
+        // so this bridge pages them.
+        sk_events.SequencerEvent_Error(kind: final kind) =>
+          kind == sk_events.SequencerErrorKind.stepFailed,
         // Told once per failed run by the router, with its reason.
         sk_events.SequencerEvent_Failed() => true,
         sk_events.SequencerEvent_Stopped() => true,

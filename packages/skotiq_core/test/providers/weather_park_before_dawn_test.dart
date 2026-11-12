@@ -151,7 +151,7 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    container.read(sequenceExecutionStateProvider.notifier).state = execution;
+    container.read(runRecordProvider.notifier).setLifecycle(execution);
     final mount = container.read(mountStateProvider.notifier);
     mount.setConnecting('mount-1');
     mount.setConnected();

@@ -70,7 +70,7 @@ class _AnnotationExportMenuState extends ConsumerState<_AnnotationExportMenu> {
   Future<void> _export(AnnotationExportFormat format) async {
     if (_exporting) return;
     setState(() => _exporting = true);
-    final timestamp = DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now());
+    final timestamp = ClockFormat.fileStamp(DateTime.now());
     try {
       final path = await ref.read(annotationExportSaverProvider)(
         format,

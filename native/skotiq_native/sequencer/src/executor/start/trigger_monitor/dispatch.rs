@@ -249,10 +249,13 @@ impl Dispatcher {
             if !self.run.is_cancelled() {
                 let message = format!("{name}: target acquisition failed ({problem}). Applying the configured recovery failure action; the obstruction has not been learned.");
                 self.flip_failure.latch(|| message.clone());
-                self.run.error(message.clone());
                 match failure_action {
-                    crate::FlipFailureAction::PauseAndAlert => self.run.pause(Some(message)),
+                    crate::FlipFailureAction::PauseAndAlert => {
+                        self.run.held(message.clone());
+                        self.run.pause(Some(message));
+                    }
                     crate::FlipFailureAction::AbortAndPark => {
+                        self.run.error(message);
                         meridian_flip::abort_and_park(&self.rig, &self.run, &mut self.park).await;
                         self.fired.push((id.into(), RecoveryAction::ParkAndAbort));
                         return Flow::Terminate(terminate_with(

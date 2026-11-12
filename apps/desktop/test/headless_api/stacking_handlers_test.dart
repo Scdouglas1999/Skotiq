@@ -368,6 +368,33 @@ void main() {
     },
   );
 
+  test(
+    'add-frame reports a frame of another filter as 422 frame_other_filter',
+    () async {
+      await handlers.handleStart(post('/api/stacking/start'));
+      await handlers.onImageSaved('/host/ref.fits');
+
+      fake.addError = Exception(
+        'Frame of another filter not stacked: the frame was taken through R '
+        'and this live stack is of frames taken through L.',
+      );
+      final response = await translateHandlerErrors(
+        handlers.handleAddFrame(
+          post('/api/stacking/add-frame', {'imagePath': '/host/red.fits'}),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.unprocessableEntity);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(body['error'], 'frame_other_filter');
+      expect(
+        body['message'],
+        'Frame of another filter not stacked: the frame was taken through R '
+        'and this live stack is of frames taken through L.',
+      );
+    },
+  );
+
   test('add-frame reports an unreadable path as 404 frame_unreadable', () async {
     await handlers.handleStart(post('/api/stacking/start'));
     await handlers.onImageSaved('/host/ref.fits');

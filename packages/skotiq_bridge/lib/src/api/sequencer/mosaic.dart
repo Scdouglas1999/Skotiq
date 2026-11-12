@@ -54,8 +54,6 @@ class LiveStackingBroadcastSnapshot {
   /// `average`, `median_rej`, or `sigma`.
   final String stackMethod;
   final bool broadcastEnabled;
-  final int broadcastPort;
-  final String broadcastPath;
 
   /// Empty string when public (no token required). Non-empty when
   /// `?token=…` is required on every broadcast endpoint.
@@ -77,8 +75,6 @@ class LiveStackingBroadcastSnapshot {
     required this.mode,
     required this.stackMethod,
     required this.broadcastEnabled,
-    required this.broadcastPort,
-    required this.broadcastPath,
     required this.authToken,
     required this.watermarkTemplate,
     required this.thumbnailWidth,
@@ -93,8 +89,6 @@ class LiveStackingBroadcastSnapshot {
       mode.hashCode ^
       stackMethod.hashCode ^
       broadcastEnabled.hashCode ^
-      broadcastPort.hashCode ^
-      broadcastPath.hashCode ^
       authToken.hashCode ^
       watermarkTemplate.hashCode ^
       thumbnailWidth.hashCode ^
@@ -111,8 +105,6 @@ class LiveStackingBroadcastSnapshot {
           mode == other.mode &&
           stackMethod == other.stackMethod &&
           broadcastEnabled == other.broadcastEnabled &&
-          broadcastPort == other.broadcastPort &&
-          broadcastPath == other.broadcastPath &&
           authToken == other.authToken &&
           watermarkTemplate == other.watermarkTemplate &&
           thumbnailWidth == other.thumbnailWidth &&

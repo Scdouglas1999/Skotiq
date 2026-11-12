@@ -218,8 +218,6 @@
       "sigma",
       50,
       false,
-      9090,
-      "/live",
       "secret-token",
       "Backyard",
       1920,

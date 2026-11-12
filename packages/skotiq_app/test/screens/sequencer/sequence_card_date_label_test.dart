@@ -6,17 +6,17 @@ import 'package:skotiq_app/screens/sequencer/tabs/sequence_library_tab.dart';
 void main() {
   final morning = DateTime(2026, 10, 21, 8, 51);
 
-  test('last night at 10:37 PM is Yesterday, not Today', () {
+  test('last night at 22:37 is Yesterday, not Today', () {
     expect(
       sequenceCardDateLabel(DateTime(2026, 10, 20, 22, 37), morning),
-      'Yesterday 10:37\u202fPM',
+      'Yesterday 22:37',
     );
   });
 
   test('earlier the same day is Today', () {
     expect(
       sequenceCardDateLabel(DateTime(2026, 10, 21, 0, 5), morning),
-      'Today 12:05\u202fAM',
+      'Today 00:05',
     );
   });
 
