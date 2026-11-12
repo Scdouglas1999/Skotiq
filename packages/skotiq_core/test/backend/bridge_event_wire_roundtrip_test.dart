@@ -299,6 +299,7 @@ void main() {
       const bridge.EquipmentEvent.cameraSettingsChanged(
         deviceId: 'c',
         gain: 139,
+        gainIsIso: true,
         offset: 21,
         binX: 2,
         binY: 2,

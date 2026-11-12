@@ -4560,12 +4560,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is EquipmentEvent_CameraSettingsChanged) {
       var pre_device_id = cst_encode_String(apiObj.deviceId);
       var pre_gain = cst_encode_i_32(apiObj.gain);
+      var pre_gain_is_iso = cst_encode_bool(apiObj.gainIsIso);
       var pre_offset = cst_encode_i_32(apiObj.offset);
       var pre_bin_x = cst_encode_i_32(apiObj.binX);
       var pre_bin_y = cst_encode_i_32(apiObj.binY);
       wireObj.tag = 24;
       wireObj.kind.CameraSettingsChanged.device_id = pre_device_id;
       wireObj.kind.CameraSettingsChanged.gain = pre_gain;
+      wireObj.kind.CameraSettingsChanged.gain_is_iso = pre_gain_is_iso;
       wireObj.kind.CameraSettingsChanged.offset = pre_offset;
       wireObj.kind.CameraSettingsChanged.bin_x = pre_bin_x;
       wireObj.kind.CameraSettingsChanged.bin_y = pre_bin_y;
@@ -18625,6 +18627,9 @@ final class wire_cst_EquipmentEvent_CameraSettingsChanged extends ffi.Struct {
 
   @ffi.Int32()
   external int gain;
+
+  @ffi.Bool()
+  external bool gain_is_iso;
 
   @ffi.Int32()
   external int offset;

@@ -80,9 +80,15 @@ impl DeviceManager {
     pub(crate) async fn publish_camera_settings(&self, device_id: &str) -> bool {
         match self.camera_get_status(device_id).await {
             Ok(status) => {
+                let gain_is_iso = matches!(
+                    crate::device_capabilities::get_device_capabilities(device_id).await,
+                    Ok(crate::device_capabilities::DeviceCapabilities::Camera(caps))
+                        if !caps.iso_speeds.is_empty()
+                );
                 self.publish_state_event(EquipmentEvent::CameraSettingsChanged {
                     device_id: device_id.to_string(),
                     gain: status.gain,
+                    gain_is_iso,
                     offset: status.offset,
                     bin_x: status.bin_x,
                     bin_y: status.bin_y,

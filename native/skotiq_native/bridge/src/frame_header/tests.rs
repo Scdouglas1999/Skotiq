@@ -854,12 +854,13 @@ fn date_obs_without_a_recorded_start_falls_back_to_now() {
 }
 
 #[tokio::test]
-async fn a_dslr_frame_records_its_iso_as_gain_and_isospeed() {
+async fn a_dslr_frame_records_its_iso_as_gain_and_isospeed_and_no_offset() {
     let dir = temp_scratch_dir("dslr_iso");
     let path = dir.join("dslr.fits");
     let mut ctx = FrameContext::new_light("sess-dslr", 1, 1, 120.0, 1);
     ctx.gain = Some(1600);
     ctx.gain_is_iso = true;
+    ctx.offset = Some(0);
     ctx.camera_model = Some("Canon EOS Ra".to_string());
 
     write_capture_frame(
@@ -875,6 +876,7 @@ async fn a_dslr_frame_records_its_iso_as_gain_and_isospeed() {
     let (_image, parsed) = read_frame(&path).expect("FITS read-back");
     assert_eq!(parsed.get_int("GAIN"), Some(1600));
     assert_eq!(parsed.get_int("ISOSPEED"), Some(1600));
+    assert_eq!(parsed.get_int("OFFSET"), None, "a DSLR has no offset");
 }
 
 /// A sequence frame and a manual capture are saved in one format: the

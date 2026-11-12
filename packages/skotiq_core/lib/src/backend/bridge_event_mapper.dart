@@ -822,6 +822,7 @@ bridge.EquipmentEvent _equipmentEventFromCore(
       return bridge.EquipmentEvent.cameraSettingsChanged(
         deviceId: _stringField(data, 'device_id'),
         gain: _intField(data, 'gain'),
+        gainIsIso: data['gain_is_iso'] == true,
         offset: _intField(data, 'offset'),
         binX: _intField(data, 'bin_x'),
         binY: _intField(data, 'bin_y'),

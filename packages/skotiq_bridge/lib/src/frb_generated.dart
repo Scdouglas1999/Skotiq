@@ -12099,9 +12099,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return EquipmentEvent_CameraSettingsChanged(
           deviceId: dco_decode_String(raw[1]),
           gain: dco_decode_i_32(raw[2]),
-          offset: dco_decode_i_32(raw[3]),
-          binX: dco_decode_i_32(raw[4]),
-          binY: dco_decode_i_32(raw[5]),
+          gainIsIso: dco_decode_bool(raw[3]),
+          offset: dco_decode_i_32(raw[4]),
+          binX: dco_decode_i_32(raw[5]),
+          binY: dco_decode_i_32(raw[6]),
         );
       case 25:
         return EquipmentEvent_HeartbeatStarted(
@@ -16344,12 +16345,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 24:
         var var_deviceId = sse_decode_String(deserializer);
         var var_gain = sse_decode_i_32(deserializer);
+        var var_gainIsIso = sse_decode_bool(deserializer);
         var var_offset = sse_decode_i_32(deserializer);
         var var_binX = sse_decode_i_32(deserializer);
         var var_binY = sse_decode_i_32(deserializer);
         return EquipmentEvent_CameraSettingsChanged(
           deviceId: var_deviceId,
           gain: var_gain,
+          gainIsIso: var_gainIsIso,
           offset: var_offset,
           binX: var_binX,
           binY: var_binY,
@@ -21472,6 +21475,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case EquipmentEvent_CameraSettingsChanged(
         deviceId: final deviceId,
         gain: final gain,
+        gainIsIso: final gainIsIso,
         offset: final offset,
         binX: final binX,
         binY: final binY,
@@ -21479,6 +21483,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(24, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_i_32(gain, serializer);
+        sse_encode_bool(gainIsIso, serializer);
         sse_encode_i_32(offset, serializer);
         sse_encode_i_32(binX, serializer);
         sse_encode_i_32(binY, serializer);

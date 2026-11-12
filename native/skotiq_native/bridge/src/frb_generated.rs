@@ -9047,12 +9047,14 @@ impl SseDecode for crate::event::equipment::EquipmentEvent {
             24 => {
                 let mut var_deviceId = <String>::sse_decode(deserializer);
                 let mut var_gain = <i32>::sse_decode(deserializer);
+                let mut var_gainIsIso = <bool>::sse_decode(deserializer);
                 let mut var_offset = <i32>::sse_decode(deserializer);
                 let mut var_binX = <i32>::sse_decode(deserializer);
                 let mut var_binY = <i32>::sse_decode(deserializer);
                 return crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                     device_id: var_deviceId,
                     gain: var_gain,
+                    gain_is_iso: var_gainIsIso,
                     offset: var_offset,
                     bin_x: var_binX,
                     bin_y: var_binY,
@@ -14209,6 +14211,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
             crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                 device_id,
                 gain,
+                gain_is_iso,
                 offset,
                 bin_x,
                 bin_y,
@@ -14216,6 +14219,7 @@ impl flutter_rust_bridge::IntoDart for crate::event::equipment::EquipmentEvent {
                 24.into_dart(),
                 device_id.into_into_dart().into_dart(),
                 gain.into_into_dart().into_dart(),
+                gain_is_iso.into_into_dart().into_dart(),
                 offset.into_into_dart().into_dart(),
                 bin_x.into_into_dart().into_dart(),
                 bin_y.into_into_dart().into_dart(),
@@ -18410,6 +18414,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
             crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                 device_id,
                 gain,
+                gain_is_iso,
                 offset,
                 bin_x,
                 bin_y,
@@ -18417,6 +18422,7 @@ impl SseEncode for crate::event::equipment::EquipmentEvent {
                 <i32>::sse_encode(24, serializer);
                 <String>::sse_encode(device_id, serializer);
                 <i32>::sse_encode(gain, serializer);
+                <bool>::sse_encode(gain_is_iso, serializer);
                 <i32>::sse_encode(offset, serializer);
                 <i32>::sse_encode(bin_x, serializer);
                 <i32>::sse_encode(bin_y, serializer);
@@ -22763,6 +22769,7 @@ mod io {
                     crate::event::equipment::EquipmentEvent::CameraSettingsChanged {
                         device_id: ans.device_id.cst_decode(),
                         gain: ans.gain.cst_decode(),
+                        gain_is_iso: ans.gain_is_iso.cst_decode(),
                         offset: ans.offset.cst_decode(),
                         bin_x: ans.bin_x.cst_decode(),
                         bin_y: ans.bin_y.cst_decode(),
@@ -31540,6 +31547,7 @@ mod io {
     pub struct wire_cst_EquipmentEvent_CameraSettingsChanged {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         gain: i32,
+        gain_is_iso: bool,
         offset: i32,
         bin_x: i32,
         bin_y: i32,
