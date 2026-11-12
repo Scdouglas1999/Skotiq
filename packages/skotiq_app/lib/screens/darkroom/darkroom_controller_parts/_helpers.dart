@@ -190,7 +190,45 @@ DarkroomCatalog decodeDarkroomCatalog(Map<String, dynamic> reply) {
       'Skotiq named no processing steps this build can render',
     );
   }
-  return DarkroomCatalog(List.unmodifiable(specs));
+  return DarkroomCatalog(
+    List.unmodifiable(specs),
+    channelMixes: _decodeChannelMixes(reply['channelMixes']),
+  );
+}
+
+List<DarkroomChannelMixPreset> _decodeChannelMixes(Object? raw) {
+  if (raw is! List) return const [];
+  final out = <DarkroomChannelMixPreset>[];
+  for (final entry in raw) {
+    if (entry is! Map) continue;
+    final palette = entry['palette'];
+    final name = entry['name'];
+    final mix = DarkroomChannelMix.fromJson(entry['mix']);
+    if (palette is! String || mix == null) continue;
+    out.add(
+      DarkroomChannelMixPreset(
+        palette: palette,
+        name: name is String ? name : palette,
+        mix: mix,
+      ),
+    );
+  }
+  return List.unmodifiable(out);
+}
+
+/// The narrowband masters a `channel_combine` step lists, in the column order
+/// a channel mix shows them.
+List<String> darkroomMixRolesOf(DarkroomStep step) {
+  final inputs = step.params['inputs'];
+  if (inputs is! List) return const [];
+  final listed = {
+    for (final input in inputs)
+      if (input is Map) input['role'],
+  };
+  return [
+    for (final role in kDarkroomMixRoles)
+      if (listed.contains(role)) role,
+  ];
 }
 
 List<DarkroomParamSpec> _decodeParams(List<dynamic> raw) {

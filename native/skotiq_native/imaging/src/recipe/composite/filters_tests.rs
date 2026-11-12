@@ -113,14 +113,14 @@ fn filter_sets_choose_the_conventional_palette() {
             filters: &[("Ha", 1, 3600.0), ("OIII", 1, 3600.0), ("SII", 1, 3600.0)],
             palette: Some(Palette::Sho),
             reference: Some("Ha"),
-            alternatives: &[Palette::Hoo],
+            alternatives: &[Palette::Hoo, Palette::Custom],
             excluded: &[],
         },
         Case {
             filters: &[("Ha", 1, 3600.0), ("O3", 1, 1800.0)],
             palette: Some(Palette::Hoo),
             reference: Some("Ha"),
-            alternatives: &[],
+            alternatives: &[Palette::Custom],
             excluded: &[],
         },
         Case {
@@ -312,4 +312,68 @@ fn wire_tokens_round_trip() {
     ] {
         assert_eq!(FilterRole::from_wire(role.as_wire()), Some(role));
     }
+}
+
+#[test]
+fn a_custom_mix_is_offered_for_two_narrowband_masters_and_never_chosen() {
+    let pair = [input("Ha", 1, 3600.0), input("SII", 1, 1800.0)];
+    let unasked = plan_filter_set(&pair, None);
+    assert_eq!(unasked.palette, None);
+    assert_eq!(unasked.alternatives, vec![Palette::Custom]);
+    assert!(unasked.reason.contains("custom mix"), "{}", unasked.reason);
+
+    let asked = plan_filter_set(&pair, Some(Palette::Custom));
+    assert_eq!(asked.palette, Some(Palette::Custom));
+    assert_eq!(asked.reference, Some(0));
+    assert_eq!(asked.used.len(), 2);
+}
+
+#[test]
+fn a_custom_mix_reads_only_the_narrowband_masters() {
+    let set = [
+        input("L", 1, 3600.0),
+        input("OIII", 1, 3600.0),
+        input("SII", 1, 7200.0),
+    ];
+    let plan = plan_filter_set(&set, Some(Palette::Custom));
+    assert_eq!(plan.palette, Some(Palette::Custom));
+    let used: Vec<usize> = plan.used.iter().map(|p| p.index).collect();
+    assert_eq!(used, vec![1, 2]);
+    assert_eq!(plan.excluded.len(), 1);
+    assert_eq!(plan.excluded[0].0, 0);
+    // No Ha to register onto, so the deepest master is the reference.
+    assert_eq!(plan.reference, Some(2));
+
+    let refused = plan_filter_set(
+        &[input("Ha", 1, 600.0), input("R", 1, 600.0)],
+        Some(Palette::Custom),
+    );
+    assert_eq!(refused.palette, None);
+    assert!(refused.reason.contains("at least two of Ha, OIII and SII"));
+}
+
+#[test]
+fn a_custom_mix_starts_from_the_palette_the_lines_are_known_by() {
+    use FilterRole::{HAlpha, Oiii, Sii};
+    assert_eq!(
+        ChannelMix::starting_point(&[HAlpha, Oiii, Sii]),
+        Palette::Sho.mix()
+    );
+    assert_eq!(
+        ChannelMix::starting_point(&[Oiii, HAlpha]),
+        Palette::Hoo.mix()
+    );
+    assert_eq!(
+        ChannelMix::starting_point(&[HAlpha, Sii]),
+        Some(ChannelMix([
+            vec![(Sii, 1.0)],
+            vec![(HAlpha, 1.0)],
+            vec![(HAlpha, 1.0)],
+        ]))
+    );
+    assert_eq!(ChannelMix::starting_point(&[HAlpha]), None);
+    assert_eq!(
+        Palette::Sho.mix().expect("SHO is a mix").to_json(),
+        serde_json::json!({"red": {"sii": 1.0}, "green": {"hAlpha": 1.0}, "blue": {"oiii": 1.0}})
+    );
 }

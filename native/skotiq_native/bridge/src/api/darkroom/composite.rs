@@ -13,7 +13,7 @@ use serde_json::{json, Value};
 
 use skotiq_imaging::color_composite::{
     alignment_check, overlap_rect, plan_filter_set, register_onto, star_sigma, warp_window,
-    Affine2, FilterRole, FilterSetInput, Palette, PyramidSources, Rect,
+    Affine2, ChannelMix, FilterRole, FilterSetInput, Palette, PyramidSources, Rect,
 };
 use skotiq_imaging::recipe::{MasterSource, OpContext, OpImage, Recipe, RecipeStep};
 
@@ -38,6 +38,9 @@ pub(crate) struct CompositeArgs {
     pub(crate) inputs: Vec<CompositeInputArgs>,
     /// One of the plan's alternatives, instead of the conventional default.
     pub(crate) palette: Option<String>,
+    /// The weights a `custom` palette starts with. Absent starts it from the
+    /// palette the masters' lines are known by.
+    pub(crate) mix: Option<Value>,
 }
 
 /// Pixels of source support kept between the overlap rectangle and the edge of
@@ -300,6 +303,19 @@ pub(crate) fn plan(args: &CompositeArgs) -> Result<CompositeOutcome, String> {
     });
     if palette.uses_luminance() && !sigmas.is_empty() {
         params["starSigma"] = Value::Object(sigmas);
+    }
+    if palette == Palette::Custom {
+        params["mix"] = match &args.mix {
+            Some(mix) => mix.clone(),
+            None => {
+                let roles: Vec<FilterRole> = plan.used.iter().map(|p| p.role.clone()).collect();
+                ChannelMix::starting_point(&roles)
+                    .ok_or_else(|| {
+                        "a custom mix needs at least two of Ha, OIII and SII".to_string()
+                    })?
+                    .to_json()
+            }
+        };
     }
     // Every master is flattened before the channels meet: its surfaces are
     // measured when the draft pins the step's fits.

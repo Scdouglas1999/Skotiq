@@ -416,6 +416,68 @@ void main() {
     expect(open.onPressed, isNull);
   });
 
+  testWidgets('a custom mix is planned from the chip beside the palettes',
+      (tester) async {
+    for (final filter in ['Ha', 'OIII', 'SII']) {
+      await seedMaster(
+        name: 'NGC1499 $filter',
+        filter: filter,
+        target: 'NGC1499',
+        path: '/m/$filter.fits',
+      );
+    }
+    const mix = {
+      'red': {'sii': 1.0},
+      'green': {'hAlpha': 1.0},
+      'blue': {'oiii': 1.0},
+    };
+    seam.answer = (args) {
+      final custom = (args['composite'] as Map)['palette'] == 'custom';
+      final reply = _combinedReply('/m/Ha.fits');
+      final step = ((reply['draft'] as Map)['recipe'] as Map)['steps'][0] as Map;
+      step['params'] = {
+        'palette': custom ? 'custom' : 'sho',
+        if (custom) 'mix': mix,
+      };
+      (reply['composite'] as Map)
+        ..['palette'] = custom ? 'custom' : 'sho'
+        ..['paletteName'] = custom ? 'Custom mix' : 'SHO (Hubble palette)'
+        ..['reason'] = 'narrowband'
+        ..['alternatives'] = [
+          {'palette': 'hoo', 'name': 'HOO (bicolor)'},
+          {'palette': custom ? 'sho' : 'custom', 'name': custom ? 'SHO (Hubble palette)' : 'Custom mix'},
+        ];
+      return reply;
+    };
+    await pump(tester);
+
+    await tester.tap(find.byKey(const ValueKey('darkroom_combine_channels')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('darkroom_combine_plan')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Custom mix'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('darkroom_combine_plan')));
+    await tester.pumpAndSettle();
+    expect((seam.registryCalls.last['composite'] as Map)['palette'], 'custom');
+    expect(
+      find.textContaining('Combines as Custom mix', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('share of red, green and blue', findRichText: true),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('darkroom_combine_open')));
+    await tester.pumpAndSettle();
+    final recipe = (await RecipesDao(db).listForMaster('/m/Ha.fits')).single;
+    expect(recipe.name, 'NGC1499 Custom mix combine');
+    final combine = (jsonDecode(recipe.stepsJson) as List).first as Map;
+    expect((combine['params'] as Map)['mix'], mix);
+  });
+
   test('a plan reply that says combined but names no reference is refused', () {
     expect(
       () => DarkroomCombinePlan.fromReply({

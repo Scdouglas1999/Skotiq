@@ -99,6 +99,8 @@ String _fitName(String key) {
       return 'OIII matched to Ha';
     case 'siiToHAlpha':
       return 'SII matched to Ha';
+    case 'oiiiToSii':
+      return 'OIII matched to SII';
   }
   if (key.startsWith('session')) {
     return 'Master ${key.substring('session'.length)} matched to its filter\'s '

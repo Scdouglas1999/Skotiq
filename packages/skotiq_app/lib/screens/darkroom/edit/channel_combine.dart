@@ -6,9 +6,10 @@
 /// `channel_combine@1`. The recipe renders over the reference master and reads
 /// the others as sources, so nothing is written to disk until an export.
 ///
-/// This is the general form of the session review's narrowband mixer: the same
-/// masters, any palette the filters allow, and the result opens in the editor
-/// like any other recipe, with every later step adjustable.
+/// Narrowband masters can also be combined as a custom mix: the recipe then
+/// stores each master's weight in red, green and blue, and the editor's
+/// Channel combine step is where they are set. Either way the result opens in
+/// the editor like any other recipe, with every later step adjustable.
 library;
 
 import 'dart:convert';
@@ -575,6 +576,11 @@ class _DarkroomChannelCombineDialogState
             '${plan.worstOffsetPx!.toStringAsFixed(2)} px.',
       for (final e in plan.excluded)
         'Left out ${e.filter ?? p.basename(e.path)}: ${e.reason}',
+      if (plan.combined && plan.palette?.id == 'custom')
+        'The weights start from the usual palette for these filters. Set '
+            'each master\'s share of red, green and blue on the Channel '
+            'combine step in the editor, where the picture follows each '
+            'change.',
       if (plan.combined)
         'The draft has ${plan.steps.length} step'
             '${plan.steps.length == 1 ? '' : 's'}.',

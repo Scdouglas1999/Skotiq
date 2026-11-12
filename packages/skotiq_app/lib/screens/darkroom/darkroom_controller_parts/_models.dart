@@ -272,6 +272,9 @@ enum DarkroomParamKind {
   /// registration. Shown as a summary and left alone.
   object,
 
+  /// The weight of each narrowband master in red, green and blue.
+  channelMix,
+
   /// The registry named a type this build's editor draws no control for. The
   /// value is shown as its JSON text and left alone, which is the only honest
   /// rendering: inventing a control for an unknown type would write values the
@@ -294,6 +297,8 @@ enum DarkroomParamKind {
         return DarkroomParamKind.boolean;
       case 'object':
         return DarkroomParamKind.object;
+      case 'channelMix':
+        return DarkroomParamKind.channelMix;
       default:
         return DarkroomParamKind.unrepresented;
     }
@@ -416,7 +421,10 @@ class DarkroomCatalog {
   /// Every registered `(id, version)` with its stage and parameter table.
   final List<DarkroomOpSpec> ops;
 
-  const DarkroomCatalog(this.ops);
+  /// The narrowband palettes as the weights each one is.
+  final List<DarkroomChannelMixPreset> channelMixes;
+
+  const DarkroomCatalog(this.ops, {this.channelMixes = const []});
 
   /// The documentation for one step's operation, or null when this build
   /// registers no such version — which is exactly what `validate` reports as an
@@ -427,6 +435,95 @@ class DarkroomCatalog {
     }
     return null;
   }
+}
+
+/// The output channels of a channel mix, in row order.
+const List<String> kDarkroomMixChannels = ['red', 'green', 'blue'];
+
+/// The narrowband masters a channel mix reads, in column order.
+const List<String> kDarkroomMixRoles = ['hAlpha', 'oiii', 'sii'];
+
+/// How much of each narrowband master goes into red, green and blue.
+@immutable
+class DarkroomChannelMix {
+  final Map<String, Map<String, double>> _weights;
+
+  const DarkroomChannelMix._(this._weights);
+
+  /// Read a stored `mix`, or null when [raw] is not one.
+  static DarkroomChannelMix? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final weights = <String, Map<String, double>>{};
+    for (final channel in kDarkroomMixChannels) {
+      final row = raw[channel];
+      if (row is! Map) continue;
+      weights[channel] = {
+        for (final entry in row.entries)
+          if (entry.value is num)
+            '${entry.key}': (entry.value as num).toDouble(),
+      };
+    }
+    return DarkroomChannelMix._(weights);
+  }
+
+  /// The weight of [role] in [channel]. A master a row does not name has no
+  /// share of that channel, which is how the engine reads it too.
+  double weight(String channel, String role) => _weights[channel]?[role] ?? 0;
+
+  double total(String channel, List<String> roles) =>
+      roles.fold(0, (sum, role) => sum + weight(channel, role));
+
+  DarkroomChannelMix withWeight(String channel, String role, double value) {
+    return DarkroomChannelMix._({
+      ..._weights,
+      channel: {...?_weights[channel], role: value},
+    });
+  }
+
+  /// The masters this mix gives any share to.
+  Set<String> get roles => {
+        for (final row in _weights.values)
+          for (final entry in row.entries)
+            if (entry.value != 0) entry.key,
+      };
+
+  /// Whether this and [other] weigh [roles] the same in every channel.
+  bool matches(DarkroomChannelMix other, List<String> roles) {
+    for (final channel in kDarkroomMixChannels) {
+      for (final role in roles) {
+        if (weight(channel, role) != other.weight(channel, role)) return false;
+      }
+    }
+    return true;
+  }
+
+  /// The stored form, with every one of [roles] written in every row so the
+  /// recipe states each weight rather than implying the zeros.
+  Map<String, dynamic> toJson(List<String> roles) => {
+        for (final channel in kDarkroomMixChannels)
+          channel: {for (final role in roles) role: weight(channel, role)},
+      };
+}
+
+/// A narrowband palette and the weights it is.
+@immutable
+class DarkroomChannelMixPreset {
+  /// The palette's wire token (`sho`, `hoo`).
+  final String palette;
+
+  /// Its name in words (`SHO (Hubble palette)`).
+  final String name;
+
+  final DarkroomChannelMix mix;
+
+  const DarkroomChannelMixPreset({
+    required this.palette,
+    required this.name,
+    required this.mix,
+  });
+
+  /// The name without its gloss: `SHO`.
+  String get shortName => name.split(' (').first;
 }
 
 /// What a render did with one step.

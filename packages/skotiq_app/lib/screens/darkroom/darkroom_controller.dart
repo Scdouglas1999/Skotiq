@@ -1026,6 +1026,25 @@ class DarkroomController extends StateNotifier<DarkroomState> {
     _applyEdit(next, coalesceKey: 'param:$index:$name');
   }
 
+  /// Set several parameters of the step at [index] as one edit, for values
+  /// the operation reads together: one undo, one save, one render. A null
+  /// value removes its key, as in [setParam].
+  ///
+  /// Consecutive calls with one [coalesceKey] fold into a single undo step.
+  void setParams(
+    int index,
+    Map<String, Object?> changes, {
+    required String coalesceKey,
+  }) {
+    final steps = state.steps;
+    if (index < 0 || index >= steps.length) return;
+    final next = List<DarkroomStep>.from(steps);
+    for (final change in changes.entries) {
+      next[index] = next[index].withParam(change.key, change.value);
+    }
+    _applyEdit(next, coalesceKey: 'params:$index:$coalesceKey');
+  }
+
   /// Take the step at [index] out of the recipe.
   ///
   /// The one edit that is not reversible by a second press of the same control,
