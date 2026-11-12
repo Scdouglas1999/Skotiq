@@ -383,6 +383,7 @@ pub(super) fn ioptron(
                 ok()
             }
             ":SDS0#" | ":SDS1#" => ok(),
+            ":SHE0#" | ":SHE1#" => ok(),
 
             other if v3 && takes(other, ":SRA", false, 9) => ok(),
             other if !v3 && takes(other, ":Sr", false, 8) => ok(),

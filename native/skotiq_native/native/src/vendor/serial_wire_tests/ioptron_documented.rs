@@ -66,6 +66,8 @@ struct DocMount {
     park_alt_deg: Option<f64>,
     park_az_deg: Option<f64>,
     slew_reply: u8,
+    /// What `:SHE0#` and `:SHE1#` answer.
+    hemisphere_reply: u8,
     pulses: Vec<Pulse>,
     unanswered: Vec<String>,
 }
@@ -101,6 +103,7 @@ impl DocMount {
             park_alt_deg: None,
             park_az_deg: None,
             slew_reply: b'1',
+            hemisphere_reply: b'1',
             pulses: Vec::new(),
             unanswered: Vec::new(),
         }
@@ -292,13 +295,11 @@ impl DocMount {
                 self.daylight_saving = true;
                 return one();
             }
-            ":SHE0#" => {
-                self.hemisphere_digit = b'0';
-                return one();
-            }
-            ":SHE1#" => {
-                self.hemisphere_digit = b'1';
-                return one();
+            ":SHE0#" | ":SHE1#" => {
+                if self.hemisphere_reply == b'1' {
+                    self.hemisphere_digit = command.as_bytes()[4];
+                }
+                return Some((self.hemisphere_reply as char).to_string());
             }
             _ => {}
         }
@@ -795,6 +796,9 @@ async fn the_site_round_trips_east_positive_in_each_languages_units() {
                     "{language:?}: lon {lon} -> {}",
                     s.longitude_deg
                 );
+                // `:SHE0#` southern, `:SHE1#` northern; `:GLS#` reports it.
+                let northern = if lat < 0.0 { b'0' } else { b'1' };
+                assert_eq!(s.hemisphere_digit, northern, "{language:?}: lat {lat}");
             }
             let site = mount.get_site().await.unwrap();
             assert!(
@@ -808,6 +812,26 @@ async fn the_site_round_trips_east_positive_in_each_languages_units() {
                 site.longitude_deg
             );
         }
+    }
+}
+
+#[tokio::test]
+async fn a_refused_hemisphere_leaves_the_site_written() {
+    for (language, baud) in [(Language::V25, 9600), (Language::V3, 115200)] {
+        let (fake, state) = spawn(DocMount::new(language, "0045", baud, true));
+        let mut mount = connected(&fake, &state).await;
+        state.lock().unwrap().hemisphere_reply = b'0';
+        mount
+            .set_site(MountSiteInfo {
+                latitude_deg: -33.86,
+                longitude_deg: 151.21,
+                elevation_m: None,
+            })
+            .await
+            .expect("a site the mount took is written even when its hemisphere is not");
+        let s = state.lock().unwrap();
+        assert!(close(s.latitude_deg, -33.86, 1.0 / 3600.0), "{language:?}");
+        assert_eq!(s.hemisphere_digit, b'1', "{language:?}");
     }
 }
 

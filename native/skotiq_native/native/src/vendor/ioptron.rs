@@ -106,6 +106,9 @@ mod commands {
     pub const SET_UTC_OFFSET: &str = ":SG";
     /// The offset written with `:SG` already carries daylight saving time.
     pub const DAYLIGHT_SAVING_OFF: &str = ":SDS0#";
+
+    pub const SET_SOUTHERN_HEMISPHERE: &str = ":SHE0#";
+    pub const SET_NORTHERN_HEMISPHERE: &str = ":SHE1#";
 }
 
 /// The command language a mount speaks.
@@ -1242,7 +1245,23 @@ impl MountDriver for IOptronMount {
             latitude
         );
         self.command_ok(&longitude, "take the site longitude")?;
-        self.command_ok(&latitude, "take the site latitude")
+        self.command_ok(&latitude, "take the site latitude")?;
+
+        // The mount keeps its hemisphere apart from the latitude, and both
+        // documents give `:SHE` to set it. The site is written either way.
+        let hemisphere = if site.latitude_deg < 0.0 {
+            commands::SET_SOUTHERN_HEMISPHERE
+        } else {
+            commands::SET_NORTHERN_HEMISPHERE
+        };
+        if let Err(e) = self.command_ok(hemisphere, "set its hemisphere") {
+            tracing::warn!(
+                "iOptron {}: the site was written but the hemisphere was not: {}. Set the hemisphere at the hand controller.",
+                self.port_name,
+                e
+            );
+        }
+        Ok(())
     }
 
     async fn get_clock(&self) -> Result<MountClock, DriverError> {
