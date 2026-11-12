@@ -891,6 +891,15 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelExposureField': 'Exposure s',
     'nightPanelFilter': 'Filter',
     'nightPanelFilterSlot': '{name} · slot {slot} of {count}',
+    'nightAfterRunNoSession': 'The run recorded no session',
+    'nightAfterRunPark': 'Park mount…',
+    'nightAfterRunParkHint':
+        'The mount is unparked. Opens the Mount tab, where Park is.',
+    'nightAfterRunReview': 'Review session',
+    'nightAfterRunTitle': 'After the run',
+    'nightAfterRunWarm': 'Warm camera…',
+    'nightAfterRunWarmHint':
+        'The cooler is on. Opens the Camera tab, where Warm up is.',
     'nightPanelFilterSlotOnly': 'slot {slot} of {count}',
     'nightPanelFilterSlotSemantics': 'Filter {name}, slot {slot}',
     'nightPanelFocusOffset': 'Focus offset {offset} from {filter}',
@@ -2513,6 +2522,15 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightPanelFilterSlotSemantics': 'Filtro {name}, posición {slot}',
     'nightPanelFocusOffset': 'Desfase de enfoque {offset} respecto a {filter}',
     'nightPanelFocusReference':
+    'nightAfterRunNoSession': 'La sesión no quedó registrada',
+    'nightAfterRunPark': 'Aparcar montura…',
+    'nightAfterRunParkHint':
+        'La montura está desaparcada. Abre la pestaña Montura, donde está Aparcar.',
+    'nightAfterRunReview': 'Revisar sesión',
+    'nightAfterRunTitle': 'Después de la sesión',
+    'nightAfterRunWarm': 'Calentar cámara…',
+    'nightAfterRunWarmHint':
+        'El enfriador está encendido. Abre la pestaña Cámara, donde está Calentar.',
         '{filter} es la referencia de los desfases de enfoque',
     'nightPanelFocuser': 'Enfocador',
     'nightPanelFocuserNotConnected': 'no conectado',

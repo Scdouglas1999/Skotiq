@@ -82,6 +82,38 @@ void main() {
         container.read(nightRunPhaseProvider), isNot(NightRunPhase.finished));
   });
 
+  // A stopped one-tap night read "Not set up · No plan loaded" over the
+  // frames it had just taken: the planner's plan left the editor when the
+  // run ended, and with it everything that says a run happened.
+  test('a one-tap run started from an empty editor reads as finished, with '
+      'its plan, after it ends', () {
+    final plan = TwoTargetPlan().sequence;
+    for (final releaseFirst in [true, false]) {
+      final container = planContainer(now: evening);
+      addTearDown(container.dispose);
+      container.listen(lastEndedRunProvider, (_, __) {});
+      final editor = container.read(currentSequenceProvider.notifier);
+      final execution =
+          container.read(sequenceExecutionStateProvider.notifier);
+
+      editor.takeOwnership(plan, ActivePlanOwner.smartNight);
+      execution.state = SequenceExecutionState.running;
+      expect(container.read(nightRunPhaseProvider), NightRunPhase.running);
+
+      // The executor hands the editor back as the run ends.
+      if (releaseFirst) editor.releaseOwnership();
+      execution.state = SequenceExecutionState.idle;
+      if (!releaseFirst) editor.releaseOwnership();
+
+      final header = container.read(nightHeaderProvider);
+      expect(header.phase, NightRunPhase.finished,
+          reason: 'released first: $releaseFirst');
+      expect(header.planName, plan.name);
+      expect(header.startNow, const NightControlVm.enabled(),
+          reason: 'the plan can be started again');
+    }
+  });
+
   // SY-36: the header read "Finished" in gray for a run the host and the
   // rig chip reported as failed.
   test('how a finished run ended: completed, failed, or ended otherwise', () {
