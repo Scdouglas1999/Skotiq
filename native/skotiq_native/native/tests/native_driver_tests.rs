@@ -643,6 +643,23 @@ async fn test_unified_discovery_includes_mounts() {
 // These tests are ignored by default and can be run with:
 // cargo test --test native_driver_tests -- --ignored
 
+/// The site a Sky-Watcher hardware test points with, from
+/// `SKYWATCHER_TEST_SITE=<latitude>,<longitude east>`: the motor controller
+/// keeps none of its own.
+fn skywatcher_test_site() -> skotiq_device::SiteSource {
+    let text = std::env::var("SKYWATCHER_TEST_SITE")
+        .expect("set SKYWATCHER_TEST_SITE=<latitude>,<longitude east> for the Sky-Watcher tests");
+    let (lat, lon) = text
+        .split_once(',')
+        .expect("SKYWATCHER_TEST_SITE is <latitude>,<longitude east>");
+    let site = skotiq_device::MountSiteInfo {
+        latitude_deg: lat.trim().parse().expect("latitude"),
+        longitude_deg: lon.trim().parse().expect("longitude"),
+        elevation_m: None,
+    };
+    std::sync::Arc::new(move || Some(site))
+}
+
 /// Test connecting to a Sky-Watcher mount (requires hardware)
 #[tokio::test]
 #[ignore = "Requires Sky-Watcher mount connected"]
@@ -660,7 +677,11 @@ async fn test_skywatcher_mount_connect_disconnect() {
         first_mount.name, first_mount.port
     );
 
-    let mut mount = skywatcher::SkyWatcherMount::new_serial(first_mount.port.clone(), Some(9600));
+    let mut mount = skywatcher::SkyWatcherMount::new_serial(
+        first_mount.port.clone(),
+        Some(first_mount.baud_rate),
+        skywatcher_test_site(),
+    );
 
     mount.connect().await.expect("Should connect successfully");
     assert!(mount.is_connected(), "Should be connected");
@@ -799,7 +820,11 @@ async fn test_skywatcher_mount_slew() {
     }
 
     let first_mount = &mounts[0];
-    let mut mount = skywatcher::SkyWatcherMount::new_serial(first_mount.port.clone(), Some(9600));
+    let mut mount = skywatcher::SkyWatcherMount::new_serial(
+        first_mount.port.clone(),
+        Some(first_mount.baud_rate),
+        skywatcher_test_site(),
+    );
 
     mount.connect().await.expect("Should connect successfully");
 
@@ -2555,7 +2580,11 @@ async fn test_skywatcher_mount_tracking() {
     }
 
     let first_mount = &mounts[0];
-    let mut mount = skywatcher::SkyWatcherMount::new_serial(first_mount.port.clone(), Some(9600));
+    let mut mount = skywatcher::SkyWatcherMount::new_serial(
+        first_mount.port.clone(),
+        Some(first_mount.baud_rate),
+        skywatcher_test_site(),
+    );
 
     mount.connect().await.expect("Should connect successfully");
 

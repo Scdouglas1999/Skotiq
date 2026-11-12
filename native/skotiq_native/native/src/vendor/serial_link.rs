@@ -200,6 +200,14 @@ impl Exchange<'_> {
         self.port.flush().map_err(DriverError::Io)
     }
 
+    /// Drops what the device sent that nobody read, such as a reply that came
+    /// after its command had timed out, so it cannot pass for the next reply.
+    pub(crate) fn discard_input(&mut self) -> Result<(), DriverError> {
+        self.port
+            .clear(serialport::ClearBuffer::Input)
+            .map_err(|e| DriverError::Io(e.into()))
+    }
+
     /// One byte, or `None` when the read brought nothing yet.
     fn read_byte(&mut self) -> Result<Option<u8>, DriverError> {
         let mut buf = [0u8; 1];

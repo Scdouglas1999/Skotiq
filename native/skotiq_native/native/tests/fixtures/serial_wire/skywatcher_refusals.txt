@@ -1,0 +1,66 @@
+call connect [GT alt-azimuth base]
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :e1\r
+< =020780\r
+  -> Err(InvalidDevice("Sky-Watcher GT, motor controller firmware 2.07 is an alt-azimuth mount (mount code 0x80); Skotiq drives Sky-Watcher equatorial mounts"))
+  connected=false
+== no site ==
+call connect [no site]
+@ port baud=9600 data=8 parity=none stop=1 flow=none
+> :e1\r
+< =030700\r
+> :a1\r
+< =00B289\r
+> :b1\r
+< =A7FD00\r
+> :a2\r
+< =00B289\r
+> :b2\r
+< =A7FD00\r
+> :f1\r
+< =100\r
+> :f2\r
+< =100\r
+> :j1\r
+< =000080\r
+> :j2\r
+< =000080\r
+> :F1\r
+< =\r
+> :F2\r
+< =\r
+> :E2806CA2\r
+< =\r
+> :f1\r
+< =101\r
+  -> Ok(())
+call get_coordinates
+  -> Err(InvalidParameter("The Sky-Watcher mount points by the observing site and the computer clock: set the observing site in Settings > Location"))
+call slew_to_coordinates(5.5, 20.0)
+  -> Err(InvalidParameter("The Sky-Watcher mount points by the observing site and the computer clock: set the observing site in Settings > Location"))
+call set_tracking(true)
+  -> Err(InvalidParameter("The Sky-Watcher mount points by the observing site and the computer clock: set the observing site in Settings > Location"))
+call get_tracking
+> :f1\r
+< =101\r
+  -> Ok(false)
+call park
+> :K1\r
+< =\r
+> :f1\r
+< =101\r
+> :K2\r
+< =\r
+> :f2\r
+< =101\r
+> :j1\r
+< =000080\r
+> :j2\r
+< =806CA2\r
+> :f1\r
+< =101\r
+> :f2\r
+< =101\r
+  -> Ok(())
+call is_parked
+  -> Ok(true)

@@ -50,10 +50,22 @@ impl DeviceManager {
             .splitn(3, ':')
             .nth(2)
             .ok_or("Invalid native device ID format")?;
+        let site: skotiq_device::SiteSource = Arc::new(|| {
+            let location = crate::api::get_state()
+                .get_observer_location()
+                .ok()
+                .flatten()?;
+            Some(skotiq_device::MountSiteInfo {
+                latitude_deg: location.latitude,
+                longitude_deg: location.longitude,
+                elevation_m: Some(location.elevation),
+            })
+        });
         let handle = family
             .open(OpenRequest {
                 address,
                 name: &info.name,
+                site,
             })
             .await
             .map_err(|e| e.to_string())?;
