@@ -24,6 +24,7 @@ import 'frame_timing_probe.dart';
 import 'host/host_startup.dart';
 import 'host/host_steps.dart';
 import 'main_headless.dart' as headless;
+import 'startup_timeline.dart';
 
 /// A remote rig the desktop GUI should drive as a thin client instead of
 /// connecting local hardware. Populated from `--remote-host=` / `--remote-port=`
@@ -107,6 +108,7 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
 }
 
 void main(List<String> args) async {
+  startupTimeline.mark('main');
   WidgetsFlutterBinding.ensureInitialized();
   // A role switch restarts the app with --relaunched-from=<pid>. It is about
   // this one start only, so it is not part of how the app was "started".
@@ -187,6 +189,7 @@ void main(List<String> args) async {
     // indefinitely instead of exiting.
     exit(75); // EX_TEMPFAIL — try again once the other instance exits.
   }
+  startupTimeline.mark('single-instance probe');
 
   // The role, decided once for the life of this process. Flags and variables
   // win; without them, the rig the connect flow remembered makes this a linked
@@ -211,12 +214,14 @@ void main(List<String> args) async {
   }
 
   final appVersion = await loadDesktopAppVersion();
+  startupTimeline.mark('role and version');
 
   // Pointed at the app logger once it exists.
   void Function(String message) relaunchLog = (message) =>
       developer.log(message, name: 'desktop.relaunch');
 
   await windowManager.ensureInitialized();
+  startupTimeline.mark('window manager');
 
   final initialSize = initialWindowSize(
     ui.PlatformDispatcher.instance.displays,
@@ -280,6 +285,7 @@ void main(List<String> args) async {
 
   final logger = container.read(loggingServiceProvider);
   await logger.ensureInitialized();
+  startupTimeline.mark('logger');
   relaunchLog = (message) => logger.info(message, source: 'desktop.relaunch');
   if (remoteTarget?.rememberedRig != null) {
     logger.info(
@@ -385,6 +391,7 @@ void main(List<String> args) async {
     await lastGasp.handOffDarkroomWork();
     exit(0);
   });
+  startupTimeline.mark('last-session record');
 
   // The window is prepared while the host start-up's core steps run, so
   // neither waits for the other. It is NOT shown yet: showing a
@@ -413,39 +420,20 @@ void main(List<String> args) async {
   if (host != null) {
     await runHostStartup(host, HostStartupPhase.core, hostStartupSteps);
   } else {
-    await initialiseCatalogManager(logger);
+    // The window does not wait for the host: a host that is off or asleep
+    // takes the connect's whole timeout to answer. Until it does, the shell
+    // shows "Connecting to the imaging host…", then the reason with Retry,
+    // and the status notifier keeps retrying on its own.
+    unawaited(_connectToLinkedHost(container, remoteTarget!, logger));
   }
-
-  final shouldMinimize = await shouldStartMinimized(container);
+  final (shouldMinimize, _) = await (
+    shouldStartMinimized(container),
+    host == null ? initialiseCatalogManager(logger) : Future<void>.value(),
+  ).wait;
+  startupTimeline.mark('host core steps');
 
   await windowReady;
-
-  // Remote-client mode: connect to the headless rig now that the container is
-  // live, then invalidate the host-backed providers so they re-fetch against
-  // the open NetworkBackend connection (equipment profiles, app settings, and
-  // anything else keyed on the backend). Without this refresh they keep the
-  // empty value they resolved while the backend was still DisconnectedBackend,
-  // which is why profiles/devices appeared missing. Mirrors the mobile
-  // post-connect sequence (invalidate appSettings + equipmentProfiles).
-  if (remoteTarget != null) {
-    // A failed connect is shown in the window (with Retry) by the shell's
-    // connection banner; the status notifier keeps retrying an unreachable
-    // host on its own.
-    final connected = await container
-        .read(remoteLaunchStatusProvider.notifier)
-        .connect();
-    if (!connected) {
-      final status = container.read(remoteLaunchStatusProvider);
-      logger.warning(
-        'Remote connect to ${remoteTarget.scheme}://'
-        '${remoteTarget.host}:${remoteTarget.port} failed '
-        '(${status.failure?.name}): ${status.detail}',
-        source: 'desktop.main',
-      );
-    }
-    container.invalidate(appSettingsProvider);
-    container.invalidate(equipmentProfilesProvider);
-  }
+  startupTimeline.mark('window ready');
 
   if (host != null) {
     // --serve/--master turns the embedded host server on for this run only;
@@ -490,17 +478,43 @@ void main(List<String> args) async {
     appRoot = ExcludeSemantics(child: appRoot);
   }
 
+  startupTimeline.mark('runApp');
   runApp(UncontrolledProviderScope(container: container, child: appRoot));
+  unawaited(startupTimeline.reportWhenSettled(logger, 'desktop.main'));
 
   // Reveal the frameless window only after Flutter has built at least one
   // frame so the custom title bar (drag target) and scaffold are present.
   WidgetsBinding.instance.addPostFrameCallback((_) async {
+    startupTimeline.mark('first frame built');
     await windowManager.show();
+    startupTimeline.mark('window shown');
     await windowManager.focus();
     if (shouldMinimize) {
       await windowManager.minimize();
     }
   });
+}
+
+/// Connects a linked client to its host and logs why when it cannot.
+///
+/// A connect that succeeds re-reads the host-backed values resolved while
+/// disconnected (the status notifier does that).
+Future<void> _connectToLinkedHost(
+  ProviderContainer container,
+  _RemoteClientTarget target,
+  LoggingService logger,
+) async {
+  final connected = await container
+      .read(remoteLaunchStatusProvider.notifier)
+      .connect();
+  startupTimeline.mark('linked host connect');
+  if (connected) return;
+  final status = container.read(remoteLaunchStatusProvider);
+  logger.warning(
+    'Remote connect to ${target.scheme}://${target.host}:${target.port} '
+    'failed (${status.failure?.name}): ${status.detail}',
+    source: 'desktop.main',
+  );
 }
 
 /// The first window's size: 1600 x 900, shrunk to fit the display it opens on.

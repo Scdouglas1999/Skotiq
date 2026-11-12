@@ -1,9 +1,9 @@
 //! Astronomy primitives mirrored from `astronomy_calculations.dart`.
 //!
 //! Only the calls the scheduler needs are ported: `objectAltAz`,
-//! `angularSeparation`, `airmass`, `calculateObjectVisibility`. The formulae,
-//! constants, and conventions are byte-for-byte copies of the Dart source so
-//! the parity test in `scoring::tests` can assert numeric equality.
+//! `angularSeparation`, `airmass`, `calculateObjectVisibility`, with the Dart
+//! conventions (RA in degrees). The Julian Day and sidereal time under them
+//! are the sequencer's one copy in [`crate::meridian`].
 //!
 //! [`airmass`] is the one deliberate exception: it delegates to
 //! `skotiq_imaging::calculate_airmass` rather than carrying its own copy,
@@ -11,70 +11,12 @@
 //! written into the `AIRMASS` card of the resulting frames are the same one.
 //! See its doc comment for why the Dart parity survives that.
 
-use chrono::{DateTime, Datelike, Timelike, Utc};
+use crate::meridian::{julian_day, local_sidereal_time, wrap_hours};
+use chrono::{DateTime, Datelike, Utc};
 
 const DEG2RAD: f64 = std::f64::consts::PI / 180.0;
 const RAD2DEG: f64 = 180.0 / std::f64::consts::PI;
 const EPSILON: f64 = 1e-12;
-const J2000: f64 = 2_451_545.0;
-
-/// Julian Date for the given UTC instant.
-///
-/// Mirrors `AstronomyCalculations.julianDate` from `astronomy_calculations.dart`.
-///
-/// This is deliberately NOT `crate::meridian::julian_day`, and the two are not
-/// merged. `meridian::julian_day` is Meeus' Gregorian form on a whole-second
-/// day fraction; this is Fliegel–Van Flandern on a millisecond day fraction,
-/// because its whole job is to return the same doubles the Dart planetarium
-/// returns so `scoring`'s parity test can assert numeric equality against it.
-///
-/// On a whole-second instant the two produce the identical f64 — verified by
-/// `meridian::tests::scheduling_astronomy_is_a_deliberately_separate_julian_date`,
-/// which also shows them parting company as soon as sub-second time is
-/// present. So they cannot be collapsed by inspection: picking either one
-/// would silently change the other's callers on any instant carrying
-/// milliseconds, and here that would break the only thing keeping the Rust
-/// scheduler and the Dart planner ranking targets the same way. What the rest
-/// of the crate shares is `meridian::julian_day`: every non-parity caller
-/// (executor, instructions, solar, polar-align, flat-wizard, the bridge)
-/// already goes through it.
-pub fn julian_date(dt: &DateTime<Utc>) -> f64 {
-    let y = dt.year() as f64;
-    let m = dt.month() as f64;
-    let day = dt.day() as f64
-        + (dt.hour() as f64) / 24.0
-        + (dt.minute() as f64) / 1440.0
-        + (dt.second() as f64) / 86_400.0
-        + (dt.timestamp_subsec_millis() as f64) / 86_400_000.0;
-
-    let a = ((14.0 - m) / 12.0).floor();
-    let y2 = y + 4800.0 - a;
-    let m2 = m + 12.0 * a - 3.0;
-
-    day + ((153.0 * m2 + 2.0) / 5.0).floor() + 365.0 * y2 + (y2 / 4.0).floor()
-        - (y2 / 100.0).floor()
-        + (y2 / 400.0).floor()
-        - 32_045.0
-        - 0.5
-}
-
-/// Greenwich Mean Sidereal Time in decimal hours.
-pub fn greenwich_mean_sidereal_time(dt: &DateTime<Utc>) -> f64 {
-    let jd = julian_date(dt);
-    let t = (jd - J2000) / 36_525.0;
-    let mut gmst = 280.460_618_37 + 360.985_647_366_29 * (jd - J2000) + 0.000_387_933 * t * t
-        - t * t * t / 38_710_000.0;
-
-    gmst = gmst.rem_euclid(360.0);
-    gmst / 15.0
-}
-
-/// Local Sidereal Time in decimal hours.
-pub fn local_sidereal_time(dt: &DateTime<Utc>, longitude_deg: f64) -> f64 {
-    let gmst = greenwich_mean_sidereal_time(dt);
-    let lst = gmst + longitude_deg / 15.0;
-    lst.rem_euclid(24.0)
-}
 
 /// Convert equatorial RA/Dec to horizontal Alt/Az using the given latitude
 /// and LST. Returns `(altitude_deg, azimuth_deg)`.
@@ -110,7 +52,7 @@ pub fn object_alt_az(
     latitude_deg: f64,
     longitude_deg: f64,
 ) -> (f64, f64) {
-    let lst = local_sidereal_time(dt, longitude_deg);
+    let lst = local_sidereal_time(julian_day(dt), longitude_deg);
     equatorial_to_horizontal(ra_deg, dec_deg, latitude_deg, lst)
 }
 
@@ -205,14 +147,8 @@ pub fn calculate_object_visibility(
         never_rises = true;
     }
 
-    let lst0 = local_sidereal_time(&local_noon, longitude_deg);
-    let mut hours_till_transit = (ra_deg / 15.0) - lst0;
-    if hours_till_transit < -12.0 {
-        hours_till_transit += 24.0;
-    }
-    if hours_till_transit > 12.0 {
-        hours_till_transit -= 24.0;
-    }
+    let lst0 = local_sidereal_time(julian_day(&local_noon), longitude_deg);
+    let hours_till_transit = wrap_hours((ra_deg / 15.0) - lst0);
 
     let transit_time =
         local_noon + chrono::Duration::seconds((hours_till_transit * 3600.0).round() as i64);

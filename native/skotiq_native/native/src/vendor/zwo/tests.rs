@@ -352,3 +352,66 @@ fn zwo_cooler_set_point_rounds_to_whole_degrees() {
     assert_eq!(zwo_target_degrees(-10.7), -11.0);
     assert_eq!(zwo_target_degrees(-10.2), -10.0);
 }
+
+fn sub(start_x: u32, start_y: u32, width: u32, height: u32) -> SubFrame {
+    SubFrame {
+        start_x,
+        start_y,
+        width,
+        height,
+    }
+}
+
+/// The whole frame at a bin rounds down to the SDK's multiples (8 wide, 2 high)
+/// and starts at the corner; the rig's ASI1600MM-Cool needs no rounding.
+#[test]
+fn full_frame_roi_rounds_to_the_sdk_multiples() {
+    let roi = FrameRoi::within(4656, 3520, false, None).unwrap();
+    assert_eq!((roi.x, roi.y, roi.width, roi.height), (0, 0, 4656, 3520));
+    // ASI2600 at bin 2: 6248/2 = 3124 wide, 4176/2 = 2088 high.
+    let roi = FrameRoi::within(3124, 2088, true, None).unwrap();
+    assert_eq!((roi.width, roi.height), (3120, 2088));
+}
+
+#[test]
+fn a_subframe_keeps_its_start_on_mono_and_starts_on_an_even_cell_on_color() {
+    let mono = FrameRoi::within(64, 48, false, Some(&sub(3, 5, 21, 9))).unwrap();
+    assert_eq!((mono.x, mono.y, mono.width, mono.height), (3, 5, 16, 8));
+    let color = FrameRoi::within(64, 48, true, Some(&sub(3, 5, 21, 9))).unwrap();
+    assert_eq!((color.x, color.y, color.width, color.height), (2, 4, 16, 8));
+}
+
+#[test]
+fn a_subframe_that_leaves_the_frame_or_rounds_to_nothing_does_not_fit() {
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(56, 0, 16, 8))).is_none());
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(0, 44, 16, 8))).is_none());
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(0, 0, 7, 8))).is_none());
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(u32::MAX, 0, 8, 8))).is_none());
+    assert!(FrameRoi::within(64, 48, false, Some(&sub(48, 40, 16, 8))).is_some());
+}
+
+/// Mirroring an even-sized mosaic moves its pattern by one column or row.
+#[test]
+fn a_mirrored_mosaic_names_the_moved_pattern() {
+    use BayerPattern::*;
+    for (pattern, columns, rows, both) in [
+        (Rggb, Grbg, Gbrg, Bggr),
+        (Grbg, Rggb, Bggr, Gbrg),
+        (Gbrg, Bggr, Rggb, Grbg),
+        (Bggr, Gbrg, Grbg, Rggb),
+    ] {
+        assert_eq!(mirrored(pattern, false, false), pattern);
+        assert_eq!(mirrored(pattern, true, false), columns);
+        assert_eq!(mirrored(pattern, false, true), rows);
+        assert_eq!(mirrored(pattern, true, true), both);
+    }
+}
+
+#[test]
+fn accessory_serials_read_as_before() {
+    assert_eq!(
+        accessory_serial([0xEA, 0xF0, 1, 2, 0, 0, 0, 0]).as_deref(),
+        Some("EAF00102")
+    );
+    assert_eq!(accessory_serial([0; 8]), None);
+}

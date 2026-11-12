@@ -1,35 +1,35 @@
+use crate::dispatch::DeviceOpError;
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomDome;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 
 #[derive(Debug)]
 enum AscomDomeCommand {
-    Connect(oneshot::Sender<Result<(), String>>),
-    Disconnect(oneshot::Sender<Result<(), String>>),
-    OpenShutter(oneshot::Sender<Result<(), String>>),
-    CloseShutter(oneshot::Sender<Result<(), String>>),
-    Park(oneshot::Sender<Result<(), String>>),
-    GetShutterStatus(oneshot::Sender<Result<i32, String>>),
-    GetSlewing(oneshot::Sender<Result<bool, String>>),
-    GetAtPark(oneshot::Sender<Result<bool, String>>),
+    Connect(oneshot::Sender<Result<(), DeviceOpError>>),
+    Disconnect(oneshot::Sender<Result<(), DeviceOpError>>),
+    OpenShutter(oneshot::Sender<Result<(), DeviceOpError>>),
+    CloseShutter(oneshot::Sender<Result<(), DeviceOpError>>),
+    Park(oneshot::Sender<Result<(), DeviceOpError>>),
+    GetShutterStatus(oneshot::Sender<Result<i32, DeviceOpError>>),
+    GetSlewing(oneshot::Sender<Result<bool, DeviceOpError>>),
+    GetAtPark(oneshot::Sender<Result<bool, DeviceOpError>>),
     SlewToAzimuth {
         azimuth: f64,
-        reply: oneshot::Sender<Result<(), String>>,
+        reply: oneshot::Sender<Result<(), DeviceOpError>>,
     },
-    AbortSlew(oneshot::Sender<Result<(), String>>),
-    FindHome(oneshot::Sender<Result<(), String>>),
+    AbortSlew(oneshot::Sender<Result<(), DeviceOpError>>),
+    FindHome(oneshot::Sender<Result<(), DeviceOpError>>),
     SetSlaved {
         slaved: bool,
-        reply: oneshot::Sender<Result<(), String>>,
+        reply: oneshot::Sender<Result<(), DeviceOpError>>,
     },
     // Version query commands
-    Heartbeat(oneshot::Sender<Result<(), String>>),
-    GetAzimuth(oneshot::Sender<Result<f64, String>>),
-    GetCanSetAzimuth(oneshot::Sender<Result<bool, String>>),
+    Heartbeat(oneshot::Sender<Result<(), DeviceOpError>>),
+    GetAzimuth(oneshot::Sender<Result<f64, DeviceOpError>>),
+    GetCanSetAzimuth(oneshot::Sender<Result<bool, DeviceOpError>>),
 }
 
 pub struct AscomDomeWrapper {
@@ -66,7 +66,7 @@ impl AscomDomeWrapper {
             let mut dome = match AscomDome::new(&prog_id_clone) {
                 Ok(d) => d,
                 Err(e) => {
-                    return Err(format!("Failed to create ASCOM dome: {}", e));
+                    return Err(format!("Failed to create ASCOM dome: {}", e).into());
                 }
             };
 
@@ -89,50 +89,50 @@ impl AscomDomeWrapper {
                 };
                 match cmd {
                     AscomDomeCommand::Connect(reply) => {
-                        let _ = reply.send(dome.connect().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.connect().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::Disconnect(reply) => {
-                        let _ = reply.send(dome.disconnect().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.disconnect().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::OpenShutter(reply) => {
-                        let _ = reply.send(dome.open_shutter().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.open_shutter().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::CloseShutter(reply) => {
-                        let _ = reply.send(dome.close_shutter().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.close_shutter().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::Park(reply) => {
-                        let _ = reply.send(dome.park().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.park().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::GetShutterStatus(reply) => {
-                        let _ = reply.send(dome.shutter_status().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.shutter_status().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::GetSlewing(reply) => {
-                        let _ = reply.send(dome.slewing().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.slewing().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::GetAtPark(reply) => {
-                        let _ = reply.send(dome.at_park().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.at_park().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::SlewToAzimuth { azimuth, reply } => {
                         let _ =
-                            reply.send(dome.slew_to_azimuth(azimuth).map_err(|e| e.to_string()));
+                            reply.send(dome.slew_to_azimuth(azimuth).map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::AbortSlew(reply) => {
-                        let _ = reply.send(dome.abort_slew().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.abort_slew().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::FindHome(reply) => {
-                        let _ = reply.send(dome.find_home().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.find_home().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::SetSlaved { slaved, reply } => {
-                        let _ = reply.send(dome.set_slaved(slaved).map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.set_slaved(slaved).map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::Heartbeat(reply) => {
-                        let _ = reply.send(dome.heartbeat().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.heartbeat().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::GetAzimuth(reply) => {
-                        let _ = reply.send(dome.azimuth().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.azimuth().map_err(DeviceOpError::from));
                     }
                     AscomDomeCommand::GetCanSetAzimuth(reply) => {
-                        let _ = reply.send(dome.can_set_azimuth().map_err(|e| e.to_string()));
+                        let _ = reply.send(dome.can_set_azimuth().map_err(DeviceOpError::from));
                     }
                 }
                 PumpOutcome::DidWork
@@ -155,39 +155,26 @@ impl AscomDomeWrapper {
         })
     }
 
-    /// Helper to receive a response with a timeout
-    async fn recv_with_timeout<T>(
-        rx: oneshot::Receiver<Result<T, String>>,
-        timeout: Duration,
-        operation: &str,
-    ) -> Result<T, String> {
-        match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result,
-            Ok(Err(_recv_err)) => Err(format!("Worker thread dead during {}", operation)),
-            Err(_elapsed) => Err(format!("Dome {} timed out after {:?}", operation, timeout)),
-        }
-    }
-
-    pub async fn connect(&self) -> Result<(), String> {
+    pub async fn connect(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::Connect(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await;
+        let result = super::recv_with_timeout("Dome", rx, Timeouts::connection(), "connect").await;
         if result.is_ok() {
             self.connected.store(true, Ordering::SeqCst);
         }
         result
     }
 
-    pub async fn disconnect(&self) -> Result<(), String> {
+    pub async fn disconnect(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::Disconnect(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
+        let result = super::recv_with_timeout("Dome", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }
@@ -199,122 +186,122 @@ impl AscomDomeWrapper {
         self.connected.load(Ordering::SeqCst)
     }
 
-    pub async fn heartbeat(&self) -> Result<(), String> {
+    pub async fn heartbeat(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::Heartbeat(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "heartbeat").await
+        super::recv_with_timeout("Dome", rx, Timeouts::property_read(), "heartbeat").await
     }
 
-    pub async fn open_shutter(&self) -> Result<(), String> {
+    pub async fn open_shutter(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::OpenShutter(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::dome_shutter(), "open_shutter").await
+        super::recv_with_timeout("Dome", rx, Timeouts::dome_shutter(), "open_shutter").await
     }
 
-    pub async fn close_shutter(&self) -> Result<(), String> {
+    pub async fn close_shutter(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::CloseShutter(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::dome_shutter(), "close_shutter").await
+        super::recv_with_timeout("Dome", rx, Timeouts::dome_shutter(), "close_shutter").await
     }
 
-    pub async fn park(&self) -> Result<(), String> {
+    pub async fn park(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::Park(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::dome(), "park").await
+        super::recv_with_timeout("Dome", rx, Timeouts::dome(), "park").await
     }
 
-    pub async fn shutter_status(&self) -> Result<i32, String> {
+    pub async fn shutter_status(&self) -> Result<i32, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::GetShutterStatus(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "shutter_status").await
+        super::recv_with_timeout("Dome", rx, Timeouts::property_read(), "shutter_status").await
     }
 
-    pub async fn slewing(&self) -> Result<bool, String> {
+    pub async fn slewing(&self) -> Result<bool, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::GetSlewing(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "slewing").await
+        super::recv_with_timeout("Dome", rx, Timeouts::property_read(), "slewing").await
     }
 
-    pub async fn at_park(&self) -> Result<bool, String> {
+    pub async fn at_park(&self) -> Result<bool, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::GetAtPark(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "at_park").await
+        super::recv_with_timeout("Dome", rx, Timeouts::property_read(), "at_park").await
     }
 
-    pub async fn slew_to_azimuth(&self, azimuth: f64) -> Result<(), String> {
+    pub async fn slew_to_azimuth(&self, azimuth: f64) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::SlewToAzimuth { azimuth, reply: tx })
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::dome(), "slew_to_azimuth").await
+        super::recv_with_timeout("Dome", rx, Timeouts::dome(), "slew_to_azimuth").await
     }
 
-    pub async fn abort_slew(&self) -> Result<(), String> {
+    pub async fn abort_slew(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::AbortSlew(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::dome(), "abort_slew").await
+        super::recv_with_timeout("Dome", rx, Timeouts::dome(), "abort_slew").await
     }
 
-    pub async fn find_home(&self) -> Result<(), String> {
+    pub async fn find_home(&self) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::FindHome(tx))
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::find_home(), "find_home").await
+        super::recv_with_timeout("Dome", rx, Timeouts::find_home(), "find_home").await
     }
 
-    pub async fn set_slaved(&self, slaved: bool) -> Result<(), String> {
+    pub async fn set_slaved(&self, slaved: bool) -> Result<(), DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::SetSlaved { slaved, reply: tx })
             .await
             .map_err(|e| format!("Send error: {}", e))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "set_slaved").await
+        super::recv_with_timeout("Dome", rx, Timeouts::property_write(), "set_slaved").await
     }
 
     /// Degrees, north through east.
-    pub async fn azimuth(&self) -> Result<f64, String> {
+    pub async fn azimuth(&self) -> Result<f64, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::GetAzimuth(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "azimuth").await
+        super::recv_with_timeout("Dome", rx, Timeouts::property_read(), "azimuth").await
     }
 
-    pub async fn can_set_azimuth(&self) -> Result<bool, String> {
+    pub async fn can_set_azimuth(&self) -> Result<bool, DeviceOpError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomDomeCommand::GetCanSetAzimuth(tx))
             .await
             .map_err(|error| format!("Send error: {}", error))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "can_set_azimuth").await
+        super::recv_with_timeout("Dome", rx, Timeouts::property_read(), "can_set_azimuth").await
     }
 }
 
@@ -349,7 +336,7 @@ mod tests {
     async fn test_heartbeat_uses_worker_command() {
         let wrapper = build_test_wrapper(|cmd| {
             if let AscomDomeCommand::Heartbeat(reply) = cmd {
-                let _ = reply.send(Err("COM disconnected".to_string()));
+                let _ = reply.send(Err(DeviceOpError::Message("COM disconnected".to_string())));
                 return true;
             }
             false

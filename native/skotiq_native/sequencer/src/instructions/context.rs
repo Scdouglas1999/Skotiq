@@ -79,6 +79,19 @@ impl InstructionResult {
         }
     }
 
+    /// This failure came from `error`. A device that is not connected makes
+    /// it a disconnect whatever the instruction was doing: a device that
+    /// dropped is reconnected before anything else is judged.
+    pub fn caused_by(self, error: &crate::device_ops::DeviceError) -> Self {
+        match error {
+            crate::device_ops::DeviceError::NotConnected { .. } => Self {
+                setback: Some(Setback::Disconnected),
+                ..self
+            },
+            _ => self,
+        }
+    }
+
     pub fn cancelled(message: impl Into<String>) -> Self {
         Self {
             status: NodeStatus::Cancelled,
@@ -87,20 +100,10 @@ impl InstructionResult {
         }
     }
 
-    /// Why this result fell short. A failure whose text is a driver's "not
-    /// connected" is a disconnect whatever the instruction was doing: the
-    /// device layer reports that in words, and a device that dropped is
-    /// recovered before anything else is judged.
+    /// Why this result fell short.
     pub fn setback(&self) -> Option<Setback> {
         if self.status != NodeStatus::Failure {
             return None;
-        }
-        if self
-            .message
-            .as_deref()
-            .is_some_and(is_device_disconnected_message)
-        {
-            return Some(Setback::Disconnected);
         }
         self.setback
     }

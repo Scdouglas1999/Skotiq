@@ -6,7 +6,6 @@ use skotiq_device::Vendor;
 use skotiq_device::{DeviceDriver, DriverError, FocuserDriver};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
-use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 
 /// Connection result with device properties that can only be read after connection
@@ -18,21 +17,21 @@ struct FocuserConnectInfo {
 
 #[derive(Debug)]
 enum AscomFocuserCommand {
-    Connect(oneshot::Sender<Result<FocuserConnectInfo, String>>),
-    Disconnect(oneshot::Sender<Result<(), String>>),
-    MoveTo(i32, oneshot::Sender<Result<(), String>>),
-    MoveRelative(i32, oneshot::Sender<Result<(), String>>),
-    GetPosition(oneshot::Sender<Result<i32, String>>),
-    IsMoving(oneshot::Sender<Result<bool, String>>),
-    Halt(oneshot::Sender<Result<(), String>>),
-    GetTemperature(oneshot::Sender<Result<Option<f64>, String>>),
-    GetMaxPosition(oneshot::Sender<Result<i32, String>>),
-    GetStepSize(oneshot::Sender<Result<f64, String>>),
-    GetAbsolute(oneshot::Sender<Result<bool, String>>),
-    Heartbeat(oneshot::Sender<Result<(), String>>),
+    Connect(oneshot::Sender<Result<FocuserConnectInfo, DriverError>>),
+    Disconnect(oneshot::Sender<Result<(), DriverError>>),
+    MoveTo(i32, oneshot::Sender<Result<(), DriverError>>),
+    MoveRelative(i32, oneshot::Sender<Result<(), DriverError>>),
+    GetPosition(oneshot::Sender<Result<i32, DriverError>>),
+    IsMoving(oneshot::Sender<Result<bool, DriverError>>),
+    Halt(oneshot::Sender<Result<(), DriverError>>),
+    GetTemperature(oneshot::Sender<Result<Option<f64>, DriverError>>),
+    GetMaxPosition(oneshot::Sender<Result<i32, DriverError>>),
+    GetStepSize(oneshot::Sender<Result<f64, DriverError>>),
+    GetAbsolute(oneshot::Sender<Result<bool, DriverError>>),
+    Heartbeat(oneshot::Sender<Result<(), DriverError>>),
     /// Every property `/api/equipment/focuser/capabilities` needs, read in ONE
     /// STA round-trip on the live COM object.
-    GetCapabilityReadings(oneshot::Sender<Result<AscomFocuserReadings, String>>),
+    GetCapabilityReadings(oneshot::Sender<Result<AscomFocuserReadings, DriverError>>),
     // Version query commands
 }
 
@@ -91,73 +90,76 @@ impl AscomFocuserWrapper {
                 match cmd {
                     AscomFocuserCommand::Connect(reply) => {
                         // Connect first, then fetch properties that require connection
-                        let result = focuser.connect().map_err(|e| e.to_string()).and_then(|()| {
-                            // Fetch static properties AFTER connection
-                            // Why: `max_step` and `step_size` are
-                            // optional ASCOM IFocuserV2 properties. Older drivers
-                            // (e.g. Pegasus Astro USB Focus v2 firmware <1.4) lack
-                            // them; logging + returning 0 lets the connection
-                            // succeed and surfaces the missing capability to the
-                            // UI as "Range: 0". The user's focuser-settings dialog
-                            // then prompts for manual entry. Connection itself
-                            // already succeeded above, so failing here would mask
-                            // a working focuser as broken.
-                            let max_step = focuser
-                                .max_step()
-                                .map_err(|e| {
-                                    tracing::warn!(
-                                        "Failed to get focuser max_step after connect: {}",
-                                        e
-                                    );
-                                    e.to_string()
-                                })
-                                .unwrap_or(0);
-                            // Why: see max_step block above
-                            // — same fallback policy for the optional IFocuserV2
-                            // `StepSize` property. 0.0 maps to "unknown step
-                            // size" in the focuser-settings UI.
-                            let step_size = focuser
-                                .step_size()
-                                .map_err(|e| {
-                                    tracing::warn!(
-                                        "Failed to get focuser step_size after connect: {}",
-                                        e
-                                    );
-                                    e.to_string()
-                                })
-                                .unwrap_or(0.0);
+                        let result = focuser
+                            .connect()
+                            .map_err(super::ascom_error)
+                            .and_then(|()| {
+                                // Fetch static properties AFTER connection
+                                // Why: `max_step` and `step_size` are
+                                // optional ASCOM IFocuserV2 properties. Older drivers
+                                // (e.g. Pegasus Astro USB Focus v2 firmware <1.4) lack
+                                // them; logging + returning 0 lets the connection
+                                // succeed and surfaces the missing capability to the
+                                // UI as "Range: 0". The user's focuser-settings dialog
+                                // then prompts for manual entry. Connection itself
+                                // already succeeded above, so failing here would mask
+                                // a working focuser as broken.
+                                let max_step = focuser
+                                    .max_step()
+                                    .map_err(|e| {
+                                        tracing::warn!(
+                                            "Failed to get focuser max_step after connect: {}",
+                                            e
+                                        );
+                                        e.to_string()
+                                    })
+                                    .unwrap_or(0);
+                                // Why: see max_step block above
+                                // — same fallback policy for the optional IFocuserV2
+                                // `StepSize` property. 0.0 maps to "unknown step
+                                // size" in the focuser-settings UI.
+                                let step_size = focuser
+                                    .step_size()
+                                    .map_err(|e| {
+                                        tracing::warn!(
+                                            "Failed to get focuser step_size after connect: {}",
+                                            e
+                                        );
+                                        e.to_string()
+                                    })
+                                    .unwrap_or(0.0);
 
-                            Ok(FocuserConnectInfo {
-                                max_position: max_step,
-                                step_size,
-                            })
-                        });
+                                Ok(FocuserConnectInfo {
+                                    max_position: max_step,
+                                    step_size,
+                                })
+                            });
                         let _ = reply.send(result);
                     }
                     AscomFocuserCommand::Disconnect(reply) => {
-                        let _ = reply.send(focuser.disconnect().map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.disconnect().map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::MoveTo(pos, reply) => {
-                        let _ = reply.send(focuser.move_to(pos).map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.move_to(pos).map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::MoveRelative(steps, reply) => {
                         // ASCOM doesn't have move_relative, so we need current pos + steps
                         // But we can't easily do that atomically here without potentially blocking.
                         // Actually we can: get pos, add steps, move to.
-                        let res = (|| -> Result<(), String> {
-                            let current = focuser.position()?;
-                            focuser.move_to(current + steps).map_err(|e| e.to_string())
+                        let res = (|| -> Result<(), DriverError> {
+                            let current = focuser.position().map_err(super::ascom_error)?;
+                            focuser.move_to(current + steps).map_err(super::ascom_error)
                         })();
-                        let _ = reply.send(res.map_err(|e| e.to_string()));
+                        let _ = reply.send(res);
                     }
                     AscomFocuserCommand::GetPosition(reply) => {
-                        let _ = reply.send(focuser.position().map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.position().map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::IsMoving(reply) => {
-                        let _ = reply.send(focuser.is_moving().map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.is_moving().map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::Halt(reply) => {
-                        let _ = reply.send(focuser.halt().map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.halt().map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::GetTemperature(reply) => {
                         // Check if temp comp available or just try getting temp
@@ -166,16 +168,16 @@ impl AscomFocuserWrapper {
                         let _ = reply.send(res);
                     }
                     AscomFocuserCommand::GetMaxPosition(reply) => {
-                        let _ = reply.send(focuser.max_step().map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.max_step().map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::GetStepSize(reply) => {
-                        let _ = reply.send(focuser.step_size().map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.step_size().map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::GetAbsolute(reply) => {
-                        let _ = reply.send(focuser.absolute().map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.absolute().map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::Heartbeat(reply) => {
-                        let _ = reply.send(focuser.heartbeat().map_err(|e| e.to_string()));
+                        let _ = reply.send(focuser.heartbeat().map_err(super::ascom_error));
                     }
                     AscomFocuserCommand::GetCapabilityReadings(reply) => {
                         // `get_capabilities` + `get_full_status` already swallow
@@ -213,32 +215,13 @@ impl AscomFocuserWrapper {
         })
     }
 
-    /// Helper to receive a response with a timeout
-    async fn recv_with_timeout<T>(
-        rx: oneshot::Receiver<Result<T, String>>,
-        timeout: Duration,
-        operation: &str,
-    ) -> Result<T, DriverError> {
-        match tokio::time::timeout(timeout, rx).await {
-            Ok(Ok(result)) => result.map_err(|e| DriverError::SdkError(e)),
-            Ok(Err(_recv_err)) => Err(DriverError::Unknown(format!(
-                "Worker thread dead during {}",
-                operation
-            ))),
-            Err(_elapsed) => Err(DriverError::Timeout(format!(
-                "Focuser {} timed out after {:?}",
-                operation, timeout
-            ))),
-        }
-    }
-
     async fn fetch_max_position(&self) -> Result<i32, DriverError> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(AscomFocuserCommand::GetMaxPosition(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_max_position").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::property_read(), "get_max_position").await
     }
 
     async fn fetch_step_size(&self) -> Result<f64, DriverError> {
@@ -247,7 +230,7 @@ impl AscomFocuserWrapper {
             .send(AscomFocuserCommand::GetStepSize(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_step_size").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::property_read(), "get_step_size").await
     }
 
     pub async fn heartbeat(&self) -> Result<(), DriverError> {
@@ -256,7 +239,7 @@ impl AscomFocuserWrapper {
             .send(AscomFocuserCommand::Heartbeat(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "heartbeat").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::property_read(), "heartbeat").await
     }
 
     /// Read the capability + live-status bundle for
@@ -275,7 +258,13 @@ impl AscomFocuserWrapper {
             .send(AscomFocuserCommand::GetCapabilityReadings(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "capability_readings").await
+        super::recv_with_timeout(
+            "Focuser",
+            rx,
+            Timeouts::property_read(),
+            "capability_readings",
+        )
+        .await
     }
 }
 
@@ -303,7 +292,8 @@ impl DeviceDriver for AscomFocuserWrapper {
             .send(AscomFocuserCommand::Connect(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        let info = Self::recv_with_timeout(rx, Timeouts::connection(), "connect").await?;
+        let info =
+            super::recv_with_timeout("Focuser", rx, Timeouts::connection(), "connect").await?;
 
         // Update cached values with real values from the connected device
         self.max_position.store(info.max_position, Ordering::SeqCst);
@@ -347,7 +337,8 @@ impl DeviceDriver for AscomFocuserWrapper {
             .send(AscomFocuserCommand::Disconnect(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        let result = Self::recv_with_timeout(rx, Timeouts::connection(), "disconnect").await;
+        let result =
+            super::recv_with_timeout("Focuser", rx, Timeouts::connection(), "disconnect").await;
         if result.is_ok() {
             self.connected.store(false, Ordering::SeqCst);
         }
@@ -364,7 +355,7 @@ impl FocuserDriver for AscomFocuserWrapper {
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
         // Focuser moves can take a long time
-        Self::recv_with_timeout(rx, Timeouts::focuser_move(), "move_to").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::focuser_move(), "move_to").await
     }
 
     async fn move_relative(&mut self, steps: i32) -> Result<(), DriverError> {
@@ -373,7 +364,7 @@ impl FocuserDriver for AscomFocuserWrapper {
             .send(AscomFocuserCommand::MoveRelative(steps, tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::focuser_move(), "move_relative").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::focuser_move(), "move_relative").await
     }
 
     async fn get_position(&self) -> Result<i32, DriverError> {
@@ -382,7 +373,7 @@ impl FocuserDriver for AscomFocuserWrapper {
             .send(AscomFocuserCommand::GetPosition(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_position").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::property_read(), "get_position").await
     }
 
     async fn is_moving(&self) -> Result<bool, DriverError> {
@@ -391,7 +382,7 @@ impl FocuserDriver for AscomFocuserWrapper {
             .send(AscomFocuserCommand::IsMoving(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "is_moving").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::property_read(), "is_moving").await
     }
 
     async fn halt(&mut self) -> Result<(), DriverError> {
@@ -400,7 +391,7 @@ impl FocuserDriver for AscomFocuserWrapper {
             .send(AscomFocuserCommand::Halt(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_write(), "halt").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::property_write(), "halt").await
     }
 
     async fn get_temperature(&self) -> Result<Option<f64>, DriverError> {
@@ -409,7 +400,7 @@ impl FocuserDriver for AscomFocuserWrapper {
             .send(AscomFocuserCommand::GetTemperature(tx))
             .await
             .map_err(|e| DriverError::SdkError(e.to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "get_temperature").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::property_read(), "get_temperature").await
     }
 
     fn get_max_position(&self) -> i32 {
@@ -430,7 +421,7 @@ impl AscomFocuserWrapper {
             .send(AscomFocuserCommand::GetAbsolute(tx))
             .await
             .map_err(|_| DriverError::Unknown("Worker thread dead".to_string()))?;
-        Self::recv_with_timeout(rx, Timeouts::property_read(), "is_absolute").await
+        super::recv_with_timeout("Focuser", rx, Timeouts::property_read(), "is_absolute").await
     }
 }
 
@@ -494,7 +485,7 @@ mod tests {
     async fn test_heartbeat_uses_worker_command() {
         let wrapper = build_test_wrapper(|cmd| {
             if let AscomFocuserCommand::Heartbeat(reply) = cmd {
-                let _ = reply.send(Err("COM disconnected".to_string()));
+                let _ = reply.send(Err(DriverError::SdkError("COM disconnected".to_string())));
                 return true;
             }
             false

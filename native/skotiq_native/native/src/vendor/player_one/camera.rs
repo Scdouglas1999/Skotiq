@@ -5,27 +5,42 @@ use super::*;
 #[derive(Debug)]
 pub struct PlayerOneCamera {
     pub(crate) camera_id: i32,
+    /// The properties the SDK reported after the camera was opened.
     pub(crate) camera_info: Option<POACameraProperties>,
     /// `core.gain`/`core.offset` are the last values this driver applied or read
     /// back successfully: the fallback for the frame metadata (FITS GAIN/OFFSET)
     /// when a POAGetConfig read fails on a frame we already hold. `core.cooler`
     /// is the fallback when `POA_COOLER`/`POA_TARGET_TEMP` cannot be read back.
-    /// `core.name` is the device id: the SDK's model name is only logged.
+    /// `core.bin_x`/`core.subframe` are the geometry the camera reported back
+    /// after it was last set. `core.name` is the model once connected.
     pub(crate) core: CameraCore,
     pub(crate) image_format: POAImgFormat,
+    /// Whether `core.bin_x`/`core.subframe` were read back from this open camera.
+    pub(crate) geometry_applied: bool,
+}
+
+/// The bin factors the camera lists (`bins`, ended by 0), smallest first.
+fn listed_bins(info: &POACameraProperties) -> Vec<i32> {
+    info.bins
+        .iter()
+        .copied()
+        .take_while(|&bin| bin != 0)
+        .filter(|&bin| bin > 0)
+        .collect()
 }
 
 fn player_one_capabilities(info: &POACameraProperties) -> CameraCapabilities {
+    let max_bin = listed_bins(info).into_iter().max().unwrap_or(1);
     CameraCapabilities {
         can_cool: info.is_has_cooler != 0,
         can_set_gain: true,
         can_set_offset: true,
-        can_set_binning: true,
+        can_set_binning: max_bin > 1,
         can_subframe: true,
         has_shutter: false,
         has_guider_port: info.is_has_st4_port != 0,
-        max_bin_x: 4,
-        max_bin_y: 4,
+        max_bin_x: max_bin,
+        max_bin_y: max_bin,
         supports_readout_modes: false,
     }
 }
@@ -52,6 +67,86 @@ fn player_one_sensor_info(info: &POACameraProperties) -> SensorInfo {
     }
 }
 
+/// The longest exposure `POA_EXPOSURE` takes, in microseconds
+/// (PlayerOneCamera.h: "range:[10 - 2000000000]"). SDK builds with `POA_EXP`
+/// take up to 7200 s.
+const LONGEST_MICROSECOND_EXPOSURE: f64 = 2_000_000_000.0;
+
+/// A subframe in the camera's binned pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Roi {
+    pub(crate) x: c_int,
+    pub(crate) y: c_int,
+    pub(crate) width: c_int,
+    pub(crate) height: c_int,
+}
+
+impl Roi {
+    fn subframe(self) -> SubFrame {
+        // The SDK reported these back; it never reports negative ones.
+        let unsigned = |v: c_int| u32::try_from(v).unwrap_or(0);
+        SubFrame {
+            start_x: unsigned(self.x),
+            start_y: unsigned(self.y),
+            width: unsigned(self.width),
+            height: unsigned(self.height),
+        }
+    }
+}
+
+/// The ROI the SDK will take for `subframe` on a `max_width` x `max_height`
+/// binned sensor: the width a multiple of 4 and the height of 2
+/// (PlayerOneCamera.h, POASetImageSize), and on a color sensor an even start so
+/// the frame begins on the Bayer cell its header names. `None` is the whole
+/// binned sensor.
+pub(crate) fn roi_for(
+    subframe: Option<&SubFrame>,
+    max_width: c_int,
+    max_height: c_int,
+    color: bool,
+) -> Result<Roi, DriverError> {
+    let Some(sf) = subframe else {
+        return Ok(Roi {
+            x: 0,
+            y: 0,
+            width: max_width & !3,
+            height: max_height & !1,
+        });
+    };
+    let fits = u64::from(sf.start_x) + u64::from(sf.width) <= max_width.max(0) as u64
+        && u64::from(sf.start_y) + u64::from(sf.height) <= max_height.max(0) as u64;
+    let to_int = |v: u32| c_int::try_from(v).ok();
+    let roi = match (
+        to_int(sf.start_x),
+        to_int(sf.start_y),
+        to_int(sf.width),
+        to_int(sf.height),
+    ) {
+        (Some(x), Some(y), Some(width), Some(height)) if fits => {
+            let start = |v: c_int| if color { v & !1 } else { v };
+            Roi {
+                x: start(x),
+                y: start(y),
+                width: width & !3,
+                height: height & !1,
+            }
+        }
+        _ => {
+            return Err(DriverError::InvalidParameter(format!(
+                "subframe {}x{} at ({}, {}) does not fit the {}x{} binned sensor",
+                sf.width, sf.height, sf.start_x, sf.start_y, max_width, max_height
+            )))
+        }
+    };
+    if roi.width == 0 || roi.height == 0 {
+        return Err(DriverError::InvalidParameter(format!(
+            "subframe {}x{} is smaller than the 4x2 pixels a Player One camera reads out",
+            sf.width, sf.height
+        )));
+    }
+    Ok(roi)
+}
+
 impl PlayerOneCamera {
     pub fn new(camera_id: i32) -> Self {
         Self {
@@ -63,19 +158,45 @@ impl PlayerOneCamera {
                 0.0,
             ),
             image_format: POAImgFormat::Raw16,
+            geometry_applied: false,
         }
     }
 
+    /// Asks the SDK to scan the USB bus and checks the camera id is among the
+    /// cameras found. The SDK knows no camera before a scan (a profile connects
+    /// at startup without one), and a camera plugged back in may have a new id.
+    pub(crate) fn find_in_scan(&self, sdk: &PoaSdk) -> Result<(), DriverError> {
+        // SAFETY: POAGetCameraCount takes no arguments.
+        let count = unsafe { (sdk.get_camera_count)() };
+        for index in 0..count {
+            // SAFETY: POACameraProperties is `#[repr(C)]` POD; zeroed is a valid out buffer.
+            let mut info: POACameraProperties = unsafe { std::mem::zeroed() };
+            // SAFETY: `index` is in [0, count); `&mut info` is a valid out-pointer.
+            let result = unsafe { (sdk.get_camera_properties)(index, &mut info) };
+            if result == 0 && info.camera_id == self.camera_id {
+                return Ok(());
+            }
+        }
+        Err(DriverError::InvalidDevice(format!(
+            "Player One camera {} is not on the USB bus ({} Player One camera(s) found); \
+             check the cable and search for devices again",
+            self.camera_id, count
+        )))
+    }
+
+    /// Reads the camera's properties. Called once the camera is open: the SDK
+    /// fills the serial number for an open camera.
     pub(crate) fn load_camera_info(&mut self, sdk: &PoaSdk) -> Result<(), DriverError> {
         // SAFETY: POACameraProperties is `#[repr(C)]` and contains only POD fields (c_char arrays, c_int, f64) — all valid bit-patterns. Zero-initialization is the well-defined empty state before the SDK overwrites it.
         let mut info: POACameraProperties = unsafe { std::mem::zeroed() };
-        // SAFETY: caller holds &mut self so `self.camera_id` is valid; `&mut info` is a valid stack out-pointer to a `#[repr(C)]` POACameraProperties; POAGetCameraPropertiesByID reads metadata only and writes only into the out-pointer.
+        // SAFETY: `self.camera_id` is the open camera; `&mut info` is a valid stack out-pointer to a `#[repr(C)]` POACameraProperties; POAGetCameraPropertiesByID writes only into the out-pointer.
         let result = unsafe { (sdk.get_camera_properties_by_id)(self.camera_id, &mut info) };
         check_poa_error(result, "GetCameraProperties")?;
 
         self.core.capabilities = player_one_capabilities(&info);
         self.core.sensor_info = player_one_sensor_info(&info);
         self.camera_info = Some(info);
+        self.core.name = self.camera_name();
         Ok(())
     }
 
@@ -87,14 +208,127 @@ impl PlayerOneCamera {
         }
     }
 
-    /// Read a writable integer control's `[min, max]` from the SDK's own attribute
-    /// table, so the bounds offered to the user are the camera's and not a model
-    /// average. Reports `NotSupported` when this SDK build cannot answer or the
-    /// camera declares the control unwritable.
-    pub(crate) async fn config_int_bounds(
+    pub(crate) fn serial(&self) -> Option<String> {
+        let info = self.camera_info.as_ref()?;
+        let serial = safe_cstr_to_string(info.sn.as_ptr(), info.sn.len());
+        let serial = serial.trim();
+        (!serial.is_empty()).then(|| serial.to_string())
+    }
+
+    /// The bin factor for a `bin_x` x `bin_y` request: Player One bins both axes
+    /// alike and only by the factors the camera lists.
+    pub(crate) fn supported_bin(&self, bin_x: i32, bin_y: i32) -> Result<i32, DriverError> {
+        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
+        let bins = listed_bins(info);
+        let listed = if bins.is_empty() { vec![1] } else { bins };
+        if bin_x == bin_y && listed.contains(&bin_x) {
+            return Ok(bin_x);
+        }
+        let names: Vec<String> = listed.iter().map(|b| format!("{b}x{b}")).collect();
+        Err(DriverError::InvalidParameter(format!(
+            "{} bins {}, not {}x{}",
+            self.camera_name(),
+            names.join(", "),
+            bin_x,
+            bin_y
+        )))
+    }
+
+    /// Sets the camera to `bin` and `subframe` (binned pixels, `None` for the
+    /// whole sensor) unless it already is there, then records the geometry
+    /// the camera reports back, which is what its frames will be.
+    pub(crate) fn apply_geometry(
+        &mut self,
+        sdk: &PoaSdk,
+        bin: i32,
+        subframe: Option<&SubFrame>,
+    ) -> Result<(), DriverError> {
+        let info = self.camera_info.as_ref().ok_or(DriverError::NotConnected)?;
+        let wanted = roi_for(
+            subframe,
+            info.max_width / bin,
+            info.max_height / bin,
+            info.is_color_camera != 0,
+        )?;
+        let current = self
+            .core
+            .subframe
+            .as_ref()
+            .map(|sf| (sf.start_x, sf.start_y, sf.width, sf.height));
+        let wanted_subframe = subframe.map(|_| {
+            let sf = wanted.subframe();
+            (sf.start_x, sf.start_y, sf.width, sf.height)
+        });
+        if self.core.bin_x == bin && current == wanted_subframe && self.geometry_applied {
+            return Ok(());
+        }
+        // Until the read-back below succeeds the camera's geometry is unknown.
+        self.geometry_applied = false;
+
+        // Bin first: it resets the ROI to the binned full frame (PlayerOneCamera.h,
+        // POASetImageBin). The size goes before the start so the ROI always fits.
+        // SAFETY: the camera is open; all three calls take the id and ints by value.
+        check_poa_error(
+            unsafe { (sdk.set_image_bin)(self.camera_id, bin) },
+            "SetImageBin",
+        )?;
+        // SAFETY: as above.
+        check_poa_error(
+            unsafe { (sdk.set_image_size)(self.camera_id, wanted.width, wanted.height) },
+            "SetImageSize",
+        )?;
+        // SAFETY: as above.
+        check_poa_error(
+            unsafe { (sdk.set_image_start_pos)(self.camera_id, wanted.x, wanted.y) },
+            "SetImageStartPos",
+        )?;
+
+        let (mut applied_bin, mut x, mut y, mut width, mut height) = (0, 0, 0, 0, 0);
+        // SAFETY: the camera is open; every out-pointer is a valid stack c_int.
+        check_poa_error(
+            unsafe { (sdk.get_image_bin)(self.camera_id, &mut applied_bin) },
+            "GetImageBin",
+        )?;
+        // SAFETY: as above.
+        check_poa_error(
+            unsafe { (sdk.get_image_start_pos)(self.camera_id, &mut x, &mut y) },
+            "GetImageStartPos",
+        )?;
+        // SAFETY: as above.
+        check_poa_error(
+            unsafe { (sdk.get_image_size)(self.camera_id, &mut width, &mut height) },
+            "GetImageSize",
+        )?;
+        let applied = Roi {
+            x,
+            y,
+            width,
+            height,
+        };
+        if applied_bin != bin || applied != wanted {
+            tracing::warn!(
+                "Player One {}: asked for bin {} {:?}, the camera took bin {} {:?}",
+                self.core.device_id,
+                bin,
+                wanted,
+                applied_bin,
+                applied
+            );
+        }
+        self.core.bin_x = applied_bin;
+        self.core.bin_y = applied_bin;
+        self.core.subframe = subframe.map(|_| applied.subframe());
+        self.geometry_applied = true;
+        Ok(())
+    }
+
+    /// The SDK's attribute record for `control` (its real min/max/default and
+    /// whether it can be written). `NotSupported` when this SDK build cannot
+    /// answer or the camera has no such control.
+    pub(crate) async fn config_attributes(
         &self,
         control: POAConfig,
-    ) -> Result<(i32, i32), DriverError> {
+    ) -> Result<POAConfigAttributes, DriverError> {
         let sdk = PoaSdk::installed()?;
         // Unlocked on purpose: this reads whether the optional symbol was
         // resolved when the library loaded and calls nothing. The call itself
@@ -114,8 +348,22 @@ impl PlayerOneCamera {
         let mut attributes: POAConfigAttributes = unsafe { std::mem::zeroed() };
         // SAFETY: `_sdk` holds the SDK lock for this call; `self.camera_id` is the open camera checked by the caller; `&mut attributes` is a valid out-pointer to the `#[repr(C)]` struct the SDK fills.
         let result = unsafe { get_attributes(self.camera_id, control as c_int, &mut attributes) };
+        if result == POA_ERROR_INVALID_CONFIG {
+            return Err(DriverError::NotSupported);
+        }
         check_poa_error(result, "POAGetConfigAttributesByConfigID")?;
+        Ok(attributes)
+    }
 
+    /// Read a writable integer control's `[min, max]` from the SDK's own attribute
+    /// table, so the bounds offered to the user are the camera's and not a model
+    /// average. Reports `NotSupported` when this SDK build cannot answer or the
+    /// camera declares the control unwritable.
+    pub(crate) async fn config_int_bounds(
+        &self,
+        control: POAConfig,
+    ) -> Result<(i32, i32), DriverError> {
+        let attributes = self.config_attributes(control).await?;
         if attributes.is_writable == POA_FALSE {
             return Err(DriverError::NotSupported);
         }
@@ -149,6 +397,164 @@ impl PlayerOneCamera {
             })
         };
         Ok((narrow(min)?, narrow(max)?))
+    }
+
+    /// The exposure range in seconds: `POA_EXP` where the SDK has it, else
+    /// `POA_EXPOSURE` in microseconds.
+    pub(crate) async fn exposure_bounds(&self) -> Result<Option<(f64, f64)>, DriverError> {
+        match self.config_attributes(POAConfig::POA_EXP).await {
+            Ok(attributes) if attributes.value_type == POAValueType::Float as c_int => {
+                // SAFETY: the SDK reported VAL_FLOAT, so the bounds hold the float variant.
+                let bounds = unsafe {
+                    (
+                        attributes.min_value.float_value,
+                        attributes.max_value.float_value,
+                    )
+                };
+                return Ok(Some(bounds));
+            }
+            Ok(_) | Err(DriverError::NotSupported) => {}
+            Err(e) => return Err(e),
+        }
+        match self.config_int_bounds(POAConfig::POA_EXPOSURE).await {
+            Ok((min, max)) => Ok(Some((f64::from(min) / 1e6, f64::from(max) / 1e6))),
+            Err(DriverError::NotSupported) => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Sets the exposure time and returns the seconds the camera holds, which
+    /// is what the frame records.
+    ///
+    /// `POA_EXP` (seconds, up to 7200 s) where the SDK has it; older SDK builds
+    /// answer it `POA_ERROR_INVALID_CONFIG` and take whole microseconds in
+    /// `POA_EXPOSURE`, up to 2000 s.
+    pub(crate) fn set_exposure_time(
+        &mut self,
+        sdk: &PoaSdk,
+        seconds: f64,
+    ) -> Result<f64, DriverError> {
+        if !seconds.is_finite() || seconds <= 0.0 {
+            return Err(DriverError::InvalidParameter(format!(
+                "exposure time must be a positive number of seconds, not {}",
+                seconds
+            )));
+        }
+        let model = self.camera_name();
+        let refused = |e: DriverError| match e {
+            DriverError::InvalidParameter(_) => DriverError::InvalidParameter(format!(
+                "{} does not take a {} s exposure",
+                model, seconds
+            )),
+            other => other,
+        };
+        let value = POAConfigValue {
+            float_value: seconds,
+        };
+        // SAFETY: the camera is open; POA_EXP is VAL_FLOAT and the union holds the float.
+        let result = unsafe {
+            (sdk.set_config)(
+                self.camera_id,
+                POAConfig::POA_EXP as c_int,
+                value,
+                POA_FALSE,
+            )
+        };
+        if result != POA_ERROR_INVALID_CONFIG {
+            check_poa_error(result, "POASetConfig(POA_EXP)").map_err(refused)?;
+            return Ok(match self.get_control_float(sdk, POAConfig::POA_EXP) {
+                Ok(held) => held,
+                Err(e) => {
+                    tracing::warn!(
+                        "Player One {}: POA_EXP read-back failed ({}); recording the {} s set",
+                        self.core.device_id,
+                        e,
+                        seconds
+                    );
+                    seconds
+                }
+            });
+        }
+
+        let microseconds = (seconds * 1e6).round();
+        if microseconds > LONGEST_MICROSECOND_EXPOSURE {
+            return Err(DriverError::InvalidParameter(format!(
+                "this Player One SDK takes exposures up to {} s; a {} s exposure needs \
+                 a newer Player One SDK",
+                LONGEST_MICROSECOND_EXPOSURE / 1e6,
+                seconds
+            )));
+        }
+        // At most 2e9, inside a 32-bit C long.
+        self.set_control_int(sdk, POAConfig::POA_EXPOSURE, microseconds as c_long, false)
+            .map_err(refused)?;
+        Ok(match self.get_control_int(sdk, POAConfig::POA_EXPOSURE) {
+            Ok(held) => held as f64 / 1e6,
+            Err(e) => {
+                tracing::warn!(
+                    "Player One {}: POA_EXPOSURE read-back failed ({}); recording the {} s set",
+                    self.core.device_id,
+                    e,
+                    seconds
+                );
+                microseconds / 1e6
+            }
+        })
+    }
+
+    /// The camera's sensor modes (such as a low-noise mode), in the SDK's
+    /// index order. Empty for a camera without a choice, or an SDK build that
+    /// predates them.
+    pub(crate) fn sensor_modes(&self, sdk: &PoaSdk) -> Result<Vec<ReadoutMode>, DriverError> {
+        let (Some(get_count), Some(get_info)) =
+            (sdk.get_sensor_mode_count, sdk.get_sensor_mode_info)
+        else {
+            return Ok(Vec::new());
+        };
+        let mut count: c_int = 0;
+        // SAFETY: the camera is open; `&mut count` is a valid out-pointer.
+        check_poa_error(
+            unsafe { get_count(self.camera_id, &mut count) },
+            "GetSensorModeCount",
+        )?;
+        let mut modes = Vec::new();
+        for index in 0..count {
+            // SAFETY: POASensorModeInfo is two char arrays; zeroed is a valid out buffer.
+            let mut info: POASensorModeInfo = unsafe { std::mem::zeroed() };
+            // SAFETY: the camera is open; `index` is in [0, count); `&mut info` is a valid out-pointer.
+            check_poa_error(
+                unsafe { get_info(self.camera_id, index, &mut info) },
+                "GetSensorModeInfo",
+            )?;
+            modes.push(ReadoutMode {
+                name: safe_cstr_to_string(info.name.as_ptr(), info.name.len()),
+                description: safe_cstr_to_string(info.desc.as_ptr(), info.desc.len()),
+                index,
+                gain_min: None,
+                gain_max: None,
+                offset_min: None,
+                offset_max: None,
+            });
+        }
+        Ok(modes)
+    }
+
+    /// The name of the sensor mode the camera is in, for the frame's metadata.
+    pub(crate) fn current_sensor_mode(&self, sdk: &PoaSdk) -> Option<String> {
+        if !self.core.capabilities.supports_readout_modes {
+            return None;
+        }
+        let get_mode = sdk.get_sensor_mode?;
+        let mut index: c_int = 0;
+        // SAFETY: the camera is open; `&mut index` is a valid out-pointer.
+        if unsafe { get_mode(self.camera_id, &mut index) } != 0 {
+            return None;
+        }
+        self.sensor_modes(sdk)
+            .ok()?
+            .into_iter()
+            .find(|mode| mode.index == index)
+            .map(|mode| mode.name)
     }
 
     /// Get a control value as integer, taking the SDK lock for the call.

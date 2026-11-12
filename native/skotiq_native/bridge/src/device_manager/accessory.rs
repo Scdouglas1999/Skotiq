@@ -12,9 +12,8 @@
 
 use crate::device::{CalibratorState, CoverState};
 use crate::device_capabilities::{
-    CoverCalibratorCapabilities, DomeCapabilities, RotatorCapabilities,
-    SafetyMonitorCapabilities, ShutterStatus, SwitchCapabilities, SwitchInfo,
-    WeatherCapabilities,
+    CoverCalibratorCapabilities, DomeCapabilities, RotatorCapabilities, SafetyMonitorCapabilities,
+    ShutterStatus, SwitchCapabilities, SwitchInfo, WeatherCapabilities,
 };
 use crate::error::SkotiqError;
 use async_trait::async_trait;
@@ -23,7 +22,10 @@ use skotiq_device::{
     CoverCalibratorDriver, DomeDriver, RotatorDriver, SafetyMonitorDriver, SwitchDriver,
     WeatherDriver,
 };
-use skotiq_indi::{IndiClient, IndiDome, IndiProperty, IndiRotator, IndiSafetyMonitor, IndiWeather};
+use skotiq_indi::names as indi;
+use skotiq_indi::{
+    IndiClient, IndiDome, IndiProperty, IndiRotator, IndiSafetyMonitor, IndiWeather,
+};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -67,10 +69,7 @@ pub(crate) async fn switch_capabilities(switch: &dyn SwitchDriver) -> SwitchCapa
                 .switch_name(index)
                 .await
                 .unwrap_or_else(|_| format!("Switch {}", index)),
-            description: switch
-                .switch_description(index)
-                .await
-                .unwrap_or_default(),
+            description: switch.switch_description(index).await.unwrap_or_default(),
             is_boolean: (min_value == 0.0 && max_value == 1.0) || min_value == max_value,
             min_value,
             max_value,
@@ -140,13 +139,16 @@ impl Rotator for AlpacaRotator {
 #[async_trait]
 impl Dome for AlpacaDome {
     async fn capabilities(&self, _device_id: &str) -> Result<DomeCapabilities, SkotiqError> {
-        let shutter_status = AlpacaDome::shutter_status(self).await.ok().map(|s| match s {
-            skotiq_alpaca::ShutterStatus::Open => ShutterStatus::Open,
-            skotiq_alpaca::ShutterStatus::Closed => ShutterStatus::Closed,
-            skotiq_alpaca::ShutterStatus::Opening => ShutterStatus::Opening,
-            skotiq_alpaca::ShutterStatus::Closing => ShutterStatus::Closing,
-            skotiq_alpaca::ShutterStatus::Error => ShutterStatus::Unknown,
-        });
+        let shutter_status = AlpacaDome::shutter_status(self)
+            .await
+            .ok()
+            .map(|s| match s {
+                skotiq_alpaca::ShutterStatus::Open => ShutterStatus::Open,
+                skotiq_alpaca::ShutterStatus::Closed => ShutterStatus::Closed,
+                skotiq_alpaca::ShutterStatus::Opening => ShutterStatus::Opening,
+                skotiq_alpaca::ShutterStatus::Closing => ShutterStatus::Closing,
+                skotiq_alpaca::ShutterStatus::Error => ShutterStatus::Unknown,
+            });
         Ok(DomeCapabilities {
             can_set_azimuth: self.can_set_azimuth().await.unwrap_or(false),
             can_park: self.can_park().await.unwrap_or(false),
@@ -219,26 +221,28 @@ impl Rotator for IndiRotator {
     async fn capabilities(&self, _device_id: &str) -> Result<RotatorCapabilities, SkotiqError> {
         let device_name = self.device_name();
         let properties = indi_properties(self.client(), device_name).await;
-        let has_abs_angle = has(&properties, "ABS_ROTATOR_ANGLE");
+        let has_abs_angle = has(&properties, indi::ABS_ROTATOR_ANGLE);
         // The absolute angle is ABS_ROTATOR_ANGLE/ANGLE, the legacy one
         // ROTATOR_ANGLE/ANGLE; the position and its limits come from the one
         // the driver published.
         let angle_property = if has_abs_angle {
-            "ABS_ROTATOR_ANGLE"
+            indi::ABS_ROTATOR_ANGLE
         } else {
-            "ROTATOR_ANGLE"
+            indi::ROTATOR_ANGLE
         };
         let (position, limits) = {
             let client = self.client().read().await;
             (
-                client.get_number(device_name, angle_property, "ANGLE").await,
                 client
-                    .get_number_limits(device_name, angle_property, "ANGLE")
+                    .get_number(device_name, angle_property, indi::ANGLE)
+                    .await,
+                client
+                    .get_number_limits(device_name, angle_property, indi::ANGLE)
                     .await,
             )
         };
         Ok(RotatorCapabilities {
-            can_reverse: has(&properties, "ROTATOR_REVERSE"),
+            can_reverse: has(&properties, indi::ROTATOR_REVERSE),
             // The reverse state, step size and motion are read live by the
             // rotator's status, not reported here.
             reverse: false,
@@ -249,8 +253,8 @@ impl Rotator for IndiRotator {
             mechanical_position: position,
             position,
             can_move_absolute: has_abs_angle,
-            can_halt: has(&properties, "ROTATOR_ABORT_MOTION"),
-            can_sync: has(&properties, "SYNC_ROTATOR_ANGLE"),
+            can_halt: has(&properties, indi::ROTATOR_ABORT_MOTION),
+            can_sync: has(&properties, indi::SYNC_ROTATOR_ANGLE),
             min_angle_deg: limits.as_ref().and_then(|l| l.min),
             max_angle_deg: limits.as_ref().and_then(|l| l.max),
         })
@@ -264,19 +268,25 @@ impl Dome for IndiDome {
         let properties = indi_properties(self.client(), device_name).await;
         // Home and park both go through DOME_GOTO (DOME_HOME / DOME_PARK);
         // unpark also uses the DOME_PARK switch.
-        let has_goto = has(&properties, "DOME_GOTO");
+        let has_goto = has(&properties, indi::DOME_GOTO);
 
         let client = self.client().read().await;
         let azimuth = client
-            .get_number(device_name, "ABS_DOME_POSITION", "DOME_ABSOLUTE_POSITION")
+            .get_number(
+                device_name,
+                indi::ABS_DOME_POSITION,
+                indi::DOME_ABSOLUTE_POSITION,
+            )
             .await;
         let shutter_open = client
-            .get_switch(device_name, "DOME_SHUTTER", "SHUTTER_OPEN")
+            .get_switch(device_name, indi::DOME_SHUTTER, indi::SHUTTER_OPEN)
             .await;
         let shutter_close = client
-            .get_switch(device_name, "DOME_SHUTTER", "SHUTTER_CLOSE")
+            .get_switch(device_name, indi::DOME_SHUTTER, indi::SHUTTER_CLOSE)
             .await;
-        let shutter_busy = client.is_property_busy(device_name, "DOME_SHUTTER").await;
+        let shutter_busy = client
+            .is_property_busy(device_name, indi::DOME_SHUTTER)
+            .await;
         let shutter_status = match (shutter_open, shutter_close, shutter_busy) {
             (Some(true), Some(false), true) => Some(ShutterStatus::Opening),
             (Some(false), Some(true), true) => Some(ShutterStatus::Closing),
@@ -285,32 +295,32 @@ impl Dome for IndiDome {
             _ => None,
         };
         let at_home = client
-            .get_switch(device_name, "DOME_GOTO", "DOME_HOME")
+            .get_switch(device_name, indi::DOME_GOTO, indi::DOME_HOME)
             .await
             .unwrap_or(false);
         let at_park = client
-            .get_switch(device_name, "DOME_PARK", "PARK")
+            .get_switch(device_name, indi::DOME_PARK, indi::PARK)
             .await
             .unwrap_or(false)
             || client
-                .get_switch(device_name, "DOME_GOTO", "DOME_PARK")
+                .get_switch(device_name, indi::DOME_GOTO, indi::DOME_PARK)
                 .await
                 .unwrap_or(false);
         let slewing = client
-            .is_property_busy(device_name, "ABS_DOME_POSITION")
+            .is_property_busy(device_name, indi::ABS_DOME_POSITION)
             .await
             || shutter_busy;
         let slaved = client
-            .get_switch(device_name, "DOME_AUTOSYNC", "DOME_AUTOSYNC_ENABLE")
+            .get_switch(device_name, indi::DOME_AUTOSYNC, indi::DOME_AUTOSYNC_ENABLE)
             .await
             .unwrap_or(false);
         drop(client);
 
         Ok(DomeCapabilities {
-            can_set_azimuth: has(&properties, "ABS_DOME_POSITION"),
-            can_park: has_goto || has(&properties, "DOME_PARK"),
+            can_set_azimuth: has(&properties, indi::ABS_DOME_POSITION),
+            can_park: has_goto || has(&properties, indi::DOME_PARK),
             can_find_home: has_goto,
-            can_set_shutter: has(&properties, "DOME_SHUTTER"),
+            can_set_shutter: has(&properties, indi::DOME_SHUTTER),
             // INDI has no standard sync-azimuth property.
             can_sync_azimuth: false,
             azimuth,
@@ -318,9 +328,9 @@ impl Dome for IndiDome {
             at_home,
             at_park,
             shutter_status,
-            can_slave: has(&properties, "DOME_AUTOSYNC"),
+            can_slave: has(&properties, indi::DOME_AUTOSYNC),
             slaved,
-            can_abort: has(&properties, "DOME_ABORT_MOTION"),
+            can_abort: has(&properties, indi::DOME_ABORT_MOTION),
         })
     }
 }

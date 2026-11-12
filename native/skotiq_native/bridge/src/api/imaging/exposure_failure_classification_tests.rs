@@ -59,3 +59,25 @@ fn empty_validation_reason_still_classifies() {
         other => panic!("expected ExposureFailed, got {other:?}"),
     }
 }
+
+/// A camera the device layer reports lost is a precondition, not a fault:
+/// 409 through the headless API instead of 500.
+#[test]
+fn a_lost_camera_is_not_connected() {
+    let lost = DeviceError::NotConnected {
+        device: skotiq_sequencer::DeviceKind::Camera,
+        message: "Simulator device for 'camera.download' is not connected".to_string(),
+    };
+    assert!(matches!(
+        classify_exposure_failure("sim_camera_1", lost),
+        SkotiqError::NotConnected(id) if id == "sim_camera_1"
+    ));
+    assert!(matches!(
+        classify_exposure_failure("sim_camera_1", DeviceError::Timeout("download".to_string())),
+        SkotiqError::Timeout(_)
+    ));
+    assert!(matches!(
+        classify_exposure_failure("sim_camera_1", DeviceError::unsupported("no subframes")),
+        SkotiqError::NotSupported { .. }
+    ));
+}

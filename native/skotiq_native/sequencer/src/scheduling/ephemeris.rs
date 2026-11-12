@@ -14,7 +14,8 @@
 //! over tens of degrees and whose darkness score only asks "is the sun below
 //! −6 / −12 / −18°". We deliberately avoid a full ELP/VSOP implementation.
 
-use super::astronomy::{angular_separation, julian_date, object_alt_az};
+use super::astronomy::{angular_separation, object_alt_az};
+use crate::meridian::julian_day;
 use super::scoring::TwilightBracket;
 use chrono::{DateTime, Duration, Utc};
 
@@ -22,7 +23,7 @@ use chrono::{DateTime, Duration, Utc};
 ///
 /// Astronomical-Almanac low-precision formula (good to ~0.01°).
 pub fn sun_equatorial(dt: &DateTime<Utc>) -> (f64, f64) {
-    let n = julian_date(dt) - 2_451_545.0;
+    let n = julian_day(dt) - 2_451_545.0;
     // Mean longitude and mean anomaly of the Sun (degrees).
     let l = (280.460 + 0.985_647_4 * n).rem_euclid(360.0);
     let g = (357.528 + 0.985_600_3 * n).rem_euclid(360.0).to_radians();
@@ -62,7 +63,7 @@ fn moon_ecliptic(t: f64) -> (f64, f64) {
 
 /// Equatorial position of the Moon (RA, Dec) in degrees for `dt`.
 pub fn moon_equatorial(dt: &DateTime<Utc>) -> (f64, f64) {
-    let jd = julian_date(dt);
+    let jd = julian_day(dt);
     let t = (jd - 2_451_545.0) / 36_525.0;
     let (lon_deg, lat_deg) = moon_ecliptic(t);
     let eps = (23.439 - 0.000_000_4 * (jd - 2_451_545.0)).to_radians();

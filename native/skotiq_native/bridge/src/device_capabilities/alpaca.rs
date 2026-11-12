@@ -41,7 +41,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 telescope
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Why: every `CanXxx` flag below maps to an OPTIONAL ASCOM telescope
@@ -109,7 +109,7 @@ pub(crate) async fn get_alpaca_capabilities(
                 camera
                     .connect()
                     .await
-                    .map_err(|e| SkotiqError::connection_failed(device_id, e))?;
+                    .map_err(|e| SkotiqError::connection_failed(device_id, e.to_string()))?;
             }
 
             // Why: ASCOM ICameraV3 capability struct. `CameraXSize/YSize` and `MaxADU`

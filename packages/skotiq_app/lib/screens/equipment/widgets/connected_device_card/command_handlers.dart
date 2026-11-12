@@ -20,45 +20,40 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       final proceed = await confirmDisconnectCooledCamera(context, ref);
       if (!proceed || !mounted) return;
     }
-    final revision = _beginDeviceCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDeviceCommand();
+    if (command == null) return;
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = _currentCardDeviceId();
     try {
       await deviceService.disconnect(widget.type);
     } catch (e) {
-      if (mounted &&
-          _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+      if (mounted && _isCurrentDevice(command, deviceId)) {
         context.showErrorSnackBar('Failed to disconnect: ${userFacingError(e)}');
       }
     } finally {
-      _finishDeviceCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
   Future<void> _handleCoolCamera(double targetTemp) async {
-    final revision = _beginDeviceCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDeviceCommand();
+    if (command == null) return;
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = ref.read(cameraStateProvider).deviceId;
     deviceService.cancelWarmCamera(restorePriorSetting: false);
     try {
       await deviceService.setCameraCooling(
           enabled: true, targetTemp: targetTemp);
-      if (mounted &&
-          _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+      if (mounted && _isCurrentDevice(command, deviceId)) {
         context.showSuccessSnackBar(
             'Cooling to ${formatCelsius(targetTemp, decimals: 0)}');
       }
     } catch (e) {
-      if (mounted &&
-          _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+      if (mounted && _isCurrentDevice(command, deviceId)) {
         context.showErrorSnackBar('Failed to start cooling: ${userFacingError(e)}');
       }
     } finally {
-      _finishDeviceCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
@@ -181,25 +176,22 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
   }
 
   Future<void> _handleWarmCamera() async {
-    final revision = _beginDeviceCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDeviceCommand();
+    if (command == null) return;
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = ref.read(cameraStateProvider).deviceId;
     try {
       final outcome = await deviceService.warmCamera();
-      if (mounted &&
-          _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+      if (mounted && _isCurrentDevice(command, deviceId)) {
         final message = warmupOutcomeMessage(outcome);
         if (message != null) context.showSuccessSnackBar(message);
       }
     } catch (e) {
-      if (mounted &&
-          _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+      if (mounted && _isCurrentDevice(command, deviceId)) {
         context.showErrorSnackBar('Failed to warm up: ${userFacingError(e)}');
       }
     } finally {
-      _finishDeviceCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
@@ -213,50 +205,44 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
   }
 
   Future<void> _handleTogglePark() async {
-    final revision = _beginMountCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginMountCommand();
+    if (command == null) return;
     final mountService = ref.read(mountCommandServiceProvider);
     try {
       final result = await mountService.togglePark();
-      if (mounted &&
-          _hasCurrentMountAuthority(backend, mountService, revision)) {
+      if (mounted && command.isCurrent) {
         context.showCommandActionResult(result);
       }
     } finally {
-      _finishMountCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
   Future<void> _handleFindHome() async {
-    final revision = _beginMountCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginMountCommand();
+    if (command == null) return;
     final mountService = ref.read(mountCommandServiceProvider);
     try {
       final result = await mountService.findHome();
-      if (mounted &&
-          _hasCurrentMountAuthority(backend, mountService, revision)) {
+      if (mounted && command.isCurrent) {
         context.showCommandActionResult(result);
       }
     } finally {
-      _finishMountCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
   Future<void> _handleToggleTracking(bool currentlyTracking) async {
-    final revision = _beginMountCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginMountCommand();
+    if (command == null) return;
     final mountService = ref.read(mountCommandServiceProvider);
     try {
       final result = await mountService.setTracking(!currentlyTracking);
-      if (mounted &&
-          _hasCurrentMountAuthority(backend, mountService, revision)) {
+      if (mounted && command.isCurrent) {
         context.showCommandActionResult(result);
       }
     } finally {
-      _finishMountCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
@@ -264,9 +250,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
   /// watchdog). Flips and re-points to the mount's current sky position. The
   /// manual path a remote operator needs when stalled at the meridian.
   Future<void> _handleManualMeridianFlip() async {
-    final revision = _beginMountCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginMountCommand();
+    if (command == null) return;
     try {
       final confirmed = await showHostBoundDialog<bool>(
         context: context,
@@ -300,8 +285,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
       );
       if (confirmed != true ||
           !mounted ||
-          revision != _commandRevision ||
-          !identical(ref.read(backendProvider), backend)) {
+          command.isStale) {
         return;
       }
 
@@ -309,8 +293,7 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
           .read(meridianFlipStandaloneMonitorProvider.notifier)
           .executeNow();
       if (!mounted ||
-          revision != _commandRevision ||
-          !identical(ref.read(backendProvider), backend)) {
+          command.isStale) {
         return;
       }
       if (succeeded) {
@@ -321,88 +304,69 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         );
       }
     } finally {
-      _finishMountCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
   Future<void> _handleFilterChange(int position) async {
-    final revision = _beginDeviceCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDeviceCommand();
+    if (command == null) return;
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = ref.read(filterWheelStateProvider).deviceId;
     try {
       await deviceService.setFilterWheelPosition(position);
     } catch (e) {
-      if (mounted &&
-          _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+      if (mounted && _isCurrentDevice(command, deviceId)) {
         context.showErrorSnackBar('Failed to change filter: ${userFacingError(e)}');
       }
     } finally {
-      _finishDeviceCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
   Future<void> _handleToggleGuiding(bool currentlyGuiding) async {
-    final revision = _beginDeviceCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDeviceCommand();
+    if (command == null) return;
     final deviceService = ref.read(deviceServiceProvider);
     final deviceId = ref.read(guiderStateProvider).deviceId;
     try {
       if (currentlyGuiding) {
         await deviceService.stopGuiding();
-        if (mounted &&
-            _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+        if (mounted && _isCurrentDevice(command, deviceId)) {
           context.showSuccessSnackBar('Guiding stopped');
         }
       } else {
         await deviceService.startGuiding();
-        if (mounted &&
-            _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+        if (mounted && _isCurrentDevice(command, deviceId)) {
           context.showSuccessSnackBar('Guiding started');
         }
       }
     } catch (e) {
-      if (mounted &&
-          _hasCurrentDeviceAuthority(backend, deviceService, deviceId)) {
+      if (mounted && _isCurrentDevice(command, deviceId)) {
         context.showErrorSnackBar('Guiding operation failed: ${userFacingError(e)}');
       }
     } finally {
-      _finishDeviceCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
   String? _currentCardDeviceId() =>
       ref.read(widget.type.slot.state).deviceId;
 
-  bool _hasCurrentDeviceAuthority(
-    SkotiqBackend backend,
-    DeviceService deviceService,
-    String? deviceId,
-  ) =>
-      mounted &&
-      identical(ref.read(backendProvider), backend) &&
-      identical(ref.read(deviceServiceProvider), deviceService) &&
-      _currentCardDeviceId() == deviceId;
+  /// [command] is still the card's and the card still shows the device it was
+  /// sent to.
+  bool _isCurrentDevice(AsyncScope<SkotiqBackend> command, String? deviceId) =>
+      command.isCurrent && _currentCardDeviceId() == deviceId;
 
-  bool _hasCurrentMountAuthority(
-    SkotiqBackend backend,
-    MountCommandService service,
-    int revision,
-  ) =>
-      mounted &&
-      revision == _commandRevision &&
-      identical(ref.read(backendProvider), backend) &&
-      identical(ref.read(mountCommandServiceProvider), service);
+  bool _isCurrentDome(AsyncScope<SkotiqBackend> command, String deviceId) =>
+      command.isCurrent && ref.read(domeStateProvider).deviceId == deviceId;
 
-  bool _hasCurrentDomeAuthority(
-    SkotiqBackend backend,
+  bool _isCurrentCoverCalibrator(
+    AsyncScope<SkotiqBackend> command,
     String deviceId,
-  ) {
-    return identical(ref.read(backendProvider), backend) &&
-        ref.read(domeStateProvider).deviceId == deviceId;
-  }
+  ) =>
+      command.isCurrent &&
+      ref.read(coverCalibratorStateProvider).deviceId == deviceId;
 
   /// Dome commands go through the shared device command path, which re-reads
   /// the dome after each one so the card reflects it at once (the readouts
@@ -414,16 +378,15 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final domeState = ref.read(domeStateProvider);
     final deviceId = domeState.deviceId;
     if (deviceId == null) return;
-    final revision = _beginDomeCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDomeCommand();
+    if (command == null) return;
     try {
       if (currentStatus == ShutterStatus.open) {
         await _deviceCommands.domeCloseShutter(deviceId);
       } else {
         await _deviceCommands.domeOpenShutter(deviceId);
       }
-      if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
+      if (mounted && _isCurrentDome(command, deviceId)) {
         // Report what we actually know. The command was accepted; whether the
         // shutter is moving is only knowable from the telemetry read above, so
         // when that read leaves the state unknown we say "sent", not "opening".
@@ -440,11 +403,11 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         );
       }
     } catch (e) {
-      if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
+      if (mounted && _isCurrentDome(command, deviceId)) {
         context.showErrorSnackBar('Dome shutter operation failed: ${userFacingError(e)}');
       }
     } finally {
-      _finishDomeCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
@@ -452,20 +415,19 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final domeState = ref.read(domeStateProvider);
     final deviceId = domeState.deviceId;
     if (deviceId == null || domeState.isParked) return;
-    final revision = _beginDomeCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDomeCommand();
+    if (command == null) return;
     try {
       await _deviceCommands.domePark(deviceId);
-      if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
+      if (mounted && _isCurrentDome(command, deviceId)) {
         context.showSuccessSnackBar('Parking dome');
       }
     } catch (e) {
-      if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
+      if (mounted && _isCurrentDome(command, deviceId)) {
         context.showErrorSnackBar('Dome park operation failed: ${userFacingError(e)}');
       }
     } finally {
-      _finishDomeCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
@@ -473,20 +435,19 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final domeState = ref.read(domeStateProvider);
     final deviceId = domeState.deviceId;
     if (deviceId == null) return;
-    final revision = _beginDomeCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDomeCommand();
+    if (command == null) return;
     try {
       await _deviceCommands.domeFindHome(deviceId);
-      if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
+      if (mounted && _isCurrentDome(command, deviceId)) {
         context.showSuccessSnackBar('Homing dome');
       }
     } catch (e) {
-      if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
+      if (mounted && _isCurrentDome(command, deviceId)) {
         context.showErrorSnackBar('Dome home failed: ${userFacingError(e)}');
       }
     } finally {
-      _finishDomeCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
@@ -494,20 +455,19 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
     final domeState = ref.read(domeStateProvider);
     final deviceId = domeState.deviceId;
     if (deviceId == null) return;
-    final revision = _beginDomeCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginDomeCommand();
+    if (command == null) return;
     try {
       await _deviceCommands.domeAbortSlew(deviceId);
-      if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
+      if (mounted && _isCurrentDome(command, deviceId)) {
         context.showSuccessSnackBar('Stopping dome');
       }
     } catch (e) {
-      if (mounted && _hasCurrentDomeAuthority(backend, deviceId)) {
+      if (mounted && _isCurrentDome(command, deviceId)) {
         context.showErrorSnackBar('Dome halt failed: ${userFacingError(e)}');
       }
     } finally {
-      _finishDomeCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
@@ -531,18 +491,15 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         coverState.connectionState != DeviceConnectionState.connected) {
       return;
     }
-    final revision = _beginCoverCalibratorCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginCoverCalibratorCommand();
+    if (command == null) return;
     try {
       if (isOpen) {
-        await backend.coverClose(deviceId);
+        await command.value.coverClose(deviceId);
       } else {
-        await backend.coverOpen(deviceId);
+        await command.value.coverOpen(deviceId);
       }
-      if (mounted &&
-          identical(ref.read(backendProvider), backend) &&
-          ref.read(coverCalibratorStateProvider).deviceId == deviceId) {
+      if (mounted && _isCurrentCoverCalibrator(command, deviceId)) {
         ref
             .read(coverCalibratorStateProvider.notifier)
             .updateCoverStatus(CoverStatus.moving);
@@ -550,11 +507,11 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         context.showSuccessSnackBar(isOpen ? 'Closing cover' : 'Opening cover');
       }
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
+      if (mounted && command.isCurrent) {
         context.showErrorSnackBar('Cover operation failed: ${userFacingError(e)}');
       }
     } finally {
-      _finishCoverCalibratorCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 
@@ -569,15 +526,12 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         state.connectionState != DeviceConnectionState.connected) {
       return;
     }
-    final revision = _beginCoverCalibratorCommand();
-    if (revision == null) return;
-    final backend = ref.read(backendProvider);
+    final command = _beginCoverCalibratorCommand();
+    if (command == null) return;
     try {
       if (isOn) {
-        await backend.calibratorOff(deviceId);
-        if (mounted &&
-            identical(ref.read(backendProvider), backend) &&
-            ref.read(coverCalibratorStateProvider).deviceId == deviceId) {
+        await command.value.calibratorOff(deviceId);
+        if (mounted && _isCurrentCoverCalibrator(command, deviceId)) {
           ref
               .read(coverCalibratorStateProvider.notifier)
               .updateCalibratorStatus(CalibratorStatus.off);
@@ -593,10 +547,8 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
             : maxBrightness > 0
                 ? (maxBrightness / 2).round().clamp(1, maxBrightness).toInt()
                 : 1;
-        await backend.calibratorOn(deviceId, target);
-        if (mounted &&
-            identical(ref.read(backendProvider), backend) &&
-            ref.read(coverCalibratorStateProvider).deviceId == deviceId) {
+        await command.value.calibratorOn(deviceId, target);
+        if (mounted && _isCurrentCoverCalibrator(command, deviceId)) {
           final notifier = ref.read(coverCalibratorStateProvider.notifier);
           notifier.updateBrightness(target);
           notifier.updateCalibratorStatus(CalibratorStatus.notReady);
@@ -607,11 +559,11 @@ extension _ConnectedDeviceCommandHandlers on _ConnectedDeviceCardState {
         }
       }
     } catch (e) {
-      if (mounted && identical(ref.read(backendProvider), backend)) {
+      if (mounted && command.isCurrent) {
         context.showErrorSnackBar('Calibrator operation failed: ${userFacingError(e)}');
       }
     } finally {
-      _finishCoverCalibratorCommand(revision, backend);
+      _finishCommand(command);
     }
   }
 }

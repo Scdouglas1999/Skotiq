@@ -8,7 +8,6 @@ pub(in super::super) struct FlipRequest<'a> {
     pub config: &'a crate::MeridianFlipConfig,
     pub rig: &'a Rig,
     pub run: &'a RunControl,
-    pub decisions: &'a DecisionLog,
     pub failure: &'a FlipFailureLatch,
     pub park: &'a mut ParkSignals,
     pub camera_claim: &'a mut TriggerCameraClaim,
@@ -19,7 +18,6 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
         config,
         rig,
         run,
-        decisions,
         failure,
         park,
         camera_claim,
@@ -48,9 +46,6 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
         }
     );
 
-    let target = rig.target().await;
-    // A display label only; the flip context needs the coordinates.
-    let target_name = target.name.unwrap_or_else(|| "Unknown".to_string());
     let autofocus_config = Some(
         rig.runtime_config
             .read()
@@ -58,18 +53,18 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
             .clone()
             .unwrap_or_default(),
     );
-    let Some(flip_ctx) = build_trigger_flip_context(
-        &rig.context,
-        TriggerFlipTarget {
-            name: target_name.clone(),
-            ra_hours: target.ra_hours,
-            dec_degrees: target.dec_degrees,
-        },
-        Some(run.is_cancelled.clone()),
-        Some(rig.trigger_state.clone()),
+    let flip_instruction = rig.instruction_context(rig.target().await, run);
+    // A display label only; the flip context needs the coordinates.
+    let target_name = flip_instruction
+        .target_name
+        .clone()
+        .unwrap_or_else(|| "Unknown".to_string());
+    let Some(flip_ctx) = crate::meridian_flip_executor::FlipContext::for_instruction(
+        &flip_instruction,
         autofocus_config,
-        target.filter,
-    ) else {
+    )
+    .await
+    else {
         // A flip that fires and cannot run leaves the mount past the meridian
         // unflipped: a safety event the run records.
         let message = format!(
@@ -87,16 +82,13 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
     };
 
     let run_state = run.state.clone();
-    let mut flip_executor = crate::meridian_flip_executor::MeridianFlipExecutor::new(
+    let mut flip_executor = crate::meridian_flip_executor::MeridianFlipExecutor::in_run(
         config.clone(),
-        rig.device_ops.clone(),
+        rig.shared.clone(),
     )
-    // The executor emits the MeridianFlipOutcome verdict itself.
-    .with_executor_event_tx(run.state.events().clone())
     .with_run_message(Arc::new(move |message| {
         run_state.set_message(message);
     }))
-    .with_decision_tx(decisions.tx.clone(), decisions.run_id.clone())
     .with_early_tracking_limit_flip(early);
     let flip_result = flip_executor.execute(&flip_ctx).await;
     // Keep capture held until failure handling has paused or stopped the run.
@@ -230,12 +222,12 @@ pub(in super::super) async fn run(request: FlipRequest<'_>) -> ActionFlow {
 /// post-flip side, so the pier side is read again. An operator's request
 /// waives the window threshold but not the pre-flip side.
 async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Rig) -> Option<bool> {
-    let Some(mount_id) = rig.context.mount_id.as_deref() else {
+    let Some(mount_id) = rig.devices().mount_id.as_deref() else {
         return Some(false);
     };
     let fresh_pier = bounded_poll(
         "mount_side_of_pier",
-        rig.device_ops.mount_side_of_pier(mount_id),
+        rig.device_ops().mount_side_of_pier(mount_id),
     )
     .await
     .ok()
@@ -287,10 +279,10 @@ async fn still_due(config: &crate::MeridianFlipConfig, requested: bool, rig: &Ri
 pub(in super::super) async fn abort_and_park(rig: &Rig, run: &RunControl, park: &mut ParkSignals) {
     park.parking_begins();
     park.stop_node_tree(&run.is_cancelled).await;
-    rig.device_ops
+    rig.device_ops()
         .guider_note_stop_reason(Some(crate::GuidingStopReason::RunStopped))
         .await;
-    if let Err(error) = rig.device_ops.guider_stop().await {
+    if let Err(error) = rig.device_ops().guider_stop().await {
         let msg = format!(
             "FlipFailure AbortAndPark: failed to stop \
              guiding before parking: {}",
@@ -299,13 +291,13 @@ pub(in super::super) async fn abort_and_park(rig: &Rig, run: &RunControl, park: 
         tracing::error!("{}", msg);
         run.error(msg);
     }
-    if let Some(mount_id) = &rig.context.mount_id {
+    if let Some(mount_id) = &rig.devices().mount_id {
         tracing::warn!(
             "FlipFailure AbortAndPark: parking mount '{}' (max_retries=1, retry_delay=2s)",
             mount_id
         );
         let park_outcome =
-            crate::device_ops::try_park_with_retry(&*rig.device_ops, mount_id, 1, 2.0).await;
+            crate::device_ops::try_park_with_retry(&**rig.device_ops(), mount_id, 1, 2.0).await;
         if !park_outcome.success {
             run.error(format!(
                 "FlipFailure AbortAndPark: mount park FAILED after {} attempt{}: {}. \

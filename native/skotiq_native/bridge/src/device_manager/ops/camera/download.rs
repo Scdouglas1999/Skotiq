@@ -1,4 +1,5 @@
 use super::*;
+use skotiq_indi::names as indi;
 
 impl DeviceManager {
     pub async fn camera_download_image(&self, device_id: &str) -> Result<ImageData, DeviceOpError> {
@@ -16,12 +17,13 @@ impl DeviceManager {
                     if let Some(camera) = cameras.get(device_id) {
                         let mut camera = camera.write().await;
                         return camera.download_image().await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to download image from ASCOM camera {}: {}",
                                     device_id, e
                                 ),
+                                e,
                             )
                         });
                     }
@@ -37,12 +39,13 @@ impl DeviceManager {
                     // Use the new download_image_data method
                     let (width, height, pixels) =
                         camera.download_image_data().await.map_err(|e| {
-                            DeviceOpError::hardware(
+                            DeviceOpError::caused_by(
                                 Some(device_id.to_string()),
                                 format!(
                                     "Failed to download image from Alpaca camera {}: {}",
                                     device_id, e
                                 ),
+                                e,
                             )
                         })?;
 
@@ -412,7 +415,7 @@ impl DeviceManager {
                                         data,
                                         ..
                                     } if device == device_name
-                                        && (element == "CCD1" || element == "CCD2") =>
+                                        && (element == indi::CCD1 || element == indi::CCD2) =>
                                     {
                                         return Ok(build_image(data));
                                     }
@@ -430,10 +433,14 @@ impl DeviceManager {
                                     // cache before looping so a race can't hang.
                                     let cached = {
                                         let lc = client.read().await;
-                                        match lc.take_blob(&device_name, "CCD1", "CCD1").await {
+                                        match lc
+                                            .take_blob(&device_name, indi::CCD1, indi::CCD1)
+                                            .await
+                                        {
                                             Some(d) => Some(d),
                                             None => {
-                                                lc.take_blob(&device_name, "CCD2", "CCD2").await
+                                                lc.take_blob(&device_name, indi::CCD2, indi::CCD2)
+                                                    .await
                                             }
                                         }
                                     };

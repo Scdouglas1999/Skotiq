@@ -49,7 +49,7 @@ pub(crate) async fn wait_for_camera_exposure_complete<F, Fut>(
 ) -> DeviceResult<()>
 where
     F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Result<bool, String>>,
+    Fut: std::future::Future<Output = DeviceResult<bool>>,
 {
     let start_time = std::time::Instant::now();
     let exposure = std::time::Duration::from_secs_f64(duration_secs.max(0.0));
@@ -80,7 +80,12 @@ where
         match tokio::time::timeout(remaining, is_complete()).await {
             Ok(Ok(true)) => return Ok(()),
             Ok(Ok(false)) => {}
-            Ok(Err(e)) => return Err(format!("Failed to check exposure status: {}", e).into()),
+            Ok(Err(DeviceError::Failed(message))) => {
+                return Err(DeviceError::Failed(format!(
+                    "Failed to check exposure status: {message}"
+                )))
+            }
+            Ok(Err(other)) => return Err(other),
             Err(_) => {
                 return Err(DeviceError::Timeout(format!(
                     "Exposure status poll on {} did not return within the {:.1}s deadline ({:.1}s requested exposure plus safety margin)",

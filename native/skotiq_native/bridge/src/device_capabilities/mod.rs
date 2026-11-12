@@ -52,7 +52,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::Mutex;
 // Re-use enums from device module to avoid FRB conflicts
 use crate::device::{CalibratorState, CoverState, TrackingRate};
 

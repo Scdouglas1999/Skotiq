@@ -41,24 +41,17 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   }
 
   for (final entry in tree.entries) {
-    switch (entry.node) {
-      case final ExposureNode node when node.frameType == FrameType.light:
-        plan(node.filter, node.count, entry.multiplier, entry.openEnded);
-      // A Smart Exposure plans one row per filter. "Loop until stopped"
-      // ignores the counts and runs until the target's window closes.
-      case final SmartExposureNode node:
-        for (final filterPlan in node.plans) {
-          plan(
-            filterPlan.filterName,
-            filterPlan.count,
-            entry.multiplier,
-            entry.openEnded || node.loopUntilStopped,
-          );
-        }
-      case final SciencePhotometryNode node:
-        plan(node.filter, node.count, entry.multiplier, entry.openEnded);
-      default:
-        break;
+    final node = entry.node;
+    if (node is ExposureNode && node.frameType != FrameType.light) continue;
+    for (final run in node.kind.captures(node)) {
+      plan(run.filter, run.count, entry.multiplier, entry.openEnded);
+    }
+    // Looping until stopped, a Smart Exposure has no count and shoots each of
+    // its filters until the target's window closes.
+    if (node.capturesUntilStopped) {
+      for (final filter in node.kind.filtersOf(node)) {
+        plan(filter, 0, entry.multiplier, true);
+      }
     }
   }
 

@@ -8,21 +8,21 @@ impl FilterWheelOps for UnifiedDeviceOps {
         get_device_manager()
             .filter_wheel_set_position(fw_id, position)
             .await
-            .map_err(|e| format!("Set position failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::FilterWheel))
     }
 
     async fn filterwheel_get_position(&self, fw_id: &str) -> DeviceResult<i32> {
         get_device_manager()
             .filter_wheel_get_position(fw_id)
             .await
-            .map_err(|e| format!("Get position failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::FilterWheel))
     }
 
     async fn filterwheel_get_names(&self, fw_id: &str) -> DeviceResult<Vec<String>> {
         let (_, names) = get_device_manager()
             .filter_wheel_get_config(fw_id)
             .await
-            .map_err(|e| format!("Get names failed: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::FilterWheel))?;
         Ok(names)
     }
 

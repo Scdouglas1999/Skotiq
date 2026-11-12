@@ -28,8 +28,10 @@ pub(in super::super) async fn slew_to_gap(
         let rc = rig.runtime_config.read();
         (rc.latitude, rc.longitude)
     };
-    let (Some(lat), Some(lon)) = (lat.or(rig.context.latitude), lon.or(rig.context.longitude))
-    else {
+    let (Some(lat), Some(lon)) = (
+        lat.or(rig.devices().latitude),
+        lon.or(rig.devices().longitude),
+    ) else {
         tracing::error!("[CLOUD] SlewToGapAndContinue cannot proceed: observer location not set");
         run.held(
             "SlewToGapAndContinue requested but observer location is not configured. Sequence paused.".to_string(),

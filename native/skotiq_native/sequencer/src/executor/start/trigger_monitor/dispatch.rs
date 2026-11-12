@@ -73,8 +73,7 @@ impl Dispatcher {
         Self {
             run: run.control.clone(),
             rig: Rig {
-                device_ops: run.device_ops.clone(),
-                context: run.rig.clone(),
+                shared: custom_branch_context.run.clone(),
                 trigger_state,
                 runtime_config: run.config.clone(),
             },
@@ -189,7 +188,6 @@ impl Dispatcher {
             "Recenter",
             format!("{name} fired: recenter"),
         );
-        let target = self.rig.target().await;
         let autofocus = self
             .rig
             .runtime_config
@@ -197,19 +195,12 @@ impl Dispatcher {
             .autofocus
             .clone()
             .unwrap_or_default();
-        let ctx = build_trigger_flip_context(
-            &self.rig.context,
-            TriggerFlipTarget {
-                name: target.name.clone().unwrap_or_else(|| "target".into()),
-                ra_hours: target.ra_hours,
-                dec_degrees: target.dec_degrees,
-            },
-            Some(self.run.is_cancelled.clone()),
-            Some(self.rig.trigger_state.clone()),
-            Some(autofocus),
-            target.filter.clone(),
-        );
-        let slew_ctx = self.rig.instruction_context(target, &self.run);
+        let slew_ctx = self
+            .rig
+            .instruction_context(self.rig.target().await, &self.run);
+        let ctx =
+            crate::meridian_flip_executor::FlipContext::for_instruction(&slew_ctx, Some(autofocus))
+                .await;
         let config = self
             .trigger_manager
             .read()
@@ -219,11 +210,10 @@ impl Dispatcher {
             .unwrap_or_default();
         let failure_action = config.failure_action;
         let result = if let Some(ctx) = ctx {
-            let mut recovery = crate::meridian_flip_executor::MeridianFlipExecutor::new(
+            let mut recovery = crate::meridian_flip_executor::MeridianFlipExecutor::in_run(
                 config,
-                self.rig.device_ops.clone(),
-            )
-            .with_executor_event_tx(self.run.state.events().clone());
+                self.rig.shared.clone(),
+            );
             let slew = crate::instructions::execute_slew(
                 &crate::SlewConfig {
                     use_target_coords: true,
@@ -481,7 +471,6 @@ impl Dispatcher {
                     trigger_name,
                     rig,
                     run,
-                    decisions: &self.decisions,
                     progress_context: &self.custom.context,
                     camera_claim,
                 })
@@ -492,7 +481,6 @@ impl Dispatcher {
                     config,
                     rig,
                     run,
-                    decisions: &self.decisions,
                     failure: &self.flip_failure,
                     park: &mut self.park,
                     camera_claim,
@@ -540,5 +528,215 @@ impl Dispatcher {
                 custom_branch::run(trigger_id, trigger_name, &self.custom, run).await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::actions::TargetSnapshot;
+    use super::*;
+
+    async fn dispatcher_for(run: &Run) -> (Dispatcher, ExecutionContext) {
+        let (requests, _) = mpsc::channel(4);
+        let context = run
+            .build_context(std::time::Instant::now(), requests.clone())
+            .await;
+        (
+            Dispatcher::new(run, context.clone(), requests).await,
+            context,
+        )
+    }
+
+    /// A trigger-run instruction runs against the run's own context, so its
+    /// decisions reach the run's log, a disconnect it settles reaches the
+    /// run's recovery, and its frames carry the run's session and rig.
+    #[tokio::test]
+    async fn a_trigger_action_runs_against_the_runs_own_context() {
+        let (events, _) = broadcast::channel(16);
+        let mut run = Run::detached(
+            Arc::new(crate::device_ops::NullDeviceOps),
+            RunCell::starting_in(events, ExecutorState::Running),
+        );
+        run.rig = RunRig {
+            camera_id: Some("camera".into()),
+            mount_id: Some("mount".into()),
+            focuser_id: Some("focuser".into()),
+            save_path: Some(std::path::PathBuf::from("/captures")),
+            latitude: Some(45.0),
+            longitude: Some(-122.0),
+            filter_focus_offsets: HashMap::from([("Ha".to_string(), 42)]),
+            ..RunRig::default()
+        };
+        let (dispatcher, context) = dispatcher_for(&run).await;
+
+        let ctx = dispatcher.rig.instruction_context(
+            TargetSnapshot {
+                name: Some("M31".into()),
+                ra_hours: Some(0.71),
+                dec_degrees: Some(41.27),
+                filter: Some("Ha".into()),
+            },
+            &dispatcher.run,
+        );
+
+        assert_eq!(ctx.target_name.as_deref(), Some("M31"));
+        assert_eq!(ctx.target_ra, Some(0.71));
+        assert_eq!(ctx.current_filter.as_deref(), Some("Ha"));
+        assert!(
+            ctx.node_id.is_empty(),
+            "a trigger action is not a sequence node"
+        );
+        assert_eq!(
+            ctx.run.identity.session_id, context.run.identity.session_id,
+            "one session per run"
+        );
+        assert!(ctx.run.decision_tx.is_some(), "the run's decision log");
+        assert!(ctx.run.recovery_request_tx.is_some(), "the run's recovery");
+        assert!(ctx.run.event_tx.is_some(), "the run's event feed");
+        assert!(Arc::ptr_eq(
+            ctx.run.trigger_state.as_ref().unwrap(),
+            &dispatcher.rig.trigger_state
+        ));
+        assert!(Arc::ptr_eq(
+            &ctx.run.device_disconnect_recovery_pending,
+            &context.run.device_disconnect_recovery_pending
+        ));
+        assert_eq!(ctx.run.rig.save_path, run.rig.save_path);
+        assert_eq!(ctx.run.rig.latitude, Some(45.0));
+        assert_eq!(ctx.run.rig.filter_focus_offsets.get("Ha"), Some(&42));
+    }
+
+    /// A dispatcher over the scripted rig, with a target west of the pier
+    /// just past the meridian.
+    async fn scripted_dispatcher(
+        rig: RunRig,
+    ) -> (
+        Dispatcher,
+        Arc<crate::executor::scenario_sim_tests::ScriptedDeviceOps>,
+    ) {
+        let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+        let (events, _) = broadcast::channel(256);
+        let mut run = Run::detached(
+            ops.clone(),
+            RunCell::starting_in(events, ExecutorState::Running),
+        );
+        let mut manager = TriggerManager::new();
+        manager.create_standard_triggers();
+        {
+            let lock = manager.state();
+            let mut state = lock.write().await;
+            state.set_target(84.0, -5.0);
+            state.target.current_target_name = Some("M42".to_string());
+            state.target.current_hour_angle = Some(0.2);
+            state.telemetry.weather_safe = true;
+        }
+        run.triggers = Arc::new(RwLock::new(manager));
+        run.rig = rig;
+        run.teardown.node_tree_has_ended();
+        let (dispatcher, _) = dispatcher_for(&run).await;
+        (dispatcher, ops)
+    }
+
+    fn firing(action: RecoveryAction) -> Dispatch {
+        Dispatch {
+            trigger_id: "test".to_string(),
+            trigger_name: "Test".to_string(),
+            fired: FiredTriggerAction {
+                action,
+                end_without_parking: false,
+                notify_only: false,
+            },
+            cooldown_secs: None,
+        }
+    }
+
+    async fn imaging_train_is_free(dispatcher: &Dispatcher) -> bool {
+        // A claim given back from a drop under contention is handed to the
+        // runtime; let it run.
+        tokio::task::yield_now().await;
+        dispatcher
+            .rig
+            .trigger_state
+            .read()
+            .await
+            .imaging_train
+            .hold()
+            .is_none()
+    }
+
+    /// Every way a camera-driving action ends hands the imaging train back to
+    /// the capture loop: one that ran, one that was no longer due, and one
+    /// that ended the run. A claim left behind holds every later frame for the
+    /// claim's expiry.
+    #[tokio::test(start_paused = true)]
+    async fn a_trigger_action_hands_the_imaging_train_back_however_it_ends() {
+        let camera_only = RunRig {
+            camera_id: Some("camera".into()),
+            mount_id: Some("mount".into()),
+            ..RunRig::default()
+        };
+
+        // Ran: an autofocus with no focuser is skipped and imaging goes on.
+        let (mut dispatcher, _) = scripted_dispatcher(camera_only.clone()).await;
+        let flow = dispatcher
+            .dispatch(firing(RecoveryAction::Autofocus), None)
+            .await;
+        assert!(matches!(flow, Flow::Next));
+        assert_eq!(dispatcher.fired.len(), 1, "the firing is recorded");
+        assert!(
+            imaging_train_is_free(&dispatcher).await,
+            "after a finished action"
+        );
+
+        // Not run: a flip that is no longer due once its turn comes.
+        let (mut dispatcher, ops) = scripted_dispatcher(camera_only.clone()).await;
+        ops.flip_on_slew.store(true, Ordering::SeqCst);
+        ops.flipped.store(true, Ordering::SeqCst);
+        let flow = dispatcher
+            .dispatch(
+                firing(RecoveryAction::MeridianFlip(
+                    crate::MeridianFlipConfig::default(),
+                )),
+                None,
+            )
+            .await;
+        assert!(matches!(flow, Flow::Next));
+        assert!(dispatcher.fired.is_empty(), "nothing ran");
+        assert!(
+            imaging_train_is_free(&dispatcher).await,
+            "after an action not run"
+        );
+
+        // Ended the run: a flip the mount refuses, under "abort and park".
+        let (mut dispatcher, ops) = scripted_dispatcher(camera_only).await;
+        ops.flip_on_slew.store(true, Ordering::SeqCst);
+        ops.flip_refused.store(true, Ordering::SeqCst);
+        dispatcher
+            .rig
+            .trigger_state
+            .write()
+            .await
+            .meridian
+            .request();
+        let config = crate::MeridianFlipConfig {
+            max_retries: 0,
+            settle_time: 0.0,
+            guider_settle_time: 0.0,
+            failure_action: crate::FlipFailureAction::AbortAndPark,
+            ..Default::default()
+        };
+        let flow = dispatcher
+            .dispatch(firing(RecoveryAction::MeridianFlip(config)), None)
+            .await;
+        assert!(
+            matches!(flow, Flow::Terminate(_)),
+            "the refused flip ends the run; calls={:?}",
+            ops.calls()
+        );
+        assert!(ops.calls().iter().any(|c| c == "mount_park:mount"));
+        assert!(
+            imaging_train_is_free(&dispatcher).await,
+            "after an action that ended the run"
+        );
     }
 }

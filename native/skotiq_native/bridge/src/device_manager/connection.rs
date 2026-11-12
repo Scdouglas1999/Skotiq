@@ -1101,13 +1101,7 @@ impl DeviceManager {
                 );
             }
         }
-        // An INDI device is released through the shared server connection
-        // below, whatever its type.
-        let handle = self
-            .handles
-            .remove(device_id)
-            .filter(|_| device_info.driver_type != DriverType::Indi);
-        if let Some(handle) = handle {
+        if let Some(handle) = self.handles.remove(device_id) {
             let label = format!(
                 "{} {}",
                 protocol_label(device_info.driver_type),
@@ -1194,34 +1188,10 @@ impl DeviceManager {
                 DriverType::Ascom => {
                     // ASCOM not available on non-Windows platforms
                 }
+                // A camera or mount: released on its server's shared
+                // connection, as the other types are through their handle.
                 DriverType::Indi => {
-                    let (host, port, device_name) = Self::parse_indi_device_id(device_id)?;
-                    let server_key = format!("{host}:{port}");
-
-                    let client = {
-                        let clients = self.indi_clients.read().await;
-                        clients.get(&server_key).cloned()
-                    };
-
-                    let Some(client) = client else {
-                        return Err(format!("INDI client not connected for {}", server_key));
-                    };
-
-                    let mut locked_client = client.write().await;
-                    locked_client
-                        .disconnect_device(&device_name)
-                        .await
-                        .map_err(|e| {
-                            format!(
-                                "Failed to disconnect INDI device {} via {}: {}",
-                                device_name, server_key, e
-                            )
-                        })?;
-
-                    locked_client
-                        .wait_until_device_disconnected(&device_name, Duration::from_secs(5))
-                        .await
-                        .map_err(|e| e.to_string())?;
+                    record_disconnect!("INDI device", self.release_indi_device(device_id).await);
                 }
                 DriverType::Simulator => {
                     // Flip the matching `simulation.rs` singleton's `connected`

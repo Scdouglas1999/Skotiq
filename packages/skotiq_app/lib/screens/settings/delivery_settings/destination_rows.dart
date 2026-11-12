@@ -532,7 +532,7 @@ class _PeerPairingLine extends ConsumerWidget {
         final seen = lastSeen == null
             ? 'not connected since pairing'
             : 'last connected '
-                '${DateFormat('d MMM HH:mm').format(lastSeen.toLocal())}';
+                '${ClockFormat.monthDayHm(lastSeen.toLocal())}';
         return Text(
           'Pairing: ${match.deviceName} ($seen). $_peerPullAuthSentence',
           style: style,

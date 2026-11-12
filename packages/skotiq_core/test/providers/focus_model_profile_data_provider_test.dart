@@ -77,6 +77,9 @@ void main() {
       );
       addTearDown(container.dispose);
 
+      // Watched, as the focus model card watches it: a provider nobody
+      // listens to is disposed, and drops its answer.
+      container.listen(focusProfileDataProvider('7'), (_, _) {});
       var completed = false;
       final result = container.read(focusProfileDataProvider('7').future);
       unawaited(result.then((_) => completed = true));

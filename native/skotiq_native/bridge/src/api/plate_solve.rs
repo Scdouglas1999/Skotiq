@@ -271,22 +271,33 @@ static MEASURED_PLATE_SCALE: std::sync::LazyLock<
 > = std::sync::LazyLock::new(|| std::sync::RwLock::new(std::collections::HashMap::new()));
 
 impl SolveHints {
-    /// Stamp the scale cards onto a FITS header, using the same keywords and
-    /// the same binning convention as a saved capture
-    /// (`api::imaging::write_fits_with_header`), so a solver cannot tell a
-    /// solve frame from a light frame.
-    pub(crate) fn apply_to_fits_header(&self, header: &mut skotiq_imaging::FitsHeader) {
-        if let Some(focal) = self.focal_length_mm {
-            header.set_float("FOCALLEN", focal);
+    /// The header `frame` is written to the solver with: the exposure's own
+    /// facts and these scale cards, through the header a saved capture gets,
+    /// so a solver cannot tell a solve frame from a light frame. It names no
+    /// pointing; a caller that trusts a position sets `ra`/`dec`.
+    pub(crate) fn solve_frame_header(
+        &self,
+        frame: &skotiq_sequencer::ImageData,
+    ) -> crate::frame_header::FrameHeader {
+        let started_at =
+            chrono::DateTime::from_timestamp(frame.timestamp, 0).unwrap_or_else(chrono::Utc::now);
+        crate::frame_header::FrameHeader {
+            object_name: Some("Plate Solve".to_string()),
+            exposure_time: frame.exposure_secs,
+            capture_timestamp: started_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            frame_type: "Light".to_string(),
+            filter: frame.filter.clone(),
+            gain: frame.gain,
+            offset: frame.offset,
+            ccd_temp: frame.temperature,
+            bin_x: self.binning.0,
+            bin_y: self.binning.1,
+            focal_length: self.focal_length_mm,
+            pixel_size_x: self.pixel_size_um.map(|(x, _)| x),
+            pixel_size_y: self.pixel_size_um.map(|(_, y)| y),
+            bayer_pattern: frame.color_filter.as_ref().map(|p| p.fits_name()),
+            ..Default::default()
         }
-        if let Some((pitch_x, pitch_y)) = self.pixel_size_um {
-            header.set_float("PIXSIZE1", pitch_x);
-            header.set_float("PIXSIZE2", pitch_y);
-            header.set_float("XPIXSZ", pitch_x * f64::from(self.binning.0));
-            header.set_float("YPIXSZ", pitch_y * f64::from(self.binning.1));
-        }
-        header.set_int("XBINNING", i64::from(self.binning.0));
-        header.set_int("YBINNING", i64::from(self.binning.1));
     }
 
     /// The plate scale these hints describe, in arcsec per pixel **of the
@@ -611,6 +622,62 @@ pub struct PlateSolveResult {
     pub sip_bp_coeffs: Vec<f64>,
 }
 
+impl From<skotiq_imaging::PlateSolveResult> for PlateSolveResult {
+    fn from(r: skotiq_imaging::PlateSolveResult) -> Self {
+        Self {
+            success: r.success,
+            ra: r.ra,
+            dec: r.dec,
+            pixel_scale: r.pixel_scale,
+            rotation: r.rotation,
+            field_width: r.field_width,
+            field_height: r.field_height,
+            solve_time_secs: r.solve_time_secs,
+            error: r.error,
+            cd1_1: r.cd1_1,
+            cd1_2: r.cd1_2,
+            cd2_1: r.cd2_1,
+            cd2_2: r.cd2_2,
+            sip_a_order: r.a_order,
+            sip_b_order: r.b_order,
+            sip_a_coeffs: r.a_coeffs,
+            sip_b_coeffs: r.b_coeffs,
+            sip_ap_order: r.ap_order,
+            sip_bp_order: r.bp_order,
+            sip_ap_coeffs: r.ap_coeffs,
+            sip_bp_coeffs: r.bp_coeffs,
+        }
+    }
+}
+
+impl From<&PlateSolveResult> for skotiq_imaging::PlateSolveResult {
+    fn from(r: &PlateSolveResult) -> Self {
+        Self {
+            success: r.success,
+            ra: r.ra,
+            dec: r.dec,
+            pixel_scale: r.pixel_scale,
+            rotation: r.rotation,
+            field_width: r.field_width,
+            field_height: r.field_height,
+            solve_time_secs: r.solve_time_secs,
+            error: r.error.clone(),
+            cd1_1: r.cd1_1,
+            cd1_2: r.cd1_2,
+            cd2_1: r.cd2_1,
+            cd2_2: r.cd2_2,
+            a_order: r.sip_a_order,
+            b_order: r.sip_b_order,
+            a_coeffs: r.sip_a_coeffs.clone(),
+            b_coeffs: r.sip_b_coeffs.clone(),
+            ap_order: r.sip_ap_order,
+            bp_order: r.sip_bp_order,
+            ap_coeffs: r.sip_ap_coeffs.clone(),
+            bp_coeffs: r.sip_bp_coeffs.clone(),
+        }
+    }
+}
+
 /// Get the path to the installed plate solver
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_get_plate_solver_path() -> Option<String> {
@@ -762,29 +829,7 @@ async fn plate_solve_blind_inner(
     .await
     .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
 
-    Ok(PlateSolveResult {
-        success: result.success,
-        ra: result.ra,
-        dec: result.dec,
-        pixel_scale: result.pixel_scale,
-        rotation: result.rotation,
-        field_width: result.field_width,
-        field_height: result.field_height,
-        solve_time_secs: result.solve_time_secs,
-        error: result.error,
-        cd1_1: result.cd1_1,
-        cd1_2: result.cd1_2,
-        cd2_1: result.cd2_1,
-        cd2_2: result.cd2_2,
-        sip_a_order: result.a_order,
-        sip_b_order: result.b_order,
-        sip_a_coeffs: result.a_coeffs,
-        sip_b_coeffs: result.b_coeffs,
-        sip_ap_order: result.ap_order,
-        sip_bp_order: result.bp_order,
-        sip_ap_coeffs: result.ap_coeffs,
-        sip_bp_coeffs: result.bp_coeffs,
-    })
+    Ok(result.into())
 }
 
 /// Plate solve an image with hint coordinates
@@ -1147,29 +1192,7 @@ async fn plate_solve_near_inner(
     .await
     .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))?;
 
-    Ok(PlateSolveResult {
-        success: result.success,
-        ra: result.ra,
-        dec: result.dec,
-        pixel_scale: result.pixel_scale,
-        rotation: result.rotation,
-        field_width: result.field_width,
-        field_height: result.field_height,
-        solve_time_secs: result.solve_time_secs,
-        error: result.error,
-        cd1_1: result.cd1_1,
-        cd1_2: result.cd1_2,
-        cd2_1: result.cd2_1,
-        cd2_2: result.cd2_2,
-        sip_a_order: result.a_order,
-        sip_b_order: result.b_order,
-        sip_a_coeffs: result.a_coeffs,
-        sip_b_coeffs: result.b_coeffs,
-        sip_ap_order: result.ap_order,
-        sip_bp_order: result.bp_order,
-        sip_ap_coeffs: result.ap_coeffs,
-        sip_bp_coeffs: result.bp_coeffs,
-    })
+    Ok(result.into())
 }
 
 // Plate solver UX (detection / verification / config)
@@ -1558,7 +1581,24 @@ mod solve_coalescing_tests {
 #[cfg(test)]
 mod solve_hint_tests {
     use super::{SolveHints, SolveScale};
-    use skotiq_imaging::FitsHeader;
+
+    fn frame() -> skotiq_sequencer::ImageData {
+        skotiq_sequencer::ImageData {
+            width: 2,
+            height: 2,
+            data: vec![0; 4],
+            bits_per_pixel: 16,
+            exposure_secs: 2.0,
+            gain: None,
+            offset: None,
+            temperature: None,
+            filter: None,
+            timestamp: 1_789_000_000,
+            sensor_type: None,
+            color_filter: None,
+            camera_file: None,
+        }
+    }
 
     /// `XPIXSZ` is the *binned* pitch — that is the number a solver turns into
     /// a plate scale. Stamping the unbinned pitch on a 2x2 frame would tell it
@@ -1570,8 +1610,7 @@ mod solve_hint_tests {
             pixel_size_um: Some((3.76, 3.76)),
             binning: (2, 2),
         };
-        let mut header = FitsHeader::new();
-        hints.apply_to_fits_header(&mut header);
+        let header = hints.solve_frame_header(&frame()).fits_header();
 
         assert_eq!(header.get_float("FOCALLEN"), Some(416.0));
         assert_eq!(header.get_float("PIXSIZE1"), Some(3.76));
@@ -1829,8 +1868,7 @@ mod solve_hint_tests {
         let hints = SolveHints::default();
         assert_eq!(hints.binning, (1, 1));
 
-        let mut header = FitsHeader::new();
-        hints.apply_to_fits_header(&mut header);
+        let header = hints.solve_frame_header(&frame()).fits_header();
         assert_eq!(header.get_float("FOCALLEN"), None);
         assert_eq!(header.get_float("XPIXSZ"), None);
     }

@@ -3,9 +3,11 @@
 use super::*;
 
 pub struct FliFilterWheel {
+    /// The address from the device id (see `open_device`).
     pub(crate) device_path: String,
     pub(crate) device_id: String,
     pub(crate) name: String,
+    pub(crate) serial: Option<String>,
     pub(crate) handle: FliDev,
     pub(crate) connected: bool,
     pub(crate) filter_count: i32,
@@ -27,10 +29,34 @@ impl FliFilterWheel {
             device_path: device_path.clone(),
             device_id: format!("fli_fw_{}", device_id),
             name: "FLI Filter Wheel".to_string(),
+            serial: None,
             handle: FLI_INVALID_DEVICE,
             connected: false,
             filter_count: 0,
         }
+    }
+
+    fn configure(&mut self, sdk: &FliSdk) -> Result<(), DriverError> {
+        if let Some(model) = read_model(sdk, self.handle) {
+            self.name = model;
+        }
+        self.serial = read_serial(sdk, self.handle);
+
+        let mut count: c_long = 0;
+        // SAFETY: self.handle is open; `count` is a valid stack pointer.
+        let result = unsafe { (sdk.get_filter_count)(self.handle, &mut count) };
+        check_fli_error(result, "get filter count")?;
+        // Why: filter count is a small positive integer (<= ~16 across all FLI CFW
+        // models); SDK returns c_long. Use helper to fail closed on absurd values.
+        let filter_count = fli_c_long_to_i32(count, "filter count")?;
+        if filter_count <= 0 {
+            return Err(DriverError::SdkError(format!(
+                "FLI filter wheel at '{}' reported invalid filter count {}",
+                self.device_path, filter_count
+            )));
+        }
+        self.filter_count = filter_count;
+        Ok(())
     }
 }
 
@@ -48,6 +74,10 @@ impl DeviceDriver for FliFilterWheel {
         Vendor::Fli
     }
 
+    fn serial_number(&self) -> Option<String> {
+        self.serial.clone()
+    }
+
     fn is_connected(&self) -> bool {
         self.connected
     }
@@ -58,72 +88,20 @@ impl DeviceDriver for FliFilterWheel {
         }
 
         let sdk = FliSdk::lock().await?;
-
-        let path_cstr = CString::new(self.device_path.clone()).map_err(|_| {
-            tracing::error!(
-                "FLI filter wheel device path contains null bytes: '{}'",
-                self.device_path
-            );
-            DriverError::SdkError(format!(
-                "Invalid device path '{}' contains null bytes",
-                self.device_path
-            ))
-        })?;
-        let domain = FLIDOMAIN_USB | FLIDEVICE_FILTERWHEEL;
-
-        // SAFETY: `self.handle` is a valid pointer into Self; path_cstr is a NUL-terminated CString that outlives the call.
-        let result = unsafe { (sdk.open)(&mut self.handle, path_cstr.as_ptr(), domain) };
-        if result != 0 {
-            tracing::error!(
-                "FLI Open() failed for filter wheel at '{}'. Error code: {}. Check USB connection.",
-                self.device_path,
-                result
-            );
-            return Err(DriverError::SdkError(format!(
-                "Failed to open FLI filter wheel at '{}'. SDK error: {}",
-                self.device_path, result
-            )));
-        }
-
-        let mut model_buf = [0 as c_char; 128];
-        // SAFETY: self.handle was just opened above; model_buf is a 128-byte stack array with truthful length.
-        if unsafe { (sdk.get_model)(self.handle, model_buf.as_mut_ptr(), model_buf.len()) } == 0 {
-            // SAFETY: model_buf is 128 bytes; FLI SDK guarantees NUL-termination on success.
-            self.name = unsafe { CStr::from_ptr(model_buf.as_ptr()) }
-                .to_string_lossy()
-                .to_string();
-        }
-
-        let mut count: c_long = 0;
-        // SAFETY: self.handle is open; `count` is a valid stack pointer.
-        let result = unsafe { (sdk.get_filter_count)(self.handle, &mut count) };
-        if let Err(error) = check_fli_error(result, "get filter count") {
+        let (handle, filename) = open_device(&sdk, &self.device_path, FliDeviceType::FilterWheel)?;
+        self.handle = handle;
+        if let Err(error) = self.configure(&sdk) {
             close_fli_handle(&sdk, &mut self.handle);
             return Err(error);
         }
-        // Why: filter count is a small positive integer (<= ~16 across all FLI CFW
-        // models); SDK returns c_long. Use helper to fail closed on absurd values.
-        let filter_count = match fli_c_long_to_i32(count, "filter count") {
-            Ok(filter_count) => filter_count,
-            Err(error) => {
-                close_fli_handle(&sdk, &mut self.handle);
-                return Err(error);
-            }
-        };
-        if filter_count <= 0 {
-            close_fli_handle(&sdk, &mut self.handle);
-            return Err(DriverError::SdkError(format!(
-                "FLI filter wheel at '{}' reported invalid filter count {}",
-                self.device_path, filter_count
-            )));
-        }
 
-        self.filter_count = filter_count;
         self.connected = true;
         tracing::info!(
-            "Connected to FLI filter wheel: {} ({} positions)",
+            "Connected to FLI filter wheel {} at '{}' ({} positions, serial {:?})",
             self.name,
-            self.filter_count
+            filename,
+            self.filter_count,
+            self.serial
         );
 
         Ok(())
@@ -182,6 +160,8 @@ impl FilterWheelDriver for FliFilterWheel {
 
         let sdk = FliSdk::lock().await?;
 
+        // libfli's FLISetFilterPos returns when the wheel has arrived (it homes
+        // first on the oldest wheels), so is_moving reads false after it.
         // SAFETY: self.handle is valid (connected=true checked); `position` was bounds-checked against filter_count earlier in this function.
         let result = unsafe { (sdk.set_filter_pos)(self.handle, position as c_long) };
         check_fli_error(result, "set filter position")?;
@@ -211,15 +191,37 @@ impl FilterWheelDriver for FliFilterWheel {
     }
 
     async fn get_filter_names(&self) -> Result<Vec<String>, DriverError> {
-        // FLI SDK doesn't store filter names, return generic names
-        let names: Vec<String> = (0..self.filter_count)
-            .map(|i| format!("Filter {}", i + 1))
-            .collect();
-        Ok(names)
+        let generic = |i: i32| format!("Filter {}", i + 1);
+        if !self.connected {
+            return Ok((0..self.filter_count).map(generic).collect());
+        }
+
+        // The wheel firmware holds a default name per slot (NINA
+        // FLIFilterWheel.Filters); a slot without one gets a generic name.
+        let sdk = FliSdk::lock().await?;
+        Ok((0..self.filter_count)
+            .map(|i| {
+                let mut buf = [0 as c_char; 64];
+                // SAFETY: self.handle is open; buf is a 64-byte stack array and its length is passed truthfully.
+                let result = unsafe {
+                    (sdk.get_filter_name)(self.handle, i as c_long, buf.as_mut_ptr(), buf.len())
+                };
+                // SAFETY: libfli clears the buffer before filling it, so it is NUL-terminated.
+                let name = (result == 0)
+                    .then(|| {
+                        unsafe { CStr::from_ptr(buf.as_ptr()) }
+                            .to_string_lossy()
+                            .trim()
+                            .to_string()
+                    })
+                    .filter(|name| !name.is_empty());
+                name.unwrap_or_else(|| generic(i))
+            })
+            .collect())
     }
 
     async fn set_filter_name(&mut self, _position: i32, _name: String) -> Result<(), DriverError> {
-        // FLI SDK doesn't support storing filter names
+        // libfli has no call to store a filter name
         Ok(())
     }
 }

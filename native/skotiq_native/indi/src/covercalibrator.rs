@@ -22,6 +22,7 @@
 
 use crate::client::IndiClient;
 use crate::error::{IndiError, IndiResult};
+use crate::protocol::names::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -94,54 +95,31 @@ impl IndiCoverCalibrator {
         }
     }
 
-    pub fn device_name(&self) -> &str {
-        &self.device_name
-    }
-
-    pub async fn connect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.connect_device(&self.device_name).await
-    }
-
-    pub async fn disconnect(&self) -> IndiResult<()> {
-        let mut client = self.client.write().await;
-        client.disconnect_device(&self.device_name).await
-    }
-
-    pub async fn is_connected(&self) -> bool {
-        let client = self.client.read().await;
-        client.is_device_connected(&self.device_name).await
-    }
-
     /// Open the cover (unpark dust cap)
     pub async fn open_cover(&self) -> IndiResult<()> {
         let mut client = self.client.write().await;
 
         // Try CAP_PARK first (common INDI standard)
-        if set_switch_when_defined(&mut client, &self.device_name, "CAP_PARK", "UNPARK").await? {
+        if set_switch_when_defined(&mut client, &self.device_name, CAP_PARK, UNPARK).await? {
             return Ok(());
         }
 
         // Try DUST_CAP variants used by some flat panels
-        for element in ["CAP_UNPARK", "UNPARK", "OPEN", "DUST_CAP_OPEN"] {
-            if set_switch_when_defined(&mut client, &self.device_name, "DUST_CAP", element).await? {
+        for element in [CAP_UNPARK, UNPARK, OPEN, DUST_CAP_OPEN] {
+            if set_switch_when_defined(&mut client, &self.device_name, DUST_CAP, element).await? {
                 return Ok(());
             }
         }
 
         // Try DUSTCAP_CONTROL alternative
-        if set_switch_when_defined(&mut client, &self.device_name, "DUSTCAP_CONTROL", "OPEN")
-            .await?
-        {
+        if set_switch_when_defined(&mut client, &self.device_name, DUSTCAP_CONTROL, OPEN).await? {
             return Ok(());
         }
 
         // Try LIGHTBOX_CONTROL alternative (Pegasus FlatMaster and similar
         // integrated lightbox-with-shutter devices expose a single switch
         // vector with OPEN / CLOSE elements).
-        if set_switch_when_defined(&mut client, &self.device_name, "LIGHTBOX_CONTROL", "OPEN")
-            .await?
-        {
+        if set_switch_when_defined(&mut client, &self.device_name, LIGHTBOX_CONTROL, OPEN).await? {
             return Ok(());
         }
 
@@ -155,29 +133,25 @@ impl IndiCoverCalibrator {
         let mut client = self.client.write().await;
 
         // Try CAP_PARK first (common INDI standard)
-        if set_switch_when_defined(&mut client, &self.device_name, "CAP_PARK", "PARK").await? {
+        if set_switch_when_defined(&mut client, &self.device_name, CAP_PARK, PARK).await? {
             return Ok(());
         }
 
         // Try DUST_CAP variants used by some flat panels
-        for element in ["CAP_PARK", "PARK", "CLOSE", "CLOSED", "DUST_CAP_CLOSE"] {
-            if set_switch_when_defined(&mut client, &self.device_name, "DUST_CAP", element).await? {
+        for element in [CAP_PARK, PARK, CLOSE, CLOSED, DUST_CAP_CLOSE] {
+            if set_switch_when_defined(&mut client, &self.device_name, DUST_CAP, element).await? {
                 return Ok(());
             }
         }
 
         // Try DUSTCAP_CONTROL alternative
-        if set_switch_when_defined(&mut client, &self.device_name, "DUSTCAP_CONTROL", "CLOSE")
-            .await?
-        {
+        if set_switch_when_defined(&mut client, &self.device_name, DUSTCAP_CONTROL, CLOSE).await? {
             return Ok(());
         }
 
         // Try LIGHTBOX_CONTROL alternative — see open_cover() for the
         // Pegasus FlatMaster rationale.
-        if set_switch_when_defined(&mut client, &self.device_name, "LIGHTBOX_CONTROL", "CLOSE")
-            .await?
-        {
+        if set_switch_when_defined(&mut client, &self.device_name, LIGHTBOX_CONTROL, CLOSE).await? {
             return Ok(());
         }
 
@@ -191,16 +165,16 @@ impl IndiCoverCalibrator {
         let mut client = self.client.write().await;
 
         // Try standard abort property
-        if set_switch_when_defined(&mut client, &self.device_name, "CAP_ABORT", "ABORT").await? {
+        if set_switch_when_defined(&mut client, &self.device_name, CAP_ABORT, ABORT).await? {
             return Ok(());
         }
 
         // Some devices use generic abort
-        if set_switch_when_defined(&mut client, &self.device_name, "ABORT", "ABORT").await? {
+        if set_switch_when_defined(&mut client, &self.device_name, ABORT, ABORT).await? {
             return Ok(());
         }
 
-        if set_switch_when_defined(&mut client, &self.device_name, "DUST_CAP", "ABORT").await? {
+        if set_switch_when_defined(&mut client, &self.device_name, DUST_CAP, ABORT).await? {
             return Ok(());
         }
 
@@ -213,18 +187,18 @@ impl IndiCoverCalibrator {
         let client = self.client.read().await;
 
         let is_parked = client
-            .get_switch(&self.device_name, "CAP_PARK", "PARK")
+            .get_switch(&self.device_name, CAP_PARK, PARK)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
         let is_unparked = client
-            .get_switch(&self.device_name, "CAP_PARK", "UNPARK")
+            .get_switch(&self.device_name, CAP_PARK, UNPARK)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
 
         // Check if property is busy (moving)
-        if client.is_property_busy(&self.device_name, "CAP_PARK").await {
+        if client.is_property_busy(&self.device_name, CAP_PARK).await {
             return IndiCoverState::Moving;
         }
 
@@ -236,7 +210,7 @@ impl IndiCoverCalibrator {
         }
 
         // Try DUST_CAP alternative
-        for property in ["DUST_CAP", "DUSTCAP_CONTROL"] {
+        for property in [DUST_CAP, DUSTCAP_CONTROL] {
             if client.is_property_busy(&self.device_name, property).await {
                 return IndiCoverState::Moving;
             }
@@ -245,7 +219,7 @@ impl IndiCoverCalibrator {
                 &client,
                 &self.device_name,
                 property,
-                &["CAP_PARK", "PARK", "CLOSE", "CLOSED", "DUST_CAP_CLOSED"],
+                &[CAP_PARK, PARK, CLOSE, CLOSED, DUST_CAP_CLOSED],
             )
             .await
             .unwrap_or(false)
@@ -256,7 +230,7 @@ impl IndiCoverCalibrator {
                 &client,
                 &self.device_name,
                 property,
-                &["CAP_UNPARK", "UNPARK", "OPEN", "DUST_CAP_OPEN"],
+                &[CAP_UNPARK, UNPARK, OPEN, DUST_CAP_OPEN],
             )
             .await
             .unwrap_or(false)
@@ -266,7 +240,7 @@ impl IndiCoverCalibrator {
         }
 
         if client
-            .is_property_busy(&self.device_name, "FLAT_COVER_STATE")
+            .is_property_busy(&self.device_name, FLAT_COVER_STATE)
             .await
         {
             return IndiCoverState::Moving;
@@ -274,8 +248,8 @@ impl IndiCoverCalibrator {
         if switch_any_on(
             &client,
             &self.device_name,
-            "FLAT_COVER_STATE",
-            &["FLAT_COVER_CLOSED", "COVER_CLOSED", "CLOSED", "PARKED"],
+            FLAT_COVER_STATE,
+            &[FLAT_COVER_CLOSED, COVER_CLOSED, CLOSED, PARKED],
         )
         .await
         .unwrap_or(false)
@@ -285,8 +259,8 @@ impl IndiCoverCalibrator {
         if switch_any_on(
             &client,
             &self.device_name,
-            "FLAT_COVER_STATE",
-            &["FLAT_COVER_OPEN", "COVER_OPEN", "OPEN", "UNPARKED"],
+            FLAT_COVER_STATE,
+            &[FLAT_COVER_OPEN, COVER_OPEN, OPEN, UNPARKED],
         )
         .await
         .unwrap_or(false)
@@ -296,8 +270,8 @@ impl IndiCoverCalibrator {
         if switch_any_on(
             &client,
             &self.device_name,
-            "FLAT_COVER_STATE",
-            &["FLAT_COVER_MOVING", "COVER_MOVING", "MOVING"],
+            FLAT_COVER_STATE,
+            &[FLAT_COVER_MOVING, COVER_MOVING, MOVING],
         )
         .await
         .unwrap_or(false)
@@ -307,8 +281,8 @@ impl IndiCoverCalibrator {
         if switch_any_on(
             &client,
             &self.device_name,
-            "FLAT_COVER_STATE",
-            &["FLAT_COVER_ERROR", "COVER_ERROR", "ERROR"],
+            FLAT_COVER_STATE,
+            &[FLAT_COVER_ERROR, COVER_ERROR, ERROR],
         )
         .await
         .unwrap_or(false)
@@ -318,18 +292,18 @@ impl IndiCoverCalibrator {
 
         // Try DUSTCAP_CONTROL alternative
         let is_closed = client
-            .get_switch(&self.device_name, "DUSTCAP_CONTROL", "CLOSE")
+            .get_switch(&self.device_name, DUSTCAP_CONTROL, CLOSE)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
         let is_open = client
-            .get_switch(&self.device_name, "DUSTCAP_CONTROL", "OPEN")
+            .get_switch(&self.device_name, DUSTCAP_CONTROL, OPEN)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
 
         if client
-            .is_property_busy(&self.device_name, "DUSTCAP_CONTROL")
+            .is_property_busy(&self.device_name, DUSTCAP_CONTROL)
             .await
         {
             return IndiCoverState::Moving;
@@ -346,18 +320,18 @@ impl IndiCoverCalibrator {
         // integrated lightbox-with-shutter devices). Single switch vector
         // with OPEN / CLOSE elements.
         let lb_closed = client
-            .get_switch(&self.device_name, "LIGHTBOX_CONTROL", "CLOSE")
+            .get_switch(&self.device_name, LIGHTBOX_CONTROL, CLOSE)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
         let lb_open = client
-            .get_switch(&self.device_name, "LIGHTBOX_CONTROL", "OPEN")
+            .get_switch(&self.device_name, LIGHTBOX_CONTROL, OPEN)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
 
         if client
-            .is_property_busy(&self.device_name, "LIGHTBOX_CONTROL")
+            .is_property_busy(&self.device_name, LIGHTBOX_CONTROL)
             .await
         {
             return IndiCoverState::Moving;
@@ -373,11 +347,11 @@ impl IndiCoverCalibrator {
         // Check if cover properties exist at all
         let properties = client.get_properties(&self.device_name).await;
         let has_cover = properties.iter().any(|p| {
-            p.name == "CAP_PARK"
-                || p.name == "DUST_CAP"
-                || p.name == "DUSTCAP_CONTROL"
-                || p.name == "FLAT_COVER_STATE"
-                || p.name == "LIGHTBOX_CONTROL"
+            p.name == CAP_PARK
+                || p.name == DUST_CAP
+                || p.name == DUSTCAP_CONTROL
+                || p.name == FLAT_COVER_STATE
+                || p.name == LIGHTBOX_CONTROL
         });
 
         if has_cover {
@@ -397,8 +371,8 @@ impl IndiCoverCalibrator {
             let _ = set_number_when_defined(
                 &mut client,
                 &self.device_name,
-                "FLAT_LIGHT_INTENSITY",
-                "FLAT_LIGHT_INTENSITY_VALUE",
+                FLAT_LIGHT_INTENSITY,
+                FLAT_LIGHT_INTENSITY_VALUE,
                 // Why: i32 brightness -> f64 (INDI wire); lossless.
                 f64::from(brightness),
             )
@@ -408,8 +382,8 @@ impl IndiCoverCalibrator {
             let _ = set_number_when_defined(
                 &mut client,
                 &self.device_name,
-                "LIGHTBOX_BRIGHTNESS",
-                "BRIGHTNESS",
+                LIGHTBOX_BRIGHTNESS,
+                BRIGHTNESS,
                 // Why: i32 brightness -> f64 (INDI wire); lossless.
                 f64::from(brightness),
             )
@@ -421,8 +395,8 @@ impl IndiCoverCalibrator {
         if set_switch_when_defined(
             &mut client,
             &self.device_name,
-            "FLAT_LIGHT_CONTROL",
-            "FLAT_LIGHT_ON",
+            FLAT_LIGHT_CONTROL,
+            FLAT_LIGHT_ON,
         )
         .await?
         {
@@ -433,8 +407,8 @@ impl IndiCoverCalibrator {
         if set_number_when_defined(
             &mut client,
             &self.device_name,
-            "LIGHTBOX_BRIGHTNESS",
-            "BRIGHTNESS",
+            LIGHTBOX_BRIGHTNESS,
+            BRIGHTNESS,
             // Why: i32 brightness clamped to >= 1, -> f64 (INDI wire); lossless.
             f64::from(brightness.max(1)),
         )
@@ -455,8 +429,8 @@ impl IndiCoverCalibrator {
         if set_switch_when_defined(
             &mut client,
             &self.device_name,
-            "FLAT_LIGHT_CONTROL",
-            "FLAT_LIGHT_OFF",
+            FLAT_LIGHT_CONTROL,
+            FLAT_LIGHT_OFF,
         )
         .await?
         {
@@ -467,8 +441,8 @@ impl IndiCoverCalibrator {
         if set_number_when_defined(
             &mut client,
             &self.device_name,
-            "FLAT_LIGHT_INTENSITY",
-            "FLAT_LIGHT_INTENSITY_VALUE",
+            FLAT_LIGHT_INTENSITY,
+            FLAT_LIGHT_INTENSITY_VALUE,
             0.0,
         )
         .await?
@@ -480,8 +454,8 @@ impl IndiCoverCalibrator {
         if set_number_when_defined(
             &mut client,
             &self.device_name,
-            "LIGHTBOX_BRIGHTNESS",
-            "BRIGHTNESS",
+            LIGHTBOX_BRIGHTNESS,
+            BRIGHTNESS,
             0.0,
         )
         .await?
@@ -498,19 +472,19 @@ impl IndiCoverCalibrator {
         let client = self.client.read().await;
 
         let is_on = client
-            .get_switch(&self.device_name, "FLAT_LIGHT_CONTROL", "FLAT_LIGHT_ON")
+            .get_switch(&self.device_name, FLAT_LIGHT_CONTROL, FLAT_LIGHT_ON)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
         let is_off = client
-            .get_switch(&self.device_name, "FLAT_LIGHT_CONTROL", "FLAT_LIGHT_OFF")
+            .get_switch(&self.device_name, FLAT_LIGHT_CONTROL, FLAT_LIGHT_OFF)
             .await
             // Why: see the module's `unwrap_or(false)` policy — INDI switch absent → try next vocabulary.
             .unwrap_or(false);
 
         // Check if property is busy (stabilizing)
         if client
-            .is_property_busy(&self.device_name, "FLAT_LIGHT_CONTROL")
+            .is_property_busy(&self.device_name, FLAT_LIGHT_CONTROL)
             .await
         {
             return IndiCalibratorState::NotReady;
@@ -527,8 +501,8 @@ impl IndiCoverCalibrator {
         if let Some(brightness) = client
             .get_number(
                 &self.device_name,
-                "FLAT_LIGHT_INTENSITY",
-                "FLAT_LIGHT_INTENSITY_VALUE",
+                FLAT_LIGHT_INTENSITY,
+                FLAT_LIGHT_INTENSITY_VALUE,
             )
             .await
         {
@@ -541,7 +515,7 @@ impl IndiCoverCalibrator {
 
         // Check LIGHTBOX_BRIGHTNESS alternative
         if let Some(brightness) = client
-            .get_number(&self.device_name, "LIGHTBOX_BRIGHTNESS", "BRIGHTNESS")
+            .get_number(&self.device_name, LIGHTBOX_BRIGHTNESS, BRIGHTNESS)
             .await
         {
             if brightness > 0.0 {
@@ -554,9 +528,9 @@ impl IndiCoverCalibrator {
         // Check if calibrator properties exist at all
         let properties = client.get_properties(&self.device_name).await;
         let has_calibrator = properties.iter().any(|p| {
-            p.name == "FLAT_LIGHT_CONTROL"
-                || p.name == "FLAT_LIGHT_INTENSITY"
-                || p.name == "LIGHTBOX_BRIGHTNESS"
+            p.name == FLAT_LIGHT_CONTROL
+                || p.name == FLAT_LIGHT_INTENSITY
+                || p.name == LIGHTBOX_BRIGHTNESS
         });
 
         if has_calibrator {
@@ -574,8 +548,8 @@ impl IndiCoverCalibrator {
         if let Some(brightness) = client
             .get_number(
                 &self.device_name,
-                "FLAT_LIGHT_INTENSITY",
-                "FLAT_LIGHT_INTENSITY_VALUE",
+                FLAT_LIGHT_INTENSITY,
+                FLAT_LIGHT_INTENSITY_VALUE,
             )
             .await
         {
@@ -586,7 +560,7 @@ impl IndiCoverCalibrator {
 
         // Try LIGHTBOX_BRIGHTNESS alternative
         if let Some(brightness) = client
-            .get_number(&self.device_name, "LIGHTBOX_BRIGHTNESS", "BRIGHTNESS")
+            .get_number(&self.device_name, LIGHTBOX_BRIGHTNESS, BRIGHTNESS)
             .await
         {
             // Why: INDI wire f64 -> i32 brightness. Real brightness values are
@@ -607,8 +581,8 @@ impl IndiCoverCalibrator {
         if set_number_when_defined(
             &mut client,
             &self.device_name,
-            "FLAT_LIGHT_INTENSITY",
-            "FLAT_LIGHT_INTENSITY_VALUE",
+            FLAT_LIGHT_INTENSITY,
+            FLAT_LIGHT_INTENSITY_VALUE,
             // Why: i32 brightness -> f64 (INDI wire); lossless.
             f64::from(brightness),
         )
@@ -621,8 +595,8 @@ impl IndiCoverCalibrator {
         if set_number_when_defined(
             &mut client,
             &self.device_name,
-            "LIGHTBOX_BRIGHTNESS",
-            "BRIGHTNESS",
+            LIGHTBOX_BRIGHTNESS,
+            BRIGHTNESS,
             // Why: i32 brightness -> f64 (INDI wire); lossless.
             f64::from(brightness),
         )
@@ -642,8 +616,8 @@ impl IndiCoverCalibrator {
         if let Some(limits) = client
             .get_number_limits(
                 &self.device_name,
-                "FLAT_LIGHT_INTENSITY",
-                "FLAT_LIGHT_INTENSITY_VALUE",
+                FLAT_LIGHT_INTENSITY,
+                FLAT_LIGHT_INTENSITY_VALUE,
             )
             .await
         {
@@ -654,7 +628,7 @@ impl IndiCoverCalibrator {
         }
 
         if let Some(limits) = client
-            .get_number_limits(&self.device_name, "LIGHTBOX_BRIGHTNESS", "BRIGHTNESS")
+            .get_number_limits(&self.device_name, LIGHTBOX_BRIGHTNESS, BRIGHTNESS)
             .await
         {
             if let Some(max) = limits.max {

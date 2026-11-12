@@ -24,7 +24,8 @@ void main() {
   test('every notification server, the cloud backup target and the Home '
       'Assistant row say where the host sends a credential', () {
     for (final key in [
-      for (final kind in NotificationTransportKind.values) kind.settingKey,
+      for (final kind in NotificationTransportKind.values)
+        'notification_transport_${kind.name}',
       SyncSettingsKeys.serverUrl,
       SyncSettingsKeys.username,
       SyncSettingsKeys.s3Endpoint,

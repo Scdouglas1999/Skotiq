@@ -26,7 +26,10 @@ class DefectMapBuildButton extends ConsumerStatefulWidget {
 
 class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
   bool _picking = false;
-  int _operationGeneration = 0;
+
+  /// The pick-and-build in progress. A host change, or the card moving to
+  /// another camera or temperature, drops it.
+  late final _operations = ref.backendScopes(alive: () => mounted);
 
   @override
   void didUpdateWidget(covariant DefectMapBuildButton oldWidget) {
@@ -34,7 +37,7 @@ class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
     if (oldWidget.cameraId != widget.cameraId ||
         oldWidget.temperatureC != widget.temperatureC ||
         oldWidget.isRemoteMode != widget.isRemoteMode) {
-      _operationGeneration++;
+      _operations.cancelAll();
       _picking = false;
     }
   }
@@ -48,50 +51,39 @@ class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
       return;
     }
 
-    final generation = ++_operationGeneration;
-    final authority = ref.read(backendProvider);
+    final operation = _operations.beginLatest();
     setState(() => _picking = true);
     try {
       if (widget.isRemoteMode) {
         await _pickHostDirectoryAndBuild(
-          generation,
-          authority,
+          operation,
           cameraId,
           temperatureC,
         );
       } else {
         await _pickLocalFilesAndBuild(
-          generation,
-          authority,
+          operation,
           cameraId,
           temperatureC,
         );
       }
     } catch (error) {
-      if (!mounted ||
-          generation != _operationGeneration ||
-          !identical(ref.read(backendProvider), authority) ||
-          widget.cameraId != cameraId) {
-        return;
-      }
+      if (!mounted || !_isCurrent(operation, cameraId)) return;
       context.showErrorSnackBar('Could not select dark frames: ${userFacingError(error)}');
     } finally {
-      if (mounted && generation == _operationGeneration) {
-        setState(() => _picking = false);
-      }
+      if (operation.isCurrent) setState(() => _picking = false);
     }
   }
 
   /// Local path: pick the dark FITS/XISF files with the OS file picker and
   /// build from their absolute paths.
   Future<void> _pickLocalFilesAndBuild(
-    int generation,
-    SkotiqBackend authority,
+    AsyncScope<SkotiqBackend> operation,
     String cameraId,
     double temperatureC,
   ) async {
     final paths = await ref.read(defectMapLocalDarkPickerProvider)();
-    if (paths.isEmpty || !_isCurrent(generation, authority, cameraId)) return;
+    if (paths.isEmpty || !_isCurrent(operation, cameraId)) return;
 
     if (paths.length < DefectMapService.minRequiredDarkFrames) {
       if (!mounted) return;
@@ -109,20 +101,19 @@ class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
       darkFramePaths: paths,
       sensorTemperatureCelsius: temperatureC,
     );
-    if (_isCurrent(generation, authority, cameraId)) _reportResult();
+    if (_isCurrent(operation, cameraId)) _reportResult();
   }
 
   /// Remote path: the host owns the dark frames, so the operator picks a host
   /// directory. The host enumerates the FITS/XISF darks under it and builds
   /// the map there — no frame data crosses the wire.
   Future<void> _pickHostDirectoryAndBuild(
-    int generation,
-    SkotiqBackend authority,
+    AsyncScope<SkotiqBackend> operation,
     String cameraId,
     double temperatureC,
   ) async {
     final directory = await ref.read(defectMapHostDarkPickerProvider)(context);
-    if (directory == null || !_isCurrent(generation, authority, cameraId)) {
+    if (directory == null || !_isCurrent(operation, cameraId)) {
       return;
     }
 
@@ -133,7 +124,7 @@ class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
       darkFramesDirectory: directory,
       sensorTemperatureCelsius: temperatureC,
     );
-    if (_isCurrent(generation, authority, cameraId)) _reportResult();
+    if (_isCurrent(operation, cameraId)) _reportResult();
   }
 
   void _reportResult() {
@@ -150,7 +141,7 @@ class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
   Widget build(BuildContext context) {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (_picking && previous != null && !identical(previous, next)) {
-        _operationGeneration++;
+        _operations.cancelAll();
         setState(() => _picking = false);
       }
     });
@@ -181,16 +172,8 @@ class _DefectMapBuildButtonState extends ConsumerState<DefectMapBuildButton> {
     );
   }
 
-  bool _isCurrent(
-    int generation,
-    SkotiqBackend authority,
-    String cameraId,
-  ) {
-    return mounted &&
-        generation == _operationGeneration &&
-        identical(ref.read(backendProvider), authority) &&
-        widget.cameraId == cameraId;
-  }
+  bool _isCurrent(AsyncScope<SkotiqBackend> operation, String cameraId) =>
+      operation.isCurrent && widget.cameraId == cameraId;
 }
 
 class _ApplyToggle extends ConsumerWidget {

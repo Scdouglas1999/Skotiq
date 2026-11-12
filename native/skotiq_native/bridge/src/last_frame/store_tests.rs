@@ -42,6 +42,7 @@ fn fixture_frame(marker: u16) -> StoredFrame {
                 bits_per_pixel: 16,
             },
         },
+        stars: Default::default(),
     }
 }
 

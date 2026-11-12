@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart';
@@ -191,7 +192,7 @@ Future<IntegrityRecoveryReport> _checkAndRecover(
 }) async {
   final String failureReason;
   try {
-    failureReason = _checkIntegrity(
+    failureReason = await _checkIntegrity(
       dbFile.path,
       mode: OpenMode.readOnly,
       full: full,
@@ -214,7 +215,7 @@ Future<IntegrityRecoveryReport> _checkAndRecover(
       // crash recovery.
       final String retry;
       try {
-        retry = _checkIntegrity(
+        retry = await _checkIntegrity(
           dbFile.path,
           mode: OpenMode.readWrite,
           full: full,
@@ -351,7 +352,17 @@ Future<bool> fullCheckRequestedAtNextStart(Directory dbDirectory) =>
 /// against [path]. Returns an empty string when the database is healthy, or
 /// the joined failure rows when it is not. Propagates [SqliteException] to
 /// the caller for classification.
-String _checkIntegrity(
+///
+/// On its own isolate: the check reads every page, which on a rig's database
+/// (180 MB after a season) is seconds from a cold disk, and the caller's
+/// isolate is the one that paints.
+Future<String> _checkIntegrity(
+  String path, {
+  required OpenMode mode,
+  required bool full,
+}) => Isolate.run(() => _checkIntegrityHere(path, mode: mode, full: full));
+
+String _checkIntegrityHere(
   String path, {
   required OpenMode mode,
   required bool full,
@@ -652,7 +663,7 @@ Future<QuarantinedDatabaseCheck> inspectQuarantinedDatabase(
     // Read-only: inspecting evidence must never modify it. A backup that
     // needs journal replay reports SQLITE_READONLY here and is honestly
     // described as "could not be verified" rather than "corrupt".
-    final failure = _checkIntegrity(
+    final failure = await _checkIntegrity(
       backupPath,
       mode: OpenMode.readOnly,
       full: true,

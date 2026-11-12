@@ -895,11 +895,12 @@ fn pin_mosaic(pins: &mut Pins) {
     let panels = vec![
         MosaicPanel {
             image: left,
-            wcs: WcsInfo::from_plate_solve(5.5, 22.0, 0.0, scale, 400, 400),
+            wcs: skotiq_imaging::SipWcs::from_pointing(5.5, 22.0, 0.0, scale, 400, 400).cd_only(),
         },
         MosaicPanel {
             image: right,
-            wcs: WcsInfo::from_plate_solve(5.5 - 0.01, 22.02, 1.5, scale, 400, 400),
+            wcs: skotiq_imaging::SipWcs::from_pointing(5.5 - 0.01, 22.02, 1.5, scale, 400, 400)
+                .cd_only(),
         },
     ];
     match stitch_mosaic(&panels, &MosaicStitchConfig::default()) {
@@ -947,11 +948,13 @@ fn pin_resampling(pins: &mut Pins) {
         let panels = vec![
             MosaicPanel {
                 image: left,
-                wcs: WcsInfo::from_plate_solve(5.5, 22.0, 0.0, scale, 400, 400),
+                wcs: skotiq_imaging::SipWcs::from_pointing(5.5, 22.0, 0.0, scale, 400, 400)
+                    .cd_only(),
             },
             MosaicPanel {
                 image: right,
-                wcs: WcsInfo::from_plate_solve(5.5 - 0.01, 22.02, 1.5, scale, 400, 400),
+                wcs: skotiq_imaging::SipWcs::from_pointing(5.5 - 0.01, 22.02, 1.5, scale, 400, 400)
+                    .cd_only(),
             },
         ];
         for (name, interp) in kernels {
@@ -1246,8 +1249,8 @@ fn pin_recipe(pins: &mut Pins) {
 }
 
 fn pin_wcs(pins: &mut Pins) {
-    let info = WcsInfo::from_plate_solve(5.5, 22.0, 33.0, 1.9, 4656, 3520);
-    pins.add_debug("wcs/info.from_plate_solve", &info);
+    let info = skotiq_imaging::SipWcs::from_pointing(5.5, 22.0, 33.0, 1.9, 4656, 3520).cd_only();
+    pins.add_debug("wcs/from_pointing.cd_only", &info);
     let mut header = FitsHeader::new();
     add_wcs_headers(&mut header, &info);
     pins.add("wcs/info.header", header_digest(&header));

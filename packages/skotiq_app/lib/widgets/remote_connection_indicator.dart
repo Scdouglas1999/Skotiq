@@ -79,7 +79,10 @@ class _RemoteConnectionIndicatorState
   Duration? _latency;
   StreamSubscription<Duration>? _latencySubscription;
   RemoteHost? _trackedBackend;
-  int _backendGeneration = 0;
+
+  /// The link the latency and heartbeat readings come from; readings that
+  /// arrive after a host change are dropped.
+  late final _links = ref.backendScopes(alive: () => mounted);
   Timer? _answerTimer;
   int? _unansweredSeconds;
 
@@ -91,7 +94,6 @@ class _RemoteConnectionIndicatorState
 
   @override
   void dispose() {
-    _backendGeneration++;
     _latencySubscription?.cancel();
     _answerTimer?.cancel();
     super.dispose();
@@ -102,7 +104,7 @@ class _RemoteConnectionIndicatorState
   /// (connect / disconnect / reconnect creates a new instance).
   void _attachToBackend(SkotiqBackend backend) {
     if (identical(backend.remoteHost, _trackedBackend)) return;
-    final generation = ++_backendGeneration;
+    final link = _links.beginLatest();
     _latencySubscription?.cancel();
     _latencySubscription = null;
     _answerTimer?.cancel();
@@ -116,18 +118,14 @@ class _RemoteConnectionIndicatorState
       // seconds to tens of seconds. Look at the heartbeat every second.
       _unansweredSeconds = unansweredSecondsFor(linkedHost.link);
       _answerTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-        if (!mounted || !identical(_trackedBackend, linkedHost)) return;
+        if (link.isStale) return;
         final seconds = unansweredSecondsFor(linkedHost.link);
         if (seconds != _unansweredSeconds) {
           setState(() => _unansweredSeconds = seconds);
         }
       });
       _latencySubscription = linkedHost.link.latencyStream.listen((value) {
-        if (!mounted ||
-            generation != _backendGeneration ||
-            !identical(_trackedBackend, linkedHost)) {
-          return;
-        }
+        if (link.isStale) return;
         setState(() => _latency = value);
       });
     } else {
@@ -434,7 +432,9 @@ class _RemoteConnectionSheetState
     extends ConsumerState<_RemoteConnectionSheet> {
   bool _reconnecting = false;
   bool _disconnecting = false;
-  int _reconnectGeneration = 0;
+
+  /// The reconnect in progress; a host change drops it.
+  late final _reconnects = ref.backendScopes(alive: () => mounted);
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
 
   @override
@@ -446,7 +446,7 @@ class _RemoteConnectionSheetState
         if (!_reconnecting || previous == null || identical(previous, next)) {
           return;
         }
-        _reconnectGeneration++;
+        _reconnects.cancelAll();
         if (mounted) setState(() => _reconnecting = false);
       },
     );
@@ -454,15 +454,14 @@ class _RemoteConnectionSheetState
 
   @override
   void dispose() {
-    _reconnectGeneration++;
     _backendSubscription?.close();
     super.dispose();
   }
 
   Future<void> _handleReconnect() async {
     if (_reconnecting) return;
-    final backend = ref.read(backendProvider);
-    final linkedHost = backend.remoteHost;
+    final reconnect = _reconnects.beginLatest();
+    final linkedHost = reconnect.value.remoteHost;
     if (linkedHost == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -473,27 +472,19 @@ class _RemoteConnectionSheetState
       }
       return;
     }
-    final generation = ++_reconnectGeneration;
     setState(() => _reconnecting = true);
     try {
       await linkedHost.link.reconnectNow();
     } catch (e) {
-      if (mounted && _isCurrentReconnect(generation, backend)) {
+      if (mounted && reconnect.isCurrent) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Reconnect failed: ${userFacingError(e)}')),
         );
       }
     } finally {
-      if (_isCurrentReconnect(generation, backend)) {
-        setState(() => _reconnecting = false);
-      }
+      if (reconnect.isCurrent) setState(() => _reconnecting = false);
     }
   }
-
-  bool _isCurrentReconnect(int generation, SkotiqBackend backend) =>
-      mounted &&
-      generation == _reconnectGeneration &&
-      identical(ref.read(backendProvider), backend);
 
   Future<void> _handleDisconnect() async {
     if (_disconnecting) return;

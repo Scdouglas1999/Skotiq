@@ -29,7 +29,7 @@ impl GuiderOps for UnifiedDeviceOps {
             settle_timeout,
         )
         .await
-        .map_err(|e| format!("Dither failed: {}", e).into())
+        .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))
     }
 
     async fn guider_get_status(&self) -> DeviceResult<GuidingStatus> {
@@ -38,7 +38,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .ok_or(DeviceError::NO_GUIDER)?;
         let status = api_guider_get_status(guider_id)
             .await
-            .map_err(|e| format!("Failed to get guiding status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))?;
 
         Ok(GuidingStatus {
             is_guiding: status.state == "Guiding",
@@ -54,7 +54,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .ok_or(DeviceError::NO_GUIDER)?;
         let status = api_guider_get_status(guider_id)
             .await
-            .map_err(|e| format!("Failed to get guiding status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))?;
         Ok(guider_state_may_move_mount(&status.state))
     }
 
@@ -64,7 +64,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .ok_or(DeviceError::NO_GUIDER)?;
         let calib = crate::api::phd2::api_guider_get_calibration(guider_id)
             .await
-            .map_err(|e| format!("Failed to get guider calibration: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))?;
         Ok(GuidingCalibration {
             is_calibrated: calib.is_calibrated,
             ra_angle_deg: calib.ra_angle,
@@ -85,7 +85,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .ok_or(DeviceError::NO_GUIDER)?;
         api_guider_start_guiding(guider_id, settle_pixels, settle_time, settle_timeout)
             .await
-            .map_err(|e| format!("Start guiding failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))
     }
 
     async fn guider_select_fresh_star(&self) -> DeviceResult<()> {
@@ -95,7 +95,7 @@ impl GuiderOps for UnifiedDeviceOps {
         crate::api::phd2::select_fresh_guide_star(&guider_id, None)
             .await
             .map(|_| ())
-            .map_err(|e| e.to_string().into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))
     }
 
     async fn guider_select_fresh_star_above(
@@ -108,7 +108,7 @@ impl GuiderOps for UnifiedDeviceOps {
         crate::api::phd2::select_fresh_guide_star(&guider_id, Some(floor))
             .await
             .map(|_| ())
-            .map_err(|e| e.to_string().into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))
     }
 
     async fn guider_star_quality(
@@ -119,7 +119,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .ok_or(DeviceError::NO_GUIDER)?;
         let status = api_guider_get_status(guider_id)
             .await
-            .map_err(|e| format!("Failed to get guiding status: {}", e))?;
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))?;
         Ok((status.snr > 0.0 && status.star_mass > 0.0).then_some(
             skotiq_sequencer::GuideStarQuality {
                 snr: status.snr,
@@ -136,7 +136,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .ok_or(DeviceError::NO_GUIDER)?;
         crate::api::phd2::guider_stop_for_run(guider_id)
             .await
-            .map_err(|e| format!("Stop guiding failed: {}", e).into())
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Guider))
     }
 
     async fn guider_note_stop_reason(&self, reason: Option<skotiq_sequencer::GuidingStopReason>) {

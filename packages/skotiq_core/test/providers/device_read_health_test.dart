@@ -50,6 +50,36 @@ void main() {
     );
   });
 
+  // Every poll of every connected device ends in a good read; telling the
+  // listeners each time recomputed Tonight's panels and cost a frame per poll.
+  test('a good read after a good read tells no one', () {
+    var now = t0;
+    final reads = DeviceReadHealthNotifier(now: () => now);
+    var told = 0;
+    reads.addListener((_) => told++, fireImmediately: false);
+
+    reads.recordSuccess(DeviceType.mount, 'ascom:NYX');
+    for (var i = 1; i <= 30; i++) {
+      now = t0.add(Duration(seconds: 2 * i));
+      reads.recordSuccess(DeviceType.mount, 'ascom:NYX');
+    }
+    expect(told, 1, reason: 'only the first read changes what is known');
+
+    now = now.add(const Duration(seconds: 2));
+    reads.recordFailure(DeviceType.mount, 'ascom:NYX', 'x');
+    reads.recordFailure(DeviceType.mount, 'ascom:NYX', 'x');
+    expect(
+      staleReadingsFor(
+        reads.state,
+        const {},
+        DeviceType.mount,
+        'ascom:NYX',
+      )!.since,
+      t0.add(const Duration(seconds: 60)),
+      reason: 'the stale age still counts from the last good read',
+    );
+  });
+
   test('another device in the slot is not stale for this one', () {
     final reads = DeviceReadHealthNotifier();
     reads.recordFailure(DeviceType.camera, 'native:zwo:1', 'x');

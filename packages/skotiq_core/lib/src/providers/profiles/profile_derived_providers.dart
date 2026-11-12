@@ -105,16 +105,23 @@ final opticalConfigProvider = Provider<OpticalConfig?>((ref) {
       : (profile.telescopeAperture ?? 0);
 
   // Try to get camera capabilities if camera is connected
-  final cameraState = ref.watch(cameraStateProvider);
+  final camera = ref.watch(
+    cameraStateProvider.select(
+      (c) => (
+        id: c.connectionState == DeviceConnectionState.connected
+            ? c.deviceId
+            : null,
+        name: c.deviceName,
+      ),
+    ),
+  );
+  final cameraId = camera.id;
   int? sensorWidth;
   int? sensorHeight;
   double? pixelSize;
 
-  if (cameraState.deviceId != null &&
-      cameraState.connectionState == DeviceConnectionState.connected) {
-    final capabilitiesAsync = ref.watch(
-      cameraCapabilitiesProvider(cameraState.deviceId!),
-    );
+  if (cameraId != null) {
+    final capabilitiesAsync = ref.watch(cameraCapabilitiesProvider(cameraId));
     final CameraCapabilities? capabilities = capabilitiesAsync.valueOrNull;
 
     if (capabilities != null) {
@@ -139,7 +146,7 @@ final opticalConfigProvider = Provider<OpticalConfig?>((ref) {
     focalLength: effectiveFocalLength > 0 ? effectiveFocalLength : null,
     aperture: effectiveAperture > 0 ? effectiveAperture : null,
     focalRatio: profile.focalRatio,
-    cameraName: profile.cameraName ?? cameraState.deviceName,
+    cameraName: profile.cameraName ?? camera.name,
     sensorWidth: sensorWidth,
     sensorHeight: sensorHeight,
     pixelSize: pixelSize,

@@ -13,6 +13,7 @@ import '../../../widgets/slew_dropdown_button.dart';
 import '../widgets/meridian_flip_countdown_banner.dart' show pierSideLabel;
 import '../widgets/panel_widgets.dart';
 import '../../../router/app_routes.dart';
+import '../../../utils/watch_while_shown.dart';
 
 /// The trailing half of [SlewDropdownButton]: a 4px gap and the popup that
 /// opens the slew alternatives, which is an `IconButton` at Material's minimum
@@ -110,7 +111,7 @@ class _MountTabState extends ConsumerState<MountTab> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).extension<SkotiqColors>()!;
-    final mountState = ref.watch(mountStateProvider);
+    final mountState = ref.watchWhileShown(context, mountStateProvider);
     // Watch the persisted text state so validation and the command payload
     // rebuild on every edit. Reading only the TextEditingControllers inside a
     // Builder left the disabled/enabled state and captured coordinates stale.
