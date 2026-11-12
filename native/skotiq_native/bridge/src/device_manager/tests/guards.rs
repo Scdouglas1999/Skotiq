@@ -141,7 +141,11 @@ fn escalate_to_disconnect_is_a_per_device_type_property() {
 
     // SafetyMonitor heartbeat is only a liveness hint; the independent
     // IsSafe signal owns enclosure safety decisions.
-    assert!(!policy(DeviceType::SafetyMonitor).heartbeat.escalate_to_disconnect);
+    assert!(
+        !policy(DeviceType::SafetyMonitor)
+            .heartbeat
+            .escalate_to_disconnect
+    );
 }
 
 #[tokio::test]

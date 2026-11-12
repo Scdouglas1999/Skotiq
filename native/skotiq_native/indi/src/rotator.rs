@@ -149,7 +149,12 @@ impl skotiq_device::RotatorDriver for IndiRotator {
     async fn move_absolute(&self, position_deg: f64) -> Result<(), skotiq_device::DriverError> {
         let mut client = self.client.write().await;
         Ok(client
-            .set_number(&self.device_name, "ABS_ROTATOR_ANGLE", "ANGLE", position_deg)
+            .set_number(
+                &self.device_name,
+                "ABS_ROTATOR_ANGLE",
+                "ANGLE",
+                position_deg,
+            )
             .await?)
     }
 
@@ -179,7 +184,12 @@ impl skotiq_device::RotatorDriver for IndiRotator {
     async fn sync(&self, position_deg: f64) -> Result<(), skotiq_device::DriverError> {
         let mut client = self.client.write().await;
         Ok(client
-            .set_number(&self.device_name, "SYNC_ROTATOR_ANGLE", "ANGLE", position_deg)
+            .set_number(
+                &self.device_name,
+                "SYNC_ROTATOR_ANGLE",
+                "ANGLE",
+                position_deg,
+            )
             .await?)
     }
 

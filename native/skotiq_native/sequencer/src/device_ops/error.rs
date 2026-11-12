@@ -187,6 +187,8 @@ mod tests {
         let flattened = format!("Dither failed after frame 3/8: {}", DeviceError::NO_GUIDER);
         assert!(message_says_no_guider_configured(&flattened));
         assert!(!message_says_no_guider_configured("Guide star lost"));
-        assert!(!message_says_no_guider_configured("PHD2 connection refused"));
+        assert!(!message_says_no_guider_configured(
+            "PHD2 connection refused"
+        ));
     }
 }

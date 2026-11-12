@@ -1725,7 +1725,6 @@ pub async fn api_save_fits_from_last_capture(
     Ok(())
 }
 
-
 // Image processing
 
 /// Auto-stretch image for display. Returns RGBA (4 bytes per pixel, alpha=255).
@@ -2042,7 +2041,6 @@ fn generate_fits_thumbnail_jpeg(file_path: &str, max_size: u32) -> Result<Vec<u8
 
     Ok(jpeg_data)
 }
-
 
 /// Calibrate an image file using dark, flat, and/or bias calibration frames.
 ///
@@ -2784,9 +2782,7 @@ pub async fn api_defect_map_get_status(
     }))
 }
 
-
 // Image grading: round-trip test for the rich-header save path.
-
 
 #[cfg(test)]
 mod exposure_failure_classification_tests;
@@ -2797,14 +2793,11 @@ mod sim_exposure_tests;
 #[cfg(test)]
 mod auto_stretch_color_tests;
 
-
 #[cfg(test)]
 mod calibrate_header_carry_over_tests;
-
 
 #[cfg(test)]
 mod fits_thumbnail_tests;
 
 #[cfg(test)]
 mod detect_stars_in_file_tests;
-

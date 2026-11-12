@@ -471,9 +471,7 @@ impl DeviceManager {
             // operation: just wait for the next poll at the base cadence. The
             // camera's and mount's own heartbeats are deliberately NOT
             // suppressed (the camera is the one we most need to keep watching).
-            if policy(device_type).yields_to_camera_usb
-                && manager.is_usb_contended()
-            {
+            if policy(device_type).yields_to_camera_usb && manager.is_usb_contended() {
                 current_interval = Duration::from_secs(config.base_interval_secs);
                 if consecutive_failures == 0 {
                     manager.note_heartbeat_deferred(&device_id_clone).await;

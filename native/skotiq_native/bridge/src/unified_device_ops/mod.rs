@@ -54,7 +54,6 @@
 //!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
 //!   lives.
 
-
 use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
 use crate::api::*;
 use crate::device::DeviceType;
