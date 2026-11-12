@@ -263,7 +263,10 @@ class _StepRow extends StatelessWidget {
       PlanStepStatus.active => colors.textPrimary,
       PlanStepStatus.pending => colors.textSecondary,
       PlanStepStatus.failed => colors.error,
-      PlanStepStatus.done || PlanStepStatus.skipped => colors.textMuted,
+      PlanStepStatus.done ||
+      PlanStepStatus.skipped ||
+      PlanStepStatus.stopped =>
+        colors.textMuted,
     };
     final (icon, iconColor) = switch (step.status) {
       PlanStepStatus.done => (LucideIcons.check, colors.textMuted),
@@ -273,6 +276,7 @@ class _StepRow extends StatelessWidget {
       PlanStepStatus.pending => (LucideIcons.dot, colors.textSecondary),
       PlanStepStatus.failed => (LucideIcons.x, colors.error),
       PlanStepStatus.skipped => (LucideIcons.skipForward, colors.textMuted),
+      PlanStepStatus.stopped => (LucideIcons.square, colors.textMuted),
     };
     final when = _when(step.when);
     final statusText = l10n.text(switch (step.status) {
@@ -282,6 +286,7 @@ class _StepRow extends StatelessWidget {
       PlanStepStatus.pending => 'nightCtlStepPending',
       PlanStepStatus.failed => 'nightCtlStepFailed',
       PlanStepStatus.skipped => 'nightCtlStepSkipped',
+      PlanStepStatus.stopped => 'nightCtlStepStopped',
     });
     final indent = (step.depth.clamp(0, 4) * 6).toDouble();
 

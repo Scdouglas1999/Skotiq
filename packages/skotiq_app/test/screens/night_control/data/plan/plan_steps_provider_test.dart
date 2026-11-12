@@ -124,6 +124,32 @@ void main() {
     expect(header.framesTotal, isNull);
   });
 
+  // A step the operator's Stop ended ran, and may have taken frames; a step
+  // the run passed over did not. The list told both as "skipped".
+  test('a step the operator stopped is stopped, not skipped', () {
+    final container = planContainer(
+      now: evening,
+      sequence: TwoTargetPlan().sequence,
+      execution: SequenceExecutionState.running,
+      session: SessionState(
+        isActive: true,
+        startTime: DateTime(2026, 10, 19, 19, 50),
+      ),
+      progress: const SequenceProgress(
+        state: SequenceExecutionState.running,
+        nodeStatuses: {
+          'm74-l': NodeStatus.cancelled,
+          'ngc891-ha': NodeStatus.skipped,
+        },
+      ),
+    );
+    addTearDown(container.dispose);
+
+    final steps = container.read(nightPlanStepsProvider);
+    expect(steps[0].status, PlanStepStatus.stopped);
+    expect(steps[1].status, PlanStepStatus.skipped);
+  });
+
   test('statuses a previous run left do not mark a waiting plan done', () {
     final container = planContainer(
       now: evening,

@@ -46,7 +46,8 @@ PlanStepStatus _statusOf(NodeStatus? status) => switch (status) {
       NodeStatus.success => PlanStepStatus.done,
       NodeStatus.running => PlanStepStatus.active,
       NodeStatus.failure => PlanStepStatus.failed,
-      NodeStatus.skipped || NodeStatus.cancelled => PlanStepStatus.skipped,
+      NodeStatus.skipped => PlanStepStatus.skipped,
+      NodeStatus.cancelled => PlanStepStatus.stopped,
       NodeStatus.pending || null => PlanStepStatus.pending,
     };
 
@@ -130,7 +131,8 @@ final nightPlanStepsProvider = Provider<List<PlanStepVm>>((ref) {
                 : planned(id);
           case PlanStepStatus.done ||
                 PlanStepStatus.failed ||
-                PlanStepStatus.skipped:
+                PlanStepStatus.skipped ||
+                PlanStepStatus.stopped:
             final finished = status == PlanStepStatus.done
                 ? recorded.succeededAt(id)
                 : recorded.completed[id];
