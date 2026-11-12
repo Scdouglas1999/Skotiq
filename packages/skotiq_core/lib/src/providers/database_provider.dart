@@ -229,6 +229,19 @@ final allDbImagesProvider = StreamProvider<List<db.CapturedImage>>((ref) {
   return ref.watch(imagesDaoProvider).watchAllImages();
 });
 
+/// Whether the imaging host has stored any frame.
+final hasCapturedImagesProvider = Provider<AsyncValue<bool>>((ref) {
+  if (ref.watch(remoteImageRowsProvider) != null) {
+    // A linked client already holds the host's rows.
+    return ref.watch(allDbImagesProvider).whenData((rows) => rows.isNotEmpty);
+  }
+  return ref.watch(_localHasCapturedImagesProvider);
+});
+
+final _localHasCapturedImagesProvider = StreamProvider<bool>(
+  (ref) => ref.watch(imagesDaoProvider).watchHasAnyImage(),
+);
+
 /// A linked client's copy of the imaging host's `captured_images` rows; null
 /// on a process with its own database.
 final remoteImageRowsProvider = Provider<RemoteImageRows?>((ref) {
