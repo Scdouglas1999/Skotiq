@@ -281,6 +281,9 @@ bool isPhd2DeviceId(String id) => isPhd2WireToken(id.trim().toLowerCase());
 /// `bridge/src/builtin_guider/config.rs`.
 const String kBuiltinGuiderIdPrefix = 'native:builtin_guider:';
 
+/// The device ID used by the built-in multi-star guider.
+const String builtinGuiderDeviceId = 'native:builtin_guider:multi_star';
+
 /// Display name the backend itself advertises for the built-in guider
 /// (`bridge/src/api/discovery.rs`, the Guider arm). Kept identical here so a
 /// device id and a discovery record never produce two different names for the

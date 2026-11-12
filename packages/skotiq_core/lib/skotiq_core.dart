@@ -256,6 +256,7 @@ export 'src/providers/clock_provider.dart';
 export 'src/models/equipment_profile_model.dart';
 export 'src/providers/profiles_provider.dart';
 export 'src/providers/armed_start_provider.dart';
+export 'src/models/sequencer/host_scheduled_start.dart';
 export 'src/providers/host_scheduled_start_provider.dart';
 export 'src/providers/host_end_of_night_provider.dart';
 export 'src/providers/profile_activation_writethrough.dart';
@@ -444,6 +445,7 @@ export 'src/utils/device_id.dart'
         friendlyNameFromDeviceId,
         kBuiltinGuiderDisplayName,
         kBuiltinGuiderIdPrefix,
+        builtinGuiderDeviceId,
         kSimulatorDeviceDisplayNames,
         kPhd2CanonicalId,
         kPhd2DisplayName;
