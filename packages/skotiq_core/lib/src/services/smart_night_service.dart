@@ -11,7 +11,7 @@ import '../models/notification/notification_categories.dart'
 import '../models/planning/target_suggestion.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';
-import '../providers/profiles_provider.dart' show EquipmentProfileModel;
+import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import 'logging_service.dart';
 import 'hardware_presets/hardware_presets_service.dart';
 import 'smart_night/camera_capture_defaults.dart';

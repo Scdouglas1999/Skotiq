@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
-import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 
 /// The slave-side UI model [EquipmentProfileModel] round-trips every field the
 /// slave edits losslessly through the REST wire model in BOTH directions —

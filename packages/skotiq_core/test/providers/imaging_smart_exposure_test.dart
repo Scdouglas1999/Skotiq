@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/providers/imaging_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/session_optimizer_provider.dart';
 import 'package:skotiq_core/src/services/session_optimizer_service.dart';
 import 'package:skotiq_core/src/services/smart_night/exposure_calculator.dart';

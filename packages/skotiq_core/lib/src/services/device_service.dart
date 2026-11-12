@@ -6,6 +6,7 @@ import 'device_service/connect_attempts.dart';
 import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/device_property_events.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart' show settingsDaoProvider;
 import '../providers/focuser_backlash_provider.dart'

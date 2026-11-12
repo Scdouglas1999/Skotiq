@@ -1,4 +1,16 @@
-part of '../profiles_provider.dart';
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show Value;
+import 'package:logging/logging.dart';
+
+import '../database/database.dart'
+    show EquipmentProfile, EquipmentProfilesCompanion;
+import '../services/optical_train_limits.dart';
+import '../utils/json_validation.dart';
+import 'backend/device_types.dart' show DeviceType;
+import 'equipment_profile.dart' as remote_profile;
+
+final _log = Logger('ProfilesProvider');
 
 /// A fully-typed model representing an equipment profile
 class EquipmentProfileModel {

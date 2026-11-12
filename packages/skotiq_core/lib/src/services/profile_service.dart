@@ -15,6 +15,7 @@ import '../providers/device_connection_progress_provider.dart'
     show guideCameraLabel;
 import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
+import '../models/equipment_profile_model.dart';
 import '../providers/profile_activation_writethrough.dart';
 import 'logging_service.dart';
 import '../providers/settings_provider.dart';

@@ -12,6 +12,7 @@ import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/sequence/rules/smart_exposure_rules.dart';
 import 'package:skotiq_core/src/models/sequence/validation/rules/smart_exposure_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';

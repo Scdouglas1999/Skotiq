@@ -252,6 +252,7 @@ export 'src/models/site/location_settings.dart';
 // Direct importers of site_horizon_profile.dart still see it.
 export 'src/models/site/site_horizon_profile.dart' hide HorizonProfile;
 export 'src/providers/clock_provider.dart';
+export 'src/models/equipment_profile_model.dart';
 export 'src/providers/profiles_provider.dart';
 export 'src/providers/armed_start_provider.dart';
 export 'src/providers/host_scheduled_start_provider.dart';
