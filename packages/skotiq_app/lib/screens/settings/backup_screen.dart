@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -627,16 +626,16 @@ class _AutoSaveStatusCard extends ConsumerWidget {
                 label: 'Last Sequence Save',
                 value: status.lastSequenceSave == null
                     ? 'Never'
-                    : DateFormat('MMM d, yyyy HH:mm')
-                        .format(status.lastSequenceSave!),
+                    : ClockFormat.monthDayYearHm(
+                        status.lastSequenceSave!.toLocal(),
+                      ),
               ),
               const SizedBox(height: 12),
               _StatusRow(
                 label: 'Last Full Backup',
                 value: status.lastBackup == null
                     ? 'Never'
-                    : DateFormat('MMM d, yyyy HH:mm')
-                        .format(status.lastBackup!),
+                    : ClockFormat.monthDayYearHm(status.lastBackup!.toLocal()),
               ),
               if (status.lastError != null) ...[
                 const SizedBox(height: 12),
@@ -874,7 +873,7 @@ class _BackupTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
     final isAutoSave = backup.fileName.contains('autosave');
-    final timestamp = DateFormat('MMM d, yyyy HH:mm').format(backup.createdAt);
+    final timestamp = ClockFormat.monthDayYearHm(backup.createdAt.toLocal());
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

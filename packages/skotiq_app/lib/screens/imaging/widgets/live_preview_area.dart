@@ -7,6 +7,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:path/path.dart' as p;
 import '../../../widgets/raw_preview_status_badge.dart';
+import '../../../utils/frame_rows_hold.dart';
 import '../../../utils/preview_transform.dart';
 import '../../../widgets/catalog_overlay_widget.dart';
 import 'annotation_widgets.dart';
@@ -15,7 +16,6 @@ import 'depthlock/depthlock_region_layer.dart';
 import 'depthlock/depthlock_selection.dart';
 
 import 'frame_science_chip.dart';
-import 'frame_science_selection.dart';
 import 'fullscreen_image_viewer.dart';
 import 'guiding_active_chip.dart';
 import 'image_display.dart';
@@ -128,6 +128,8 @@ double _bottomCornerOffset({
 final previewReadoutsVisibleProvider = StateProvider<bool>((ref) => true);
 
 class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
+  final _frameTiles = FrameRowsHold<ScienceTileMetricRow>();
+
   /// The bottom-left science / guiding stack's laid-out width; zero while
   /// both chips hide themselves.
   double _bottomLeftReadoutsWidth = 0;
@@ -219,15 +221,23 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
       sessionVectors: sessionResidualVectors,
       capturedImageId: currentFrameImageId,
     );
-    final sessionTileMetrics = sessionId != null
-        ? ref.watch(sessionTileMetricsProvider(sessionId)).valueOrNull ??
-            const <ScienceTileMetricRow>[]
-        : ref.watch(sessionlessTileMetricsProvider).valueOrNull ??
-            const <ScienceTileMetricRow>[];
-    final currentFrameTileMetrics = _selectCurrentFrameTileMetrics(
-      sessionTiles: sessionTileMetrics,
-      capturedImageId: currentFrameImageId,
-    );
+    final currentFrameTileMetrics = sessionId != null
+        ? _frameTiles.rowsFor(
+            sessionId,
+            ref
+                .watch(
+                  frameTileMetricsProvider(
+                    (sessionId: sessionId, capturedImageId: currentFrameImageId),
+                  ),
+                )
+                .valueOrNull,
+          )
+        : _selectCurrentFrameTileMetrics(
+            sessionTiles:
+                ref.watch(sessionlessTileMetricsProvider).valueOrNull ??
+                    const <ScienceTileMetricRow>[],
+            capturedImageId: currentFrameImageId,
+          );
     final uniformityTiles = currentFrameTileMetrics
         .where(
           (tile) => tile.layerType == ScienceLayerType.uniformity.dbValue,

@@ -9,6 +9,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/skotiq_core.dart';
 import 'package:skotiq_desktop/headless_api/handlers/guiding_handlers.dart';
+import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
@@ -236,6 +237,54 @@ void main() {
       expect(calibration['isCalibrated'], isTrue);
       expect(calibration['raAngle'], 10.2);
       expect(calibration['raRate'], 16.0);
+    });
+
+    test('dithering a paused guider is a conflict with a plain sentence', () async {
+      final backend = _MockBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(
+        () => backend.guiderDither(
+          amount: any(named: 'amount'),
+          raOnly: any(named: 'raOnly'),
+          settlePixels: any(named: 'settlePixels'),
+          settleTime: any(named: 'settleTime'),
+          settleTimeout: any(named: 'settleTimeout'),
+        ),
+      ).thenThrow(
+        const bridge.SkotiqError.invalidState(
+          'Guiding is paused. Resume guiding before dithering.',
+        ),
+      );
+      final hostContainer = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(hostContainer.dispose);
+
+      final handlers = GuidingHandlers(hostContainer);
+      final response = await errorTranslationMiddleware(
+        logError: (_, {fields}) {},
+        requestIdFor: (_) => 'test-request-id',
+      )(handlers.handleGuiderDither)(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/guider/dither'),
+          body: jsonEncode({'amount': 3.0}),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.conflict);
+      final body = jsonDecode(await response.readAsString()) as Map;
+      expect(body['error'], 'device_error');
+      expect(
+        body['message'],
+        'Guiding is paused. Resume guiding before dithering.',
+      );
     });
 
     test('pause and resume reach the host guider', () async {

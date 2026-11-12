@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
+import 'package:skotiq_core/src/models/sequence/sequence_editor_exceptions.dart';
 import 'package:skotiq_core/src/services/sequence_diff_service.dart';
 
 /// Coverage for [CurrentSequenceNotifier.loadCopyForEditing] — the copy-on-open

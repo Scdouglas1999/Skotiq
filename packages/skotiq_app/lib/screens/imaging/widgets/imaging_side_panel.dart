@@ -97,18 +97,24 @@ class ImagingSectionBody extends StatelessWidget {
     // IndexedStack keeps every section's own state (a half-typed field, a
     // guiding graph's history) alive while another one is on screen, exactly
     // as the tab panel did.
+    // Hidden sections run no tickers, and the ones that follow telemetry
+    // stop following it (see `watchWhileShown`).
+    final sections = <Widget>[
+      CapturePanel(colors: colors),
+      _CameraSection(colors: colors),
+      FocusPanel(key: ImagingTutorialKeys.focusTab, colors: colors),
+      GuidingPanel(colors: colors),
+      MountTab(key: ImagingTutorialKeys.mountTab),
+      _FilterWheelSection(colors: colors),
+      RotatorPanel(colors: colors),
+      AnnotationTabPanel(colors: colors),
+      DepthLockPanel(colors: colors),
+    ];
     return IndexedStack(
       index: section,
       children: <Widget>[
-        CapturePanel(colors: colors),
-        _CameraSection(colors: colors),
-        FocusPanel(key: ImagingTutorialKeys.focusTab, colors: colors),
-        GuidingPanel(colors: colors),
-        MountTab(key: ImagingTutorialKeys.mountTab),
-        _FilterWheelSection(colors: colors),
-        RotatorPanel(colors: colors),
-        AnnotationTabPanel(colors: colors),
-        DepthLockPanel(colors: colors),
+        for (var i = 0; i < sections.length; i++)
+          TickerMode(enabled: i == section, child: sections[i]),
       ],
     );
   }

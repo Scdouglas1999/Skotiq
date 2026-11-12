@@ -742,7 +742,6 @@ fn interrupted_checkpoint(sequence: &SequenceDefinition) -> crate::checkpoint::S
     checkpoint.set_trigger_state(crate::checkpoint::TriggerStateSnapshot::from_state(
         &trigger_state,
         crate::SafetyFailMode::default(),
-        true,
         HashMap::new(),
     ));
     checkpoint

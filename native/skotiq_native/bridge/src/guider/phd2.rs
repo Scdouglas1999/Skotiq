@@ -5,7 +5,7 @@
 use super::stop_reason;
 use super::{GuideStarImage, GuiderCalibration, GuiderStatus};
 use crate::api::{get_device_manager, get_state};
-use crate::device::{ConnectionState, DeviceInfo, DeviceType, DriverType};
+use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::error::SkotiqError;
 use crate::event::{EventSeverity, GuidingEvent};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -235,14 +235,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
     let mut storage = client_slot().write().await;
     *storage = Some(client);
 
-    // Register the live PHD2 guider in BOTH device registries.
-    //
-    // AppState is the registry `Guider::active` and the storage API read.
-    // DeviceManager is what `api_get_connected_devices` /
-    // `api_is_device_connected` — the Dart-facing answers — actually read, and
-    // PHD2 never wrote it: the app reported "no guider connected" on every
-    // surface a user looks at while the sequencer guided through this very
-    // client. PHD2 owns its own socket (opened above), so it registers as
+    // PHD2 owns its own socket (opened above), so it registers as
     // already-connected rather than going through `connect_device`.
     let phd2_device_info = DeviceInfo {
         id: DEVICE_ID.to_string(),
@@ -255,9 +248,6 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
         unique_id: None,
         display_name: "PHD2 Guiding".to_string(),
     };
-    get_state()
-        .register_device(phd2_device_info.clone(), ConnectionState::Connected)
-        .await;
     get_device_manager()
         .register_connected_device(phd2_device_info)
         .await;
@@ -274,12 +264,8 @@ pub(crate) async fn disconnect() -> Result<(), SkotiqError> {
         client.disconnect();
     }
 
-    // Remove PHD2 from BOTH registries it was registered in by
-    // `connect`. `unregister_device` (a plain map removal) — never
-    // `disconnect_device`, which routes PHD2 ids back here and would recurse.
-    get_state()
-        .remove_device(DeviceType::Guider, DEVICE_ID)
-        .await;
+    // `unregister_device` (a plain map removal), never `disconnect_device`,
+    // which routes PHD2 ids back here and would recurse.
     get_device_manager().unregister_device(DEVICE_ID).await;
 
     get_state().publish_guiding_event(GuidingEvent::Disconnected, EventSeverity::Info);
@@ -965,16 +951,13 @@ mod client_slot_tests {
     }
 }
 
-// A PHD2 connect must be visible to the connected-devices API.
+// A PHD2 connect must be visible to the connected-devices API: PHD2 owns its
+// socket, so nothing registers it unless `connect` does, and every surface
+// would report "no guider connected" while the sequencer guided through it all
+// night.
 //
-// `api_get_connected_devices` / `api_is_device_connected` read the
-// **DeviceManager** registry, so writing only the **AppState** mirror would have
-// every surface that asks those two APIs report "no guider connected" while
-// `get_active_guider_id_for_ops` resolves `phd2_guider` and the sequencer guides
-// through it all night.
-//
-// These tests drive the real `api_phd2_connect` against a mock PHD2 socket, so
-// they exercise the production connect path end to end rather than a helper.
+// These tests drive the real `connect` against a mock PHD2 socket, so they
+// exercise the production connect path end to end rather than a helper.
 #[cfg(test)]
 mod connected_devices_registry_tests {
     use super::*;
@@ -1043,9 +1026,6 @@ mod connected_devices_registry_tests {
             DEVICE_ID.to_string(),
         )
         .await;
-        let in_app_state = get_state()
-            .is_device_connected(DeviceType::Guider, DEVICE_ID)
-            .await;
 
         disconnect().await.expect("disconnect PHD2");
 
@@ -1055,9 +1035,6 @@ mod connected_devices_registry_tests {
             DEVICE_ID.to_string(),
         )
         .await;
-        let in_app_state_after = get_state()
-            .is_device_connected(DeviceType::Guider, DEVICE_ID)
-            .await;
 
         server.join().expect("mock PHD2 server thread finished");
 
@@ -1070,9 +1047,6 @@ mod connected_devices_registry_tests {
             is_connected,
             "api_is_device_connected must agree that PHD2 is connected"
         );
-        // The guider-state registry that `get_active_guider_id_for_ops` and the
-        // storage API read must keep answering exactly as before.
-        assert!(in_app_state, "the AppState mirror must still carry PHD2");
 
         assert!(
             !listed_after,
@@ -1081,10 +1055,6 @@ mod connected_devices_registry_tests {
         assert!(
             !is_connected_after,
             "api_is_device_connected must report a disconnected PHD2 as gone"
-        );
-        assert!(
-            !in_app_state_after,
-            "the AppState mirror must be cleared too"
         );
     }
 

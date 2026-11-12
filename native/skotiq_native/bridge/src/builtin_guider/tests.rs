@@ -1727,3 +1727,32 @@ async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
     drop(guard);
     reset_guider_state().await;
 }
+
+/// Asking a paused guider to dither, or an idle one to pause, is a request
+/// that does not fit its state: a plain sentence the API answers with 409.
+#[tokio::test]
+async fn a_paused_or_idle_guider_refuses_with_an_invalid_state() {
+    let _serial = test_serial().lock().await;
+    reset_guider_state().await;
+    state().write().await.connected = true;
+
+    match set_paused(true).await {
+        Err(SkotiqError::InvalidState(message)) => {
+            assert!(message.contains("not guiding"), "{message}")
+        }
+        other => panic!("pausing an idle guider: {other:?}"),
+    }
+
+    {
+        let mut guard = state().write().await;
+        guard.guiding = true;
+        guard.paused = true;
+    }
+    match dither(3.0, false, 1.5, 2.0, 10.0).await {
+        Err(SkotiqError::InvalidState(message)) => {
+            assert_eq!(message, "Guiding is paused. Resume guiding before dithering.")
+        }
+        other => panic!("dithering a paused guider: {other:?}"),
+    }
+    reset_guider_state().await;
+}

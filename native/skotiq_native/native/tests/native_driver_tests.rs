@@ -643,6 +643,23 @@ async fn test_unified_discovery_includes_mounts() {
 // These tests are ignored by default and can be run with:
 // cargo test --test native_driver_tests -- --ignored
 
+/// The site a Sky-Watcher hardware test points with, from
+/// `SKYWATCHER_TEST_SITE=<latitude>,<longitude east>`: the motor controller
+/// keeps none of its own.
+fn skywatcher_test_site() -> skotiq_device::SiteSource {
+    let text = std::env::var("SKYWATCHER_TEST_SITE")
+        .expect("set SKYWATCHER_TEST_SITE=<latitude>,<longitude east> for the Sky-Watcher tests");
+    let (lat, lon) = text
+        .split_once(',')
+        .expect("SKYWATCHER_TEST_SITE is <latitude>,<longitude east>");
+    let site = skotiq_device::MountSiteInfo {
+        latitude_deg: lat.trim().parse().expect("latitude"),
+        longitude_deg: lon.trim().parse().expect("longitude"),
+        elevation_m: None,
+    };
+    std::sync::Arc::new(move || Some(site))
+}
+
 /// Test connecting to a Sky-Watcher mount (requires hardware)
 #[tokio::test]
 #[ignore = "Requires Sky-Watcher mount connected"]
@@ -660,7 +677,11 @@ async fn test_skywatcher_mount_connect_disconnect() {
         first_mount.name, first_mount.port
     );
 
-    let mut mount = skywatcher::SkyWatcherMount::new_serial(first_mount.port.clone(), Some(9600));
+    let mut mount = skywatcher::SkyWatcherMount::new_serial(
+        first_mount.port.clone(),
+        Some(first_mount.baud_rate),
+        skywatcher_test_site(),
+    );
 
     mount.connect().await.expect("Should connect successfully");
     assert!(mount.is_connected(), "Should be connected");
@@ -799,7 +820,11 @@ async fn test_skywatcher_mount_slew() {
     }
 
     let first_mount = &mounts[0];
-    let mut mount = skywatcher::SkyWatcherMount::new_serial(first_mount.port.clone(), Some(9600));
+    let mut mount = skywatcher::SkyWatcherMount::new_serial(
+        first_mount.port.clone(),
+        Some(first_mount.baud_rate),
+        skywatcher_test_site(),
+    );
 
     mount.connect().await.expect("Should connect successfully");
 
@@ -1627,10 +1652,20 @@ mod fake_sdk_contract {
             })
             .await
             .expect("FLI start exposure");
-        assert!(camera
-            .is_exposure_complete()
-            .await
-            .expect("FLI exposure complete"));
+        async fn wait_for_frame(camera: &fli::FliCamera) -> bool {
+            for _ in 0..200 {
+                if camera
+                    .is_exposure_complete()
+                    .await
+                    .expect("FLI exposure complete")
+                {
+                    return true;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+            false
+        }
+        assert!(wait_for_frame(&camera).await);
 
         env::set_var("SK_FLI_GRAB_ERROR", "1");
         camera
@@ -1638,6 +1673,21 @@ mod fake_sdk_contract {
             .await
             .expect_err("FLI row grab failure should propagate");
         env::remove_var("SK_FLI_GRAB_ERROR");
+        // The failed download discarded the frame; take another.
+        camera
+            .start_exposure(ExposureParams {
+                duration_secs: 0.01,
+                gain: None,
+                offset: None,
+                bin_x: 2,
+                bin_y: 2,
+                subframe: None,
+                readout_mode: None,
+                frame_type: skotiq_device::FrameType::Light,
+            })
+            .await
+            .expect("FLI start exposure after a failed download");
+        assert!(wait_for_frame(&camera).await);
         let image = camera.download_image().await.expect("FLI image download");
         assert_eq!((image.width, image.height), (32, 24));
         assert_eq!(image.data[0], 1000);
@@ -1676,7 +1726,7 @@ mod fake_sdk_contract {
         let shim_dir = build_single_fake_sdk(
             "moravian",
             "moravian_fake.rs",
-            "gXusb.dll",
+            "gxccd.dll",
             MORAVIAN_FAKE_SDK,
         );
         let old_path = env::var("PATH").unwrap_or_default();
@@ -1763,20 +1813,74 @@ mod fake_sdk_contract {
         env::set_var("PATH", old_path);
     }
 
+    /// The fake XAPI.dll, built once: the driver keeps the SDK it loaded for
+    /// the life of the process, and a loaded DLL cannot be rebuilt in place.
+    /// Holding the returned guard keeps the Fujifilm tests, which share the
+    /// fake's state, the process's current directory and PATH, apart.
+    async fn fujifilm_fake_sdk() -> tokio::sync::MutexGuard<'static, PathBuf> {
+        static FAKE: tokio::sync::OnceCell<tokio::sync::Mutex<PathBuf>> =
+            tokio::sync::OnceCell::const_new();
+        let guard = FAKE
+            .get_or_init(|| async {
+                let dir = build_single_fake_sdk(
+                    "fujifilm",
+                    "fujifilm_fake.rs",
+                    "XAPI.dll",
+                    FUJIFILM_FAKE_SDK,
+                );
+                env::set_current_dir(&dir).expect("switch to fake SDK dir");
+                let path = env::var("PATH").unwrap_or_default();
+                env::set_var("PATH", format!("{};{}", dir.display(), path));
+                tokio::sync::Mutex::new(dir)
+            })
+            .await
+            .lock()
+            .await;
+        fujifilm_fake(&guard, FAKE_RESET);
+        guard
+    }
+
+    const FAKE_RESET: i32 = 0;
+    const FAKE_OPEN: i32 = 1;
+    const FAKE_LIVE: i32 = 2;
+    const FAKE_LIVE_STARTS: i32 = 3;
+    const FAKE_LIVE_QUALITY: i32 = 4;
+    const FAKE_LIVE_SIZE: i32 = 5;
+    const FAKE_DELETES: i32 = 6;
+    const FAKE_FOCUS_MODE: i32 = 7;
+    const FAKE_FOCUS_TARGET: i32 = 8;
+    const FAKE_RELEASES: i32 = 9;
+
+    /// One counter of the fake SDK's state (`SkotiqFake` in the fake source).
+    fn fujifilm_fake(dir: &Path, which: i32) -> i32 {
+        // SAFETY: the fake XAPI.dll built by `fujifilm_fake_sdk` exports `SkotiqFake(c_long) -> c_long`. Loading it by its full path returns the module the driver already loaded, so the counters are the ones the driver's calls changed.
+        unsafe {
+            let library =
+                libloading::Library::new(dir.join("XAPI.dll")).expect("load fake XAPI.dll");
+            let read: libloading::Symbol<unsafe extern "C" fn(i32) -> i32> =
+                library.get(b"SkotiqFake\0").expect("SkotiqFake export");
+            read(which)
+        }
+    }
+
+    fn short_exposure() -> ExposureParams {
+        ExposureParams {
+            duration_secs: 0.01,
+            gain: Some(800),
+            offset: None,
+            bin_x: 1,
+            bin_y: 1,
+            subframe: None,
+            readout_mode: None,
+            frame_type: skotiq_device::FrameType::Light,
+        }
+    }
+
     #[tokio::test]
     #[ignore = "software-only fake SDK contract; run explicitly from compatibility matrix"]
     async fn test_fujifilm_fake_sdk_shim_exercises_session_release_and_model_flows() {
-        let shim_dir = build_single_fake_sdk(
-            "fujifilm",
-            "fujifilm_fake.rs",
-            "XAPI.dll",
-            FUJIFILM_FAKE_SDK,
-        );
-        let old_dir = env::current_dir().expect("read current dir");
-        let old_path = env::var("PATH").unwrap_or_default();
+        let _fake = fujifilm_fake_sdk().await;
         let old_release_error = env::var("SK_FUJIFILM_RELEASE_ERROR").ok();
-        env::set_current_dir(&shim_dir).expect("switch to fake SDK dir");
-        env::set_var("PATH", format!("{};{}", shim_dir.display(), old_path));
         env::remove_var("SK_FUJIFILM_RELEASE_ERROR");
 
         let devices = fujifilm::discover_devices()
@@ -1832,8 +1936,155 @@ mod fake_sdk_contract {
         gfx.disconnect().await.expect("Fujifilm disconnect");
 
         restore_env_var("SK_FUJIFILM_RELEASE_ERROR", old_release_error);
-        env::set_current_dir(old_dir).expect("restore current dir");
-        env::set_var("PATH", old_path);
+    }
+
+    #[tokio::test]
+    #[ignore = "software-only fake SDK contract; run explicitly from compatibility matrix"]
+    async fn test_fujifilm_fake_sdk_live_view_runs_while_previews_are_asked_for() {
+        let fake = fujifilm_fake_sdk().await;
+        let devices = fujifilm::discover_devices()
+            .await
+            .expect("Fujifilm discovery");
+        let mut camera = fujifilm::FujifilmCamera::new(&devices[0]);
+        camera.connect().await.expect("Fujifilm connect");
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_LIVE),
+            0,
+            "connect leaves live view off"
+        );
+
+        let frame = camera.capture_preview().await.expect("first preview");
+        assert_eq!(
+            &frame[..2],
+            &[0xFF, 0xD8],
+            "a preview is the live view JPEG"
+        );
+        assert_eq!(fujifilm_fake(&fake, FAKE_LIVE), 1);
+        assert_eq!(fujifilm_fake(&fake, FAKE_LIVE_QUALITY), 0x0001, "Fine");
+        assert_eq!(fujifilm_fake(&fake, FAKE_LIVE_SIZE), 0x0001, "Large");
+        // The fake reports three frames waiting: the two older ones are
+        // dropped and the newest is read.
+        assert_eq!(fujifilm_fake(&fake, FAKE_DELETES), 2);
+
+        let next = camera.capture_preview().await.expect("second preview");
+        assert_ne!(frame, next, "each preview is a new frame");
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_LIVE_STARTS),
+            1,
+            "live view started once"
+        );
+
+        // The fake refuses to release the shutter while live view runs.
+        camera
+            .start_exposure(short_exposure())
+            .await
+            .expect("an exposure stops live view first");
+        assert_eq!(fujifilm_fake(&fake, FAKE_LIVE), 0);
+        assert_eq!(fujifilm_fake(&fake, FAKE_RELEASES), 1);
+        let refused = camera
+            .capture_preview()
+            .await
+            .expect_err("no preview during an exposure");
+        assert!(refused.to_string().contains("pauses"), "{refused}");
+        camera.abort_exposure().await.expect("abort");
+
+        camera.capture_preview().await.expect("live view resumes");
+        assert_eq!(fujifilm_fake(&fake, FAKE_LIVE_STARTS), 2);
+        camera.disconnect().await.expect("Fujifilm disconnect");
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_LIVE),
+            0,
+            "disconnect stops live view"
+        );
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_OPEN),
+            0,
+            "disconnect closes the body"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "software-only fake SDK contract; run explicitly from compatibility matrix"]
+    async fn test_fujifilm_fake_sdk_lens_focuser_shares_the_camera_session() {
+        let fake = fujifilm_fake_sdk().await;
+        let devices = fujifilm::discover_devices()
+            .await
+            .expect("Fujifilm discovery");
+        let mut camera = fujifilm::FujifilmCamera::new(&devices[0]);
+        camera.connect().await.expect("Fujifilm connect");
+
+        // The fake refuses a second open of an open body, as the SDK does.
+        let mut lens = fujifilm::FujifilmLens::new("FUJI-GFX-0001", "GFX100 II lens");
+        lens.connect()
+            .await
+            .expect("lens connect joins the camera's session");
+        assert_eq!(fujifilm_fake(&fake, FAKE_OPEN), 1);
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_FOCUS_MODE),
+            0x0001,
+            "held in manual focus"
+        );
+        // The fake lens: infinity 100, close 900, 40 and 20 pulses of
+        // over-search, smallest move 3.
+        assert_eq!(lens.get_max_position(), 860);
+        assert_eq!(lens.get_position().await.expect("position"), 100);
+
+        lens.move_to(400).await.expect("move");
+        assert_eq!(fujifilm_fake(&fake, FAKE_FOCUS_TARGET), 460);
+        let started = std::time::Instant::now();
+        while lens.is_moving().await.expect("is_moving") {
+            assert!(
+                started.elapsed() < std::time::Duration::from_secs(5),
+                "the move ends"
+            );
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        // The fake lens rests 30 pulses short; the focuser reports its target.
+        assert_eq!(lens.get_position().await.expect("position"), 400);
+        lens.move_relative(-50).await.expect("relative move");
+        assert_eq!(fujifilm_fake(&fake, FAKE_FOCUS_TARGET), 410);
+        while lens.is_moving().await.expect("is_moving") {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        match lens.move_to(861).await {
+            Err(skotiq_device::DriverError::InvalidParameter(text)) => {
+                assert!(text.contains("0 to 860"), "{text}")
+            }
+            other => panic!("a position past the travel is refused, got {other:?}"),
+        }
+
+        camera.disconnect().await.expect("camera disconnect");
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_OPEN),
+            1,
+            "the lens still holds the body"
+        );
+        lens.get_position().await.expect("the lens keeps working");
+        lens.disconnect().await.expect("lens disconnect");
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_OPEN),
+            0,
+            "the last one closes the body"
+        );
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_FOCUS_MODE),
+            0x8001,
+            "AF-S restored"
+        );
+
+        env::set_var("SK_FUJIFILM_NO_LENS", "1");
+        let mut adapter = fujifilm::FujifilmLens::new("FUJI-GFX-0001", "GFX100 II lens");
+        let refused = adapter.connect().await.expect_err("no electronic lens");
+        env::remove_var("SK_FUJIFILM_NO_LENS");
+        assert!(
+            refused.to_string().contains("no electronic focus"),
+            "{refused}"
+        );
+        assert_eq!(
+            fujifilm_fake(&fake, FAKE_OPEN),
+            0,
+            "a refused lens leaves the body closed"
+        );
     }
 
     fn build_fake_sdks() -> PathBuf {
@@ -2161,143 +2412,204 @@ fn write_cstr(buf:&mut [c_char],text:&[u8]){for b in buf.iter_mut(){*b=0;} for i
 
     const TOUPTEK_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
-use std::ffi::{c_char,c_int,c_uint,c_void};
-use std::sync::atomic::{AtomicI32,AtomicUsize,Ordering};
+use std::ffi::{c_char,c_int,c_uint,c_ushort,c_void};
+use std::sync::atomic::{AtomicI32,AtomicU32,AtomicUsize,Ordering};
+use std::sync::Mutex;
+#[cfg(windows)] type Ch=u16;
+#[cfg(not(windows))] type Ch=c_char;
 #[repr(C)] struct OgmacamResolution{width:c_uint,height:c_uint}
 #[repr(C)] struct OgmacamModelV2{name:*const c_char,flag:u64,maxspeed:c_uint,preview:c_uint,still:c_uint,maxfanspeed:c_uint,ioctrol:c_uint,xpixsz:f32,ypixsz:f32,res:[OgmacamResolution;16]}
-#[repr(C)] struct OgmacamDeviceV2{displayname:[u16;64],id:[u16;64],model:*const OgmacamModelV2}
+#[repr(C)] struct OgmacamDeviceV2{displayname:[Ch;64],id:[Ch;64],model:*const OgmacamModelV2}
 #[repr(C)] struct OgmacamFrameInfoV3{width:c_uint,height:c_uint,flag:c_uint,seq:c_uint}
-static ACTIVE_INDEX:AtomicUsize=AtomicUsize::new(0); static WIDTH:AtomicI32=AtomicI32::new(80); static HEIGHT:AtomicI32=AtomicI32::new(60); static GAIN:AtomicI32=AtomicI32::new(100); static TEMP:AtomicI32=AtomicI32::new(-80);
-fn wide(text:&str)->[u16;64]{let mut out=[0u16;64]; for (i,ch) in text.encode_utf16().take(63).enumerate(){out[i]=ch;} out}
+type Callback=unsafe extern "C" fn(c_uint,*mut c_void);
+const IDS:[&str;2]=["OGMA-COOLED-0001","OGMA-GUIDE-0002"];
+static ACTIVE:AtomicUsize=AtomicUsize::new(0); static ROI_W:AtomicU32=AtomicU32::new(0); static ROI_H:AtomicU32=AtomicU32::new(0); static BIN:AtomicI32=AtomicI32::new(1);
+static GAIN:AtomicI32=AtomicI32::new(100); static TEMP:AtomicI32=AtomicI32::new(-80); static EXPO_US:AtomicU32=AtomicU32::new(0);
+static OPTIONS:Mutex<[c_int;64]>=Mutex::new([0;64]);
+// One lock for the callback context and the trigger generation: Stop/Close take it, so no
+// callback runs after they return, as the real SDK promises.
+static STREAM:Mutex<(usize,u64,bool)>=Mutex::new((0,0,false));
+fn full(index:usize)->(u32,u32){if index==0{(80,60)}else{(40,30)}}
+fn chars(text:&str)->[Ch;64]{let mut out=[0 as Ch;64]; for (i,ch) in text.bytes().take(63).enumerate(){out[i]=ch as Ch;} out}
 // SAFETY: OgmacamResolution is repr(C) POD; an all-zero value is a valid bit pattern.
-fn model(index:usize)->*const OgmacamModelV2{let mut res:[OgmacamResolution;16]=unsafe{std::mem::zeroed()}; res[0]=if index==0{OgmacamResolution{width:80,height:60}}else{OgmacamResolution{width:40,height:30}}; let flags=if index==0{0x80|0x20000|0x200|0x08|0x20}else{0x10|0x20}; let name=if index==0{b"OGMA AP26CC\0".as_ptr()}else{b"OGMA GP2000M\0".as_ptr()}; Box::into_raw(Box::new(OgmacamModelV2{name:name as *const c_char,flag:flags,maxspeed:1,preview:1,still:1,maxfanspeed:0,ioctrol:0,xpixsz:3.76,ypixsz:3.76,res}))}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_EnumV2(devs:*mut OgmacamDeviceV2)->c_uint{if devs.is_null(){return 2;} *devs.add(0)=OgmacamDeviceV2{displayname:wide("OGMA AP26CC"),id:wide("OGMA-COOLED-0001"),model:model(0)}; *devs.add(1)=OgmacamDeviceV2{displayname:wide("OGMA GP2000M"),id:wide("OGMA-GUIDE-0002"),model:model(1)}; 2}
-#[no_mangle] pub extern "C" fn Ogmacam_OpenByIndex(index:c_uint)->*mut c_void{if index>1{return std::ptr::null_mut();} ACTIVE_INDEX.store(index as usize,Ordering::SeqCst); if index==0{WIDTH.store(80,Ordering::SeqCst); HEIGHT.store(60,Ordering::SeqCst);}else{WIDTH.store(40,Ordering::SeqCst); HEIGHT.store(30,Ordering::SeqCst);} (index as usize + 1) as *mut c_void}
-#[no_mangle] pub extern "C" fn Ogmacam_Close(_h:*mut c_void){}
-#[no_mangle] pub extern "C" fn Ogmacam_Stop(_h:*mut c_void)->c_int{0}
+fn model(index:usize)->*const OgmacamModelV2{let mut res:[OgmacamResolution;16]=unsafe{std::mem::zeroed()}; let (w,h)=full(index); res[0]=OgmacamResolution{width:w,height:h}; let flags:u64=if index==0{0x80|0x20000|0x200|0x08|0x20|0x10000|0x0000008000000000}else{0x10|0x20}; let name=if index==0{b"OGMA AP26CC\0".as_ptr()}else{b"OGMA GP2000M\0".as_ptr()}; Box::into_raw(Box::new(OgmacamModelV2{name:name as *const c_char,flag:flags,maxspeed:1,preview:1,still:1,maxfanspeed:if index==0{3}else{0},ioctrol:0,xpixsz:3.76,ypixsz:3.76,res}))}
+fn final_size()->(u32,u32){let bin=BIN.load(Ordering::SeqCst).max(1) as u32; (ROI_W.load(Ordering::SeqCst)/bin,ROI_H.load(Ordering::SeqCst)/bin)}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_EnumV2(devs:*mut OgmacamDeviceV2)->c_uint{if devs.is_null(){return 0;} *devs.add(0)=OgmacamDeviceV2{displayname:chars("OGMA AP26CC"),id:chars(IDS[0]),model:model(0)}; *devs.add(1)=OgmacamDeviceV2{displayname:chars("OGMA GP2000M"),id:chars(IDS[1]),model:model(1)}; 2}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_Open(id:*const c_void)->*mut c_void{if id.is_null(){return std::ptr::null_mut();} let p=id as *const Ch; let mut text=String::new(); let mut i=0; while *p.add(i)!=0{text.push(*p.add(i) as u8 as char); i+=1;} let Some(index)=IDS.iter().position(|known|*known==text) else {return std::ptr::null_mut()}; ACTIVE.store(index,Ordering::SeqCst); let (w,h)=full(index); ROI_W.store(w,Ordering::SeqCst); ROI_H.store(h,Ordering::SeqCst); BIN.store(1,Ordering::SeqCst); *OPTIONS.lock().unwrap()=[0;64]; (index+1) as *mut c_void}
+#[no_mangle] pub extern "C" fn Ogmacam_Close(_h:*mut c_void){let mut s=STREAM.lock().unwrap(); s.2=false; s.1+=1;}
+#[no_mangle] pub extern "C" fn Ogmacam_Stop(_h:*mut c_void)->c_int{let mut s=STREAM.lock().unwrap(); s.2=false; s.1+=1; 0}
 #[no_mangle] pub extern "C" fn Ogmacam_Version()->*const c_char{b"fake-ogma-1.0\0".as_ptr() as *const c_char}
-#[no_mangle] pub extern "C" fn Ogmacam_Snap(_h:*mut c_void,_res:c_uint)->c_int{0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_ExpoTime(_h:*mut c_void,_us:c_uint)->c_int{0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_ExpoTime(_h:*mut c_void,us:c_uint)->c_int{EXPO_US.store(us,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_ExpoAGain(_h:*mut c_void,gain:*mut u16)->c_int{if gain.is_null(){return -1;} *gain=GAIN.load(Ordering::SeqCst) as u16; 0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_ExpoAGain(_h:*mut c_void,gain:u16)->c_int{GAIN.store(gain as i32,Ordering::SeqCst);0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_ExpoAGain(_h:*mut c_void,gain:u16)->c_int{GAIN.store(gain.clamp(100,5000) as i32,Ordering::SeqCst); 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_ExpoAGainRange(_h:*mut c_void,min:*mut u16,max:*mut u16,def:*mut u16)->c_int{if !min.is_null(){*min=100;} if !max.is_null(){*max=5000;} if !def.is_null(){*def=150;} 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Temperature(_h:*mut c_void,temp:*mut i16)->c_int{if !temp.is_null(){*temp=TEMP.load(Ordering::SeqCst) as i16;} 0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_Temperature(_h:*mut c_void,temp:i16)->c_int{TEMP.store(temp as i32,Ordering::SeqCst);0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_Option(_h:*mut c_void,_opt:c_uint,_value:c_int)->c_int{0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_Temperature(_h:*mut c_void,temp:i16)->c_int{TEMP.store(temp as i32,Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_Option(_h:*mut c_void,opt:c_uint,value:c_int)->c_int{if opt as usize>=64{return -1;} if opt==0x17{if value<1||value>4{return -2;} BIN.store(value,Ordering::SeqCst);} OPTIONS.lock().unwrap()[opt as usize]=value; 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Option(_h:*mut c_void,opt:c_uint,value:*mut c_int)->c_int{if value.is_null()||opt as usize>=64{return -1;} let stored=OPTIONS.lock().unwrap()[opt as usize]; *value=match opt{0x2e=>100,0x37=>2,0x07=>1,_=>stored}; 0}
 #[no_mangle] pub unsafe extern "C" fn Ogmacam_get_RawFormat(_h:*mut c_void,fourcc:*mut c_uint,bits:*mut c_uint)->c_int{if !fourcc.is_null(){*fourcc=u32::from_le_bytes(*b"RGGB") as c_uint;} if !bits.is_null(){*bits=12;} 0}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Size(_h:*mut c_void,width:*mut c_int,height:*mut c_int)->c_int{if !width.is_null(){*width=WIDTH.load(Ordering::SeqCst);} if !height.is_null(){*height=HEIGHT.load(Ordering::SeqCst);} 0}
-#[no_mangle] pub extern "C" fn Ogmacam_put_Roi(_h:*mut c_void,_x:c_uint,_y:c_uint,width:c_uint,height:c_uint)->c_int{if width>0&&height>0{WIDTH.store(width as i32,Ordering::SeqCst); HEIGHT.store(height as i32,Ordering::SeqCst);} 0}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_SerialNumber(_h:*mut c_void,buf:*mut c_char)->c_int{if buf.is_null(){return -1;} let text=if ACTIVE_INDEX.load(Ordering::SeqCst)==0{b"OGMA-COOLED-0001\0".as_slice()}else{b"OGMA-GUIDE-0002\0".as_slice()}; for i in 0..text.len(){*buf.add(i)=text[i] as c_char;} 0}
-#[no_mangle] pub unsafe extern "C" fn Ogmacam_PullImageV3(_h:*mut c_void,buf:*mut c_void,_still:c_int,bits:c_int,_row:c_uint,info:*mut OgmacamFrameInfoV3)->c_int{if std::env::var("SK_TOUPTEK_PULL_ERROR").is_ok(){return -7;} if buf.is_null(){return -1;} let w=WIDTH.load(Ordering::SeqCst) as usize; let h=HEIGHT.load(Ordering::SeqCst) as usize; if !info.is_null(){(*info).width=w as c_uint; (*info).height=h as c_uint; (*info).flag=0; (*info).seq=1;} let out=buf as *mut u8; let bytes=if bits==16{2}else{1}; for i in 0..(w*h){let v=3000u16.wrapping_add(i as u16); if bytes==2{*out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;}else{*out.add(i)=v as u8;}} 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_Size(_h:*mut c_void,width:*mut c_int,height:*mut c_int)->c_int{let (w,h)=full(ACTIVE.load(Ordering::SeqCst)); if !width.is_null(){*width=w as c_int;} if !height.is_null(){*height=h as c_int;} 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_FinalSize(_h:*mut c_void,width:*mut c_int,height:*mut c_int)->c_int{let (w,h)=final_size(); if !width.is_null(){*width=w as c_int;} if !height.is_null(){*height=h as c_int;} 0}
+#[no_mangle] pub extern "C" fn Ogmacam_put_Roi(_h:*mut c_void,x:c_uint,y:c_uint,width:c_uint,height:c_uint)->c_int{let (fw,fh)=full(ACTIVE.load(Ordering::SeqCst)); if width==0||height==0||x+width>fw||y+height>fh{return -3;} ROI_W.store(width,Ordering::SeqCst); ROI_H.store(height,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_get_SerialNumber(_h:*mut c_void,buf:*mut c_char)->c_int{if buf.is_null(){return -1;} let text=IDS[ACTIVE.load(Ordering::SeqCst)].as_bytes(); for i in 0..text.len(){*buf.add(i)=text[i] as c_char;} *buf.add(text.len())=0; 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_StartPullModeWithCallback(_h:*mut c_void,callback:Callback,ctx:*mut c_void)->c_int{let mut s=STREAM.lock().unwrap(); s.0=ctx as usize; s.2=true; CALLBACK.store(callback as usize,Ordering::SeqCst); 0}
+static CALLBACK:AtomicUsize=AtomicUsize::new(0);
+#[no_mangle] pub extern "C" fn Ogmacam_Trigger(_h:*mut c_void,number:c_ushort)->c_int{let generation={let mut s=STREAM.lock().unwrap(); if !s.2{return -1;} s.1+=1; s.1}; if number==0{return 0;} let wait=std::time::Duration::from_micros(EXPO_US.load(Ordering::SeqCst) as u64); std::thread::spawn(move||{std::thread::sleep(wait); let s=STREAM.lock().unwrap(); if s.2&&s.1==generation{let event=if std::env::var("SK_TOUPTEK_PULL_ERROR").is_ok(){0x80}else{0x04}; let callback:Callback=unsafe{std::mem::transmute(CALLBACK.load(Ordering::SeqCst))}; unsafe{callback(event,s.0 as *mut c_void)};}}); 0}
+#[no_mangle] pub unsafe extern "C" fn Ogmacam_PullImageV3(_h:*mut c_void,buf:*mut c_void,_still:c_int,_bits:c_int,_row:c_int,info:*mut OgmacamFrameInfoV3)->c_int{if buf.is_null(){return -1;} let (w,h)=final_size(); let (w,h)=(w as usize,h as usize); if !info.is_null(){(*info).width=w as c_uint; (*info).height=h as c_uint; (*info).flag=0; (*info).seq=1;} let out=buf as *mut u8; for i in 0..(w*h){let v=3000u16.wrapping_add((i as u16).wrapping_mul(3)); *out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;} 0}
 "#;
 
     const FLI_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
 use std::ffi::{c_char,c_double,c_long,CStr};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicI64,Ordering};
-static LIST_DOMAIN:AtomicI64=AtomicI64::new(0); static FOCUS_POS:AtomicI64=AtomicI64::new(0); static FILTER_POS:AtomicI64=AtomicI64::new(0);
+use std::time::Instant;
+// Behaves as libfli does for a USB camera, where the driver relies on it: pixel size in meters
+// (libfli-camera-usb.c), FLISetImageArea's lower-right corner is ul + binned size and the camera
+// reads (lr - ul) * bin sensor pixels from ul (libfli.c), FLIGrabRow fails while the exposure
+// runs, a grabbed row is host-endian. Env: SK_FLI_KERNEL_NAMES lists devices under FLI's Linux
+// driver names (/dev/fliusbN); SK_FLI_STATUS_UNKNOWN answers FLI_CAMERA_STATUS_UNKNOWN like a
+// MaxCam; SK_FLI_GRAB_ERROR fails FLIGrabRow; SK_FLI_UNPLUGGED fails every call on an open device.
 const FLIDEVICE_CAMERA:c_long=0x100; const FLIDEVICE_FILTERWHEEL:c_long=0x200; const FLIDEVICE_FOCUSER:c_long=0x300;
+const EIO:c_long=-5; const ENODEV:c_long=-19; const EINVAL:c_long=-22; const ETIMEDOUT:c_long=-110;
+const SENSOR_W:c_long=64; const SENSOR_H:c_long=48;
+static LIST_DOMAIN:AtomicI64=AtomicI64::new(0); static FOCUS_POS:AtomicI64=AtomicI64::new(0); static FILTER_POS:AtomicI64=AtomicI64::new(0);
+struct Cam{area:[c_long;4],hbin:c_long,vbin:c_long,exposure_ms:c_long,setpoint:c_double,started:Option<Instant>,rows_read:c_long,frame_pending:bool,cancels:c_long}
+static CAM:Mutex<Cam>=Mutex::new(Cam{area:[0,0,SENSOR_W,SENSOR_H],hbin:1,vbin:1,exposure_ms:0,setpoint:0.0,started:None,rows_read:0,frame_pending:false,cancels:0});
+fn env(name:&str)->bool{std::env::var_os(name).is_some()}
+fn devices()->[(&'static str,c_long,&'static [u8],&'static [u8]);3]{if env("SK_FLI_KERNEL_NAMES"){[("/dev/fliusb0",FLIDEVICE_CAMERA,b"FLI ProLine PL16803\0",b"PL0001\0"),("/dev/fliusb1",FLIDEVICE_FOCUSER,b"FLI PDF Focuser\0",b"PDF0002\0"),("/dev/fliusb2",FLIDEVICE_FILTERWHEEL,b"FLI CFW-5-7\0",b"CFW0003\0")]}else{[("fake-camera",FLIDEVICE_CAMERA,b"FLI ProLine PL16803\0",b"PL0001\0"),("fake-focuser",FLIDEVICE_FOCUSER,b"FLI PDF Focuser\0",b"PDF0002\0"),("fake-filter",FLIDEVICE_FILTERWHEEL,b"FLI CFW-5-7\0",b"CFW0003\0")]}}
+fn device(kind:c_long)->(&'static str,c_long,&'static [u8],&'static [u8]){devices().into_iter().find(|d|d.1==kind).unwrap()}
 unsafe fn put(buf:*mut c_char,len:usize,text:&[u8]){if buf.is_null(){return;} for i in 0..len{*buf.add(i)=0;} for i in 0..text.len().min(len.saturating_sub(1)){*buf.add(i)=text[i] as c_char;}}
-fn kind_from_domain(domain:c_long)->c_long{domain & 0x0f00}
-// SAFETY: path is null-checked before the CStr read; tests pass NUL-terminated literals.
-fn kind_from_path(path:*const c_char)->c_long{unsafe{if path.is_null(){return FLIDEVICE_CAMERA;} let s=CStr::from_ptr(path).to_string_lossy(); if s.contains("focuser"){FLIDEVICE_FOCUSER}else if s.contains("filter"){FLIDEVICE_FILTERWHEEL}else{FLIDEVICE_CAMERA}}}
-#[no_mangle] pub unsafe extern "C" fn FLIOpen(dev:*mut c_long,name:*const c_char,domain:c_long)->c_long{if dev.is_null(){return -1;} let kind=kind_from_domain(domain); let path_kind=kind_from_path(name); if kind!=path_kind{return -2;} *dev=kind; 0}
+fn exposing(c:&Cam)->Option<c_long>{c.started.map(|t|(c.exposure_ms-t.elapsed().as_millis() as c_long).max(0)).filter(|left|*left>0)}
+macro_rules! live{()=>{if env("SK_FLI_UNPLUGGED"){return ENODEV;}}}
+// Test hooks (not libfli): what the camera was last told.
+#[no_mangle] pub unsafe extern "C" fn FakeFliLastImageArea(out:*mut c_long)->c_long{let c=CAM.lock().unwrap(); for i in 0..4{*out.add(i)=c.area[i];} 0}
+#[no_mangle] pub extern "C" fn FakeFliLastExposureMs()->c_long{CAM.lock().unwrap().exposure_ms}
+#[no_mangle] pub extern "C" fn FakeFliLastSetpoint()->c_double{CAM.lock().unwrap().setpoint}
+#[no_mangle] pub extern "C" fn FakeFliCancelCount()->c_long{CAM.lock().unwrap().cancels}
+#[no_mangle] pub unsafe extern "C" fn FLIOpen(dev:*mut c_long,name:*const c_char,domain:c_long)->c_long{if dev.is_null()||name.is_null(){return EINVAL;} let name=CStr::from_ptr(name).to_string_lossy().to_string(); match devices().into_iter().find(|d|d.0==name){Some(d) if d.1==domain&0x0f00=>{*dev=d.1; 0},_=>ENODEV}}
 #[no_mangle] pub extern "C" fn FLIClose(_dev:c_long)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetModel(dev:c_long,model:*mut c_char,len:usize)->c_long{let text=match dev{FLIDEVICE_FOCUSER=>b"FLI PDF Focuser\0".as_slice(),FLIDEVICE_FILTERWHEEL=>b"FLI CFW-5-7\0".as_slice(),_=>b"FLI ProLine PL16803\0".as_slice()}; put(model,len,text); 0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetSerialString(_dev:c_long,serial:*mut c_char,len:usize)->c_long{put(serial,len,b"FLI-FAKE-0001\0");0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetPixelSize(_dev:c_long,x:*mut c_double,y:*mut c_double)->c_long{if !x.is_null(){*x=9.0;} if !y.is_null(){*y=9.0;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetVisibleArea(_dev:c_long,ulx:*mut c_long,uly:*mut c_long,lrx:*mut c_long,lry:*mut c_long)->c_long{if !ulx.is_null(){*ulx=0;} if !uly.is_null(){*uly=0;} if !lrx.is_null(){*lrx=64;} if !lry.is_null(){*lry=48;} 0}
-#[no_mangle] pub extern "C" fn FLISetExposureTime(_dev:c_long,_ms:c_long)->c_long{0}
-#[no_mangle] pub extern "C" fn FLISetImageArea(_dev:c_long,_ulx:c_long,_uly:c_long,_lrx:c_long,_lry:c_long)->c_long{0}
-#[no_mangle] pub extern "C" fn FLISetHBin(_dev:c_long,bin:c_long)->c_long{if bin<=0{-1}else{0}}
-#[no_mangle] pub extern "C" fn FLISetVBin(_dev:c_long,bin:c_long)->c_long{if bin<=0{-1}else{0}}
-#[no_mangle] pub extern "C" fn FLISetFrameType(_dev:c_long,_t:c_long)->c_long{0}
-#[no_mangle] pub extern "C" fn FLIExposeFrame(_dev:c_long)->c_long{0}
-#[no_mangle] pub extern "C" fn FLICancelExposure(_dev:c_long)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetExposureStatus(_dev:c_long,time:*mut c_long)->c_long{if !time.is_null(){*time=0;} 0}
-#[no_mangle] pub extern "C" fn FLISetTemperature(_dev:c_long,_temp:c_double)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetTemperature(_dev:c_long,temp:*mut c_double)->c_long{if !temp.is_null(){*temp=-10.0;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetCoolerPower(_dev:c_long,power:*mut c_double)->c_long{if !power.is_null(){*power=42.0;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIGrabRow(_dev:c_long,buff:*mut u8,width:usize)->c_long{if std::env::var("SK_FLI_GRAB_ERROR").is_ok(){return -8;} if buff.is_null(){return -1;} for i in 0..(width/2){let v=1000u16.wrapping_add(i as u16); *buff.add(i*2)=(v&0xff) as u8; *buff.add(i*2+1)=(v>>8) as u8;} 0}
-#[no_mangle] pub extern "C" fn FLISetBitDepth(_dev:c_long,_bits:c_long)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetDeviceStatus(_dev:c_long,status:*mut c_long)->c_long{if !status.is_null(){*status=0x80000000u32 as c_long;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetModel(dev:c_long,model:*mut c_char,len:usize)->c_long{live!(); put(model,len,device(dev).2); 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetSerialString(dev:c_long,serial:*mut c_char,len:usize)->c_long{live!(); put(serial,len,device(dev).3);0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetPixelSize(_dev:c_long,x:*mut c_double,y:*mut c_double)->c_long{live!(); if !x.is_null(){*x=9.0e-6;} if !y.is_null(){*y=9.0e-6;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetVisibleArea(_dev:c_long,ulx:*mut c_long,uly:*mut c_long,lrx:*mut c_long,lry:*mut c_long)->c_long{live!(); if !ulx.is_null(){*ulx=0;} if !uly.is_null(){*uly=0;} if !lrx.is_null(){*lrx=SENSOR_W;} if !lry.is_null(){*lry=SENSOR_H;} 0}
+#[no_mangle] pub extern "C" fn FLISetExposureTime(_dev:c_long,ms:c_long)->c_long{live!(); CAM.lock().unwrap().exposure_ms=ms; 0}
+#[no_mangle] pub extern "C" fn FLISetImageArea(_dev:c_long,ulx:c_long,uly:c_long,lrx:c_long,lry:c_long)->c_long{live!(); if ulx<0||uly<0{return EINVAL;} CAM.lock().unwrap().area=[ulx,uly,lrx,lry]; 0}
+#[no_mangle] pub extern "C" fn FLISetHBin(_dev:c_long,bin:c_long)->c_long{live!(); if !(1..=255).contains(&bin){return EINVAL;} CAM.lock().unwrap().hbin=bin; 0}
+#[no_mangle] pub extern "C" fn FLISetVBin(_dev:c_long,bin:c_long)->c_long{live!(); if !(1..=255).contains(&bin){return EINVAL;} CAM.lock().unwrap().vbin=bin; 0}
+#[no_mangle] pub extern "C" fn FLISetFrameType(_dev:c_long,_t:c_long)->c_long{live!(); 0}
+#[no_mangle] pub extern "C" fn FLIExposeFrame(_dev:c_long)->c_long{live!(); let mut c=CAM.lock().unwrap(); let [ulx,uly,lrx,lry]=c.area; let (w,h)=(lrx-ulx,lry-uly); if w<=0||h<=0||ulx+w*c.hbin>SENSOR_W||uly+h*c.vbin>SENSOR_H{return EINVAL;} c.started=Some(Instant::now()); c.rows_read=0; c.frame_pending=true; 0}
+#[no_mangle] pub extern "C" fn FLICancelExposure(_dev:c_long)->c_long{live!(); let mut c=CAM.lock().unwrap(); c.started=None; c.frame_pending=false; c.cancels+=1; 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetExposureStatus(_dev:c_long,time:*mut c_long)->c_long{live!(); if !time.is_null(){*time=exposing(&CAM.lock().unwrap()).unwrap_or(0);} 0}
+#[no_mangle] pub extern "C" fn FLISetTemperature(_dev:c_long,temp:c_double)->c_long{live!(); CAM.lock().unwrap().setpoint=temp; 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetTemperature(_dev:c_long,temp:*mut c_double)->c_long{live!(); if !temp.is_null(){*temp=-10.0;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetCoolerPower(_dev:c_long,power:*mut c_double)->c_long{live!(); if !power.is_null(){*power=42.0;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGrabRow(_dev:c_long,buff:*mut u8,width:usize)->c_long{live!(); if env("SK_FLI_GRAB_ERROR"){return EIO;} if buff.is_null(){return EINVAL;} let mut c=CAM.lock().unwrap(); if exposing(&c).is_some(){return ETIMEDOUT;} let [ulx,uly,lrx,lry]=c.area; if !c.frame_pending||c.rows_read>=lry-uly{return ETIMEDOUT;} let y=uly+c.rows_read*c.vbin; for i in 0..width.min((lrx-ulx) as usize){let x=ulx+(i as c_long)*c.hbin; let v=(1000+y*SENSOR_W+x) as u16; let b=v.to_ne_bytes(); *buff.add(i*2)=b[0]; *buff.add(i*2+1)=b[1];} c.rows_read+=1; if c.rows_read==lry-uly{c.frame_pending=false; c.started=None;} 0}
+#[no_mangle] pub extern "C" fn FLISetBitDepth(_dev:c_long,_bits:c_long)->c_long{live!(); EINVAL}
+#[no_mangle] pub unsafe extern "C" fn FLIGetDeviceStatus(_dev:c_long,status:*mut c_long)->c_long{if status.is_null(){return EINVAL;} *status=0xffffffffu32 as c_long; live!(); if _dev!=FLIDEVICE_CAMERA{*status=0; return 0;} if env("SK_FLI_STATUS_UNKNOWN"){return 0;} let c=CAM.lock().unwrap(); *status=if exposing(&c).is_some(){0x02}else if c.frame_pending{0x80000000u32 as c_long}else{0x00}; 0}
 #[no_mangle] pub unsafe extern "C" fn FLIGetLibVersion(ver:*mut c_char,len:usize)->c_long{put(ver,len,b"fake-libfli-1.0\0");0}
 #[no_mangle] pub extern "C" fn FLICreateList(domain:c_long)->c_long{LIST_DOMAIN.store(domain as i64,Ordering::SeqCst);0}
 #[no_mangle] pub extern "C" fn FLIDeleteList()->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn FLIListFirst(domain:*mut c_long,filename:*mut c_char,fnlen:usize,name:*mut c_char,namelen:usize)->c_long{let kind=kind_from_domain(LIST_DOMAIN.load(Ordering::SeqCst) as c_long); let (path,label)=match kind{FLIDEVICE_FOCUSER=>(b"fake-focuser\0".as_slice(),b"FLI PDF Focuser\0".as_slice()),FLIDEVICE_FILTERWHEEL=>(b"fake-filter\0".as_slice(),b"FLI CFW-5-7\0".as_slice()),_=>(b"fake-camera\0".as_slice(),b"FLI ProLine PL16803\0".as_slice())}; put(filename,fnlen,path); put(name,namelen,label); if !domain.is_null(){*domain=LIST_DOMAIN.load(Ordering::SeqCst) as c_long;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIListNext(_domain:*mut c_long,_filename:*mut c_char,_fnlen:usize,_name:*mut c_char,_namelen:usize)->c_long{-1}
-#[no_mangle] pub extern "C" fn FLISetFilterPos(_dev:c_long,pos:c_long)->c_long{FILTER_POS.store(pos as i64,Ordering::SeqCst);0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetFilterPos(_dev:c_long,pos:*mut c_long)->c_long{if !pos.is_null(){*pos=FILTER_POS.load(Ordering::SeqCst) as c_long;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetFilterCount(_dev:c_long,count:*mut c_long)->c_long{if !count.is_null(){*count=5;} 0}
-#[no_mangle] pub extern "C" fn FLIStepMotor(_dev:c_long,steps:c_long)->c_long{FOCUS_POS.fetch_add(steps as i64,Ordering::SeqCst);0}
-#[no_mangle] pub extern "C" fn FLIStepMotorAsync(_dev:c_long,steps:c_long)->c_long{FOCUS_POS.fetch_add(steps as i64,Ordering::SeqCst);0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetStepperPosition(_dev:c_long,pos:*mut c_long)->c_long{if !pos.is_null(){*pos=FOCUS_POS.load(Ordering::SeqCst) as c_long;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetStepsRemaining(_dev:c_long,steps:*mut c_long)->c_long{if !steps.is_null(){*steps=0;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIGetFocuserExtent(_dev:c_long,extent:*mut c_long)->c_long{if !extent.is_null(){*extent=50000;} 0}
-#[no_mangle] pub unsafe extern "C" fn FLIReadTemperature(_dev:c_long,_channel:c_long,temp:*mut c_double)->c_long{if !temp.is_null(){*temp=20.5;} 0}
-#[no_mangle] pub extern "C" fn FLIEndExposure(_dev:c_long)->c_long{0}
+#[no_mangle] pub unsafe extern "C" fn FLIListFirst(domain:*mut c_long,filename:*mut c_char,fnlen:usize,name:*mut c_char,namelen:usize)->c_long{let d=device(LIST_DOMAIN.load(Ordering::SeqCst) as c_long & 0x0f00); put(filename,fnlen,format!("{}\0",d.0).as_bytes()); put(name,namelen,d.2); if !domain.is_null(){*domain=LIST_DOMAIN.load(Ordering::SeqCst) as c_long;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIListNext(_domain:*mut c_long,_filename:*mut c_char,_fnlen:usize,_name:*mut c_char,_namelen:usize)->c_long{-9}
+#[no_mangle] pub unsafe extern "C" fn FLIGetFilterName(_dev:c_long,filter:c_long,name:*mut c_char,len:usize)->c_long{live!(); let names:[&[u8];5]=[b"Red\0",b"Green\0",b"Blue\0",b"Lum\0",b"\0"]; if !(0..5).contains(&filter){return EINVAL;} put(name,len,names[filter as usize]); 0}
+#[no_mangle] pub extern "C" fn FLISetFilterPos(_dev:c_long,pos:c_long)->c_long{live!(); FILTER_POS.store(pos as i64,Ordering::SeqCst);0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetFilterPos(_dev:c_long,pos:*mut c_long)->c_long{live!(); if !pos.is_null(){*pos=FILTER_POS.load(Ordering::SeqCst) as c_long;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetFilterCount(_dev:c_long,count:*mut c_long)->c_long{live!(); if !count.is_null(){*count=5;} 0}
+#[no_mangle] pub extern "C" fn FLIStepMotor(_dev:c_long,steps:c_long)->c_long{live!(); FOCUS_POS.fetch_add(steps as i64,Ordering::SeqCst);0}
+#[no_mangle] pub extern "C" fn FLIStepMotorAsync(_dev:c_long,steps:c_long)->c_long{live!(); FOCUS_POS.fetch_add(steps as i64,Ordering::SeqCst);0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetStepperPosition(_dev:c_long,pos:*mut c_long)->c_long{live!(); if !pos.is_null(){*pos=FOCUS_POS.load(Ordering::SeqCst) as c_long;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetStepsRemaining(_dev:c_long,steps:*mut c_long)->c_long{live!(); if !steps.is_null(){*steps=0;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIGetFocuserExtent(_dev:c_long,extent:*mut c_long)->c_long{live!(); if !extent.is_null(){*extent=50000;} 0}
+#[no_mangle] pub unsafe extern "C" fn FLIReadTemperature(_dev:c_long,_channel:c_long,temp:*mut c_double)->c_long{live!(); if !temp.is_null(){*temp=20.5;} 0}
+#[no_mangle] pub extern "C" fn FLIEndExposure(_dev:c_long)->c_long{live!(); 0}
 "#;
 
     const MORAVIAN_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
-use std::ffi::{c_char,c_float,c_int,c_uint,c_void};
-use std::sync::atomic::{AtomicU32,Ordering};
-type Cardinal=c_uint; type Integer=c_int; type Boolean=u8; type Real=c_float; type PCCamera=*mut c_void; type EnumerateCallback=unsafe extern "C" fn(Cardinal);
-static CURRENT_ID:AtomicU32=AtomicU32::new(1); static BIN:AtomicU32=AtomicU32::new(1);
-unsafe fn put(buf:*mut c_char,len:Cardinal,text:&[u8])->Boolean{if buf.is_null(){return 0;} for i in 0..(len as usize){*buf.add(i)=0;} for i in 0..text.len().min(len.saturating_sub(1) as usize){*buf.add(i)=text[i] as c_char;} 1}
-#[no_mangle] pub unsafe extern "C" fn Enumerate(cb:EnumerateCallback){cb(1); cb(2);}
-#[no_mangle] pub extern "C" fn Initialize(id:Cardinal)->PCCamera{if id==1||id==2{CURRENT_ID.store(id,Ordering::SeqCst); id as usize as PCCamera}else{std::ptr::null_mut()}}
-#[no_mangle] pub extern "C" fn Release(_camera:PCCamera){}
-#[no_mangle] pub unsafe extern "C" fn GetBooleanParameter(_camera:PCCamera,index:Cardinal,value:*mut Boolean)->Boolean{if value.is_null(){return 0;} let id=CURRENT_ID.load(Ordering::SeqCst); *value=match index{1=>1,3=>if id==1{1}else{0},4=>if id==1{1}else{0},7=>1,13=>1,128=>if id==2{1}else{0},_=>0}; 1}
-#[no_mangle] pub unsafe extern "C" fn GetIntegerParameter(_camera:PCCamera,index:Cardinal,value:*mut Cardinal)->Boolean{if value.is_null(){return 0;} let id=CURRENT_ID.load(Ordering::SeqCst); *value=match index{1=>if id==1{72}else{48},2=>if id==1{54}else{32},3=>376,4=>376,5=>if id==1{4}else{2},6=>if id==1{4}else{2},7=>2,_=>0}; 1}
-#[no_mangle] pub unsafe extern "C" fn GetStringParameter(_camera:PCCamera,index:Cardinal,len:Cardinal,buf:*mut c_char)->Boolean{let id=CURRENT_ID.load(Ordering::SeqCst); match index{0=>if id==1{put(buf,len,b"Moravian C3-61000 Pro\0")}else{put(buf,len,b"Moravian G1-1600\0")},2=>if id==1{put(buf,len,b"MOR-COOLED-0001\0")}else{put(buf,len,b"MOR-COLOR-0002\0")},_=>put(buf,len,b"\0")}}
-#[no_mangle] pub unsafe extern "C" fn GetValue(_camera:PCCamera,index:Cardinal,value:*mut Real)->Boolean{if value.is_null(){return 0;} *value=match index{0=>-9.5,11=>41.0,_=>0.0}; 1}
-#[no_mangle] pub extern "C" fn SetTemperature(_camera:PCCamera,_temp:Real)->Boolean{1}
-#[no_mangle] pub extern "C" fn SetBinning(_camera:PCCamera,x:Cardinal,y:Cardinal)->Boolean{if x==0||x!=y{return 0;} BIN.store(x,Ordering::SeqCst); 1}
-#[no_mangle] pub extern "C" fn SetGain(_camera:PCCamera,_gain:Cardinal)->Boolean{1}
-#[no_mangle] pub extern "C" fn SetReadMode(_camera:PCCamera,_mode:Cardinal)->Boolean{1}
-#[no_mangle] pub extern "C" fn SetFilter(_camera:PCCamera,_filter:Cardinal)->Boolean{1}
-#[no_mangle] pub unsafe extern "C" fn EnumerateReadModes(_camera:PCCamera,index:Cardinal,len:Cardinal,desc:*mut c_char)->Boolean{match index{0=>put(desc,len,b"Normal\0"),1=>put(desc,len,b"Low noise\0"),_=>0}}
-#[no_mangle] pub extern "C" fn ClearSensor(_camera:PCCamera)->Boolean{1}
-#[no_mangle] pub extern "C" fn Open(_camera:PCCamera)->Boolean{1}
-#[no_mangle] pub extern "C" fn Close(_camera:PCCamera)->Boolean{1}
-#[no_mangle] pub extern "C" fn BeginExposure(_camera:PCCamera,_use_shutter:Boolean)->Boolean{if std::env::var("SK_MORAVIAN_BEGIN_ERROR").is_ok(){0}else{1}}
-#[no_mangle] pub extern "C" fn EndExposure(_camera:PCCamera,_use_shutter:Boolean,_abort:Boolean)->Boolean{1}
-#[no_mangle] pub unsafe extern "C" fn GetImage16b(_camera:PCCamera,_x:Integer,_y:Integer,w:Integer,d:Integer,buffer_len:Cardinal,buffer:*mut c_void)->Boolean{if buffer.is_null()||w<=0||d<=0{return 0;} let pixels=(buffer_len as usize/2).min((w*d) as usize); let out=buffer as *mut u16; for i in 0..pixels{*out.add(i)=9000u16.wrapping_add(i as u16);} 1}
-#[no_mangle] pub unsafe extern "C" fn AdjustSubFrame(_camera:PCCamera,_x:*mut Integer,_y:*mut Integer,_w:*mut Integer,_d:*mut Integer)->Boolean{1}
+use std::ffi::{c_char,c_double,c_float,c_int,c_void};
+use std::sync::atomic::{AtomicI32,Ordering};
+type GxBool=u8; type PCCamera=*mut c_void; type EnumCallback=unsafe extern "C" fn(c_int);
+static TARGET_1:AtomicI32=AtomicI32::new(0); static READ_MODE:AtomicI32=AtomicI32::new(0);
+fn id_of(camera:PCCamera)->usize{camera as usize}
+unsafe fn put(buf:*mut c_char,size:usize,text:&[u8])->c_int{if buf.is_null()||size==0{return -1;} for i in 0..size{*buf.add(i)=0;} for i in 0..text.len().min(size-1){*buf.add(i)=text[i] as c_char;} 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_enumerate_usb(callback:EnumCallback){callback(1); callback(2);}
+#[no_mangle] pub extern "C" fn gxccd_initialize_usb(camera_id:c_int)->PCCamera{if camera_id==1||camera_id==2{camera_id as usize as PCCamera}else{std::ptr::null_mut()}}
+#[no_mangle] pub extern "C" fn gxccd_release(_camera:PCCamera){}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_boolean_parameter(camera:PCCamera,index:c_int,value:*mut GxBool)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{1=>1,3=>cooled as GxBool,4=>cooled as GxBool,7=>1,13=>cooled as GxBool,128=>(!cooled) as GxBool,129|130=>0,131=>0,132=>(!cooled) as GxBool,_=>0}; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_integer_parameter(camera:PCCamera,index:c_int,value:*mut c_int)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{1=>if cooled{72}else{48},2=>if cooled{54}else{32},3|4=>3760,5|6=>if cooled{4}else{2},7=>2,17=>if cooled{65535}else{4095},_=>return -1}; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_string_parameter(camera:PCCamera,index:c_int,buf:*mut c_char,size:usize)->c_int{let cooled=id_of(camera)==1; match index{0=>put(buf,size,if cooled{b"Moravian C3-61000 Pro"}else{b"Moravian G1-1600"}),2=>put(buf,size,if cooled{b"MOR-COOLED-0001"}else{b"MOR-COLOR-0002"}),_=>-1}}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_value(camera:PCCamera,index:c_int,value:*mut c_float)->c_int{if value.is_null(){return -1;} let cooled=id_of(camera)==1; *value=match index{0=>-9.5,11=>if cooled{41.0}else{return -1},_=>return -1}; 0}
+#[no_mangle] pub extern "C" fn gxccd_set_temperature(camera:PCCamera,temp:c_float)->c_int{if id_of(camera)!=1{return -1;} TARGET_1.store(temp as i32,Ordering::SeqCst); 0}
+#[no_mangle] pub extern "C" fn gxccd_set_binning(camera:PCCamera,x:c_int,y:c_int)->c_int{let max=if id_of(camera)==1{4}else{2}; if x<1||y<1||x>max||y>max{-1}else{0}}
+#[no_mangle] pub extern "C" fn gxccd_set_gain(camera:PCCamera,_gain:u16)->c_int{if id_of(camera)==1{0}else{-1}}
+#[no_mangle] pub extern "C" fn gxccd_set_read_mode(_camera:PCCamera,mode:c_int)->c_int{if mode<0||mode>1{return -1;} READ_MODE.store(mode,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_enumerate_read_modes(_camera:PCCamera,index:c_int,buf:*mut c_char,size:usize)->c_int{match index{0=>put(buf,size,b"Normal"),1=>put(buf,size,b"Low noise"),_=>-1}}
+#[no_mangle] pub extern "C" fn gxccd_start_exposure(_camera:PCCamera,exp_time:c_double,_use_shutter:GxBool,x:c_int,y:c_int,w:c_int,h:c_int)->c_int{if exp_time<0.0||x<0||y<0||w<=0||h<=0||std::env::var("SK_MORAVIAN_BEGIN_ERROR").is_ok(){-1}else{0}}
+#[no_mangle] pub extern "C" fn gxccd_abort_exposure(_camera:PCCamera,_download:GxBool)->c_int{0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_image_ready(_camera:PCCamera,ready:*mut GxBool)->c_int{if ready.is_null(){return -1;} *ready=1; 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_read_image(_camera:PCCamera,buf:*mut c_void,size:usize)->c_int{if buf.is_null(){return -1;} let out=buf as *mut u8; for i in 0..(size/2){let v=9000u16.wrapping_add((i as u16).wrapping_mul(7)); *out.add(i*2)=(v&0xff) as u8; *out.add(i*2+1)=(v>>8) as u8;} 0}
+#[no_mangle] pub unsafe extern "C" fn gxccd_get_last_error(_camera:PCCamera,buf:*mut c_char,size:usize){put(buf,size,b"fake gxccd error");}
 "#;
 
     const FUJIFILM_FAKE_SDK: &str = r#"
 #![allow(non_snake_case)]
-use std::ffi::{c_char,c_long,c_ulong,c_void,CStr};
+use std::ffi::{c_char,c_long,c_ulong,c_void};
 use std::sync::atomic::{AtomicI32,Ordering};
 type XsdkHandle=*mut c_void;
 static ISO:AtomicI32=AtomicI32::new(800);
+static LAST_ERROR:AtomicI32=AtomicI32::new(0);
+static OPEN:AtomicI32=AtomicI32::new(0);
+static LIVE:AtomicI32=AtomicI32::new(0);
+static LIVE_STARTS:AtomicI32=AtomicI32::new(0);
+static LIVE_QUALITY:AtomicI32=AtomicI32::new(0);
+static LIVE_SIZE:AtomicI32=AtomicI32::new(0);
+static DELETES:AtomicI32=AtomicI32::new(0);
+static FRAMES:AtomicI32=AtomicI32::new(0);
+static FOCUS_MODE:AtomicI32=AtomicI32::new(0x8001);
+static FOCUS_PULSE:AtomicI32=AtomicI32::new(160);
+static FOCUS_TARGET:AtomicI32=AtomicI32::new(160);
+static RELEASES:AtomicI32=AtomicI32::new(0);
 #[repr(C,packed)] struct XsdkCameraList{str_product:[c_char;256],str_serial_no:[c_char;256],str_ip_address:[c_char;256],str_framework:[c_char;256],b_valid:bool}
 #[repr(C,packed)] struct XsdkDeviceInformation{str_vendor:[c_char;256],str_manufacturer:[c_char;256],str_product:[c_char;256],str_firmware:[c_char;256],str_device_type:[c_char;256],str_serial_no:[c_char;256],str_framework:[c_char;256],b_device_id:u8,str_device_name:[c_char;32],str_y_no:[c_char;32]}
 #[repr(C,packed)] struct XsdkImageInformation{str_internal_name:[c_char;32],l_format:c_long,l_data_size:c_long,l_image_pix_height:c_long,l_image_pix_width:c_long,l_image_bit_depth:c_long,l_preview_size:c_long,h_image:*mut c_void}
+#[repr(C)] struct FocusPosCap{size:c_long,version:c_long,infinity:c_long,closest:c_long,over_infinity:c_long,over_closest:c_long,depth:c_long,step:c_long}
+fn fail(code:i32)->c_long{LAST_ERROR.store(code,Ordering::SeqCst); -1}
 unsafe fn fill<const N:usize>(buf:&mut [c_char;N],text:&[u8]){for b in buf.iter_mut(){*b=0;} for i in 0..text.len().min(N.saturating_sub(1)){buf[i]=text[i] as c_char;}}
+/// Test access to the fake's state: 0 resets it, 1.. read one counter.
+#[no_mangle] pub extern "C" fn SkotiqFake(which:c_long)->c_long{let all=[&OPEN,&LIVE,&LIVE_STARTS,&LIVE_QUALITY,&LIVE_SIZE,&DELETES,&FOCUS_MODE,&FOCUS_TARGET,&RELEASES]; if which==0{for c in all{c.store(0,Ordering::SeqCst);} FOCUS_MODE.store(0x8001,Ordering::SeqCst); FOCUS_PULSE.store(160,Ordering::SeqCst); FOCUS_TARGET.store(160,Ordering::SeqCst); return 0;} all[(which-1) as usize].load(Ordering::SeqCst)}
 #[no_mangle] pub extern "C" fn XSDK_Init(_h:*mut c_void)->c_long{0}
 #[no_mangle] pub extern "C" fn XSDK_Exit()->c_long{0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_Detect(_interface:c_long,_p_interface:*mut c_char,_p_device_name:*mut c_char,count:*mut c_long)->c_long{if !count.is_null(){*count=2;} 0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_Append(_interface:c_long,_p_interface:*mut c_char,_p_device_name:*mut c_char,count:*mut c_long,list:*mut XsdkCameraList)->c_long{if !count.is_null(){*count=2;} if list.is_null(){return 0;} let mut first:XsdkCameraList=std::mem::zeroed(); fill(&mut first.str_product,b"GFX100 II"); fill(&mut first.str_serial_no,b"FUJI-GFX-0001"); fill(&mut first.str_framework,b"USB"); first.b_valid=true; *list.add(0)=first; let mut second:XsdkCameraList=std::mem::zeroed(); fill(&mut second.str_product,b"X-T5"); fill(&mut second.str_serial_no,b"FUJI-XT5-0002"); fill(&mut second.str_framework,b"USB"); second.b_valid=true; *list.add(1)=second; 0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_OpenEx(device:*const c_char,handle:*mut XsdkHandle,mode:*mut c_long,_opt:*mut c_void)->c_long{if handle.is_null(){return -1;} if !device.is_null(){let s=CStr::from_ptr(device).to_string_lossy(); if s.contains("X-T5"){ISO.store(400,Ordering::SeqCst);}} *handle=1usize as XsdkHandle; if !mode.is_null(){*mode=0;} 0}
-#[no_mangle] pub extern "C" fn XSDK_Close(_h:XsdkHandle)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_GetErrorNumber(_h:XsdkHandle,api:*mut c_long,err:*mut c_long)->c_long{if !api.is_null(){*api=0;} if !err.is_null(){*err=if std::env::var("SK_FUJIFILM_RELEASE_ERROR").is_ok(){0x00001006}else{0};} 0}
+/// A body that is already open is refused, as the SDK refuses it.
+#[no_mangle] pub unsafe extern "C" fn XSDK_OpenEx(_device:*const c_char,handle:*mut XsdkHandle,mode:*mut c_long,_opt:*mut c_void)->c_long{if handle.is_null(){return -1;} if OPEN.load(Ordering::SeqCst)>0{return fail(0x1001);} OPEN.store(1,Ordering::SeqCst); *handle=1usize as XsdkHandle; if !mode.is_null(){*mode=0;} 0}
+#[no_mangle] pub extern "C" fn XSDK_Close(_h:XsdkHandle)->c_long{OPEN.store(0,Ordering::SeqCst); LIVE.store(0,Ordering::SeqCst); 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_GetErrorNumber(_h:XsdkHandle,api:*mut c_long,err:*mut c_long)->c_long{if !api.is_null(){*api=0;} let last=LAST_ERROR.swap(0,Ordering::SeqCst); if !err.is_null(){*err=if std::env::var("SK_FUJIFILM_RELEASE_ERROR").is_ok(){0x00001006}else{last};} 0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_GetDeviceInfo(_h:XsdkHandle,info:*mut XsdkDeviceInformation)->c_long{if info.is_null(){return -1;} let mut v:XsdkDeviceInformation=std::mem::zeroed(); fill(&mut v.str_vendor,b"FUJIFILM"); fill(&mut v.str_manufacturer,b"FUJIFILM"); fill(&mut v.str_product,b"GFX100 II"); fill(&mut v.str_firmware,b"9.99"); fill(&mut v.str_device_type,b"Digital Camera"); fill(&mut v.str_serial_no,b"FUJI-GFX-0001"); fill(&mut v.str_framework,b"USB"); v.b_device_id=1; fill(&mut v.str_device_name,b"Skotiq Fuji"); *info=v; 0}
 #[no_mangle] pub extern "C" fn XSDK_SetPriorityMode(_h:XsdkHandle,_mode:c_long)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_Release(_h:XsdkHandle,_mode:c_long,shot:*mut c_long,af:*mut c_long)->c_long{if std::env::var("SK_FUJIFILM_RELEASE_ERROR").is_ok(){return -1;} if !shot.is_null(){*shot=0;} if !af.is_null(){*af=0;} 0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_ReadImageInfo(_h:XsdkHandle,info:*mut XsdkImageInformation)->c_long{if info.is_null(){return -1;} (*info).l_format=7; (*info).l_data_size=0; (*info).l_image_pix_width=0; (*info).l_image_pix_height=0; (*info).l_image_bit_depth=0; 0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_ReadImage(_h:XsdkHandle,_data:*mut u8,_size:c_ulong)->c_long{0}
-#[no_mangle] pub extern "C" fn XSDK_DeleteImage(_h:XsdkHandle)->c_long{0}
-#[no_mangle] pub unsafe extern "C" fn XSDK_CapShutterSpeed(_h:XsdkHandle,num:*mut c_long,speeds:*mut c_long,bulb:*mut c_long)->c_long{if !num.is_null(){*num=3;} if !speeds.is_null(){*speeds.add(0)=-1; *speeds.add(1)=1000; *speeds.add(2)=500;} if !bulb.is_null(){*bulb=1;} 0}
+/// The shutter is refused while live view runs.
+#[no_mangle] pub unsafe extern "C" fn XSDK_Release(_h:XsdkHandle,_mode:c_long,shot:*mut c_long,af:*mut c_long)->c_long{if std::env::var("SK_FUJIFILM_RELEASE_ERROR").is_ok(){return -1;} if LIVE.load(Ordering::SeqCst)==1{return fail(0x1006);} RELEASES.fetch_add(1,Ordering::SeqCst); if !shot.is_null(){*shot=0;} if !af.is_null(){*af=0;} 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_ReadImageInfo(_h:XsdkHandle,info:*mut XsdkImageInformation)->c_long{if info.is_null(){return -1;} let live=LIVE.load(Ordering::SeqCst)==1; (*info).l_format=if live{4}else{7}; (*info).l_data_size=if live{6}else{0}; (*info).l_image_pix_width=0; (*info).l_image_pix_height=0; (*info).l_image_bit_depth=0; 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_ReadImage(_h:XsdkHandle,data:*mut u8,size:c_ulong)->c_long{if LIVE.load(Ordering::SeqCst)==1&&size>=6&&!data.is_null(){let n=FRAMES.fetch_add(1,Ordering::SeqCst) as u8; for (i,b) in [0xFF,0xD8,n,0,0xFF,0xD9].iter().enumerate(){*data.add(i)=*b;}} 0}
+#[no_mangle] pub extern "C" fn XSDK_DeleteImage(_h:XsdkHandle)->c_long{DELETES.fetch_add(1,Ordering::SeqCst); 0}
+/// Live view keeps three frames waiting.
+#[no_mangle] pub unsafe extern "C" fn XSDK_GetBufferCapacity(_h:XsdkHandle,shot:*mut c_long,total:*mut c_long)->c_long{let n=if LIVE.load(Ordering::SeqCst)==1{3}else{0}; if !shot.is_null(){*shot=n;} if !total.is_null(){*total=n;} 0}
+#[no_mangle] pub unsafe extern "C" fn XSDK_CapShutterSpeed(_h:XsdkHandle,num:*mut c_long,speeds:*mut c_long,bulb:*mut c_long)->c_long{if !num.is_null(){*num=3;} if !speeds.is_null(){*speeds.add(0)=-1; *speeds.add(1)=9843; *speeds.add(2)=976;} if !bulb.is_null(){*bulb=0;} 0}
 #[no_mangle] pub extern "C" fn XSDK_SetShutterSpeed(_h:XsdkHandle,_speed:c_long,_bulb:c_long)->c_long{0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_CapSensitivity(_h:XsdkHandle,num:*mut c_long,values:*mut c_long)->c_long{if !num.is_null(){*num=5;} if !values.is_null(){for (i,v) in [100,200,400,800,1600].iter().enumerate(){*values.add(i)=*v;}} 0}
 #[no_mangle] pub extern "C" fn XSDK_SetSensitivity(_h:XsdkHandle,value:c_long)->c_long{ISO.store(value as i32,Ordering::SeqCst);0}
 #[no_mangle] pub unsafe extern "C" fn XSDK_GetSensitivity(_h:XsdkHandle,value:*mut c_long)->c_long{if !value.is_null(){*value=ISO.load(Ordering::SeqCst) as c_long;} 0}
 #[no_mangle] pub extern "C" fn XSDK_SetDynamicRange(_h:XsdkHandle,_dr:c_long)->c_long{0}
-#[no_mangle] pub extern "C" fn XSDK_SetProp(_h:XsdkHandle,_api:c_long,_param:c_long)->c_long{0}
-#[no_mangle] pub extern "C" fn XSDK_GetProp(_h:XsdkHandle,_api:c_long,_param:c_long)->c_long{0}
+// The SDK's property calls are variadic. On x64 Windows the first four
+// arguments travel in registers either way, so a callee with four fixed
+// arguments reads the value the driver passes, and ignores it for the codes
+// that pass none.
+#[no_mangle] pub extern "C" fn XSDK_SetProp(_h:XsdkHandle,api:c_long,param:c_long,value:c_long)->c_long{match (api,param){(0x3301,0)=>{if LIVE.load(Ordering::SeqCst)==0{LIVE.store(1,Ordering::SeqCst); LIVE_STARTS.fetch_add(1,Ordering::SeqCst);}} (0x3302,0)=>LIVE.store(0,Ordering::SeqCst),(0x3323,1)=>LIVE_QUALITY.store(value,Ordering::SeqCst),(0x3325,1)=>LIVE_SIZE.store(value,Ordering::SeqCst),(0x2201,1)=>FOCUS_MODE.store(value,Ordering::SeqCst),(0x2207,1)=>FOCUS_TARGET.store(value,Ordering::SeqCst),(0x2145,1)=>{},_=>return fail(0x1002)} 0}
+/// A lens read moves the fake lens 150 pulses toward its target; it comes to rest 30 pulses short, as some lenses do.
+#[no_mangle] pub unsafe extern "C" fn XSDK_GetProp(_h:XsdkHandle,api:c_long,param:c_long,out:*mut c_long)->c_long{if param!=1||out.is_null(){return fail(0x1002);} *out=match api{0x2208=>{let target=FOCUS_TARGET.load(Ordering::SeqCst); let rest=if target==FOCUS_PULSE.load(Ordering::SeqCst){target}else{target-30}; let now=FOCUS_PULSE.load(Ordering::SeqCst); let next=if (rest-now).abs()<=150{rest}else{now+150*(rest-now).signum()}; FOCUS_PULSE.store(next,Ordering::SeqCst); next} 0x2202=>FOCUS_MODE.load(Ordering::SeqCst),0x2146=>2,0x2161=>1,_=>return fail(0x1013)}; 0}
+/// CapFocusPos with the structure's size in and the structure out (SDK Programming Reference 4.2.1.37).
+#[no_mangle] pub unsafe extern "C" fn XSDK_CapProp(_h:XsdkHandle,api:c_long,param:c_long,size:*mut c_long,cap:*mut FocusPosCap)->c_long{if api!=0x2259||param!=2||size.is_null()||cap.is_null(){return fail(0x1002);} if std::env::var("SK_FUJIFILM_NO_LENS").is_ok(){return fail(0x1005);} if *size!=std::mem::size_of::<FocusPosCap>() as c_long||(*cap).version!=0x00010000{return fail(0x1002);} *cap=FocusPosCap{size:*size,version:0x00010000,infinity:100,closest:900,over_infinity:40,over_closest:20,depth:5,step:3}; 0}
 "#;
 }
 
@@ -2313,7 +2625,11 @@ async fn test_skywatcher_mount_tracking() {
     }
 
     let first_mount = &mounts[0];
-    let mut mount = skywatcher::SkyWatcherMount::new_serial(first_mount.port.clone(), Some(9600));
+    let mut mount = skywatcher::SkyWatcherMount::new_serial(
+        first_mount.port.clone(),
+        Some(first_mount.baud_rate),
+        skywatcher_test_site(),
+    );
 
     mount.connect().await.expect("Should connect successfully");
 

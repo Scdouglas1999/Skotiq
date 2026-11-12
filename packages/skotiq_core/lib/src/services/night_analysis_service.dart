@@ -8,10 +8,10 @@ import 'package:skotiq_astro/skotiq_astro.dart'
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/night_reports_dao.dart';
+import '../providers/database_provider.dart';
 import '../database/daos/science_dao.dart';
 import '../database/database.dart';
 import '../models/imaging/night_report.dart';
-import '../providers/database_provider.dart';
 import 'frame_quality_assessment_service.dart';
 import 'optical_train_diagnostics_service.dart';
 part 'night_analysis_service/detectors.dart';

@@ -161,7 +161,7 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final facts = watchNightMountFacts(ref);
+    final facts = watchNightMountFacts(ref, context);
     final runTarget = ref.watch(nightCenterTargetProvider);
     final coordinates = _coordinates;
     final isRunTarget = coordinates != null &&

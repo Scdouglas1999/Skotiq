@@ -453,8 +453,9 @@ pub async fn set_paused(paused: bool) -> Result<(), SkotiqError> {
     {
         let mut guard = state().write().await;
         if !guard.guiding {
-            return Err(SkotiqError::OperationFailed(
-                "The built-in guider is not guiding, so there is nothing to pause".to_string(),
+            return Err(SkotiqError::InvalidState(
+                "The built-in guider is not guiding, so there is nothing to pause or resume."
+                    .to_string(),
             ));
         }
         if guard.paused == paused {

@@ -138,7 +138,6 @@ pub struct SequenceExecutor {
     pub save_path: Option<std::path::PathBuf>,
     /// Trigger manager for monitoring conditions
     trigger_manager: Arc<RwLock<TriggerManager>>,
-    pub triggers_enabled: bool,
     /// Checkpoint manager for crash recovery.
     /// stored behind an `Arc` so the streaming-checkpoint task
     /// (spawned inside `start()`) shares the SAME instance — including its
@@ -230,7 +229,6 @@ impl SequenceExecutor {
             cover_calibrator_id: None,
             save_path: None,
             trigger_manager: Arc::new(RwLock::new(trigger_manager)),
-            triggers_enabled: true,
             checkpoint_manager: None,
             run: None,
             depth_goal_ops: None,
@@ -332,35 +330,6 @@ pub fn get_executor() -> &'static Arc<RwLock<SequenceExecutor>> {
     EXECUTOR.get_or_init(|| Arc::new(RwLock::new(SequenceExecutor::new())))
 }
 
-/// What a trigger-initiated dither attempt should be recorded as.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DitherTriggerOutcome {
-    /// Dither happened; reset the interval.
-    Performed,
-    /// The rig has no guider, so there is nothing to dither. Reset the interval
-    /// anyway — the condition cannot change mid-run, and leaving it unmarked made
-    /// the trigger re-fire on every single exposure.
-    SkippedNoGuider,
-    /// A genuine failure (guide star lost, settle timeout). Keep the interval due
-    /// so the next exposure retries, and warn.
-    Failed,
-}
-
-/// Classify a dither result. Split out from the trigger loop so the three cases
-/// are testable without standing up an executor.
-pub(crate) fn classify_dither_result(
-    status: NodeStatus,
-    message: Option<&str>,
-) -> DitherTriggerOutcome {
-    if status == NodeStatus::Success {
-        return DitherTriggerOutcome::Performed;
-    }
-    if message.is_some_and(crate::device_ops::message_says_no_guider_configured) {
-        return DitherTriggerOutcome::SkippedNoGuider;
-    }
-    DitherTriggerOutcome::Failed
-}
-
 /// What a trigger-fired autofocus failure costs the run, and therefore what the
 /// run is allowed to do next.
 ///
@@ -451,36 +420,6 @@ pub(crate) struct AutofocusTriggerContinuation {
     pub(crate) decision: crate::decision::DecisionEvent,
     /// One-line notice for the run's warnings.
     pub(crate) operator_message: String,
-}
-
-/// Build the continuation record for a non-converging trigger autofocus. Lives
-/// outside the trigger loop so the policy — continue on the last-good focus,
-/// never pause, park or end the run — is testable without standing up an
-/// executor.
-///
-/// `origin_restored` is the `autofocus_origin_restored` marker from the failed
-/// result: `Some(true)` the focuser went back to where it started, `Some(false)`
-/// the return move failed and the motor is off its origin, `None` the run never
-/// moved the focuser at all (e.g. admission rejected).
-pub(crate) fn autofocus_trigger_continuation(
-    trigger_id: &str,
-    trigger_name: &str,
-    reason: &str,
-    position_before: Option<i32>,
-    position_after: Option<i32>,
-    origin_restored: Option<bool>,
-) -> AutofocusTriggerContinuation {
-    autofocus_failure_continuation(
-        &format!("Autofocus trigger '{trigger_name}'"),
-        serde_json::json!({
-            "trigger_id": trigger_id,
-            "trigger_name": trigger_name,
-        }),
-        reason,
-        position_before,
-        position_after,
-        origin_restored,
-    )
 }
 
 /// The continuation record for any autofocus that did not converge while the

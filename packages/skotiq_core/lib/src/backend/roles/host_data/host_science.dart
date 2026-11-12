@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../database/database.dart';
+import '../../../models/science/science_models.dart';
+import '../../network_backend.dart';
 
 /// Science products a linked imaging host derives from its frames:
 /// photometry, transforms, reports and their settings.

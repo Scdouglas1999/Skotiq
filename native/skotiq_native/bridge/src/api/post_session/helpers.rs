@@ -631,9 +631,7 @@ pub(crate) fn build_master_header(
 /// Best-effort by construction: a reference that is not a FITS file, is
 /// unreadable, or simply carries no astrometry yields `None` — integration still
 /// produces a master, just without a stamped WCS (the stitcher then gates that
-/// panel out). Mirrors the stitcher's `mosaic::wcs_from_header`: prefer an
-/// explicit `CD1_1..CD2_2` matrix, fall back to the older `CDELT1/2` (+ optional
-/// `CROTA2`) convention, and default `CRPIX` to the geometric centre.
+/// panel out). The header is read by [`skotiq_imaging::SipWcs::from_header`].
 pub(crate) fn reference_wcs_from_fits(path: &str) -> Option<WcsInfo> {
     let path = Path::new(path);
     if !skotiq_imaging::is_frame_path(path) {

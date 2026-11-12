@@ -17,8 +17,21 @@
 //! are not in the transcripts either; the tests that wait on them assert the
 //! elapsed time instead.
 
+/// Runs one driver call between two transcript notes: the call, then its
+/// result. The notes travel through the port, so they sit exactly around the
+/// bytes that call put on the wire.
+macro_rules! step {
+    ($fake:expr, $label:expr, $call:expr) => {{
+        $fake.mark(&format!("call {}", $label));
+        let result = $call;
+        $fake.mark(&$fake.scrub(&format!("  -> {:?}", result)));
+        result
+    }};
+}
+
 mod fakes;
 mod sessions;
+mod skywatcher_sessions;
 
 use std::fs::File;
 use std::io::{Read, Write};
@@ -313,6 +326,20 @@ fn escape(bytes: &[u8]) -> String {
         }
     }
     out
+}
+
+/// A wait that the driver bounds with a sleep or a timeout took at least that
+/// long and not much longer.
+pub(super) fn assert_waited(elapsed: Duration, at_least: Duration, what: &str) {
+    assert!(
+        elapsed >= at_least,
+        "{what} took {elapsed:?}, shorter than the {at_least:?} its sleeps and timeouts add up to"
+    );
+    let at_most = at_least + Duration::from_secs(4);
+    assert!(
+        elapsed < at_most,
+        "{what} took {elapsed:?}, far longer than the {at_least:?} its sleeps and timeouts add up to"
+    );
 }
 
 /// The LX200 driver keeps its park flag in a file under `SKOTIQ_HOME`. Point

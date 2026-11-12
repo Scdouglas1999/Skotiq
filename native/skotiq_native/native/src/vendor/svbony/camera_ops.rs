@@ -21,7 +21,7 @@ impl CameraDriver for SvbonyCamera {
             None
         };
 
-        let cooler_power = if self.core.capabilities.can_cool && self.core.cooler.enabled {
+        let cooler_power = if self.core.capabilities.can_cool && self.core.cooler().enabled {
             self.get_control_value_async(SvbControlType::CoolerPower)
                 .await
                 .map(|v| v as f64)
@@ -46,11 +46,11 @@ impl CameraDriver for SvbonyCamera {
             sensor_temp,
             cooler_power,
             target_temp: if self.core.capabilities.can_cool {
-                Some(self.core.cooler.target_c)
+                Some(self.core.cooler().target_c)
             } else {
                 None
             },
-            cooler_on: self.core.cooler.enabled,
+            cooler_on: self.core.cooler().enabled,
             gain,
             offset,
             bin_x: self.core.bin_x,
@@ -285,10 +285,10 @@ impl CameraDriver for SvbonyCamera {
             // finite values in this range; NaN sentinel would be clamped to 0.
             self.set_control_value_async(SvbControlType::TargetTemperature, (target * 10.0) as i64)
                 .await?;
-            self.core.cooler.target_c = target;
+            self.core.update_cooler(|cooler| cooler.target_c = target);
         }
 
-        self.core.cooler.enabled = enabled;
+        self.core.update_cooler(|cooler| cooler.enabled = enabled);
         Ok(())
     }
 

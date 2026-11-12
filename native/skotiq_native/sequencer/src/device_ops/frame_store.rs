@@ -134,59 +134,27 @@ pub trait FrameStoreOps: Send + Sync {
         "fits"
     }
 
-    /// Calculate median HFR from an image
-    async fn calculate_image_hfr(&self, image_data: &ImageData) -> DeviceResult<Option<f64>>;
-
-    /// Detect stars and return their HFRs (returns x, y, hfr tuples)
-    async fn detect_stars_in_image(
+    /// Measure a light frame's stars: what the grader, the focus triggers and
+    /// the star-shape watch read off it. One call per frame, so the device
+    /// layer detects the stars once.
+    async fn measure_light_frame(
         &self,
         image_data: &ImageData,
-    ) -> DeviceResult<Vec<(f64, f64, f64)>>;
+    ) -> DeviceResult<LightFrameMeasurement>;
+}
 
-    /// Measure the per-frame median star eccentricity (0.0 = round,
-    /// →1.0 = trailed/elongated).
-    ///
-    /// Returns `Ok(None)` when the metric cannot be honestly measured for
-    /// this frame (no stars, or too few reliable stars to form a stable
-    /// median). This feeds `FrameMetrics.eccentricity`, which the grading
-    /// gate treats as "unknown — do not reject". The default implementation
-    /// returns `Ok(None)`; the real backend (`UnifiedDeviceOps`) overrides
-    /// it to run the shape-moment detector. Callers MUST distinguish a real
-    /// `Some(ecc)` from `None` so a configured eccentricity gate is never
-    /// silently bypassed.
-    async fn measure_frame_eccentricity(
-        &self,
-        image_data: &ImageData,
-    ) -> DeviceResult<Option<f64>> {
-        let _ = image_data;
-        Ok(None)
-    }
-
-    /// How trailed the frame's stars are, measured from the image rather than
-    /// from detected stars (a trailed star is too long for the detector to
-    /// keep). `None` when not measured; the default measures nothing.
-    async fn measure_frame_trail(
-        &self,
-        image_data: &ImageData,
-    ) -> DeviceResult<Option<skotiq_imaging::FrameTrail>> {
-        let _ = image_data;
-        Ok(None)
-    }
-
-    /// The frame's star shape with the direction of elongation. A device
-    /// layer that measures only the eccentricity keeps this default.
-    async fn measure_frame_star_shape(
-        &self,
-        image_data: &ImageData,
-    ) -> DeviceResult<Option<FrameStarShape>> {
-        Ok(self
-            .measure_frame_eccentricity(image_data)
-            .await?
-            .map(|eccentricity| FrameStarShape {
-                eccentricity,
-                elongation: None,
-            }))
-    }
+/// What a light frame's stars say. Each field is `None` when it could not be
+/// measured on this frame, never a stand-in value.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct LightFrameMeasurement {
+    /// Median half-flux radius of the measurable stars, pixels.
+    pub hfr: Option<f64>,
+    /// How many stars were detected; `None` when detection did not run.
+    pub star_count: Option<u32>,
+    pub star_shape: Option<FrameStarShape>,
+    /// Trailing measured from the image itself, which sees streaks the star
+    /// detector discards.
+    pub trail: Option<skotiq_imaging::FrameTrail>,
 }
 
 #[cfg(test)]

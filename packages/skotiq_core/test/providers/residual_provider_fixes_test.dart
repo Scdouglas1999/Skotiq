@@ -10,6 +10,7 @@ import 'package:skotiq_core/src/providers/autofocus_progress_provider.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/guiding_provider.dart';
+import 'package:skotiq_core/src/utils/device_id.dart';
 
 import '../mocks/mock_backend.dart';
 

@@ -10,7 +10,8 @@
 use crate::vendor::lx200::Lx200MountType;
 use crate::vendor::serial_link::sanitize_port_name;
 use skotiq_device::{
-    CameraDriver, DeviceKind, DriverError, FilterWheelDriver, FocuserDriver, MountDriver, Vendor,
+    CameraDriver, DeviceKind, DriverError, FilterWheelDriver, FocuserDriver, MountDriver,
+    SiteSource, Vendor,
 };
 use std::future::Future;
 use std::pin::Pin;
@@ -47,12 +48,14 @@ pub enum Discover {
 }
 
 /// What opening a device needs besides its family.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OpenRequest<'a> {
     /// The part of the id after the family token.
     pub address: &'a str,
     /// The device's registered name.
     pub name: &'a str,
+    /// The application's observing site, for mounts that keep none.
+    pub site: SiteSource,
 }
 
 /// A driver for one device, not yet connected.
@@ -136,6 +139,7 @@ impl Family {
             Open::Now(open) => open(&OpenRequest {
                 address,
                 name: request.name,
+                site: request.site.clone(),
             }),
             Open::AfterDiscovery(open) => open(address.to_string(), request.name.to_string()).await,
             Open::NotOnThisPlatform(why) => Err(BadAddress(why.to_string())),
@@ -804,6 +808,20 @@ pub static FAMILIES: &[Family] = &[
         open: FUJIFILM_OPEN,
     },
     Family {
+        base: "fujifilm",
+        subtype: Some("lens"),
+        aliases: &[],
+        kind: DeviceKind::Focuser,
+        vendor: || Vendor::Fujifilm,
+        label: "Fujifilm",
+        subtype_label: Some("Lens"),
+        noun: "Fujifilm lens",
+        sdk_present: None,
+        // The camera scan lists each body's lens with the body.
+        discover: Discover::ByAnotherFamily,
+        open: FUJIFILM_LENS_OPEN,
+    },
+    Family {
         base: "gphoto2",
         subtype: None,
         aliases: &[],
@@ -869,7 +887,7 @@ pub static FAMILIES: &[Family] = &[
         open: Open::Now(|r| {
             let (port, baud) = port_and_baud(r.address)?;
             Ok(NativeHandle::Mount(Box::new(
-                crate::vendor::skywatcher::SkyWatcherMount::new_serial(port, baud),
+                crate::vendor::skywatcher::SkyWatcherMount::new_serial(port, baud, r.site.clone()),
             )))
         }),
     },
@@ -1001,36 +1019,58 @@ const FUJIFILM_DISCOVER: Discover = Discover::NotOnThisPlatform;
 const FUJIFILM_SDK_PRESENT: Option<fn() -> bool> = Some(|| false);
 #[cfg(not(target_os = "windows"))]
 const FUJIFILM_OPEN: Open = Open::NotOnThisPlatform("Fujifilm cameras need the Windows build");
+#[cfg(not(target_os = "windows"))]
+const FUJIFILM_LENS_OPEN: Open = Open::NotOnThisPlatform("Fujifilm lenses need the Windows build");
 
 #[cfg(target_os = "windows")]
 const FUJIFILM_SDK_PRESENT: Option<fn() -> bool> = Some(crate::vendor::fujifilm::is_sdk_available);
 
 /// The address is the body's serial number. A body that reports none at
-/// enumeration is addressed by its product name.
+/// enumeration is addressed by its product name. Every body is listed twice:
+/// as a camera and as the focuser of its lens, which may have no electronic
+/// focus; finding that out needs the body opened, which a scan never does.
 #[cfg(target_os = "windows")]
 const FUJIFILM_DISCOVER: Discover = Discover::Sdk(|| {
     Box::pin(async {
+        let lens = FAMILIES
+            .iter()
+            .find(|f| f.kind == DeviceKind::Focuser && f.base == "fujifilm")
+            .expect("the Fujifilm lens has a catalog row");
         Ok(crate::vendor::fujifilm::discover_devices()
             .await?
             .into_iter()
-            .map(|d| {
-                let display = display_name(&d.name, d.serial_number.as_deref(), None);
+            .flat_map(|d| {
                 let address = d.serial_number.clone().unwrap_or_else(|| d.name.clone());
-                found(
-                    address,
-                    d.name,
-                    display,
-                    d.serial_number,
-                    d.firmware_version,
-                )
+                let lens_name = format!("{} lens", d.name);
+                let lens_found = Found {
+                    family: Some(lens),
+                    ..found(
+                        address.clone(),
+                        lens_name.clone(),
+                        display_name(&lens_name, d.serial_number.as_deref(), None),
+                        d.serial_number.clone(),
+                        d.firmware_version.clone(),
+                    )
+                };
+                let display = display_name(&d.name, d.serial_number.as_deref(), None);
+                [
+                    found(
+                        address,
+                        d.name,
+                        display,
+                        d.serial_number,
+                        d.firmware_version,
+                    ),
+                    lens_found,
+                ]
             })
             .collect())
     })
 });
 
-/// The X Acquire SDK opens a body by serial number only after a detect pass
-/// has listed it, and the sensor geometry comes from the product name the
-/// detect pass reports.
+/// The body must be in the SDK's current camera list: connecting opens it by
+/// its place in that list, found from this address, and the sensor geometry
+/// comes from the product name the list reports.
 #[cfg(target_os = "windows")]
 const FUJIFILM_OPEN: Open = Open::AfterDiscovery(|address, _name| {
     Box::pin(async move {
@@ -1045,6 +1085,15 @@ const FUJIFILM_OPEN: Open = Open::AfterDiscovery(|address, _name| {
             crate::vendor::fujifilm::FujifilmCamera::new(&info),
         )))
     })
+});
+
+/// The lens is driven through the body's session, which the camera may
+/// already hold; the body is found when it is opened.
+#[cfg(target_os = "windows")]
+const FUJIFILM_LENS_OPEN: Open = Open::Now(|r| {
+    Ok(NativeHandle::Focuser(Box::new(
+        crate::vendor::fujifilm::FujifilmLens::new(r.address, r.name),
+    )))
 });
 
 fn fli_found(devices: Vec<crate::vendor::fli::FliDiscoveryInfo>) -> Vec<Found> {
@@ -1101,6 +1150,7 @@ mod tests {
             "native:touptek:0",
             "native:moravian:0",
             "native:fujifilm:0",
+            "native:fujifilm_lens:0",
             "native:gphoto2:0",
             "native:skywatcher:0",
             "native:ioptron:0",
@@ -1150,6 +1200,15 @@ mod tests {
             pick("pegasus", DeviceKind::Mount).as_deref(),
             Some("pegasus")
         );
+        assert_eq!(
+            pick("fujifilm", DeviceKind::Camera).as_deref(),
+            Some("fujifilm")
+        );
+        assert_eq!(
+            pick("fujifilm", DeviceKind::Focuser).as_deref(),
+            Some("fujifilm_lens")
+        );
+        assert_eq!(pick("fujifilm_lens", DeviceKind::Camera), None);
         assert_eq!(pick("zwo", DeviceKind::Guider).as_deref(), Some("zwo"));
         assert_eq!(pick("zwo_eaf", DeviceKind::Camera), None);
         assert_eq!(pick("nikon", DeviceKind::Camera), None);
@@ -1187,6 +1246,7 @@ mod tests {
                 .open(OpenRequest {
                     address,
                     name: "EAF",
+                    site: std::sync::Arc::new(|| None),
                 })
                 .await
                 .unwrap();
@@ -1196,6 +1256,7 @@ mod tests {
             .open(OpenRequest {
                 address: "x",
                 name: "EAF",
+                site: std::sync::Arc::new(|| None),
             })
             .await
             .err()
@@ -1209,6 +1270,11 @@ mod tests {
         assert_eq!(labels("zwo_eaf", None), Some(("ZWO", Some("EAF"))));
         assert_eq!(labels("zwo", Some("efw")), Some(("ZWO", Some("EFW"))));
         assert_eq!(labels("fli_fw", None), Some(("FLI", Some("Filter Wheel"))));
+        assert_eq!(
+            labels("fujifilm_lens", None),
+            Some(("Fujifilm", Some("Lens")))
+        );
+        assert_eq!(labels("fujifilm", None), Some(("Fujifilm", None)));
         assert_eq!(labels("player_one", None), Some(("Player One", None)));
         assert_eq!(labels("atik", Some("efw")), Some(("Atik", None)));
         assert_eq!(labels("nikon", None), None);

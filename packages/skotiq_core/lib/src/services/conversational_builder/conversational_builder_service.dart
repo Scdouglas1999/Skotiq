@@ -44,8 +44,9 @@ import 'dart:convert';
 
 import '../../models/planning/target_suggestion.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../providers/profiles_provider.dart' show EquipmentProfileModel;
-import '../../providers/sequence/sequence_validation.dart';
+import '../../models/equipment_profile_model.dart' show EquipmentProfileModel;
+import '../../models/sequence/validation/structural_rules.dart';
+import '../../models/sequence/validation/validation_issue.dart';
 import '../logging_service.dart';
 import '../sequence_file_service.dart';
 import 'llm_provider.dart';

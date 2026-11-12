@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../../database/daos/darkroom_jobs_dao.dart';
+import '../../providers/database_provider.dart';
 import '../../models/darkroom/darkroom_job.dart';
 import '../../models/darkroom/darkroom_links.dart';
 import '../../models/darkroom/delivery.dart';

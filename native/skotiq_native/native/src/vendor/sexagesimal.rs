@@ -4,14 +4,6 @@
 //! `sDD*MM:SS`, iOptron `HHMMSSss` and `sDDMMSSss` in hundredths) but not in
 //! the arithmetic underneath, which is what lives here.
 
-pub(crate) fn hours_to_degrees(hours: f64) -> f64 {
-    hours * 15.0
-}
-
-pub(crate) fn degrees_to_hours(degrees: f64) -> f64 {
-    degrees / 15.0
-}
-
 /// Takes a leading `+` or `-` off `text`. An unsigned value is positive.
 pub(crate) fn split_sign(text: &str) -> (f64, &str) {
     if let Some(rest) = text.strip_prefix('-') {
@@ -92,10 +84,8 @@ mod tests {
     }
 
     #[test]
-    fn parts_and_hours_convert_both_ways() {
+    fn parts_join_and_signs_print() {
         assert_eq!(from_parts(5.0, 30.0, 0.0), 5.5);
-        assert_eq!(hours_to_degrees(5.5), 82.5);
-        assert_eq!(degrees_to_hours(82.5), 5.5);
         assert_eq!(sign_char(-0.5), '-');
         assert_eq!(sign_char(0.0), '+');
     }

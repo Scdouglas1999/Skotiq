@@ -1,7 +1,7 @@
 import '../database/database.dart';
 import '../models/settings/app_settings.dart';
 import '../models/weather/weather_settings.dart';
-import '../providers/settings_provider.dart' show AppSettingsState;
+import '../settings/app_settings_state.g.dart' show AppSettingsState;
 
 /// Canonical, in-memory view of the ONE logical safety configuration.
 ///

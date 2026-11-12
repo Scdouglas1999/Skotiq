@@ -114,11 +114,11 @@ impl FrameStoreOps for RecordingOps {
             .push((file_path.to_string(), frame_ctx.rig_label.clone()));
         Ok(())
     }
-    async fn calculate_image_hfr(&self, i: &ImageData) -> DeviceResult<Option<f64>> {
-        self.inner.calculate_image_hfr(i).await
-    }
-    async fn detect_stars_in_image(&self, i: &ImageData) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        self.inner.detect_stars_in_image(i).await
+    async fn measure_light_frame(
+        &self,
+        i: &ImageData,
+    ) -> DeviceResult<skotiq_sequencer::LightFrameMeasurement> {
+        self.inner.measure_light_frame(i).await
     }
 }
 

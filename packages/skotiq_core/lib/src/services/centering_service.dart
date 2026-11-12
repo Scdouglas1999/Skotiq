@@ -12,7 +12,7 @@ import '../providers/constellation_provider.dart'
     show coImagingSessionServiceProvider;
 import '../providers/equipment_provider.dart';
 import '../providers/imaging_provider.dart' show exposureSettingsProvider;
-import '../providers/current_screen_provider.dart';
+import '../models/app_screen.dart';
 import 'logging_service.dart' show loggingServiceProvider;
 import '../models/imaging/imaging_models.dart';
 import '../models/equipment/equipment_models.dart';

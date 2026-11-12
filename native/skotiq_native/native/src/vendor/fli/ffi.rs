@@ -20,8 +20,11 @@ pub(crate) const FLI_FRAME_TYPE_DARK: c_long = 1;
 // Bit depth
 pub(crate) const FLI_MODE_16BIT: c_long = 1;
 
-// Camera status
-pub(crate) const FLI_CAMERA_DATA_READY: c_long = 0x80000000u32 as c_long;
+// Camera status (libfli.h), compared as the 32 bits libfli writes
+pub(crate) const FLI_CAMERA_STATUS_UNKNOWN: u32 = 0xffff_ffff;
+pub(crate) const FLI_CAMERA_STATUS_MASK: u32 = 0x0000_0003;
+pub(crate) const FLI_CAMERA_STATUS_IDLE: u32 = 0x00;
+pub(crate) const FLI_CAMERA_DATA_READY: u32 = 0x8000_0000;
 
 /// Convert a c_long returned by libfli into i32, surfacing SDK corruption as
 /// `DriverError::SdkError` rather than wrapping. On Windows (LLP64) c_long is

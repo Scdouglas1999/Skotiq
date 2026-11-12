@@ -8,8 +8,8 @@
 pub(crate) mod phd2;
 pub(crate) mod stop_reason;
 
-use crate::api::get_state;
-use crate::device::{ConnectionState, DeviceType};
+use crate::api::{get_device_manager, get_state};
+use crate::device::DeviceType;
 use crate::error::SkotiqError;
 
 /// What the guider is doing and how well it guides.
@@ -130,15 +130,16 @@ impl Guider {
     /// profile's guider (whose operations then say it is not connected).
     /// `None` when the profile names no guider and none is connected.
     pub(crate) async fn active() -> Result<Option<Self>, SkotiqError> {
-        let state = get_state();
-        let connected: Vec<String> = state
-            .get_devices_by_type(DeviceType::Guider)
+        let connected: Vec<String> = get_device_manager()
+            .get_connected_device_infos()
             .await
             .into_iter()
-            .filter(|device| device.connection_state == ConnectionState::Connected)
-            .map(|device| device.device_id)
+            .filter(|device| device.device_type == DeviceType::Guider)
+            .map(|device| device.id)
             .collect();
-        let profile_guider = state.get_profile_device_id(DeviceType::Guider).await;
+        let profile_guider = get_state()
+            .get_profile_device_id(DeviceType::Guider)
+            .await;
         Self::choose(profile_guider.as_deref(), &connected)
     }
 

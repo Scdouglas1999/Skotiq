@@ -8,7 +8,7 @@
 //! turned out to run the other way.
 
 use crate::device_ops::{DeviceResult, MountOps, OperatorNotifyOps, SiteOps};
-use crate::meridian::PierSide;
+use crate::meridian::{wrap_hours, PierSide, SIDEREAL_PER_SOLAR};
 use std::time::Duration;
 
 /// Rate of the back-off move, degrees per second.
@@ -23,9 +23,6 @@ pub(crate) const RESPONSE_WINDOW: Duration = Duration::from_secs(15);
 
 /// Hour-angle change, in hours, that counts as the axis having moved (0.75°).
 const MIN_MOVE_HOURS: f64 = 0.05;
-
-/// Sidereal hours that pass per solar second.
-const SIDEREAL_HOURS_PER_SECOND: f64 = 1.002_737_909_35 / 3600.0;
 
 /// Which way the hour angle must change to leave a limit: toward the middle
 /// of the hour-angle range the pier side can reach (about -3 h on the west
@@ -52,18 +49,9 @@ fn primary_rate_for(direction: f64) -> f64 {
     -direction * BACKOFF_RATE_DEG_PER_SEC
 }
 
-fn wrap_hours(delta: f64) -> f64 {
-    let wrapped = delta.rem_euclid(24.0);
-    if wrapped > 12.0 {
-        wrapped - 24.0
-    } else {
-        wrapped
-    }
-}
-
 /// Hour-angle change between two RA read-backs `elapsed` apart.
 fn hour_angle_change(start_ra: f64, end_ra: f64, elapsed: Duration) -> f64 {
-    wrap_hours(elapsed.as_secs_f64() * SIDEREAL_HOURS_PER_SECOND - wrap_hours(end_ra - start_ra))
+    wrap_hours(elapsed.as_secs_f64() / 3600.0 * SIDEREAL_PER_SOLAR - wrap_hours(end_ra - start_ra))
 }
 
 /// Run the primary axis at `rate` for `duration`, then stop it. The stop is

@@ -123,8 +123,8 @@ pub async fn dither(
             ));
         }
         if guard.paused {
-            return Err(SkotiqError::OperationFailed(
-                "The built-in guider is paused; resume guiding before dithering".to_string(),
+            return Err(SkotiqError::InvalidState(
+                "Guiding is paused. Resume guiding before dithering.".to_string(),
             ));
         }
         // Advance the bounded pattern so each dither walks to fresh pixels

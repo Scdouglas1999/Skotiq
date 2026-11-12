@@ -8,6 +8,7 @@
 // leads with how old they are, so they are never read as current. Power has
 // no telemetry in the app, so the board's Power row is left out.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/skotiq_core.dart' hide EquipmentStatus;
 
@@ -120,13 +121,152 @@ EquipmentRowVm _notConnected(
   }
 }
 
+/// What one device slot's row shows of its state.
+///
+/// Rows read a device through a select of this, not its whole state: a whole
+/// state changes with every telemetry poll, and each recompute of the rows
+/// costs a frame even when no row changes.
+@immutable
+class _SlotFacts {
+  _SlotFacts(DeviceSlotState<Object?> state, [this.details = const []])
+      : connectionState = state.connectionState,
+        name = state.deviceName,
+        deviceId = state.deviceId,
+        error = state.lastError;
+
+  const _SlotFacts._(
+    this.connectionState,
+    this.name,
+    this.deviceId,
+    this.error,
+    this.details,
+  );
+
+  _SlotFacts withDetails(List<NightText> details) =>
+      _SlotFacts._(connectionState, name, deviceId, error, details);
+
+  final DeviceConnectionState connectionState;
+  final String? name;
+  final String? deviceId;
+  final DeviceError? error;
+  final List<NightText> details;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _SlotFacts &&
+      other.connectionState == connectionState &&
+      other.name == name &&
+      other.deviceId == deviceId &&
+      other.error == error &&
+      listEquals(other.details, details);
+
+  @override
+  int get hashCode => Object.hash(
+        connectionState,
+        name,
+        deviceId,
+        error,
+        Object.hashAll(details),
+      );
+}
+
+_SlotFacts _cameraFacts(CameraStateSnapshot camera) {
+  final temp = camera.temperature;
+  final cooling =
+      camera.isCooling && temp != null && (temp - camera.targetTemp).abs() >= 0.5;
+  final gain = camera.gain;
+  final offset = camera.offset;
+  final binning = camera.binning;
+  return _SlotFacts(camera, <NightText>[
+    if (temp != null)
+      // A word, not an arrow: the mono face this row is set in has no arrow
+      // glyph.
+      cooling
+          ? NightText(
+              'nightScrCoolingTo',
+              params: <String, String>{
+                'temp': nightCelsius(temp),
+                'target': nightFixed(camera.targetTemp, 0),
+              },
+            )
+          : NightText.literal(nightCelsius(temp)),
+    if (camera.coolerPower != null)
+      NightText.literal('${camera.coolerPower!.round()}%'),
+    if (gain != null || offset != null)
+      NightText.literal(
+        [
+          if (gain != null) 'g$gain',
+          if (offset != null) 'o$offset',
+        ].join(' '),
+      ),
+    if (binning != null && binning.isNotEmpty)
+      NightText.literal(binning.replaceAll(RegExp('[xX]'), '×')),
+  ]);
+}
+
+_SlotFacts _wheelFacts(FilterWheelState wheel) {
+  final slot = wheel.currentPosition;
+  if (slot == null) return _SlotFacts(wheel);
+  final names = wheel.filterNames;
+  // Positions are zero-based on the wire and one-based to the operator.
+  final name = slot >= 0 && slot < names.length ? names[slot] : null;
+  return _SlotFacts(wheel, <NightText>[
+    NightText(
+      name == null || name.isEmpty
+          ? 'nightSessionFilterSlotOnly'
+          : 'nightSessionFilterSlot',
+      params: <String, String>{
+        if (name != null) 'name': name,
+        'slot': '${slot + 1}',
+        'count': '${names.length}',
+      },
+    ),
+  ]);
+}
+
+_SlotFacts _focuserFacts(FocuserState focuser) =>
+    _SlotFacts(focuser, <NightText>[
+      if (focuser.position != null) nightFocuserSteps(focuser.position!),
+      if (focuser.temperature != null)
+        NightText.literal(nightCelsius(focuser.temperature!)),
+      if (focuser.isMoving) const NightText('nightSessionFocuserMoving'),
+    ]);
+
+_SlotFacts _mountFacts(MountState mount) {
+  final pier = nightPierKey(mount.sideOfPier);
+  return _SlotFacts(mount, <NightText>[
+    NightText(
+      mount.isSlewing
+          ? 'nightSessionMountSlewing'
+          : mount.isParked
+              ? 'nightSessionMountParked'
+              : mount.isTracking
+                  ? 'nightSessionMountTracking'
+                  : 'nightSessionMountNotTracking',
+    ),
+    if (pier != null) NightText(pier),
+    if (mount.altitude != null)
+      NightText(
+        'nightSessionMountAltitude',
+        params: <String, String>{'alt': nightFixed(mount.altitude!, 1)},
+      ),
+  ]);
+}
+
+_SlotFacts _rotatorFacts(RotatorState rotator) =>
+    _SlotFacts(rotator, <NightText>[
+      if (rotator.position != null)
+        NightText.literal('${nightFixed(rotator.position!, 1)}°'),
+      if (rotator.isMoving) const NightText('nightSessionRotatorMoving'),
+    ]);
+
 final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
-  final camera = ref.watch(cameraStateProvider);
-  final wheel = ref.watch(filterWheelStateProvider);
-  final focuser = ref.watch(focuserStateProvider);
-  final mount = ref.watch(mountStateProvider);
-  final guider = ref.watch(guiderStateProvider);
-  final rotator = ref.watch(rotatorStateProvider);
+  final camera = ref.watch(cameraStateProvider.select(_cameraFacts));
+  final wheel = ref.watch(filterWheelStateProvider.select(_wheelFacts));
+  final focuser = ref.watch(focuserStateProvider.select(_focuserFacts));
+  final mount = ref.watch(mountStateProvider.select(_mountFacts));
+  final guider = ref.watch(guiderStateProvider.select(_SlotFacts.new));
+  final rotator = ref.watch(rotatorStateProvider.select(_rotatorFacts));
   final phd2 = ref.watch(phd2StateProvider);
   final guideStats = ref.watch(guideStatsProvider);
   final guideStopReason = ref.watch(guidingStopReasonProvider);
@@ -137,27 +277,20 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
 
   EquipmentRowVm row(
     EquipmentKind kind,
-    DeviceType slot,
-    DeviceConnectionState state,
-    String? name,
-    List<NightText> Function() details, {
+    DeviceType type,
+    _SlotFacts facts, {
     EquipmentStatus connectedStatus = EquipmentStatus.ok,
-    DeviceType? type,
-    String? deviceId,
-    DeviceError? error,
   }) {
-    if (!nightConnected(state)) {
+    if (!nightConnected(facts.connectionState)) {
       return _notConnected(
         kind,
-        state,
-        name,
-        assigned: assigned.contains(slot),
-        error: error,
+        facts.connectionState,
+        facts.name,
+        assigned: assigned.contains(type),
+        error: facts.error,
       );
     }
-    final stale = type == null
-        ? null
-        : staleReadingsFor(reads, heartbeats, type, deviceId);
+    final stale = staleReadingsFor(reads, heartbeats, type, facts.deviceId);
     if (stale != null) {
       // Keeps the age beside stale readouts counting; only while one is
       // shown, so an idle Tonight holds no timer.
@@ -165,188 +298,59 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
       return EquipmentRowVm(
         kind: kind,
         status: EquipmentStatus.attention,
-        deviceName: name,
-        details: <NightText>[nightStaleText(stale, now), ...details()],
+        deviceName: facts.name,
+        details: <NightText>[nightStaleText(stale, now), ...facts.details],
       );
     }
     return EquipmentRowVm(
       kind: kind,
       status: connectedStatus,
-      deviceName: name,
-      details: details(),
+      deviceName: facts.name,
+      details: facts.details,
     );
   }
 
+  // A held guider says why (an autofocus, a flip, the mount's tracking
+  // limit) rather than only "not looping".
+  final mass = guideStats.frameCount > 0 && guideStats.starMass > 0
+      ? guideStats.starMass
+      : null;
+  final held = !_guiderWorking.contains(phd2) &&
+          guideStopReason != null &&
+          guideStopReason.isNotEmpty
+      ? guideStopReason
+      : null;
+  final guiderDetails = <NightText>[
+    if (held != null)
+      nightGuideStopReason(held)
+    else
+      NightText(nightPhd2StateKey(phd2)),
+    if (mass != null)
+      NightText(
+        'nightSessionGuiderMass',
+        params: <String, String>{
+          'mass': mass >= 1000
+              ? '${(mass / 1000).toStringAsFixed(1)}k'
+              : mass.round().toString(),
+        },
+      ),
+  ];
+
   return <EquipmentRowVm>[
-    row(
-      EquipmentKind.camera,
-      DeviceType.camera,
-      camera.connectionState,
-      camera.deviceName,
-      () {
-        final temp = camera.temperature;
-        final cooling = camera.isCooling &&
-            temp != null &&
-            (temp - camera.targetTemp).abs() >= 0.5;
-        final gain = camera.gain;
-        final offset = camera.offset;
-        final binning = camera.binning;
-        return <NightText>[
-          if (temp != null)
-            // A word, not an arrow: the mono face this row is set in has no
-            // arrow glyph.
-            cooling
-                ? NightText(
-                    'nightScrCoolingTo',
-                    params: <String, String>{
-                      'temp': nightCelsius(temp),
-                      'target': nightFixed(camera.targetTemp, 0),
-                    },
-                  )
-                : NightText.literal(nightCelsius(temp)),
-          if (camera.coolerPower != null)
-            NightText.literal('${camera.coolerPower!.round()}%'),
-          if (gain != null || offset != null)
-            NightText.literal(
-              [
-                if (gain != null) 'g$gain',
-                if (offset != null) 'o$offset',
-              ].join(' '),
-            ),
-          if (binning != null && binning.isNotEmpty)
-            NightText.literal(binning.replaceAll(RegExp('[xX]'), '×')),
-        ];
-      },
-      type: DeviceType.camera,
-      deviceId: camera.deviceId,
-      error: camera.lastError,
-    ),
-    row(
-      EquipmentKind.filterWheel,
-      DeviceType.filterWheel,
-      wheel.connectionState,
-      wheel.deviceName,
-      () {
-        final slot = wheel.currentPosition;
-        if (slot == null) return const <NightText>[];
-        final names = wheel.filterNames;
-        // Positions are zero-based on the wire and one-based to the operator.
-        final name = slot >= 0 && slot < names.length ? names[slot] : null;
-        return <NightText>[
-          NightText(
-            name == null || name.isEmpty
-                ? 'nightSessionFilterSlotOnly'
-                : 'nightSessionFilterSlot',
-            params: <String, String>{
-              if (name != null) 'name': name,
-              'slot': '${slot + 1}',
-              'count': '${names.length}',
-            },
-          ),
-        ];
-      },
-      type: DeviceType.filterWheel,
-      deviceId: wheel.deviceId,
-      error: wheel.lastError,
-    ),
-    row(
-      EquipmentKind.focuser,
-      DeviceType.focuser,
-      focuser.connectionState,
-      focuser.deviceName,
-      () => <NightText>[
-        if (focuser.position != null) nightFocuserSteps(focuser.position!),
-        if (focuser.temperature != null)
-          NightText.literal(nightCelsius(focuser.temperature!)),
-        if (focuser.isMoving) const NightText('nightSessionFocuserMoving'),
-      ],
-      type: DeviceType.focuser,
-      deviceId: focuser.deviceId,
-      error: focuser.lastError,
-    ),
-    row(
-      EquipmentKind.mount,
-      DeviceType.mount,
-      mount.connectionState,
-      mount.deviceName,
-      () {
-        final pier = nightPierKey(mount.sideOfPier);
-        return <NightText>[
-          NightText(
-            mount.isSlewing
-                ? 'nightSessionMountSlewing'
-                : mount.isParked
-                    ? 'nightSessionMountParked'
-                    : mount.isTracking
-                        ? 'nightSessionMountTracking'
-                        : 'nightSessionMountNotTracking',
-          ),
-          if (pier != null) NightText(pier),
-          if (mount.altitude != null)
-            NightText(
-              'nightSessionMountAltitude',
-              params: <String, String>{
-                'alt': nightFixed(mount.altitude!, 1),
-              },
-            ),
-        ];
-      },
-      type: DeviceType.mount,
-      deviceId: mount.deviceId,
-      error: mount.lastError,
-    ),
+    row(EquipmentKind.camera, DeviceType.camera, camera),
+    row(EquipmentKind.filterWheel, DeviceType.filterWheel, wheel),
+    row(EquipmentKind.focuser, DeviceType.focuser, focuser),
+    row(EquipmentKind.mount, DeviceType.mount, mount),
     row(
       EquipmentKind.guider,
       DeviceType.guider,
-      guider.connectionState,
-      guider.deviceName,
-      () {
-        final mass = guideStats.frameCount > 0 && guideStats.starMass > 0
-            ? guideStats.starMass
-            : null;
-        // A held guider says why (an autofocus, a flip, the mount's
-        // tracking limit) rather than only "not looping".
-        final held = !_guiderWorking.contains(phd2) &&
-                guideStopReason != null &&
-                guideStopReason.isNotEmpty
-            ? guideStopReason
-            : null;
-        return <NightText>[
-          if (held != null)
-            nightGuideStopReason(held)
-          else
-            NightText(nightPhd2StateKey(phd2)),
-          if (mass != null)
-            NightText(
-              'nightSessionGuiderMass',
-              params: <String, String>{
-                'mass': mass >= 1000
-                    ? '${(mass / 1000).toStringAsFixed(1)}k'
-                    : mass.round().toString(),
-              },
-            ),
-        ];
-      },
+      // The guider's state carries no readouts; its words come from the
+      // guiding service.
+      guider.withDetails(guiderDetails),
       connectedStatus: _guiderWorking.contains(phd2)
           ? EquipmentStatus.ok
           : EquipmentStatus.attention,
-      type: DeviceType.guider,
-      deviceId: guider.deviceId,
-      error: guider.lastError,
     ),
-    row(
-      EquipmentKind.rotator,
-      DeviceType.rotator,
-      rotator.connectionState,
-      rotator.deviceName,
-      () => <NightText>[
-        if (rotator.position != null)
-          NightText.literal('${nightFixed(rotator.position!, 1)}°'),
-        if (rotator.isMoving) const NightText('nightSessionRotatorMoving'),
-      ],
-      type: DeviceType.rotator,
-      deviceId: rotator.deviceId,
-      error: rotator.lastError,
-    ),
+    row(EquipmentKind.rotator, DeviceType.rotator, rotator),
   ];
 });

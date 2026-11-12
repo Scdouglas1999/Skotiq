@@ -420,36 +420,23 @@ impl FrameStoreOps for NullDeviceOps {
         Ok(())
     }
 
-    async fn calculate_image_hfr(&self, _image_data: &ImageData) -> DeviceResult<Option<f64>> {
-        // Stub returns a plausible random HFR (1.5–3.0 px) so autofocus tests
-        // get a varying curve to fit, exercising the V-curve solver without
-        // requiring a real star detector.
+    async fn measure_light_frame(
+        &self,
+        _image_data: &ImageData,
+    ) -> DeviceResult<LightFrameMeasurement> {
+        // A plausible random HFR (1.5-3.0 px) and star count, so tests that
+        // grade frames see a varying, non-trivial measurement without a real
+        // star detector.
         use rand::Rng;
         let mut rng = rand::thread_rng();
         let hfr = rng.gen_range(1.5..3.0);
-        tracing::debug!("[NULL] Calculated HFR: {:.2}", hfr);
-        Ok(Some(hfr))
-    }
-
-    async fn detect_stars_in_image(
-        &self,
-        _image_data: &ImageData,
-    ) -> DeviceResult<Vec<(f64, f64, f64)>> {
-        // Synthesize a randomized star field so MIN_STAR_COUNT-style validation
-        // in tests sees a non-trivial detector output.
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
-        let num_stars = rng.gen_range(10..50);
-        let stars: Vec<(f64, f64, f64)> = (0..num_stars)
-            .map(|_| {
-                let x = rng.gen_range(100.0..4000.0);
-                let y = rng.gen_range(100.0..2700.0);
-                let hfr = rng.gen_range(1.5..3.0);
-                (x, y, hfr)
-            })
-            .collect();
-        tracing::debug!("[NULL] Detected {} stars", stars.len());
-        Ok(stars)
+        let star_count = rng.gen_range(10..50);
+        tracing::debug!("[NULL] Measured HFR {:.2} over {} stars", hfr, star_count);
+        Ok(LightFrameMeasurement {
+            hfr: Some(hfr),
+            star_count: Some(star_count),
+            ..LightFrameMeasurement::default()
+        })
     }
 }
 

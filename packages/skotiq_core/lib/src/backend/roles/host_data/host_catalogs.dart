@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../network_backend.dart';
 
 /// The star and object catalogs installed on a linked imaging host.
 ///

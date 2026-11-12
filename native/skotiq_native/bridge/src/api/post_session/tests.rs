@@ -246,7 +246,8 @@ fn integrate_session_stamps_reference_wcs_into_master() {
     let size = 256u32;
     let stars = base_stars(size as f64);
     // A representative plate-solved panel WCS: ~1.5 arcsec/px, small rotation.
-    let ref_wcs = WcsInfo::from_plate_solve(83.822, -5.391, 12.0, 1.5, size, size);
+    let ref_wcs =
+        skotiq_imaging::SipWcs::from_pointing(83.822, -5.391, 12.0, 1.5, size, size).cd_only();
 
     let mut light_paths = Vec::new();
     let shifts = [(0.0, 0.0), (3.0, -2.0), (-2.0, 4.0)];

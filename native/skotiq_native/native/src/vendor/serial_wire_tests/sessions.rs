@@ -1,7 +1,8 @@
 //! The scripted sessions and port scans, one golden transcript each.
 
 use super::fakes::{self, Knobs, Lx200Flavor};
-use super::{check_transcript, isolate_park_state, FakeMount};
+use super::skywatcher_sessions::{philadelphia, session_clock};
+use super::{assert_waited, check_transcript, isolate_park_state, FakeMount};
 use crate::vendor::ioptron::{self, IOptronMount};
 use crate::vendor::lx200::{self, Lx200Mount, Lx200MountType};
 use crate::vendor::skywatcher::{self, SkyWatcherMount};
@@ -11,18 +12,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 const MISSING_PORT: &str = "/dev/skotiq-no-such-port";
-
-/// Runs one driver call between two transcript notes: the call, then its
-/// result. The notes travel through the port, so they sit exactly around the
-/// bytes that call put on the wire.
-macro_rules! step {
-    ($fake:expr, $label:expr, $call:expr) => {{
-        $fake.mark(&format!("call {}", $label));
-        let result = $call;
-        $fake.mark(&$fake.scrub(&format!("  -> {:?}", result)));
-        result
-    }};
-}
 
 /// The whole `MountDriver` surface, in an order a night would use it.
 async fn full_session(fake: &FakeMount, knobs: &Knobs, mount: &mut dyn MountDriver) {
@@ -165,26 +154,13 @@ async fn full_session(fake: &FakeMount, knobs: &Knobs, mount: &mut dyn MountDriv
     );
 }
 
-/// A wait that the driver bounds with a sleep or a timeout took at least that
-/// long and not much longer.
-fn assert_waited(elapsed: Duration, at_least: Duration, what: &str) {
-    assert!(
-        elapsed >= at_least,
-        "{what} took {elapsed:?}, shorter than the {at_least:?} its sleeps and timeouts add up to"
-    );
-    let at_most = at_least + Duration::from_secs(4);
-    assert!(
-        elapsed < at_most,
-        "{what} took {elapsed:?}, far longer than the {at_least:?} its sleeps and timeouts add up to"
-    );
-}
-
 #[tokio::test]
 async fn skywatcher_session() {
     let _park_state = isolate_park_state().await;
     let knobs = Arc::new(Knobs::default());
     let fake = FakeMount::spawn(b'\r', fakes::synscan(None, knobs.clone()));
-    let mut mount = SkyWatcherMount::new_serial(fake.path.clone(), None);
+    let mut mount = SkyWatcherMount::new_serial(fake.path.clone(), None, philadelphia())
+        .with_clock(session_clock);
     full_session(&fake, &knobs, &mut mount).await;
     check_transcript("skywatcher_session", &fake.lines());
 }
@@ -279,16 +255,92 @@ async fn lx200_generic_session() {
     .await;
 }
 
+/// Targets the firmware reads by position, in whatever precision the mount
+/// was found in: a declination under ten degrees and a negative one under
+/// one degree.
+async fn targets_session(fake: &FakeMount, mount: &mut dyn MountDriver) {
+    let _ = step!(fake, "connect", mount.connect().await);
+    let _ = step!(fake, "get_coordinates", mount.get_coordinates().await);
+    let _ = step!(fake, "get_alt_az", mount.get_alt_az().await);
+    let _ = step!(
+        fake,
+        "slew_to_coordinates(5.5, 5.0)",
+        mount.slew_to_coordinates(5.5, 5.0).await
+    );
+    let _ = step!(
+        fake,
+        "sync_to_coordinates(5.5123, -0.5)",
+        mount.sync_to_coordinates(5.5123, -0.5).await
+    );
+    let _ = step!(
+        fake,
+        "slew_to_coordinates(5.5123, -20.2512)",
+        mount.slew_to_coordinates(5.5123, -20.2512).await
+    );
+    let _ = step!(fake, "disconnect", mount.disconnect().await);
+}
+
+async fn lx200_targets(name: &str, flavor: Lx200Flavor, mount_type: Lx200MountType) {
+    let _park_state = isolate_park_state().await;
+    let fake = FakeMount::spawn(b'#', fakes::lx200(flavor, None, Arc::default()));
+    let mut mount = Lx200Mount::new(fake.path.clone(), mount_type, None);
+    targets_session(&fake, &mut mount).await;
+    check_transcript(name, &fake.lines());
+}
+
+#[tokio::test]
+async fn lx200_meade_targets() {
+    lx200_targets(
+        "lx200_meade_targets",
+        Lx200Flavor::Meade,
+        Lx200MountType::Meade,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn lx200_onstep_targets() {
+    lx200_targets(
+        "lx200_onstep_targets",
+        Lx200Flavor::OnStep,
+        Lx200MountType::OnStep,
+    )
+    .await;
+}
+
+/// The mount starts in low precision and is switched to high precision.
+#[tokio::test]
+async fn lx200_meade_low_precision_targets() {
+    lx200_targets(
+        "lx200_meade_low_precision_targets",
+        Lx200Flavor::MeadeLowPrecision,
+        Lx200MountType::Meade,
+    )
+    .await;
+}
+
+/// The mount stays in low precision, so targets go out in low precision.
+#[tokio::test]
+async fn lx200_meade_low_precision_only_targets() {
+    lx200_targets(
+        "lx200_meade_low_precision_only_targets",
+        Lx200Flavor::MeadeLowPrecisionOnly,
+        Lx200MountType::Meade,
+    )
+    .await;
+}
+
 // Connections that do not go the easy way
 
 #[tokio::test]
 async fn skywatcher_connect_to_a_silent_port() {
     let fake = FakeMount::spawn(b'\r', fakes::silent());
-    let mut mount = SkyWatcherMount::new_serial(fake.path.clone(), Some(115200));
+    let mut mount = SkyWatcherMount::new_serial(fake.path.clone(), Some(115200), philadelphia());
     let _ = step!(fake, "connect", mount.connect().await);
+    // Three tries of one second each, read in half-second slices.
     assert_waited(
         fake.time_on_the_wire(),
-        Duration::from_secs(5),
+        Duration::from_secs(3),
         "Sky-Watcher connect",
     );
     fake.mark(&format!("  connected={}", mount.is_connected()));
@@ -375,7 +427,7 @@ async fn connect_to_a_port_that_does_not_exist() {
     let _park_state = isolate_park_state().await;
     let mut lines = Vec::new();
 
-    let mut mount = SkyWatcherMount::new_serial(MISSING_PORT.to_string(), None);
+    let mut mount = SkyWatcherMount::new_serial(MISSING_PORT.to_string(), None, philadelphia());
     lines.push(format!("skywatcher id={}", mount.id()));
     lines.push(format!("  -> {:?}", mount.connect().await));
 
@@ -387,7 +439,7 @@ async fn connect_to_a_port_that_does_not_exist() {
     lines.push(format!("lx200 id={}", mount.id()));
     lines.push(format!("  -> {:?}", mount.connect().await));
 
-    let mount = SkyWatcherMount::new_serial("COM4\\sub".to_string(), None);
+    let mount = SkyWatcherMount::new_serial("COM4\\sub".to_string(), None, philadelphia());
     lines.push(format!("skywatcher windows-style id={}", mount.id()));
 
     check_transcript("connect_missing_port", &lines);
@@ -440,11 +492,11 @@ fn skywatcher_scan() {
     let started = Instant::now();
     let found = skywatcher::scan_port_list(scan_list(&fakes));
     // Silent port: two baud rates, each a 100 ms settle, a 500 ms read
-    // timeout and a 50 ms release. Live port: one such miss, then three
-    // 100 ms settles and a release.
+    // timeout and a 50 ms release. Live port: one such miss, then one
+    // 100 ms settle and a release.
     assert_waited(
         started.elapsed(),
-        Duration::from_millis(2300),
+        Duration::from_millis(2100),
         "Sky-Watcher scan",
     );
 

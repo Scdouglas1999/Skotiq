@@ -7,8 +7,7 @@ import '../database/database.dart' as db;
 import '../database/daos/sequence_runs_dao.dart';
 import '../database/daos/sequence_versions_dao.dart';
 import '../database/daos/sequences_dao.dart';
-import '../providers/sequence/node_duration_provider.dart'
-    show sequenceRollupSecs;
+import 'sequence_rollup.dart' show sequenceRollupSecs;
 import '../models/sequence/sequence_models.dart';
 import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';

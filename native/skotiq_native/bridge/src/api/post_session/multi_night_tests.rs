@@ -482,7 +482,7 @@ fn drizzle_build_honors_scales_and_preserves_calibrated_signal() {
     let (raw, mut h) = read_frame(Path::new(&light)).unwrap();
     add_wcs_headers(
         &mut h,
-        &WcsInfo::from_plate_solve(35.0, 42.0, 0.0, 1.2, W, H),
+        &skotiq_imaging::SipWcs::from_pointing(35.0, 42.0, 0.0, 1.2, W, H).cd_only(),
     );
     h.set_int("A_ORDER", 2);
     h.set_float("A_2_0", 0.0001);

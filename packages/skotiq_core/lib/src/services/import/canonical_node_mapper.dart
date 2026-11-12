@@ -4,7 +4,7 @@ import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../../models/import/canonical_sequence_node.dart';
 import '../../models/import/import_result.dart';
 import '../../models/sequence/sequence_models.dart';
-import '../../providers/sequence/sequence_validation.dart';
+import '../../models/sequence/validation/validation_issue.dart';
 
 /// Outcome of mapping one canonical tree to Skotiq nodes.
 ///

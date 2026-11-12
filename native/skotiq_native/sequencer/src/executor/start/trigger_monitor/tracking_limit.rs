@@ -11,8 +11,6 @@ use std::time::Duration;
 /// How long a hold may outlast the moment its flip was due before it gives up
 /// and hands the run to the operator.
 const HOLD_OVERRUN: Duration = Duration::from_secs(15 * 60);
-/// Hour angle advances this many sidereal seconds per solar second.
-const SIDEREAL_RATE: f64 = 1.002_737_909;
 
 pub(super) struct TrackingLimitHold {
     target: (Option<f64>, Option<f64>),
@@ -28,7 +26,7 @@ pub(super) struct TrackingLimitHold {
 
 /// Seconds until a waiting hold's flip comes due at `hour_angle`.
 fn secs_until_window(config: &crate::MeridianFlipConfig, hour_angle: f64) -> f64 {
-    (tracking_limit_flip_threshold(config) - hour_angle).max(0.0) * 3600.0 / SIDEREAL_RATE
+    (tracking_limit_flip_threshold(config) - hour_angle).max(0.0) * 3600.0 / crate::meridian::SIDEREAL_PER_SOLAR
 }
 
 fn relative_to_meridian(hour_angle: f64) -> String {
@@ -174,10 +172,11 @@ impl Dispatcher {
         // restores the run's guiding after its slew and recenter.
         if state.guiding.is_enabled() {
             self.rig
-                .device_ops
+                .device_ops()
                 .guider_note_stop_reason(Some(crate::GuidingStopReason::TrackingLimitHold))
                 .await;
-            if let Err(error) = bounded_poll("guider_stop", self.rig.device_ops.guider_stop()).await
+            if let Err(error) =
+                bounded_poll("guider_stop", self.rig.device_ops().guider_stop()).await
             {
                 let message =
                     format!("Could not stop guiding for tracking-limit recovery: {error}");
@@ -237,10 +236,10 @@ impl Dispatcher {
     /// The flip ran. Release frames only onto a mount that really tracks; a
     /// mount that does not is handed to tracking recovery, which keeps trying.
     async fn finish_tracking_limit_hold(&mut self) {
-        let tracking = match self.rig.context.mount_id.as_deref() {
+        let tracking = match self.rig.devices().mount_id.as_deref() {
             Some(id) => {
                 crate::tracking_check::confirm_mount_tracks(
-                    &self.rig.device_ops,
+                    self.rig.device_ops(),
                     id,
                     crate::tracking_check::TRACKING_CHECK_WINDOW,
                 )
@@ -363,7 +362,8 @@ mod tests {
             run.teardown.node_tree_has_ended();
             let dispatcher = Dispatcher::new(
                 &run,
-                ExecutionContext::new("root".into(), ops.clone()),
+                run.build_context(std::time::Instant::now(), requests.clone())
+                    .await,
                 requests,
             )
             .await;

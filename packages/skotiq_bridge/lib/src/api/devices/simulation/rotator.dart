@@ -4,63 +4,10 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../../../device.dart';
-import '../../../error.dart';
 import '../../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `get_sim_rotator`
-
-/// Get rotator status
-Future<RotatorStatus> apiGetRotatorStatus({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDevicesSimulationRotatorApiGetRotatorStatus(deviceId: deviceId);
-
-/// Move rotator to angle
-Future<void> apiRotatorMoveTo({
-  required String deviceId,
-  required double angle,
-}) => RustLib.instance.api.crateApiDevicesSimulationRotatorApiRotatorMoveTo(
-  deviceId: deviceId,
-  angle: angle,
-);
-
-/// Move rotator relative
-Future<void> apiRotatorMoveRelative({
-  required String deviceId,
-  required double delta,
-}) =>
-    RustLib.instance.api.crateApiDevicesSimulationRotatorApiRotatorMoveRelative(
-      deviceId: deviceId,
-      delta: delta,
-    );
-
-/// Set the rotator's reverse-direction flag (IRotatorV3 `Reverse`, Alpaca
-/// `reverse`, INDI `ROTATOR_REVERSE`).
-Future<void> apiRotatorSetReverse({
-  required String deviceId,
-  required bool reverse,
-}) => RustLib.instance.api.crateApiDevicesSimulationRotatorApiRotatorSetReverse(
-  deviceId: deviceId,
-  reverse: reverse,
-);
-
-/// Halt rotator
-Future<void> apiRotatorHalt({required String deviceId}) => RustLib.instance.api
-    .crateApiDevicesSimulationRotatorApiRotatorHalt(deviceId: deviceId);
-
-/// Sync rotator's reported sky angle to the supplied position angle without
-/// moving the hardware. Used by the "Sync to image PA" workflow after a plate
-/// solve: the solver returns the astrometric PA of the captured frame and
-/// this call aligns the rotator's reported PA so subsequent absolute moves
-/// land at the correct sky angle.
-Future<void> apiRotatorSyncToPa({
-  required String deviceId,
-  required double pa,
-}) => RustLib.instance.api.crateApiDevicesSimulationRotatorApiRotatorSyncToPa(
-  deviceId: deviceId,
-  pa: pa,
-);
 
 class SimulatedRotator {
   final RotatorStatus status;

@@ -29,32 +29,41 @@ pub(super) enum ActionFlow {
 
 /// The rig an action drives and the shared state it reads and updates.
 pub(super) struct Rig {
-    pub device_ops: SharedDeviceOps,
-    pub context: RunRig,
+    /// The run's instruction context, the one its node tree runs against.
+    pub shared: crate::instructions::RunShared,
     pub trigger_state: Arc<RwLock<TriggerState>>,
     pub runtime_config: RunConfigStore,
 }
 
 impl Rig {
+    pub(super) fn devices(&self) -> &RunRig {
+        &self.shared.rig
+    }
+
+    pub(super) fn device_ops(&self) -> &SharedDeviceOps {
+        &self.shared.device_ops
+    }
+
     /// An instruction context for a trigger-run instruction, aimed at
-    /// `target`.
+    /// `target`: the run's own, so the instruction records to the run's
+    /// decision log, waits at its dither barrier and stamps its frames with
+    /// its session. A trigger action is not a sequence node and does not move
+    /// the rotator: no node id and no rotation.
     pub(super) fn instruction_context(
         &self,
         target: TargetSnapshot,
         run: &RunControl,
     ) -> crate::instructions::InstructionContext {
-        trigger_instruction_context(
-            &self.context,
-            target.name,
-            target.ra_hours,
-            target.dec_degrees,
-            target.filter,
-            run.is_cancelled.clone(),
-            self.device_ops.clone(),
-            self.trigger_state.clone(),
-            &self.runtime_config,
-            Some(run.state.events().clone()),
-        )
+        crate::instructions::InstructionContext {
+            target_ra: target.ra_hours,
+            target_dec: target.dec_degrees,
+            target_name: target.name,
+            current_filter: target.filter,
+            ..crate::instructions::InstructionContext::new(
+                self.shared.clone(),
+                run.is_cancelled.clone(),
+            )
+        }
     }
 
     /// The current target and filter, as an instruction context wants them.

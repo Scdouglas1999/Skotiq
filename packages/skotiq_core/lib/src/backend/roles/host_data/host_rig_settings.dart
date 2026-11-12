@@ -1,4 +1,5 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import '../../../models/meridian_flip_settings.dart';
+import '../../../services/home_assistant/home_assistant_host_settings.dart';
 
 /// Settings a linked imaging host serves through their own endpoints.
 ///

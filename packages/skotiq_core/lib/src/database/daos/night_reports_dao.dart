@@ -1,8 +1,6 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/imaging/night_report.dart';
-import '../../providers/database_provider.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
@@ -95,7 +93,3 @@ class NightReportsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 }
-
-final nightReportsDaoProvider = Provider<NightReportsDao>((ref) {
-  return NightReportsDao(ref.watch(databaseProvider));
-});

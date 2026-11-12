@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/framing_provider.dart';
+import 'package:skotiq_core/src/models/framing_models.dart';
 import 'package:drift/native.dart';
 
 void main() {

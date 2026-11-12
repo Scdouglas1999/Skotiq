@@ -89,9 +89,6 @@ pub enum MeridianFlipEvent {
     Aborted { reason: String },
 }
 
-/// Callback type for receiving flip events
-pub type FlipEventCallback = Box<dyn Fn(MeridianFlipEvent) + Send + Sync>;
-
 /// How far the target is from the meridian, and on which side, as a phrase the
 /// flip banner can put in parentheses after the signed hour angle.
 ///
@@ -111,32 +108,20 @@ pub(crate) fn meridian_offset_phrase(hour_angle_hours: f64) -> String {
     }
 }
 
-/// Builder for creating flip event sequences with logging
+/// Writes a flip's steps to the log.
 pub struct FlipEventEmitter {
-    callback: Option<FlipEventCallback>,
     log_prefix: String,
 }
 
 impl FlipEventEmitter {
     pub fn new() -> Self {
         Self {
-            callback: None,
             log_prefix: "[MERIDIAN]".to_string(),
         }
     }
 
-    pub fn with_callback(mut self, callback: FlipEventCallback) -> Self {
-        self.callback = Some(callback);
-        self
-    }
-
-    pub fn emit(&self, event: MeridianFlipEvent) {
-        // Always log
-        self.log_event(&event);
-
-        if let Some(cb) = &self.callback {
-            cb(event);
-        }
+    pub fn emit(&self, event: &MeridianFlipEvent) {
+        self.log_event(event);
     }
 
     fn log_event(&self, event: &MeridianFlipEvent) {

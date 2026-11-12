@@ -23,6 +23,10 @@ pub struct MountSiteInfo {
     pub elevation_m: Option<f64>,
 }
 
+/// Reads the observing site the application holds, at the moment a driver
+/// needs it. A mount that keeps no site of its own points with this one.
+pub type SiteSource = std::sync::Arc<dyn Fn() -> Option<MountSiteInfo> + Send + Sync>;
+
 /// What the mount believes the time is.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MountClock {

@@ -32,8 +32,7 @@ import 'package:skotiq_core/src/models/framing_plate_scale.dart';
 // ignore: implementation_imports
 import 'package:skotiq_core/src/models/hips/hips_properties.dart';
 // ignore: implementation_imports
-import 'package:skotiq_core/src/providers/framing_provider.dart'
-    show FramingTarget;
+import 'package:skotiq_core/skotiq_core.dart' show FramingTarget;
 // ignore: implementation_imports
 import 'package:skotiq_core/src/services/hips/hips_tile_cache.dart';
 // ignore: implementation_imports

@@ -2,6 +2,8 @@ call connect
 @ port baud=115200 data=8 parity=none stop=1 flow=none
 > :GVP#
 < On-Step#
+> :GR#
+< 05:30:00#
   -> Ok(())
   id=native:onstep:<PORT_ID> name=On-Step (<PORT>) vendor=Other("Pegasus/OnStep") connected=true
   can_slew=true can_sync=true can_pulse_guide=true can_set_tracking_rate=true can_find_home=true can_set_park=true
@@ -53,6 +55,7 @@ call sync_to_coordinates(5.5123, -20.2512)
   -> Ok(())
 call set_tracking(false)
 > :Td#
+< 1
   -> Ok(())
 call get_tracking
 > :GU#
@@ -60,6 +63,7 @@ call get_tracking
   -> Ok(false)
 call set_tracking(true)
 > :Te#
+< 1
   -> Ok(())
 call get_tracking
 > :GU#
@@ -153,7 +157,7 @@ call set_clock(1788921000, -4.0)
 < 1
   -> Ok(())
 call find_home
-> :hF#
+> :hC#
   -> Ok(())
 call is_slewing
 > :GU#
@@ -173,14 +177,15 @@ call set_park
   -> Ok(())
 call park
 > :hP#
+< 1
   -> Ok(())
 call is_parked
 > :GU#
-< NPHET250#
+< nNPHET250#
   -> Ok(true)
 call is_slewing
 > :GU#
-< NPHET250#
+< nNPHET250#
   -> Ok(false)
 call get_coordinates
 > :GR#
@@ -190,15 +195,16 @@ call get_coordinates
   -> Ok((5.5, 20.0))
 call unpark
 > :hR#
+< 1
   -> Ok(())
 call is_parked
 > :GU#
-< NpHET250#
+< nNpHET250#
   -> Ok(false)
 call get_tracking
 > :GU#
-< NpHET250#
-  -> Ok(true)
+< nNpHET250#
+  -> Ok(false)
 call disconnect
 > :Q#
   -> Ok(())

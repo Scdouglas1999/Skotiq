@@ -3,25 +3,25 @@ use super::*;
 #[tokio::test]
 async fn moravian_offset_write_reports_not_supported_without_mutating_cache() {
     let mut camera = MoravianCamera::new(0);
-    camera.current_offset = 7;
+    camera.core.offset = 7;
 
     let err = camera.set_offset(22).await.unwrap_err();
 
     assert!(matches!(err, DriverError::NotSupported));
-    assert_eq!(camera.current_offset, 7);
+    assert_eq!(camera.core.offset, 7);
 }
 
 #[tokio::test]
 async fn moravian_gain_write_reports_not_supported_without_mutating_cache() {
     let mut camera = MoravianCamera::new(0);
-    camera.connected = true;
-    camera.capabilities.can_set_gain = false;
-    camera.current_gain = 11;
+    camera.core.connected = true;
+    camera.core.capabilities.can_set_gain = false;
+    camera.core.gain = 11;
 
     let err = camera.set_gain(42).await.unwrap_err();
 
     assert!(matches!(err, DriverError::NotSupported));
-    assert_eq!(camera.current_gain, 11);
+    assert_eq!(camera.core.gain, 11);
 }
 
 #[test]
@@ -174,7 +174,7 @@ pub(crate) fn flip_bayer_vertical_is_involutive() {
 #[tokio::test]
 async fn moravian_gain_range_reports_not_supported() {
     let mut camera = MoravianCamera::new(0);
-    camera.connected = true;
+    camera.core.connected = true;
 
     assert!(matches!(
         camera.get_gain_range().await,
@@ -186,7 +186,7 @@ async fn moravian_gain_range_reports_not_supported() {
 #[tokio::test]
 async fn moravian_offset_range_reports_not_supported() {
     let mut camera = MoravianCamera::new(0);
-    camera.connected = true;
+    camera.core.connected = true;
 
     assert!(matches!(
         camera.get_offset_range().await,

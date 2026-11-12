@@ -1,4 +1,5 @@
 use super::*;
+use skotiq_indi::names as indi;
 
 impl DeviceManager {
     /// Sync the mount to J2000 coordinates, publishing the position synced
@@ -428,7 +429,7 @@ impl DeviceManager {
                     }
 
                     // get_side_of_pier on `MountDriver` returns Unknown rather than Err
-                    // for unsupported mounts (e.g. SkyWatcher), so distinguish here:
+                    // for some unsupported mounts, so distinguish here:
                     // Unknown → Unsupported availability; East/West → Available.
                     let side_of_pier_opt = match mount.get_side_of_pier().await {
                         Ok(skotiq_device::PierSide::Unknown) => {
@@ -466,7 +467,7 @@ impl DeviceManager {
                     };
 
                     // Native drivers report Err(NotSupported) explicitly for alt/az and
-                    // sidereal time on protocols that lack them (e.g. SkyWatcher, LX200).
+                    // sidereal time on protocols that lack them (e.g. LX200).
                     let alt_az_pair = Self::availability_from_native_result(
                         mount.get_alt_az().await,
                         // Use ALTITUDE as primary key; AZIMUTH mirror is set below.
@@ -795,30 +796,34 @@ impl DeviceManager {
                     let locked = client.read().await;
                     let (can_park, can_slew, can_sync, can_pulse_guide) = {
                         let can_park = locked
-                            .get_switch(&device_name, "TELESCOPE_PARK", "PARK")
+                            .get_switch(&device_name, indi::TELESCOPE_PARK, indi::PARK)
                             .await
                             .is_some()
                             || locked
-                                .get_switch(&device_name, "TELESCOPE_PARK", "UNPARK")
+                                .get_switch(&device_name, indi::TELESCOPE_PARK, indi::UNPARK)
                                 .await
                                 .is_some();
                         let can_slew = locked
-                            .get_switch(&device_name, "ON_COORD_SET", "SLEW")
+                            .get_switch(&device_name, indi::ON_COORD_SET, indi::SLEW)
                             .await
                             .is_some();
                         let can_sync = locked
-                            .get_switch(&device_name, "ON_COORD_SET", "SYNC")
+                            .get_switch(&device_name, indi::ON_COORD_SET, indi::SYNC)
                             .await
                             .is_some();
                         let can_pulse_guide = locked
-                            .get_number(&device_name, "TELESCOPE_TIMED_GUIDE_NS", "TIMED_GUIDE_N")
+                            .get_number(
+                                &device_name,
+                                indi::TELESCOPE_TIMED_GUIDE_NS,
+                                indi::TIMED_GUIDE_N,
+                            )
                             .await
                             .is_some()
                             || locked
                                 .get_number(
                                     &device_name,
-                                    "TELESCOPE_TIMED_GUIDE_WE",
-                                    "TIMED_GUIDE_E",
+                                    indi::TELESCOPE_TIMED_GUIDE_WE,
+                                    indi::TIMED_GUIDE_E,
                                 )
                                 .await
                                 .is_some();

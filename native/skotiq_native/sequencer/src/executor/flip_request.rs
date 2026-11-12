@@ -35,11 +35,6 @@ impl SequenceExecutor {
                 ))
             }
         }
-        if !self.triggers_enabled {
-            return Err(
-                "Triggers are off for this run, so its meridian flip cannot run.".to_string(),
-            );
-        }
         let Some(mount_id) = self.mount_id.clone() else {
             return Err("This run has no mount.".to_string());
         };
