@@ -48,6 +48,7 @@ async fn a_row_the_operator_is_notified_from_goes_out_with_logging_off() {
     let executor = SequenceExecutor::new();
     let mut rx = executor.subscribe_decisions();
     executor
+        .handle()
         .update_run_config(|config| config.decision_logging_enabled = false)
         .await
         .expect("decision logging setting applies");

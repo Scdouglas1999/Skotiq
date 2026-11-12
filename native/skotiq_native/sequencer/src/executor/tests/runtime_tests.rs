@@ -2709,6 +2709,7 @@ async fn run_a_failing_autofocus_node(decision_logging: bool) -> FailedAutofocus
         }
     }
     executor
+        .handle()
         .update_run_config(|config| config.decision_logging_enabled = decision_logging)
         .await
         .expect("decision logging setting applies");
