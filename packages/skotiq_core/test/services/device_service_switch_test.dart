@@ -249,8 +249,8 @@ void main() {
       },
     );
 
-    test('connectSwitch resets state to disconnected and rethrows on backend '
-        'failure', () async {
+    test('connectSwitch rethrows on backend failure and the slot holds no '
+        'switch but names the one that failed', () async {
       const deviceId = TestFixtures.switchId;
 
       when(
@@ -264,7 +264,9 @@ void main() {
       );
 
       final state = container.read(switchStateProvider);
-      expect(state.connectionState, DeviceConnectionState.disconnected);
+      expect(state.connectionState, DeviceConnectionState.error);
+      expect(state.deviceId, isNull);
+      expect(state.lastError?.deviceId, deviceId);
     });
 
     test('disconnectSwitch clears state when device was connected', () async {

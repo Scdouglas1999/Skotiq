@@ -149,7 +149,8 @@ void main() {
       },
     );
 
-    test('connectCamera throws and resets state on failure', () async {
+    test('connectCamera throws, and the slot holds no camera but names the '
+        'one that failed', () async {
       const deviceId = TestFixtures.cameraId;
 
       when(() => mockBackend.discoverDevices(DeviceType.camera)).thenAnswer(
@@ -166,7 +167,9 @@ void main() {
       );
 
       final state = container.read(cameraStateProvider);
-      expect(state.connectionState, DeviceConnectionState.disconnected);
+      expect(state.connectionState, DeviceConnectionState.error);
+      expect(state.deviceId, isNull);
+      expect(state.lastError?.deviceId, deviceId);
     });
 
     test('disconnectCamera stops heartbeat and resets state', () async {
