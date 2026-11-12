@@ -376,41 +376,74 @@ fn test_executor_state_for_result_keeps_cancelled_distinct() {
     );
 }
 
-#[test]
-fn test_trigger_flip_context_keeps_focuser_id() {
-    let trigger_context = RunRig {
-        mount_id: Some("mount".to_string()),
-        camera_id: Some("camera".to_string()),
-        focuser_id: Some("focuser".to_string()),
-        ..RunRig::default()
-    };
+/// An instruction aimed at M42 on a run with this rig.
+fn flip_instruction(rig: RunRig, filter: Option<&str>) -> crate::instructions::InstructionContext {
+    let mut run = crate::instructions::RunShared::new(Arc::new(crate::device_ops::NullDeviceOps));
+    run.rig = rig;
+    crate::instructions::InstructionContext {
+        target_name: Some("M42".to_string()),
+        target_ra: Some(5.5),
+        target_dec: Some(-5.0),
+        current_filter: filter.map(str::to_string),
+        ..crate::instructions::InstructionContext::new(run, Arc::new(AtomicBool::new(false)))
+    }
+}
 
-    let flip_ctx = build_trigger_flip_context(
-        &trigger_context,
-        TriggerFlipTarget {
-            name: "M42".to_string(),
-            ra_hours: Some(5.5),
-            dec_degrees: Some(-5.0),
+#[tokio::test]
+async fn a_flip_context_keeps_the_runs_focuser() {
+    let ctx = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            camera_id: Some("camera".to_string()),
+            focuser_id: Some("focuser".to_string()),
+            ..RunRig::default()
         },
         None,
-        None,
-        None,
-        None,
-    )
-    .expect("flip context should be created");
+    );
+
+    let flip_ctx = crate::meridian_flip_executor::FlipContext::for_instruction(&ctx, None)
+        .await
+        .expect("flip context should be created");
 
     assert_eq!(flip_ctx.focuser_id.as_deref(), Some("focuser"));
     assert_eq!(flip_ctx.mount_id, "mount");
+    assert_eq!(flip_ctx.target_name, "M42");
 }
 
-#[test]
-fn trigger_flip_context_preserves_real_autofocus_config() {
-    let trigger_context = RunRig {
-        mount_id: Some("mount".to_string()),
-        filterwheel_id: Some("wheel".to_string()),
-        filter_focus_offsets: HashMap::from([("L".to_string(), 0), ("Ha".to_string(), 180)]),
-        ..RunRig::default()
-    };
+#[tokio::test]
+async fn a_flip_context_needs_a_mount_and_target_coordinates() {
+    let no_mount = flip_instruction(RunRig::default(), None);
+    assert!(
+        crate::meridian_flip_executor::FlipContext::for_instruction(&no_mount, None)
+            .await
+            .is_none()
+    );
+    let mut no_target = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            ..RunRig::default()
+        },
+        None,
+    );
+    no_target.target_ra = None;
+    assert!(
+        crate::meridian_flip_executor::FlipContext::for_instruction(&no_target, None)
+            .await
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_flip_context_preserves_the_real_autofocus_config() {
+    let ctx = flip_instruction(
+        RunRig {
+            mount_id: Some("mount".to_string()),
+            filterwheel_id: Some("wheel".to_string()),
+            filter_focus_offsets: HashMap::from([("L".to_string(), 0), ("Ha".to_string(), 180)]),
+            ..RunRig::default()
+        },
+        Some("L"),
+    );
     let autofocus_config = crate::AutofocusConfig {
         filter: Some("Ha".to_string()),
         step_size: 275,
@@ -419,19 +452,10 @@ fn trigger_flip_context_preserves_real_autofocus_config() {
         ..crate::AutofocusConfig::default()
     };
 
-    let flip_ctx = build_trigger_flip_context(
-        &trigger_context,
-        TriggerFlipTarget {
-            name: "M42".to_string(),
-            ra_hours: Some(5.5),
-            dec_degrees: Some(-5.0),
-        },
-        None,
-        None,
-        Some(autofocus_config),
-        Some("L".to_string()),
-    )
-    .expect("flip context should be created");
+    let flip_ctx =
+        crate::meridian_flip_executor::FlipContext::for_instruction(&ctx, Some(autofocus_config))
+            .await
+            .expect("flip context should be created");
 
     let observed = flip_ctx
         .autofocus_config

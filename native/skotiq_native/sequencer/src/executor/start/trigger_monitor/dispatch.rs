@@ -188,7 +188,6 @@ impl Dispatcher {
             "Recenter",
             format!("{name} fired: recenter"),
         );
-        let target = self.rig.target().await;
         let autofocus = self
             .rig
             .runtime_config
@@ -196,19 +195,12 @@ impl Dispatcher {
             .autofocus
             .clone()
             .unwrap_or_default();
-        let ctx = build_trigger_flip_context(
-            self.rig.devices(),
-            TriggerFlipTarget {
-                name: target.name.clone().unwrap_or_else(|| "target".into()),
-                ra_hours: target.ra_hours,
-                dec_degrees: target.dec_degrees,
-            },
-            Some(self.run.is_cancelled.clone()),
-            Some(self.rig.trigger_state.clone()),
-            Some(autofocus),
-            target.filter.clone(),
-        );
-        let slew_ctx = self.rig.instruction_context(target, &self.run);
+        let slew_ctx = self
+            .rig
+            .instruction_context(self.rig.target().await, &self.run);
+        let ctx =
+            crate::meridian_flip_executor::FlipContext::for_instruction(&slew_ctx, Some(autofocus))
+                .await;
         let config = self
             .trigger_manager
             .read()
@@ -218,11 +210,10 @@ impl Dispatcher {
             .unwrap_or_default();
         let failure_action = config.failure_action;
         let result = if let Some(ctx) = ctx {
-            let mut recovery = crate::meridian_flip_executor::MeridianFlipExecutor::new(
+            let mut recovery = crate::meridian_flip_executor::MeridianFlipExecutor::in_run(
                 config,
-                self.rig.device_ops().clone(),
-            )
-            .with_executor_event_tx(self.run.state.events().clone());
+                self.rig.shared.clone(),
+            );
             let slew = crate::instructions::execute_slew(
                 &crate::SlewConfig {
                     use_target_coords: true,
@@ -490,7 +481,6 @@ impl Dispatcher {
                     config,
                     rig,
                     run,
-                    decisions: &self.decisions,
                     failure: &self.flip_failure,
                     park: &mut self.park,
                     camera_claim,
