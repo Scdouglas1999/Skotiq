@@ -38,7 +38,6 @@ struct Protocol {
     in_sentence: &'static str,
     no_alt_az_slew: Option<&'static str>,
     no_axis_move: Option<&'static str>,
-    no_tracking_rate_read: Option<&'static str>,
     no_tracking_rate_write: Option<&'static str>,
     no_site_read: Option<&'static str>,
     no_site_write: Option<&'static str>,
@@ -51,7 +50,6 @@ const VENDOR: Protocol = Protocol {
     in_sentence: "native",
     no_alt_az_slew: Some("Alt/Az slew is not supported for native serial mounts"),
     no_axis_move: Some("Native SDK does not support mount axis movement"),
-    no_tracking_rate_read: None,
     no_tracking_rate_write: None,
     no_site_read: None,
     no_site_write: None,
@@ -59,7 +57,6 @@ const VENDOR: Protocol = Protocol {
     no_clock_write: None,
 };
 
-const NO_RATE_READ: &str = "Getting tracking rate is not supported by this driver type";
 const NO_RATE_WRITE: &str = "Setting tracking rate is not supported by this driver type";
 
 const ALPACA: Protocol = Protocol {
@@ -67,7 +64,6 @@ const ALPACA: Protocol = Protocol {
     in_sentence: "Alpaca",
     no_alt_az_slew: None,
     no_axis_move: None,
-    no_tracking_rate_read: Some(NO_RATE_READ),
     no_tracking_rate_write: Some(NO_RATE_WRITE),
     no_site_read: None,
     no_site_write: None,
@@ -80,7 +76,6 @@ const INDI: Protocol = Protocol {
     in_sentence: "INDI",
     no_alt_az_slew: None,
     no_axis_move: None,
-    no_tracking_rate_read: Some(NO_RATE_READ),
     no_tracking_rate_write: Some(NO_RATE_WRITE),
     no_site_read: Some("Reading the site from an INDI mount is not wired up yet"),
     no_site_write: Some("Writing the site to an INDI mount is not wired up yet"),
@@ -256,10 +251,6 @@ impl Mount for DriverMount {
         mount.abort_slew().await.map_err(DeviceOpError::from)
     }
 
-    async fn stop(&self) -> Result<(), DeviceOpError> {
-        self.abort().await
-    }
-
     async fn move_axis(&self, axis: i32, rate: f64) -> Result<(), DeviceOpError> {
         let mut mount = self.driver.write().await.ok_or_else(|| self.gone())?;
         mount.move_axis(axis, rate).await.map_err(|e| {
@@ -310,19 +301,6 @@ impl Mount for DriverMount {
     async fn can_set_park(&self) -> Result<bool, DeviceOpError> {
         let mount = self.driver.read().await.ok_or_else(|| self.gone())?;
         mount.can_set_park().await.map_err(DeviceOpError::from)
-    }
-
-    async fn can_park(&self) -> Result<bool, DeviceOpError> {
-        let mount = self.driver.read().await.ok_or_else(|| self.gone())?;
-        mount.can_park().await.map_err(|e| {
-            DeviceOpError::hardware(
-                Some(self.device_id.clone()),
-                format!(
-                    "Failed to determine {} mount park capability for {}: {}",
-                    self.protocol.in_sentence, self.device_id, e
-                ),
-            )
-        })
     }
 
     async fn sync(&self, ra: f64, dec: f64) -> Result<(), DeviceOpError> {
@@ -460,16 +438,6 @@ impl Mount for DriverMount {
             .set_tracking_rate(tracking_rate)
             .await
             .map_err(|e| Self::or_unsupported(e, self.protocol.no_tracking_rate_write))
-    }
-
-    async fn tracking_rate(&self) -> Result<i32, DeviceOpError> {
-        let mount = self.driver.read().await.ok_or_else(|| self.gone())?;
-        let rate = mount
-            .get_tracking_rate()
-            .await
-            .map_err(|e| Self::or_unsupported(e, self.protocol.no_tracking_rate_read))?;
-        // The discriminants are the ASCOM `DriveRates` numbers.
-        Ok(rate as i32)
     }
 
     async fn site(&self) -> Result<MountSite, DeviceOpError> {

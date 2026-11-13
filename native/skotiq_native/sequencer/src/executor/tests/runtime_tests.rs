@@ -3039,7 +3039,7 @@ async fn a_notify_exposure_trigger_tells_once_per_episode_and_never_stops_the_ru
                 trigger_name,
                 action,
                 ..
-            } => fired.push(format!("{trigger_name} -> {action}")),
+            } => fired.push(format!("{trigger_name} -> {action:?}")),
             ExecutorEvent::Warning { message } | ExecutorEvent::NoticedWarning { message, .. } => {
                 warnings.push(message)
             }
@@ -3239,7 +3239,7 @@ async fn run_with_bad_guiding_trigger(
             match events.recv().await {
                 Ok(ExecutorEvent::TriggerFired {
                     trigger_id, action, ..
-                }) => fired.push(format!("{trigger_id} -> {action}")),
+                }) => fired.push(format!("{trigger_id} -> {action:?}")),
                 Ok(
                     ExecutorEvent::Warning { message }
                     | ExecutorEvent::NoticedWarning { message, .. },

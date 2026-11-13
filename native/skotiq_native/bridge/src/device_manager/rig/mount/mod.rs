@@ -34,10 +34,6 @@ pub(crate) trait Mount: RigDriver {
     /// Stops a goto.
     async fn abort(&self) -> Result<(), DeviceOpError>;
 
-    /// Stops all motion, tracking included where the protocol has one
-    /// command for it.
-    async fn stop(&self) -> Result<(), DeviceOpError>;
-
     /// Moves an axis at `rate` degrees per second until sent rate 0.
     async fn move_axis(&self, axis: i32, rate: f64) -> Result<(), DeviceOpError>;
 
@@ -53,8 +49,6 @@ pub(crate) trait Mount: RigDriver {
     async fn set_park(&self) -> Result<(), DeviceOpError>;
 
     async fn can_set_park(&self) -> Result<bool, DeviceOpError>;
-
-    async fn can_park(&self) -> Result<bool, DeviceOpError>;
 
     async fn sync(&self, ra: f64, dec: f64) -> Result<(), DeviceOpError>;
 
@@ -74,8 +68,6 @@ pub(crate) trait Mount: RigDriver {
 
     /// `rate` is the ASCOM `DriveRates` number.
     async fn set_tracking_rate(&self, rate: i32) -> Result<(), DeviceOpError>;
-
-    async fn tracking_rate(&self) -> Result<i32, DeviceOpError>;
 
     async fn site(&self) -> Result<MountSite, DeviceOpError>;
 

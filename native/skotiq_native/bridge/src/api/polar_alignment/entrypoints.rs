@@ -13,7 +13,7 @@ use crate::event::equipment::{EventCategory, EventSeverity};
 use crate::event::imaging::PolarAlignmentImageEvent;
 use crate::state::get_state;
 use crate::unified_device_ops::create_unified_device_ops;
-use serde::{Deserialize, Serialize};
+
 use std::sync::atomic::{AtomicBool, Ordering, Ordering as PolarOrdering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -87,20 +87,6 @@ pub async fn api_stop_polar_alignment() -> Result<(), SkotiqError> {
 }
 
 // All-sky polar alignment (SharpCap-style)
-
-/// Polar alignment mode selector.
-///
-/// The traditional `ThreePoint` mode (TPPA) requires a clear view of the
-/// celestial pole region. `AllSky` mode performs Sharpcap-style polar
-/// alignment from any point in the sky using a single solved frame plus
-/// live drift feedback.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PolarAlignmentMode {
-    /// Three-Point Polar Alignment — requires pole region visible.
-    ThreePoint,
-    /// Sharpcap-style all-sky polar alignment — works from any sky direction.
-    AllSky,
-}
 
 /// Start all-sky polar alignment.
 ///
