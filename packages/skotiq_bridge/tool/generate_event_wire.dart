@@ -7,8 +7,9 @@
 // `lib/src/event_wire/event_wire.g.dart` (the codec),
 // `test/event_wire_samples.g.dart` (one full and one sparse value of every
 // variant, for the round-trip test) and the web pages' table of event types,
-// `apps/desktop/web_run_watch/js/wire-events.js`. `--check` writes nothing and
-// exits 1 when any of them is out of date.
+// `apps/desktop/web_run_watch/js/wire-events.js` and
+// `apps/desktop/web_dashboard/js/wire-events.js` (each page serves its own
+// files). `--check` writes nothing and exits 1 when any of them is out of date.
 //
 // A variant is encoded as its name and its fields under snake_case keys.
 // Everything that differs from that rule is listed in `event_wire_spec.dart`.
@@ -666,14 +667,15 @@ void main(List<String> args) {
     '${package.path}test/event_wire_samples.g.dart': SampleGenerator(
       model,
     ).generate(),
-    '${package.path}../../apps/desktop/web_run_watch/js/wire-events.js':
-        webEventTable(model),
+    for (final page in ['web_run_watch', 'web_dashboard'])
+      '${package.path}../../apps/desktop/$page/js/wire-events.js':
+          webEventTable(model),
   };
   if (args.contains('--check')) {
     final scratch = Directory.systemTemp.createTempSync('event_wire');
     var stale = false;
-    for (final entry in outputs.entries) {
-      final name = entry.key.split('/').last;
+    for (final (index, entry) in outputs.entries.indexed) {
+      final name = '$index-${entry.key.split('/').last}';
       final fresh = _format('${scratch.path}/$name', entry.value);
       final file = File(entry.key);
       if (!file.existsSync() || file.readAsStringSync() != fresh) {

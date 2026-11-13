@@ -427,6 +427,7 @@ void main() {
 
   group('the web pages', () {
     final webJs = Directory('../../apps/desktop/web_run_watch/js');
+    final dashboardJs = Directory('../../apps/desktop/web_dashboard/js');
     // `<category>: Object.freeze({` then `<name>: '<Type>',` per type.
     Map<String, Set<String>> table() {
       final byCategory = <String, Set<String>>{};
@@ -458,11 +459,34 @@ void main() {
       }
     });
 
+    test('both pages serve the same table', () {
+      expect(
+        File('${dashboardJs.path}/wire-events.js').readAsStringSync(),
+        File('${webJs.path}/wire-events.js').readAsStringSync(),
+      );
+    });
+
+    Set<String> tableNames() => {
+      for (final entries in table().entries)
+        for (final e in entries.value) '${entries.key}.${e.split('=').first}',
+    };
+
+    test('the dashboard names every event it follows from that table', () {
+      final source = File('${dashboardJs.path}/app.js').readAsStringSync();
+      final references = RegExp(
+        r'WIRE_EVENTS\.(\w+)\.(\w+)',
+      ).allMatches(source).map((m) => '${m[1]}.${m[2]}');
+      expect(references, isNotEmpty);
+      expect(tableNames(), containsAll(references));
+      // An event type named by a string literal bypasses the table.
+      expect(
+        RegExp(r"(type|eventType) [!=]== '[A-Z]").hasMatch(source),
+        isFalse,
+      );
+    });
+
     test('run-watch names every event it listens for from that table', () {
-      final names = {
-        for (final entries in table().entries)
-          for (final e in entries.value) '${entries.key}.${e.split('=').first}',
-      };
+      final names = tableNames();
       final source = File('${webJs.path}/run-watch.js').readAsStringSync();
       final references = RegExp(
         r'WIRE_EVENTS\.(\w+)\.(\w+)',

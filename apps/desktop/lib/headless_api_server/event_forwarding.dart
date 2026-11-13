@@ -115,20 +115,6 @@ extension _HeadlessApiServerEventForwarding on HeadlessApiServer {
   }) {
     try {
       final json = stamped.toJson();
-      if (stamped.category == EventCategory.guiding &&
-          stamped.eventType == 'GuideStep') {
-        final data = json['data'];
-        if (data is Map<String, dynamic>) {
-          final raRaw = data['RADistanceRaw'];
-          final decRaw = data['DECDistanceRaw'];
-          if (raRaw is num && !data.containsKey('raPx')) {
-            data['raPx'] = raRaw.toDouble();
-          }
-          if (decRaw is num && !data.containsKey('decPx')) {
-            data['decPx'] = decRaw.toDouble();
-          }
-        }
-      }
       return jsonEncode(
         _eventJsonSafe({'type': 'event', if (replay) 'replay': true, ...json}),
       );
