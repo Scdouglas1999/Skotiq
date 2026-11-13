@@ -6,11 +6,11 @@ import 'package:file_selector/file_selector.dart' as file_selector;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-// The barrel's `HorizonProfile` is the scheduler's samples-based class;
-// this screen needs the legacy 8-point compass profile, exported through
-// the barrel under the `LegacyHorizonProfile` alias (see
-// `src/legacy_aliases.dart`).
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
@@ -148,7 +148,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
         final storedGoogleKey = ref.watch(googleGeolocationKeyProvider).value;
         if (storedGoogleKey != null) _seedGoogleKey(storedGoogleKey);
         final horizonProfile =
-            LegacyHorizonProfile.fromJson(settings.horizonProfileJson);
+            SiteHorizonProfile.fromJson(settings.horizonProfileJson);
         _migrateLegacyTimezone(settings);
 
         return SettingsPage(
@@ -809,7 +809,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   /// eight compass fields on this page summarise them (highest altitude per
   /// 45° sector, so the number shown never under-reports an obstruction).
   ///
-  /// [LegacyHorizonProfile] carries the SAMPLES, not just the eight sector
+  /// [SiteHorizonProfile] carries the SAMPLES, not just the eight sector
   /// summaries, and interpolates them in `altitudeAtAzimuth` — the call the
   /// planner's visibility filter and the planetarium's 360-entry terrain table
   /// both make. Keeping only the summaries applies one 29° tree across a whole
@@ -828,7 +828,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
 
       final content = await ref.read(horizonImportReaderProvider)(file);
       if (!_isCurrentHorizonImport(generation, authority)) return;
-      final imported = LegacyHorizonProfile.parseHorizonText(content);
+      final imported = SiteHorizonProfile.parseHorizonText(content);
       final sampleCount = _countHorizonSamples(content);
 
       final confirmed = await _confirmHorizonReduction(
@@ -871,7 +871,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
 
   /// How many azimuth/altitude samples the file actually contained.
   ///
-  /// Counts the lines [LegacyHorizonProfile.parseHorizonText] treats as data:
+  /// Counts the lines [SiteHorizonProfile.parseHorizonText] treats as data:
   /// it skips blanks and `#`/`//`/`;` comments and REQUIRES every remaining
   /// line to be a valid pair (it throws otherwise), so after a successful
   /// parse this count is the sample count. Deliberately does not re-parse the
@@ -897,7 +897,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   Future<bool?> _confirmHorizonReduction({
     required String fileName,
     required int sampleCount,
-    required LegacyHorizonProfile imported,
+    required SiteHorizonProfile imported,
   }) {
     final colors = SkotiqColors.of(context);
     // The survey is kept whole; the eight fields are its summary. Stated in
@@ -982,7 +982,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
   /// 120 px from it. A survey is hours of work with a compass and an
   /// inclinometer, the app does not keep the source file, and there is no undo,
   /// so a misclick beside Import would cost the whole skyline.
-  Future<void> _resetHorizon(LegacyHorizonProfile current) async {
+  Future<void> _resetHorizon(SiteHorizonProfile current) async {
     final hasSurvey = current.sampleCount >= 2;
     final hasMask = horizonDirections.any((dir) => current.altitudeAt(dir) > 0);
 
@@ -1009,7 +1009,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
         for (final dir in horizonDirections) dir: 0,
       };
       await ref.read(appSettingsProvider.notifier).setHorizonProfileJson(
-            LegacyHorizonProfile(reset).toJson(),
+            SiteHorizonProfile(reset).toJson(),
           );
     } catch (error) {
       if (mounted) {

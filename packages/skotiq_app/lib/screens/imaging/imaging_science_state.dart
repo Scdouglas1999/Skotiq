@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 // autoDispose: annotation selection is page-scoped to the Imaging screen.
 // Reset when the screen unmounts so a fresh visit starts with no selection.

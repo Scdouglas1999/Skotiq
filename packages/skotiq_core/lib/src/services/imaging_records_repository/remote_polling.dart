@@ -72,7 +72,7 @@ Map<String, dynamic> _companionToCreateJson(
   };
 }
 
-Stream<List<db.CapturedImage>> _pollRemoteSessionImages(
+Stream<List<db.DbCapturedImage>> _pollRemoteSessionImages(
   HostImagingRecords backend,
   int sessionId, {
   required Duration interval,
@@ -82,12 +82,12 @@ Stream<List<db.CapturedImage>> _pollRemoteSessionImages(
   interval: interval,
 );
 
-Future<List<db.CapturedImage>> _fetchRemoteSessionImages(
+Future<List<db.DbCapturedImage>> _fetchRemoteSessionImages(
   HostImagingRecords backend,
   int sessionId,
 ) async {
   final rows = await backend.getSessionImageRows(sessionId);
-  final mapped = rows.map(db.CapturedImage.fromJson).toList();
+  final mapped = rows.map(db.DbCapturedImage.fromJson).toList();
   mapped.sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
   return mapped;
 }

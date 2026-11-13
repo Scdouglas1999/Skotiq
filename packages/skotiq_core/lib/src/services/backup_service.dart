@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
-import '../database/database.dart' hide Sequence, SequenceNode;
+import '../database/database.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/daos/equipment_profiles_dao.dart';
 import '../database/daos/targets_dao.dart';

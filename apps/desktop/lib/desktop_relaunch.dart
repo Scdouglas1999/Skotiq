@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:skotiq_app/skotiq_app.dart' show ShellExit;
-import 'package:skotiq_core/skotiq_core.dart' show AppRelauncher;
+import 'package:skotiq_core/providers.dart' show AppRelauncher;
 import 'package:window_manager/window_manager.dart';
 
 /// Flag a relaunched process receives: the pid it replaces. The new process

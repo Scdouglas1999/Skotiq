@@ -19,7 +19,8 @@
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 final _t0 = DateTime(2026, 8, 14, 2, 41);
 const _runId = 15;

@@ -10,6 +10,7 @@ import '../settings/store_settings.dart';
 import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import '../database/daos/settings_dao.dart';
 
 /// Replay Debug — Riverpod surface for the structured decision
 /// log feeding the retrospective Replay screen.

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-// Hide the core wire enum of the same name; this screen uses the richer
-// app-side `ConstellationPrivacy` from constellation_ui_providers.dart and maps
-// to the core one via its `.wire` getter when calling the service.
-import 'package:skotiq_core/skotiq_core.dart' hide ConstellationPrivacy;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../widgets/your_sky_opt_in.dart';
@@ -325,7 +327,7 @@ class _ConstellationContributeSheetState
           await ref.read(constellationServiceProvider).contributeTarget(
                 widget.target.targetId,
                 radiusDeg: widget.target.radiusDeg,
-                privacy: effective.wire,
+                privacy: effective,
                 license: license,
                 attributionConsent: _creditMe,
               );

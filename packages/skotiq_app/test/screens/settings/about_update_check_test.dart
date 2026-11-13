@@ -19,7 +19,7 @@ import 'package:skotiq_app/services/app_update.dart';
 // so the appliance page is imported under a prefix.
 import 'package:skotiq_app/screens/settings/widgets/update_settings.dart'
     as appliance;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 
 import '../../harness/harness.dart';

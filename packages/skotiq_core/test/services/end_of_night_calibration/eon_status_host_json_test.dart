@@ -1,7 +1,7 @@
 // A linked client mirrors the host's end-of-night status from its JSON, so the
 // cap request and its deadline must survive the trip.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('phase, message and cap deadline survive the host JSON', () {

@@ -4,13 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The hardware-presets provider is intentionally not re-exported from the
-// skotiq_core barrel (its owner avoided a `cameraPresetsProvider` name
-// collision by keeping it private to the package). Import the source path
-// directly — the same precedent set by the provider's own test suite.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../help/field_help_label.dart';

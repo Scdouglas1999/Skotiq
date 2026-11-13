@@ -56,40 +56,40 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     return (delete(targets)..where(_untrackedPredicate)).go();
   }
 
-  Future<List<Target>> getAllTargets() => select(targets).get();
+  Future<List<DbTarget>> getAllTargets() => select(targets).get();
 
   @override
-  Stream<List<Target>> watchAllTargets() => select(targets).watch();
+  Stream<List<DbTarget>> watchAllTargets() => select(targets).watch();
 
-  Future<List<Target>> getFavoriteTargets() {
+  Future<List<DbTarget>> getFavoriteTargets() {
     return (select(targets)..where((t) => t.isFavorite.equals(true))).get();
   }
 
   @override
-  Stream<List<Target>> watchFavoriteTargets() {
+  Stream<List<DbTarget>> watchFavoriteTargets() {
     return (select(targets)..where((t) => t.isFavorite.equals(true))).watch();
   }
 
-  Future<Target?> getTargetById(int id) {
+  Future<DbTarget?> getTargetById(int id) {
     return (select(targets)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   /// Get target by catalog ID (e.g., M42, NGC7000)
-  Future<Target?> getTargetByCatalogId(String catalogId) {
+  Future<DbTarget?> getTargetByCatalogId(String catalogId) {
     return (select(
       targets,
     )..where((t) => t.catalogId.equals(catalogId))).getSingleOrNull();
   }
 
   /// Search targets by name
-  Future<List<Target>> searchTargets(String query) {
+  Future<List<DbTarget>> searchTargets(String query) {
     return (select(
           targets,
         )..where((t) => t.name.like('%$query%') | t.catalogId.like('%$query%')))
         .get();
   }
 
-  Future<List<Target>> getTargetsByType(String objectType) {
+  Future<List<DbTarget>> getTargetsByType(String objectType) {
     return (select(
       targets,
     )..where((t) => t.objectType.equals(objectType))).get();
@@ -131,7 +131,7 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     );
   }
 
-  Future<bool> updateTarget(Target target) {
+  Future<bool> updateTarget(DbTarget target) {
     return update(targets).replace(target);
   }
 
@@ -177,14 +177,14 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     await (update(targets)..where((t) => t.id.equals(id))).write(updates);
   }
 
-  Future<List<Target>> getTargetsByPriority() {
+  Future<List<DbTarget>> getTargetsByPriority() {
     return (select(
       targets,
     )..orderBy([(t) => OrderingTerm.desc(t.priority)])).get();
   }
 
   /// Get targets that are observable tonight
-  Future<List<Target>> getObservableTargets(
+  Future<List<DbTarget>> getObservableTargets(
     double latitude,
     double longitude,
   ) async {

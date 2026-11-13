@@ -36,6 +36,7 @@ import 'package:skotiq_core/src/services/push_notification_service.dart';
 // the recording delivery below asserts.
 import 'package:skotiq_remote_protocol/src/push/lan_push_broadcaster.dart'
     show PushNotificationFrame, kLanPushSeverityCritical;
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// In-memory recording delivery — stands in for the wired FCM/APNs delivery so
 /// the full routing path is testable with no network and no cloud accounts.

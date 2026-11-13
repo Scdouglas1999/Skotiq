@@ -24,8 +24,9 @@ import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/meridian_countdown_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/run_record.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart'
-    show AppSettingsState, AppSettingsNotifier, appSettingsProvider;
+    show AppSettingsNotifier, appSettingsProvider;
 import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Fixed instant + longitude used across the pure tests so HA is reproducible.
 final _fixedNowUtc = DateTime.utc(2026, 5, 29, 4, 0, 0);

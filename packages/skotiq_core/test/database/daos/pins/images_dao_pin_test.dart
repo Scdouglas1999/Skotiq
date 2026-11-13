@@ -13,7 +13,7 @@ import 'package:skotiq_core/src/database/database.dart';
 import 'pin_harness.dart';
 
 Object? _encode(Object value) => switch (value) {
-  CapturedImage c => {
+  DbCapturedImage c => {
     ...c.toJson(),
     'capturedAt': c.capturedAt,
     'createdAt': c.createdAt,

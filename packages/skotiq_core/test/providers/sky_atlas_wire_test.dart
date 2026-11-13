@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 /// The remote "Your Sky" atlas browser reconstructs `SkyAtlasRegionRow`s from
 /// the appliance's `/api/atlas/regions` wire JSON (companion mode reads the

@@ -166,7 +166,7 @@ class StackLightSelector {
   /// The one target every light frame of a session was taken on, or null when
   /// they name none or several. Sessions a sequence starts carry no target of
   /// their own; their frames do.
-  static int? _soleLightTargetId(List<CapturedImage> frames) {
+  static int? _soleLightTargetId(List<DbCapturedImage> frames) {
     final targets = {
       for (final frame in frames)
         if (frame.frameType == 'light') frame.targetId,
@@ -182,7 +182,7 @@ class StackLightSelector {
 
   /// Core, side-effect-free selection over an already-loaded frame list.
   StackSelectionSummary _select({
-    required List<CapturedImage> frames,
+    required List<DbCapturedImage> frames,
     required StackAndShareConfig config,
     required String scope,
     required String? targetName,
@@ -194,7 +194,7 @@ class StackLightSelector {
     var lightsExcluded = 0;
 
     // Track the running best reference candidate among accepted survivors.
-    CapturedImage? referenceRow;
+    DbCapturedImage? referenceRow;
 
     for (final frame in frames) {
       if (frame.frameType != 'light') {
@@ -263,7 +263,7 @@ class StackLightSelector {
   }
 
   StackedFrameSelection _toSelection(
-    CapturedImage frame, {
+    DbCapturedImage frame, {
     required bool isReference,
   }) {
     return StackedFrameSelection(
@@ -292,8 +292,8 @@ class StackLightSelector {
   /// below any non-null hfr. Frames with neither metric fall through to the
   /// timestamp tie-break, so a usable reference is always chosen.
   bool _isBetterReference({
-    required CapturedImage candidate,
-    required CapturedImage current,
+    required DbCapturedImage candidate,
+    required DbCapturedImage current,
   }) {
     final cmpQuality = _compareNullableDesc(
       candidate.qualityScore,
@@ -340,7 +340,7 @@ class StackLightSelector {
   /// "excluded" doesn't apply). The check mirrors the gate order used by
   /// [_select] exactly: accepted first, then quality.
   static StackExclusionReason? exclusionReasonFor(
-    CapturedImage frame,
+    DbCapturedImage frame,
     StackAndShareConfig config,
   ) {
     if (frame.frameType != 'light') return null;

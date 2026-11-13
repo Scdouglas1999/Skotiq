@@ -18,7 +18,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/session_review/session_review_controller.dart';
 import 'package:skotiq_app/screens/session_review/widgets/ab_compare_panel.dart';
 import 'package:skotiq_app/screens/session_review/widgets/sub_cull_rail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/mock_database.dart';

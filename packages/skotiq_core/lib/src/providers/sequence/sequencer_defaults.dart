@@ -9,6 +9,7 @@ import '../../models/sequence/sequence_models.dart'
 import '../../settings/setting.dart';
 import '../../settings/store_settings.dart';
 import '../database_provider.dart';
+import '../../database/daos/settings_dao.dart';
 
 /// Sentinel used by [SequencerDefaults.copyWith] to distinguish "leave
 /// unchanged" from "explicitly clear to null" for nullable String? fields.

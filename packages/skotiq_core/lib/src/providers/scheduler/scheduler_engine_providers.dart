@@ -368,7 +368,7 @@ final schedulerAutoReevalProvider = Provider<void>((ref) {
   final engine = ref.watch(schedulerEngineReadyProvider).valueOrNull;
   if (engine == null) return;
 
-  ref.listen<AsyncValue<List<ndb.Target>>>(allDbTargetsProvider, (
+  ref.listen<AsyncValue<List<ndb.DbTarget>>>(allDbTargetsProvider, (
     previous,
     next,
   ) {

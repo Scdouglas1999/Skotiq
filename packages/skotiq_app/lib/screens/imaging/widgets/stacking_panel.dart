@@ -6,12 +6,14 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The selector provider is not re-exported through the core barrel; the
-// Stack-and-Share entry point needs it directly to pre-compute the selection
-// summary the launcher dialog renders before a run starts. (Matches the
-// established precedent in screens/framing/widgets/framing_canvas.dart.)
-// ignore: implementation_imports
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import '../../accessible_dropdown.dart';
 import '../../stack_result/recent_stacks_panel.dart';
 import '../../stack_result/stack_and_share_dialog.dart';

@@ -10,9 +10,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/onboarding/onboarding_screen.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show SkyCatalog;
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/models/equipment_profile.dart'
-    as remote_profile;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/models.dart' as remote_profile;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 

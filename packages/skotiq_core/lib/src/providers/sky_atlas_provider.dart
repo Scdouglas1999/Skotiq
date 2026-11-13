@@ -21,6 +21,8 @@ import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
 import 'remote_snapshot_stream.dart';
 import 'science_provider.dart' show scienceSettingsProvider;
+import '../database/daos/settings_dao.dart';
+import '../models/backend/backend_types.dart';
 
 /// Riverpod surface for Pillar A ("Your Sky") — the personal sky atlas.
 ///

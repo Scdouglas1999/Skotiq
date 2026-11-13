@@ -1,16 +1,19 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart'
     as drift
-    show CapturedImage, SkotiqDatabase;
+    show DbCapturedImage, SkotiqDatabase;
 
 /// A light row exactly as `FrameAutoGrader.gradeCapturedFrame` hands it to
 /// [FrameGradeRules.gradeFrame] after capture.
-drift.CapturedImage _light({int? starCount, double? hfr}) {
+drift.DbCapturedImage _light({int? starCount, double? hfr}) {
   final ts = DateTime(2026, 1, 1);
-  return drift.CapturedImage(
+  return drift.DbCapturedImage(
     id: 1,
     filePath: '/tmp/1.fits',
     fileName: '1.fits',

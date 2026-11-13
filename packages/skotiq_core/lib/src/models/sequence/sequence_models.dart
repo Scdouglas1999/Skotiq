@@ -25,11 +25,11 @@ import '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
 export '../meridian_flip_settings.dart'
     show MeridianTriggerMethod, FlipFailureAction;
-import '../../backend/skotiq_backend.dart' show DeviceType;
 import '../../services/scheduler/horizon_profile.dart' show HorizonProfile, HorizonSample;
 import '_json_converters.dart';
 import 'instruction_progress_detail.dart';
 import 'sequence_tree_index.dart';
+import '../backend/backend_types.dart';
 export 'sequence_tree_index.dart' show SequenceTreeIndex;
 
 part 'sequence_models.freezed.dart';

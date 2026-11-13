@@ -20,6 +20,7 @@ import '../providers/profiles_provider.dart';
 import '../providers/session_provider.dart' show sequenceCheckpointsDaoProvider;
 import '../utils/json_validation.dart';
 import '../backend/remote_host.dart';
+import '../models/backend/backend_types.dart';
 part 'quick_start_service/quick_start_models.dart';
 part 'quick_start_service/quick_start_providers.dart';
 
@@ -95,11 +96,11 @@ class QuickStartService {
 
     final targetFuture = session.targetId != null
         ? targetsDao.getTargetById(session.targetId!)
-        : Future<db.Target?>.value(null);
+        : Future<db.DbTarget?>.value(null);
 
     final sequenceFuture = sequenceId != null
         ? sequencesDao.getSequenceById(sequenceId)
-        : Future<db.Sequence?>.value(null);
+        : Future<db.DbSequence?>.value(null);
 
     final checkpointFuture = sequenceId != null
         ? checkpointsDao.getCheckpoint(sequenceId)
@@ -114,8 +115,8 @@ class QuickStartService {
     ]);
 
     final profileName = results[0] as String?;
-    final target = results[1] as db.Target?;
-    final sequence = results[2] as db.Sequence?;
+    final target = results[1] as db.DbTarget?;
+    final sequence = results[2] as db.DbSequence?;
     final checkpoint = results[3] as db.SequenceCheckpoint?;
 
     EquipmentSnapshot? equipmentSnapshot;

@@ -12,12 +12,10 @@ import 'package:skotiq_app/screens/settings/widgets/solver_detection_card.dart';
 // SolverDetectionCard imports the model leaf directly to avoid a circular
 // dependency on the core barrel; the screen-level tests below need the
 // detection / preference providers, so they reach in through the barrel.
-import 'package:skotiq_core/src/models/plate_solver.dart';
-import 'package:skotiq_core/src/backend/network_backend.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart';
-import 'package:skotiq_core/src/providers/backend_provider.dart';
-import 'package:skotiq_core/src/providers/plate_solver_provider.dart';
-import 'package:skotiq_core/src/services/plate_solve_service.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 

@@ -10,6 +10,7 @@ import '../models/notification/notification_categories.dart'
 import '../providers/notification_router_provider.dart';
 import '../providers/settings_provider.dart';
 import 'notification/notification_router.dart';
+import '../settings/app_settings_state.g.dart';
 
 /// Plays a short audible alert via the platform's built-in beep channel.
 ///

@@ -9,6 +9,7 @@ import 'package:skotiq_core/src/providers/host_settings/credential_settings.dart
 import 'package:skotiq_core/src/providers/settings_provider.dart'
     show AppSettingsNotifier;
 import 'package:skotiq_core/src/services/sync/sync_service.dart';
+import 'package:skotiq_core/src/settings/setting.dart';
 
 void main() {
   test('the settings declared as credentials are credentials', () {

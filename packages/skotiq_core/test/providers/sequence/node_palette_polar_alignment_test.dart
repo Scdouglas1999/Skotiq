@@ -6,6 +6,7 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/node_palette.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Minimal settings notifier so the palette sees a known observer latitude
 /// without touching the persisted store.

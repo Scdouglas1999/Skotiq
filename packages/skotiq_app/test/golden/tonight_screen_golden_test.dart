@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/tonight/one_tap_tonight_controller.dart';
 import 'package:skotiq_app/screens/tonight/tonight_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
 import 'package:skotiq_ui/skotiq_ui.dart';
 

@@ -9,6 +9,7 @@ import '../errors/error_text.dart';
 import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import '../models/backend/backend_types.dart';
 
 const _observingListNotProvided = Object();
 

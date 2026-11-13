@@ -139,7 +139,7 @@ class NarratorService {
   int? _lastObservedImageId;
 
   // Session light frames in capture order, as last emitted by the stream.
-  List<db.CapturedImage> _sessionLights = const [];
+  List<db.DbCapturedImage> _sessionLights = const [];
   // Solve outcomes of frames whose solve has finished, by image id. A row is
   // inserted before its solve runs, so its first unsolved state says nothing.
   final Map<int, bool> _solveOutcomes = <int, bool>{};
@@ -280,7 +280,7 @@ class NarratorService {
     // stats (HFR / star count / focuser temp), the auto-grader accept/reject
     // history, and the plate-solve history — all already written to the row.
     _subs.add(
-      _ref.listen<AsyncValue<List<db.CapturedImage>>>(
+      _ref.listen<AsyncValue<List<db.DbCapturedImage>>>(
         sessionImagesStreamProvider(sessionId),
         (_, next) => _onImagesChanged(next.valueOrNull ?? const []),
         fireImmediately: true,
@@ -535,7 +535,7 @@ class NarratorService {
   /// session's captured-image stream. Drift re-emits the whole list on any
   /// image-table write, so we de-dupe by image id and only ingest genuinely new
   /// rows in capture order.
-  void _onImagesChanged(List<db.CapturedImage> images) {
+  void _onImagesChanged(List<db.DbCapturedImage> images) {
     if (_disposed) return;
     // The stream is ordered ascending by capturedAt. The pending FWHM comes
     // from `lastImageStatsProvider` and only plausibly corresponds to the
@@ -548,8 +548,8 @@ class NarratorService {
       }
     }
 
-    db.CapturedImage? newest;
-    final lights = <db.CapturedImage>[];
+    db.DbCapturedImage? newest;
+    final lights = <db.DbCapturedImage>[];
     for (final img in images) {
       newest = img;
       if (img.frameType != 'light') continue;
@@ -614,7 +614,7 @@ class NarratorService {
     _onUpdate(capturedImageId: _lastObservedImageId);
   }
 
-  NarratorImageStats _statsForRow(db.CapturedImage img, {double? fwhm}) {
+  NarratorImageStats _statsForRow(db.DbCapturedImage img, {double? fwhm}) {
     final background = img.background;
     final exposure = img.exposureDuration;
     return NarratorImageStats(
@@ -635,7 +635,7 @@ class NarratorService {
 
   /// Bring a frame's stored stats up to date with its row: the frame watch
   /// excludes frames and records their background after the row is inserted.
-  void _refreshStats(db.CapturedImage img) {
+  void _refreshStats(db.DbCapturedImage img) {
     for (var i = _imageStats.length - 1; i >= 0; i--) {
       final old = _imageStats[i];
       if (old.capturedImageId != img.id) continue;

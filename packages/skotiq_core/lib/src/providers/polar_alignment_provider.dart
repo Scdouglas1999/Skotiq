@@ -20,6 +20,8 @@ import '../settings/store_settings.dart';
 import 'database_provider.dart';
 import 'profiles_provider.dart';
 import 'settings_provider.dart';
+import '../models/backend/backend_types.dart';
+import '../database/daos/settings_dao.dart';
 
 part 'polar_alignment/polar_wire_decoding.dart';
 part 'polar_alignment/polar_config_notifier.dart';

@@ -443,7 +443,7 @@ class FramingTargetSection extends StatelessWidget {
 
 /// The Camera section: the active profile's field of view as readouts, the
 /// camera and telescope, or the single [SkotiqBanner] for the current
-/// `EquipmentStatus` (noProfile / noFocalLength / noCameraSpecs).
+/// `FramingEquipmentStatus` (noProfile / noFocalLength / noCameraSpecs).
 class FramingEquipmentSection extends StatelessWidget {
   final SkotiqColors colors;
   final AsyncValue<FramingEquipmentResult> equipmentAsync;
@@ -510,14 +510,14 @@ class FramingEquipmentSection extends StatelessWidget {
 
     final Widget body;
     switch (result.status) {
-      case EquipmentStatus.noProfile:
+      case FramingEquipmentStatus.noProfile:
         body = SkotiqBanner(
           tone: BannerTone.warning,
           title: 'No equipment profile',
           message: 'Create and activate one to preview your field of view.',
           action: openSettings(),
         );
-      case EquipmentStatus.noFocalLength:
+      case FramingEquipmentStatus.noFocalLength:
         body = SkotiqBanner(
           tone: BannerTone.warning,
           title: 'Optical specs missing',
@@ -525,14 +525,14 @@ class FramingEquipmentSection extends StatelessWidget {
               'preview your field of view.',
           action: openSettings(),
         );
-      case EquipmentStatus.noCameraSpecs:
+      case FramingEquipmentStatus.noCameraSpecs:
         body = const SkotiqBanner(
           tone: BannerTone.warning,
           title: 'Camera not configured',
           message: 'Connect a camera, or enter its sensor specs, for '
               'an accurate field of view.',
         );
-      case EquipmentStatus.ready:
+      case FramingEquipmentStatus.ready:
         final equipment = result.equipment!;
         body = LayoutBuilder(
           builder: (context, constraints) =>

@@ -15,17 +15,13 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$TargetSuggestion {
 
-/// Database target ID
- int get targetId;/// Display name of the target
- String get targetName;/// Catalog identifier (e.g., "NGC 7000", "M31")
+ int get targetId; String get targetName;/// Catalog identifier (e.g., "NGC 7000", "M31")
  String? get catalogId;/// Right Ascension in hours (0-24)
  double get raHours;/// Declination in degrees (-90 to +90)
  double get decDegrees;/// Overall score from 0-100
  double get totalScore;/// Breakdown of individual score components
 /// Keys: altitude, moonDistance, transitProximity, darkness, airmass
- Map<String, double> get scoreBreakdown;/// Warnings about target conditions
-@TargetWarningListConverter() List<TargetWarning> get warnings;/// Visibility information for this target
-@TargetVisibilityInfoConverter() TargetVisibilityInfo get visibility;/// Human-readable explanation of why this target is suggested
+ Map<String, double> get scoreBreakdown;@TargetWarningListConverter() List<TargetWarning> get warnings;@TargetVisibilityInfoConverter() TargetVisibilityInfo get visibility;/// Human-readable explanation of why this target is suggested
  String get reasoning;/// Progress of data collection for this target (0.0 to 1.0)
 /// 0.0 = no data collected, 1.0 = fully complete
  double get dataProgress;/// Object type (e.g., "Galaxy", "Emission Nebula", "Open Cluster")
@@ -245,9 +241,7 @@ class _TargetSuggestion implements TargetSuggestion {
   const _TargetSuggestion({required this.targetId, required this.targetName, this.catalogId, required this.raHours, required this.decDegrees, required this.totalScore, final  Map<String, double> scoreBreakdown = const <String, double>{}, @TargetWarningListConverter() final  List<TargetWarning> warnings = const <TargetWarning>[], @TargetVisibilityInfoConverter() required this.visibility, this.reasoning = '', this.dataProgress = 0.0, this.objectType, this.magnitude, this.sizeArcmin, this.constellation, final  List<String> tags = const <String>[]}): _scoreBreakdown = scoreBreakdown,_warnings = warnings,_tags = tags;
   factory _TargetSuggestion.fromJson(Map<String, dynamic> json) => _$TargetSuggestionFromJson(json);
 
-/// Database target ID
 @override final  int targetId;
-/// Display name of the target
 @override final  String targetName;
 /// Catalog identifier (e.g., "NGC 7000", "M31")
 @override final  String? catalogId;
@@ -268,16 +262,13 @@ class _TargetSuggestion implements TargetSuggestion {
   return EqualUnmodifiableMapView(_scoreBreakdown);
 }
 
-/// Warnings about target conditions
  final  List<TargetWarning> _warnings;
-/// Warnings about target conditions
 @override@JsonKey()@TargetWarningListConverter() List<TargetWarning> get warnings {
   if (_warnings is EqualUnmodifiableListView) return _warnings;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_warnings);
 }
 
-/// Visibility information for this target
 @override@TargetVisibilityInfoConverter() final  TargetVisibilityInfo visibility;
 /// Human-readable explanation of why this target is suggested
 @override@JsonKey() final  String reasoning;
@@ -386,8 +377,7 @@ mixin _$TargetSuggestionConfig {
  double? get maxMoonDistance;/// Preferred object types to prioritize (e.g., ["Galaxy", "Nebula"])
  List<String> get preferredObjectTypes;/// Whether to prioritize targets that need more data
  bool get prioritizeIncomplete;/// Minimum score (0-100) for a target to be suggested
- double get minScore;/// How to sort the suggestions
- SuggestionSortMode get sortMode;
+ double get minScore; SuggestionSortMode get sortMode;
 /// Create a copy of TargetSuggestionConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -606,7 +596,6 @@ class _TargetSuggestionConfig implements TargetSuggestionConfig {
 @override@JsonKey() final  bool prioritizeIncomplete;
 /// Minimum score (0-100) for a target to be suggested
 @override@JsonKey() final  double minScore;
-/// How to sort the suggestions
 @override@JsonKey() final  SuggestionSortMode sortMode;
 
 /// Create a copy of TargetSuggestionConfig

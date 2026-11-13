@@ -3,8 +3,9 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/services/image_download_service.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_exception.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 
 class _MockImagingBackend extends Mock implements ImagingBackend {}
 

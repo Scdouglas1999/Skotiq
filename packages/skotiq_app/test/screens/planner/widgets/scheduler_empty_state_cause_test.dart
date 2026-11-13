@@ -10,8 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/planner/widgets/scheduler_tab_content.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as ndb;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -47,7 +49,7 @@ Map<String, dynamic> _emptyDecisionState() {
   };
 }
 
-ndb.Target _target(int id, String name) => ndb.Target(
+ndb.DbTarget _target(int id, String name) => ndb.DbTarget(
       id: id,
       name: name,
       ra: 17.28,
@@ -74,7 +76,7 @@ IntegrationGoal _goal(int targetId) => IntegrationGoal(
 
 Future<void> _pumpQueue(
   WidgetTester tester, {
-  required List<ndb.Target> catalog,
+  required List<ndb.DbTarget> catalog,
   required List<IntegrationGoal> goals,
   int? activeProjectId,
   CampaignProgress? activeProjectProgress,
@@ -174,7 +176,7 @@ void main() {
       (tester) async {
     await _pumpQueue(
       tester,
-      catalog: const <ndb.Target>[],
+      catalog: const <ndb.DbTarget>[],
       goals: const <IntegrationGoal>[],
     );
 

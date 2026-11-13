@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart' show FocusRange, VCurvePoint;
+import 'package:skotiq_core/models.dart' show FocusRange, VCurvePoint;
 import 'package:skotiq_ui/skotiq_ui.dart'
     show VCurvePositionRange, VCurveSample;
 

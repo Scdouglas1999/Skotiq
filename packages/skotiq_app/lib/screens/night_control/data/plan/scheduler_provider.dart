@@ -3,10 +3,12 @@
 // the sky's conditions, the executor's swap state.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 // The typed event union collides by name with the wire event model the barrel
 // keeps canonical; it comes from the core's typed-event seam.
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import 'night_plan_inputs.dart';
 

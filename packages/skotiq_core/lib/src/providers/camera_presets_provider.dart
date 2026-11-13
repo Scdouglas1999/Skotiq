@@ -11,6 +11,7 @@ import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'equipment/device_capability_provider.dart';
 import 'imaging_provider.dart';
+import '../database/daos/settings_dao.dart';
 
 /// Provider for managing camera gain/offset presets
 final cameraPresetsProvider =

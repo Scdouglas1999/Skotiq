@@ -15,7 +15,7 @@
 // TargetProgressService._nightStart and the forecast planner already use.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Epoch seconds for a LOCAL wall-clock instant, which is how an observer
 /// describes when they were at the telescope.

@@ -4,7 +4,7 @@ import '../database/database.dart' as db;
 import 'equipment_profile.dart' as remote_profile;
 
 /// Canonical, lossless converters between the SQLite Drift row
-/// (`db.EquipmentProfile`) and the REST wire model
+/// (`db.DbEquipmentProfile`) and the REST wire model
 /// (`remote_profile.EquipmentProfile`).
 ///
 /// This is the SINGLE source of truth for equipment-profile mapping shared by
@@ -19,7 +19,7 @@ import 'equipment_profile.dart' as remote_profile;
 
 /// READER: Drift row -> REST wire model (for GET /api/profiles and the active
 /// profile endpoint). Maps every column the wire model can carry.
-remote_profile.EquipmentProfile dbProfileToRemote(db.EquipmentProfile row) {
+remote_profile.EquipmentProfile dbProfileToRemote(db.DbEquipmentProfile row) {
   return remote_profile.EquipmentProfile(
     id: row.id.toString(),
     name: row.name,
@@ -157,14 +157,14 @@ db.EquipmentProfilesCompanion remoteProfileToCompanion(
 /// database_provider), the remote payload's own flags are carried through so
 /// the slave's `allProfilesProvider`/`activeProfileProvider` stream produces
 /// rows identical to the host's.
-db.EquipmentProfile remoteProfileToDbRow(
+db.DbEquipmentProfile remoteProfileToDbRow(
   remote_profile.EquipmentProfile profile, {
-  db.EquipmentProfile? existing,
+  db.DbEquipmentProfile? existing,
   DateTime? now,
 }) {
   // Injectable write clock keeps the updatedAt bump deterministic under test.
   final writeStamp = now ?? DateTime.now().toUtc();
-  return db.EquipmentProfile(
+  return db.DbEquipmentProfile(
     id: int.tryParse(profile.id) ?? 0,
     name: profile.name,
     description: profile.description,

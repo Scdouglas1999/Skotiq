@@ -43,21 +43,8 @@
 import 'dart:math' as math;
 import 'dart:ui' show Offset, Size;
 
-import 'package:skotiq_core/skotiq_core.dart'
-    show HealpixNested, HealpixXyf, HipsProperties, HipsTileId;
-// FramingPlateScale and the HiPS selection/loader value types live in
-// skotiq_core's src layer and are intentionally not surfaced through the
-// public barrel (they are app->core src-model types shared with the framing
-// tile layer), so they are imported directly here, matching the established
-// convention in `screens/framing/painters/hips_tile_layer_painter.dart`.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_cache.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_selection.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 

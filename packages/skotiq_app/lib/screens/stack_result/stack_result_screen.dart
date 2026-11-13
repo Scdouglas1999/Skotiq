@@ -7,13 +7,13 @@ import 'package:file_selector/file_selector.dart' show XTypeGroup;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// Reaches the seam directly: the per-channel colour STF (_autoStretchColor)
-// that matches the native OSC capture curve is not re-exported through the
-// core barrel.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/stacking_engine_seam.dart'
-    show BridgeStackingEngineSeam, StackingEngineSeam;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
 import 'package:share_plus/share_plus.dart';

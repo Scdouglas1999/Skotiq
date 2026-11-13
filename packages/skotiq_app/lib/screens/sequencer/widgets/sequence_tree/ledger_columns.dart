@@ -12,12 +12,15 @@
 // the pre-flight dialog about the same subtree.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 // The typed `SkotiqEvent` union collides by name with the wire/JSON event
 // model the barrel above keeps canonical, so it is imported from the core's
 // dedicated typed-event seam under the `sk_events` prefix — the convention the
 // run dashboard providers already follow.
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import '../visual_timeline.dart';
 

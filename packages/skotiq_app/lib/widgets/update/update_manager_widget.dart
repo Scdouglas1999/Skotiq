@@ -8,8 +8,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show sequenceExecutionStateProvider;
+import 'package:skotiq_core/providers.dart' show sequenceExecutionStateProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 

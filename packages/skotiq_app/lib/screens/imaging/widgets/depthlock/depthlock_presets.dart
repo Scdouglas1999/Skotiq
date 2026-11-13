@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// How deep a goal is asking to go, in the terms an observer thinks in.
 ///

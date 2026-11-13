@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import 'device_connection_notifier.dart';
-import '../../services/device_service.dart';
 
 // Switch device state provider, mirroring the safety-monitor
 // shape (Audit C1). The notifier owns the connect-with-retry loop and the

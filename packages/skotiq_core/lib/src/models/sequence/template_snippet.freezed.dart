@@ -15,15 +15,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$TemplateSnippet {
 
-/// Unique identifier for this snippet
- String get id;/// Display name for the snippet
- String get name;/// Description of what this snippet does
- String get description;/// Category for organization
- SnippetCategory get category;/// Lucide icon name (e.g., 'focus', 'filter', 'shield')
+ String get id; String get name; String get description; SnippetCategory get category;/// Lucide icon name (e.g., 'focus', 'filter', 'shield')
  String get iconName;/// Serialized node data for recreation when inserting
  List<Map<String, dynamic>> get nodeData;/// Whether this is a built-in snippet (cannot be deleted)
- bool get isBuiltIn;/// When this snippet was created
- DateTime get createdAt;
+ bool get isBuiltIn; DateTime get createdAt;
 /// Create a copy of TemplateSnippet
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -227,13 +222,9 @@ class _TemplateSnippet extends TemplateSnippet {
   const _TemplateSnippet({required this.id, required this.name, required this.description, required this.category, required this.iconName, required final  List<Map<String, dynamic>> nodeData, this.isBuiltIn = false, required this.createdAt}): _nodeData = nodeData,super._();
   factory _TemplateSnippet.fromJson(Map<String, dynamic> json) => _$TemplateSnippetFromJson(json);
 
-/// Unique identifier for this snippet
 @override final  String id;
-/// Display name for the snippet
 @override final  String name;
-/// Description of what this snippet does
 @override final  String description;
-/// Category for organization
 @override final  SnippetCategory category;
 /// Lucide icon name (e.g., 'focus', 'filter', 'shield')
 @override final  String iconName;
@@ -248,7 +239,6 @@ class _TemplateSnippet extends TemplateSnippet {
 
 /// Whether this is a built-in snippet (cannot be deleted)
 @override@JsonKey() final  bool isBuiltIn;
-/// When this snippet was created
 @override final  DateTime createdAt;
 
 /// Create a copy of TemplateSnippet

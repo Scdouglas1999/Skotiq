@@ -9,8 +9,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:skotiq_app/screens/planner/widgets/scheduler_tab_content.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as ndb;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../scheduler/scheduler_test_doubles.dart';
@@ -98,7 +101,7 @@ List<Override> _commonOverrides({
       (ref) => Completer<SchedulerDecision>().future,
     ),
     allDbTargetsProvider.overrideWith(
-      (ref) => const Stream<List<ndb.Target>>.empty(),
+      (ref) => const Stream<List<ndb.DbTarget>>.empty(),
     ),
     integrationGoalsStreamProvider.overrideWith(
       (ref) => const Stream<List<IntegrationGoal>>.empty(),

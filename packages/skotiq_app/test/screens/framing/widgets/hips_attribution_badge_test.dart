@@ -13,10 +13,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/widgets/hips_attribution_badge.dart';
-import 'package:skotiq_core/skotiq_core.dart' show HipsProperties;
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/hips/hips_properties.dart'
-    show HipsFrame, HipsTileFormat;
+import 'package:skotiq_core/models.dart' show HipsProperties;
+import 'package:skotiq_core/models.dart' show HipsFrame, HipsTileFormat;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 HipsProperties _propsWith({String? copyright, String? creator, String? url}) {

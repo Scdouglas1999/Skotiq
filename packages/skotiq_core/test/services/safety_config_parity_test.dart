@@ -4,9 +4,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/settings/app_settings.dart';
-import 'package:skotiq_core/src/providers/settings_provider.dart'
-    show AppSettingsState;
 import 'package:skotiq_core/src/services/safety_config_service.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Master/slave wire-shape guard for the safety-config consolidation.
 ///

@@ -2,13 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-// FramingPlateScale is the C1 single-source-of-truth astrometric scale shared by
-// the framing painters and gesture hit-tester. It lives in skotiq_core's
-// models layer and is not yet surfaced through the public barrel, so it is
-// imported directly here, matching the established app->core src-model
-// convention used elsewhere in this package.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Paints the survey image background honoring pan/zoom/rotation, using the

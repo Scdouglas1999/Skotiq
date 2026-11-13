@@ -21,16 +21,9 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        cameraStateProvider,
-        eventHistoryProvider,
-        filterWheelStateProvider,
-        focuserStateProvider,
-        guiderStateProvider,
-        mountStateProvider,
-        rotatorStateProvider;
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_core/providers.dart'
+    show cameraStateProvider, eventHistoryProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, mountStateProvider, rotatorStateProvider;
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import '../../../sequencer/widgets/run_dashboard/run_dashboard_providers.dart'
     show

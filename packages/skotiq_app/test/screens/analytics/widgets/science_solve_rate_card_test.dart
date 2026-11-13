@@ -8,14 +8,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_solve_rate_card.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide CapturedImage;
-import 'package:skotiq_core/src/database/database.dart' as drift
-    show CapturedImage;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/database.dart' as drift show DbCapturedImage;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-drift.CapturedImage _frame({required int id, required bool solved}) {
+drift.DbCapturedImage _frame({required int id, required bool solved}) {
   final now = DateTime(2026, 1, 1);
-  return drift.CapturedImage(
+  return drift.DbCapturedImage(
     id: id,
     filePath: '/tmp/$id.fits',
     fileName: '$id.fits',

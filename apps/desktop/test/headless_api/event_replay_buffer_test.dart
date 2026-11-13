@@ -1,11 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-// Import the event-types source directly rather than via the
-// `package:skotiq_core/skotiq_core.dart` barrel. The barrel
-// transitively pulls in providers/services whose switch statements over
-// `EventCategory` are temporarily non-exhaustive (post-`job` /
-// `session` enum additions); a direct import keeps these tests
-// compilable even while that mismatch is being resolved elsewhere.
-import 'package:skotiq_core/src/models/backend/event_types.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_desktop/headless_api/event_replay_buffer.dart';
 
 /// Helper: build a stamped [SkotiqEvent] with the given seq. The

@@ -6,7 +6,10 @@ import 'package:skotiq_app/screens/analytics/analytics_screen.dart'
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_insights_panel.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_surface_explorer.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A camera heartbeat must not rebuild the whole Science tab.

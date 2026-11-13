@@ -12,7 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/services/app_update.dart';
 import 'package:skotiq_app/widgets/update/update_manager_widget.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 
 class _TestNotifier extends UpdateNotifier {

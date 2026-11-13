@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 
-@DataClassName('EquipmentProfile')
+@DataClassName('DbEquipmentProfile')
 @TableIndex(name: 'idx_profiles_name', columns: {#name})
 @TableIndex(name: 'idx_profiles_active', columns: {#isActive})
 @TableIndex.sql(

@@ -10,7 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/link_rig/link_rig_dialog.dart';
 import 'package:skotiq_app/screens/link_rig/linked_rig_panel.dart';
 import 'package:skotiq_app/widgets/disconnected_backend_banner.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 

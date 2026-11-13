@@ -119,7 +119,7 @@ class MasterAccumulationService {
   /// Writes the sidecar at [sidecarPath] and inserts the `integrated_masters`
   /// row in status `accumulating`. Returns the new master id.
   Future<int> createMaster({
-    required CapturedImage referenceSub,
+    required DbCapturedImage referenceSub,
     required String sidecarPath,
     IntegrationSettings settings = IntegrationSettings.defaults,
     int? targetId,
@@ -176,7 +176,7 @@ class MasterAccumulationService {
   /// [ArgumentError] when [subs] is empty.
   Future<MasterAccumulateResult> addNight({
     required int masterId,
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required String label,
     IntegrationSettings settings = IntegrationSettings.defaults,
     String? biasPath,
@@ -310,7 +310,7 @@ class MasterAccumulationService {
   Future<MasterAccumulateResult> _supersedeRetiredMaster({
     required IntegratedMaster retired,
     required String sidecar,
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     required String label,
     required IntegrationSettings settings,
     String? biasPath,
@@ -494,7 +494,7 @@ class MasterAccumulationService {
   }
 
   Future<Map<String, dynamic>> _resolveCalibration({
-    required List<CapturedImage> subs,
+    required List<DbCapturedImage> subs,
     String? filter,
     String? biasPath,
     required bool cosmeticCorrection,

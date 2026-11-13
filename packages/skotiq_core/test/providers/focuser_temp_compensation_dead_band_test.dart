@@ -14,6 +14,7 @@ import 'package:skotiq_core/src/providers/equipment/focuser_state_provider.dart'
 import 'package:skotiq_core/src/providers/equipment/focuser_temp_compensation_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/device_service.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Moves the simulated focuser where it is told, the way a real one reports
 /// its arrival.

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Pre-flight told the operator that a node scheduled at 12:47 ran "before
 /// target rises at 03:41" for a target that was near the zenith at 12:47.

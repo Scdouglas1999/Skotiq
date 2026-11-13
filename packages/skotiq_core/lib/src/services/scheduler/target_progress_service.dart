@@ -47,7 +47,7 @@ class TargetProgressService {
   Future<TargetProgress> forTarget({
     required int targetId,
     required String targetName,
-    List<db.CapturedImage>? capturedImages,
+    List<db.DbCapturedImage>? capturedImages,
   }) async {
     final goals = await _goalService.listForTarget(targetId);
     final aggregates = capturedImages != null
@@ -69,7 +69,7 @@ class TargetProgressService {
   /// the per-target queries run sequentially against the same connection.
   Future<Map<int, TargetProgress>> forTargets(
     List<({int id, String name})> targets, {
-    List<db.CapturedImage>? capturedImages,
+    List<db.DbCapturedImage>? capturedImages,
   }) async {
     final out = <int, TargetProgress>{};
     for (final t in targets) {
@@ -154,7 +154,7 @@ class TargetProgressService {
 
   /// Build capture aggregates from an in-memory image list (host catalog).
   _CaptureAggregates _captureAggregatesFromImageList(
-    List<db.CapturedImage> images,
+    List<db.DbCapturedImage> images,
   ) {
     final now = _now();
     final windowStart = observingNightWindow(

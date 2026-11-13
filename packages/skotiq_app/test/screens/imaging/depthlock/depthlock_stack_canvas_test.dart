@@ -18,7 +18,8 @@ import 'package:skotiq_app/screens/imaging/widgets/preview_viewport.dart';
 import 'package:skotiq_app/screens/imaging/widgets/stacking_panel.dart'
     show stackedPreviewStretchProvider;
 import 'package:skotiq_app/utils/preview_transform.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'depthlock_test_doubles.dart';

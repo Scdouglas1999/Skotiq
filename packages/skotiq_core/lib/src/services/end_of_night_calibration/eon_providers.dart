@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../database/database.dart' show CapturedImage;
+import '../../database/database.dart' show DbCapturedImage;
 import '../../models/equipment/equipment_models.dart'
     show DeviceConnectionState;
 import '../../models/sequence/active_plan_owner.dart';
@@ -41,7 +41,7 @@ class ProviderEonRig implements EonRig {
   DateTime now() => DateTime.now();
 
   @override
-  Future<List<CapturedImage>> lightFramesSince(DateTime since) {
+  Future<List<DbCapturedImage>> lightFramesSince(DateTime since) {
     final db = _ref.read(databaseProvider);
     return (db.select(db.capturedImages)
           ..where(
@@ -184,7 +184,7 @@ class ProviderEonRig implements EonRig {
       .stop(origin: 'end-of-night calibration');
 
   @override
-  Future<List<CapturedImage>> framesOfRun(int runId) => _ref
+  Future<List<DbCapturedImage>> framesOfRun(int runId) => _ref
       .read(imagesDaoProvider)
       .getImagesByProducingRun(producingRunId: '$runId');
 

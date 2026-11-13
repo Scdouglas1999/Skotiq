@@ -8,7 +8,7 @@
 // when there is nothing to say.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../sequencer/widgets/run_dashboard/critical_event_banner.dart';
 import '../sequencer/widgets/run_dashboard/recovery_banner.dart';

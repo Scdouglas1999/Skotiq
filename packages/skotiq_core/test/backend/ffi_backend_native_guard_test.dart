@@ -5,7 +5,8 @@
 // so the refusing branch is the one that runs here.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' show NativeBridge;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 
 Map<String, Future<void> Function()> _sequencerOperations(FfiBackend b) => {
   'sequencerSetDevices': () => b.sequencerSetDevices(cameraId: 'c'),

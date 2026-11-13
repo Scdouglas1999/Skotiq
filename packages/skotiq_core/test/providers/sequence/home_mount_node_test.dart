@@ -12,7 +12,10 @@ import 'package:file_selector_platform_interface/file_selector_platform_interfac
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 class _FixedFileSelector extends FileSelectorPlatform {
   _FixedFileSelector(this.filePath);

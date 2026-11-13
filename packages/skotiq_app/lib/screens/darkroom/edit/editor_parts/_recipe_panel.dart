@@ -161,7 +161,7 @@ class _DarkroomCollapsibleAlertState extends State<_DarkroomCollapsibleAlert> {
 /// color calibration having no catalogue stars — is placed above the fold
 /// instead of a scroll away.
 class _DarkroomRecipePanel extends StatefulWidget {
-  final DarkroomState state;
+  final DarkroomViewState state;
   final VoidCallback onUndo;
   final VoidCallback onRedo;
   final VoidCallback onResetToLinear;
@@ -250,7 +250,7 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
   bool _moreAbove = false;
   bool _moreBelow = false;
 
-  DarkroomState get state => widget.state;
+  DarkroomViewState get state => widget.state;
 
   /// Take the edge flags from [metrics], and rebuild only when they moved.
   ///

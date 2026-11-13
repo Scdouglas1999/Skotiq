@@ -45,6 +45,7 @@ import 'network_backend/host_data/host_poll.dart';
 import 'network_backend/host_data/remote_host_records.dart';
 import 'network_backend/host_data/remote_science_products.dart';
 import 'roles/host_data/science_products.dart';
+import '../models/backend/backend_types.dart';
 
 export 'roles/host_data/host_calibration_tools.dart';
 export 'roles/host_data/host_imaging_records.dart';

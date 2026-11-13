@@ -3,7 +3,6 @@ import '../../models/backend/autofocus_result.dart';
 import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import 'device_connection_notifier.dart';
-import '../../services/device_service.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.

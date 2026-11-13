@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
 
 /// A settings DAO that lives in a map, so one-shot UI flags can be asserted
 /// without a database.

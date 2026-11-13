@@ -10,6 +10,7 @@ import '../services/logging_service.dart';
 import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
 import 'remote_sync_handler.dart';
+import '../models/backend/backend_types.dart';
 
 const _logSource = 'RemoteSessionSync';
 

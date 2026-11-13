@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 const _headlessLogSource = 'HeadlessMain';
 

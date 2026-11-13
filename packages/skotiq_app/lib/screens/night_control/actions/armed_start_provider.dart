@@ -2,7 +2,8 @@
 // `nightArmedStartProvider` in skotiq_core, which the host also serves to
 // linked clients.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../../../services/observing_site.dart';
 

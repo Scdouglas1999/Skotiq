@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// The host's events of the night that a person reads in a log, kept apart
 /// from the replay buffer so the telemetry that fills that buffer cannot push

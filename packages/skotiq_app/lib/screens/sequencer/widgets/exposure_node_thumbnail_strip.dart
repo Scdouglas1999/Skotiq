@@ -3,12 +3,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show
-        ProducingNodeThumbnail,
-        exposureNodeThumbnailsProvider,
-        FrameExclusionKind,
-        frameExclusionKindOf, userFacingError;
+import 'package:skotiq_core/database.dart' show ProducingNodeThumbnail;
+import 'package:skotiq_core/errors.dart' show userFacingError;
+import 'package:skotiq_core/providers.dart'
+    show exposureNodeThumbnailsProvider, FrameExclusionKind, frameExclusionKindOf;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'thumbnail_strip_prefs.dart';

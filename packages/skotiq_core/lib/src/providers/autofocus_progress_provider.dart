@@ -6,6 +6,7 @@ import '../backend/skotiq_backend.dart';
 import '../models/autofocus_progress.dart';
 import 'backend_provider.dart';
 import 'operation_progress_provider.dart';
+import '../models/backend/backend_types.dart';
 
 /// State for the non-blocking autofocus progress overlay
 class AutofocusOverlayState {

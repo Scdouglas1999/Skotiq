@@ -70,7 +70,7 @@ Future<void> main() async {
     (root) => _write(
       root,
       'packages/skotiq_ui/lib/src/badge.dart',
-      "import 'package:skotiq_core/skotiq_core.dart';\n",
+      "import 'package:skotiq_core/models.dart';\n",
     ),
     exitCode: 1,
     stderrHas: [
@@ -343,13 +343,13 @@ Future<void> main() async {
   );
 
   await check(
-    'a backend file importing the core barrel or a provider by package URI '
-    'fails',
+    'a backend file importing the providers barrel or a provider by package '
+    'URI fails',
     (root) async {
       await _write(
         root,
         'packages/skotiq_core/lib/src/backend/roles/host_notes.dart',
-        "import 'package:skotiq_core/skotiq_core.dart';\n",
+        "import 'package:skotiq_core/providers.dart';\n",
       );
       await _write(
         root,
@@ -360,7 +360,8 @@ Future<void> main() async {
     },
     exitCode: 1,
     stderrHas: [
-      'host_notes.dart:1: imports skotiq_core.dart',
+      'host_notes.dart:1: imports providers.dart',
+      'host_notes.dart:1: imports the providers.dart barrel',
       'notes_dao.dart:2: imports src/providers/database_provider.dart',
     ],
   );
@@ -406,8 +407,7 @@ Future<void> main() async {
     await _write(
       root,
       'packages/skotiq_core/lib/src/providers/night_provider.dart',
-      "import 'backend_provider.dart';\n"
-          "import 'package:skotiq_core/skotiq_core.dart';\n",
+      "import 'backend_provider.dart';\n",
     );
     await _write(
       root,
@@ -418,6 +418,114 @@ Future<void> main() async {
       root,
       'packages/skotiq_core/lib/src/models/night.dart',
       '// Not `import ../providers/x.dart`.\n',
+    );
+  }, exitCode: 0);
+
+  await check(
+    'importing the union barrel fails, and so does bringing it back',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_app/lib/screens/night.dart',
+        "import 'package:flutter/widgets.dart';\n"
+            "import 'package:skotiq_core/skotiq_core.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/skotiq_core.dart',
+        "export 'models.dart';\n",
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[core-barrels]',
+      'night.dart:2: imports package:skotiq_core/skotiq_core.dart, the union '
+          'of every layer',
+      'lib/skotiq_core.dart:1: skotiq_core.dart is not the barrel of a '
+          'lib/src/ directory',
+      'skotiq_core has one barrel per lib/src/ directory',
+    ],
+  );
+
+  await check(
+    'a barrel exporting another layer, or exporting with hide, fails',
+    (root) => _write(
+      root,
+      'packages/skotiq_core/lib/models.dart',
+      "export 'src/models/night.dart';\n"
+          "export 'src/backend/network_backend.dart';\n"
+          "export 'src/models/site.dart'\n"
+          '    hide HorizonProfile;\n',
+    ),
+    exitCode: 1,
+    stderrHas: [
+      'models.dart:2: exports src/backend/network_backend.dart, outside '
+          'src/models/',
+      'models.dart:3: exports src/models/site.dart with hide',
+    ],
+  );
+
+  await check(
+    'a src file re-exporting another layer fails',
+    (root) => _write(
+      root,
+      'packages/skotiq_core/lib/src/backend/night_backend.dart',
+      "import '../models/night.dart';\n"
+          "export '../models/night.dart';\n",
+    ),
+    exitCode: 1,
+    stderrHas: [
+      'night_backend.dart:2: re-exports src/models/night.dart from backend/',
+    ],
+  );
+
+  await check(
+    'hiding a name of a core barrel fails, on one line or wrapped',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_app/lib/screens/night.dart',
+        "import 'package:skotiq_core/models.dart' hide ConnectionState;\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_app/test/night_test.dart',
+        "import 'package:skotiq_core/models.dart'\n"
+            '    hide Night;\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      'lib/screens/night.dart:1: hides a name of the models.dart barrel',
+      'test/night_test.dart:1: hides a name of the models.dart barrel',
+    ],
+  );
+
+  await check('layer barrels, the typed events barrel, show lists, prefixes '
+      'and same-layer re-exports pass', (root) async {
+    await _write(
+      root,
+      'packages/skotiq_core/lib/backend.dart',
+      "export 'src/backend/network_backend.dart' show NetworkBackend;\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_core/lib/bridge_events.dart',
+      "export 'src/backend/bridge_events.dart';\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_core/lib/src/backend/bridge_events.dart',
+      "export 'package:skotiq_astro/skotiq_astro.dart' show Angle;\n"
+          "export 'network_backend.dart';\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_app/lib/screens/night.dart',
+      "import 'package:skotiq_core/backend.dart' show NetworkBackend;\n"
+          "import 'package:skotiq_core/bridge_events.dart' as sk_events;\n"
+          "import 'package:skotiq_core/models.dart';\n"
+          '// Tooltips hide when the pointer leaves.\n',
     );
   }, exitCode: 0);
 
@@ -483,12 +591,14 @@ Future<void> _cleanWorkspace(Directory root, File scope) async {
   );
   for (final MapEntry(key: dir, value: (name, deps)) in _layers.entries) {
     await _write(root, '$dir/pubspec.yaml', _pubspec(name, deps));
-    await _write(root, '$dir/lib/$name.dart', 'library;\n');
+    // skotiq_core has a barrel per layer and no library named after it.
+    final library = name == 'skotiq_core' ? 'models' : name;
+    await _write(root, '$dir/lib/$library.dart', 'library;\n');
   }
   await _write(
     root,
     'packages/skotiq_app/lib/screens/home.dart',
-    "import 'package:skotiq_core/skotiq_core.dart';\n"
+    "import 'package:skotiq_core/models.dart';\n"
         "import 'package:skotiq_ui/skotiq_ui.dart';\n"
         'bool linked(Object b) => b.remoteHost != null;\n',
   );

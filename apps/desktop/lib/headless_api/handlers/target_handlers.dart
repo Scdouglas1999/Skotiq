@@ -1,8 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/database_entities.dart'
-    show Target, TargetsCompanion;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart' show DbTarget, TargetsCompanion;
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
@@ -269,7 +271,7 @@ class TargetHandlers implements RouteSource {
     return jsonOk({'targets': targets.map((t) => _targetToJson(t)).toList()});
   }
 
-  Map<String, dynamic> _targetToJson(Target target) {
+  Map<String, dynamic> _targetToJson(DbTarget target) {
     return {
       'id': target.id,
       'name': target.name,

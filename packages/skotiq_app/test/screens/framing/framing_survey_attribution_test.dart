@@ -22,7 +22,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/framing_hips_layer_wiring.dart';
 import 'package:skotiq_app/screens/framing/widgets/hips_attribution_badge.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 const FramingTarget _target = FramingTarget(

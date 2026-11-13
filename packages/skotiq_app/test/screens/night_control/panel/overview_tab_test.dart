@@ -8,8 +8,8 @@ import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/after_run_section.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_sections.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/overview_tab.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show NextUseActionId, stepFor, tutorialProgressDaoProvider;
+import 'package:skotiq_core/models.dart' show NextUseActionId, stepFor;
+import 'package:skotiq_core/providers.dart' show tutorialProgressDaoProvider;
 
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 

@@ -200,8 +200,16 @@ Copy a converted role: `backend/roles/host_data/observing_lists_store.dart` (loc
 
 - Dependency direction as in section 1; no `package:<other>/src/` imports (import the package's
   library, export the name there if needed).
+- `skotiq_core` has one barrel per `lib/src/` directory and no union: import
+  `package:skotiq_core/models.dart`, `database.dart`, `backend.dart`, `services.dart`,
+  `providers.dart`, `settings.dart`, `errors.dart` or `utils.dart`, the layers you use. A barrel
+  exports only files of its own directory; a file under `src/` imports the file that declares a
+  name, never a barrel, and never re-exports another layer. No `hide` on a core import: when two
+  names clash, rename one where it is declared. The typed `SkotiqEvent`, `EventCategory` and
+  `EventSeverity` share names with the wire model, so they come from
+  `package:skotiq_core/bridge_events.dart` under a prefix.
 - Inside `skotiq_core`, `backend/`, `database/`, `models/` and `services/` do not import
-  `providers/` or the core barrel. A plain value (data class, enum, result type, pure function of
+  `providers/`. A plain value (data class, enum, result type, pure function of
   values) lives in `models/` or the domain folder that owns it, never in a provider file. A service
   that needs a Riverpod `Ref` has a `coreLayers` entry in
   `tools/production/architecture_rules_baseline.json` saying what it reads.

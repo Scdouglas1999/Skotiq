@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// The connection-troubleshooter knowledge base (C3) is a pure, side-effect-free
-// model that the C3 owner deliberately kept out of the skotiq_core barrel
-// (matching its own test suite, which imports the source path directly). We
-// follow that precedent here — the same pattern hardware_preset_picker_dialog.dart
-// uses for the hardware-presets provider/service.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/troubleshooter/connection_diagnostic.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A first-light-friendly dialog that turns a hostile raw driver error into a

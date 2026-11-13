@@ -14,8 +14,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skotiq_app/screens/planner/widgets/projects_tab_content.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/database/database.dart' as ndb;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -57,7 +59,7 @@ class _RecordingTargetLibrary implements TargetLibraryService {
   String? catalogId;
 
   @override
-  Future<ndb.Target> ensureCatalogTarget({
+  Future<ndb.DbTarget> ensureCatalogTarget({
     required String targetName,
     required double raHours,
     required double decDegrees,
@@ -71,7 +73,7 @@ class _RecordingTargetLibrary implements TargetLibraryService {
     this.raHours = raHours;
     this.decDegrees = decDegrees;
     this.catalogId = catalogId;
-    return ndb.Target(
+    return ndb.DbTarget(
       id: 77,
       name: targetName,
       ra: raHours,
@@ -164,7 +166,7 @@ void main() {
           // The library is EMPTY — the case a sheet can most easily dead-end
           // on.
           allDbTargetsProvider.overrideWith(
-            (ref) => Stream.value(const <ndb.Target>[]),
+            (ref) => Stream.value(const <ndb.DbTarget>[]),
           ),
           installedCatalogSearchProvider.overrideWith(
             (ref, query) async =>
@@ -239,7 +241,7 @@ void main() {
           targetLibraryServiceProvider
               .overrideWithValue(_RecordingTargetLibrary()),
           allDbTargetsProvider.overrideWith(
-            (ref) => Stream.value(const <ndb.Target>[]),
+            (ref) => Stream.value(const <ndb.DbTarget>[]),
           ),
           // No catalog on disk: the search can never return anything.
           installedCatalogSearchProvider.overrideWith(

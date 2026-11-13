@@ -35,6 +35,7 @@ import 'backend_provider.dart';
 import 'sequence_provider.dart';
 import '../services/end_of_night_calibration/eon_providers.dart'
     show calibrationOnlyRunActiveProvider;
+import '../settings/app_settings_state.g.dart';
 
 part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';
@@ -720,7 +721,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     _scheduleSourceChangeEvaluation();
   }
 
-  static List<StarSample> _starSamples(List<db.CapturedImage> rows) => [
+  static List<StarSample> _starSamples(List<db.DbCapturedImage> rows) => [
     for (final row in rows)
       if (row.frameType.toLowerCase() == 'light' && row.starCount != null)
         (

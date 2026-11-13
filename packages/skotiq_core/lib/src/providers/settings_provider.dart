@@ -26,6 +26,8 @@ import '../settings/preflight_strictness.dart';
 import '../settings/setting.dart';
 import '../models/focuser_backlash_calibration.dart'
     show FocuserBacklashCalibrationSettings;
+import '../database/daos/settings_dao.dart';
+import '../models/backend/backend_types.dart';
 
 // Section parts: AppSettingsNotifier is one notifier split across `part` files
 // under `settings_sections/`, one per UI / domain section. `part` rather than
@@ -37,15 +39,6 @@ import '../models/focuser_backlash_calibration.dart'
 //
 // A new setting is one entry in `settings/app_settings_table.dart` plus a
 // setter in its section file.
-export '../settings/app_settings_state.g.dart';
-export '../settings/capture_format.dart';
-export '../settings/device_retries.dart';
-export '../settings/guide_settle.dart';
-export '../settings/preflight_strictness.dart';
-export '../settings/setting.dart'
-    show Setting, SettingFamily, SettingSync, SettingValue;
-export '../settings/store_settings.dart' show StoreSettings;
-
 part 'settings_sections/general.dart';
 part 'settings_sections/appearance.dart';
 part 'settings_sections/location.dart';
@@ -233,7 +226,7 @@ final bortleClassProvider = Provider<int>((ref) {
 /// The operator's profile with the obstructions the runs learned at the
 /// current site merged in (see [userHorizonProfileProvider] for the profile
 /// alone, which is what the horizon editor edits).
-final horizonProfileProvider = Provider<HorizonProfile>((ref) {
+final horizonProfileProvider = Provider<SiteHorizonProfile>((ref) {
   final profile = ref.watch(userHorizonProfileProvider);
   final site = ref.watch(appObserverLocationProvider);
   if (site == null) return profile;
@@ -248,7 +241,7 @@ final horizonProfileProvider = Provider<HorizonProfile>((ref) {
 });
 
 /// The operator's own horizon profile, without learned obstructions.
-final userHorizonProfileProvider = Provider<HorizonProfile>((ref) {
+final userHorizonProfileProvider = Provider<SiteHorizonProfile>((ref) {
   final json = ref.watch(
     appSettingsProvider.select(
       (settingsAsync) =>
@@ -256,5 +249,5 @@ final userHorizonProfileProvider = Provider<HorizonProfile>((ref) {
           '{"N":0,"NE":0,"E":0,"SE":0,"S":0,"SW":0,"W":0,"NW":0}',
     ),
   );
-  return HorizonProfile.fromJson(json);
+  return SiteHorizonProfile.fromJson(json);
 });

@@ -18,6 +18,7 @@ import 'package:skotiq_core/src/providers/sequence/rules/settings_rules.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_validation.dart';
 import 'package:skotiq_core/src/models/sequence/validation/validation_issue.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 // Minimal fakes so we can drive the equipment / settings providers from
 // tests without touching real device drivers or the on-disk SQLite store.

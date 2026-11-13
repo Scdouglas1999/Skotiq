@@ -1,25 +1,25 @@
 import '../../../database/database.dart'
-    show EquipmentProfile, ImagingSession, Sequence, SequenceRun, Target;
+    show DbEquipmentProfile, ImagingSession, DbSequence, SequenceRun, DbTarget;
 
 /// The equipment profiles saved in the imaging host's database.
 abstract interface class EquipmentProfileLibrary {
-  Stream<List<EquipmentProfile>> watchAllProfiles();
+  Stream<List<DbEquipmentProfile>> watchAllProfiles();
 
   /// The profile marked active, or null when none is.
-  Stream<EquipmentProfile?> watchActiveProfile();
+  Stream<DbEquipmentProfile?> watchActiveProfile();
 }
 
 /// The targets saved in the imaging host's database.
 abstract interface class TargetLibrary {
-  Stream<List<Target>> watchAllTargets();
+  Stream<List<DbTarget>> watchAllTargets();
 
-  Stream<List<Target>> watchFavoriteTargets();
+  Stream<List<DbTarget>> watchFavoriteTargets();
 }
 
 /// The sequences saved in the imaging host's database.
 abstract interface class SequenceLibrary {
   /// Every saved sequence that is not a template.
-  Stream<List<Sequence>> watchAllSequences();
+  Stream<List<DbSequence>> watchAllSequences();
 }
 
 /// The imaging sessions recorded in the imaging host's database.

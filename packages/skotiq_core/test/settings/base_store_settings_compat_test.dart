@@ -13,7 +13,7 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/database/database.dart' hide Sequence;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/annotation_settings.dart';
 import 'package:skotiq_core/src/models/imaging/auto_stretch_settings.dart';
 import 'package:skotiq_core/src/models/scheduler/scheduler_status.dart';
@@ -44,6 +44,7 @@ import 'package:skotiq_core/src/providers/session_optimizer_provider.dart'
 import 'package:skotiq_core/src/services/home_assistant/home_assistant_discovery_config.dart';
 import 'package:skotiq_core/src/services/push_notification_service.dart'
     show PushNotificationConfig;
+import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 
 const _fixturePath = 'test/fixtures/settings/base_store_settings.json';
 

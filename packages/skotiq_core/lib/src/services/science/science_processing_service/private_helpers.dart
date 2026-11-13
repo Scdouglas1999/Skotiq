@@ -464,7 +464,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
   /// The stored plate solve of [image] as a [WcsSolution], without reading
   /// the frame; null when the row was never solved. The field size is left
   /// nominal because only the projection (centre, CD, SIP) is used.
-  Future<WcsSolution?> _storedWcsFor(db.CapturedImage image) async {
+  Future<WcsSolution?> _storedWcsFor(db.DbCapturedImage image) async {
     if (!image.isPlateSolved ||
         image.solvedRa == null ||
         image.solvedDec == null) {
@@ -498,7 +498,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
   Future<WcsSolution?> _resolveWcsSolution({
     required String imagePath,
     required int? capturedImageId,
-    db.CapturedImage? capturedImage,
+    db.DbCapturedImage? capturedImage,
     bool solveIfUnsolved = true,
   }) async {
     final image = capturedImageId == null
@@ -617,7 +617,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
     required String imagePath,
     required int? capturedImageId,
     required int? sessionId,
-    required db.CapturedImage? capturedImage,
+    required db.DbCapturedImage? capturedImage,
     required WcsSolution? wcs,
   }) async {
     FitsReadResult? fits;
@@ -673,7 +673,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
 
   Future<DateTime> _resolveFrameTimestamp({
     required String imagePath,
-    required db.CapturedImage? capturedImage,
+    required db.DbCapturedImage? capturedImage,
   }) async {
     if (capturedImage?.capturedAt case final ts?) {
       return ts;
@@ -734,7 +734,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
   }
 
   Future<double?> _airmassForCapturedImage({
-    required db.CapturedImage image,
+    required db.DbCapturedImage image,
     required DateTime timestamp,
   }) async {
     if (image.mountAltitude != null) {

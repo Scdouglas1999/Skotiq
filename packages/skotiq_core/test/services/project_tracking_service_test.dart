@@ -3,7 +3,7 @@ import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/services/project_tracking_service.dart';
 
-db.Target _target(int id, String name) => db.Target(
+db.DbTarget _target(int id, String name) => db.DbTarget(
   id: id,
   name: name,
   ra: 5.6,
@@ -19,7 +19,7 @@ db.Target _target(int id, String name) => db.Target(
   isFavorite: false,
 );
 
-db.CapturedImage _frame(
+db.DbCapturedImage _frame(
   int id, {
   int? targetId = 1,
   int? sessionId,
@@ -30,7 +30,7 @@ db.CapturedImage _frame(
   DateTime? at,
 }) {
   final when = at ?? DateTime.utc(2026, 1, 2, 2, id);
-  return db.CapturedImage(
+  return db.DbCapturedImage(
     id: id,
     filePath: '/captures/$id.fits',
     fileName: '$id.fits',

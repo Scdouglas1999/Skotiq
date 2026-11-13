@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
-db.CapturedImage _row(int id, {int sessionId = 7, String? path}) {
+db.DbCapturedImage _row(int id, {int sessionId = 7, String? path}) {
   final at = DateTime.utc(2026, 11, 7, 21).add(Duration(minutes: id));
-  return db.CapturedImage(
+  return db.DbCapturedImage(
     id: id,
     filePath: path ?? '/captures/frame_$id.fits',
     fileName: 'frame_$id.fits',
@@ -28,14 +28,14 @@ db.CapturedImage _row(int id, {int sessionId = 7, String? path}) {
 /// the 30 s poll of the host's whole image table; measured on a sim pair the
 /// client's strip moved in jumps of five frames, 28 s behind the host.
 void main() {
-  late StreamController<List<db.CapturedImage>> poll;
+  late StreamController<List<db.DbCapturedImage>> poll;
   late List<int> rowFetches;
   late List<int> sessionFetches;
-  late Map<int, db.CapturedImage> host;
+  late Map<int, db.DbCapturedImage> host;
   late RemoteImageRows rows;
 
   setUp(() {
-    poll = StreamController<List<db.CapturedImage>>.broadcast();
+    poll = StreamController<List<db.DbCapturedImage>>.broadcast();
     rowFetches = [];
     sessionFetches = [];
     host = {for (final id in [1, 2, 3]) id: _row(id)};

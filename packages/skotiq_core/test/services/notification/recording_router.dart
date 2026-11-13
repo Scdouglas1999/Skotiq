@@ -1,4 +1,5 @@
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A transport that keeps what it was handed instead of sending it.
 class RecordingTransport extends NotificationTransport {

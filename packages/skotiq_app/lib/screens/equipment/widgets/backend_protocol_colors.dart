@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart' show DriverType;
+import 'package:skotiq_core/models.dart' show DriverType;
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
 
 /// Hues for equipment driver backends.

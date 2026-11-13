@@ -6,8 +6,6 @@ import 'roles/imaging_backend.dart';
 import 'roles/profile_settings_backend.dart';
 import 'roles/sequencer_backend.dart';
 
-// Re-export backend types for backward compatibility
-export '../models/backend/backend_types.dart';
 // Re-export the FRB-canonical PlateSolveResult so callers can keep importing
 // just `skotiq_backend.dart` after the model-layer copy was deleted.
 // Also re-export CameraRecommendedSettings so device service / UI code can

@@ -86,7 +86,7 @@ class TargetLibraryService {
   }
 
   /// Resolves an existing library target or creates one on the host/local DB.
-  Future<db.Target> ensureCatalogTarget({
+  Future<db.DbTarget> ensureCatalogTarget({
     required String targetName,
     required double raHours,
     required double decDegrees,
@@ -130,7 +130,7 @@ class TargetLibraryService {
       }
     }
 
-    return db.Target(
+    return db.DbTarget(
       id: id,
       name: targetName,
       catalogId: catalogId ?? targetName,
@@ -152,7 +152,7 @@ class TargetLibraryService {
     );
   }
 
-  Future<List<db.Target>> _loadTargets() async {
+  Future<List<db.DbTarget>> _loadTargets() async {
     final host = _host.value.remoteHost?.imagingRecords;
     if (host != null) {
       final rows = await host.getAllTargets();
@@ -161,7 +161,7 @@ class TargetLibraryService {
       // RA/Dec, which is right — but mapping straight over the list would let a
       // single bad row from an older or third-party host take away every target
       // the operator has. Skip the row, say so, and keep the rest.
-      final targets = <db.Target>[];
+      final targets = <db.DbTarget>[];
       for (final row in rows) {
         try {
           targets.add(_targetFromRemoteJson(row));
@@ -174,13 +174,13 @@ class TargetLibraryService {
               );
         }
       }
-      return List<db.Target>.unmodifiable(targets);
+      return List<db.DbTarget>.unmodifiable(targets);
     }
     final dao = _ref.read(targetsDaoProvider);
     return dao.getAllTargets();
   }
 
-  db.Target _targetFromRemoteJson(Map<String, dynamic> json) {
+  db.DbTarget _targetFromRemoteJson(Map<String, dynamic> json) {
     DateTime dateTime(Object? value) {
       if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
       if (value is String) {
@@ -203,7 +203,7 @@ class TargetLibraryService {
       );
     }
 
-    return db.Target(
+    return db.DbTarget(
       id: (json['id'] as num).toInt(),
       name: json['name'] as String? ?? 'Untitled target',
       catalogId: json['catalogId'] as String?,

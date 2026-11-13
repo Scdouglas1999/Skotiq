@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart'
     show darkroomEditLocation;
-import 'package:skotiq_core/skotiq_core.dart' show darkroomRouteForPayload;
+import 'package:skotiq_core/models.dart' show darkroomRouteForPayload;
 
 import 'mobile_preferences.dart';
 

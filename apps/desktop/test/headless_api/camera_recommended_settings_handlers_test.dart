@@ -3,10 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/backend/disconnected_backend.dart';
-import 'package:skotiq_core/src/backend/skotiq_backend.dart'
-    show CameraRecommendedSettings;
-import 'package:skotiq_core/src/providers/backend_provider.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:shelf/shelf.dart';
 

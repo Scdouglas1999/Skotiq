@@ -3,7 +3,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 String _detail(List<Map<String, Object?>> points) => jsonEncode({
   'type': 'autofocus_progress',

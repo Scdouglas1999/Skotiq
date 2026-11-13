@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart' show AnnotationStatus;
+import 'package:skotiq_core/services.dart' show AnnotationStatus;
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
 
 /// Colors of the annotation pipeline status indicator, derived from the

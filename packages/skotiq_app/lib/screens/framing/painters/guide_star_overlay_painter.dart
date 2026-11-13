@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
-// The pure guide-star finder result type lives in skotiq_core's models
-// layer alongside the shared framing projection it is built on, and is not
-// surfaced through the public barrel (an app->core src-model type, the same
-// convention the framing painters and canvas use for FramingPlateScale /
-// FramingSkyProjection).
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_guide_star.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Marks candidate guide stars on the framing canvas.

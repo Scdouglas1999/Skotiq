@@ -16,7 +16,7 @@
 // skotiq_core, so the parity test cannot live there).
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 void main() {

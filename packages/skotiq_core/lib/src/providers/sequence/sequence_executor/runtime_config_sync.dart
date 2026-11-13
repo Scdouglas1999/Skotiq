@@ -17,8 +17,8 @@ import '../../session_handoff_provider.dart'
         sessionCarryOverProvider,
         sessionHandoffDecisionProvider,
         sessionHandoffIgnoreUnavailableOnceProvider;
-import '../../settings_provider.dart';
 import '../run_config_sync.dart';
+import '../../../settings/app_settings_state.g.dart';
 
 /// What a native launch sends besides the run configuration: the launch
 /// wiring (site, simulation mode, save path, device ids, defect map), the

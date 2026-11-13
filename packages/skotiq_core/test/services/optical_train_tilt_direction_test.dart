@@ -6,7 +6,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/services.dart';
 
 /// 3x3 tile grid whose HFR rises along [angleDeg], measured from +x (right)
 /// towards +y (increasing tileRow, i.e. downwards in image order).

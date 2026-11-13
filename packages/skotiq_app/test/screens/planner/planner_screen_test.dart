@@ -14,7 +14,12 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/framing/altitude_chart.dart';
 import 'package:skotiq_app/screens/planner/planner_screen.dart';
 import 'package:skotiq_app/screens/suggestions/widgets/transient_alerts_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 

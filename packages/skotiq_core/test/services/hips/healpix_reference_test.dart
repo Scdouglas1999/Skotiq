@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Cross-validation of the pure-Dart HEALPix NESTED math against an
 /// authoritative independent reference: `astropy_healpix` 1.1.2.

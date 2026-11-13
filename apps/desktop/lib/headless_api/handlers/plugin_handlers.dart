@@ -9,11 +9,8 @@
 // visible as non-runnable rows and can be deleted for cleanup.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// Plugin enablement is app-composition wiring and is intentionally not in the
-// public core barrel.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 import 'package:shelf/shelf.dart';
 

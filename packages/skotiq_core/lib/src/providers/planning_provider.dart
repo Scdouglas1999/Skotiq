@@ -21,6 +21,9 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'scheduler_provider.dart';
 import 'settings_provider.dart';
+import '../database/daos/settings_dao.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
 
 /// Riverpod plumbing for the multi-night planner: [ProjectService] /
 /// [ForecastPlanningService] and the [OpenMeteoCloudProvider] forecast feed,

@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui' show Offset, Rect;
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Pixel geometry for DepthLock: turning what the operator drew on the
 /// displayed frame into the frozen TAN reference a goal stores, and turning a

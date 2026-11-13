@@ -21,6 +21,8 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/preflight_strictness.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

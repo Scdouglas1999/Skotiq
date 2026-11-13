@@ -26,6 +26,8 @@ import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Nepal: an offset no CI host runs on, so "the chosen zone" and "the host's
 /// zone" cannot silently coincide.

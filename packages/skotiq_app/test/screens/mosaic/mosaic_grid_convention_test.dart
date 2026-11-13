@@ -13,7 +13,8 @@ import 'package:skotiq_app/screens/collaborative_sky/widgets/collab_mosaic_card.
 import 'package:skotiq_app/screens/mosaic/mosaic_format.dart';
 import 'package:skotiq_app/screens/mosaic/mosaic_project_controller.dart';
 import 'package:skotiq_app/screens/mosaic/mosaic_project_screen.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// The audit's mosaic: stored rows=2, cols=3.

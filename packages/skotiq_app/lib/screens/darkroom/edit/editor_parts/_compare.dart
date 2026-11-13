@@ -55,7 +55,7 @@ enum _DarkroomCompareMode {
 class _DarkroomCompareView extends ConsumerStatefulWidget {
   /// The open recipe's live state — including edits that have not reached the
   /// row yet, which is what makes "compare with the draft" meaningful.
-  final DarkroomState aState;
+  final DarkroomViewState aState;
 
   final String aLabel;
 
@@ -203,7 +203,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
   /// controls operate over whichever pane has a render and the readout names
   /// the side it measured. Dead controls are kept for the case that is really
   /// dead — neither pane rendered — and then they say so.
-  Widget _controls(DarkroomState bState) {
+  Widget _controls(DarkroomViewState bState) {
     final blinkMode = widget.mode == _DarkroomCompareMode.blink;
     // A's render when A has one, because A is the stack this editor is showing.
     // When B's render answered from a different pyramid level, one percentage
@@ -296,7 +296,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
     );
   }
 
-  Widget _sideBySide(SkotiqColors colors, DarkroomState bState) {
+  Widget _sideBySide(SkotiqColors colors, DarkroomViewState bState) {
     final panes = [
       _pane(colors, widget.aLabel, _kDarkroomCompareSideA, widget.aState),
       _pane(colors, widget.bLabel, _kDarkroomCompareSideB, bState),
@@ -333,7 +333,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
   /// [IndexedStack] rather than opacity or offstage: it lays both out, paints
   /// only the indexed one, and walks only that one for semantics, so the hidden
   /// recipe is not announced as being on screen.
-  Widget _blinkPane(SkotiqColors colors, DarkroomState bState) {
+  Widget _blinkPane(SkotiqColors colors, DarkroomViewState bState) {
     return IndexedStack(
       index: _showA ? 0 : 1,
       sizing: StackFit.expand,
@@ -348,7 +348,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
     SkotiqColors colors,
     String label,
     String side,
-    DarkroomState state,
+    DarkroomViewState state,
   ) {
     final preview = state.preview;
     return Column(
@@ -427,7 +427,7 @@ class _DarkroomCompareViewState extends ConsumerState<_DarkroomCompareView> {
     );
   }
 
-  Widget _paneEmpty(DarkroomState state) {
+  Widget _paneEmpty(DarkroomViewState state) {
     if (state.loading || state.rendering) {
       return const Center(
           child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 36));

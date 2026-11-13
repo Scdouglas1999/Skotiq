@@ -18,7 +18,7 @@ import 'package:skotiq_app/screens/constellation/constellation_sign_in_sheet.dar
 import 'package:skotiq_app/screens/constellation/constellation_ui_providers.dart'
     as ui;
 import 'package:skotiq_app/screens/mosaic/mosaic_contribute_sheet.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 const _viewport = Size(1280, 720);

@@ -19,6 +19,11 @@ import 'runtime_mirror/channels/session_frames_channel.dart'
     show hostSessionFrameIdsProvider;
 import 'sequence/last_ended_run.dart' show lastEndedRunProvider;
 import 'package:skotiq_astro/skotiq_astro.dart';
+import '../database/daos/settings_dao.dart';
+import '../settings/app_settings_state.g.dart';
+import '../settings/capture_format.dart';
+import '../settings/setting.dart';
+import '../settings/store_settings.dart';
 
 final exposureSettingsProvider = StateProvider<ExposureSettings>((ref) {
   return const ExposureSettings(
@@ -667,7 +672,7 @@ final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
     final byId = {for (final row in rows) row.id: row};
     return [
       for (final id in hostIds)
-        if (byId[id] case final db.CapturedImage row)
+        if (byId[id] case final db.DbCapturedImage row)
           capturedImageFromDbRow(row),
     ];
   }
@@ -719,7 +724,7 @@ final recentSessionFramesProvider = Provider<List<CapturedImage>>((ref) {
 /// mapping to push freshly persisted sequence frames into
 /// [sessionImagesProvider]; duplicating it there would let the two views of a
 /// frame drift apart.
-CapturedImage capturedImageFromDbRow(db.CapturedImage row) {
+CapturedImage capturedImageFromDbRow(db.DbCapturedImage row) {
   return CapturedImage(
     id: row.id.toString(),
     filePath: row.filePath,

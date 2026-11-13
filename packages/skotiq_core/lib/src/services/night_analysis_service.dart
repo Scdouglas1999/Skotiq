@@ -232,7 +232,7 @@ class NightAnalysisService {
   }
 
   Future<List<NightSub>> _toSubs(
-    List<CapturedImage> rows, {
+    List<DbCapturedImage> rows, {
     required int? sessionId,
   }) async {
     final lights = rows

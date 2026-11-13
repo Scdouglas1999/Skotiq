@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

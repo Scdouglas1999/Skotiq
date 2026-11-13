@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/screens/shell/app_shell.dart';
 import 'package:skotiq_app/screens/shell/shell_navigation.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// A router shaped like the app's: rail destinations and the Darkroom side by
 /// side inside one ShellRoute, reached by `go` and by `push` respectively.

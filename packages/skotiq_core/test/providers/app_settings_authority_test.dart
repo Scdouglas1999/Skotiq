@@ -12,6 +12,7 @@ import 'package:skotiq_core/src/models/settings/app_settings.dart' as models;
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 class _FailingReadSettingsDao extends SettingsDao {
   _FailingReadSettingsDao(super.db);

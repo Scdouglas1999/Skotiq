@@ -10,7 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_app/screens/analytics/widgets/science_analytics_tab.dart';
 import 'package:skotiq_app/screens/analytics/widgets/session_chart.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 DbCapturedImage _frame(int id, {required bool accepted, double? hfr}) =>

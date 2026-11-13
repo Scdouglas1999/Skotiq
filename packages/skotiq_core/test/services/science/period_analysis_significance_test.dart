@@ -11,7 +11,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 const _service = PeriodAnalysisService();
 final _epoch = DateTime.utc(2026, 7, 30, 21);

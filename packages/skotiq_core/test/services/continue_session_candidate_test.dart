@@ -3,7 +3,9 @@
 // checkpoint kept) the night before: any interrupted session won over every
 // other run, and a stopped run was never a candidate.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
 db.ImagingSession _session(

@@ -21,7 +21,7 @@
 /// only handles the post-pairing browser-credential lifecycle.
 library;
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
 
 import '../auth/auth_cookie.dart';

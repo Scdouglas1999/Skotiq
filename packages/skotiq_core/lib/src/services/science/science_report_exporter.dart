@@ -72,7 +72,7 @@ class ScienceReportExporter {
     if (session == null) {
       throw StateError('Session $sessionId not found');
     }
-    Target? target;
+    DbTarget? target;
     if (session.targetId != null) {
       target = await _targetsDao.getTargetById(session.targetId!);
     }
@@ -146,7 +146,7 @@ class ScienceReportExporter {
   /// One convention for every instant the report prints: UTC, with the Z.
   static String _utcStamp(DateTime when) => when.toUtc().toIso8601String();
 
-  String _sessionHeader(ImagingSession session, Target? target) {
+  String _sessionHeader(ImagingSession session, DbTarget? target) {
     final lines = <String>[
       '## Session',
       '- **Target:** ${target?.name ?? '(no target bound)'}',
@@ -166,7 +166,7 @@ class ScienceReportExporter {
     return lines.join('\n');
   }
 
-  String _frameCounts(List<CapturedImage> images) {
+  String _frameCounts(List<DbCapturedImage> images) {
     final lights = images
         .where((i) => i.frameType.toLowerCase() == 'light')
         .toList(growable: false);
@@ -187,7 +187,7 @@ class ScienceReportExporter {
         '**Accepted integration time:** ${DurationFormat.of(Duration(seconds: integrationSeconds.round()))}.';
   }
 
-  int _countOf(List<CapturedImage> images, String type) =>
+  int _countOf(List<DbCapturedImage> images, String type) =>
       images.where((i) => i.frameType.toLowerCase() == type).length;
 
   String _photometrySnapshot(
@@ -368,7 +368,7 @@ class ScienceReportExporter {
         '- **Frames with clipping:** $clipFrames of ${metrics.length}\n';
   }
 
-  String _filterBreakdown(List<CapturedImage> images) {
+  String _filterBreakdown(List<DbCapturedImage> images) {
     final perFilter = <String, ({int frames, double seconds})>{};
     for (final image in images) {
       if (image.frameType.toLowerCase() != 'light' || !image.isAccepted) {

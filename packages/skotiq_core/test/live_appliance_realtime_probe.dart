@@ -11,7 +11,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Returns true iff a headless appliance is answering on 127.0.0.1:8080.
 /// Keeps this file CI-safe: when no appliance is running (the normal case in

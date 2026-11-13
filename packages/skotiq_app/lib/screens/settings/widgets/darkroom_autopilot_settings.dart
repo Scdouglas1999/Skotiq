@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/skotiq_core.dart' show darkroomActivityRoute;
+import 'package:skotiq_core/models.dart' show darkroomActivityRoute;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// The Settings entry for what happens at the end of a night. The switches

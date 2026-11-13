@@ -1,4 +1,4 @@
-import 'package:skotiq_core/skotiq_core.dart' show userFacingError;
+import 'package:skotiq_core/errors.dart' show userFacingError;
 
 
 /// The body for the First Light error empty-state: a sentence a person can act

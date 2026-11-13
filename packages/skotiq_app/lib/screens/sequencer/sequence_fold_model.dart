@@ -26,7 +26,9 @@
 library;
 
 import 'package:equatable/equatable.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 
 /// Which kind of contiguous sibling run a [FoldGroup] collapses into one row.

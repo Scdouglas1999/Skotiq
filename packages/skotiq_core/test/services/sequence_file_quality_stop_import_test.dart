@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 /// A sequence file saved before 2026-10-06, when quality triggers paused or
 /// ended the run. Owner decision that day: only a risk to the hardware pauses

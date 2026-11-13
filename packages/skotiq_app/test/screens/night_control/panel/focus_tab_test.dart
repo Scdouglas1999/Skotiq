@@ -3,7 +3,7 @@
 // compensation and this session's runs.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart' show VCurvePoint;
+import 'package:skotiq_core/models.dart' show VCurvePoint;
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/panel/focus/focus_panel_vm.dart';
 import 'package:skotiq_app/screens/night_control/panel/focus/focus_tab.dart';

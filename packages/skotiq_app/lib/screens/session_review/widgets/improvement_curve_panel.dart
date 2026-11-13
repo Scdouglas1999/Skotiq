@@ -1,6 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/skotiq_core.dart' show IntegrationCurve;
+import 'package:skotiq_core/models.dart' show IntegrationCurve;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../analytics/widgets/adaptive_chart_container.dart';

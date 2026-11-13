@@ -2,7 +2,7 @@
 // run: a stopped run is continued from here instead of being raised at launch.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/continue_run_button.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   final info = CheckpointInfo(

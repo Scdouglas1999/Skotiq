@@ -7,7 +7,7 @@
 // body under it read "Sequence / 0 steps", and Save as Template offered to
 // save "1 nodes" from an empty sequence.
 
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Number of real instructions in [sequence] — every node except the
 /// implicit root container.

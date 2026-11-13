@@ -4,7 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Sesame's answer for "M42", captured from the live service 2026-10-21.
 const _m42Xml = '''<?xml version="1.0" encoding="UTF-8"?>

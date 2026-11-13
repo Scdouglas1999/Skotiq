@@ -6,7 +6,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 import '../database/database.dart';
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
-import '../models/site/site_horizon_profile.dart' show HorizonProfile;
+import '../models/site/site_horizon_profile.dart' show SiteHorizonProfile;
 import 'logging_service.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.
@@ -53,11 +53,11 @@ class TargetSuggestionService {
     required TargetSuggestionConfig config,
     required double latitude,
     required double longitude,
-    required List<Target> targets,
+    required List<DbTarget> targets,
     required List<ImagingSession> sessions,
     DateTime? observationTime,
     OpticalConfig? opticalConfig,
-    HorizonProfile? horizonProfile,
+    SiteHorizonProfile? horizonProfile,
   }) async {
     if (targets.isEmpty) return [];
     final elapsed = Stopwatch()..start();
@@ -91,11 +91,11 @@ typedef _SuggestionRequest = ({
   TargetSuggestionConfig config,
   double latitude,
   double longitude,
-  List<Target> targets,
+  List<DbTarget> targets,
   List<ImagingSession> sessions,
   DateTime observationTime,
   OpticalConfig? opticalConfig,
-  HorizonProfile? horizonProfile,
+  SiteHorizonProfile? horizonProfile,
 });
 
 typedef _SuggestionResult = ({
@@ -127,11 +127,11 @@ class _TonightSuggestionScorer {
     required TargetSuggestionConfig config,
     required double latitude,
     required double longitude,
-    required List<Target> targets,
+    required List<DbTarget> targets,
     required List<ImagingSession> sessions,
     required DateTime observationTime,
     OpticalConfig? opticalConfig,
-    HorizonProfile? horizonProfile,
+    SiteHorizonProfile? horizonProfile,
   }) {
     final now = observationTime;
 
@@ -295,7 +295,7 @@ class _TonightSuggestionScorer {
     return suggestions;
   }
 
-  CelestialObject _targetToCelestialObject(Target target) {
+  CelestialObject _targetToCelestialObject(DbTarget target) {
     // Target.ra is in decimal hours, Target.dec is in decimal degrees
     final coordinate = CelestialCoordinate(ra: target.ra, dec: target.dec);
 
@@ -345,7 +345,7 @@ class _TonightSuggestionScorer {
   /// Returns a value from 0.0 (no data) to 1.0 (complete).
   double _calculateDataProgress(
     int targetId,
-    Target target,
+    DbTarget target,
     List<ImagingSession> sessions,
   ) {
     double totalIntegrationSecs = 0;

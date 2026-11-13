@@ -3,7 +3,7 @@ import 'package:drift/drift.dart';
 import 'imaging_sessions.dart';
 import 'targets.dart';
 
-@DataClassName('CapturedImage')
+@DataClassName('DbCapturedImage')
 @TableIndex(name: 'idx_images_session', columns: {#sessionId})
 @TableIndex(name: 'idx_images_target', columns: {#targetId})
 @TableIndex(name: 'idx_images_frame_type', columns: {#frameType})

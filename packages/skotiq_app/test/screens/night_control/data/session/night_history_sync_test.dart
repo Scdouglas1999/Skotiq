@@ -12,8 +12,10 @@ import 'package:skotiq_app/screens/night_control/data/session/night_history_sync
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
 import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provider.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/skotiq_core_events.dart' as sk_events;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import '../../../../harness/harness.dart';
 

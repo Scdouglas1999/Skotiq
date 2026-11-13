@@ -13,8 +13,8 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart'
-    show DarkLibraryDao, DarkLibraryService, SkotiqDatabase;
+import 'package:skotiq_core/database.dart' show DarkLibraryDao, SkotiqDatabase;
+import 'package:skotiq_core/services.dart' show DarkLibraryService;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

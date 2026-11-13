@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 
 /// Renders the HEALPix NESTED tiling produced by [HealpixNested] to a PNG so
 /// the geometry can be eyeballed and locked as a golden. This is the visual

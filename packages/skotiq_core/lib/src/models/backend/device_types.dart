@@ -29,8 +29,6 @@ const String guideCameraLabel = 'guide camera';
 
 enum DriverType { ascom, alpaca, indi, native, simulator }
 
-enum ConnectionState { disconnected, connecting, connected, error }
-
 /// Side of pier for German Equatorial mounts
 enum PierSide { east, west, unknown }
 

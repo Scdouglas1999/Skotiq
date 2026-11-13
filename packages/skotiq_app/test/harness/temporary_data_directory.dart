@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/utils.dart';
 
 /// Points Skotiq's data and documents directories at a fresh temporary folder
 /// for each test of the calling group, so code that falls back to them (no

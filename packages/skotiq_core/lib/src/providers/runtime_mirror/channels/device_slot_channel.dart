@@ -8,6 +8,7 @@ import '../../ui_notification_provider.dart';
 import '../client_runtime_mirror.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
+import '../../../models/backend/backend_types.dart';
 
 /// One device slot of the host: which device it holds, its connection state
 /// and error, and the readings its card shows.

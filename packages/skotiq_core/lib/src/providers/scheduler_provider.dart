@@ -54,6 +54,8 @@ import 'settings_provider.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';
 import '../services/end_of_night_calibration/eon_trigger.dart'
     show EonEndReason, endOfNightCalibrationCoordinatorProvider;
+import '../settings/app_settings_state.g.dart';
+import '../settings/store_settings.dart';
 
 part 'scheduler/scheduler_engine_providers.dart';
 part 'scheduler/scheduler_candidate_loader.dart';

@@ -5,7 +5,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
@@ -54,11 +56,11 @@ _MockNetworkBackend _clientBackend(ProviderContainer host) {
   return backend;
 }
 
-db.CapturedImage _row(
+db.DbCapturedImage _row(
   int id, {
   required int sessionId,
   String type = 'light',
-}) => db.CapturedImage(
+}) => db.DbCapturedImage(
   id: id,
   filePath: 'C:/data/frame_$id.fits',
   fileName: 'frame_$id.fits',
@@ -76,7 +78,7 @@ db.CapturedImage _row(
 
 ProviderContainer _client(
   _MockNetworkBackend backend, {
-  List<db.CapturedImage> hostRows = const [],
+  List<db.DbCapturedImage> hostRows = const [],
 }) => ProviderContainer(
   overrides: [
     inMemoryDatabaseOverride(),

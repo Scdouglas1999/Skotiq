@@ -4,7 +4,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_actions_panel.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
 
@@ -121,7 +124,7 @@ void main() {
         ),
         framingFOVProvider.overrideWith(
           (ref) async => const FramingEquipmentResult(
-            status: EquipmentStatus.noProfile,
+            status: FramingEquipmentStatus.noProfile,
           ),
         ),
         currentImageProvider.overrideWith((ref) => _frame()),

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/auth/auth_cookie.dart';
 import 'package:skotiq_desktop/headless_api/auth/ws_ticket_manager.dart';
 import 'package:skotiq_desktop/headless_api/auth_policy.dart';

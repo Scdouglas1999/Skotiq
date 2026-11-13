@@ -13,8 +13,6 @@ import '../../settings/app_settings_table.dart';
 import '../../settings/setting.dart';
 import '../../settings/store_settings.dart';
 
-export '../../settings/setting.dart' show AdminOnly;
-
 const List<Setting<Object?>> _declared = [
   ...kAppSettingsTable,
   ...StoreSettings.all,

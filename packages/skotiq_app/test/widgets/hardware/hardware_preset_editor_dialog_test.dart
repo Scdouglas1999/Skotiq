@@ -10,8 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/widgets/hardware/hardware_preset_editor_dialog.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-import 'package:skotiq_core/src/providers/hardware_presets_provider.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 SkotiqDatabase _newDb() => SkotiqDatabase.forTesting(NativeDatabase.memory());

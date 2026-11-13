@@ -16,7 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/pass_view/pass_view.dart';
 import 'package:skotiq_app/screens/darkroom/pass_view/pass_view_parts.dart'
     show PassImageSource;
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../golden/surface_golden_harness.dart';

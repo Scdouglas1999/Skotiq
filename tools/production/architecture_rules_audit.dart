@@ -17,9 +17,14 @@ import 'src/audit_scope.dart';
 ///                       or Rust `match` naming [_dispatchThreshold] or more
 ///                       node types) outside the node table.
 ///   core-layers         skotiq_core's backend/, database/, models/ and
-///                       services/ do not import providers/ or the core
-///                       barrel; a service that needs a Riverpod Ref is
-///                       listed in the baseline with the reason.
+///                       services/ do not import providers/; a service that
+///                       needs a Riverpod Ref is listed in the baseline with
+///                       the reason.
+///   core-barrels        skotiq_core has one barrel per `lib/src/` directory
+///                       and no union of them: a barrel exports only its own
+///                       directory, nothing under `src/` re-exports another
+///                       layer or imports a barrel, and no import of a core
+///                       barrel carries `hide`.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -249,9 +254,22 @@ const _dispatchInstead =
 const _coreLib = 'packages/skotiq_core/lib/';
 const _coreSrc = '${_coreLib}src/';
 
-/// The core barrel re-exports every provider file, so importing it from a
-/// layer below providers/ is the same dependency.
-const _coreBarrel = '${_coreLib}skotiq_core.dart';
+/// The barrel of the provider layer: importing it from a layer below
+/// providers/ is the same dependency as importing a provider file.
+const _coreProvidersBarrel = '${_coreLib}providers.dart';
+
+/// Barrels that are not named after a `lib/src/` directory, and the directory
+/// each exports.
+const _coreExtraBarrels = {'bridge_events': 'backend'};
+
+const _coreBarrelsInstead =
+    'skotiq_core has one barrel per lib/src/ directory (backend.dart, '
+    'database.dart, errors.dart, models.dart, providers.dart, services.dart, '
+    'settings.dart, utils.dart), so an import says which layer a file depends '
+    'on. Export a file from the barrel of the directory it is in; inside '
+    'lib/src/ import the file that declares a name, not a barrel and not a '
+    're-export from another layer. When two layers want the same name, '
+    'rename one where it is declared; do not hide it at the import.';
 
 /// The layers of skotiq_core that sit below the provider layer.
 const _coreBelowProviders = {'backend', 'database', 'models', 'services'};
@@ -287,6 +305,7 @@ void main(List<String> args) {
   final violations = <_Violation>[];
   violations.addAll(_checkDartDirection(dartPackages, dartFiles));
   violations.addAll(_checkRustDirection());
+  violations.addAll(_checkCoreBarrels(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);
   final srcImportSites = _srcImportSites(dartPackages, dartFiles);
@@ -431,6 +450,11 @@ enum _Rule {
     'core-layers',
     'Core layers below providers/ do not import the provider layer.',
     _coreLayersInstead,
+  ),
+  coreBarrels(
+    'core-barrels',
+    'An import of skotiq_core names the layer it depends on.',
+    _coreBarrelsInstead,
   );
 
   const _Rule(this.id, this.summary, this.instead);
@@ -760,7 +784,7 @@ List<_Site> _coreLayerSites(List<String> files) {
       if (m == null) continue;
       final target = _coreTarget(path, m.group(1)!);
       if (target == null) continue;
-      if (target != _coreBarrel &&
+      if (target != _coreProvidersBarrel &&
           !target.startsWith('${_coreSrc}providers/')) {
         continue;
       }
@@ -793,6 +817,98 @@ String? _coreTarget(String from, String uri) {
   }
   final path = segments.join('/');
   return path.startsWith(_coreLib) ? path : null;
+}
+
+// ---------------------------------------------------------------------------
+// core-barrels
+
+final _coreBarrelImport = RegExp(
+  r'''^\s*import\s+['"]package:skotiq_core/([a-z_0-9]+)\.dart['"]([^;]*);''',
+  multiLine: true,
+);
+final _exportDirective = RegExp(
+  r'''^\s*export\s+['"]([^'"]+)['"]([^;]*);''',
+  multiLine: true,
+);
+final _hideCombinator = RegExp(r'\bhide\b');
+
+List<_Violation> _checkCoreBarrels(List<String> files) {
+  final out = <_Violation>[];
+  void add(String path, String source, int offset, String what) => out.add(
+    _Violation(
+      _Rule.coreBarrels,
+      '$path:${_lineOf(source, offset) + 1}',
+      what,
+      _coreBarrelsInstead,
+    ),
+  );
+
+  for (final path in files) {
+    final source = _readText(path);
+    if (!source.contains('skotiq_core') && !path.startsWith(_coreLib)) {
+      continue;
+    }
+    final inCoreLib = path.startsWith(_coreLib);
+    final inCoreSrc = path.startsWith(_coreSrc);
+
+    for (final m in _coreBarrelImport.allMatches(source)) {
+      final barrel = m.group(1)!;
+      if (barrel == 'skotiq_core') {
+        add(
+          path,
+          source,
+          m.start,
+          'imports package:skotiq_core/skotiq_core.dart, the union of every '
+          'layer',
+        );
+      } else if (inCoreSrc) {
+        add(path, source, m.start, 'imports the $barrel.dart barrel');
+      }
+      if (_hideCombinator.hasMatch(m.group(2)!)) {
+        add(path, source, m.start, 'hides a name of the $barrel.dart barrel');
+      }
+    }
+
+    if (!inCoreLib) continue;
+    final relative = path.substring(_coreLib.length);
+    if (!relative.contains('/')) {
+      final name = relative.substring(0, relative.length - '.dart'.length);
+      final layer = _coreExtraBarrels[name] ?? name;
+      if (!Directory('$_coreSrc$layer').existsSync()) {
+        add(
+          path,
+          source,
+          0,
+          '$relative is not the barrel of a lib/src/ directory',
+        );
+        continue;
+      }
+      for (final m in _exportDirective.allMatches(source)) {
+        final uri = m.group(1)!;
+        if (!uri.startsWith('src/$layer/')) {
+          add(path, source, m.start, 'exports $uri, outside src/$layer/');
+        }
+        if (_hideCombinator.hasMatch(m.group(2)!)) {
+          add(path, source, m.start, 'exports $uri with hide');
+        }
+      }
+    } else if (inCoreSrc) {
+      final layer = path.substring(_coreSrc.length).split('/').first;
+      for (final m in _exportDirective.allMatches(source)) {
+        final target = _coreTarget(path, m.group(1)!);
+        if (target == null) continue;
+        if (!target.startsWith('$_coreSrc$layer/')) {
+          add(
+            path,
+            source,
+            m.start,
+            're-exports ${target.substring(_coreLib.length)} from $layer/',
+          );
+        }
+      }
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

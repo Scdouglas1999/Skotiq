@@ -4,7 +4,8 @@
 // position 6620 at 14.5 °C, and 83 steps near 2506 from an earlier run. The
 // two figures are the whole reason the UI must never print a bare number, so
 // the regression is pinned to them rather than to round test values.
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
 
 const belowPoints6620 = <VCurvePoint>[
   VCurvePoint(position: 6480, hfr: 5.42),

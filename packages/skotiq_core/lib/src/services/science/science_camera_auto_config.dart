@@ -18,6 +18,7 @@ import '../sensor_specs/camera_sensor_specs.dart';
 import '../sensor_specs/published_figure.dart';
 import '../smart_night/hardware_specs_service.dart';
 import '../../backend/remote_host.dart';
+import '../../models/backend/backend_types.dart';
 
 /// Keeps the `science.camera.*` settings (read noise, gain in e⁻/ADU,
 /// saturation ADU) in sync with the hardware that is actually in use, so

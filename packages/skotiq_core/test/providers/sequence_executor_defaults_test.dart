@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/database/database.dart'
-    hide Sequence, SequenceNode;
+import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
@@ -13,6 +12,7 @@ import 'package:skotiq_core/src/services/scheduler/horizon_profile.dart'
 import 'package:skotiq_core/src/providers/sequence/sequence_executor.dart';
 import 'package:skotiq_core/src/providers/sequence/sequencer_defaults.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
+import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 
 /// Forces appSettingsProvider into a known state without spinning up
 /// the real AsyncNotifier (which reads from SQLite).

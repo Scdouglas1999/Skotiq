@@ -41,20 +41,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/screens/framing/framing_hips_layer_wiring.dart';
 import 'package:skotiq_app/screens/framing/widgets/hips_attribution_badge.dart';
 import 'package:skotiq_app/screens/framing/widgets/hips_tile_layer.dart';
-import 'package:skotiq_core/skotiq_core.dart';
-// FramingPlateScale is an app->core src model (not surfaced through the public
-// barrel) used in the seeded notifier's overridden requestViewport signature.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/models/framing_plate_scale.dart';
-// Loader + cache are app->core service types shared with the framing tile layer;
-// imported directly here (matching the C8 widget / framing painter convention)
-// to seed a resident snapshot deterministically.
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_cache.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_fetcher.dart';
-// ignore: implementation_imports
-import 'package:skotiq_core/src/services/hips/hips_tile_loader.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import 'support/hips_fixture_render.dart' show ManualLoaderClock;
 

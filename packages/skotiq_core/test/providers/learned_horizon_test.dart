@@ -9,12 +9,13 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_core/skotiq_core.dart' hide HorizonProfile;
-import 'package:skotiq_core/src/backend/skotiq_backend.dart' as bridge_event;
-import 'package:skotiq_core/src/models/site/site_horizon_profile.dart'
-    show HorizonProfile;
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 import '../mocks/mock_backend.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart' as bridge_event;
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -41,8 +42,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(registerMocktailFallbackValues);
 
-  group('HorizonProfile with learned obstructions', () {
-    final user = HorizonProfile.fromJson(
+  group('SiteHorizonProfile with learned obstructions', () {
+    final user = SiteHorizonProfile.fromJson(
       '{"N":10,"NE":10,"E":10,"SE":10,"S":10,"SW":10,"W":20,"NW":20}',
     );
 
@@ -58,7 +59,7 @@ void main() {
     });
 
     test('never lowers the operator profile and leaves its editor values', () {
-      final high = HorizonProfile.fromJson(
+      final high = SiteHorizonProfile.fromJson(
         '{"N":0,"NE":0,"E":0,"SE":0,"S":0,"SW":0,"W":70,"NW":70}',
       );
       final merged = high.withLearnedObstructions([_point(alt: 30)]);
@@ -68,7 +69,7 @@ void main() {
     });
 
     test('a learned point makes a flat profile not flat', () {
-      final flat = HorizonProfile.fromJson(
+      final flat = SiteHorizonProfile.fromJson(
         '{"N":0,"NE":0,"E":0,"SE":0,"S":0,"SW":0,"W":0,"NW":0}',
       );
       expect(flat.isFlat, isTrue);

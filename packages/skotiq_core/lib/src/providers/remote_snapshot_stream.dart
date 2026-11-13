@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
+import '../models/backend/backend_types.dart';
 
 /// Quiet period after a relevant host event before a re-fetch, so a burst of
 /// related events costs one request.

@@ -238,7 +238,7 @@ class SmartNightService {
     required EquipmentProfileModel profile,
     required double latitudeDeg,
     required double longitudeDeg,
-    required List<db.Target> targets,
+    required List<db.DbTarget> targets,
     required List<db.ImagingSession> sessions,
     DateTime? observationTime,
     double minAltitude = 30.0,

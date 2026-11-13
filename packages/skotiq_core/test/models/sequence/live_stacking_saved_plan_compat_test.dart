@@ -3,7 +3,8 @@
 // The fields are gone; plans saved while they existed must still open and
 // keep everything else they hold.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('a plan saved with the old port and path still loads', () {

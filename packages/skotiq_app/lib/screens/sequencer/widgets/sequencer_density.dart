@@ -1,7 +1,9 @@
 import 'package:flutter/widgets.dart' show IconData;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 
 /// How dense the sequencer tree draws a step.
 ///

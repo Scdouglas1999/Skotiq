@@ -18,7 +18,9 @@ import 'package:skotiq_app/screens/onboarding/steps/optical_train_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/site_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/summary_step.dart';
 import 'package:skotiq_app/screens/onboarding/steps/welcome_step.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 

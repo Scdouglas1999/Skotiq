@@ -4,7 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:logging/logging.dart';
 
 import '../database/database.dart'
-    show EquipmentProfile, EquipmentProfilesCompanion;
+    show DbEquipmentProfile, EquipmentProfilesCompanion;
 import '../services/optical_train_limits.dart';
 import '../utils/json_validation.dart';
 import 'backend/device_types.dart' show DeviceType;
@@ -195,7 +195,7 @@ class EquipmentProfileModel {
       (guideCameraId ?? '').isNotEmpty ||
       DeviceType.values.any((type) => (deviceIdFor(type) ?? '').isNotEmpty);
 
-  factory EquipmentProfileModel.fromDatabase(EquipmentProfile db) {
+  factory EquipmentProfileModel.fromDatabase(DbEquipmentProfile db) {
     List<String> filters = [];
     Map<String, int> offsets = {};
     final rawTelescopeFocalLength = db.telescopeFocalLength;
