@@ -119,22 +119,13 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
     );
     if (draft == null || !_ensureCurrent(backend, generation)) return;
 
-    if (backend.remoteHost case final linkedHost?) {
-      await linkedHost.focusModels.addFocusDataPoint(
-        temperature: draft.temperature,
-        position: draft.position,
-        hfr: draft.hfr,
-        filter: draft.filter,
-      );
-    } else {
-      await ref.read(focusModelServiceProvider).addDataPoint(
-            profileId: widget.profileId,
-            temperatureCelsius: draft.temperature,
-            focusPosition: draft.position,
-            hfr: draft.hfr,
-            filterName: draft.filter,
-          );
-    }
+    await ref.read(focusHistoryProvider).addPoint(
+          profileId: widget.profileId,
+          temperatureCelsius: draft.temperature,
+          focusPosition: draft.position,
+          hfr: draft.hfr,
+          filterName: draft.filter,
+        );
     await _refreshAfterMutation(backend, generation);
     if (_isCurrent(backend, generation)) _showMessage('Focus point added');
   }
@@ -143,11 +134,8 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
     SkotiqBackend backend,
     int generation,
   ) async {
-    final hostFocus = backend.remoteHost?.focusModels;
-    final exported = hostFocus != null
-        ? const JsonEncoder.withIndent('  ')
-            .convert(await hostFocus.exportFocusModel())
-        : ref.read(focusModelServiceProvider).exportData(widget.profileId);
+    final exported =
+        await ref.read(focusHistoryProvider).export(widget.profileId);
     if (!_ensureCurrent(backend, generation)) return;
     if (!mounted) return;
     await showDialog<void>(
@@ -175,13 +163,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
     );
     if (data == null || !_ensureCurrent(backend, generation)) return;
 
-    if (backend.remoteHost case final linkedHost?) {
-      await linkedHost.focusModels.importFocusModel(data);
-    } else {
-      await ref
-          .read(focusModelServiceProvider)
-          .importData(widget.profileId, jsonEncode(data));
-    }
+    await ref.read(focusHistoryProvider).import(widget.profileId, data);
     await _refreshAfterMutation(backend, generation);
     if (_isCurrent(backend, generation)) _showMessage('Focus data imported');
   }
@@ -212,13 +194,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
     );
     if (confirm != true || !_ensureCurrent(backend, generation)) return;
 
-    if (backend.remoteHost case final linkedHost?) {
-      await linkedHost.focusModels.clearFocusModelData();
-    } else {
-      await ref
-          .read(focusModelServiceProvider)
-          .clearProfileData(widget.profileId);
-    }
+    await ref.read(focusHistoryProvider).clear(widget.profileId);
     await _refreshAfterMutation(backend, generation);
     if (_isCurrent(backend, generation)) _showMessage('Focus model cleared');
   }
@@ -229,7 +205,7 @@ class _ActionRowState extends ConsumerState<_ActionRow> {
   ) async {
     if (!_isCurrent(backend, generation)) return;
     ref.invalidate(focusProfileDataProvider(widget.profileId));
-    if (backend.remoteHost == null) widget.onChanged();
+    widget.onChanged();
     await ref.read(filterOffsetProvider.notifier).reload();
   }
 
