@@ -1016,15 +1016,28 @@ pub(crate) async fn check_exposure_triggers(
         let episode_key = format!("{node_id}#{index}");
         if !should_fire {
             context
-                .exposure_trigger_episodes
+                .exposure_triggers
                 .lock()
+                .holding
                 .remove(&episode_key);
             continue;
         }
-        let new_episode = context
-            .exposure_trigger_episodes
-            .lock()
-            .insert(episode_key.clone());
+        let now = context.clock.now_utc();
+        {
+            let mut memory = context.exposure_triggers.lock();
+            let new_episode = memory.holding.insert(episode_key.clone());
+            // The trigger's debounce: after it acts, it stays quiet for
+            // `debounce_secs`, whatever the condition does meanwhile.
+            let quiet = trigger.debounce_secs > 0.0
+                && memory.last_acted.get(&episode_key).is_some_and(|at| {
+                    (now - *at).num_milliseconds() < (trigger.debounce_secs * 1000.0) as i64
+                });
+            let notify_again = !new_episode && matches!(trigger.action, TriggerAction::Notify);
+            if quiet || notify_again {
+                continue;
+            }
+            memory.last_acted.insert(episode_key.clone(), now);
+        }
 
         tracing::warn!(
             "Exposure trigger fired: {:?} - action: {:?}",
@@ -1034,16 +1047,14 @@ pub(crate) async fn check_exposure_triggers(
 
         match &trigger.action {
             TriggerAction::Notify => {
-                if new_episode {
-                    notify_exposure_trigger(
-                        node_id,
-                        &episode_key,
-                        &trigger.condition,
-                        current_hfr,
-                        latest_guiding_rms,
-                        context,
-                    );
-                }
+                notify_exposure_trigger(
+                    node_id,
+                    &episode_key,
+                    &trigger.condition,
+                    current_hfr,
+                    latest_guiding_rms,
+                    context,
+                );
             }
             TriggerAction::PauseAndRecalibrate => {
                 tracing::info!("Pausing sequence due to exposure trigger");

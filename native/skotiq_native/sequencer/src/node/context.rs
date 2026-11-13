@@ -130,6 +130,18 @@ impl DeviceLockRegistry {
     }
 }
 
+/// What a run's exposure triggers did, keyed by node id and trigger position.
+#[derive(Debug, Default)]
+pub struct ExposureTriggerMemory {
+    /// Triggers whose condition held on their last evaluation. A `Notify`
+    /// trigger tells the operator when its key is added and stays quiet while
+    /// it is present, so a soft hour is one notification rather than one per
+    /// burst.
+    pub holding: std::collections::HashSet<String>,
+    /// When each trigger last acted, for its debounce.
+    pub last_acted: std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>,
+}
+
 /// Context passed to nodes during execution.
 ///
 /// Cloning is cheap: every field is either `Copy`, `Arc`, or already
@@ -255,11 +267,9 @@ pub struct ExecutionContext {
     /// Bayer pattern string ("RGGB", "BGGR", etc.) reported by the camera.
     /// None for monochrome sensors.
     pub bayer_pattern: Option<String>,
-    /// Exposure triggers whose condition held on their last evaluation, keyed
-    /// by node id and trigger position. A `Notify` trigger tells the operator
-    /// when its key is added and stays quiet while it is present, so a soft
-    /// hour is one notification rather than one per burst.
-    pub exposure_trigger_episodes: Arc<parking_lot::Mutex<std::collections::HashSet<String>>>,
+    /// What the run's exposure triggers did, keyed by node id and trigger
+    /// position.
+    pub exposure_triggers: Arc<parking_lot::Mutex<ExposureTriggerMemory>>,
     /// pluggable wall-clock used by scheduling code (target
     /// header altitude crossings, target scheduler, integration budget
     /// timeline). Defaults to [`crate::scheduling::WallClock`] in
@@ -497,7 +507,7 @@ impl ExecutionContext {
             current_filter_index: None,
             set_temp_c: None,
             bayer_pattern: None,
-            exposure_trigger_episodes: Arc::default(),
+            exposure_triggers: Arc::default(),
             // production path uses the real wall clock; tests
             // override via `with_clock` to pin time.
             clock: default_clock(),
