@@ -260,7 +260,7 @@ pub fn fit_mount_axis(
     let points = &points[..3];
     let at = points[2].taken_at;
     let lst_degrees =
-        site.map(|(_, lon)| crate::local_sidereal_time(crate::julian_day(&at), lon) * 15.0);
+        site.map(|(_, lon)| crate::meridian::local_sidereal_time(crate::meridian::julian_day(&at), lon) * 15.0);
     let ground: Vec<(f64, f64)> = points
         .iter()
         .map(|p| {
@@ -423,7 +423,7 @@ pub fn axis_j2000_to_date(
     dec_degrees: f64,
     when: chrono::DateTime<chrono::Utc>,
 ) -> (f64, f64) {
-    let t = (crate::julian_day(&when) - 2451545.0) / 36525.0;
+    let t = (crate::meridian::julian_day(&when) - 2451545.0) / 36525.0;
     let arcsec = std::f64::consts::PI / (180.0 * 3600.0);
     let zeta = (2306.2181 + (0.30188 + 0.017998 * t) * t) * t * arcsec;
     let z = (2306.2181 + (1.09468 + 0.018203 * t) * t) * t * arcsec;
@@ -508,7 +508,7 @@ fn equatorial_to_horizontal(
     observer_longitude: f64,
     when: chrono::DateTime<chrono::Utc>,
 ) -> (f64, f64) {
-    let lst_hours = crate::local_sidereal_time(crate::julian_day(&when), observer_longitude);
+    let lst_hours = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&when), observer_longitude);
     let hour_angle_rad = ((lst_hours * 15.0) - ra_degrees).to_radians();
     let dec_rad = dec_degrees.to_radians();
     let lat_rad = observer_latitude.to_radians();
@@ -942,7 +942,7 @@ mod tests {
     fn horizontal_components_follow_axis_offset_signs() {
         let when = chrono::Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap();
         let lon = -122.0;
-        let lst_deg = crate::local_sidereal_time(crate::julian_day(&when), lon) * 15.0;
+        let lst_deg = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&when), lon) * 15.0;
 
         // On the meridian, an axis one degree below the NCP appears one degree
         // above the true pole in altitude for a mid-northern observer.
@@ -973,7 +973,7 @@ mod tests {
         let dec = (lat.sin() * alt.sin() + lat.cos() * alt.cos() * az.cos()).asin();
         let hour_angle = (-az.sin() * alt.cos() / dec.cos())
             .atan2((alt.sin() - lat.sin() * dec.sin()) / (lat.cos() * dec.cos()));
-        let lst_deg = crate::local_sidereal_time(crate::julian_day(&when), longitude) * 15.0;
+        let lst_deg = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&when), longitude) * 15.0;
         (
             (lst_deg - hour_angle.to_degrees()).rem_euclid(360.0),
             dec.to_degrees(),
@@ -1560,7 +1560,7 @@ mod nina_cross_check_2026_11_07 {
     /// Skotiq's circle fit and error decomposition on NINA's own vectors.
     fn skotiq_from_vectors(run: &NinaRun) -> (f64, f64) {
         let at = time(run.times[2]);
-        let lst = crate::local_sidereal_time(crate::julian_day(&at), LONGITUDE) * 15.0;
+        let lst = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&at), LONGITUDE) * 15.0;
         let phi = LATITUDE.to_radians();
         // Each vector is in the horizon frame of its own moment, which is
         // fixed to the ground; as RA/Dec of date at the last point's time.

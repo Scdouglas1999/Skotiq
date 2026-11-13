@@ -137,18 +137,7 @@ pub fn calculate_altitude(
     longitude: f64,
     time: DateTime<Utc>,
 ) -> f64 {
-    let jd = julian_day(&time);
-    let lst = local_sidereal_time(jd, longitude);
-    let ha = hour_angle(ra_hours, lst);
-
-    let ha_rad = (ha * 15.0).to_radians(); // Convert hours to degrees, then to radians
-    let dec_rad = dec_degrees.to_radians();
-    let lat_rad = latitude.to_radians();
-
-    // Calculate altitude using the altitude formula
-    let sin_alt = lat_rad.sin() * dec_rad.sin() + lat_rad.cos() * dec_rad.cos() * ha_rad.cos();
-
-    sin_alt.asin().to_degrees()
+    calculate_alt_az(ra_hours, dec_degrees, latitude, longitude, time).0
 }
 
 /// Convert equatorial coordinates to horizontal (altitude/azimuth) for an

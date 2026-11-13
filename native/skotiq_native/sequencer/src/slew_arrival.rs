@@ -134,14 +134,6 @@ impl std::fmt::Display for SlewWaitError {
     }
 }
 
-/// Great-circle separation between two RA (hours) / Dec (degrees) points.
-pub fn separation_deg(a: (f64, f64), b: (f64, f64)) -> f64 {
-    let (ra1, dec1) = ((a.0 * 15.0).to_radians(), a.1.to_radians());
-    let (ra2, dec2) = ((b.0 * 15.0).to_radians(), b.1.to_radians());
-    let cos_sep = dec1.sin() * dec2.sin() + dec1.cos() * dec2.cos() * (ra2 - ra1).cos();
-    cos_sep.clamp(-1.0, 1.0).acos().to_degrees()
-}
-
 /// How far the mount must close on the target to count as moving.
 const MOTION_THRESHOLD_DEG: f64 = 0.1;
 
@@ -206,7 +198,7 @@ where
 
         let remaining = target
             .zip(sample.position)
-            .map(|(t, p)| separation_deg(t, p));
+            .map(|(t, p)| crate::scheduling::astronomy::angular_separation(t.0 * 15.0, t.1, p.0 * 15.0, p.1));
         if initial.is_none() {
             initial = remaining;
         }

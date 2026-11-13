@@ -22,7 +22,7 @@ pub(crate) mod fixture;
 mod replay_tests;
 
 pub use classify::{
-    angular_separation_deg, FrameObservation, FrameVerdict, FrameWatch, Pointing, SolveOutcome,
+    FrameObservation, FrameVerdict, FrameWatch, Pointing, SolveOutcome,
     WatchAction, OBSTRUCTED_PREFIX, OFF_TARGET_PREFIX,
 };
 pub use config::{FrameWatchConfig, HorizonPoint, FRAME_WATCH_METADATA_KEY};

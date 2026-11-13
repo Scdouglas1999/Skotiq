@@ -700,10 +700,19 @@ mod tests {
     }
 
     #[test]
-    fn test_altaz_to_radec_zenith() {
-        // Zenith (alt=90, any azimuth) should give Dec = latitude.
-        let (_ra, dec) = panel::altaz_to_radec(90.0, 180.0, 45.0, 0.0);
-        assert!((dec - 45.0).abs() < 1.0);
+    fn sky_flats_point_away_from_the_sun() {
+        let now = chrono::Utc::now();
+        for (location, east_of_meridian) in
+            [(PanelLocation::DuskSky, true), (PanelLocation::DawnSky, false)]
+        {
+            let (alt, az) = panel::sky_flat_alt_az(&location).expect("a sky location");
+            let (ra, dec) = crate::meridian::alt_az_to_ra_dec(alt, az, 40.0, -75.0, now);
+            let lst = crate::meridian::local_sidereal_time(crate::meridian::julian_day(&now), -75.0);
+            let hour_angle = crate::meridian::hour_angle(ra, lst);
+            assert_eq!(hour_angle < 0.0, east_of_meridian, "{location:?}: HA {hour_angle}");
+            let (back_alt, _) = crate::meridian::calculate_alt_az(ra, dec, 40.0, -75.0, now);
+            assert!((back_alt - 65.0).abs() < 0.01, "{location:?}: {back_alt}");
+        }
     }
 
     /// Helper: build a default FlatWizardConfig for plan-tests.

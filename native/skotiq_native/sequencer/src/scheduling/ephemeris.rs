@@ -19,25 +19,11 @@ use crate::meridian::julian_day;
 use super::scoring::TwilightBracket;
 use chrono::{DateTime, Duration, Utc};
 
-/// Equatorial position of the Sun (RA, Dec) in degrees for `dt`.
-///
-/// Astronomical-Almanac low-precision formula (good to ~0.01°).
+/// Equatorial position of the Sun (RA, Dec) in degrees for `dt`: the Sun of
+/// [`crate::solar`], with RA in the scheduler's degrees.
 pub fn sun_equatorial(dt: &DateTime<Utc>) -> (f64, f64) {
-    let n = julian_day(dt) - 2_451_545.0;
-    // Mean longitude and mean anomaly of the Sun (degrees).
-    let l = (280.460 + 0.985_647_4 * n).rem_euclid(360.0);
-    let g = (357.528 + 0.985_600_3 * n).rem_euclid(360.0).to_radians();
-    // Ecliptic longitude (equation of centre applied).
-    let lambda = (l + 1.915 * g.sin() + 0.020 * (2.0 * g).sin()).to_radians();
-    // Obliquity of the ecliptic.
-    let eps = (23.439 - 0.000_000_4 * n).to_radians();
-
-    let ra = (eps.cos() * lambda.sin())
-        .atan2(lambda.cos())
-        .to_degrees()
-        .rem_euclid(360.0);
-    let dec = (eps.sin() * lambda.sin()).asin().to_degrees();
-    (ra, dec)
+    let (ra_hours, dec) = crate::solar::sun_equatorial(julian_day(dt));
+    (ra_hours * 15.0, dec)
 }
 
 /// Geocentric ecliptic longitude/latitude of the Moon (degrees), low precision.
@@ -200,6 +186,27 @@ mod tests {
 
     fn utc(y: i32, mo: u32, d: u32, h: u32, mi: u32) -> DateTime<Utc> {
         Utc.with_ymd_and_hms(y, mo, d, h, mi, 0).single().unwrap()
+    }
+
+    /// The Moon every surface reads (scheduler score, a Conditional's Moon
+    /// separation, `${moon.phase}`) against astropy 7 (`get_body`, of-date
+    /// equator; illumination from the geocentric Sun–Moon elongation),
+    /// computed by `notes/w4-seqrs-tools/moon/astropy_moon.py`.
+    #[test]
+    fn the_moon_matches_astropy() {
+        for ((y, mo, d, h, mi), ra, dec, illum) in [
+            ((2026, 11, 13, 23, 0), 284.5792, -26.1533, 18.93),
+            ((2026, 11, 24, 4, 0), 51.8904, 23.9959, 99.50),
+            ((2027, 3, 2, 10, 30), 276.5750, -27.0023, 29.50),
+            ((2026, 6, 15, 2, 0), 82.6285, 27.9675, 0.17),
+        ] {
+            let at = utc(y, mo, d, h, mi);
+            let (moon_ra, moon_dec) = moon_equatorial(&at);
+            let off = angular_separation(moon_ra, moon_dec, ra, dec);
+            assert!(off < 0.3, "{at}: the Moon is {off:.2} deg from astropy's");
+            let ours = moon_illumination_percent(&at);
+            assert!((ours - illum).abs() < 1.0, "{at}: {ours:.2} % lit, astropy {illum} %");
+        }
     }
 
     #[test]
