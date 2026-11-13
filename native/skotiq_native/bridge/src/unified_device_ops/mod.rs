@@ -54,26 +54,15 @@
 //!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
 //!   lives.
 
-use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
-use crate::api::*;
 use crate::device::DeviceType;
-use crate::dispatch::DeviceOpError;
-use crate::event::*;
-use crate::filter_matching::find_filter_match;
+use crate::device_manager::get_device_manager;
+use crate::dispatch::error::DeviceOpError;
 use crate::state::SharedAppState;
-use async_trait::async_trait;
+use crate::unified_device_ops::pointing::{altitude_degrees, MountPointing};
 // Julian Day and local sidereal time come from the sequencer; this file keeps
 // no copy of either.
-use skotiq_sequencer::meridian::{julian_day, local_sidereal_time};
-use skotiq_sequencer::{
-    CameraOps, ConnectionOps, CoverCalibratorOps, DeviceError, DeviceResult, DomeOps,
-    ExposureRequest, FilterWheelOps, FocuserOps, FrameStoreOps, GuiderOps, GuidingCalibration,
-    GuidingStatus, ImageData, MountOps, OperatorNotifyOps, PlateSolveOps, PlateSolveResult,
-    PolarAlignResult, RotatorOps, SafetyOps, SiteOps,
-};
-use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
-use tokio::sync::Mutex;
+use skotiq_sequencer::{DeviceError, DeviceResult, SiteOps};
+use std::sync::Arc;
 
 mod camera;
 mod connection;
@@ -91,9 +80,7 @@ mod rotator;
 mod safety;
 mod site;
 mod solve_diagnostics;
-pub(crate) use exposure_wait::*;
 pub(crate) mod pointing;
-pub(crate) use pointing::*;
 #[cfg(test)]
 mod capture_pins_tests;
 #[cfg(test)]
@@ -103,7 +90,6 @@ mod pointing_tests;
 pub(crate) mod rich_header;
 #[cfg(test)]
 mod rig_grading_tests;
-pub(crate) use rich_header::*;
 #[cfg(test)]
 mod tests;
 
@@ -255,7 +241,7 @@ impl UnifiedDeviceOps {
 /// This is the recommended way to get a DeviceOps implementation.
 /// It uses the unified implementation that routes through the bridge API.
 pub fn create_unified_device_ops() -> Arc<dyn skotiq_sequencer::DeviceOps> {
-    Arc::new(UnifiedDeviceOps::new(crate::api::get_state().clone()))
+    Arc::new(UnifiedDeviceOps::new(crate::state::get_state().clone()))
 }
 
 /// Create a unified DeviceOps instance with a specific app state

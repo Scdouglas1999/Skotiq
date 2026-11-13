@@ -13,9 +13,17 @@
 //! Stars are detected on the raw lights. Calibration changes pixel values, not
 //! where stars are, so the transforms match the build's.
 
-use super::*;
+use super::emit_integration_progress;
+use crate::api::post_session::args::AlignArgs;
+use crate::api::post_session::cancel::{check_stage, RUNS};
+use crate::api::post_session::helpers::build_registration_config;
 use rayon::prelude::*;
-use skotiq_imaging::registration::{solve_registration_against, ReferenceStars};
+use serde::{Deserialize, Serialize};
+use skotiq_imaging::registration::{
+    solve_registration_against, Interpolator, ReferenceStars, RegistrationConfig,
+};
+use skotiq_imaging::{read_image, ImageData};
+use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Lights registered at once. Each holds one full frame plus its detection
@@ -480,7 +488,7 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
         return Err("the pre-pass needs at least one light".into());
     }
     let total = lights.len() as u32;
-    let cancel = RunCancelToken::register(&args.run_id)?;
+    let cancel = RUNS.register(&args.run_id)?;
     let config = build_registration_config(&args.settings.align)?;
     let known: Vec<Option<Result<Registered, String>>> = lights
         .iter()
@@ -537,7 +545,12 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
             })
             .collect()
     });
-    cancel.check("framing", Some(done.load(Ordering::Relaxed)), Some(total))?;
+    check_stage(
+        &cancel,
+        "framing",
+        Some(done.load(Ordering::Relaxed)),
+        Some(total),
+    )?;
     drop(reference);
 
     let mut frames = Vec::with_capacity(lights.len());
@@ -637,6 +650,7 @@ pub(crate) fn registration_preview(args_json: &str) -> Result<RegistrationPrevie
 #[cfg(test)]
 mod tests {
     use super::*;
+    use skotiq_imaging::{write_fits, FitsHeader};
 
     fn quad(points: [[f64; 2]; 4]) -> Vec<[f64; 2]> {
         oriented(points.to_vec())

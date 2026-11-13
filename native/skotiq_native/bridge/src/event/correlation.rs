@@ -1,4 +1,7 @@
-use super::*;
+use crate::event::bus::{EventBus, EventPayload, SkotiqEvent};
+use crate::event::equipment::{EventCategory, EventSeverity};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 /// Global sequence counter for events created outside of the EventBus.
 /// This is used by `create_event_auto_id` for ad-hoc event creation.

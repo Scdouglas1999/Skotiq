@@ -3,16 +3,18 @@
 //! This module maintains the application state and provides
 //! thread-safe access to it from multiple components.
 
-use crate::device::*;
-use crate::event::*;
-use crate::storage::AppSettings;
-use crate::storage::ObserverLocation;
-use crate::storage::PlateSolverPreference;
-use crate::storage::PlateSolverStorage;
-use crate::storage::ProfileStorage;
-use crate::storage::SettingsStorage;
-use std::sync::Arc;
-use std::sync::OnceLock;
+use crate::device::DeviceType;
+use crate::event::bus::{EventBus, EventPayload, SkotiqEvent};
+use crate::event::correlation::SharedEventBus;
+use crate::event::equipment::{EquipmentEvent, EventCategory, EventSeverity};
+use crate::event::guiding::GuidingEvent;
+use crate::event::imaging::ImagingEvent;
+use crate::event::system::{SafetyEvent, SystemEvent};
+use crate::storage::{
+    AppSettings, ObserverLocation, PlateSolverPreference, PlateSolverStorage, ProfileStorage,
+    SettingsStorage,
+};
+use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
 pub struct AppState {
@@ -117,7 +119,7 @@ impl AppState {
     /// Create a new application state
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
-            event_bus: Arc::new(EventBus::new(crate::event::DEFAULT_EVENT_BUFFER_SIZE)),
+            event_bus: Arc::new(EventBus::new(crate::event::bus::DEFAULT_EVENT_BUFFER_SIZE)),
             profile: RwLock::new(None),
             observer_location: std::sync::RwLock::new(None),
         })
@@ -306,32 +308,14 @@ impl AppState {
     /// Create and publish an equipment event
     /// Returns the event ID
     pub fn publish_equipment_event(&self, event: EquipmentEvent, severity: EventSeverity) -> u64 {
-        // Extract device_id from the event for context
-        let device_id = match &event {
-            EquipmentEvent::Connecting { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Connected { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Disconnected { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::PropertyChanged { device_id, .. } => Some(device_id.clone()),
-            EquipmentEvent::Error { device_id, .. } => Some(device_id.clone()),
-            _ => None,
-        };
-
-        if let Some(ref device_id) = device_id {
-            self.event_bus.publish_device_event(
-                severity,
-                EventCategory::Equipment,
-                EventPayload::Equipment(event),
-                device_id,
-                None,
-            )
-        } else {
-            self.event_bus.publish_with_tracking(
-                severity,
-                EventCategory::Equipment,
-                EventPayload::Equipment(event),
-                None,
-            )
-        }
+        let device_id = event.device_id().to_string();
+        self.event_bus.publish_device_event(
+            severity,
+            EventCategory::Equipment,
+            EventPayload::Equipment(event),
+            &device_id,
+            None,
+        )
     }
 
     /// Create and publish an imaging event
@@ -388,7 +372,7 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         Self {
-            event_bus: Arc::new(EventBus::new(crate::event::DEFAULT_EVENT_BUFFER_SIZE)),
+            event_bus: Arc::new(EventBus::new(crate::event::bus::DEFAULT_EVENT_BUFFER_SIZE)),
             profile: RwLock::new(None),
             observer_location: std::sync::RwLock::new(None),
         }
@@ -397,6 +381,13 @@ impl Default for AppState {
 
 /// Thread-safe shared application state
 pub type SharedAppState = Arc<AppState>;
+
+static APP_STATE: OnceLock<SharedAppState> = OnceLock::new();
+
+/// The process's one application state.
+pub(crate) fn get_state() -> &'static SharedAppState {
+    APP_STATE.get_or_init(AppState::new)
+}
 
 #[cfg(test)]
 mod tests {

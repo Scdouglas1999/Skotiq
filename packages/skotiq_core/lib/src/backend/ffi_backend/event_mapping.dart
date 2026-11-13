@@ -284,23 +284,31 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
     } else if (equipmentEvent is bridge.EquipmentEvent_MountSlewStarted) {
       return (
         'MountSlewStarted',
-        {'ra': equipmentEvent.ra, 'dec': equipmentEvent.dec},
+        {
+          'device_id': equipmentEvent.deviceId,
+          'ra': equipmentEvent.ra,
+          'dec': equipmentEvent.dec,
+        },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_MountSlewCompleted) {
       return (
         'MountSlewCompleted',
-        {'ra': equipmentEvent.ra, 'dec': equipmentEvent.dec},
+        {
+          'device_id': equipmentEvent.deviceId,
+          'ra': equipmentEvent.ra,
+          'dec': equipmentEvent.dec,
+        },
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_MountTrackingStarted) {
-      return ('MountTrackingStarted', {});
+      return ('MountTrackingStarted', {'device_id': equipmentEvent.deviceId});
     } else if (equipmentEvent is bridge.EquipmentEvent_MountTrackingStopped) {
-      return ('MountTrackingStopped', {});
+      return ('MountTrackingStopped', {'device_id': equipmentEvent.deviceId});
     } else if (equipmentEvent is bridge.EquipmentEvent_MountParkStarted) {
-      return ('MountParkStarted', {});
+      return ('MountParkStarted', {'device_id': equipmentEvent.deviceId});
     } else if (equipmentEvent is bridge.EquipmentEvent_MountParkCompleted) {
-      return ('MountParkCompleted', {});
+      return ('MountParkCompleted', {'device_id': equipmentEvent.deviceId});
     } else if (equipmentEvent is bridge.EquipmentEvent_MountUnparked) {
-      return ('MountUnparked', {});
+      return ('MountUnparked', {'device_id': equipmentEvent.deviceId});
     } else if (equipmentEvent is bridge.EquipmentEvent_FocuserMoveStarted) {
       return (
         'FocuserMoveStarted',
@@ -316,12 +324,6 @@ extension _FfiBackendEventMapping on _FfiBackendBase {
           'device_id': equipmentEvent.deviceId,
           'position': equipmentEvent.position,
         },
-      );
-    } else if (equipmentEvent
-        is bridge.EquipmentEvent_FocuserTemperatureChanged) {
-      return (
-        'FocuserTemperatureChanged',
-        {'temperature': equipmentEvent.temperature},
       );
     } else if (equipmentEvent is bridge.EquipmentEvent_FilterChanging) {
       return (

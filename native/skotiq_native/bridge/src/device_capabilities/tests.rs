@@ -1,4 +1,15 @@
-use super::*;
+#[cfg(windows)]
+use crate::device_capabilities::ascom::normalize_ascom_capability_device_type;
+use crate::device_capabilities::cache::{
+    capability_cache, invalidate_capability_cache, invalidate_capability_cache_for_device,
+};
+use crate::device_capabilities::get_device_capabilities;
+use crate::device_capabilities::indi::{indi_readout_mode_label, indi_sensor_type_is_color};
+use crate::device_capabilities::types::{
+    CameraCapabilities, CameraRecommendedSettings, DeviceCapabilities, MountCapabilities,
+    RotatorCapabilities,
+};
+use serde::Serialize;
 
 fn native_test_info(id: &str, device_type: crate::device::DeviceType) -> crate::device::DeviceInfo {
     crate::device::DeviceInfo {
@@ -15,7 +26,7 @@ fn native_test_info(id: &str, device_type: crate::device::DeviceType) -> crate::
 }
 
 async fn register_native_test_device(id: &str, device_type: crate::device::DeviceType) {
-    let manager = crate::api::get_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     manager.devices.write().await.insert(
         id.to_string(),
         crate::device_manager::ManagedDevice {
@@ -68,10 +79,10 @@ async fn capability_cache_stores_and_invalidates_by_device() {
         .await
         .expect("simulator capabilities should resolve");
     assert!(matches!(caps, DeviceCapabilities::Camera(_)));
-    assert_eq!(capability_cache().lock().await.len(), 1);
+    assert!(capability_cache().lock().await.contains_key(device_id));
 
     invalidate_capability_cache_for_device(device_id).await;
-    assert_eq!(capability_cache().lock().await.len(), 0);
+    assert!(!capability_cache().lock().await.contains_key(device_id));
 }
 
 #[cfg(windows)]
@@ -254,7 +265,8 @@ impl skotiq_device::CameraDriver for FakeRangedCamera {
 async fn native_camera_capabilities_map_cooler_temp_range_from_trait() {
     let device_id = "native:zwo:900021";
     register_native_test_device(device_id, crate::device::DeviceType::Camera).await;
-    crate::api::get_device_manager().hold_vendor_camera(device_id, Box::new(FakeRangedCamera));
+    crate::device_manager::get_device_manager()
+        .hold_vendor_camera(device_id, Box::new(FakeRangedCamera));
 
     let caps = get_device_capabilities(device_id)
         .await
@@ -271,8 +283,10 @@ async fn native_camera_capabilities_map_cooler_temp_range_from_trait() {
         other => panic!("expected camera capabilities, got {other:?}"),
     }
 
-    crate::api::get_device_manager().handles.remove(device_id);
-    crate::api::get_device_manager()
+    crate::device_manager::get_device_manager()
+        .handles
+        .remove(device_id);
+    crate::device_manager::get_device_manager()
         .devices
         .write()
         .await

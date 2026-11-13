@@ -2,16 +2,17 @@
 //! means is decided by `skotiq_device::ascom::observing_conditions`, the same
 //! as for an Alpaca station.
 
-use super::sta_device::{driver_error, sta_accessory, StaDevice};
-use crate::device_capabilities::WeatherCapabilities;
+use crate::ascom_wrapper::sta_device::{driver_error, sta_accessory, StaDevice};
+use crate::device_capabilities::types::WeatherCapabilities;
 use crate::device_manager::accessory::{weather_capabilities, Weather};
 use crate::device_manager::handle::device_error;
-use crate::dispatch::DeviceOpError;
+use crate::dispatch::error::DeviceOpError;
 use crate::error::SkotiqError;
 use crate::timeout_ops::Timeouts;
 use async_trait::async_trait;
 use skotiq_ascom::AscomObservingConditions;
-use skotiq_device::ascom::observing_conditions::{self, ObservingConditionsMembers, Sensor};
+use skotiq_device::ascom::observing_conditions;
+use skotiq_device::ascom::observing_conditions::{ObservingConditionsMembers, Sensor};
 use skotiq_device::{DriverError, WeatherDriver, WeatherReadings};
 
 pub struct AscomObservingConditionsWrapper {

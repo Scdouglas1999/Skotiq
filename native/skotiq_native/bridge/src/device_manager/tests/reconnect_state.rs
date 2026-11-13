@@ -1,4 +1,5 @@
 use super::*;
+use crate::device::DriverType;
 
 // Hot-plug reconnect: re-apply essential device state.
 //
@@ -12,7 +13,7 @@ use super::*;
 /// Setting tracking records `desired_tracking`; an Error->reconnect replays it.
 #[tokio::test]
 async fn reconnect_reapplies_mount_tracking() {
-    use crate::api::devices::simulation::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = Arc::new(build_device_manager());
@@ -77,7 +78,7 @@ async fn reconnect_reapplies_mount_tracking() {
 /// Setting the cooler records `desired_cooler`; an Error->reconnect replays it.
 #[tokio::test]
 async fn reconnect_reapplies_camera_cooler() {
-    use crate::api::devices::simulation::get_sim_camera;
+    use crate::simulator::camera::get_sim_camera;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = Arc::new(build_device_manager());
@@ -142,7 +143,7 @@ async fn reconnect_reapplies_camera_cooler() {
 /// recorded desired state — only an unplanned reconnect re-applies.
 #[tokio::test]
 async fn fresh_connect_does_not_reapply_state() {
-    use crate::api::devices::simulation::get_sim_mount;
+    use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
     let manager = Arc::new(build_device_manager());

@@ -1,28 +1,13 @@
-// split from monolithic api.rs
-#![allow(unused_imports)]
-// Shared imports inherited from the monolithic api.rs.
-use crate::device::*;
-use crate::device_manager::DeviceManager;
-use crate::error::*;
-use crate::event::*;
-use crate::state::*;
-use crate::storage::{AppSettings, ObserverLocation};
-use crate::unified_device_ops::create_unified_device_ops;
-use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
-use skotiq_imaging::{
-    calculate_airmass, validate_fits_header, validate_image, write_fits, BayerPattern,
-    DebayerAlgorithm, FitsHeader, ImageData,
-};
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::sync::OnceLock;
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
-use tokio::sync::RwLock;
-// Sibling-module items via the parent's pub use re-exports.
-use super::*;
+use crate::event::bus::{EventPayload, SkotiqEvent};
+use crate::event::correlation::create_event_auto_id;
+use crate::event::equipment::{EventCategory, EventSeverity};
+use crate::event::system::SystemEvent;
+use crate::state::get_state;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Events dropped across all event streams, counted when a receiver falls
+/// behind and the bus skips events for it.
+static TOTAL_DROPPED_EVENTS: AtomicU64 = AtomicU64::new(0);
 
 /// Stream of events from the native side
 /// The Dart side should listen to this stream for UI updates
@@ -38,7 +23,7 @@ pub async fn api_event_stream(
 ) -> anyhow::Result<()> {
     tracing::info!(
         "[API_EVENT_STREAM] Starting event stream function (buffer size: {})",
-        crate::event::DEFAULT_EVENT_BUFFER_SIZE
+        crate::event::bus::DEFAULT_EVENT_BUFFER_SIZE
     );
 
     let mut rx = get_state().event_bus.subscribe();

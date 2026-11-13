@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use skotiq_imaging::recipe::{fingerprint_hex, CatalogError, CatalogStar, PhotometryCatalog};
 
-use super::args::CatalogStarArgs;
+use crate::api::darkroom::args::CatalogStarArgs;
 
 /// A catalogue over a fixed star list supplied with the render request.
 pub(crate) struct SuppliedCatalog {

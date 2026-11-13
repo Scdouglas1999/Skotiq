@@ -29,7 +29,7 @@ use skotiq_imaging::wcs_sip::SipWcs;
 use skotiq_imaging::{read_image, ImageData, StarDetectionConfig};
 use std::path::Path;
 
-use crate::api::post_session::write_preview_png;
+use crate::api::post_session::helpers::write_preview_png;
 
 /// Default resident-tile memory budget (512 MiB) — matches the atlas surface.
 const DEFAULT_MEMORY_BUDGET_BYTES: u64 = 512 * 1024 * 1024;

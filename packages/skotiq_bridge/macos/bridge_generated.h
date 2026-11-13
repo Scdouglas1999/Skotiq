@@ -15,23 +15,6 @@ void store_dart_post_cobject(DartPostCObjectFnType ptr);
 typedef struct _Dart_Handle* Dart_Handle;
 
 /**
- * Guide camera sensor, in pixels (a typical 1/3" guide camera).
- */
-#define SIM_GUIDE_SENSOR_W 1280
-
-#define SIM_GUIDE_SENSOR_H 960
-
-/**
- * Guide camera pixel pitch, in micrometers.
- */
-#define SIM_GUIDE_PIXEL_UM 3.75
-
-/**
- * Focal length of the simulated guide scope, in millimeters (a 60 mm f/4).
- */
-#define SIM_GUIDE_FOCAL_LENGTH_MM 240.0
-
-/**
  * Jobs waiting behind the one in flight. Frames arrive one per exposure
  * (tens of seconds apart) and a job takes about a second per goal, so a
  * backlog this deep means analysis is not keeping up and shedding is the
@@ -87,6 +70,23 @@ typedef struct _Dart_Handle* Dart_Handle;
  * How many catalogue stars a real-sky frame renders, brightest first.
  */
 #define SIM_SKY_STAR_LIMIT 1500
+
+/**
+ * Guide camera sensor, in pixels (a typical 1/3" guide camera).
+ */
+#define SIM_GUIDE_SENSOR_W 1280
+
+#define SIM_GUIDE_SENSOR_H 960
+
+/**
+ * Guide camera pixel pitch, in micrometers.
+ */
+#define SIM_GUIDE_PIXEL_UM 3.75
+
+/**
+ * Focal length of the simulated guide scope, in millimeters (a 60 mm f/4).
+ */
+#define SIM_GUIDE_FOCAL_LENGTH_MM 240.0
 
 typedef struct wire_cst_list_prim_u_8_strict {
   uint8_t *ptr;
@@ -561,14 +561,36 @@ typedef struct wire_cst_EquipmentEvent_Error {
 } wire_cst_EquipmentEvent_Error;
 
 typedef struct wire_cst_EquipmentEvent_MountSlewStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   double ra;
   double dec;
 } wire_cst_EquipmentEvent_MountSlewStarted;
 
 typedef struct wire_cst_EquipmentEvent_MountSlewCompleted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
   double ra;
   double dec;
 } wire_cst_EquipmentEvent_MountSlewCompleted;
+
+typedef struct wire_cst_EquipmentEvent_MountTrackingStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountTrackingStarted;
+
+typedef struct wire_cst_EquipmentEvent_MountTrackingStopped {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountTrackingStopped;
+
+typedef struct wire_cst_EquipmentEvent_MountParkStarted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountParkStarted;
+
+typedef struct wire_cst_EquipmentEvent_MountParkCompleted {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountParkCompleted;
+
+typedef struct wire_cst_EquipmentEvent_MountUnparked {
+  struct wire_cst_list_prim_u_8_strict *device_id;
+} wire_cst_EquipmentEvent_MountUnparked;
 
 typedef struct wire_cst_EquipmentEvent_FocuserMoveStarted {
   struct wire_cst_list_prim_u_8_strict *device_id;
@@ -579,10 +601,6 @@ typedef struct wire_cst_EquipmentEvent_FocuserMoveCompleted {
   struct wire_cst_list_prim_u_8_strict *device_id;
   int32_t position;
 } wire_cst_EquipmentEvent_FocuserMoveCompleted;
-
-typedef struct wire_cst_EquipmentEvent_FocuserTemperatureChanged {
-  double temperature;
-} wire_cst_EquipmentEvent_FocuserTemperatureChanged;
 
 typedef struct wire_cst_EquipmentEvent_FilterChanging {
   struct wire_cst_list_prim_u_8_strict *device_id;
@@ -696,9 +714,13 @@ typedef union EquipmentEventKind {
   struct wire_cst_EquipmentEvent_Error Error;
   struct wire_cst_EquipmentEvent_MountSlewStarted MountSlewStarted;
   struct wire_cst_EquipmentEvent_MountSlewCompleted MountSlewCompleted;
+  struct wire_cst_EquipmentEvent_MountTrackingStarted MountTrackingStarted;
+  struct wire_cst_EquipmentEvent_MountTrackingStopped MountTrackingStopped;
+  struct wire_cst_EquipmentEvent_MountParkStarted MountParkStarted;
+  struct wire_cst_EquipmentEvent_MountParkCompleted MountParkCompleted;
+  struct wire_cst_EquipmentEvent_MountUnparked MountUnparked;
   struct wire_cst_EquipmentEvent_FocuserMoveStarted FocuserMoveStarted;
   struct wire_cst_EquipmentEvent_FocuserMoveCompleted FocuserMoveCompleted;
-  struct wire_cst_EquipmentEvent_FocuserTemperatureChanged FocuserTemperatureChanged;
   struct wire_cst_EquipmentEvent_FilterChanging FilterChanging;
   struct wire_cst_EquipmentEvent_FilterChanged FilterChanged;
   struct wire_cst_EquipmentEvent_RotatorMoveStarted RotatorMoveStarted;
@@ -2197,52 +2219,6 @@ typedef struct wire_cst_sequencer_state {
   struct wire_cst_list_prim_u_8_strict *message;
 } wire_cst_sequencer_state;
 
-typedef struct wire_cst_simulated_camera {
-  struct wire_cst_camera_status status;
-} wire_cst_simulated_camera;
-
-typedef struct wire_cst_simulated_dome {
-  struct wire_cst_dome_status status;
-} wire_cst_simulated_dome;
-
-typedef struct wire_cst_simulated_filter_wheel {
-  struct wire_cst_filter_wheel_status status;
-} wire_cst_simulated_filter_wheel;
-
-typedef struct wire_cst_simulated_focuser {
-  struct wire_cst_focuser_status status;
-} wire_cst_simulated_focuser;
-
-typedef struct wire_cst_simulated_mount {
-  struct wire_cst_mount_status status;
-} wire_cst_simulated_mount;
-
-typedef struct wire_cst_simulated_rotator {
-  struct wire_cst_rotator_status status;
-} wire_cst_simulated_rotator;
-
-typedef struct wire_cst_simulated_safety_monitor {
-  struct wire_cst_safety_status status;
-} wire_cst_simulated_safety_monitor;
-
-typedef struct wire_cst_weather_conditions {
-  double *temperature;
-  double *humidity;
-  double *pressure;
-  double *cloud_cover;
-  double *dew_point;
-  double *wind_speed;
-  double *wind_direction;
-  double *sky_quality;
-  double *sky_temperature;
-  double *rain_rate;
-} wire_cst_weather_conditions;
-
-typedef struct wire_cst_simulated_weather {
-  bool connected;
-  struct wire_cst_weather_conditions conditions;
-} wire_cst_simulated_weather;
-
 typedef struct wire_cst_SkotiqError_DeviceNotFound {
   struct wire_cst_list_prim_u_8_strict *field0;
 } wire_cst_SkotiqError_DeviceNotFound;
@@ -2476,6 +2452,19 @@ typedef struct wire_cst_star_detection_result_api {
   double background;
   double noise;
 } wire_cst_star_detection_result_api;
+
+typedef struct wire_cst_weather_conditions {
+  double *temperature;
+  double *humidity;
+  double *pressure;
+  double *cloud_cover;
+  double *dew_point;
+  double *wind_speed;
+  double *wind_direction;
+  double *sky_quality;
+  double *sky_temperature;
+  double *rain_rate;
+} wire_cst_weather_conditions;
 
 void frbgen_skotiq_bridge_wire__crate__api__finishing_analyze__api_analyze_night(int64_t port_,
                                                                                  struct wire_cst_list_prim_u_8_strict *args_json);
@@ -2950,7 +2939,7 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__init__api_init_with_
 void frbgen_skotiq_bridge_wire__crate__api__post_session__entrypoints__api_integrate_session(int64_t port_,
                                                                                              struct wire_cst_list_prim_u_8_strict *args_json);
 
-void frbgen_skotiq_bridge_wire__crate__api__api_invalidate_discovery_cache(int64_t port_);
+void frbgen_skotiq_bridge_wire__crate__api__discovery__api_invalidate_discovery_cache(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__connection__api_is_device_connected(int64_t port_,
                                                                                 int32_t device_type,
@@ -3467,22 +3456,6 @@ void frbgen_skotiq_bridge_wire__crate__api__devices__camera__set_camera_offset(i
                                                                                struct wire_cst_list_prim_u_8_strict *device_id,
                                                                                int32_t offset);
 
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__simulated_camera_default(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_dome_default(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__simulated_focuser_default(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__simulated_mount_default(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__simulated_rotator_default(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default(int64_t port_);
-
-void frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_weather_default(int64_t port_);
-
 void frbgen_skotiq_bridge_wire__crate__api__plate_solve__solve_hints_default(int64_t port_);
 
 void frbgen_skotiq_bridge_wire__crate__api__imaging__star_detection_config_api_default(int64_t port_);
@@ -3749,7 +3722,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_switch_info);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_tracked_guide_star);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_tracking_rate);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__api_invalidate_discovery_cache);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_connect_device_expecting);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__connection__api_disconnect_device);
@@ -3833,14 +3805,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_move_to);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_set_reverse);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__rotator__api_rotator_sync_to_pa);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__camera__simulated_camera_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_dome_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_safety_monitor_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__environment__simulated_weather_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__filter_wheel__simulated_filter_wheel_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__focuser__simulated_focuser_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__mount__simulated_mount_default);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__simulation__rotator__simulated_rotator_default);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__switch__api_switch_get_max);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__switch__api_switch_get_name);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__devices__switch__api_switch_get_state);
@@ -3868,6 +3832,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__discovery__api_discover_indi_common_hosts);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__discovery__api_discover_indi_localhost);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__discovery__api_discover_indi_network);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__discovery__api_invalidate_discovery_cache);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__event_stream__api_event_stream);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_analyze__api_analyze_night);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__finishing_analyze__api_color_calibrate);

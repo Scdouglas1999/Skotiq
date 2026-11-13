@@ -1,4 +1,12 @@
-use super::*;
+use super::{get_sequence_executor, SequencerState};
+use crate::error::SkotiqError;
+use crate::event::bus::EventPayload;
+use crate::event::correlation::create_event_auto_id;
+use crate::event::equipment::{EventCategory, EventSeverity};
+use crate::event::sequencer::SequencerEvent;
+use crate::state::get_state;
+use crate::unified_device_ops::create_unified_device_ops;
+use skotiq_sequencer::{ExecutorState, SequenceDefinition};
 
 /// Load a sequence from JSON
 pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
@@ -457,8 +465,10 @@ pub fn api_sequencer_clear_checkpoint() -> Result<(), SkotiqError> {
 
 #[cfg(test)]
 mod executor_site_tests {
-    use crate::api::get_state;
-    use crate::api::sequencer::{api_sequencer_start, get_sequence_executor};
+
+    use crate::api::sequencer::get_sequence_executor;
+    use crate::api::sequencer::lifecycle::api_sequencer_start;
+    use crate::state::get_state;
     use crate::storage::ObserverLocation;
 
     /// A run must not be able to start without the site the app already knows.
@@ -472,9 +482,7 @@ mod executor_site_tests {
     /// once that one holds a site no push takes it away.
     #[tokio::test]
     async fn starting_a_run_seeds_the_site_from_app_settings() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         get_state()
             .set_observer_location(Some(ObserverLocation {
                 latitude: 41.5,
@@ -498,9 +506,7 @@ mod executor_site_tests {
     /// every plan.
     #[tokio::test]
     async fn starting_a_run_announces_the_plan_by_name() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let mut sequence = skotiq_sequencer::SequenceDefinition::new("M 31 mosaic".to_string());
         sequence.nodes.push(skotiq_sequencer::NodeDefinition {
             id: "wait".to_string(),
@@ -526,9 +532,9 @@ mod executor_site_tests {
 
         let mut started = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let crate::event::EventPayload::Sequencer(crate::event::SequencerEvent::Started {
-                sequence_name,
-            }) = event.payload
+            if let crate::event::bus::EventPayload::Sequencer(
+                crate::event::sequencer::SequencerEvent::Started { sequence_name },
+            ) = event.payload
             {
                 started.push(sequence_name);
             }
@@ -541,9 +547,7 @@ mod executor_site_tests {
     /// own, which every client on the wire received.
     #[tokio::test]
     async fn stopping_a_run_announces_stopped_once() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let mut sequence = skotiq_sequencer::SequenceDefinition::new("Long wait".to_string());
         sequence.nodes.push(skotiq_sequencer::NodeDefinition {
             id: "wait".to_string(),
@@ -555,7 +559,7 @@ mod executor_site_tests {
             children: vec![],
         });
         sequence.root_node_id = Some("wait".to_string());
-        crate::api::sequencer::wait_for_no_event_listeners().await;
+        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
         let mut run_events = {
             let mut executor = get_sequence_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(
@@ -565,12 +569,16 @@ mod executor_site_tests {
             executor.subscribe()
         };
         let bridge = tokio::spawn(async move {
-            crate::api::sequencer::run_sequencer_event_loop(&mut run_events, get_state()).await;
+            crate::api::sequencer::event_bridge::run_sequencer_event_loop(
+                &mut run_events,
+                get_state(),
+            )
+            .await;
         });
         let mut events = get_state().event_bus.subscribe();
 
         api_sequencer_start().await.expect("run starts");
-        crate::api::sequencer::api_sequencer_stop(None)
+        crate::api::sequencer::lifecycle::api_sequencer_stop(None)
             .await
             .expect("run stops");
 
@@ -587,8 +595,8 @@ mod executor_site_tests {
                 Ok(Ok(event)) => {
                     if matches!(
                         event.payload,
-                        crate::event::EventPayload::Sequencer(
-                            crate::event::SequencerEvent::Stopped { .. }
+                        crate::event::bus::EventPayload::Sequencer(
+                            crate::event::sequencer::SequencerEvent::Stopped { .. }
                         )
                     ) {
                         stopped += 1;
@@ -605,13 +613,11 @@ mod executor_site_tests {
     /// the sequencer is stopped.
     #[tokio::test]
     async fn stopping_with_no_run_still_announces_stopped() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         get_sequence_executor().write().await.reset().await;
         let mut events = get_state().event_bus.subscribe();
 
-        crate::api::sequencer::api_sequencer_stop(None)
+        crate::api::sequencer::lifecycle::api_sequencer_stop(None)
             .await
             .expect("stop is accepted");
 
@@ -619,7 +625,9 @@ mod executor_site_tests {
         while let Ok(event) = events.try_recv() {
             if matches!(
                 event.payload,
-                crate::event::EventPayload::Sequencer(crate::event::SequencerEvent::Stopped { .. })
+                crate::event::bus::EventPayload::Sequencer(
+                    crate::event::sequencer::SequencerEvent::Stopped { .. }
+                )
             ) {
                 stopped += 1;
             }
@@ -632,18 +640,18 @@ mod executor_site_tests {
     /// operator pause twice. With no run there is nothing to pause at all.
     #[tokio::test]
     async fn pause_command_does_not_announce_a_pause_itself() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let mut events = get_state().event_bus.subscribe();
 
-        let _ = crate::api::sequencer::api_sequencer_pause().await;
+        let _ = crate::api::sequencer::lifecycle::api_sequencer_pause().await;
 
         while let Ok(event) = events.try_recv() {
             assert!(
                 !matches!(
                     event.payload,
-                    crate::event::EventPayload::Sequencer(crate::event::SequencerEvent::Paused)
+                    crate::event::bus::EventPayload::Sequencer(
+                        crate::event::sequencer::SequencerEvent::Paused
+                    )
                 ),
                 "the Pause command published a Paused event of its own"
             );

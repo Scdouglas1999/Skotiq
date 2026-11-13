@@ -1,13 +1,12 @@
 //! Device heartbeat monitoring loop and lifecycle.
 //!
 //! Methods in this module are an additional impl block on `DeviceManager`
-//! using Rust's split-impl-block feature. Behavior is identical to the
-//! previous monolithic `devices.rs`.
+//! using Rust's split-impl-block feature.
 
-use crate::device::*;
+use crate::device::{DeviceType, DriverType};
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, HeartbeatConfig};
-use crate::event::*;
+use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use crate::state::SharedAppState;
 use std::sync::Arc;
 use std::time::Duration;
@@ -226,7 +225,8 @@ impl DeviceManager {
             ));
         }
 
-        use crate::api::devices::simulation::{get_sim_camera_for, get_sim_mount};
+        use crate::simulator::camera::get_sim_camera_for;
+        use crate::simulator::mount::get_sim_mount;
 
         let connected = match device_type {
             DeviceType::Camera => get_sim_camera_for(device_id).read().await.status.connected,
@@ -304,7 +304,7 @@ impl DeviceManager {
         let device_id_clone = device_id.to_string();
         let app_state = self.app_state.clone();
         // We need a reference to perform health checks - clone Arc pointer from the global singleton
-        let manager = crate::api::get_device_manager().clone();
+        let manager = crate::device_manager::get_device_manager().clone();
 
         let give_up_app_state = app_state.clone();
         let give_up_device_type_str = device_type_str.clone();
@@ -440,7 +440,7 @@ impl DeviceManager {
                             EquipmentEvent::HeartbeatStatusChanged {
                                 device_type: device_type_str.clone(),
                                 device_id: device_id_clone.clone(),
-                                status: crate::event::HeartbeatStatus::Healthy,
+                                status: crate::event::equipment::HeartbeatStatus::Healthy,
                                 consecutive_failures: 0,
                                 last_rtt_ms: None, // RTT not available for generic health check
                             },
@@ -512,7 +512,7 @@ impl DeviceManager {
                                     EquipmentEvent::HeartbeatStatusChanged {
                                         device_type: device_type_str.clone(),
                                         device_id: device_id_clone.clone(),
-                                        status: crate::event::HeartbeatStatus::Degraded,
+                                        status: crate::event::equipment::HeartbeatStatus::Degraded,
                                         consecutive_failures,
                                         last_rtt_ms: None,
                                     },
@@ -550,7 +550,7 @@ impl DeviceManager {
                                         EquipmentEvent::HeartbeatStatusChanged {
                                             device_type: device_type_str.clone(),
                                             device_id: device_id_clone.clone(),
-                                            status: crate::event::HeartbeatStatus::Disconnected,
+                                            status: crate::event::equipment::HeartbeatStatus::Disconnected,
                                             consecutive_failures,
                                             last_rtt_ms: None,
                                         },

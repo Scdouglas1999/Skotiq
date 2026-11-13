@@ -1,5 +1,7 @@
-use super::*;
+use super::{device_error, UnifiedDeviceOps};
 use crate::guider::Guider;
+use async_trait::async_trait;
+use skotiq_sequencer::{DeviceError, DeviceResult, GuiderOps, GuidingCalibration, GuidingStatus};
 
 /// The rig's guider, or the sequencer's "no guider" when the profile names
 /// none and none is connected.

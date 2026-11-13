@@ -29,7 +29,7 @@ use skotiq_imaging::recipe::{
     RenderOptions,
 };
 
-use super::state::{registry, render_cache, LoadedMaster};
+use crate::api::darkroom::state::{registry, render_cache, LoadedMaster};
 
 /// One value an enumerated parameter accepts: the token a recipe stores and
 /// what the editor calls it.

@@ -11,26 +11,26 @@
 //! next to their operations.
 
 use crate::device::{CalibratorState, CoverState};
-use crate::device_capabilities::{
+use crate::device_capabilities::types::{
     CoverCalibratorCapabilities, DomeCapabilities, RotatorCapabilities, SafetyMonitorCapabilities,
     ShutterStatus, SwitchCapabilities, SwitchInfo, WeatherCapabilities,
 };
 use crate::device_manager::handle::device_error;
 use crate::error::SkotiqError;
 use async_trait::async_trait;
-use skotiq_device::ascom::dome::{self as ascom_dome, DomeReport};
-use skotiq_device::ascom::observing_conditions::{
-    self as ascom_weather, ObservingConditionsMembers, Sensor,
-};
-use skotiq_device::ascom::{optional as ascom_optional, ShutterStatus as AscomShutter};
 use skotiq_alpaca::{AlpacaDome, AlpacaObservingConditions, AlpacaRotator, AlpacaSafetyMonitor};
+use skotiq_device::ascom::dome::DomeReport;
+use skotiq_device::ascom::observing_conditions::{ObservingConditionsMembers, Sensor};
+use skotiq_device::ascom::{
+    dome as ascom_dome, observing_conditions as ascom_weather, optional as ascom_optional,
+    ShutterStatus as AscomShutter,
+};
 use skotiq_device::{
     CoverCalibratorDriver, DomeDriver, DriverError, RotatorDriver, SafetyMonitorDriver,
     SwitchDriver, WeatherDriver,
 };
-use skotiq_indi::names as indi;
 use skotiq_indi::{
-    IndiClient, IndiDome, IndiProperty, IndiRotator, IndiSafetyMonitor, IndiWeather,
+    names as indi, IndiClient, IndiDome, IndiProperty, IndiRotator, IndiSafetyMonitor, IndiWeather,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;

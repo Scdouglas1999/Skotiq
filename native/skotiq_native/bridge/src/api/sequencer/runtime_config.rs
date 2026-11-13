@@ -1,4 +1,7 @@
-use super::*;
+use super::get_sequence_executor;
+use crate::device_manager::get_device_manager;
+use crate::error::SkotiqError;
+use crate::unified_device_ops::create_unified_device_ops;
 
 /// Set simulation mode (use mock devices instead of real hardware)
 pub async fn api_sequencer_set_simulation_mode(enabled: bool) -> Result<(), SkotiqError> {
@@ -416,15 +419,14 @@ pub async fn api_sequencer_get_adaptive_swap_json() -> Result<Option<String>, Sk
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::sequencer::lifecycle::api_sequencer_get_state;
 
     /// A start holds the executor through its preflight. Status reads and the
     /// settings push answer meanwhile (the mount guard's run check reads the
     /// same run state, without a lock at all).
     #[tokio::test]
     async fn status_and_settings_never_wait_on_the_executor() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let held = get_sequence_executor().write().await;
         let answer = std::time::Duration::from_secs(2);
 
@@ -444,9 +446,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_run_config_the_executor_refuses_changes_nothing_and_says_why() {
-        let _serialized = crate::api::devices::simulation::sim_singleton_test_lock()
-            .lock()
-            .await;
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         let before = skotiq_sequencer::executor_handle().run_config();
 
         let refused = api_sequencer_apply_run_config(

@@ -8,9 +8,6 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `alpaca_broadcast`, `alpaca_device_info`, `alpaca_sweep_cache`, `ascom_device_is_hidden`, `devices_from_sweep`, `drivers_for_device_type`, `forget_alpaca_sweep`, `indi_server_devices`, `query_indi_device_serial_from_client`, `query_indi_serials_for_server`, `run_alpaca_sweep`, `scan_alpaca_for_type`, `scan_ascom_for_type`, `scan_devices_for_pair`, `scan_indi_for_type`, `scan_native_for_type_with`, `scan_native_for_type`, `scan_simulator_for_type`, `simulator_display_name`, `simulator_for_type`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `scan_native_for_type_public`
-
 /// Discover Alpaca devices at a specific server address
 Future<List<DeviceInfo>> apiDiscoverAlpacaAtAddress({
   required String host,
@@ -42,22 +39,12 @@ Future<List<DeviceInfo>> apiDiscoverIndiNetwork() =>
     RustLib.instance.api.crateApiDiscoveryApiDiscoverIndiNetwork();
 
 /// Discover available devices of a specific type.
-///
-/// The discovery cache is keyed by `(DeviceType, DriverType)`. For the
-/// requested `device_type` we look up every driver that can supply it (see
-/// `drivers_for_device_type`) and either reuse the cached entry (when it is
-/// younger than `DISCOVERY_CACHE_TTL`) or run a fresh per-driver scan for that
-/// specific type. This means:
-///
-///   * Asking for cameras never triggers a mount-driver scan.
-///   * An error in one backend (e.g. ASCOM) cannot poison another (e.g.
-///     Alpaca) for the same type — each (type, driver) entry holds its own
-///     `Result`.
-///   * Errors are surfaced to the caller as `SkotiqError`s; the cache
-///     stores the error so retry-after-TTL semantics still apply (avoids
-///     hammering a broken backend), but successful sibling entries remain
-///     valid.
 Future<List<DeviceInfo>> apiDiscoverDevices({required DeviceType deviceType}) =>
     RustLib.instance.api.crateApiDiscoveryApiDiscoverDevices(
       deviceType: deviceType,
     );
+
+/// Forget every discovery result, so the next discovery asks every backend
+/// again.
+Future<void> apiInvalidateDiscoveryCache() =>
+    RustLib.instance.api.crateApiDiscoveryApiInvalidateDiscoveryCache();

@@ -1,8 +1,12 @@
-use super::*;
+use crate::device_capabilities::types::DeviceCapabilities;
+use crate::error::SkotiqError;
 #[cfg(windows)]
-use crate::device::DeviceType;
-#[cfg(windows)]
-use skotiq_device::ascom::AscomDeviceType;
+use {
+    crate::device::DeviceType,
+    crate::device_capabilities::types::{CameraCapabilities, MountCapabilities},
+    crate::device_id::cache::parse_device_id_cached,
+    skotiq_device::{ascom::AscomDeviceType, DeviceDriver},
+};
 
 #[cfg(windows)]
 pub(crate) fn normalize_ascom_capability_device_type(value: &str) -> Option<DeviceType> {

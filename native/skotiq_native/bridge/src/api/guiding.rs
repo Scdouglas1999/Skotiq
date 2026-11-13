@@ -96,7 +96,7 @@ pub async fn api_guider_get_calibration() -> Result<GuiderCalibration, SkotiqErr
 }
 
 pub async fn api_builtin_guider_get_config() -> Result<BuiltinGuiderConfig, SkotiqError> {
-    let config = crate::builtin_guider::get_config().await;
+    let config = crate::builtin_guider::control::get_config().await;
     Ok(BuiltinGuiderConfig {
         exposure_secs: config.exposure_secs,
         gain: config.gain,
@@ -121,7 +121,7 @@ pub async fn api_builtin_guider_set_config(
     min_pulse_ms: f64,
     max_pulse_ms: f64,
 ) -> Result<(), SkotiqError> {
-    crate::builtin_guider::set_config(crate::builtin_guider::GuiderConfig {
+    crate::builtin_guider::control::set_config(crate::builtin_guider::config::GuiderConfig {
         exposure_secs,
         gain,
         offset,
@@ -132,7 +132,7 @@ pub async fn api_builtin_guider_set_config(
         max_pulse_ms,
         // Aggressiveness, minimum move and Dec backlash keep their tuned
         // defaults; no settings page offers them.
-        ..crate::builtin_guider::GuiderConfig::default()
+        ..crate::builtin_guider::config::GuiderConfig::default()
     })
     .await;
     Ok(())

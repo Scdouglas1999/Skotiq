@@ -1,4 +1,7 @@
-use super::*;
+use super::{device_error, UnifiedDeviceOps};
+use crate::device_manager::get_device_manager;
+use async_trait::async_trait;
+use skotiq_sequencer::{DeviceResult, FocuserOps};
 
 #[async_trait]
 impl FocuserOps for UnifiedDeviceOps {
@@ -6,7 +9,8 @@ impl FocuserOps for UnifiedDeviceOps {
         tracing::info!("Moving focuser {} to position {}", focuser_id, position);
 
         // `DeviceManager::focuser_move_abs` publishes the move's start and end.
-        api_focuser_move_to(focuser_id.to_string(), position)
+        get_device_manager()
+            .focuser_move_abs(focuser_id, position)
             .await
             .map_err(device_error(skotiq_sequencer::DeviceKind::Focuser))
     }

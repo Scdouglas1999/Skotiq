@@ -271,7 +271,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
         // this, `_runDrizzle` would persist an UNcalibrated master as canonical.
         if calibrate {
             if dark.is_some() || flat.is_some() || bias.is_some() {
-                image = crate::api::post_session::calibrate_with_flat_state(
+                image = crate::api::post_session::helpers::calibrate_with_flat_state(
                     &image,
                     dark.as_ref(),
                     flat.as_ref(),
@@ -376,7 +376,10 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
     // Flutter can actually composite in the review overlay.
     let coverage_png_path = match args.coverage_png_path.as_ref() {
         Some(p) if !p.trim().is_empty() => {
-            match crate::api::post_session::write_preview_png(&output.coverage, Path::new(p)) {
+            match crate::api::post_session::helpers::write_preview_png(
+                &output.coverage,
+                Path::new(p),
+            ) {
                 Ok(()) => Some(p.clone()),
                 Err(e) => {
                     tracing::warn!(
@@ -405,7 +408,8 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
     // when the drizzle returns no `previewPngPath`.
     let preview_png_path = match args.preview_png_path.as_ref() {
         Some(p) if !p.trim().is_empty() => {
-            match crate::api::post_session::write_preview_png(&output.master, Path::new(p)) {
+            match crate::api::post_session::helpers::write_preview_png(&output.master, Path::new(p))
+            {
                 Ok(()) => Some(p.clone()),
                 Err(e) => {
                     tracing::warn!(
@@ -525,13 +529,14 @@ fn load_optional_master(path: &Option<String>, label: &str) -> Result<Option<Ima
 /// bias-subtracted again.
 fn load_optional_flat_raw(
     path: &Option<String>,
-) -> Result<Option<crate::api::post_session::FlatMaster>, String> {
+) -> Result<Option<crate::api::post_session::helpers::FlatMaster>, String> {
     match path {
         Some(p) if !p.trim().is_empty() => {
             let (image, header) = read_frame(Path::new(p))
                 .map_err(|e| format!("failed to read flat master '{p}': {e:?}"))?;
-            let pedestal = crate::api::post_session::flat_pedestal_state(&image, Some(&header));
-            Ok(Some(crate::api::post_session::FlatMaster {
+            let pedestal =
+                crate::api::post_session::masters::flat_pedestal_state(&image, Some(&header));
+            Ok(Some(crate::api::post_session::helpers::FlatMaster {
                 image,
                 pedestal,
             }))
