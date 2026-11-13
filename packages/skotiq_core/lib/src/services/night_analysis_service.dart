@@ -377,7 +377,7 @@ class NightAnalysisService {
       case NightFindingSeverity.warn:
         return 'Decent night, but ${worst.title.toLowerCase()}$tail.';
       case NightFindingSeverity.info:
-        return 'Good night${tail.isEmpty ? '' : ' —'}${worst.title.toLowerCase()}$tail.';
+        return 'Good night — ${worst.title.toLowerCase()}$tail.';
     }
   }
 

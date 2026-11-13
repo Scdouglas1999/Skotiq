@@ -91,6 +91,13 @@ void main() {
         expect(f?.title, 'Moon washed out the sky as it rose');
       });
 
+      test('the headline of an info finding reads as a sentence', () {
+        expect(
+          svc.analyze(night(null)).headline,
+          'Good night — sky background rose through the night.',
+        );
+      });
+
       test('a moon sinking at the site did not', () {
         final f = _finding(
           svc.analyze(night(const LocationSettings(latitude: 40))),
