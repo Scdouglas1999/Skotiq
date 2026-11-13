@@ -58,9 +58,17 @@ void main() {
     });
     await tester.pump();
 
-    expect(find.text('2.5px'), findsOneWidget, reason: 'settle threshold');
-    expect(find.text('20.0s'), findsOneWidget, reason: 'settle time');
-    expect(find.text('10.0px'), findsOneWidget, reason: 'dither amount');
+    String field(String key) => tester
+        .widget<EditableText>(find.descendant(
+          of: find.byKey(ValueKey('guide-settle-$key')),
+          matching: find.byType(EditableText),
+        ))
+        .controller
+        .text;
+    expect(field('threshold'), '2.5');
+    expect(field('time'), '20');
+    expect(field('timeout'), '90');
+    expect(find.text('Large · 10 px'), findsOneWidget, reason: 'dither size');
     expect(
       find.textContaining('"'),
       findsNothing,

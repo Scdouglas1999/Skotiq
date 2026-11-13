@@ -9,7 +9,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/settings.dart';
+import 'widgets/guide_settle_settings.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_app/widgets/phd2_connection_dialog.dart';
 import 'package:skotiq_app/screens/guiding/widgets/guide_controls_panel.dart';
@@ -73,15 +73,7 @@ class _GuidingScreenState extends ConsumerState<GuidingScreen>
     final guideStats = ref.watch(guideStatsProvider);
 
     ref.watch(phd2ControllerProvider);
-
-    // Seed the settle/dither controls from the canonical persisted settings the
-    // first time they are available. Watching the provider means a fresh screen
-    // (post-reconstruction) re-hydrates from the persisted values.
     final settingsAsync = ref.watch(appSettingsProvider);
-    final settings = settingsAsync.valueOrNull;
-    if (settings != null) {
-      _hydrateGuidingSettings(settings);
-    }
 
     // A phone is a phone in either orientation — a large phone held in
     // landscape is ~932 px wide yet must NOT get the three columns (they
