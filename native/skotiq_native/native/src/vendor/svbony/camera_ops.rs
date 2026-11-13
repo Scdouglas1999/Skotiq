@@ -167,10 +167,7 @@ impl CameraDriver for SvbonyCamera {
         };
 
         let exposure_remaining = if self.core.state == CameraState::Exposing {
-            self.core.exposure_started_at.map(|start| {
-                let elapsed = start.elapsed().as_secs_f64();
-                (self.core.exposure_duration - elapsed).max(0.0)
-            })
+            self.core.exposure_remaining()
         } else {
             None
         };
@@ -204,12 +201,13 @@ impl CameraDriver for SvbonyCamera {
         let sdk = self.sdk().await?;
         stop_capture(&sdk, self.camera_id);
         if let Some(gain) = params.gain {
-            self.core.gain =
-                self.set_and_read_back(&sdk, SvbControlType::Gain, i64::from(gain))? as i32;
+            let held = self.set_and_read_back(&sdk, SvbControlType::Gain, i64::from(gain))? as i32;
+            self.core.command_gain(held);
         }
         if let Some(offset) = params.offset {
-            self.core.offset =
+            let held =
                 self.set_and_read_back(&sdk, SvbControlType::BlackLevel, i64::from(offset))? as i32;
+            self.core.command_offset(held);
         }
         self.apply_roi(&sdk, roi, params.subframe.is_some())?;
         let micros = self.set_and_read_back(&sdk, SvbControlType::Exposure, micros)?;
@@ -412,8 +410,8 @@ impl CameraDriver for SvbonyCamera {
     async fn set_gain(&mut self, gain: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
         let sdk = self.sdk().await?;
-        self.core.gain =
-            self.set_and_read_back(&sdk, SvbControlType::Gain, i64::from(gain))? as i32;
+        let held = self.set_and_read_back(&sdk, SvbControlType::Gain, i64::from(gain))? as i32;
+        self.core.command_gain(held);
         Ok(())
     }
 
@@ -425,8 +423,9 @@ impl CameraDriver for SvbonyCamera {
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
         self.core.require_connected()?;
         let sdk = self.sdk().await?;
-        self.core.offset =
+        let held =
             self.set_and_read_back(&sdk, SvbControlType::BlackLevel, i64::from(offset))? as i32;
+        self.core.command_offset(held);
         Ok(())
     }
 

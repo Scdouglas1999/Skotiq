@@ -1,20 +1,22 @@
 //! What every vendor camera driver keeps and does the same way.
 //!
 //! [`CameraCore`] is the state each driver embeds (identity, connection,
-//! gain/offset/binning/subframe, what is known of the cooler, exposure timing,
-//! capabilities and sensor description), with the one connected check. [`Frame`] is the one
+//! gain/offset and who chose them, binning/subframe, what is known of the
+//! cooler, the exposure clock, capabilities and sensor description), with the
+//! one connected check. [`Frame`] is the one
 //! place a downloaded frame becomes [`ImageData`]; the free functions are the
 //! pixel unpacking and SDK-value conversions the drivers share.
 //!
 //! Rules that differ between vendors are inputs here, never decided here: each
 //! driver names its byte order, its 8-bit rule and the metadata values that
-//! do not come from the cached state.
+//! do not come from the cached state. A DSLR or mirrorless body fits with ISO
+//! as its gain, offset 0, bin 1 and no cooler.
 
 use skotiq_device::camera::{
     BayerPattern, CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame,
     VendorFeatures,
 };
-use skotiq_device::{DriverError, ExposureAbort};
+use skotiq_device::{CameraFile, DriverError, ExposureAbort};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -55,8 +57,14 @@ pub(crate) struct CameraCore {
     pub(crate) capabilities: CameraCapabilities,
     pub(crate) sensor_info: SensorInfo,
     pub(crate) state: CameraState,
+    /// Gain and offset in force. Each is the camera's own value (read at
+    /// connect, or again after the camera changed it with its read mode) until
+    /// this connection commands one; `gain_commanded` / `offset_commanded`
+    /// say which. On a DSLR the gain is the ISO.
     pub(crate) gain: i32,
     pub(crate) offset: i32,
+    pub(crate) gain_commanded: bool,
+    pub(crate) offset_commanded: bool,
     pub(crate) bin_x: i32,
     pub(crate) bin_y: i32,
     pub(crate) subframe: Option<SubFrame>,
@@ -81,6 +89,8 @@ impl CameraCore {
             state: CameraState::Idle,
             gain: 0,
             offset: 0,
+            gain_commanded: false,
+            offset_commanded: false,
             bin_x: 1,
             bin_y: 1,
             subframe: None,
@@ -133,6 +143,50 @@ impl CameraCore {
         update(&mut self.cooler.lock().unwrap_or_else(|e| e.into_inner()));
     }
 
+    /// The camera accepted a gain this connection asked for.
+    pub(crate) fn command_gain(&mut self, gain: i32) {
+        self.gain = gain;
+        self.gain_commanded = true;
+    }
+
+    /// The camera accepted an offset this connection asked for.
+    pub(crate) fn command_offset(&mut self, offset: i32) {
+        self.offset = offset;
+        self.offset_commanded = true;
+    }
+
+    /// A new connection: nothing commanded yet, the cooler unknown, no
+    /// exposure in progress. The driver then reads the camera's own values.
+    pub(crate) fn begin_connection(&mut self) {
+        self.gain = 0;
+        self.offset = 0;
+        self.gain_commanded = false;
+        self.offset_commanded = false;
+        self.update_cooler(|cooler| *cooler = CoolerState::UNKNOWN);
+        self.end_exposure();
+    }
+
+    /// The camera started an exposure of `seconds`.
+    pub(crate) fn begin_exposure(&mut self, seconds: f64) {
+        self.exposure_duration = seconds;
+        self.exposure_started_at = Some(std::time::Instant::now());
+        self.state = CameraState::Exposing;
+    }
+
+    /// The exposure was read, aborted or lost. Its duration stays as the
+    /// last one taken.
+    pub(crate) fn end_exposure(&mut self) {
+        self.exposure_started_at = None;
+        self.state = CameraState::Idle;
+    }
+
+    /// Seconds left on the exposure clock, 0 once its time is up; `None`
+    /// when no exposure was started or the last one has ended.
+    pub(crate) fn exposure_remaining(&self) -> Option<f64> {
+        self.exposure_started_at
+            .map(|started| (self.exposure_duration - started.elapsed().as_secs_f64()).max(0.0))
+    }
+
     /// A frame described by the cached state: exposure time, gain, offset,
     /// binning and subframe as last set, no temperature, no vendor data. A
     /// driver overrides the fields its SDK reports for the frame itself.
@@ -159,6 +213,7 @@ impl CameraCore {
             subframe: self.subframe.clone(),
             readout_mode: None,
             vendor_data: VendorFeatures::default(),
+            camera_file: None,
         }
     }
 }
@@ -179,6 +234,8 @@ pub(crate) struct Frame {
     pub(crate) subframe: Option<SubFrame>,
     pub(crate) readout_mode: Option<String>,
     pub(crate) vendor_data: VendorFeatures,
+    /// The raw file a DSLR or mirrorless body wrote for the frame.
+    pub(crate) camera_file: Option<CameraFile>,
 }
 
 impl Frame {
@@ -201,7 +258,7 @@ impl Frame {
                 subframe: self.subframe,
                 readout_mode: self.readout_mode,
                 vendor_data: self.vendor_data,
-                camera_file: None,
+                camera_file: self.camera_file,
             },
         }
     }
@@ -415,6 +472,42 @@ mod tests {
         ));
         core.connected = true;
         assert!(core.require_connected().is_ok());
+    }
+
+    #[test]
+    fn the_exposure_clock_runs_from_begin_to_end() {
+        let mut core = CameraCore::new("native:test:0".into(), "Test".into());
+        assert_eq!(core.exposure_remaining(), None);
+        core.begin_exposure(30.0);
+        assert_eq!(core.state, CameraState::Exposing);
+        let left = core.exposure_remaining().expect("an exposure is running");
+        assert!(left > 29.0 && left <= 30.0, "{left}");
+        core.begin_exposure(0.0);
+        assert_eq!(core.exposure_remaining(), Some(0.0));
+        core.end_exposure();
+        assert_eq!(core.state, CameraState::Idle);
+        assert_eq!(core.exposure_remaining(), None);
+        assert_eq!(core.exposure_duration, 0.0);
+    }
+
+    #[test]
+    fn a_new_connection_forgets_what_the_last_one_commanded() {
+        let mut core = CameraCore::new("native:test:0".into(), "Test".into());
+        core.command_gain(120);
+        core.command_offset(30);
+        core.update_cooler(|cooler| {
+            cooler.enabled = Some(true);
+            cooler.target_c = Some(-10.0);
+        });
+        core.begin_exposure(5.0);
+        assert!(core.gain_commanded && core.offset_commanded);
+        assert_eq!((core.gain, core.offset), (120, 30));
+
+        core.begin_connection();
+        assert!(!core.gain_commanded && !core.offset_commanded);
+        assert_eq!((core.gain, core.offset), (0, 0));
+        assert_eq!(core.cooler(), CoolerState::UNKNOWN);
+        assert_eq!(core.exposure_remaining(), None);
     }
 
     #[test]

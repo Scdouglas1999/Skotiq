@@ -258,17 +258,19 @@ impl CameraDriver for PlayerOneCamera {
         // these become the frame's GAIN/OFFSET when the download read-back fails.
         if let Some(gain) = params.gain {
             self.set_control_int(&sdk, POAConfig::POA_GAIN, gain as c_long, false)?;
-            self.core.gain = self
+            let held = self
                 .get_control_int(&sdk, POAConfig::POA_GAIN)
                 .map(|v| v as i32)
                 .unwrap_or(gain);
+            self.core.command_gain(held);
         }
         if let Some(offset) = params.offset {
             self.set_control_int(&sdk, POAConfig::POA_OFFSET, offset as c_long, false)?;
-            self.core.offset = self
+            let held = self
                 .get_control_int(&sdk, POAConfig::POA_OFFSET)
                 .map(|v| v as i32)
                 .unwrap_or(offset);
+            self.core.command_offset(held);
         }
 
         // POA_TRUE is a single frame (snap mode). POA_FALSE is video mode: the
@@ -521,7 +523,7 @@ impl CameraDriver for PlayerOneCamera {
         // Uses the async version, which takes the SDK lock
         self.set_control_int_async(POAConfig::POA_GAIN, gain as c_long, false)
             .await?;
-        self.core.gain = gain;
+        self.core.command_gain(gain);
         Ok(())
     }
 
@@ -537,7 +539,7 @@ impl CameraDriver for PlayerOneCamera {
         // Uses the async version, which takes the SDK lock
         self.set_control_int_async(POAConfig::POA_OFFSET, offset as c_long, false)
             .await?;
-        self.core.offset = offset;
+        self.core.command_offset(offset);
         Ok(())
     }
 

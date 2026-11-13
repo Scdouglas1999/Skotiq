@@ -303,11 +303,8 @@ impl MoravianCamera {
             return Err(DriverError::Disconnected);
         }
         let exposure_remaining = (self.core.state == CameraState::Exposing)
-            .then_some(self.core.exposure_started_at)
-            .flatten()
-            .map(|started| {
-                (self.core.exposure_duration - started.elapsed().as_secs_f64()).max(0.0)
-            });
+            .then(|| self.core.exposure_remaining())
+            .flatten();
         Ok(CameraStatus {
             state: self.core.state,
             sensor_temp: session.value(GV_CHIP_TEMPERATURE).map(f64::from),
@@ -600,7 +597,7 @@ impl MoravianCamera {
             })?;
         match session.set_gain(register) {
             Some(true) => {
-                self.core.gain = gain;
+                self.core.command_gain(gain);
                 Ok(())
             }
             Some(false) => Err(self.failure(session, &format!("set gain {}", gain))),
