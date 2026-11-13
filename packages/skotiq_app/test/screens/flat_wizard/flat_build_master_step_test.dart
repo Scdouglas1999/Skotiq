@@ -56,8 +56,11 @@ void main() {
         tagsDao: CalibrationTagsDao(database),
       ),
       darkLibrary: DarkLibraryService(DarkLibraryDao(database)),
-      flatLibrary:
-          FlatLibraryService(dao: FlatLibraryDao(database), seam: seam),
+      flatLibrary: FlatLibraryService(
+        dao: FlatLibraryDao(database),
+        seam: seam,
+        readHeader: (_) async => FrameHeader(const {}),
+      ),
       buildMaster: (_) => throw UnimplementedError(),
       settings: database.settingsDao,
       fileExists: (_) async => true,
