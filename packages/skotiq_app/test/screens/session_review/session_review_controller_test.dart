@@ -227,19 +227,25 @@ void main() {
   }
 
   test(
-      'with no image folder chosen, an accumulating master goes where '
-      'unattended builds go, not to wherever the app was started from',
-      () async {
+      'with no image folder chosen, an accumulating master goes to its '
+      'target\'s masters folder in the documents folder', () async {
     final sidecar = await accumulatingSidecar();
-    expect(sidecar, startsWith('${dataDir().path}/documents/Skotiq/Masters'));
+    expect(
+        sidecar, startsWith('${dataDir().path}/documents/Skotiq/Masters/'));
   });
 
-  test('with an image folder chosen, an accumulating master goes under it',
-      () async {
+  test(
+      'with an image folder chosen, an accumulating master goes to the '
+      'target\'s masters folder under it, where Darkroom builds go', () async {
+    final images = '${dataDir().path}/astro';
     await container
         .read(settingsDaoProvider)
-        .write(AppSettingDefs.imageOutputPath, '/data/astro');
-    expect(await accumulatingSidecar(), startsWith('/data/astro/masters'));
+        .write(AppSettingDefs.imageOutputPath, images);
+    final sidecar = await accumulatingSidecar();
+    final locations = await container.read(outputLocationsProvider.future);
+    final folder = await locations.mastersOf(state().targetName ?? state().title);
+    expect(sidecar, startsWith('${folder.path}/'));
+    expect(sidecar, startsWith('$images/Masters/'));
   });
 
   /// A master over this night's subs as the Darkroom's build registers it: a

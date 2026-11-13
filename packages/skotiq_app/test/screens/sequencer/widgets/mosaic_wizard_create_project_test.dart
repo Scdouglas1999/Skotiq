@@ -118,6 +118,7 @@ Future<void> _pumpWizard(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        planTimerProvider.overrideWithValue(const PlanTimer()),
         backendProvider.overrideWith(
           (ref) => TestBackendNotifier(ref, activeBackend),
         ),
