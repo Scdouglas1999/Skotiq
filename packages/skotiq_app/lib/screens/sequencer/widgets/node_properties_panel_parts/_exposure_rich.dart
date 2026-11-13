@@ -339,7 +339,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                     value: _effectiveGain(profile),
                     sensitivity: sensitivity,
                     onChanged: setGain,
-                    gainField: (_) => NodeNumberInputWithHint(
+                    gainField: (_) => NodeNumberInput(
                       colors: colors,
                       value: _effectiveGain(profile).toDouble(),
                       min: 0,
@@ -361,7 +361,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                   colors: colors,
                   label:
                       _isOffsetProfileDefault() ? 'Offset (profile)' : 'Offset',
-                  child: NodeNumberInputWithHint(
+                  child: NodeNumberInput(
                     colors: colors,
                     value: _effectiveOffset(profile).toDouble(),
                     min: 0,
