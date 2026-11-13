@@ -7,7 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/first_light/first_light_flow_dialog.dart';
+import '../../first_light/first_light_flow_dialog.dart';
 import 'settings_widgets.dart';
 import '../../../router/app_routes.dart';
 import '../../../tours/tour.dart';

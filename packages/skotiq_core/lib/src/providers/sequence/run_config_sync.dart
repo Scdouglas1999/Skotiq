@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/imaging/imaging_models.dart' show AutofocusSettings;
 import '../../models/settings/app_settings.dart' show SafetyFailMode;
 import '../../services/frame_identity.dart';
-import '../../services/logging_service.dart';
 import '../../settings/app_settings_table.dart';
 import '../backend_provider.dart';
 import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
@@ -22,6 +21,7 @@ import '../weather_providers.dart'
 import 'sequence_executor/sequence_serializer.dart';
 import 'sequencer_defaults.dart';
 import '../../settings/app_settings_state.g.dart';
+import '../logging_service_provider.dart';
 
 /// Keeps the host's executor on the run configuration the operator's settings
 /// make: the native `RunConfig`, built whole from the settings catalog

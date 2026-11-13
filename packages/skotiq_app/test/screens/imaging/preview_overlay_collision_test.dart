@@ -9,7 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/imaging/widgets/overlay_painters.dart';
+import 'package:skotiq_app/widgets/image_preview/overlay_painters.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_hud.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 

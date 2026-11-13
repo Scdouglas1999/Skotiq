@@ -6,7 +6,7 @@ import 'catalog_settings_screen.dart';
 import 'delivery_settings.dart';
 import '../equipment/widgets/profiles_manager.dart';
 import 'settings_search_index.g.dart';
-import 'settings_sections.dart';
+import '../../router/settings_sections.dart';
 import 'integrations_settings.dart';
 import 'backup_screen.dart';
 import 'merged_sections.dart';
@@ -41,7 +41,7 @@ import 'widgets/science_settings.dart';
 import 'widgets/sequencer_settings.dart';
 import 'widgets/weather_safety_settings.dart';
 
-export 'settings_sections.dart';
+export '../../router/settings_sections.dart';
 
 /// One Settings section as the screen shows it: its identity plus the label
 /// in the current language, its icon, its search synonyms and its page.

@@ -39,12 +39,11 @@ use skotiq_ascom::AscomCamera;
 use skotiq_device::ascom::camera::{
     cooler_setpoint_to_write, exposes_to_light, CameraControl, CameraControls, Probe,
 };
-use skotiq_device::Vendor;
 use skotiq_device::{
-    BayerPattern, CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData,
-    ReadoutMode, SensorInfo, SubFrame, VendorFeatures,
+    BayerPattern, CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver,
+    DriverError, ExposureParams, ImageData, ReadoutMode, SensorInfo, SubFrame, Vendor,
+    VendorFeatures,
 };
-use skotiq_device::{CameraDriver, DeviceDriver, DriverError};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
@@ -181,7 +180,7 @@ fn bayer_pattern_from_sensor(
     offset_x: Option<i32>,
     offset_y: Option<i32>,
 ) -> Option<String> {
-    crate::ascom_sensor_type::bayer_pattern_from_sensor(sensor_type, offset_x, offset_y)
+    skotiq_device::ascom::sensor_type::bayer_pattern_from_sensor(sensor_type, offset_x, offset_y)
         .map(|pattern| pattern.fits_name())
 }
 
@@ -198,7 +197,7 @@ fn download_frame(
     bayer_pattern: Option<BayerPattern>,
     commanded_secs: Option<f64>,
 ) -> Result<ImageData, DriverError> {
-    use crate::device_manager::ops::camera::UNKNOWN_CAMERA_SETTING;
+    use skotiq_device::UNKNOWN_CAMERA_SETTING;
     let (data, width, height) = cam
         .image_array()
         .map_err(|e| DriverError::SdkError(format!("Failed to download image: {e}")))?;
@@ -539,7 +538,8 @@ impl AscomCameraWrapper {
                             // monochrome, because debayering a mono frame is a
                             // no-op while a wrong debayer is not.
                             let sensor_type = sensor_config.sensor_type.unwrap_or(0);
-                            let is_color = crate::ascom_sensor_type::is_colour_sensor(sensor_type);
+                            let is_color =
+                                skotiq_device::ascom::sensor_type::is_colour_sensor(sensor_type);
 
                             let bayer_pattern_text = bayer_pattern_from_sensor(
                                 sensor_type,
@@ -558,7 +558,7 @@ impl AscomCameraWrapper {
                             // `bayer_pattern`. The reason itself is derived (and tested) in
                             // the shared, always-compiled sensor-type module.
                             if let Some(reason) =
-                                crate::ascom_sensor_type::debayer_skip_reason(sensor_type)
+                                skotiq_device::ascom::sensor_type::debayer_skip_reason(sensor_type)
                             {
                                 tracing::warn!("ASCOM camera reports a {}", reason);
                             }
@@ -1631,7 +1631,7 @@ mod tests {
     fn test_colour_sensors_without_a_nameable_bayer_order() {
         for sensor_type in [1, 3, 4, 5] {
             assert!(
-                crate::ascom_sensor_type::is_colour_sensor(sensor_type),
+                skotiq_device::ascom::sensor_type::is_colour_sensor(sensor_type),
                 "SensorType={sensor_type} is a colour variant"
             );
             assert_eq!(

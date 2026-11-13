@@ -7,7 +7,8 @@
 //! 2. `DeviceManager::reconnect_cancel_tokens`.
 //! 3. `DeviceManager::handles`: a map lookup, insert or remove. A std lock, so
 //!    its guard never crosses an `.await`.
-//! 4. A device's own lock, [`Exclusive`], reached through a handle that was
+//! 4. A device's own lock (a held [`Slot`], or `Exclusive` for an ASCOM COM
+//!    wrapper), reached through a handle that was
 //!    cloned out of `handles` first. Held for one driver call, never together
 //!    with 1-3 and never two devices' at once.
 //! 5. What a driver call takes inside itself: a vendor SDK mutex, the INDI
@@ -34,9 +35,10 @@ pub(crate) mod filter_wheel;
 pub(crate) mod focuser;
 pub(crate) mod mount;
 
+use crate::device_manager::identity::DeviceIdentity;
 use async_trait::async_trait;
 use skotiq_device::DriverError;
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
 
 /// What every rig device answers besides its own operations.
 #[async_trait]
@@ -47,18 +49,27 @@ pub(crate) trait RigDriver: Send + Sync {
     /// `Ok(false)`: it did not, or it says it is not connected. `Err`: the
     /// probe failed, with the sentence the user is shown.
     async fn heartbeat(&self) -> Result<bool, String>;
+
+    /// What the connected device says it is: its model, its serial number
+    /// and, for a camera, its sensor. `None` where the protocol gives the
+    /// driver nothing to say.
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        None
+    }
 }
 
-/// A driver that needs `&mut self` for commands (a vendor SDK driver, an ASCOM
-/// wrapper), shared by taking its lock for one call at a time: `read` for a
-/// call that takes `&self`, `write` for one that takes `&mut self`.
+/// An ASCOM COM wrapper, shared by taking its lock for one call at a time:
+/// `read` for a call that takes `&self`, `write` for one that takes
+/// `&mut self`.
 ///
-/// The ASCOM wrappers only send commands to the STA worker and would work
+/// The wrappers only send commands to the STA worker and would work
 /// unlocked. They stay behind the lock so that a read issued while a blocking
 /// COM command runs waits here, with no timeout running, instead of timing out
 /// in the worker's queue and counting as a failed read.
+#[cfg(windows)]
 pub(crate) struct Exclusive<D>(RwLock<D>);
 
+#[cfg(windows)]
 impl<D> Exclusive<D> {
     pub(crate) fn new(driver: D) -> Self {
         Self(RwLock::new(driver))
@@ -70,6 +81,104 @@ impl<D> Exclusive<D> {
 
     pub(crate) async fn write(&self) -> RwLockWriteGuard<'_, D> {
         self.0.write().await
+    }
+}
+
+/// How a handle reaches its driver for one call.
+///
+/// The driver traits take `&mut self` for commands. A driver that keeps
+/// state between calls (a vendor SDK or serial driver) is held behind its
+/// lock, one call at a time, and can be taken out when the device is closed.
+/// A client of a server that keeps the state (Alpaca, INDI) is made anew for
+/// every call, so no call of the device waits for another: a status read or
+/// an abort goes out while a park is still being answered.
+pub(crate) enum Slot<D: ?Sized> {
+    Held(RwLock<Option<Box<D>>>),
+    PerCall(Box<dyn Fn() -> Box<D> + Send + Sync>),
+}
+
+/// A driver reached for a call that takes `&self`.
+pub(crate) enum Shared<'a, D: ?Sized> {
+    Held(RwLockReadGuard<'a, D>),
+    Own(Box<D>),
+}
+
+/// A driver reached for a call that takes `&mut self`.
+pub(crate) enum Mutable<'a, D: ?Sized> {
+    Held(RwLockMappedWriteGuard<'a, D>),
+    Own(Box<D>),
+}
+
+impl<D: ?Sized> Slot<D> {
+    pub(crate) fn held(driver: Box<D>) -> Self {
+        Slot::Held(RwLock::new(Some(driver)))
+    }
+
+    pub(crate) fn per_call(make: impl Fn() -> Box<D> + Send + Sync + 'static) -> Self {
+        Slot::PerCall(Box::new(make))
+    }
+
+    /// `None` once the driver was taken out.
+    pub(crate) async fn read(&self) -> Option<Shared<'_, D>> {
+        match self {
+            Slot::Held(lock) => RwLockReadGuard::try_map(lock.read().await, |slot| slot.as_deref())
+                .ok()
+                .map(Shared::Held),
+            Slot::PerCall(make) => Some(Shared::Own(make())),
+        }
+    }
+
+    /// `None` once the driver was taken out.
+    pub(crate) async fn write(&self) -> Option<Mutable<'_, D>> {
+        match self {
+            Slot::Held(lock) => {
+                RwLockWriteGuard::try_map(lock.write().await, |slot| slot.as_deref_mut())
+                    .ok()
+                    .map(Mutable::Held)
+            }
+            Slot::PerCall(make) => Some(Mutable::Own(make())),
+        }
+    }
+
+    /// Takes a held driver out, behind the call in flight; every later call
+    /// finds the slot empty. A per-call client is made for the caller and
+    /// the slot stays as it is.
+    pub(crate) async fn take(&self) -> Option<Box<D>> {
+        match self {
+            Slot::Held(lock) => lock.write().await.take(),
+            Slot::PerCall(make) => Some(make()),
+        }
+    }
+}
+
+impl<D: ?Sized> std::ops::Deref for Shared<'_, D> {
+    type Target = D;
+
+    fn deref(&self) -> &D {
+        match self {
+            Shared::Held(guard) => guard,
+            Shared::Own(driver) => driver,
+        }
+    }
+}
+
+impl<D: ?Sized> std::ops::Deref for Mutable<'_, D> {
+    type Target = D;
+
+    fn deref(&self) -> &D {
+        match self {
+            Mutable::Held(guard) => guard,
+            Mutable::Own(driver) => driver,
+        }
+    }
+}
+
+impl<D: ?Sized> std::ops::DerefMut for Mutable<'_, D> {
+    fn deref_mut(&mut self) -> &mut D {
+        match self {
+            Mutable::Held(guard) => guard,
+            Mutable::Own(driver) => driver,
+        }
     }
 }
 

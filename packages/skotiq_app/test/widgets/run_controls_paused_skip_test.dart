@@ -11,7 +11,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/widgets/running_sequence_mini_bar.dart';
+import 'package:skotiq_app/screens/shell/widgets/running_sequence_mini_bar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';

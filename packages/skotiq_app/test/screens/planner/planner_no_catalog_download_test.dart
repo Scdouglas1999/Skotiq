@@ -20,7 +20,7 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../scheduler/scheduler_test_doubles.dart';
+import 'scheduler_test_doubles.dart';
 import '../../harness/provider_teardown.dart';
 
 class _MockSettingsDao extends Mock implements SettingsDao {}

@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/logging_service.dart';
 import '../utils/aligned_ticker.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
 
 /// Time-source abstraction for Skotiq.
 ///

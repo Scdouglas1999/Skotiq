@@ -34,6 +34,7 @@ import '../database/daos/settings_dao.dart';
 import '../models/backend/backend_types.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
+import 'calibration_backlog_service_provider.dart';
 
 part 'flat_wizard/flat_output_paths.dart';
 part 'flat_wizard/flat_camera_config.dart';

@@ -19,7 +19,7 @@ import 'package:path/path.dart' as path;
 
 import '../../../utils/exported_file_reveal.dart';
 import '../../../utils/frame_rows_hold.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import '../analytics_screen.dart'
     show dbSessionImagesProvider, standaloneImagesProvider;
 import '../quick_capture_selection.dart';
@@ -38,11 +38,11 @@ import 'night_story_timeline.dart';
 import 'science_timeline_scrubber.dart';
 import 'science_campaign_strip.dart';
 import 'science_trend_cards.dart';
-import 'adaptive_chart_container.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 import 'science_onboarding/science_ladder_card.dart';
 import 'science_onboarding/science_empty_onramp.dart';
 import 'science_onboarding/science_nav_row_card.dart';
-import '../../settings/settings_sections.dart';
+import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
 
 part 'science_analytics_tab/navigation_and_snapshots.dart';

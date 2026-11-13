@@ -20,6 +20,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_core/providers.dart';
 
 Future<void> _finishCatalogLoad(WidgetTester tester) async {
   for (var attempt = 0; attempt < 20; attempt++) {

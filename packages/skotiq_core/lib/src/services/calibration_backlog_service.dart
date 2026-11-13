@@ -11,17 +11,17 @@ import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/imaging/imaging_models.dart' show frameFileFormatOf;
-import '../providers/backend_provider.dart';
 import '../providers/dark_library_provider.dart';
 import '../providers/database_provider.dart';
-import 'calibration_library_service.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
 import 'darkroom_build_service.dart'
     show darkroomTemperatureGapC, observingNight, flatSetupKey;
 import 'flat_library_service.dart';
-import '../backend/remote_host.dart';
 import '../models/imaging/frame_gain.dart';
+import '../providers/calibration_library_service_providers.dart';
+import '../providers/calibration_master_builder_provider.dart';
+import '../providers/flat_library_service_provider.dart';
 
 /// The kinds of raw calibration frame the backlog builds masters from.
 enum CalibrationFrameKind {
@@ -1004,11 +1004,3 @@ class CalibrationBacklogNotifier
     state = state.copyWith(builds: {...state.builds, key: status});
   }
 }
-
-final calibrationBacklogProvider =
-    StateNotifierProvider<CalibrationBacklogNotifier, CalibrationBacklogState>((
-      ref,
-    ) {
-      final remote = ref.watch(backendProvider).remoteHost != null;
-      return CalibrationBacklogNotifier(ref, remote: remote);
-    });

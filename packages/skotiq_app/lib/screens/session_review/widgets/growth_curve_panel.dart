@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../analytics/widgets/adaptive_chart_container.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 import '../session_review_controller.dart' show ReviewBestNight, GrowthPoint;
 
 /// Narrative-view card charting a target's multi-night growth: cumulative

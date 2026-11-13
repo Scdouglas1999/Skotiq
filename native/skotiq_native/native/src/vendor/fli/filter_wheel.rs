@@ -194,7 +194,7 @@ impl FilterWheelDriver for FliFilterWheel {
         Ok((status & 0x07) != 0)
     }
 
-    fn get_filter_count(&self) -> i32 {
+    async fn get_filter_count(&self) -> i32 {
         self.filter_count
     }
 

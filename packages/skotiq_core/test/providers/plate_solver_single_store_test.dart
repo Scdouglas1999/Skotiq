@@ -22,7 +22,6 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/models/settings/app_settings.dart' as models;
 
 class _Backend extends Mock implements SkotiqBackend {

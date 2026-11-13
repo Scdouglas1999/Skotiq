@@ -15,7 +15,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../../../models/command_action_result.dart';
+import '../../../../services/command_action_result.dart';
 import '../../../../services/mount_command_service.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../actions/manual_action_gating.dart';

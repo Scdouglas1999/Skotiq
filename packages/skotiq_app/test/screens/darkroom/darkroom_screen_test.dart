@@ -29,6 +29,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
+import 'package:skotiq_app/router/darkroom_route.dart';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {

@@ -6,8 +6,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart' show InterpolationVariable;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/sequence/variable_picker.dart';
-import '../../accessible_dropdown.dart';
+import 'variable_picker.dart';
+import '../../../widgets/accessible_dropdown.dart';
 
 /// Finite upper/lower fallback used when only one of `min`/`max` is supplied to
 /// a numeric field. Clamping against `double.infinity` let pathological values

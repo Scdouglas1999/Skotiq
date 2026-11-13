@@ -1,4 +1,4 @@
-import '../../../services/end_of_night_calibration/eon_providers.dart';
+import '../../end_of_night_calibration/eon_providers.dart';
 import '../../../services/end_of_night_calibration/eon_service.dart';
 import '../../host_end_of_night_provider.dart';
 import '../../ui_notification_provider.dart';

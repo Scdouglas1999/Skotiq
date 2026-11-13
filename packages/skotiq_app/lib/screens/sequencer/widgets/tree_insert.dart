@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
-import '../../../utils/sequence_mutator_helper.dart';
+import '../sequence_mutator_helper.dart';
 import '../sequence_fold_model.dart';
 import 'sequence_tree/fold_group_actions.dart';
 import 'target_queue_panel.dart';

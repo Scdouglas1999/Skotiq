@@ -8,7 +8,6 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 

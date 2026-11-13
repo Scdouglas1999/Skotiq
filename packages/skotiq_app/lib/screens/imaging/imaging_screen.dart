@@ -27,7 +27,7 @@ import 'widgets/imaging_side_panel.dart';
 import 'widgets/imaging_status_strip.dart';
 import 'widgets/live_preview_area.dart';
 import 'widgets/meridian_flip_countdown_banner.dart';
-import 'widgets/preview_display_scale.dart' show previewFitScaleProvider;
+import '../../widgets/image_preview/preview_display_scale.dart' show previewFitScaleProvider;
 import 'widgets/stacking_panel.dart';
 import '../../tours/tour_target.dart';
 

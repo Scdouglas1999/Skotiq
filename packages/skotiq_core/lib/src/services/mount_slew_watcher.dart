@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 
 import '../models/backend/backend_types.dart';
@@ -293,28 +292,3 @@ typedef MountSlewWatcherFactory =
       bool Function()? isCancelled,
       void Function(MountSlewProgress progress)? onProgress,
     });
-
-/// The watcher factory the device service slews with. Overridden in tests to
-/// shrink the windows and poll cadence; production keeps the defaults.
-final mountSlewWatcherFactoryProvider = Provider<MountSlewWatcherFactory>(
-  (ref) =>
-      ({
-        required readStatus,
-        required targetRa,
-        required targetDec,
-        isCancelled,
-        onProgress,
-      }) => MountSlewWatcher(
-        readStatus: readStatus,
-        targetRa: targetRa,
-        targetDec: targetDec,
-        isCancelled: isCancelled,
-        onProgress: onProgress,
-      ),
-);
-
-/// The slew the device service is watching, or null when none is in flight.
-/// Slew controls read it to show how far the mount still has to go.
-final mountSlewProgressProvider = StateProvider<MountSlewProgress?>(
-  (ref) => null,
-);

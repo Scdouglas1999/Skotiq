@@ -9,9 +9,9 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/focuser_backlash/effective_backlash_readout.dart';
+import '../focuser_backlash/effective_backlash_readout.dart';
 import '../utils/meridian_flip_pointer.dart';
-import '../../settings/settings_sections.dart';
+import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
 
 class EquipmentSettingsTab extends ConsumerWidget {

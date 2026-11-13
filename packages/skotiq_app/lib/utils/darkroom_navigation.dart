@@ -19,10 +19,10 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../router/app_routes.dart';
-import '../screens/darkroom/darkroom_route.dart';
+import '../router/darkroom_route.dart';
 import 'snackbar_helper.dart';
 
-export '../screens/darkroom/darkroom_route.dart' show DarkroomTab;
+export '../router/darkroom_route.dart' show DarkroomTab;
 
 String darkroomTabLocation(DarkroomTab tab) =>
     AppRoutes.darkroom(DarkroomRoute(tab: tab));

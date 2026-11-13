@@ -31,7 +31,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/integrations_settings.dart';
-import 'package:skotiq_app/screens/settings/settings_catalog.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/providers.dart';

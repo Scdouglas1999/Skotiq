@@ -6,13 +6,14 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/database.dart' show ProducingNodeThumbnail;
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/providers.dart'
-    show exposureNodeThumbnailsProvider, FrameExclusionKind, frameExclusionKindOf;
+    show exposureNodeThumbnailsProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'thumbnail_strip_prefs.dart';
 import '../../../utils/filter_label.dart';
 import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Inline frame strip rendered beneath each
 /// ExposureNode in the sequence tree.

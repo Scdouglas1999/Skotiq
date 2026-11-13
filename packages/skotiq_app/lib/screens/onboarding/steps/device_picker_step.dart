@@ -5,7 +5,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../equipment/dialogs/indi_server_dialog.dart';
+import '../../../widgets/indi_server_dialog.dart';
 import '../../settings/widgets/connection_settings_alpaca_dialog.dart';
 
 /// The pickers that already chose for the user this session because the scan

@@ -104,7 +104,10 @@ pub enum AlpacaError {
     ValidationFailed(String),
 
     #[error("Retry exhausted after {attempts} attempts: {last_error}")]
-    RetryExhausted { attempts: u32, last_error: String },
+    RetryExhausted {
+        attempts: u32,
+        last_error: Box<AlpacaError>,
+    },
 
     #[error("HTTP client initialization failed: {0}")]
     ClientInitializationFailed(String),
@@ -208,6 +211,18 @@ impl From<AlpacaError> for skotiq_device::DriverError {
         use skotiq_device::DriverError;
         match &err {
             AlpacaError::NotConnected => DriverError::NotConnected,
+            // Nothing listens at the server's address: the device was lost.
+            AlpacaError::ConnectionRefused { .. } => DriverError::Disconnected,
+            AlpacaError::RetryExhausted { last_error, .. }
+                if matches!(**last_error, AlpacaError::ConnectionRefused { .. }) =>
+            {
+                DriverError::Disconnected
+            }
+            AlpacaError::RetryExhausted { last_error, .. }
+                if matches!(**last_error, AlpacaError::Timeout { .. }) =>
+            {
+                DriverError::Timeout(err.to_string())
+            }
             AlpacaError::Timeout { .. } => DriverError::Timeout(err.to_string()),
             AlpacaError::DeviceError { code, message } => {
                 skotiq_device::ascom::classify_error_number(*code, message)

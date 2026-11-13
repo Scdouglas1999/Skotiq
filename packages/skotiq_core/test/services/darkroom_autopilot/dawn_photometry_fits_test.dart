@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/src/providers/darkroom_autopilot/dawn_autopilot_providers.dart';
+import 'package:skotiq_core/src/providers/science/photometric_catalog_service_provider.dart';
 
 class _Catalog extends PhotometricCatalogService {
   _Catalog(super.ref);

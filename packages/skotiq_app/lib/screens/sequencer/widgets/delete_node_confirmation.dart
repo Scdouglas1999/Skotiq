@@ -4,7 +4,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/sequence_mutator_helper.dart';
+import '../sequence_mutator_helper.dart';
 import '../sequence_fold_model.dart';
 
 /// Canonical confirmation + delete helper for sequencer nodes.

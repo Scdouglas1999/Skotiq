@@ -8,8 +8,17 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../screens/imaging/widgets/imaging_capture_bar.dart'
-    show loopSavesFramesProvider;
+import '../utils/persisted_bool.dart';
+
+/// Whether Loop keeps the frames it captures.
+///
+/// Loop is a live-view mode, so saving defaults off. A choice to save is
+/// remembered across restarts: forgetting it lost the next night's frames
+/// without a word.
+final loopSavesFramesProvider =
+    StateNotifierProvider<PersistedBoolNotifier, bool>(
+  (ref) => PersistedBoolNotifier('imaging.loopSavesFrames'),
+);
 
 /// What the manual Snapshot and Loop controls are doing.
 @immutable

@@ -23,12 +23,12 @@ import '../../data/session/equipment_summary_provider.dart'
     show kNightGuideStopReasons;
 import '../../data/session/guide_series_provider.dart';
 import '../../data/session/session_events_provider.dart';
-import '../../../guiding/widgets/guide_star_view.dart';
+import '../../../../widgets/guide_star_view.dart';
 import '../../night_control_contracts.dart';
 import '../panel_widgets.dart';
 import 'guide_metrics.dart';
 import 'guide_scatter.dart';
-import '../../../settings/settings_sections.dart';
+import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 
 /// Where "Edit dither settings…" goes.

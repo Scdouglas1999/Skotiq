@@ -55,6 +55,7 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// P1-14 — Headless API handlers for log retrieval and tail.
 ///

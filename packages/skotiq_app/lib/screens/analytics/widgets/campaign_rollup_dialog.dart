@@ -8,7 +8,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../sequencer/widgets/session_report_dialog.dart';
-import 'adaptive_chart_container.dart';
+import '../../../widgets/adaptive_chart_container.dart';
 
 /// Multi-night campaign rollup dialog (Feature B).
 ///

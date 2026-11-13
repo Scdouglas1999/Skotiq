@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/logging_service.dart';
+import 'package:skotiq_core/src/providers/logging_service_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

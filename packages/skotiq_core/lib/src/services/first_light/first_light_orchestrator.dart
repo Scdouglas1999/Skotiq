@@ -15,6 +15,10 @@ import '../imaging_service.dart';
 import '../logging_service.dart';
 import '../plate_solve_service.dart';
 import '../wcs/plate_solve_data_from_result.dart';
+import '../../providers/annotation_service_provider.dart';
+import '../../providers/imaging_service_providers.dart';
+import '../../providers/logging_service_provider.dart';
+import '../../providers/plate_solve_service_provider.dart';
 
 /// Builds catalog annotations for a captured frame given its plate solve.
 ///

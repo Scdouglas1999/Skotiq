@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 /// What to build: one dark or bias master from raw frames on disk.
@@ -144,7 +143,3 @@ Future<CalibrationMasterBuildResult> buildCalibrationMasterNative(
     Map<String, dynamic>.from(jsonDecode(out) as Map),
   );
 }
-
-final calibrationMasterBuildProvider = Provider<CalibrationMasterBuild>(
-  (ref) => buildCalibrationMasterNative,
-);

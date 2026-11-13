@@ -236,7 +236,7 @@ async fn test_zwo_focuser_operations() {
 
     // Test movement (move 100 steps and back)
     let target = position + 100;
-    let max_pos = focuser.get_max_position();
+    let max_pos = focuser.get_max_position().await;
     if target < max_pos {
         println!("Moving to position {}...", target);
         focuser.move_to(target).await.expect("Should move");
@@ -301,7 +301,7 @@ async fn test_zwo_filter_wheel_operations() {
         .expect("Should get filter names");
     println!("Filter names: {:?}", names);
 
-    let count = fw.get_filter_count();
+    let count = fw.get_filter_count().await;
     println!("Filter count: {}", count);
     assert!(count > 0, "Should have at least one filter slot");
 
@@ -499,7 +499,7 @@ async fn test_qhy_cfw_operations() {
     let position = fw.get_position().await.expect("Should get position");
     println!("Current position: {}", position);
 
-    let count = fw.get_filter_count();
+    let count = fw.get_filter_count().await;
     println!("Filter count: {}", count);
     assert!(count > 0, "Should have at least one filter slot");
 
@@ -961,7 +961,7 @@ mod fake_sdk_contract {
         );
         let mut focuser = zwo::ZwoFocuser::new(focusers[0].focuser_id);
         focuser.connect().await.expect("focuser connect");
-        assert_eq!(focuser.get_max_position(), 60_000);
+        assert_eq!(focuser.get_max_position().await, 60_000);
         focuser.move_to(12_345).await.expect("focuser move");
         assert_eq!(
             focuser.get_position().await.expect("focuser position"),
@@ -990,7 +990,7 @@ mod fake_sdk_contract {
             wheels[0].sdk_version.as_deref(),
             Some("ZWO EFW SDK vfake-efw-1.0")
         );
-        assert_eq!(wheel.get_filter_count(), 7);
+        assert_eq!(wheel.get_filter_count().await, 7);
         wheel.move_to_position(3).await.expect("move filter");
         assert_eq!(wheel.get_position().await.expect("moved filter"), 3);
         wheel.disconnect().await.expect("filter wheel disconnect");
@@ -1079,7 +1079,7 @@ mod fake_sdk_contract {
 
         let mut wheel = atik::AtikFilterWheel::new(wheels[0].device_index);
         wheel.connect().await.expect("Atik EFW connect");
-        assert_eq!(wheel.get_filter_count(), 7);
+        assert_eq!(wheel.get_filter_count().await, 7);
         wheel.move_to_position(4).await.expect("Atik EFW move");
         assert_eq!(wheel.get_position().await.expect("Atik EFW position"), 4);
         assert!(!wheel.is_moving().await.expect("Atik EFW moving"));
@@ -1338,7 +1338,7 @@ mod fake_sdk_contract {
 
         let mut wheel = player_one::PlayerOneFilterWheel::new(wheels[0].handle);
         wheel.connect().await.expect("Player One PW connect");
-        assert_eq!(wheel.get_filter_count(), 7);
+        assert_eq!(wheel.get_filter_count().await, 7);
         wheel.move_to_position(3).await.expect("Player One PW move");
         assert_eq!(
             wheel.get_position().await.expect("Player One PW position"),
@@ -1472,7 +1472,7 @@ mod fake_sdk_contract {
         );
         let mut wheel = qhy::QhyFilterWheel::new(wheels[0].camera_id.clone());
         wheel.connect().await.expect("QHY CFW connect");
-        assert_eq!(wheel.get_filter_count(), 7);
+        assert_eq!(wheel.get_filter_count().await, 7);
         wheel.move_to_position(2).await.expect("QHY CFW move");
         assert_eq!(wheel.get_position().await.expect("QHY CFW position"), 2);
         wheel.disconnect().await.expect("QHY CFW disconnect");
@@ -1713,7 +1713,7 @@ mod fake_sdk_contract {
 
         let mut focuser = fli::FliFocuser::new(focusers[0].device_path.clone());
         focuser.connect().await.expect("FLI focuser connect");
-        assert_eq!(focuser.get_max_position(), 50000);
+        assert_eq!(focuser.get_max_position().await, 50000);
         focuser.move_relative(120).await.expect("FLI focuser move");
         assert_eq!(focuser.get_position().await.expect("FLI focuser pos"), 120);
         assert!(!focuser.is_moving().await.expect("FLI focuser moving"));
@@ -1721,7 +1721,7 @@ mod fake_sdk_contract {
 
         let mut wheel = fli::FliFilterWheel::new(wheels[0].device_path.clone());
         wheel.connect().await.expect("FLI wheel connect");
-        assert_eq!(wheel.get_filter_count(), 5);
+        assert_eq!(wheel.get_filter_count().await, 5);
         wheel.move_to_position(3).await.expect("FLI wheel move");
         assert_eq!(wheel.get_position().await.expect("FLI wheel pos"), 3);
         assert_eq!(
@@ -2055,7 +2055,7 @@ mod fake_sdk_contract {
         );
         // The fake lens: infinity 100, close 900, 40 and 20 pulses of
         // over-search, smallest move 3.
-        assert_eq!(lens.get_max_position(), 860);
+        assert_eq!(lens.get_max_position().await, 860);
         assert_eq!(lens.get_position().await.expect("position"), 100);
 
         lens.move_to(400).await.expect("move");

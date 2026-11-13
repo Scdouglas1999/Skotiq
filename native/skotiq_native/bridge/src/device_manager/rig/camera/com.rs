@@ -52,6 +52,22 @@ impl RigDriver for ComCamera {
             }
         }
     }
+
+    /// Geometry only: the wrapper's name is the ProgID it was built with,
+    /// which two bodies behind one driver share. The sensor cache is read
+    /// from the live driver at connect.
+    async fn identity(&self) -> Option<DeviceIdentity> {
+        let sensor = self.camera.read().await.get_sensor_info();
+        Some(DeviceIdentity {
+            model: None,
+            serial_number: None,
+            sensor: DeviceIdentity::sensor_fingerprint(
+                sensor.width,
+                sensor.height,
+                sensor.pixel_size_x,
+            ),
+        })
+    }
 }
 
 #[async_trait]
@@ -306,21 +322,5 @@ impl Camera for ComCamera {
         Ok(DeviceCapabilities::Camera(
             crate::device_capabilities::ascom::camera_capabilities_from_ascom(ascom_caps),
         ))
-    }
-
-    /// Geometry only: the wrapper's name is the ProgID it was built with,
-    /// which two bodies behind one driver share. The sensor cache is read
-    /// from the live driver at connect.
-    async fn identity(&self) -> Option<DeviceIdentity> {
-        let sensor = self.camera.read().await.get_sensor_info();
-        Some(DeviceIdentity {
-            model: None,
-            serial_number: None,
-            sensor: DeviceIdentity::sensor_fingerprint(
-                sensor.width,
-                sensor.height,
-                sensor.pixel_size_x,
-            ),
-        })
     }
 }

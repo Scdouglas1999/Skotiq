@@ -1,5 +1,5 @@
 use super::*;
-use crate::device_manager::rig::camera::vendor::VendorCamera;
+use crate::device_manager::rig::camera::driver::DriverCamera;
 use skotiq_device::{
     CameraCapabilities, CameraDriver, CameraState, DeviceDriver, DriverError, ExposureAbort,
     ExposureParams, ImageMetadata, ReadoutMode, SensorInfo, VendorFeatures,
@@ -207,7 +207,7 @@ impl CameraDriver for SlowCamera {
 fn vendor_camera(read_takes: Duration, gives_up: bool) -> (Arc<dyn Camera>, Calls) {
     let (driver, calls) = SlowCamera::new(read_takes, gives_up);
     (
-        Arc::new(VendorCamera::new("native:test:slow", Box::new(driver))),
+        Arc::new(DriverCamera::vendor("native:test:slow", Box::new(driver))),
         calls,
     )
 }

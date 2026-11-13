@@ -12,8 +12,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../utils/transient_type_style.dart';
 import 'widgets/transient_card.dart';
 import '../../router/app_routes.dart';
-import '../analytics/analytics_route.dart';
-import '../planner/planner_route.dart';
+import '../../router/analytics_route.dart';
+import '../../router/planner_route.dart';
 
 enum TransientFilter {
   all('All'),

@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import '../database/daos/integrated_masters_dao.dart';
-import '../providers/database_provider.dart';
 import '../database/database.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/imaging/integrated_master.dart';
@@ -546,16 +544,3 @@ class MasterAccumulationService {
     return f != null ? '$base · $f' : base;
   }
 }
-
-final masterAccumulationServiceProvider = Provider<MasterAccumulationService>((
-  ref,
-) {
-  return MasterAccumulationService(
-    mastersDao: ref.watch(integratedMastersDaoProvider),
-    darkLibrary: ref.watch(darkLibraryServiceProvider),
-    flatLibrary: ref.watch(flatLibraryServiceProvider),
-    seam: ref.watch(postSessionSeamProvider),
-    darkTolerances: ref.watch(darkLibraryMatchTolerancesProvider),
-    logger: ref.watch(loggingServiceProvider),
-  );
-});

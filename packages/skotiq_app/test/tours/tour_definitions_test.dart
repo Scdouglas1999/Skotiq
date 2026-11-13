@@ -6,11 +6,11 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/router/app_routes.dart';
-import 'package:skotiq_app/screens/analytics/analytics_route.dart';
-import 'package:skotiq_app/screens/equipment/equipment_route.dart';
-import 'package:skotiq_app/screens/planner/planner_route.dart';
-import 'package:skotiq_app/screens/sequencer/sequencer_route.dart';
-import 'package:skotiq_app/screens/settings/settings_sections.dart';
+import 'package:skotiq_app/router/analytics_route.dart';
+import 'package:skotiq_app/router/equipment_route.dart';
+import 'package:skotiq_app/router/planner_route.dart';
+import 'package:skotiq_app/router/sequencer_route.dart';
+import 'package:skotiq_app/router/settings_sections.dart';
 import 'package:skotiq_app/tours/tour.dart';
 
 /// Every Dart file under lib/, joined, without the tour data itself.

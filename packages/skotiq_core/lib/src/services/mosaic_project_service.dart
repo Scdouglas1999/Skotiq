@@ -3,11 +3,9 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/integrated_masters_dao.dart';
-import '../providers/database_provider.dart';
 import '../database/daos/mosaic_panels_dao.dart';
 import '../database/daos/mosaic_projects_dao.dart';
 import '../database/daos/targets_dao.dart';
@@ -519,20 +517,3 @@ class MosaicProjectService {
     }
   }
 }
-
-/// Provider for [MosaicProjectService], wiring the v45 mosaic DAOs, the targets
-/// DAO (per-panel capture targets), the images DAO, the integrated-masters DAO,
-/// the post-session integration service, and the post-session seam (which
-/// carries `stitchMosaic`).
-final mosaicProjectServiceProvider = Provider<MosaicProjectService>((ref) {
-  return MosaicProjectService(
-    db: ref.watch(databaseProvider),
-    projectsDao: ref.watch(mosaicProjectsDaoProvider),
-    panelsDao: ref.watch(mosaicPanelsDaoProvider),
-    targetsDao: ref.watch(targetsDaoProvider),
-    imagesDao: ref.watch(imagesDaoProvider),
-    mastersDao: ref.watch(integratedMastersDaoProvider),
-    integrationService: ref.watch(postSessionIntegrationServiceProvider),
-    seam: ref.watch(postSessionSeamProvider),
-  );
-});

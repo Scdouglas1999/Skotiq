@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../models/planning/target_suggestion.dart';
-import '../services/sesame_name_resolver.dart';
 import '../services/catalog_lookup/simbad_provider.dart';
 import 'target_suggestion_provider.dart';
+import 'sesame_name_resolver_provider.dart';
 
 /// UI-only sort modes for the planner workspace. These re-sort the already-
 /// scored suggestion list without touching the scoring service.

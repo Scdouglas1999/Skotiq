@@ -354,8 +354,8 @@ async fn a_nikon_reads_its_seconds_speeds_and_holds_bulb_with_its_toggle() {
         "{trace}"
     );
     assert_eq!(fake.value(NIKON_PORT, "imagequality"), "NEF (Raw)");
-    // On the card the frames are deleted after they are read, as before.
-    assert_eq!(fake.files_left(NIKON_PORT), 0);
+    // Frames on the card are the owner's copy and stay there.
+    assert_eq!(fake.files_left(NIKON_PORT), 2);
 }
 
 #[tokio::test]

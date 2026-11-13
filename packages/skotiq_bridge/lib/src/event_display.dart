@@ -21,13 +21,13 @@ import 'event.dart';
 ///   * `EquipmentEvent_Connected(deviceType: ZWO, ...)` → `"Connected"`
 ///   * `ImagingEvent_ExposureFailed(error: ...)` → `"Exposure failed"`
 ///
-/// The title is constant-length and stable across runs — it never depends
-/// on field values, only on the variant.
+/// The title is stable across runs: it depends on the variant and, where one
+/// variant carries both faults and notices, on the severity or kind.
 String skotiqEventDisplayTitle(SkotiqEvent event) {
   final payload = event.payload;
   switch (payload) {
     case EventPayload_Equipment(field0: final v):
-      return _equipmentTitle(v);
+      return _equipmentTitle(v, event.severity);
     case EventPayload_Imaging(field0: final v):
       return _imagingTitle(v);
     case EventPayload_Guiding(field0: final v):
@@ -135,13 +135,19 @@ bool isCriticalEvent(SkotiqEvent event) {
   };
 }
 
-String _equipmentTitle(EquipmentEvent v) {
+String _equipmentTitle(EquipmentEvent v, EventSeverity severity) {
   return switch (v) {
     EquipmentEvent_Connecting() => 'Connecting',
     EquipmentEvent_Connected() => 'Connected',
     EquipmentEvent_Disconnected() => 'Disconnected',
     EquipmentEvent_PropertyChanged() => 'Property changed',
-    EquipmentEvent_Error() => 'Device error',
+    // The payload also carries what the bridge only tells the operator about
+    // (a camera that does not report its pixel size, a setpoint that was not
+    // restored after a reconnect); those are published below error severity.
+    EquipmentEvent_Error() =>
+      severity == EventSeverity.error || severity == EventSeverity.critical
+          ? 'Device error'
+          : 'Device notice',
     EquipmentEvent_MountSlewStarted() => 'Mount slew started',
     EquipmentEvent_MountSlewCompleted() => 'Mount slew complete',
     EquipmentEvent_MountTrackingStarted() => 'Tracking started',

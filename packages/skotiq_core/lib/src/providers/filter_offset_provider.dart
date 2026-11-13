@@ -6,6 +6,7 @@ import '../services/focus_model_service.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'profiles_provider.dart';
+import 'focus_model_service_providers.dart';
 
 /// Filter offset state for the current profile
 class FilterOffsetState {

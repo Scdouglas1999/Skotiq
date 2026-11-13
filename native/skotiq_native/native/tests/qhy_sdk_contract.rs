@@ -379,7 +379,7 @@ mod sdk_contract {
         wheel.connect().await.expect("wheel connect");
         assert_eq!(fake.get(COLOR_CMOS, key::INITS), 1.0, "the wheel must not re-initialize the camera");
         assert_eq!(fake.get(COLOR_CMOS, key::BITS), 16.0);
-        assert_eq!(wheel.get_filter_count(), 7);
+        assert_eq!(wheel.get_filter_count().await, 7);
         wheel.move_to_position(3).await.expect("wheel move");
         assert_eq!(wheel.get_position().await.unwrap(), 3);
 

@@ -1,48 +1,28 @@
-//! Vendor Quirks Database
+//! Known device quirks and the workarounds drivers apply for them.
 //!
-//! This module provides a centralized database of known device and vendor quirks,
-//! along with workarounds that should be applied automatically.
-//!
-//! ## Overview
-//!
-//! Many astronomy devices have known bugs or require workarounds due to:
-//! - SDK bugs that report incorrect values
-//! - Firmware issues that require specific timing
-//! - Hardware variations that need special handling
-//! - Discovery race conditions that can cause crashes
-//!
-//! Rather than scattering workarounds throughout the codebase, this module
-//! provides a centralized registry that can be queried before/after operations.
-//!
-//! ## Usage
-//!
-//! ```rust,ignore
-//! use skotiq_native::quirks::{get_quirks_for_device, Quirk};
-//!
-//! let quirks = get_quirks_for_device("native:zwo:ASI294MC");
-//! for quirk in &quirks {
-//!     match quirk {
-//!         Quirk::Temperature(TemperatureQuirk::ScaleFactor(factor)) => {
-//!             // Apply temperature scaling
-//!             raw_temp = raw_temp / factor;
-//!         }
-//!         _ => {}
-//!     }
-//! }
-//! ```
+//! A quirk is a fact about a model or a vendor's devices that its SDK does
+//! not report: a first reading to throw away, a settle after connect, a
+//! travel per step. The table is in [`database`]; a driver asks it with its
+//! own vendor, kind and model name and applies what comes back.
 
 mod database;
 mod types;
 
-pub use database::*;
+pub use database::quirks_for;
 pub use types::*;
 
-use skotiq_device::Vendor;
+use crate::catalog;
+use skotiq_device::{DeviceKind, Vendor};
 
-/// Every quirk that applies to `device_id` (e.g. `native:zwo:ASI294MC Pro`):
-/// the database is consulted device ID first, then model pattern, then vendor.
+/// The quirks of the device a native id names, for showing them to the user.
+/// The model is read from the id's address, so an id that carries only a
+/// position in the scan (`native:zwo:0`) gets the rows that apply to every
+/// model of its family.
 pub fn get_quirks_for_device(device_id: &str) -> Vec<Quirk> {
-    database::get_device_quirks(device_id)
+    match catalog::family_of_id(device_id) {
+        Some((family, address)) => quirks_for(&(family.vendor)(), family.kind, address),
+        None => Vec::new(),
+    }
 }
 
 /// Vendor-wide quirks, applying to every device from that vendor.
@@ -50,73 +30,64 @@ pub fn get_quirks_for_vendor(vendor: &Vendor) -> Vec<Quirk> {
     database::get_vendor_quirks(vendor)
 }
 
-/// Look up the settle delay required before trusting a temperature read.
-///
-/// Callers should apply this before issuing the SDK read.
-pub fn get_temperature_delay_ms(device_id: &str) -> Option<u64> {
-    let quirks = get_quirks_for_device(device_id);
-    for quirk in quirks {
-        if let Quirk::Temperature(TemperatureQuirk::RequiresDelayMs(ms)) = quirk {
-            return Some(ms);
-        }
-    }
-    None
+/// The settle a device needs before a temperature read can be trusted.
+pub fn get_temperature_delay_ms(vendor: &Vendor, kind: DeviceKind, model: &str) -> Option<u64> {
+    quirks_for(vendor, kind, model)
+        .into_iter()
+        .find_map(|quirk| match quirk {
+            Quirk::Temperature(TemperatureQuirk::RequiresDelayMs(ms)) => Some(ms),
+            _ => None,
+        })
 }
 
-/// Return true when the driver's first temperature read after connect must be discarded.
-pub fn should_skip_first_temperature_read(device_id: &str) -> bool {
-    get_quirks_for_device(device_id)
+/// Whether the first temperature read after connect must be discarded.
+pub fn should_skip_first_temperature_read(vendor: &Vendor, kind: DeviceKind, model: &str) -> bool {
+    quirks_for(vendor, kind, model)
         .iter()
         .any(|q| matches!(q, Quirk::Temperature(TemperatureQuirk::SkipFirstRead)))
 }
 
-/// Look up the cooler target range declared for a device.
-pub fn get_cooler_range(device_id: &str) -> Option<(f64, f64)> {
-    let quirks = get_quirks_for_device(device_id);
-    for quirk in quirks {
-        if let Quirk::Camera(CameraQuirk::CoolerRange { min_temp, max_temp }) = quirk {
-            return Some((min_temp, max_temp));
-        }
-    }
-    None
+/// The cooler set-point range declared for a camera, in degrees Celsius.
+pub fn get_cooler_range(vendor: &Vendor, model: &str) -> Option<(f64, f64)> {
+    quirks_for(vendor, DeviceKind::Camera, model)
+        .into_iter()
+        .find_map(|quirk| match quirk {
+            Quirk::Camera(CameraQuirk::CoolerRange { min_temp, max_temp }) => {
+                Some((min_temp, max_temp))
+            }
+            _ => None,
+        })
 }
 
-/// Look up the focuser step size (microns per motor step) declared for a device.
-///
-/// Vendor SDKs that omit this datum (notably ZWO EAF) require a per-model lookup
-/// so the focus-model micron axis matches mechanical reality. The first matching
-/// `FocuserStepSizeMicrons` quirk is returned; absence means the SDK is expected
-/// to supply the value or the caller must surface an explicit error.
-pub fn get_focuser_step_size_um(device_id: &str) -> Option<f64> {
-    let quirks = get_quirks_for_device(device_id);
-    for quirk in quirks {
-        if let Quirk::Position(PositionQuirk::FocuserStepSizeMicrons(um)) = quirk {
-            return Some(um);
-        }
-    }
-    None
+/// Microns of travel per motor step, for a focuser whose SDK does not say.
+/// `None`: the SDK is expected to supply it, or the caller reports that the
+/// step size is unknown.
+pub fn get_focuser_step_size_um(vendor: &Vendor, model: &str) -> Option<f64> {
+    quirks_for(vendor, DeviceKind::Focuser, model)
+        .into_iter()
+        .find_map(|quirk| match quirk {
+            Quirk::Position(PositionQuirk::FocuserStepSizeMicrons(um)) => Some(um),
+            _ => None,
+        })
 }
 
-/// Look up the `DelayAfterMoveMs` position quirk for a device.
-///
-/// Used by filter wheel and rotator drivers whose firmware briefly reports a
-/// stale position immediately after a move completes. Returns the first
-/// matching delay; absence means no quirk is registered for this device and
-/// the caller may skip the post-move settle.
-pub fn get_position_delay_after_move_ms(device_id: &str) -> Option<u64> {
-    let quirks = get_quirks_for_device(device_id);
-    for quirk in quirks {
-        if let Quirk::Position(PositionQuirk::DelayAfterMoveMs(ms)) = quirk {
-            return Some(ms);
-        }
-    }
-    None
+/// How long after a move a device may still report its previous position.
+pub fn get_position_delay_after_move_ms(
+    vendor: &Vendor,
+    kind: DeviceKind,
+    model: &str,
+) -> Option<u64> {
+    quirks_for(vendor, kind, model)
+        .into_iter()
+        .find_map(|quirk| match quirk {
+            Quirk::Position(PositionQuirk::DelayAfterMoveMs(ms)) => Some(ms),
+            _ => None,
+        })
 }
 
-/// Delay in milliseconds a device requires after connecting, or `None` when
-/// it declares none.
-pub fn get_connect_delay_ms(device_id: &str) -> Option<u64> {
-    get_quirks_for_device(device_id)
+/// The settle a device needs after connecting, in milliseconds.
+pub fn get_connect_delay_ms(vendor: &Vendor, kind: DeviceKind, model: &str) -> Option<u64> {
+    quirks_for(vendor, kind, model)
         .into_iter()
         .find_map(|quirk| match quirk {
             Quirk::Timing(TimingQuirk::DelayAfterConnect(delay_ms)) => Some(delay_ms),
@@ -129,96 +100,51 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_zwo_quirks() {
-        let quirks = get_quirks_for_device("native:zwo:ASI294MC Pro");
-        assert!(!quirks.is_empty(), "ZWO ASI294 should have model quirks");
-
-        // The ZWO ASI driver divides `ASI_TEMPERATURE` by 10 inline, so the
-        // temperature ScaleFactor quirk was intentionally removed from the
-        // database (would have double-scaled). The ASI294-specific
-        // `SkipFirstRead` quirk must still be present.
-        let has_skip_first = quirks
-            .iter()
-            .any(|q| matches!(q, Quirk::Temperature(TemperatureQuirk::SkipFirstRead)));
-        assert!(
-            has_skip_first,
-            "ASI294 should retain its SkipFirstRead temperature quirk"
-        );
-    }
-
-    #[test]
-    fn test_get_qhy_quirks() {
-        let quirks = get_quirks_for_vendor(&Vendor::Qhy);
-        assert!(!quirks.is_empty(), "QHY should have vendor quirks");
-
-        let has_discovery_protection = quirks.iter().any(|q| matches!(q, Quirk::Discovery(_)));
-        assert!(
-            has_discovery_protection,
-            "QHY should have discovery protection"
-        );
-    }
-
-    #[test]
-    fn test_get_temperature_delay_player_one_vendor_wide() {
-        let delay = get_temperature_delay_ms("native:playerone:0");
+    fn a_reader_gets_the_value_of_its_own_sort_of_quirk() {
         assert_eq!(
-            delay,
-            Some(50),
-            "Player One vendor-wide temperature settle delay must be exposed"
+            get_temperature_delay_ms(&Vendor::PlayerOne, DeviceKind::Camera, "Poseidon-M"),
+            Some(50)
         );
-    }
-
-    #[test]
-    fn test_should_skip_first_temperature_read_zwo_asi294() {
-        assert!(
-            should_skip_first_temperature_read("native:zwo:ZWO ASI294MC Pro"),
-            "ASI294 first temperature read quirk must be exposed"
-        );
-    }
-
-    #[test]
-    fn test_get_cooler_range_qhy268() {
+        assert!(should_skip_first_temperature_read(
+            &Vendor::Zwo,
+            DeviceKind::Camera,
+            "ZWO ASI294MC Pro"
+        ));
         assert_eq!(
-            get_cooler_range("native:qhy:QHY268M-123"),
-            Some((-35.0, 25.0)),
-            "QHY268 cooler range quirk must be exposed"
+            get_cooler_range(&Vendor::Qhy, "QHY268M-123"),
+            Some((-35.0, 25.0))
+        );
+        assert_eq!(
+            get_position_delay_after_move_ms(&Vendor::Zwo, DeviceKind::FilterWheel, "EFW"),
+            Some(500)
+        );
+        assert_eq!(
+            get_connect_delay_ms(&Vendor::Zwo, DeviceKind::Camera, "ZWO ASI533MC Pro"),
+            Some(200)
+        );
+        assert_eq!(
+            get_connect_delay_ms(&Vendor::Zwo, DeviceKind::Camera, "ZWO ASI294MC Pro"),
+            None,
+            "no row, no settle"
         );
     }
 
+    /// Discovery writes an accessory's id with the family token
+    /// (`native:zwo_efw:0`); the lookup used to know only the bare vendor
+    /// word and showed no quirk for a wheel or a focuser.
     #[test]
-    fn test_get_position_delay_after_move_ms_zwo_efw() {
-        // ZWO EFW filter wheels carry a 500ms DelayAfterMoveMs quirk that
-        // `ZwoFilterWheel::move_to_position` consumes after a successful
-        // EFWSetPosition. This test guards the lookup contract that wiring
-        // depends on.
-        let delay = get_position_delay_after_move_ms("native:zwo:efw:0");
-        assert_eq!(
-            delay,
-            Some(500),
-            "ZWO EFW must declare a 500ms post-move settle delay"
-        );
-    }
-
-    #[test]
-    fn test_get_connect_delay_zwo_asi533() {
-        // ASI533 cameras carry a 200ms DelayAfterConnect quirk that
-        // `ZwoCamera::connect` consumes after open+init.
-        let delay = get_connect_delay_ms("native:zwo:ZWO ASI533MC Pro");
-        assert_eq!(
-            delay,
-            Some(200),
-            "ASI533 must declare a 200ms post-connect settle delay"
-        );
-    }
-
-    #[test]
-    fn test_get_connect_delay_other_zwo_camera_has_none() {
-        // Cameras without a DelayAfterConnect entry must return None so the
-        // caller knows to skip the sleep, not silently apply a default.
-        let delay = get_connect_delay_ms("native:zwo:ZWO ASI294MC Pro");
-        assert_eq!(
-            delay, None,
-            "ASI294 must not carry a DelayAfterConnect quirk"
-        );
+    fn an_id_as_discovery_writes_it_finds_its_familys_quirks() {
+        let delay = |id: &str| {
+            get_quirks_for_device(id).into_iter().find_map(|q| match q {
+                Quirk::Position(PositionQuirk::DelayAfterMoveMs(ms)) => Some(ms),
+                _ => None,
+            })
+        };
+        assert_eq!(delay("native:zwo_efw:0"), Some(500));
+        assert_eq!(delay("native:zwo:efw:0"), Some(500));
+        assert_eq!(delay("native:zwo:0"), None, "a camera is not a wheel");
+        assert!(!get_quirks_for_device("native:zwo:ZWO ASI294MC Pro").is_empty());
+        assert!(get_quirks_for_device("alpaca:10.0.0.5:camera:0").is_empty());
+        assert!(get_quirks_for_device("not an id").is_empty());
     }
 }

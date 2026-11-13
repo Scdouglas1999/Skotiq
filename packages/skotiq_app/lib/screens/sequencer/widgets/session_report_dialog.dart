@@ -17,9 +17,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../run_status_presentation.dart';
+import '../../../widgets/run_status/run_status_presentation.dart';
 import 'notes_panel.dart';
-import '../../settings/settings_sections.dart';
+import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
 part 'session_report_dialog/header_overview.dart';
 part 'session_report_dialog/target_conditions.dart';

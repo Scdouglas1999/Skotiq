@@ -14,7 +14,6 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:skotiq_app/router/app_routes.dart';
-import 'package:skotiq_app/screens/analytics/analytics_route.dart';
 import 'package:skotiq_app/screens/analytics/analytics_screen.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';

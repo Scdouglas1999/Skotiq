@@ -31,14 +31,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:meta/meta.dart';
 import 'package:path/path.dart' as p;
 
 import '../../database/daos/settings_dao.dart';
-import '../../providers/database_provider.dart';
-import '../../providers/notification_router_provider.dart'
-    show secretsStoreProvider;
 import '../backup_service.dart';
 import '../endpoint_sanitizer.dart';
 import '../logging_service.dart';
@@ -925,12 +921,3 @@ class SyncService {
   static String _fileTimestamp(DateTime t) =>
       t.toUtc().toIso8601String().replaceAll(':', '-').replaceAll('.', '-');
 }
-
-final syncServiceProvider = Provider<SyncService>((ref) {
-  return SyncService(
-    backupService: ref.watch(backupServiceProvider),
-    settingsDao: ref.watch(settingsDaoProvider),
-    secretsStore: ref.watch(secretsStoreProvider),
-    logger: ref.watch(loggingServiceProvider),
-  );
-});

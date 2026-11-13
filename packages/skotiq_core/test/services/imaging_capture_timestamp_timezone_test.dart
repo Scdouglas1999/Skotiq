@@ -22,12 +22,14 @@ import 'package:skotiq_core/src/providers/clock_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/services/capture_preview_loader.dart';
-import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 
 import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
+import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
+import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
 
 /// Nepal: an offset no CI host runs on, so "the chosen zone" and "the host's
 /// zone" cannot silently coincide.

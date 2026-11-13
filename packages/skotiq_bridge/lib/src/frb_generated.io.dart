@@ -21532,8 +21532,6 @@ final class wire_cst_weather_conditions extends ffi.Struct {
   external ffi.Pointer<ffi.Double> rain_rate;
 }
 
-const int SENSOR_TYPE_RGGB = 2;
-
 const int QUEUE_CAPACITY = 8;
 
 const int DEFAULT_EVENT_BUFFER_SIZE = 4096;

@@ -11,7 +11,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import '../../../mixins/device_connection_mixin.dart';
+import '../device_connection_mixin.dart';
 import '../../../utils/device_type_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/troubleshooter/connection_troubleshooter_dialog.dart';

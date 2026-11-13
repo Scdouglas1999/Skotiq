@@ -10,8 +10,6 @@ import '../models/meridian_flip_settings.dart';
 import '../models/meridian_flip_event.dart';
 import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
-import '../services/logging_service.dart';
-import '../services/notification_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
@@ -27,6 +25,8 @@ import '../settings/store_settings.dart';
 import 'settings_provider.dart' show appSettingsProvider;
 import 'ui_notification_provider.dart' show uiNotificationProvider;
 import '../database/daos/settings_dao.dart';
+import 'logging_service_provider.dart';
+import 'notification_service_provider.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].

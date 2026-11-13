@@ -7,6 +7,7 @@
 use crate::device::{DeviceType, DriverType};
 use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::accessory::{Dome, Rotator, SafetyMonitor, Weather};
+use crate::device_manager::identity::DeviceIdentity;
 use crate::device_manager::rig::camera::Camera;
 use crate::device_manager::rig::filter_wheel::FilterWheel;
 use crate::device_manager::rig::focuser::Focuser;
@@ -78,6 +79,14 @@ impl DeviceHandle {
                 Err(e) => Err(e.to_string()),
             },
             Link::Rig(driver) => driver.heartbeat().await,
+        }
+    }
+
+    /// What the connected device says it is, where its driver can say.
+    pub(crate) async fn identity(&self) -> Option<DeviceIdentity> {
+        match self.link() {
+            Link::Accessory(_) => None,
+            Link::Rig(driver) => driver.identity().await,
         }
     }
 
@@ -332,10 +341,10 @@ impl DeviceManager {
         device_id: &str,
         camera: Box<dyn skotiq_device::CameraDriver + Send + Sync>,
     ) {
-        use crate::device_manager::rig::camera::vendor::VendorCamera;
+        use crate::device_manager::rig::camera::driver::DriverCamera;
         self.handles.insert(
             device_id,
-            DeviceHandle::Camera(Arc::new(VendorCamera::new(device_id, camera))),
+            DeviceHandle::Camera(Arc::new(DriverCamera::vendor(device_id, camera))),
         );
     }
 
@@ -344,18 +353,21 @@ impl DeviceManager {
         device_id: &str,
         mount: Box<dyn skotiq_device::MountDriver + Send + Sync>,
     ) {
-        use crate::device_manager::rig::mount::vendor::VendorMount;
+        use crate::device_manager::rig::mount::driver::DriverMount;
         self.handles.insert(
             device_id,
-            DeviceHandle::Mount(Arc::new(VendorMount::new(device_id, mount))),
+            DeviceHandle::Mount(Arc::new(DriverMount::vendor(device_id, mount))),
         );
     }
 
     pub(crate) fn hold_alpaca_mount(&self, device_id: &str, mount: skotiq_alpaca::AlpacaTelescope) {
-        use crate::device_manager::rig::mount::alpaca::AlpacaMount;
+        use crate::device_manager::rig::mount::driver::DriverMount;
         self.handles.insert(
             device_id,
-            DeviceHandle::Mount(Arc::new(AlpacaMount::new(device_id, mount))),
+            DeviceHandle::Mount(Arc::new(DriverMount::alpaca(
+                device_id,
+                skotiq_alpaca::AlpacaMount::new(mount),
+            ))),
         );
     }
 

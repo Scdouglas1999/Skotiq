@@ -8,11 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../database/daos/images_dao.dart';
-import '../services/logging_service.dart';
 import '../services/wcs/wcs_sip_codec.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'logging_service_provider.dart';
 
 /// The `captured_images` inserts still in flight, by file path, so a later
 /// update to the same frame can wait for its row instead of missing it.

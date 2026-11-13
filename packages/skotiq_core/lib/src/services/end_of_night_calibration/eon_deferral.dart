@@ -6,10 +6,6 @@ import '../../providers/database_provider.dart';
 import 'eon_settings.dart';
 import '../../backend/remote_host.dart';
 
-/// Whether the run in progress, or the last one, handed its closing Warm
-/// Camera step to end-of-night calibration. Set when a run starts.
-final shutdownWarmUpDeferredProvider = StateProvider<bool>((ref) => false);
-
 /// Whether end-of-night calibration will follow a run that [owner] starts, so
 /// the plan's closing warm-up waits for it. The scheduler's runs keep their
 /// own warm-up (it ends the night itself), and a calibration run is the step's

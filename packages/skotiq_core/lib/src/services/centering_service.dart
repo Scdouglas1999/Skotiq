@@ -6,16 +6,19 @@ import '../backend/roles/device_backend.dart';
 import 'plate_solve_service.dart';
 import 'imaging_service.dart';
 import 'device_service.dart';
-import 'smart_notification_service.dart';
 import '../providers/backend_provider.dart';
 import '../providers/constellation_provider.dart'
     show coImagingSessionServiceProvider;
 import '../providers/equipment_provider.dart';
 import '../providers/imaging_provider.dart' show exposureSettingsProvider;
 import '../models/app_screen.dart';
-import 'logging_service.dart' show loggingServiceProvider;
 import '../models/imaging/imaging_models.dart';
 import '../models/equipment/equipment_models.dart';
+import '../providers/device_service_providers.dart';
+import '../providers/imaging_service_providers.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/plate_solve_service_provider.dart';
+import '../providers/smart_notification_service_provider.dart';
 part 'centering_service/centering_models.dart';
 part 'centering_service/centering_loop.dart';
 part 'centering_service/slew_settle.dart';
@@ -202,29 +205,3 @@ class CenteringService {
     }
   }
 }
-
-final centeringServiceProvider = Provider<CenteringService>((ref) {
-  final backend = ref.watch(deviceBackendProvider);
-  final service = CenteringService(
-    ref,
-    backend: backend,
-    slewPollInterval: ref.watch(centeringSlewPollIntervalProvider),
-    maxSlewPollTicks: ref.watch(centeringSlewMaxPollTicksProvider),
-  );
-  ref.onDispose(service.retire);
-  return service;
-});
-
-/// Timing seams used by deterministic centering lifecycle tests.
-final centeringSlewPollIntervalProvider = Provider<Duration>(
-  (ref) => const Duration(milliseconds: 500),
-);
-final centeringSlewMaxPollTicksProvider = Provider<int>((ref) => 120);
-
-final centeringStatusProvider = StateProvider<CenteringStatus>((ref) {
-  return CenteringStatus.idle();
-});
-
-final lastCenteringResultProvider = StateProvider<CenteringResult?>(
-  (ref) => null,
-);

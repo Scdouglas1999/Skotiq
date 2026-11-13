@@ -4,8 +4,8 @@ import 'package:skotiq_core/services.dart';
 
 import '../screens/imaging/widgets/depthlock/depthlock_hint.dart';
 import '../screens/night_control/data/plan/scheduler_provider.dart';
-import '../screens/sequencer/widgets/run_dashboard/run_dashboard_providers.dart';
-import '../services/location_sync_service.dart';
+import '../services/run_dashboard_providers.dart';
+import 'location_sync_service.dart';
 
 /// What this process is, decided once at launch.
 enum AppRole {

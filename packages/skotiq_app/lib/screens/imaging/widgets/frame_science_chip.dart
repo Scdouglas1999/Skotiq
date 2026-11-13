@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/router/app_routes.dart';
-import 'package:skotiq_app/screens/analytics/analytics_route.dart';
+import 'package:skotiq_app/router/analytics_route.dart';
 
 class FrameScienceChip extends ConsumerWidget {
   const FrameScienceChip({super.key});

@@ -17,7 +17,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import '../../imaging/widgets/depthlock/depthlock_presentation.dart';
 import 'node_property_widgets.dart';
 

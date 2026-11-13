@@ -4,10 +4,11 @@
 //! contain the cross-driver lifecycle logic. Driver-specific `connect_*`
 //! helpers continue to live in `crate::dispatch::{ascom,alpaca,indi,native}`
 //! (also split-impl-block) and are invoked from `connect_device_internal`
-//! below.
+//! below. No behavior or signature has changed relative to the previous
+//! monolithic `devices.rs`.
 
 use crate::device::{ConnectionState, DeviceInfo, DeviceType, DriverType};
-use crate::device_manager::handle::{device_noun, protocol_label, DeviceHandle};
+use crate::device_manager::handle::{device_noun, protocol_label};
 use crate::device_manager::identity::{DeviceIdentity, IDENTITY_CONFLICT_MARKER};
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, ManagedDevice};
@@ -736,15 +737,13 @@ impl DeviceManager {
 
     /// Read identity straight off the connected driver.
     ///
-    /// Cameras are the case that matters and the case that can answer: both the
-    /// vendor-SDK cameras and the ASCOM wrapper implement `CameraDriver`, so
-    /// model, serial and sensor geometry come from one code path. Non-camera
-    /// native devices contribute model and serial. Transports with no
-    /// post-connect identity surface return an empty identity, which the caller
+    /// A camera answers with model, serial and sensor geometry; any other
+    /// vendor device with model and serial. A transport that gives the
+    /// driver nothing to say returns an empty identity, which the caller
     /// treats as "no opinion" rather than as a match.
     pub(crate) async fn probe_device_identity(&self, info: &DeviceInfo) -> DeviceIdentity {
-        if let Some(DeviceHandle::Camera(camera)) = self.handles.get(&info.id) {
-            if let Some(identity) = camera.identity().await {
+        if let Some(handle) = self.handles.get(&info.id) {
+            if let Some(identity) = handle.identity().await {
                 return identity;
             }
         }
@@ -800,7 +799,10 @@ impl DeviceManager {
     }
 
     /// Model + serial from any connected native device.
-    fn identity_from_device(device_id: &str, device: &dyn DeviceDriver) -> DeviceIdentity {
+    pub(crate) fn identity_from_device(
+        device_id: &str,
+        device: &dyn DeviceDriver,
+    ) -> DeviceIdentity {
         DeviceIdentity {
             model: Self::reported_model(device_id, device.name()),
             serial_number: device.serial_number().filter(|s| !s.trim().is_empty()),
@@ -1026,7 +1028,7 @@ impl DeviceManager {
                     record_disconnect!("INDI device", self.release_indi_device(device_id).await);
                 }
                 DriverType::Simulator => {
-                    // Flip the matching simulator singleton's `connected`
+                    // Flip the matching `simulation.rs` singleton's `connected`
                     // bit back to false so the heartbeat loop and any other
                     // observer agrees the simulator is offline. Errors here are
                     // logged but do not block the rest of disconnect cleanup —

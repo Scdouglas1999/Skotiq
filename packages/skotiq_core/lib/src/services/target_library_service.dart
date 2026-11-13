@@ -4,11 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../database/database.dart' as db;
 import '../providers/async_scope.dart';
-import '../providers/backend_provider.dart';
 import '../providers/database_provider.dart';
 import 'catalog_target_resolver.dart';
-import 'logging_service.dart';
 import '../backend/remote_host.dart';
+import '../providers/logging_service_provider.dart';
 
 /// Host-aware targets-library CRUD for planetarium and transient flows.
 class TargetLibraryService {
@@ -235,8 +234,3 @@ class TargetLibraryService {
     _ref.invalidate(favoriteDbTargetsProvider);
   }
 }
-
-final targetLibraryServiceProvider = Provider<TargetLibraryService>((ref) {
-  ref.watch(backendProvider);
-  return TargetLibraryService(ref);
-});

@@ -8,8 +8,7 @@ export 'src/services/camera_warmup_controller.dart' show CameraWarmupOutcome;
 export 'src/services/scheduler/target_progress_service.dart';
 export 'src/services/built_in_catalogs.dart';
 export 'src/services/catalog_target_resolver.dart';
-export 'src/services/target_library_service.dart'
-    show TargetLibraryService, targetLibraryServiceProvider;
+export 'src/services/target_library_service.dart' show TargetLibraryService;
 export 'src/services/sequence_rollup.dart';
 export 'src/services/linked_rig/linked_rig_store.dart';
 export 'src/services/linked_rig/rig_link_service.dart';
@@ -34,11 +33,7 @@ export 'src/services/imaging_records_repository.dart'
         SolvedFrameFoldHook,
         applyAtlasFoldDedup;
 export 'src/services/imaging_service.dart';
-export 'src/services/capture_preview_loader.dart'
-    show
-        CapturePreviewPublisher,
-        capturePreviewPublisherProvider,
-        capturedImageDataFromResult;
+export 'src/services/capture_preview_loader.dart' show CapturePreviewPublisher, capturedImageDataFromResult;
 export 'src/services/stretch_pipeline_service.dart';
 export 'src/services/thumbnail_sidecar_service.dart';
 export 'src/services/plate_solve_service.dart';
@@ -223,7 +218,6 @@ export 'src/services/science/photometric_bands.dart';
 export 'src/services/calibration_master_builder.dart';
 export 'src/services/dark_library_service.dart';
 export 'src/services/end_of_night_calibration/eon_plan.dart';
-export 'src/services/end_of_night_calibration/eon_providers.dart';
 export 'src/services/end_of_night_calibration/eon_service.dart';
 export 'src/services/end_of_night_calibration/eon_settings.dart';
 export 'src/services/end_of_night_calibration/eon_deferral.dart';
@@ -235,8 +229,7 @@ export 'src/services/live_stack_master_library.dart';
 export 'src/services/live_stacking_broadcast_service.dart';
 // Stack-and-Share Loop (components C6/C8): orchestrator + share/export service.
 export 'src/services/stack_and_share_service.dart';
-export 'src/services/stack_light_selector.dart'
-    show NoLightsToStackException, StackLightSelector, stackLightSelectorProvider;
+export 'src/services/stack_light_selector.dart' show NoLightsToStackException, StackLightSelector;
 export 'src/services/stack_share_export_service.dart';
 // Post-session (offline/batch) integration: archival masters + multi-night
 // accumulation + master-flat library.
@@ -255,8 +248,7 @@ export 'src/services/flat_library_service.dart';
 // deficit loop.
 export 'src/services/smart_project_service.dart';
 // Smart Morning Report (v42): Night Doctor diagnostics + report computation.
-export 'src/services/night_analysis_service.dart'
-    show NightAnalysisService, nightAnalysisServiceProvider;
+export 'src/services/night_analysis_service.dart' show NightAnalysisService;
 // Smart Morning Report (v42): catalog-powered finishing — SPCC colour
 // calibration + the master annotation layer.
 export 'src/services/color_calibration_service.dart';

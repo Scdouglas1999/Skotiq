@@ -397,7 +397,7 @@ impl CameraDriver for QhyCamera {
                     self.device_id
                 ))
             })?;
-            if let Some((min_temp, max_temp)) = crate::quirks::get_cooler_range(&self.device_id) {
+            if let Some((min_temp, max_temp)) = crate::quirks::get_cooler_range(&Vendor::Qhy, &self.camera_id) {
                 if target < min_temp || target > max_temp {
                     return Err(DriverError::InvalidParameter(format!(
                         "QHY cooler target {target}C is outside the supported range {min_temp}C..={max_temp}C for {}",
@@ -440,7 +440,7 @@ impl CameraDriver for QhyCamera {
         if !self.has_thermometer {
             return Err(DriverError::NotSupported);
         }
-        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&self.device_id) {
+        if let Some(delay_ms) = crate::quirks::get_temperature_delay_ms(&Vendor::Qhy, DeviceKind::Camera, &self.camera_id) {
             tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         }
         let sdk = self.sdk().await?;

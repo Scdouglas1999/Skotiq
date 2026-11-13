@@ -10,10 +10,11 @@ import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
 import 'package:skotiq_core/src/services/open_plan_service.dart';
-import 'package:skotiq_core/src/services/sequence_file_service.dart';
-import 'package:skotiq_core/src/services/sequence_repository.dart';
 
 import '../harness/in_memory_database.dart';
+import 'package:skotiq_core/src/providers/open_plan_service_provider.dart';
+import 'package:skotiq_core/src/providers/sequence_file_service_provider.dart';
+import 'package:skotiq_core/src/providers/sequence_repository_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

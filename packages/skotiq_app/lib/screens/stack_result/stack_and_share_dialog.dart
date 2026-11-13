@@ -8,7 +8,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../imaging/widgets/osc_stacking_controls.dart';
+import '../../widgets/osc_stacking_controls.dart';
 import '../../router/app_routes.dart';
 
 /// A run failure split into what the operator reads and what a developer needs.

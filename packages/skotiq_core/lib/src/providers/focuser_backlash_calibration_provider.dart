@@ -8,11 +8,11 @@ import '../backend/skotiq_exception.dart' show SkotiqException;
 import '../models/autofocus_progress.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/focuser_backlash_progress.dart';
-import '../services/device_service.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'focuser_backlash_provider.dart';
 import '../models/backend/backend_types.dart';
+import 'device_service_providers.dart';
 
 /// Live state of a focuser backlash calibration run.
 class FocuserBacklashCalibrationState {

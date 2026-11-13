@@ -132,42 +132,11 @@ impl DeviceManager {
         }
     }
 
-    /// Same shape as `availability_from_native_result` but for drivers that
-    /// surface errors as plain `String` (Alpaca, INDI). Without a typed
-    /// "unsupported" variant we always classify failures as `Error(reason)`.
-    pub(crate) fn availability_from_string_result<T>(
-        result: Result<T, String>,
-        field: &'static str,
-        availability: &mut HashMap<String, FieldAvailability>,
-    ) -> Option<T> {
-        match result {
-            Ok(v) => {
-                Self::set_mount_availability(availability, field, FieldAvailability::Available);
-                Some(v)
-            }
-            Err(e) => {
-                Self::set_mount_availability(availability, field, FieldAvailability::Error(e));
-                None
-            }
-        }
-    }
-
     pub(crate) fn pier_side_from_native(side: skotiq_device::PierSide) -> crate::device::PierSide {
         match side {
             skotiq_device::PierSide::East => crate::device::PierSide::East,
             skotiq_device::PierSide::West => crate::device::PierSide::West,
             skotiq_device::PierSide::Unknown => crate::device::PierSide::Unknown,
-        }
-    }
-
-    pub(crate) fn pier_side_from_indi_element(element: &str) -> crate::device::PierSide {
-        let upper = element.to_ascii_uppercase();
-        if upper.contains("EAST") || upper.ends_with("_E") || upper == "PIER_E" {
-            crate::device::PierSide::East
-        } else if upper.contains("WEST") || upper.ends_with("_W") || upper == "PIER_W" {
-            crate::device::PierSide::West
-        } else {
-            crate::device::PierSide::Unknown
         }
     }
 

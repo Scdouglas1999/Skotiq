@@ -16,6 +16,7 @@ import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/first_light_provider.dart';
 import 'package:skotiq_core/src/services/first_light/first_light_orchestrator.dart';
 import 'package:skotiq_core/src/services/imaging_service.dart';
+import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 
 /// An imaging service whose exposure never finishes on its own — the state the
 /// cancel exists for. `cancelExposure` records the device-level abort and

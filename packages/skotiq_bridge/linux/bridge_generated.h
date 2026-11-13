@@ -15,12 +15,6 @@ void store_dart_post_cobject(DartPostCObjectFnType ptr);
 typedef struct _Dart_Handle* Dart_Handle;
 
 /**
- * The `SensorType` ordinal for an RGGB-family colour-filter array, the one
- * family whose element order [`BayerPattern`] can name.
- */
-#define SENSOR_TYPE_RGGB 2
-
-/**
  * Jobs waiting behind the one in flight. Frames arrive one per exposure
  * (tens of seconds apart) and a job takes about a second per goal, so a
  * backlog this deep means analysis is not keeping up and shedding is the

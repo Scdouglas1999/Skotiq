@@ -241,11 +241,11 @@ impl FocuserDriver for FliFocuser {
         }
     }
 
-    fn get_max_position(&self) -> i32 {
+    async fn get_max_position(&self) -> i32 {
         self.max_position
     }
 
-    fn get_step_size(&self) -> f64 {
+    async fn get_step_size(&self) -> f64 {
         1.0 // FLI focusers use step units
     }
 

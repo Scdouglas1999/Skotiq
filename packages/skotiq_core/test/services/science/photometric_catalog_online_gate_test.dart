@@ -13,6 +13,7 @@ import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/services/science/photometric_catalog_service.dart';
+import 'package:skotiq_core/src/providers/science/photometric_catalog_service_provider.dart';
 
 class _ThrowingSettingsDao extends SettingsDao {
   _ThrowingSettingsDao(super.db);

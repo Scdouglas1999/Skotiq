@@ -12,7 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../widgets/catalogs/sky_catalog_download_panel.dart';
 
 import 'optical_train_step.dart';
-import '../../settings/settings_sections.dart';
+import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
 
 /// Terminal "what's next" step shown after the equipment profile is created.

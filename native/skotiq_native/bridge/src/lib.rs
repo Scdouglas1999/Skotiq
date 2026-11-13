@@ -54,7 +54,6 @@ mod ascom_exposure_apply;
 // the ASCOM SensorType → Bayer-order mapping is shared by the Windows-only COM
 // worker and the platform-independent Alpaca download path, so it lives here
 // and is regression-tested on every platform.
-mod ascom_sensor_type;
 #[cfg(windows)]
 mod ascom_wrapper;
 mod builtin_guider;

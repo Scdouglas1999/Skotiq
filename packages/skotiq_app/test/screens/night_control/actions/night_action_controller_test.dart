@@ -4,7 +4,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/models/command_action_result.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';

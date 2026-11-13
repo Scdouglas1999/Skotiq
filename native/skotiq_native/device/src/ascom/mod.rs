@@ -11,13 +11,17 @@
 
 pub mod camera;
 pub mod cover_calibrator;
+mod device_type;
 pub mod dome;
 mod errors;
 pub mod interfaces;
 pub mod members;
 pub mod observing_conditions;
+pub mod sensor_type;
+pub mod telescope;
 mod types;
 
+pub use device_type::AscomDeviceType;
 pub use errors::classify_error_number;
 pub use types::*;
 

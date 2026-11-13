@@ -13,9 +13,11 @@ import '../providers/database_provider.dart';
 import '../utils/skotiq_data_directory.dart';
 import 'calibration/fits_header_reader.dart';
 import 'darkroom_build_service.dart';
-import 'darkroom_state_store.dart';
 import 'notification_service.dart';
-import 'post_session_seam.dart';
+import '../providers/darkroom_build_service_provider.dart';
+import '../providers/darkroom_state_store_provider.dart';
+import '../providers/notification_service_provider.dart';
+import '../providers/post_session_seam_provider.dart';
 
 /// Where a master build is.
 enum DarkroomJobStage {
@@ -1077,8 +1079,3 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     }
   }
 }
-
-final darkroomBuildJobsProvider =
-    NotifierProvider<DarkroomBuildJobs, DarkroomBuildJob?>(
-      DarkroomBuildJobs.new,
-    );

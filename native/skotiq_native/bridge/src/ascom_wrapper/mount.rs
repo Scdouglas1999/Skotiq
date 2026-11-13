@@ -15,8 +15,7 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomMount;
-use skotiq_device::Vendor;
-use skotiq_device::{DeviceDriver, DriverError, GuideDirection, MountDriver, TrackingRate};
+use skotiq_device::{DeviceDriver, DriverError, GuideDirection, MountDriver, TrackingRate, Vendor};
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -927,19 +926,19 @@ impl MountDriver for AscomMountWrapper {
         }
     }
 
-    fn can_slew(&self) -> bool {
+    async fn can_slew(&self) -> bool {
         true
     }
 
-    fn can_sync(&self) -> bool {
+    async fn can_sync(&self) -> bool {
         true
     }
 
-    fn can_pulse_guide(&self) -> bool {
+    async fn can_pulse_guide(&self) -> bool {
         true
     }
 
-    fn can_set_tracking_rate(&self) -> bool {
+    async fn can_set_tracking_rate(&self) -> bool {
         false
     }
 }

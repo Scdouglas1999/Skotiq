@@ -514,19 +514,19 @@ impl skotiq_device::MountDriver for TraceMount {
         self.saw("get_tracking_rate");
         Ok(self.rate)
     }
-    fn can_slew(&self) -> bool {
+    async fn can_slew(&self) -> bool {
         self.saw("can_slew");
         true
     }
-    fn can_sync(&self) -> bool {
+    async fn can_sync(&self) -> bool {
         self.saw("can_sync");
         true
     }
-    fn can_pulse_guide(&self) -> bool {
+    async fn can_pulse_guide(&self) -> bool {
         self.saw("can_pulse_guide");
         true
     }
-    fn can_set_tracking_rate(&self) -> bool {
+    async fn can_set_tracking_rate(&self) -> bool {
         self.saw("can_set_tracking_rate");
         true
     }
@@ -579,9 +579,9 @@ impl skotiq_device::MountDriver for TraceMount {
         ));
         Ok(())
     }
-    fn can_find_home(&self) -> bool {
+    async fn can_find_home(&self) -> Result<bool, skotiq_device::DriverError> {
         self.saw("can_find_home");
-        true
+        Ok(true)
     }
     async fn find_home(&mut self) -> Result<(), skotiq_device::DriverError> {
         self.saw("find_home");
@@ -591,9 +591,9 @@ impl skotiq_device::MountDriver for TraceMount {
         self.saw("at_home");
         Ok(false)
     }
-    fn can_set_park(&self) -> bool {
+    async fn can_set_park(&self) -> Result<bool, skotiq_device::DriverError> {
         self.saw("can_set_park");
-        true
+        Ok(true)
     }
     async fn set_park(&mut self) -> Result<(), skotiq_device::DriverError> {
         self.saw("set_park");

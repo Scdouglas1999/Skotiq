@@ -97,7 +97,7 @@ final observerLocationProvider =
 ///
 /// Planetarium-local because `skotiq_core` owns the persisted setting and
 /// already depends on this package for catalog access; the app layer syncs the
-/// two (`skotiq_app/lib/services/location_sync_service.dart`). The name is
+/// two (`skotiq_app/lib/startup/location_sync_service.dart`). The name is
 /// deliberately distinct from core's `effectiveHorizonDegProvider` to avoid
 /// `ambiguous_import` where both umbrellas are in scope.
 final planetariumEffectiveHorizonDegProvider = StateProvider<double>(

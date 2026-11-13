@@ -7,12 +7,12 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../widgets/weather/weather_radar_map.dart';
-import '../../widgets/weather/radar_timeline_scrubber.dart';
-import '../../widgets/weather/weather_status_card.dart';
-import '../../widgets/weather/satellite_legend.dart';
+import 'widgets/weather_radar_map.dart';
+import 'widgets/radar_timeline_scrubber.dart';
+import 'widgets/weather_status_card.dart';
+import 'widgets/satellite_legend.dart';
 import '../../tours/tour_target.dart';
-import '../settings/settings_sections.dart';
+import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
 
 part 'weather_screen/header_and_radar_controls.dart';

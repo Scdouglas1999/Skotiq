@@ -8,6 +8,7 @@ import '../backend/skotiq_backend.dart';
 import '../providers/backend_provider.dart';
 import '../services/logging_service.dart';
 import '../backend/remote_host.dart';
+import '../providers/logging_service_provider.dart';
 
 class LiveStackingConfig {
   /// Whether sigma clipping is enabled for pixel rejection.
@@ -727,8 +728,3 @@ class LiveStackingService {
     );
   }
 }
-
-final liveStackingServiceProvider = Provider<LiveStackingService>((ref) {
-  final backend = ref.watch(backendProvider);
-  return LiveStackingService(ref, backend: backend);
-});

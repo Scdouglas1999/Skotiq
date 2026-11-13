@@ -1,12 +1,9 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart' as db;
 import '../../models/scheduler/integration_goal.dart';
-import '../../providers/backend_provider.dart';
-import '../../providers/database_provider.dart';
 import '../../utils/resilient_poll_stream.dart';
 import '../../backend/remote_host.dart';
 
@@ -245,13 +242,3 @@ class IntegrationGoalService {
     );
   }
 }
-
-final integrationGoalServiceProvider = Provider<IntegrationGoalService>((ref) {
-  final backend = ref.watch(backendProvider);
-  final service = IntegrationGoalService(
-    ref.watch(databaseProvider),
-    remote: backend.remoteHost?.planning,
-  );
-  ref.onDispose(() => service.dispose());
-  return service;
-});

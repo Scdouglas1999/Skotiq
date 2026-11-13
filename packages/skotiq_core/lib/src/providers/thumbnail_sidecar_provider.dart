@@ -2,8 +2,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/logging_service.dart';
 import '../services/thumbnail_sidecar_service.dart';
+import 'logging_service_provider.dart';
 
 /// Override-point for the FFI thumbnail generator. Default points at the
 /// Rust binding via `defaultGenerateFitsThumbnail`. Tests override this

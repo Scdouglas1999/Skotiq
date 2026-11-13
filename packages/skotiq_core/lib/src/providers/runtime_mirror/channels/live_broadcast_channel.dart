@@ -8,6 +8,7 @@ import '../../backend_provider.dart';
 import '../../web_server_provider.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
+import '../../live_stacking_broadcast_service_providers.dart';
 
 /// Whether the audience can open a live broadcast.
 enum LiveBroadcastReach {

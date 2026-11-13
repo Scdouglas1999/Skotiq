@@ -42,6 +42,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
 import 'darkroom_previews.dart';
+import '../../router/darkroom_route.dart';
 
 part 'darkroom_controller_parts/_models.dart';
 part 'darkroom_controller_parts/_state.dart';

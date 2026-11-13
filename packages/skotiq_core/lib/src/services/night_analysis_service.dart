@@ -2,13 +2,11 @@ import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations;
 
 import '../database/daos/images_dao.dart';
 import '../database/daos/night_reports_dao.dart';
-import '../providers/database_provider.dart';
 import '../database/daos/science_dao.dart';
 import '../database/database.dart';
 import '../models/imaging/night_report.dart';
@@ -382,14 +380,3 @@ class NightAnalysisService {
     return b.severity.index.compareTo(a.severity.index);
   }
 }
-
-/// Riverpod provider for the Night Doctor. Constructor-injected DAOs mirror the
-/// post-session services' idiom so tests override the DAO providers (or
-/// construct the service directly) to run without native code.
-final nightAnalysisServiceProvider = Provider<NightAnalysisService>((ref) {
-  return NightAnalysisService(
-    images: ref.watch(imagesDaoProvider),
-    science: ref.watch(scienceDaoProvider),
-    reports: ref.watch(nightReportsDaoProvider),
-  );
-});

@@ -1,10 +1,10 @@
-use crate::ascom_sensor_type::is_colour_sensor;
 use crate::device::TrackingRate;
 use crate::device_capabilities::types::{
     CameraCapabilities, DeviceCapabilities, MountCapabilities,
 };
 use crate::device_id::cache::parse_device_id_cached;
 use crate::error::SkotiqError;
+use skotiq_device::ascom::sensor_type::is_colour_sensor;
 
 /// What an Alpaca telescope supports, read through `telescope`, which must
 /// be connected. Every `CanXxx` flag is an optional ASCOM property a driver

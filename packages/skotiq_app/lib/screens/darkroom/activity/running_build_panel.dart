@@ -10,6 +10,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'activity_panel.dart';
+import 'package:skotiq_core/providers.dart';
 
 /// The build running now: its stage, how far it is, the time left, and Stop.
 /// A build that ended (stopped by a restart or by Stop, failed, or done)

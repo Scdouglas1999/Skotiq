@@ -4,13 +4,13 @@ import 'package:skotiq_astro/format.dart';
 import '../models/backend/device_capabilities.dart';
 import '../services/disk_space_guard.dart';
 import '../services/disk_space_service.dart';
-import '../services/logging_service.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'capability_provider.dart';
 import 'equipment_provider.dart';
 import 'sequence_provider.dart';
 import 'settings_provider.dart';
+import 'logging_service_provider.dart';
 
 /// Host-OS disk-space query backend.
 ///

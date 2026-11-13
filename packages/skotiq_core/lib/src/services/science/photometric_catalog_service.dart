@@ -14,6 +14,7 @@ import '../../providers/database_provider.dart';
 import '../logging_service.dart';
 import '../../utils/skotiq_data_directory.dart';
 import 'photometric_bands.dart';
+import '../../providers/logging_service_provider.dart';
 
 /// One catalog star usable for photometric work: position, Johnson V, and
 /// (when the catalog provides them) a B-V color index and Sloan r'.
@@ -530,9 +531,3 @@ class PhotometricCatalogService {
         .toList(growable: false);
   }
 }
-
-final photometricCatalogServiceProvider = Provider<PhotometricCatalogService>((
-  ref,
-) {
-  return PhotometricCatalogService(ref);
-});

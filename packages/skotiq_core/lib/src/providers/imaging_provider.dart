@@ -5,8 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/database.dart' as db;
 import '../models/imaging/imaging_models.dart';
 import '../models/imaging/auto_stretch_settings.dart';
+import '../models/backend/device_capabilities.dart';
+import '../models/equipment/equipment_models.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
+import 'capability_provider.dart' show cameraSensitivityProvider;
+import 'equipment/camera_state_provider.dart';
 import 'database_provider.dart';
 import '../services/darkroom_build_service.dart' show observingNight;
 import 'host_settings/host_settings_providers.dart'
@@ -141,6 +145,25 @@ class ManualExposureSettingsUpdater {
       updateManualExposureSettings(_ref, settings);
 }
 
+/// The connected imaging camera's id, the gain it reports and its
+/// sensitivity; the id is null while no camera is connected.
+final _connectedCameraIsoProvider =
+    Provider<(String?, int?, ExposureSensitivity)>((ref) {
+      final (connected, deviceId, gain) = ref.watch(
+        cameraStateProvider.select(
+          (s) => (
+            s.connectionState == DeviceConnectionState.connected,
+            s.deviceId,
+            s.gain,
+          ),
+        ),
+      );
+      if (!connected || deviceId == null || deviceId.isEmpty) {
+        return (null, null, const GainSensitivity());
+      }
+      return (deviceId, gain, ref.watch(cameraSensitivityProvider));
+    });
+
 /// Call this provider from the imaging screen's initState/build to ensure
 /// snapshot controls are initialized from the active equipment profile.
 ///
@@ -156,6 +179,33 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
   String? loadedProfileKey;
   var loadInFlight = false;
   ref.onDispose(() => disposed = true);
+
+  // A DSLR or mirrorless body is set to an ISO of its own (its dial, its
+  // menu, the last program that drove it). Once per connection, after the
+  // profile's snapshot is loaded, the snapshot takes the ISO the body
+  // reports, so the ISO picker shows what the body is at and the next frame
+  // does not silently change it.
+  String? adoptedFor;
+  void adoptBodyIso() {
+    if (disposed || loadedProfileKey == null) return;
+    final (deviceId, reported, sensitivity) = ref.read(
+      _connectedCameraIsoProvider,
+    );
+    if (deviceId == null) {
+      adoptedFor = null;
+      return;
+    }
+    if (adoptedFor == deviceId ||
+        reported == null ||
+        sensitivity is! IsoSensitivity ||
+        !sensitivity.speeds.contains(reported)) {
+      return;
+    }
+    adoptedFor = deviceId;
+    final current = ref.read(exposureSettingsProvider);
+    if (current.gain == reported) return;
+    updateManualExposureSettings(ref, current.copyWith(gain: reported));
+  }
 
   Future<void>.microtask(() {
     final profileKey = profile.id?.toString() ?? profile.name;
@@ -184,25 +234,27 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
       loadInFlight = false;
       // A manual edit completed while the DAO was reading. Its value is
       // newer than the stored snapshot and must win the race.
-      if (ref.read(_manualExposureRevisionProvider) != revisionAtStart) {
-        return;
+      if (ref.read(_manualExposureRevisionProvider) == revisionAtStart &&
+          !disposed) {
+        ref.read(exposureSettingsProvider.notifier).state =
+            saved ??
+            ExposureSettings(
+              exposureTime: 2,
+              gain: profile.defaultGain ?? 100,
+              offset: profile.defaultOffset ?? 50,
+              binningX: profile.defaultBinX,
+              binningY: profile.defaultBinY,
+              frameType: FrameType.light,
+            );
       }
-      if (disposed) return;
-      if (saved != null) {
-        ref.read(exposureSettingsProvider.notifier).state = saved;
-        return;
-      }
-
-      ref.read(exposureSettingsProvider.notifier).state = ExposureSettings(
-        exposureTime: 2,
-        gain: profile.defaultGain ?? 100,
-        offset: profile.defaultOffset ?? 50,
-        binningX: profile.defaultBinX,
-        binningY: profile.defaultBinY,
-        frameType: FrameType.light,
-      );
+      adoptBodyIso();
     }();
   });
+
+  ref.listen<(String?, int?, ExposureSensitivity)>(
+    _connectedCameraIsoProvider,
+    (_, __) => adoptBodyIso(),
+  );
 
   // Follow the row when it changes under this screen: on the host when a
   // linked client or a script writes it, on a client when the host's screen or

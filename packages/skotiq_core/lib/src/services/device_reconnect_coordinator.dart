@@ -13,6 +13,8 @@ import 'logging_service.dart';
 import 'notification_service.dart';
 import '../backend/remote_host.dart';
 import '../models/backend/backend_types.dart';
+import '../providers/logging_service_provider.dart';
+import '../providers/notification_service_provider.dart';
 
 /// Coordinates the device auto-reconnect lifecycle.
 ///

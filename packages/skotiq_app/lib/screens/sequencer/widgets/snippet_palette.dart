@@ -14,7 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../utils/exported_file_reveal.dart';
-import '../../accessible_dropdown.dart';
+import '../../../widgets/accessible_dropdown.dart';
 import 'node_appearance.dart';
 
 part 'snippet_palette/rendering.dart';

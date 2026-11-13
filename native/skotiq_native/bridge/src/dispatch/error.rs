@@ -171,10 +171,25 @@ impl DeviceOpError {
     ) -> Self {
         use skotiq_device::DriverError as N;
         match cause {
-            N::Backend(inner) => match inner.downcast::<DeviceOpError>() {
-                Ok(op) => op.reworded(device_id, detail),
-                Err(_) => DeviceOpError::Hardware { device_id, detail },
-            },
+            // A protocol driver hands its failure over in the protocol's own
+            // error, for the words; the protocol crate says what kind it is.
+            N::Backend(inner) => {
+                let inner = match inner.downcast::<DeviceOpError>() {
+                    Ok(op) => return op.reworded(device_id, detail),
+                    Err(inner) => inner,
+                };
+                let kind = match inner.downcast::<skotiq_alpaca::AlpacaError>() {
+                    Ok(alpaca) => N::from(*alpaca),
+                    Err(inner) => match inner.downcast::<skotiq_indi::IndiError>() {
+                        Ok(indi) => N::from(*indi),
+                        Err(other) => N::Backend(other),
+                    },
+                };
+                match kind {
+                    N::Backend(_) => DeviceOpError::Hardware { device_id, detail },
+                    kind => Self::from_driver(device_id, detail, kind),
+                }
+            }
             N::NotConnected | N::Disconnected => DeviceOpError::NotConnected { device_id, detail },
             N::NotSupported => DeviceOpError::Unsupported { detail },
             N::InvalidParameter(_) => DeviceOpError::InvalidParameter { detail },

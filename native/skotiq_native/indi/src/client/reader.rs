@@ -552,6 +552,43 @@ impl IndiClient {
                         if let Some(elem) = get_attribute(e, "name") {
                             current_element = elem;
                         }
+                        // A driver changes a number's range by sending it
+                        // with the new `min`, `max` and `step` (libindi's
+                        // IUUpdateMinMax): a camera defines its frame with
+                        // no range and sends the sensor's once it knows it.
+                        if name_bytes == b"oneNumber" {
+                            let attribute = |name: &'static str| {
+                                get_attribute(e, name).and_then(|s| {
+                                    parse_indi_number_attribute(
+                                        name,
+                                        &current_device,
+                                        &current_property,
+                                        &current_element,
+                                        &s,
+                                    )
+                                })
+                            };
+                            let (min, max, step) =
+                                (attribute("min"), attribute("max"), attribute("step"));
+                            if min.is_some() || max.is_some() || step.is_some() {
+                                let mut limits_map = number_limits.write().await;
+                                let limits = limits_map
+                                    .entry((
+                                        current_device.clone(),
+                                        current_property.clone(),
+                                        current_element.clone(),
+                                    ))
+                                    .or_insert(NumberLimits {
+                                        min: None,
+                                        max: None,
+                                        step: None,
+                                        format: None,
+                                    });
+                                limits.min = min.or(limits.min);
+                                limits.max = max.or(limits.max);
+                                limits.step = step.or(limits.step);
+                            }
+                        }
                     }
                     // Detect protocol version from server response
                     else if name_bytes == b"getProperties" {

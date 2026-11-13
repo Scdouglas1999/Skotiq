@@ -2,13 +2,14 @@
 //!
 //! Methods in this module are additional impl blocks on `DeviceManager` and
 //! provide Alpaca-only logic for `connect_*` and `perform_*_health_check`. They are invoked from the dispatcher methods in
-//! `crate::device_manager`.
+//! `crate::device_manager`. No behavior or signature has changed relative to the
+//! previous monolithic `devices.rs`.
 
 use crate::device::{DeviceInfo, DeviceType};
 use crate::device_manager::handle::DeviceHandle;
 use crate::device_manager::rig::ascom::{AscomFilterWheel, AscomFocuser};
-use crate::device_manager::rig::camera::alpaca::AlpacaCameraHandle;
-use crate::device_manager::rig::mount::alpaca::AlpacaMount;
+use crate::device_manager::rig::camera::driver::DriverCamera;
+use crate::device_manager::rig::mount::driver::DriverMount;
 use crate::device_manager::DeviceManager;
 use std::sync::Arc;
 
@@ -45,7 +46,10 @@ impl DeviceManager {
                 camera.connect().await.map_err(|e| e.to_string())?;
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Camera(Arc::new(AlpacaCameraHandle::new(&info.id, camera))),
+                    DeviceHandle::Camera(Arc::new(DriverCamera::alpaca(
+                        &info.id,
+                        skotiq_alpaca::AlpacaCameraDriver::new(camera),
+                    ))),
                 );
             }
             DeviceType::Mount => {
@@ -55,7 +59,10 @@ impl DeviceManager {
                     .await;
                 self.handles.insert(
                     &info.id,
-                    DeviceHandle::Mount(Arc::new(AlpacaMount::new(&info.id, telescope))),
+                    DeviceHandle::Mount(Arc::new(DriverMount::alpaca(
+                        &info.id,
+                        skotiq_alpaca::AlpacaMount::new(telescope),
+                    ))),
                 );
             }
             DeviceType::Focuser => {

@@ -17,7 +17,7 @@ import 'package:skotiq_astro/skotiq_astro.dart'
 
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import '../../../tours/tour_target.dart';
-import '../altitude_chart.dart';
+import '../../../widgets/altitude_chart.dart';
 import '../framing_search_provider.dart';
 import 'framing_controls.dart';
 import 'framing_panel_parts.dart';

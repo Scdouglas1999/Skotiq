@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
@@ -9,13 +8,10 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../backend/roles/host_data/calibration_library.dart';
 import '../database/database.dart';
 import '../database/daos/flat_library_dao.dart';
-import '../providers/database_provider.dart';
 import '../database/daos/integrated_masters_dao.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/calibration/calibration_library_models.dart';
-import '../providers/dark_library_provider.dart';
 import 'calibration/fits_header_reader.dart';
-import 'calibration_library_service.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
 import 'disk_space_service.dart';
@@ -1578,21 +1574,3 @@ class DarkroomBuildService {
     await temporary.rename(file.path);
   }
 }
-
-final darkroomBuildServiceProvider = Provider(
-  (ref) => DarkroomBuildService(
-    operation: (request) async => Map<String, dynamic>.from(
-      jsonDecode(
-            await bridge.apiMasterAccumulate(argsJson: jsonEncode(request)),
-          )
-          as Map,
-    ),
-    processingSettings: () =>
-        DarkroomProcessingOptions.load(ref.read(settingsDaoProvider)),
-    library: ref.watch(calibrationLibraryProvider),
-    masters: ref.watch(integratedMastersDaoProvider),
-    buildMaster: ref.watch(calibrationMasterBuildProvider),
-    darkLibrary: ref.watch(darkLibraryServiceProvider),
-    flatLibrary: ref.watch(flatLibraryDaoProvider),
-  ),
-);
