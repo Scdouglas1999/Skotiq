@@ -489,7 +489,7 @@ Future<void> main() async {
       );
       await _write(
         root,
-        'packages/skotiq_app/lib/screens/night_control/first_night_entry.dart',
+        'packages/skotiq_app/lib/tours/first_night_entry.dart',
         "import '../router/app_router.dart';\n",
       );
       await _write(
