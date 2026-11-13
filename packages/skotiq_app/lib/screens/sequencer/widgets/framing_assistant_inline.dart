@@ -75,6 +75,7 @@ class FramingAssistantDialog extends ConsumerWidget {
         ),
       ],
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
             width: AdaptiveDialogConstraints.clampPanelWidth(
