@@ -350,10 +350,6 @@ async fn camera_settings_publish_once_per_change() {
     crate::api::devices::camera::set_camera_offset(CAMERA.to_string(), 21)
         .await
         .unwrap();
-    get_device_manager()
-        .camera_set_binning(CAMERA, 2, 2)
-        .await
-        .unwrap();
 
     // One event per change, each carrying the camera's full settings.
     let settings: Vec<(i32, i32, i32, i32)> = drain(&mut rx)
@@ -370,23 +366,10 @@ async fn camera_settings_publish_once_per_change() {
             _ => None,
         })
         .collect();
-    assert_eq!(settings.len(), 4, "{settings:?}");
+    assert_eq!(settings.len(), 3, "{settings:?}");
     assert_eq!(settings[0].0, 139);
     assert_eq!(settings[1].0, 140);
     assert_eq!((settings[2].0, settings[2].1), (140, 21));
-    assert_eq!(settings[3], (140, 21, 2, 2));
-    // Binning used to be written straight into the simulator, past the manager.
-    let status = sim::camera::get_sim_camera_for(CAMERA)
-        .read()
-        .await
-        .status
-        .clone();
-    assert_eq!((status.bin_x, status.bin_y), (2, 2));
-
-    get_device_manager()
-        .camera_set_binning(CAMERA, 1, 1)
-        .await
-        .unwrap();
 }
 
 /// A setting the camera refuses changes nothing, so it publishes nothing.

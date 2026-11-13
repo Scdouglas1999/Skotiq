@@ -186,18 +186,6 @@ pub enum FrameType {
     DarkFlat,
 }
 
-impl FrameType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FrameType::Light => "Light",
-            FrameType::Dark => "Dark",
-            FrameType::Flat => "Flat",
-            FrameType::Bias => "Bias",
-            FrameType::DarkFlat => "Dark Flat",
-        }
-    }
-}
-
 /// Per-field availability for `MountStatus` so the UI can distinguish
 /// "mount reports X" from "we couldn't read X" from "mount doesn't support X".
 ///
@@ -313,13 +301,6 @@ pub enum TrackingRate {
     Custom,
 }
 
-/// Coordinates for slewing
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct Coordinates {
-    pub ra: f64,  // Right Ascension in hours (0-24)
-    pub dec: f64, // Declination in degrees (-90 to +90)
-}
-
 /// Current status of a focuser
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FocuserStatus {
@@ -343,13 +324,6 @@ pub struct FilterWheelStatus {
     pub filter_names: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FilterInfo {
-    pub position: i32,
-    pub name: String,
-    pub focus_offset: Option<i32>,
-}
-
 /// Current status of a rotator
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RotatorStatus {
@@ -359,23 +333,6 @@ pub struct RotatorStatus {
     pub mechanical_position: f64,
     pub is_moving: bool,
     pub can_reverse: bool,
-}
-
-/// Weather data from a weather station
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WeatherData {
-    pub connected: bool,
-    pub temperature: Option<f64>,    // Celsius
-    pub humidity: Option<f64>,       // Percent
-    pub pressure: Option<f64>,       // hPa
-    pub dew_point: Option<f64>,      // Celsius
-    pub wind_speed: Option<f64>,     // m/s
-    pub wind_direction: Option<f64>, // Degrees
-    pub cloud_cover: Option<f64>,    // Percent
-    pub sky_brightness: Option<f64>, // Lux
-    pub sky_quality: Option<f64>,    // mag/arcsec²
-    pub rain_rate: Option<f64>,      // mm/hr
-    pub is_safe: bool,
 }
 
 /// Weather conditions from observing conditions device (raw sensor readings)
@@ -470,7 +427,7 @@ impl CoverState {
     }
 
     /// Convert to ASCOM/Alpaca integer value
-    pub fn to_i32(&self) -> i32 {
+    pub fn to_i32(self) -> i32 {
         match self {
             CoverState::NotPresent => 0,
             CoverState::Closed => 1,
@@ -514,7 +471,7 @@ impl CalibratorState {
     }
 
     /// Convert to ASCOM/Alpaca integer value
-    pub fn to_i32(&self) -> i32 {
+    pub fn to_i32(self) -> i32 {
         match self {
             CalibratorState::NotPresent => 0,
             CalibratorState::Off => 1,

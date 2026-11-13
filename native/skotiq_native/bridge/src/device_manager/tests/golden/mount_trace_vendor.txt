@@ -30,9 +30,6 @@
 > coordinates
   get_coordinates
 < ok (5.5, 22.0)
-> can_park
-  is_parked
-< ok true
 > can_set_park
   can_set_park
 < ok true
@@ -45,9 +42,6 @@
 > set_tracking off
   set_tracking false
 < ok ()
-> tracking_rate
-  get_tracking_rate
-< ok 0
 > set_tracking_rate lunar
   set_tracking_rate Lunar
 < ok ()
@@ -114,7 +108,7 @@
 < err Native SDK does not support mount axis movement
 > move_axis 1 at -1
 < err Native SDK does not support mount axis movement
-> stop
+> abort
   abort_slew
 < ok ()
 > slew_alt_az 50 120

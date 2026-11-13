@@ -1,4 +1,4 @@
-use crate::adaptive_polling::{AdaptivePoller, PollerPreset};
+use crate::adaptive_polling::AdaptivePoller;
 use crate::event::equipment::EventSeverity;
 use crate::event::imaging::ImagingEvent;
 use crate::state::SharedAppState;
@@ -61,7 +61,7 @@ where
     let start_time = std::time::Instant::now();
     let exposure = std::time::Duration::from_secs_f64(duration_secs.max(0.0));
     let mut reading_out = false;
-    let mut poller: AdaptivePoller<bool> = AdaptivePoller::from_preset(PollerPreset::Exposure);
+    let mut poller: AdaptivePoller<bool> = AdaptivePoller::exposure();
 
     loop {
         if exposure_abort_generation(camera_id).await != acquisition_generation {

@@ -165,16 +165,6 @@ impl DeviceManager {
         mount.abort().await
     }
 
-    pub async fn mount_stop(&self, device_id: &str) -> Result<(), DeviceOpError> {
-        crate::device_manager::motion_guard::record_command(
-            device_id,
-            crate::device_manager::motion_guard::CommandKind::Abort,
-        );
-        let mount = self.mount(device_id).await?;
-
-        mount.stop().await
-    }
-
     /// Move an axis at the specified rate (degrees/second)
     /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)
     /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop

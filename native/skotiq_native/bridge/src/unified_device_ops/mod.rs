@@ -243,10 +243,3 @@ impl UnifiedDeviceOps {
 pub fn create_unified_device_ops() -> Arc<dyn skotiq_sequencer::DeviceOps> {
     Arc::new(UnifiedDeviceOps::new(crate::state::get_state().clone()))
 }
-
-/// Create a unified DeviceOps instance with a specific app state
-pub fn create_unified_device_ops_with_state(
-    app_state: SharedAppState,
-) -> Arc<dyn skotiq_sequencer::DeviceOps> {
-    Arc::new(UnifiedDeviceOps::new(app_state))
-}

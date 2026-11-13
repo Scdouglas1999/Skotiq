@@ -28,7 +28,9 @@ import '../../backend/bridge_events.dart'
         FlipOutcome,
         SequencerErrorKind,
         SequencerEvent_DecisionLogged,
+        SequencerEvent_TriggerFired,
         SequencerStop,
+        SequencerTriggerAction,
         decodeFlipOutcome;
 import '../../backend/frame_capture_metadata.dart';
 import '../../backend/sequencer_error_kind.dart';
@@ -521,7 +523,9 @@ final class TriggerFired extends SequencerRunEvent {
 
   final String? triggerId;
   final String? triggerName;
-  final String? action;
+
+  /// Null only when the host's event could not be read at all.
+  final SequencerTriggerAction? action;
 }
 
 /// A frame the grader ruled on: [FrameAccepted] or [FrameRejected].
@@ -912,7 +916,7 @@ SequencerRunEvent _decode(SkotiqEvent event) {
         severity: sev,
         triggerId: d.string('trigger_id'),
         triggerName: d.string('trigger_name'),
-        action: d.string('action'),
+        action: _triggerActionOf(event),
       );
 
     case 'FrameAccepted':
@@ -1099,6 +1103,15 @@ extension type const _Fields(Map<String, dynamic> data) {
     return v is bool ? v : null;
   }
 }
+
+SequencerTriggerAction? _triggerActionOf(SkotiqEvent event) =>
+    switch (typedEventFromWire(event)?.payload) {
+      EventPayload_Sequencer(
+        field0: SequencerEvent_TriggerFired(:final action),
+      ) =>
+        action,
+      _ => null,
+    };
 
 SequencerStop? _decisionStopOf(SkotiqEvent event) => switch (typedEventFromWire(
   event,

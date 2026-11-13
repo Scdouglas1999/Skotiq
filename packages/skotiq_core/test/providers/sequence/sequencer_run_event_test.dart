@@ -435,12 +435,16 @@ void main() {
       const bridge.SequencerEvent.triggerFired(
         triggerId: 'dawn',
         triggerName: 'Dawn Approaching',
-        action: 'ParkAndAbort',
+        action: bridge.SequencerTriggerAction.parkAndAbort,
       ),
     )) {
       expect(
         e,
-        isA<TriggerFired>().having((e) => e.action, 'action', 'ParkAndAbort'),
+        isA<TriggerFired>().having(
+          (e) => e.action,
+          'action',
+          bridge.SequencerTriggerAction.parkAndAbort,
+        ),
       );
     }
     for (final e in both(
