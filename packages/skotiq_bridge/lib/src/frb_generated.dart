@@ -22,6 +22,7 @@ import 'api/event_stream.dart';
 import 'api/finishing_analyze.dart';
 import 'api/finishing_combine.dart';
 import 'api/finishing_enhance.dart';
+import 'api/frame_file.dart';
 import 'api/guiding.dart';
 import 'api/heartbeat.dart';
 import 'api/hotplug.dart';
@@ -117,7 +118,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 722662679;
+  int get rustContentHash => -1902817935;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -876,6 +877,10 @@ abstract class RustLibApi extends BaseApi {
     required int half,
   });
 
+  Future<FrameHeaderRead> crateApiFrameFileApiReadFrameHeader({
+    required String filePath,
+  });
+
   Future<String> crateApiFinishingEnhanceApiReduceStarsPreview({
     required String argsJson,
   });
@@ -1224,12 +1229,17 @@ abstract class RustLibApi extends BaseApi {
     required double value,
   });
 
-  Future<void> crateApiImagingApiUpdateFrameCards({
+  Future<void> crateApiFrameFileApiUpdateFrameCards({
     required String filePath,
     required List<FrameCardUpdate> cards,
   });
 
   void crateApiStorageApiUpdateSettings({required AppSettings settings});
+
+  Future<void> crateApiFrameFileApiWriteFrameWcs({
+    required String filePath,
+    required FrameWcs wcs,
+  });
 
   Future<CameraStatus> crateApiDevicesCameraGetCameraStatus({
     required String deviceId,
@@ -7060,6 +7070,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<FrameHeaderRead> crateApiFrameFileApiReadFrameHeader({
+    required String filePath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(filePath);
+          return wire.wire__crate__api__frame_file__api_read_frame_header(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_frame_header_read,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiFrameFileApiReadFrameHeaderConstMeta,
+        argValues: [filePath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrameFileApiReadFrameHeaderConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_read_frame_header",
+        argNames: ["filePath"],
+      );
+
+  @override
   Future<String> crateApiFinishingEnhanceApiReduceStarsPreview({
     required String argsJson,
   }) {
@@ -9820,7 +9860,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiImagingApiUpdateFrameCards({
+  Future<void> crateApiFrameFileApiUpdateFrameCards({
     required String filePath,
     required List<FrameCardUpdate> cards,
   }) {
@@ -9829,7 +9869,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: (port_) {
           var arg0 = cst_encode_String(filePath);
           var arg1 = cst_encode_list_frame_card_update(cards);
-          return wire.wire__crate__api__imaging__api_update_frame_cards(
+          return wire.wire__crate__api__frame_file__api_update_frame_cards(
             port_,
             arg0,
             arg1,
@@ -9839,14 +9879,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiImagingApiUpdateFrameCardsConstMeta,
+        constMeta: kCrateApiFrameFileApiUpdateFrameCardsConstMeta,
         argValues: [filePath, cards],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiImagingApiUpdateFrameCardsConstMeta =>
+  TaskConstMeta get kCrateApiFrameFileApiUpdateFrameCardsConstMeta =>
       const TaskConstMeta(
         debugName: "api_update_frame_cards",
         argNames: ["filePath", "cards"],
@@ -9875,6 +9915,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_update_settings",
         argNames: ["settings"],
+      );
+
+  @override
+  Future<void> crateApiFrameFileApiWriteFrameWcs({
+    required String filePath,
+    required FrameWcs wcs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(filePath);
+          var arg1 = cst_encode_box_autoadd_frame_wcs(wcs);
+          return wire.wire__crate__api__frame_file__api_write_frame_wcs(
+            port_,
+            arg0,
+            arg1,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiFrameFileApiWriteFrameWcsConstMeta,
+        argValues: [filePath, wcs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFrameFileApiWriteFrameWcsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_write_frame_wcs",
+        argNames: ["filePath", "wcs"],
       );
 
   @override
@@ -11043,6 +11116,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameWcs dco_decode_box_autoadd_frame_wcs(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_frame_wcs(raw);
+  }
+
+  @protected
   GuidingEvent dco_decode_box_autoadd_guiding_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_guiding_event(raw);
@@ -12151,6 +12230,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameCard dco_decode_frame_card(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return FrameCard(
+      keyword: dco_decode_String(arr[0]),
+      text: dco_decode_String(arr[1]),
+      number: dco_decode_opt_box_autoadd_f_64(arr[2]),
+    );
+  }
+
+  @protected
   FrameCardUpdate dco_decode_frame_card_update(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -12166,9 +12258,47 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameHeaderRead dco_decode_frame_header_read(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return FrameHeaderRead(
+      cards: dco_decode_list_frame_card(arr[0]),
+      wcs: dco_decode_opt_box_autoadd_frame_wcs(arr[1]),
+    );
+  }
+
+  @protected
   FrameType dco_decode_frame_type(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return FrameType.values[raw as int];
+  }
+
+  @protected
+  FrameWcs dco_decode_frame_wcs(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 16)
+      throw Exception('unexpected arr length: expect 16 but see ${arr.length}');
+    return FrameWcs(
+      crval1: dco_decode_f_64(arr[0]),
+      crval2: dco_decode_f_64(arr[1]),
+      crpix1: dco_decode_f_64(arr[2]),
+      crpix2: dco_decode_f_64(arr[3]),
+      cd11: dco_decode_f_64(arr[4]),
+      cd12: dco_decode_f_64(arr[5]),
+      cd21: dco_decode_f_64(arr[6]),
+      cd22: dco_decode_f_64(arr[7]),
+      aOrder: dco_decode_u_32(arr[8]),
+      bOrder: dco_decode_u_32(arr[9]),
+      aCoeffs: dco_decode_list_prim_f_64_strict(arr[10]),
+      bCoeffs: dco_decode_list_prim_f_64_strict(arr[11]),
+      apOrder: dco_decode_u_32(arr[12]),
+      bpOrder: dco_decode_u_32(arr[13]),
+      apCoeffs: dco_decode_list_prim_f_64_strict(arr[14]),
+      bpCoeffs: dco_decode_list_prim_f_64_strict(arr[15]),
+    );
   }
 
   @protected
@@ -12452,6 +12582,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<FocusDataPoint> dco_decode_list_focus_data_point(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_focus_data_point).toList();
+  }
+
+  @protected
+  List<FrameCard> dco_decode_list_frame_card(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_frame_card).toList();
   }
 
   @protected
@@ -12898,6 +13034,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_f_64(raw);
+  }
+
+  @protected
+  FrameWcs? dco_decode_opt_box_autoadd_frame_wcs(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_frame_wcs(raw);
   }
 
   @protected
@@ -15043,6 +15185,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameWcs sse_decode_box_autoadd_frame_wcs(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_frame_wcs(deserializer));
+  }
+
+  @protected
   GuidingEvent sse_decode_box_autoadd_guiding_event(
     SseDeserializer deserializer,
   ) {
@@ -16528,6 +16676,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameCard sse_decode_frame_card(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_keyword = sse_decode_String(deserializer);
+    var var_text = sse_decode_String(deserializer);
+    var var_number = sse_decode_opt_box_autoadd_f_64(deserializer);
+    return FrameCard(keyword: var_keyword, text: var_text, number: var_number);
+  }
+
+  @protected
   FrameCardUpdate sse_decode_frame_card_update(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_keyword = sse_decode_String(deserializer);
@@ -16545,10 +16702,57 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FrameHeaderRead sse_decode_frame_header_read(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_cards = sse_decode_list_frame_card(deserializer);
+    var var_wcs = sse_decode_opt_box_autoadd_frame_wcs(deserializer);
+    return FrameHeaderRead(cards: var_cards, wcs: var_wcs);
+  }
+
+  @protected
   FrameType sse_decode_frame_type(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return FrameType.values[inner];
+  }
+
+  @protected
+  FrameWcs sse_decode_frame_wcs(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_crval1 = sse_decode_f_64(deserializer);
+    var var_crval2 = sse_decode_f_64(deserializer);
+    var var_crpix1 = sse_decode_f_64(deserializer);
+    var var_crpix2 = sse_decode_f_64(deserializer);
+    var var_cd11 = sse_decode_f_64(deserializer);
+    var var_cd12 = sse_decode_f_64(deserializer);
+    var var_cd21 = sse_decode_f_64(deserializer);
+    var var_cd22 = sse_decode_f_64(deserializer);
+    var var_aOrder = sse_decode_u_32(deserializer);
+    var var_bOrder = sse_decode_u_32(deserializer);
+    var var_aCoeffs = sse_decode_list_prim_f_64_strict(deserializer);
+    var var_bCoeffs = sse_decode_list_prim_f_64_strict(deserializer);
+    var var_apOrder = sse_decode_u_32(deserializer);
+    var var_bpOrder = sse_decode_u_32(deserializer);
+    var var_apCoeffs = sse_decode_list_prim_f_64_strict(deserializer);
+    var var_bpCoeffs = sse_decode_list_prim_f_64_strict(deserializer);
+    return FrameWcs(
+      crval1: var_crval1,
+      crval2: var_crval2,
+      crpix1: var_crpix1,
+      crpix2: var_crpix2,
+      cd11: var_cd11,
+      cd12: var_cd12,
+      cd21: var_cd21,
+      cd22: var_cd22,
+      aOrder: var_aOrder,
+      bOrder: var_bOrder,
+      aCoeffs: var_aCoeffs,
+      bCoeffs: var_bCoeffs,
+      apOrder: var_apOrder,
+      bpOrder: var_bpOrder,
+      apCoeffs: var_apCoeffs,
+      bpCoeffs: var_bpCoeffs,
+    );
   }
 
   @protected
@@ -16944,6 +17148,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <FocusDataPoint>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_focus_data_point(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FrameCard> sse_decode_list_frame_card(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FrameCard>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_frame_card(deserializer));
     }
     return ans_;
   }
@@ -17631,6 +17847,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_f_64(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  FrameWcs? sse_decode_opt_box_autoadd_frame_wcs(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_frame_wcs(deserializer));
     } else {
       return null;
     }
@@ -20343,6 +20570,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_frame_wcs(
+    FrameWcs self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_frame_wcs(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_guiding_event(
     GuidingEvent self,
     SseSerializer serializer,
@@ -21549,6 +21785,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_frame_card(FrameCard self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.keyword, serializer);
+    sse_encode_String(self.text, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.number, serializer);
+  }
+
+  @protected
   void sse_encode_frame_card_update(
     FrameCardUpdate self,
     SseSerializer serializer,
@@ -21562,9 +21806,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_frame_header_read(
+    FrameHeaderRead self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_frame_card(self.cards, serializer);
+    sse_encode_opt_box_autoadd_frame_wcs(self.wcs, serializer);
+  }
+
+  @protected
   void sse_encode_frame_type(FrameType self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_frame_wcs(FrameWcs self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_f_64(self.crval1, serializer);
+    sse_encode_f_64(self.crval2, serializer);
+    sse_encode_f_64(self.crpix1, serializer);
+    sse_encode_f_64(self.crpix2, serializer);
+    sse_encode_f_64(self.cd11, serializer);
+    sse_encode_f_64(self.cd12, serializer);
+    sse_encode_f_64(self.cd21, serializer);
+    sse_encode_f_64(self.cd22, serializer);
+    sse_encode_u_32(self.aOrder, serializer);
+    sse_encode_u_32(self.bOrder, serializer);
+    sse_encode_list_prim_f_64_strict(self.aCoeffs, serializer);
+    sse_encode_list_prim_f_64_strict(self.bCoeffs, serializer);
+    sse_encode_u_32(self.apOrder, serializer);
+    sse_encode_u_32(self.bpOrder, serializer);
+    sse_encode_list_prim_f_64_strict(self.apCoeffs, serializer);
+    sse_encode_list_prim_f_64_strict(self.bpCoeffs, serializer);
   }
 
   @protected
@@ -21910,6 +22185,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_focus_data_point(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_frame_card(
+    List<FrameCard> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_frame_card(item, serializer);
     }
   }
 
@@ -22497,6 +22784,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_f_64(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_frame_wcs(
+    FrameWcs? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_frame_wcs(self, serializer);
     }
   }
 
