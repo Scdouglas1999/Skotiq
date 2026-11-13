@@ -44,7 +44,7 @@ void main() {
             data: data));
       }
 
-      emit('ExposureStarted', {'duration_secs': 120.0});
+      emit('ExposureStarted', {'duration_secs': 120.0, 'frame_type': 'light'});
       await settle();
       expect(h.container.read(cameraStateProvider).isExposing, isFalse);
       final done = h.container.read(nightActionApiProvider).center();

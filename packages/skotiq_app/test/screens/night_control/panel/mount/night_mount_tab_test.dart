@@ -39,7 +39,8 @@ void main() {
 
   // The tab lives on in an IndexedStack while another one is shown. Following
   // every position poll there rebuilt it, and each rebuild cost a frame.
-  testWidgets('a hidden tab does not follow the mount, and catches up when '
+  testWidgets(
+      'a hidden tab does not follow the mount, and catches up when '
       'shown', (tester) async {
     final shown = ValueNotifier<bool>(false);
     addTearDown(shown.dispose);
@@ -53,8 +54,8 @@ void main() {
       ),
       overrides: panelOverrides(),
     );
-    final mount =
-        handle.container.read(mountStateProvider.notifier) as PanelMountNotifier;
+    final mount = handle.container.read(mountStateProvider.notifier)
+        as PanelMountNotifier;
 
     mount.put(kTrackingMount.copyWith(ra: 2.0));
     await tester.pump();

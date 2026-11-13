@@ -304,7 +304,8 @@ void main() {
     );
     const guide = ValueKey<String>('nightGuide.guide');
     expect(isEnabled(tester, guide), isFalse);
-    expect(tooltipOf(tester, guide), 'The run controls this while it is loaded');
+    expect(
+        tooltipOf(tester, guide), 'The run controls this while it is loaded');
   });
 
   testWidgets('Guide says why it waits while the guider already guides', (
@@ -336,7 +337,8 @@ void main() {
     expect(find.text('3 frames'), findsOneWidget);
   });
 
-  testWidgets('the calibration buttons are PHD2\'s and sit with its calibration',
+  testWidgets(
+      'the calibration buttons are PHD2\'s and sit with its calibration',
       (tester) async {
     await pumpPanelTab(
       tester,
@@ -346,8 +348,10 @@ void main() {
         guiderStateProvider.overrideWith(_BuiltinGuider.new),
       ],
     );
-    expect(find.byKey(const ValueKey<String>('nightGuide.flipCal')), findsNothing);
-    expect(find.byKey(const ValueKey<String>('nightGuide.clearCal')), findsNothing);
+    expect(
+        find.byKey(const ValueKey<String>('nightGuide.flipCal')), findsNothing);
+    expect(find.byKey(const ValueKey<String>('nightGuide.clearCal')),
+        findsNothing);
   });
 
   testWidgets('lays out at 1.3x text without overflow', (tester) async {

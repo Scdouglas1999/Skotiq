@@ -7,7 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart'
     show PolarAlignPhase, PolarAlignmentState;
 import 'package:skotiq_core/providers.dart'
-    show LinkedManualAction, PolarAlignmentStateNotifier, linkedManualActionProvider, polarAlignmentStateProvider;
+    show
+        LinkedManualAction,
+        PolarAlignmentStateNotifier,
+        linkedManualActionProvider,
+        polarAlignmentStateProvider;
 import 'package:skotiq_app/screens/night_control/center/manual_action_bar.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 

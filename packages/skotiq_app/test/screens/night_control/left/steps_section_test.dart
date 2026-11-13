@@ -111,8 +111,10 @@ void main() {
     final harness = NightHarness(
       board: NightFixtures.running(),
       steps: const <PlanStepVm>[
-        PlanStepVm(nodeId: 'a', label: 'L 40 × 3 s', status: PlanStepStatus.stopped),
-        PlanStepVm(nodeId: 'b', label: 'R 1 × 2 s', status: PlanStepStatus.skipped),
+        PlanStepVm(
+            nodeId: 'a', label: 'L 40 × 3 s', status: PlanStepStatus.stopped),
+        PlanStepVm(
+            nodeId: 'b', label: 'R 1 × 2 s', status: PlanStepStatus.skipped),
       ],
     );
     await harness.pump(

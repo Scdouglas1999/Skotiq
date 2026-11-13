@@ -143,7 +143,8 @@ void main() {
     expect(find.byType(NightPanelButton), findsNWidgets(2));
     expect(find.byType(SkotiqButton), findsNothing);
     expect(
-      tester.widget<NightPanelButton>(find.byKey(const ValueKey('sync')))
+      tester
+          .widget<NightPanelButton>(find.byKey(const ValueKey('sync')))
           .disabledReason,
       'Solve first',
     );

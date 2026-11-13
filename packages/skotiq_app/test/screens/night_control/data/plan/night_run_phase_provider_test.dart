@@ -72,7 +72,9 @@ void main() {
     container.listen(lastEndedRunProvider, (_, __) {});
     expect(container.read(nightRunPhaseProvider), NightRunPhase.running);
 
-    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.idle);
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.idle);
     expect(container.read(nightRunPhaseProvider), NightRunPhase.finished);
 
     container.read(currentSequenceProvider.notifier).createSequence(
@@ -85,7 +87,8 @@ void main() {
   // A stopped one-tap night read "Not set up · No plan loaded" over the
   // frames it had just taken: the planner's plan left the editor when the
   // run ended, and with it everything that says a run happened.
-  test('a one-tap run started from an empty editor reads as finished, with '
+  test(
+      'a one-tap run started from an empty editor reads as finished, with '
       'its plan, after it ends', () {
     final plan = TwoTargetPlan().sequence;
     for (final releaseFirst in [true, false]) {
@@ -165,7 +168,9 @@ void main() {
       addTearDown(container.dispose);
       container.listen(lastEndedRunProvider, (_, __) {});
       container.read(runRecordProvider.notifier).setStopEvidence(evidence);
-      container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.idle);
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.idle);
       expect(
         container.read(nightHeaderProvider).ending,
         ending,
