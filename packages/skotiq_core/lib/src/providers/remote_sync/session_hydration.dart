@@ -112,7 +112,7 @@ Future<void> seedEventLogFromHost(
     final events = await runState.getHostRecentEvents();
     if (container.backendScopeOver(backend).isStale) return;
     final typed = [
-      for (final event in events.reversed) ?tryBridgeEventFromCoreEvent(event),
+      for (final event in events.reversed) ?typedEventFromWire(event),
     ];
     container.read(eventHistoryProvider.notifier).seedEarlier(typed);
   } catch (e) {

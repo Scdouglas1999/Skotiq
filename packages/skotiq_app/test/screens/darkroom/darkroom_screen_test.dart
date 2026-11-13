@@ -1725,15 +1725,25 @@ void main() {
     // Tall enough for both cards and the Recipe panel's own control.
     final handle = await pump(tester, scope, size: const Size(1280, 1400));
 
-    // The engine's own sentence, word for word: it names the step by its
-    // position in the recipe it was handed — counted from 1 — and the
-    // operation at that position.
+    // What the engine returns for a failing step: its position in the recipe
+    // it was handed, the operation at that position, and its sentence.
+    const sentence =
+        'step 2 failed: color_calibrate@1: unsupported channel layout: a '
+        '1-channel image, a color master with 3 channels; combine a '
+        'per-filter mono master first';
     darkroom.previewError = DarkroomSeamException(
       'renderPreview',
-      'step 2 failed: color_calibrate@1: unsupported channel layout: a '
-          '1-channel image, a color master with 3 channels; combine a '
-          'per-filter mono master first',
+      sentence,
       StateError('unsupported channels'),
+      failedStep: const DarkroomFailedStep(
+        index: 1,
+        opId: 'color_calibrate',
+        opVersion: 1,
+        reason:
+            'unsupported channel layout: a 1-channel image, a color master '
+            'with 3 channels; combine a per-filter mono master first',
+        message: sentence,
+      ),
     );
     await tester.tap(find.widgetWithText(SkotiqButton, 'Render again'));
     for (var i = 0; i < 12; i++) {
@@ -1779,6 +1789,13 @@ void main() {
       'renderPreview',
       'step 1 failed: color_calibrate@1: unsupported channel layout',
       StateError('mismatched op'),
+      failedStep: const DarkroomFailedStep(
+        index: 0,
+        opId: 'color_calibrate',
+        opVersion: 1,
+        reason: 'unsupported channel layout',
+        message: 'step 1 failed: color_calibrate@1: unsupported channel layout',
+      ),
     );
     await tester.tap(find.widgetWithText(SkotiqButton, 'Render again'));
     for (var i = 0; i < 12; i++) {

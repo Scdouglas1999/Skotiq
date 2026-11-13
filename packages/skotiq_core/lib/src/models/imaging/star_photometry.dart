@@ -11,6 +11,8 @@ library;
 
 /// One detected star with its centroid, shape metrics, and per-channel aperture
 /// flux. Mirrors the native `StarPhotometryDto`.
+import '../../utils/json_validation.dart';
+
 class DetectedStarPhotometry {
   /// Sub-pixel centroid X (px).
   final double x;
@@ -57,15 +59,15 @@ class DetectedStarPhotometry {
 
   factory DetectedStarPhotometry.fromJson(Map<String, dynamic> json) {
     return DetectedStarPhotometry(
-      x: _asDouble(json['x']),
-      y: _asDouble(json['y']),
-      flux: _asDouble(json['flux']),
-      snr: _asDouble(json['snr']),
-      hfr: _asDouble(json['hfr']),
-      fwhm: _asDouble(json['fwhm']),
-      eccentricity: _asDouble(json['eccentricity']),
-      peak: _asDouble(json['peak']),
-      channelFlux: _asDoubleList(json['channelFlux']),
+      x: lenientDouble(json['x']),
+      y: lenientDouble(json['y']),
+      flux: lenientDouble(json['flux']),
+      snr: lenientDouble(json['snr']),
+      hfr: lenientDouble(json['hfr']),
+      fwhm: lenientDouble(json['fwhm']),
+      eccentricity: lenientDouble(json['eccentricity']),
+      peak: lenientDouble(json['peak']),
+      channelFlux: lenientDoubleList(json['channelFlux']),
     );
   }
 
@@ -147,9 +149,9 @@ class StarPhotometryResult {
       }
     }
     return StarPhotometryResult(
-      width: _asInt(json['width']),
-      height: _asInt(json['height']),
-      channels: _asInt(json['channels']),
+      width: lenientInt(json['width']),
+      height: lenientInt(json['height']),
+      channels: lenientInt(json['channels']),
       stars: stars,
     );
   }
@@ -173,20 +175,6 @@ class StarPhotometryResult {
   @override
   int get hashCode =>
       Object.hash(width, height, channels, Object.hashAll(stars));
-}
-
-double _asDouble(Object? v) => v is num ? v.toDouble() : 0.0;
-
-int _asInt(Object? v) => v is num ? v.toInt() : 0;
-
-List<double> _asDoubleList(Object? v) {
-  if (v is List) {
-    return [
-      for (final e in v)
-        if (e is num) e.toDouble(),
-    ];
-  }
-  return const [];
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

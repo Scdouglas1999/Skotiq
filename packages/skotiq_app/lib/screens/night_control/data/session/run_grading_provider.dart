@@ -38,17 +38,18 @@ abstract class _RunEventNotifier<T> extends StateNotifier<T> {
     if (clear) state = _initial;
     _subscription = backend.eventStream.listen((event) {
       if (generation != _generation) return;
-      if (event.category != EventCategory.sequencer) return;
-      if (event.eventType == 'Started') {
+      final payload = typedEventFromWire(event)?.payload;
+      if (payload is! EventPayload_Sequencer) return;
+      if (payload.field0 is SequencerEvent_Started) {
         state = _initial;
         return;
       }
-      onRunEvent(event);
+      onRunEvent(payload.field0);
     });
     previous?.cancel();
   }
 
-  void onRunEvent(SkotiqEvent event);
+  void onRunEvent(SequencerEvent event);
 
   @override
   void dispose() {
@@ -63,8 +64,8 @@ class _GradingNotifier extends _RunEventNotifier<FrameGradeRunSummary> {
   _GradingNotifier(Ref ref) : super(ref, FrameGradeRunSummary.empty);
 
   @override
-  void onRunEvent(SkotiqEvent event) {
-    final grade = FrameGradeEvent.fromTypedData(event.eventType, event.data);
+  void onRunEvent(SequencerEvent event) {
+    final grade = FrameGradeEvent.fromEvent(event);
     if (grade == null) return;
     // The event carries the run's own running counts.
     state = FrameGradeRunSummary(
@@ -87,12 +88,10 @@ class _AdaptiveExposureNotifier
   _AdaptiveExposureNotifier(Ref ref) : super(ref, null);
 
   @override
-  void onRunEvent(SkotiqEvent event) {
-    final parsed = AdaptiveExposureEvent.fromTypedData(
-      event.eventType,
-      event.data,
-    );
-    if (parsed != null) state = parsed;
+  void onRunEvent(SequencerEvent event) {
+    if (event is SequencerEvent_ExposureAdjusted) {
+      state = AdaptiveExposureEvent.fromEvent(event);
+    }
   }
 }
 

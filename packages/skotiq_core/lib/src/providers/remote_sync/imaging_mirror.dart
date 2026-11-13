@@ -5,7 +5,7 @@ sealed class _ExposureChange {
   const _ExposureChange();
 
   static _ExposureChange? of(SkotiqEvent event) {
-    final typed = tryBridgeEventFromCoreEvent(event);
+    final typed = typedEventFromWire(event);
     if (typed == null) return null;
     final payload = typed.payload;
     if (payload is! bridge.EventPayload_Imaging) return null;

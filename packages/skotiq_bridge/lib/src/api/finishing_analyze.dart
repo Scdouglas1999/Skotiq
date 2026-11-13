@@ -6,11 +6,6 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `analyze_night_impl`, `aperture_flux_per_channel`, `apply_detection_overrides`, `color_calibrate_impl`, `detect_stars_photometry_impl`, `ensure_parent_dir`, `image_to_f64`, `median`, `mono_u16_detection_plane`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `AnalyzeNightArgs`, `AnalyzeNightResult`, `ColorCalibrateArgs`, `ColorCalibrateResult`, `CurvePointDto`, `DetectStarsPhotometryArgs`, `DetectStarsPhotometryResult`, `FrameQualityArgs`, `MatchedStarArgs`, `OptimizerArgs`, `PhotometryDetectionArgs`, `RecommendationDto`, `StarPhotometryDto`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
-// These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`, `default`, `default`, `default`, `default`, `default`, `default`
-
 /// Predict the marginal-SNR integration curve and a keep/cull subset
 /// recommendation from per-sub quality descriptors + weights.
 ///

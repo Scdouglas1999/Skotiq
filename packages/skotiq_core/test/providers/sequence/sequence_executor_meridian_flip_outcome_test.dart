@@ -295,7 +295,7 @@ void main() {
     final (container, executor) = build();
 
     executor.handleSequencerEventForTest(
-      flipEvent(outcome: meridianFlipPierChangedOutcome, newPierSide: 'East'),
+      flipEvent(outcome: 'pier_changed', newPierSide: 'East'),
     );
     expect(container.read(liveSequenceStatsProvider)!.meridianFlips, 1);
 
@@ -324,7 +324,7 @@ void main() {
 
     executor
       ..handleSequencerEventForTest(
-        flipEvent(outcome: meridianFlipPierChangedOutcome, newPierSide: 'East'),
+        flipEvent(outcome: 'pier_changed', newPierSide: 'East'),
       )
       ..handleSequencerEventForTest(
         flipEvent(

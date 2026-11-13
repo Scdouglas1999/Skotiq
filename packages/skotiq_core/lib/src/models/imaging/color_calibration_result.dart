@@ -10,6 +10,8 @@ library;
 
 /// The result of a per-channel colour calibration solve + apply. Mirrors the
 /// native `ColorCalibrateResult`.
+import '../../utils/json_validation.dart';
+
 class ColorCalibrationResult {
   /// Path of the written calibrated master.
   final String outputPath;
@@ -35,9 +37,9 @@ class ColorCalibrationResult {
       outputPath: json['outputPath'] is String
           ? json['outputPath'] as String
           : '',
-      channelScale: _asDoubleList(json['channelScale']),
-      matched: _asInt(json['matched']),
-      residual: _asDouble(json['residual']),
+      channelScale: lenientDoubleList(json['channelScale']),
+      matched: lenientInt(json['matched']),
+      residual: lenientDouble(json['residual']),
     );
   }
 
@@ -60,20 +62,6 @@ class ColorCalibrationResult {
   @override
   int get hashCode =>
       Object.hash(outputPath, Object.hashAll(channelScale), matched, residual);
-}
-
-double _asDouble(Object? v) => v is num ? v.toDouble() : 0.0;
-
-int _asInt(Object? v) => v is num ? v.toInt() : 0;
-
-List<double> _asDoubleList(Object? v) {
-  if (v is List) {
-    return [
-      for (final e in v)
-        if (e is num) e.toDouble(),
-    ];
-  }
-  return const [];
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {

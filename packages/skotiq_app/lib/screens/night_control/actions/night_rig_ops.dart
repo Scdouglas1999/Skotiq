@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk_events;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -301,17 +302,19 @@ class ServiceNightRigOps implements NightRigOps {
     // Subscribed before the start command so an early SettleDone is not
     // missed. A failed settle reaches the app as StarLost.
     final subscription = backend.eventStream.listen((event) {
-      if (event.category != EventCategory.guiding || settled.isCompleted) {
+      final payload = typedEventFromWire(event)?.payload;
+      if (payload is! sk_events.EventPayload_Guiding || settled.isCompleted) {
         return;
       }
-      switch (event.eventType) {
-        case 'SettleDone':
+      switch (payload.field0) {
+        case sk_events.GuidingEvent_Settled():
           settled.complete();
-        case 'StarLost':
+        case sk_events.GuidingEvent_LostStar():
           settled.completeError(
               StateError('Guiding lost the star while settling'));
-        case 'GuidingStopped':
+        case sk_events.GuidingEvent_GuidingStopped():
           settled.completeError(StateError('Guiding stopped while settling'));
+        default:
       }
     });
     try {

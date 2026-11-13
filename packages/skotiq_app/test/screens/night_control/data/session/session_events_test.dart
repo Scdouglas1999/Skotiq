@@ -60,7 +60,14 @@ void main() {
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
           eventType: 'MeridianFlipOutcome',
-          data: <String, dynamic>{'outcome': outcome},
+          data: <String, dynamic>{
+            'outcome': outcome,
+            'target_name': 'NGC 7814',
+            'new_pier_side': 'East',
+            'duration_secs': 0.0,
+            'attempts': 1,
+            'failed_steps': <String>[],
+          },
         );
     h.backend
       ..emitEvent(flip('failed', 10))
@@ -86,12 +93,19 @@ void main() {
           severity: EventSeverity.info,
           category: EventCategory.sequencer,
           eventType: 'MeridianFlipOutcome',
-          data: <String, dynamic>{'outcome': outcome},
+          data: <String, dynamic>{
+            'outcome': outcome,
+            'target_name': 'NGC 7814',
+            'new_pier_side': 'East',
+            'duration_secs': 0.0,
+            'attempts': 1,
+            'failed_steps': <String>[],
+          },
         );
     h.backend
-      ..emitEvent(flip(meridianFlipPierChangedOutcome, 10))
+      ..emitEvent(flip('pier_changed', 10))
       ..emitEvent(flip('failed', 20))
-      ..emitEvent(flip(meridianFlipPierChangedOutcome, 30))
+      ..emitEvent(flip('pier_changed', 30))
       ..emitEvent(flip('success', 40));
     await Future<void>.delayed(Duration.zero);
     expect(

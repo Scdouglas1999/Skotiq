@@ -25,16 +25,13 @@ const _capture = bridge.FrameCaptureMetadata(
 );
 
 void main() {
-  late FfiBackend ffi;
-
-  setUp(() => ffi = FfiBackend());
-  tearDown(() => ffi.dispose());
-
   SkotiqEvent viaFfi(
     bridge.SequencerEvent native, {
     EventSeverity severity = EventSeverity.info,
   }) {
-    final (eventType, data) = ffi.sequencerEventInfoForTesting(native);
+    final (eventType, data) = bridge.encodeEventPayload(
+      bridge.EventPayload.sequencer(native),
+    );
     return SkotiqEvent(
       timestamp: 1700000000123,
       severity: severity,
@@ -419,7 +416,7 @@ void main() {
   test('meridian flip, trigger, plugin, depth goal and decision events', () {
     for (final e in both(
       const bridge.SequencerEvent.meridianFlipOutcome(
-        outcome: 'success',
+        outcome: bridge.FlipOutcome.success,
         targetName: 'M31',
         newPierSide: 'East',
         durationSecs: 95.5,

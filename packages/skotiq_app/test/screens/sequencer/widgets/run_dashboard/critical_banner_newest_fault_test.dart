@@ -4,7 +4,7 @@
 // and kept it after the resume while the run was Running.
 //
 // The events below are built the way a linked client gets them: the host's
-// wire envelope rebuilt by `bridgeEventFromCoreEvent`, whose `eventId` is the
+// wire envelope read back by `typedEventFromWire`, whose `eventId` is the
 // envelope's timestamp. That id is neither unique (two events of one
 // millisecond share it) nor in arrival order (the client stamps its own
 // connection events with its own clock), so it cannot tell new events from
@@ -38,7 +38,7 @@ sk_events.SkotiqEvent _wire(
   EventSeverity severity = EventSeverity.info,
   EventCategory category = EventCategory.sequencer,
 }) =>
-    bridgeEventFromCoreEvent(
+    typedEventFromWire(
       SkotiqEvent(
         timestamp: timestamp,
         severity: severity,
@@ -46,7 +46,7 @@ sk_events.SkotiqEvent _wire(
         eventType: eventType,
         data: data,
       ),
-    );
+    )!;
 
 sk_events.SkotiqEvent _flipFailed(int timestamp, String error) => _wire(
       timestamp,
@@ -138,14 +138,14 @@ void main() {
     final container = await wiredContainer();
 
     await emit(container, _flipFailed(_t0, _pierError));
-    // The client's own "connection back" event, stamped with a client clock
-    // that runs a few seconds ahead of the host's.
+    // An event stamped by a clock that runs a few seconds ahead of the
+    // host's.
     await emit(
       container,
       _wire(
         _t0 + const Duration(minutes: 74, seconds: 5).inMilliseconds,
-        'BackendReconnected',
-        {'message': 'WebSocket reconnected'},
+        'Notification',
+        {'title': 'Link', 'message': 'Connected again', 'level': 'info'},
         category: EventCategory.system,
       ),
     );

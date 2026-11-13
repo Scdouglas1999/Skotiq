@@ -53,6 +53,20 @@ bridge_event.SkotiqEvent _sequencerError(int id, String message) =>
       ),
     );
 
+/// A stopped run's cancellation, as the host sends it.
+bridge_event.SkotiqEvent _cancellation(int id) => bridge_event.SkotiqEvent(
+      eventId: BigInt.from(id),
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: bridge_event.EventSeverity.error,
+      category: bridge_event.EventCategory.sequencer,
+      payload: const bridge_event.EventPayload.sequencer(
+        bridge_event.SequencerEvent.error(
+          message: kSequenceCancelledNotice,
+          kind: bridge_event.SequencerErrorKind.cancelled,
+        ),
+      ),
+    );
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -95,9 +109,7 @@ void main() {
     addTearDown(subscription.cancel);
     container.read(runCriticalAlertSoundProvider);
 
-    container
-        .read(eventHistoryProvider.notifier)
-        .addEvent(_sequencerError(1, kSequenceCancelledNotice));
+    container.read(eventHistoryProvider.notifier).addEvent(_cancellation(1));
     await Future<void>.delayed(Duration.zero);
 
     expect(
@@ -114,9 +126,7 @@ void main() {
     final container = makeContainer();
     await container.read(appSettingsProvider.future);
 
-    container
-        .read(eventHistoryProvider.notifier)
-        .addEvent(_sequencerError(1, kSequenceCancelledNotice));
+    container.read(eventHistoryProvider.notifier).addEvent(_cancellation(1));
 
     final recent = container.read(runDashboardRecentEventsProvider(5));
     expect(recent, hasLength(1));

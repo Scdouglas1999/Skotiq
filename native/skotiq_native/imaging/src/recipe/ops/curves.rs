@@ -180,7 +180,7 @@ impl DarkroomOp for CurvesV1 {
                 op_id: OP_ID,
                 op_version: OP_VERSION,
                 channels,
-                expected: "a mono master with 1 channel or a colour master with 3",
+                expected: "a mono master with 1 channel or a color master with 3",
             });
         }
         ctx.check_cancel()?;

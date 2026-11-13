@@ -10,7 +10,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use skotiq_imaging::recipe::{RenderReport, StepOutcome};
+use skotiq_imaging::recipe::{Recipe, RecipeError, RenderReport, StepOutcome};
 
 use crate::post_session::cancel::CANCELLED_KIND;
 
@@ -181,6 +181,53 @@ impl CancelledRender {
             phase: phase.to_string(),
         };
         serde_json::to_string(&outcome).unwrap_or_else(|_| CANCELLED_KIND.to_string())
+    }
+}
+
+/// The `kind` of the error payload a render returns when one of its steps
+/// failed.
+pub(crate) const STEP_FAILED_KIND: &str = "step_failed";
+
+/// The error payload of a render that stopped at a failing step, so the app
+/// marks the step from fields instead of reading the sentence.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct FailedStep {
+    /// Always [`STEP_FAILED_KIND`].
+    pub(crate) kind: String,
+    /// Index of the step in the recipe the render was handed, counted from 0.
+    pub(crate) index: usize,
+    pub(crate) op_id: String,
+    pub(crate) op_version: u32,
+    /// The operation's fault, without the step and operation it names.
+    pub(crate) reason: String,
+    /// The whole sentence, as `RecipeError::Step` writes it.
+    pub(crate) message: String,
+}
+
+impl FailedStep {
+    /// The encoded payload for `error`, or its sentence when it is not a
+    /// failed step of `recipe`.
+    pub(crate) fn err(recipe: &Recipe, error: &RecipeError) -> String {
+        let message = error.to_string();
+        let RecipeError::Step { index, source } = error else {
+            return message;
+        };
+        let Some(step) = recipe.steps.get(*index) else {
+            return message;
+        };
+        let fault = source.to_string();
+        let named = format!("{}@{}: ", step.op_id, step.op_version);
+        let reason = fault.strip_prefix(&named).unwrap_or(&fault).to_string();
+        let payload = Self {
+            kind: STEP_FAILED_KIND.to_string(),
+            index: *index,
+            op_id: step.op_id.clone(),
+            op_version: step.op_version,
+            reason,
+            message: message.clone(),
+        };
+        serde_json::to_string(&payload).unwrap_or(message)
     }
 }
 

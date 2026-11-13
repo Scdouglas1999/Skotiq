@@ -11,6 +11,9 @@ library;
 /// Reason tag mirroring the Rust `AdaptiveExposureReason`. Plain enum
 /// with a `fromWire` builder so we don't drag in freezed for a five-
 /// variant tag.
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show SequencerEvent_ExposureAdjusted;
+
 enum AdaptiveExposureReason {
   adapted,
   clampedMin,
@@ -99,26 +102,18 @@ class AdaptiveExposureEvent {
     required this.receivedAt,
   });
 
-  /// Build from a typed `ExposureAdjusted` event's `data` map.
-  /// Returns `null` for any event type other than `ExposureAdjusted`.
-  static AdaptiveExposureEvent? fromTypedData(
-    String eventType,
-    Map<String, dynamic> data,
-  ) {
-    if (eventType != 'ExposureAdjusted') return null;
-    final adapted = (data['adapted_secs'] as num?)?.toDouble();
-    final nominal = (data['nominal_secs'] as num?)?.toDouble();
-    if (adapted == null || nominal == null) return null;
-    return AdaptiveExposureEvent(
-      nodeId: data['node_id'] as String? ?? '',
-      adaptedSecs: adapted,
-      nominalSecs: nominal,
-      skyBrightnessMag: (data['sky_brightness_mag'] as num?)?.toDouble(),
-      filter: data['filter'] as String?,
-      reason: AdaptiveExposureReason.fromWire(data['reason'] as String? ?? ''),
-      receivedAt: DateTime.now(),
-    );
-  }
+  /// The decision a sequencer `ExposureAdjusted` event reports.
+  factory AdaptiveExposureEvent.fromEvent(
+    SequencerEvent_ExposureAdjusted event,
+  ) => AdaptiveExposureEvent(
+    nodeId: event.nodeId,
+    adaptedSecs: event.adaptedSecs,
+    nominalSecs: event.nominalSecs,
+    skyBrightnessMag: event.skyBrightnessMag,
+    filter: event.filter,
+    reason: AdaptiveExposureReason.fromWire(event.reason),
+    receivedAt: DateTime.now(),
+  );
 
   /// Percent change from nominal. Positive => stretched (sky brighter
   /// than reference), negative => shortened.

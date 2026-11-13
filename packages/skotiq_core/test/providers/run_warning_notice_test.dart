@@ -117,7 +117,12 @@ void main() {
     });
   }
 
-  for (final notice in SequencerNotice.values) {
+  const notices = [
+    SequencerNotice.autofocusContinued(),
+    SequencerNotice.rejectStreak(consecutiveRejects: 3, reason: 'trailed'),
+    SequencerNotice.problemNoticed(source: 'Center', problem: 'no solve'),
+  ];
+  for (final notice in notices) {
     test('a Warning marked ${notice.wireName} is not toasted, whatever its '
         'words', () async {
       final (container, controller) = await _bridge();
