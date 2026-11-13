@@ -52,7 +52,9 @@ extension _StackFrameIo on StackAndShareService {
 
   /// Build the shared calibration context (tolerances + master flat / bias
   /// pixels) once per run. The flat / bias are loaded into u16 here so they are
-  /// not re-read from disk for every frame.
+  /// not re-read from disk for every frame. Masters are read like lights, by
+  /// the native frame reader, so a FITS or XISF master in any sample format
+  /// comes in on the same 16-bit ADU scale.
   Future<_CalibrationContext> _buildCalibrationContext() async {
     final tolerances = _ref.read(darkLibraryMatchTolerancesProvider);
     final settings = _ref.read(calibrationSettingsProvider);
@@ -63,7 +65,7 @@ extension _StackFrameIo on StackAndShareService {
       if (!File(flatPath).existsSync()) {
         throw FileSystemException('Master flat file not found', flatPath);
       }
-      flatData = await _darkLibrary.loadDarkPixels(flatPath);
+      flatData = (await _loadRawU16(flatPath)).data;
       _ensureSameHost();
     }
 
@@ -73,7 +75,7 @@ extension _StackFrameIo on StackAndShareService {
       if (!File(biasPath).existsSync()) {
         throw FileSystemException('Master bias file not found', biasPath);
       }
-      biasData = await _darkLibrary.loadDarkPixels(biasPath);
+      biasData = (await _loadRawU16(biasPath)).data;
       _ensureSameHost();
     }
 
@@ -91,8 +93,7 @@ extension _StackFrameIo on StackAndShareService {
     String path,
     int expectedPixels,
   ) async {
-    final pixels = await _darkLibrary.loadDarkPixels(path);
-    _ensureSameHost();
+    final pixels = (await _loadRawU16(path)).data;
     if (pixels.length != expectedPixels) {
       throw StateError(
         'Calibration frame "$path" has ${pixels.length} pixels but the light '
@@ -123,9 +124,11 @@ extension _StackFrameIo on StackAndShareService {
   /// Read a frame's unstretched linear pixels and quantise to u16.
   ///
   /// Uses the science-grade linear read path so the stacked integration works
-  /// on genuine sensor values rather than display-stretched bytes. Linear
-  /// values are clamped to `[0, 65535]` (the engine and calibration pipeline
-  /// operate on u16); the FITS reader in Rust has already applied BZERO/BSCALE.
+  /// on genuine sensor values rather than display-stretched bytes. The native
+  /// reader returns samples on the 16-bit ADU scale (BZERO/BSCALE and the
+  /// file's declared range applied); they are clamped to `[0, 65535]` (the
+  /// engine and calibration pipeline operate on u16), and a NaN sample, which
+  /// a float master holds where it rejected every frame, becomes 0.
   Future<_RawFrame> _loadRawU16(String filePath) async {
     final linear = await _engine.readLinearFrame(filePath);
     _ensureSameHost();
@@ -139,7 +142,7 @@ extension _StackFrameIo on StackAndShareService {
     final data = Uint16List(pixelCount);
     for (var i = 0; i < pixelCount; i++) {
       final v = linear.linearData[i];
-      if (v <= 0) {
+      if (!(v > 0)) {
         data[i] = 0;
       } else if (v >= 65535) {
         data[i] = 65535;

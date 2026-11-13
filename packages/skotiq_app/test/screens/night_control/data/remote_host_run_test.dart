@@ -102,6 +102,7 @@ void _hostRecord(
         lastEndedPlanLoaded: lastEnded != null && lastEndedPlanLoaded,
         stopEvidence: stopEvidence,
         runStartedAt: runStartedAt,
+        stats: null,
       )),
     ),
     networkBackend: backend,

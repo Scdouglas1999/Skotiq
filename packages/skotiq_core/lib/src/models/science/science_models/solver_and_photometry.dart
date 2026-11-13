@@ -38,14 +38,7 @@ class WcsSolution {
   final double? cd1_2;
   final double? cd2_1;
   final double? cd2_2;
-  final int aOrder;
-  final int bOrder;
-  final List<double> aCoeffs;
-  final List<double> bCoeffs;
-  final int apOrder;
-  final int bpOrder;
-  final List<double> apCoeffs;
-  final List<double> bpCoeffs;
+  final SipTerms sip;
 
   const WcsSolution({
     required this.raHours,
@@ -59,14 +52,7 @@ class WcsSolution {
     this.cd1_2,
     this.cd2_1,
     this.cd2_2,
-    this.aOrder = 0,
-    this.bOrder = 0,
-    this.aCoeffs = const [],
-    this.bCoeffs = const [],
-    this.apOrder = 0,
-    this.bpOrder = 0,
-    this.apCoeffs = const [],
-    this.bpCoeffs = const [],
+    this.sip = noSipTerms,
   });
 }
 

@@ -637,12 +637,9 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     if (current == null) {
       // A blank rename field would propose erasing a name that has not been
       // loaded; refuse until the branch list is read.
-      SkotiqToastHelper.show(
-        context: context,
-        message:
-            'The branches over this master have not been read yet, so this '
-            'recipe\'s current name is unknown. Reload and try again.',
-        severity: SkotiqAlertSeverity.warning,
+      context.showWarningSnackBar(
+        'The branches over this master have not been read yet, so this '
+        'recipe\'s current name is unknown. Reload and try again.',
       );
       return;
     }
@@ -802,11 +799,9 @@ class _DarkroomBranchBarState extends ConsumerState<_DarkroomBranchBar> {
     // go to at all — so the editor's controller is retired for the same reason
     // it is in [_promptDelete].
     ref.invalidate(darkroomControllerProvider(widget.editorScope));
-    SkotiqToastHelper.show(
-      context: context,
-      message: '$deleted recipe${deleted == 1 ? '' : 's'} deleted. The linear '
-          'master is untouched.',
-      severity: SkotiqAlertSeverity.success,
+    context.showSuccessSnackBar(
+      '$deleted recipe${deleted == 1 ? '' : 's'} deleted. The linear '
+      'master is untouched.',
     );
     final after = ref.read(darkroomBranchControllerProvider(widget.scope));
     final fallback = _firstBranchId(after);

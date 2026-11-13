@@ -12,11 +12,11 @@
 /// and a catalogue with no colour-indexed star in the field has nothing to fit.
 library;
 
-
 import 'package:skotiq_astro/skotiq_astro.dart';
 
+import '../../errors/error_text.dart';
 import '../color_calibration_service.dart' show StarConeSearch;
-import '../calibration/fits_header_reader.dart';
+import '../frame_header.dart';
 import '../wcs/gnomonic_projection.dart';
 import 'dawn_master_resolver.dart';
 
@@ -52,41 +52,31 @@ class DawnPhotometryResolver {
   /// would have asked for.
   final double magnitudeLimit;
 
+  /// Reads a master's header when the library holds no solve for it.
+  final FrameHeaderReader _readHeader;
+
   const DawnPhotometryResolver({
     required StarConeSearch coneSearch,
     this.magnitudeLimit = 17.0,
-  }) : _coneSearch = coneSearch;
+    FrameHeaderReader readHeader = readFrameHeader,
+  }) : _coneSearch = coneSearch,
+       _readHeader = readHeader;
 
   /// Catalogue stars for [master]'s field.
   ///
-  /// A library row may lack WCS even when the integrated FITS is solved.
-  /// Read its header before declaring the field unavailable.
+  /// A library row may lack WCS even when the master file is solved. Read
+  /// its header before declaring the field unavailable.
   Future<DawnPhotometry> resolve({
     required DawnMaster master,
     required SolvedWcs? wcs,
   }) async {
     if (wcs == null) {
       try {
-        final header = await const FitsHeaderReader().readPrimaryHeader(
-          master.masterFitsPath,
-        );
-        double? value(String key) => FitsHeaderReader.doubleValue(header, key);
-        wcs = SolvedWcs.tryFromFitsCd(
-          crval1: value('CRVAL1'),
-          crval2: value('CRVAL2'),
-          crpix1: value('CRPIX1'),
-          crpix2: value('CRPIX2'),
-          cd1_1: value('CD1_1'),
-          cd1_2: value('CD1_2'),
-          cd2_1: value('CD2_1'),
-          cd2_2: value('CD2_2'),
-          imageWidth: master.width,
-          imageHeight: master.height,
-        );
-      } catch (error) {
+        wcs = (await _readHeader(master.masterFitsPath)).solvedWcs;
+      } on Exception catch (error) {
         return DawnPhotometry.unavailable(
-          'the library has no solved astrometry and the master FITS header '
-          'could not be read: $error',
+          'the library has no solved astrometry and the master file header '
+          'could not be read: ${userFacingError(error)}',
         );
       }
     }

@@ -177,21 +177,8 @@ String _normalisePath(String value) => value
     .replaceAll(RegExp(r'/+'), '/')
     .toLowerCase();
 
-SolvedWcs? _solvedWcs(CapturedImageWcsData? data, Size size) {
-  if (data == null || !data.isPlateSolved) return null;
-  return solvedWcsFromStored(
-    raHours: data.solvedRaHours,
-    decDegrees: data.solvedDecDegrees,
-    rotationDeg: data.solvedRotationDegrees,
-    pixelScaleArcsec: data.solvedPixelScaleArcsecPerPixel,
-    imageWidth: size.width.round(),
-    imageHeight: size.height.round(),
-    cd1_1: data.cd1_1,
-    cd1_2: data.cd1_2,
-    cd2_1: data.cd2_1,
-    cd2_2: data.cd2_2,
-  );
-}
+SolvedWcs? _solvedWcs(CapturedImageWcsData? data, Size size) =>
+    data?.solvedWcs(width: size.width.round(), height: size.height.round());
 
 /// A refusal the create path can explain to the operator in one sentence.
 class DepthLockSelectionException implements Exception {

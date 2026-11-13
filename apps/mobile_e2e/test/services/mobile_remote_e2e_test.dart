@@ -35,6 +35,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/bridge_events.dart' as sk;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
@@ -76,20 +77,8 @@ class _RecordingNotificationSink implements MobileNotificationSink {
   Future<void> notifySafety({
     required String title,
     required String body,
-    String? eventType,
   }) async {
-    calls.add(
-      _NotifyCall('safety', {
-        'title': title,
-        'body': body,
-        if (eventType != null) 'eventType': eventType,
-      }),
-    );
-  }
-
-  @override
-  Future<void> notifyMountParked(String reason) async {
-    calls.add(_NotifyCall('mountParked', {'reason': reason}));
+    calls.add(_NotifyCall('safety', {'title': title, 'body': body}));
   }
 
   @override
@@ -126,8 +115,8 @@ class _RecordingNotificationSink implements MobileNotificationSink {
   }
 
   @override
-  Future<void> notifyLowDiskSpace(double remainingGB) async {
-    calls.add(_NotifyCall('lowDiskSpace', {'gb': remainingGB}));
+  Future<void> notifyLowDiskSpace(String message) async {
+    calls.add(_NotifyCall('lowDiskSpace', {'message': message}));
   }
 
   @override
@@ -269,6 +258,9 @@ void main() {
           backendProvider.overrideWith(
             (ref) => _ServerSideBackendNotifier(ref, serverBackend),
           ),
+          appVersionProvider.overrideWithValue(
+            const AppVersionInfo(version: '8.2.0', buildNumber: 1),
+          ),
         ],
       );
       server = HeadlessApiServer(
@@ -381,8 +373,100 @@ void main() {
       expect(call.kind, equals('exposureFailed'));
       expect(
         call.data['error'],
-        equals('Mount lost guide star during long exposure'),
+        contains('Mount lost guide star during long exposure'),
       );
+    });
+
+    test('a device the host heartbeat lost and an autofocus the run carried '
+        'on through both wake the phone', () async {
+      await bootServer();
+      addTearDown(tearDownServer);
+      final mobileBackend = NetworkBackend(
+        serverHost: '127.0.0.1',
+        serverPort: server.actualPort,
+        webSocketPort: server.actualPort,
+        authToken: authToken,
+        webSocketHeartbeatInterval: const Duration(days: 1),
+        webSocketHeartbeatTimeout: const Duration(days: 1),
+        autoConnectWebSocket: false,
+      );
+      addTearDown(mobileBackend.dispose);
+      final sink = _RecordingNotificationSink();
+      final notifier = MobileEventNotifier(
+        eventStream: mobileBackend.eventStream,
+        preferences: MobilePreferences(await SharedPreferences.getInstance()),
+        notificationService: sink,
+      );
+      notifier.start();
+      addTearDown(notifier.stop);
+      await mobileBackend.connect();
+      expect(
+        await _waitUntil(
+          () =>
+              mobileBackend.connectionState ==
+              BackendConnectionState.connected,
+        ),
+        isTrue,
+      );
+
+      SkotiqEvent fromNative(sk.EventCategory category, sk.EventPayload p) =>
+          wireEventFromTyped(
+            sk.SkotiqEvent(
+              eventId: BigInt.zero,
+              timestamp: DateTime.now().millisecondsSinceEpoch,
+              severity: sk.EventSeverity.error,
+              category: category,
+              payload: p,
+            ),
+          );
+      // What the host's heartbeat publishes when a device stops answering.
+      final heartbeatLost = [
+        fromNative(
+          sk.EventCategory.equipment,
+          const sk.EventPayload.equipment(
+            sk.EquipmentEvent.heartbeatStatusChanged(
+              deviceType: 'focuser',
+              deviceId: 'sim_focuser_1',
+              status: sk.HeartbeatStatus.disconnected,
+              consecutiveFailures: 3,
+            ),
+          ),
+        ),
+        fromNative(
+          sk.EventCategory.equipment,
+          const sk.EventPayload.equipment(
+            sk.EquipmentEvent.error(
+              deviceType: 'focuser',
+              deviceId: 'sim_focuser_1',
+              message:
+                  'Device unresponsive after 3 heartbeat failures: timed out',
+            ),
+          ),
+        ),
+      ];
+      final autofocusContinued = fromNative(
+        sk.EventCategory.sequencer,
+        const sk.EventPayload.sequencer(
+          sk.SequencerEvent.decisionLogged(
+            timestampIso: '2026-11-13T02:00:00Z',
+            category: 'autofocus',
+            summary: 'Autofocus did not converge; continuing',
+            detailsJson: '{}',
+            notice: sk.SequencerNotice.autofocusContinued(),
+          ),
+        ),
+      );
+
+      bool fired(String kind) => sink.calls.any((c) => c.kind == kind);
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (!(fired('equipmentDisconnected') && fired('autofocusFailed')) &&
+          DateTime.now().isBefore(deadline)) {
+        heartbeatLost.forEach(serverBackend.emit);
+        serverBackend.emit(autofocusContinued);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      expect(fired('equipmentDisconnected'), isTrue);
+      expect(fired('autofocusFailed'), isTrue);
     });
 
     test('invalid auth token: WebSocket is rejected; event does NOT reach '

@@ -15,7 +15,16 @@ const test = require('node:test');
 const { makeDocument } = require('./dom_shim');
 
 const RUN_WATCH = path.join(__dirname, '..', '..', 'web_run_watch');
-const SOURCE = fs.readFileSync(path.join(RUN_WATCH, 'js', 'run-watch.js'), 'utf8');
+// The page loads the generated table of event types first.
+const WIRE_EVENTS_SOURCE =
+  fs.readFileSync(path.join(RUN_WATCH, 'js', 'wire-events.js'), 'utf8');
+const SOURCE = WIRE_EVENTS_SOURCE +
+  fs.readFileSync(path.join(RUN_WATCH, 'js', 'run-watch.js'), 'utf8');
+const SENT_EVENT_TYPES = new Set(
+  // eslint-disable-next-line no-new-func
+  Object.values(new Function(WIRE_EVENTS_SOURCE + ';return WIRE_EVENTS;')())
+    .flatMap((byName) => Object.values(byName)),
+);
 
 const IDS = [
   'state-badge', 'seq-name', 'connection-dot', 'link-banner', 'recovery-banner',
@@ -1703,6 +1712,59 @@ test('the feed is fed by the named frames the server actually sends', async () =
   deliver('ExposureProgress', 2200);
   assert.deepEqual(feedTitles(doc), ['FrameAccepted', 'NodeStarted']);
   assert.match(foldRowText(doc), /^2 progress updates since/);
+});
+
+test('every event the page listens for is one a host sends', () => {
+  const names = [];
+  function FakeEventSource() {
+    this.close = () => {};
+    this.addEventListener = (name) => { names.push(name); };
+  }
+  const { api } = loadRunWatch({ EventSource: FakeEventSource });
+  api.setToken('a-paired-token', true);
+  api.openSSE();
+  assert.ok(names.length > 0);
+  for (const name of names) {
+    assert.ok(SENT_EVENT_TYPES.has(name),
+      String(name) + ' is not an event type the host sends');
+  }
+});
+
+test('a sequencer pause or resume re-reads the snapshot at once', async () => {
+  const listeners = {};
+  function FakeEventSource() {
+    this.close = () => {};
+    this.addEventListener = (name, fn) => {
+      (listeners[name] = listeners[name] || []).push(fn);
+    };
+  }
+  const reads = [];
+  const { api } = loadRunWatch({
+    EventSource: FakeEventSource,
+    fetch: async (url) => {
+      reads.push(String(url));
+      return {
+        ok: false, status: 404, headers: new Headers(),
+        json: async () => ({}), text: async () => '',
+      };
+    },
+  });
+  api.setToken('a-paired-token', true);
+  api.openSSE();
+  const deliver = (name, category) => {
+    for (const fn of listeners[name] || []) {
+      fn({ data: JSON.stringify({ eventType: name, category, timestamp: 1 }) });
+    }
+  };
+  const snapshotReads = () =>
+    reads.filter((u) => u.includes('/api/run-watch/snapshot')).length;
+
+  deliver('Paused', 'guiding');
+  assert.equal(snapshotReads(), 0, "the guider's pause is not the run's");
+  deliver('Paused', 'sequencer');
+  assert.equal(snapshotReads(), 1);
+  deliver('Resumed', 'sequencer');
+  assert.equal(snapshotReads(), 2);
 });
 
 test('the snapshot ring cannot erase what the stream delivered', async () => {

@@ -8,7 +8,7 @@ import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/flat_library_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/calibration/calibration_library_models.dart';
-import 'package:skotiq_core/src/services/calibration/fits_header_reader.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:skotiq_core/src/services/calibration_library_service.dart';
 
 void main() {
@@ -30,9 +30,9 @@ void main() {
       db: db,
       flatLibraryDao: flatDao,
       tagsDao: tagsDao,
-      // Disable header enrichment in tests: the test fixtures are not real
-      // FITS files, and the matcher logic under test doesn't depend on it.
-      headerReader: const FitsHeaderReader(),
+      // The fixtures are not frame files, and the matcher logic under test
+      // does not depend on their headers.
+      readHeader: (_) async => FrameHeader(const {}),
       now: () => now,
     );
   });
@@ -335,9 +335,9 @@ void main() {
         db: db,
         flatLibraryDao: flatDao,
         tagsDao: tagsDao,
-        headerReader: _FixedHeaderReader({
-          flatPath: {'FILTER': "'Ha'", 'CCD-TEMP': '-10.0'},
-        }),
+        readHeader: (path) async => FrameHeader(
+          path == flatPath ? {'FILTER': 'Ha', 'CCD-TEMP': -10.0} : const {},
+        ),
         now: () => now,
       );
 
@@ -376,7 +376,12 @@ void main() {
         offset: null,
         temperature: -10,
       );
-      await insertDark(exposureTime: 0, gain: null, offset: null, frameType: 'bias');
+      await insertDark(
+        exposureTime: 0,
+        gain: null,
+        offset: null,
+        frameType: 'bias',
+      );
       await insertFlat(gain: null, offset: null);
 
       final match = await service.match(
@@ -409,7 +414,10 @@ void main() {
         const LightFrameContext(gain: null, offset: null, exposureSeconds: 300),
       );
       expect(match.dark, isNotNull);
-      expect(match.dark!.reasons.any((r) => r.contains('gain UNVERIFIED')), isTrue);
+      expect(
+        match.dark!.reasons.any((r) => r.contains('gain UNVERIFIED')),
+        isTrue,
+      );
       expect(match.dark!.score, lessThan(100));
     });
   });
@@ -624,16 +632,4 @@ void main() {
       );
     });
   });
-}
-
-/// A [FitsHeaderReader] that serves canned primary headers by path, so the
-/// enrichment pass can be exercised without writing real FITS files.
-class _FixedHeaderReader implements FitsHeaderReader {
-  const _FixedHeaderReader(this._byPath);
-
-  final Map<String, Map<String, String>> _byPath;
-
-  @override
-  Future<Map<String, String>> readPrimaryHeader(String path) async =>
-      _byPath[path] ?? const {};
 }

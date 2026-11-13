@@ -10,6 +10,7 @@
 
 import 'dart:math' as math;
 
+import '../../models/imaging/sip_terms.dart';
 import '../wcs/gnomonic_projection.dart';
 
 /// Interpolator selection for atlas reprojection. The wire token is the
@@ -22,40 +23,6 @@ enum AtlasInterp {
 
   /// Wire token sent inside the bridge JSON (`interp` field).
   String get wire => name;
-}
-
-/// The off-table v51 WCS distortion (full CD matrix + SIP) stored alongside a
-/// captured image's isotropic solve. Mirrors the record returned by
-/// `ImagesDao.getStoredWcsDistortion` + `decodeSolvedSip`; all fields default to
-/// "absent / no distortion" so a plain isotropic solve constructs cleanly.
-class SolvedWcsDistortion {
-  final double? cd1_1;
-  final double? cd1_2;
-  final double? cd2_1;
-  final double? cd2_2;
-  final int aOrder;
-  final int bOrder;
-  final List<double> aCoeffs;
-  final List<double> bCoeffs;
-  final int apOrder;
-  final int bpOrder;
-  final List<double> apCoeffs;
-  final List<double> bpCoeffs;
-
-  const SolvedWcsDistortion({
-    this.cd1_1,
-    this.cd1_2,
-    this.cd2_1,
-    this.cd2_2,
-    this.aOrder = 0,
-    this.bOrder = 0,
-    this.aCoeffs = const [],
-    this.bCoeffs = const [],
-    this.apOrder = 0,
-    this.bpOrder = 0,
-    this.apCoeffs = const [],
-    this.bpCoeffs = const [],
-  });
 }
 
 /// One plate-solved light frame ready to be folded into the atlas.
@@ -88,19 +55,9 @@ class SolvedFrameRef {
   final double cd2_1;
   final double cd2_2;
 
-  /// Forward SIP distortion, row-major `i*(order+1)+j`. `order == 0` (or empty
-  /// coefficients) means no forward distortion.
-  final int aOrder;
-  final int bOrder;
-  final List<double> aCoeffs;
-  final List<double> bCoeffs;
-
-  /// Inverse SIP distortion (AP/BP). Empty -> the native side falls back to a
-  /// Newton iteration for the world->pixel direction.
-  final int apOrder;
-  final int bpOrder;
-  final List<double> apCoeffs;
-  final List<double> bpCoeffs;
+  /// SIP distortion. Without the inverse (`AP`/`BP`) the native side inverts
+  /// the forward polynomials by Newton iteration.
+  final SipTerms sip;
 
   /// Fold-log label for this frame (its capture time). Null takes the fold
   /// call's label.
@@ -119,14 +76,7 @@ class SolvedFrameRef {
     required this.cd1_2,
     required this.cd2_1,
     required this.cd2_2,
-    this.aOrder = 0,
-    this.bOrder = 0,
-    this.aCoeffs = const [],
-    this.bCoeffs = const [],
-    this.apOrder = 0,
-    this.bpOrder = 0,
-    this.apCoeffs = const [],
-    this.bpCoeffs = const [],
+    this.sip = noSipTerms,
   });
 
   /// A copy carrying [label] as its fold-log label.
@@ -143,61 +93,36 @@ class SolvedFrameRef {
     cd1_2: cd1_2,
     cd2_1: cd2_1,
     cd2_2: cd2_2,
-    aOrder: aOrder,
-    bOrder: bOrder,
-    aCoeffs: aCoeffs,
-    bCoeffs: bCoeffs,
-    apOrder: apOrder,
-    bpOrder: bpOrder,
-    apCoeffs: apCoeffs,
-    bpCoeffs: bpCoeffs,
+    sip: sip,
   );
 
   /// Build a fold reference from a [SolvedWcs] (the catalog-overlay / science
   /// WCS model) for the frame at [framePath].
   ///
-  /// `crval` comes from the solved image centre (RA hours -> degrees), `crpix`
-  /// from the image centre in 1-based FITS pixels. The CD matrix is taken
-  /// directly when present; otherwise it is [SolvedWcs.effectiveCd], rebuilt
-  /// from scale, rotation and parity with the native parser's convention.
+  /// `crval` is the solution's reference point (RA hours -> degrees), `crpix`
+  /// its reference pixel in 1-based FITS pixels. The CD matrix is
+  /// [SolvedWcs.effectiveCd]: the solver's own when present, else rebuilt from
+  /// scale, rotation and parity with the native parser's convention.
   factory SolvedFrameRef.fromSolvedWcs({
     required String framePath,
     required SolvedWcs wcs,
     double weight = 1.0,
     double exposureSec = 0.0,
   }) {
-    final crval1 = _normalizeRaDeg(wcs.raHours * 15.0);
-    final crval2 = wcs.decDegrees;
-    // FITS CRPIX is 1-based and references the image centre for a solve.
-    final crpix1 = wcs.imageWidth / 2.0 + 0.5;
-    final crpix2 = wcs.imageHeight / 2.0 + 0.5;
-
-    final cd = wcs.effectiveCd;
-    final cd11 = cd.cd1_1;
-    final cd12 = cd.cd1_2;
-    final cd21 = cd.cd2_1;
-    final cd22 = cd.cd2_2;
-
+    final fits = wcs.fitsTerms;
     return SolvedFrameRef(
       framePath: framePath,
       weight: weight,
       exposureSec: exposureSec,
-      crval1: crval1,
-      crval2: crval2,
-      crpix1: crpix1,
-      crpix2: crpix2,
-      cd1_1: cd11,
-      cd1_2: cd12,
-      cd2_1: cd21,
-      cd2_2: cd22,
-      aOrder: wcs.aOrder,
-      bOrder: wcs.bOrder,
-      aCoeffs: wcs.aCoeffs,
-      bCoeffs: wcs.bCoeffs,
-      apOrder: wcs.apOrder,
-      bpOrder: wcs.bpOrder,
-      apCoeffs: wcs.apCoeffs,
-      bpCoeffs: wcs.bpCoeffs,
+      crval1: _normalizeRaDeg(fits.crval1),
+      crval2: fits.crval2,
+      crpix1: fits.crpix1,
+      crpix2: fits.crpix2,
+      cd1_1: fits.cd1_1,
+      cd1_2: fits.cd1_2,
+      cd2_1: fits.cd2_1,
+      cd2_2: fits.cd2_2,
+      sip: wcs.sip,
     );
   }
 
@@ -212,14 +137,14 @@ class SolvedFrameRef {
     'cd1_2': cd1_2,
     'cd2_1': cd2_1,
     'cd2_2': cd2_2,
-    'aOrder': aOrder,
-    'bOrder': bOrder,
-    'aCoeffs': aCoeffs,
-    'bCoeffs': bCoeffs,
-    'apOrder': apOrder,
-    'bpOrder': bpOrder,
-    'apCoeffs': apCoeffs,
-    'bpCoeffs': bpCoeffs,
+    'aOrder': sip.aOrder,
+    'bOrder': sip.bOrder,
+    'aCoeffs': sip.aCoeffs,
+    'bCoeffs': sip.bCoeffs,
+    'apOrder': sip.apOrder,
+    'bpOrder': sip.bpOrder,
+    'apCoeffs': sip.apCoeffs,
+    'bpCoeffs': sip.bpCoeffs,
   };
 
   /// The per-frame entry inside the fold action's `frames` array.

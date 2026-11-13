@@ -20,6 +20,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../utils/darkroom_navigation.dart';
 import '../../widgets/astro_image_viewer.dart';
+import '../../utils/snackbar_helper.dart';
 
 part 'stack_result_screen_parts/_export_seams.dart';
 part 'stack_result_screen_parts/_support_widgets.dart';
@@ -729,34 +730,31 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
         stampPersistedResult: stampPersistedResult,
       );
       if (!mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'Exported ${p.basename(written)}',
-        severity: SkotiqAlertSeverity.success,
-      );
 
       // The share card always hands the written file to the OS share sheet. On
       // Android/iOS so must PNG/JPEG: there is no save dialog on those
-      // platforms, so the export landed in the app sandbox and the toast alone
+      // platforms, so the export landed in the app sandbox and the notice alone
       // would name a file the user cannot open. On desktop those two stay
       // save-only — the user picked the path. A share failure never means the
-      // export failed — the file is already on disk — so it surfaces as a
-      // non-fatal warning.
+      // export failed — the file is already on disk — so it is the one notice,
+      // a warning, in place of the success.
       final handOffToShareSheet = format == ShareExportFormat.shareCard ||
           Platform.isAndroid ||
           Platform.isIOS;
+      var shared = true;
       if (handOffToShareSheet) {
         try {
           // share_plus is a UI dependency, so the call lives at this boundary.
           await share(written, text: result.targetName ?? 'Stacked result');
         } catch (e) {
-          if (!mounted) return;
-          SkotiqToastHelper.show(
-            context: context,
-            message: 'Saved, but sharing failed.',
-            severity: SkotiqAlertSeverity.warning,
-          );
+          shared = false;
         }
+      }
+      if (!mounted) return;
+      if (shared) {
+        context.showSuccessSnackBar('Exported ${p.basename(written)}');
+      } else {
+        context.showWarningSnackBar('Saved, but sharing failed.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -856,11 +854,7 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
         text: 'AstroBin acquisition details: ${result.targetName ?? ''}',
       );
       if (!mounted) return;
-      SkotiqToastHelper.show(
-        context: context,
-        message: 'AstroBin sidecar exported',
-        severity: SkotiqAlertSeverity.success,
-      );
+      context.showSuccessSnackBar('AstroBin sidecar exported');
     } catch (e) {
       if (!mounted) return;
       await ErrorDialog.show(

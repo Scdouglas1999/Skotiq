@@ -46,7 +46,7 @@ void main() {
             )
             as Map<String, dynamic>;
     final cd = [for (final v in f['cd'] as List) (v as num).toDouble()];
-    final wcs = SolvedWcs.tryFromFitsCd(
+    final wcs = SolvedWcs.tryFromFits(
       crval1: (f['crval1'] as num).toDouble(),
       crval2: (f['crval2'] as num).toDouble(),
       crpix1: (f['crpix1'] as num).toDouble(),
@@ -102,7 +102,7 @@ void main() {
   group('a 5.6° field at declination 60°', () {
     // 5"/px, 4000 x 4000, north up, east left, referenced at the center.
     const scale = 5.0 / 3600.0;
-    final wcs = SolvedWcs.tryFromFitsCd(
+    final wcs = SolvedWcs.tryFromFits(
       crval1: 30,
       crval2: 60,
       crpix1: 2000.5,

@@ -4,10 +4,10 @@
 // generates a UUID v4 commandId, registers (operation, deviceId,
 // commandId) with the correlator, and includes the id in its response.
 // When the backend later emits a SkotiqEvent that "completes" the
-// command, broadcastEvent calls [stampEvent] which best-effort matches
-// the event back to the most recent un-correlated command for that
-// (operation, deviceId) pair and copies the commandId onto the event
-// as `correlatingCommandId`.
+// command ([commandCompletionOf]), broadcastEvent calls [stampEvent] which
+// best-effort matches the event back to the oldest un-correlated command for
+// that (operation, deviceId) pair and copies the commandId onto the event as
+// `correlatingCommandId`.
 //
 // The matching is intentionally best-effort: a multi-client scenario
 // where two phones slew the same mount within 100 ms can confuse the
@@ -22,79 +22,72 @@
 
 import 'dart:math';
 
-/// Map of "operation kind" (e.g. `camera.expose`, `mount.slew`,
-/// `sequencer.start`) to the canonical SkotiqEvent eventType(s) that
-/// signal the command's completion. Maintained explicitly because the
-/// event types are a small fixed set and a wildcard match would create
-/// spurious correlations.
+import 'package:skotiq_core/backend.dart' show typedEventFromWire;
+import 'package:skotiq_core/bridge_events.dart' as sk;
+import 'package:skotiq_core/models.dart' show SkotiqEvent;
+
+/// What a completion event finishes: the operations whose commands it can
+/// complete, the one tried first first, and the device it names (null when
+/// the event names none).
+typedef CommandCompletion = ({List<String> operations, String? deviceId});
+
+/// The commands [event] completes, or null when it completes none.
 ///
-/// When an event's `eventType` is in this map's value list AND the event
-/// was emitted within the TTL of a registered command for the same
-/// operation kind + deviceId, the correlator stamps the commandId.
-const Map<String, Set<String>> commandCompletionEventTypes = {
-  'camera.expose': {
-    'ExposureCompleted',
-    'ExposureFailed',
-    'ExposureAborted',
-    'FrameAccepted',
-    'FrameRejected',
-    'ImageCaptured',
-  },
-  'camera.abort': {'ExposureAborted'},
-  'mount.slew': {'SlewComplete', 'SlewCompleted', 'SlewFailed', 'SlewAborted'},
-  'mount.slew-alt-az': {
-    'SlewComplete',
-    'SlewCompleted',
-    'SlewFailed',
-    'SlewAborted',
-  },
-  'mount.park': {'MountParked', 'ParkComplete'},
-  'mount.unpark': {'MountUnparked', 'UnparkComplete'},
-  'focuser.move-to': {'FocuserMoveComplete', 'FocuserMoved'},
-  'focuser.move-relative': {'FocuserMoveComplete', 'FocuserMoved'},
-  'focuser.autofocus.start': {
-    'AutofocusComplete',
-    'AutofocusCompleted',
-    'AutofocusFailed',
-    'AutofocusCancelled',
-  },
-  'focuser.autofocus.cancel': {'AutofocusCancelled'},
-  'filter-wheel.set-position': {'FilterWheelMoveComplete', 'FilterChanged'},
-  'rotator.move-to': {'RotatorMoveComplete', 'RotatorMoved'},
-  // The sequencer's lifecycle events reach the wire under their BARE names —
-  // `Started`, `Completed`, `Stopped` (see
-  // `skotiq_core/.../ffi_backend/event_mapping.dart`); only the terminal
-  // failure is prefixed (`SequenceFailed`). This table listed only prefixed
-  // spellings, so no sequencer command's completion event was ever stamped
-  // with its `correlatingCommandId` even though `/api/docs` advertises the
-  // correlation. Both spellings are matched now.
-  //
-  // `Paused` / `Resumed` are deliberately NOT listed: the guiding subsystem
-  // emits those same bare names and [operationForCompletionEvent] matches on
-  // eventType alone, so adding them would let a guider pause satisfy a pending
-  // `sequencer.pause`. A mis-stamped id is worse than an unstamped one — it
-  // tells a client its command completed when nothing of the sort happened.
-  'sequencer.start': {
-    'Started',
-    'SequenceStarted',
-    'Completed',
-    'SequenceCompleted',
-    'SequenceFailed',
-  },
-  'sequencer.stop': {'Stopped', 'SequenceStopped'},
-  'sequencer.pause': {'SequencePaused'},
-  'sequencer.resume': {'SequenceResumed'},
-  'sequencer.skip': {'NodeSkipped'},
-  'framing.slew-to-target': {'SlewComplete', 'SlewCompleted', 'SlewFailed'},
-  'framing.center-on-target': {'CenteringComplete', 'CenteringFailed'},
-  'framing.sync': {'MountSynced'},
-  'dome.open': {'DomeOpened', 'ShutterOpened'},
-  'dome.close': {'DomeClosed', 'ShutterClosed'},
-  'dome.slew': {'DomeSlewComplete'},
-  'dome.park': {'DomeParked'},
-  'plate-solve': {'PlateSolveComplete', 'PlateSolveFailed'},
-  'phd2.dither': {'DitherComplete', 'DitherFailed', 'SettleDone'},
-};
+/// Read from the typed event the codec decodes, so a renamed event does not
+/// compile here instead of quietly never matching, and a guider's `Paused`
+/// can never complete a `sequencer.pause`.
+CommandCompletion? commandCompletionOf(SkotiqEvent event) {
+  CommandCompletion of(List<String> operations, [String? deviceId]) =>
+      (operations: operations, deviceId: deviceId);
+  return switch (typedEventFromWire(event)?.payload) {
+    sk.EventPayload_Imaging(
+      field0: sk.ImagingEvent_ExposureCompleted() ||
+          sk.ImagingEvent_ExposureCompletedWithFrame() ||
+          sk.ImagingEvent_ExposureFailed() ||
+          sk.ImagingEvent_ExposureFailedOld(),
+    ) =>
+      of(const ['camera.expose']),
+    sk.EventPayload_Imaging(field0: sk.ImagingEvent_ExposureCancelled()) => of(
+      const ['camera.abort', 'camera.expose'],
+    ),
+    sk.EventPayload_Equipment(:final field0) => switch (field0) {
+      sk.EquipmentEvent_MountSlewCompleted(:final deviceId) => of(const [
+        'mount.slew',
+        'mount.slew-alt-az',
+      ], deviceId),
+      sk.EquipmentEvent_MountParkCompleted(:final deviceId) => of(const [
+        'mount.park',
+      ], deviceId),
+      sk.EquipmentEvent_MountUnparked(:final deviceId) => of(const [
+        'mount.unpark',
+      ], deviceId),
+      sk.EquipmentEvent_FocuserMoveCompleted(:final deviceId) => of(const [
+        'focuser.move-to',
+        'focuser.move-relative',
+      ], deviceId),
+      sk.EquipmentEvent_FilterChanged(:final deviceId) => of(const [
+        'filter-wheel.set-position',
+      ], deviceId),
+      sk.EquipmentEvent_RotatorMoveCompleted(:final deviceId) => of(const [
+        'rotator.move-to',
+      ], deviceId),
+      _ => null,
+    },
+    sk.EventPayload_Sequencer(:final field0) => switch (field0) {
+      sk.SequencerEvent_Started() ||
+      sk.SequencerEvent_Completed() ||
+      sk.SequencerEvent_Failed() => of(const [
+        'sequencer.start',
+        'sequencer.load-and-start',
+      ]),
+      sk.SequencerEvent_Stopped() => of(const ['sequencer.stop']),
+      sk.SequencerEvent_Paused() => of(const ['sequencer.pause']),
+      sk.SequencerEvent_Resumed() => of(const ['sequencer.resume']),
+      _ => null,
+    },
+    _ => null,
+  };
+}
 
 class _PendingCommand {
   final String commandId;
@@ -153,7 +146,7 @@ class CommandCorrelator {
   /// the client knows which id to correlate later events with.
   ///
   /// [operation] uses the dotted-path convention (`camera.expose`,
-  /// `mount.slew`, etc.) listed in [commandCompletionEventTypes]. Unknown
+  /// `mount.slew`, etc.) that [commandCompletionOf] names. Unknown
   /// operations are accepted (the id will still be returned to the
   /// caller) but [stampEvent] will never match them.
   String beginCommand({required String operation, String? deviceId}) {
@@ -255,20 +248,4 @@ class CommandCorrelator {
         '${h.substring(12, 16)}-${h.substring(16, 20)}-'
         '${h.substring(20)}';
   }
-}
-
-/// Resolve the canonical operation kind for a SkotiqEvent's
-/// `eventType`. Returns the matching operation key from
-/// [commandCompletionEventTypes], or null if no operation has registered
-/// this event type as a completion signal.
-///
-/// Why O(N) scan: the table is tiny (~20 entries) and called once per
-/// outgoing event. A reverse-lookup map would be premature.
-String? operationForCompletionEvent(String eventType) {
-  for (final entry in commandCompletionEventTypes.entries) {
-    if (entry.value.contains(eventType)) {
-      return entry.key;
-    }
-  }
-  return null;
 }

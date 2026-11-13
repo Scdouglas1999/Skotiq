@@ -194,7 +194,7 @@ List<Override> nightEndOverrides({
       tagsDao: CalibrationTagsDao(db),
     ),
     masters: IntegratedMastersDao(db),
-    readHeader: (_) async => {'NAXIS1': '100', 'NAXIS2': '80'},
+    readHeader: (_) async => FrameHeader({'NAXIS1': 100, 'NAXIS2': 80}),
   );
   return [
     databaseProvider.overrideWithValue(db),
@@ -203,8 +203,8 @@ List<Override> nightEndOverrides({
     ),
     darkroomBuildServiceProvider.overrideWithValue(service),
     outputLocationsProvider.overrideWith(
-      (ref) async =>
-          OutputLocations(captureFolder: outputRoot.path, documents: outputRoot),
+      (ref) async => OutputLocations(
+          captureFolder: outputRoot.path, documents: outputRoot),
     ),
     postSessionSeamProvider.overrideWithValue(QuietSeam()),
     notificationServiceProvider.overrideWithValue(notifications),

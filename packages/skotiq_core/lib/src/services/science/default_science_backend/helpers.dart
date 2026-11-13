@@ -14,8 +14,8 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
   }) async {
     const fallback = (<_CatalogMatch>[], PhotometricCatalogSource.localHyg);
     try {
-      final fits = await readFrameImageSize(imagePath);
-      if (fits == null) return fallback;
+      final size = await _imageSize(imagePath);
+      if (size == null) return fallback;
       final radius =
           (math.sqrt(
                         wcs.fieldWidthDegrees * wcs.fieldWidthDegrees +
@@ -37,14 +37,14 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
 
       final projection = _projectionFor(
         wcs,
-        imageWidth: fits.width,
-        imageHeight: fits.height,
+        imageWidth: size.width,
+        imageHeight: size.height,
       );
       if (projection == null) {
         _logger.warning(
           'Catalog matching skipped for $imagePath: WCS/image geometry is '
           'not projectable (scale=${wcs.pixelScaleArcsecPerPixel}, '
-          'dims=${fits.width}x${fits.height}).',
+          'dims=${size.width}x${size.height}).',
           source: 'ScienceBackend',
         );
         return fallback;
@@ -66,34 +66,27 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
     }
   }
 
-  /// Canonical TAN projection for a science [WcsSolution] + frame geometry,
-  /// or null when the inputs are not projectable (zero/negative pixel scale
-  /// or dimensions). The shared implementation lives in
-  /// `services/wcs/gnomonic_projection.dart`.
+  /// Width and height of the frame at [path] from its header; null when the
+  /// file cannot be read as a frame or states no size.
+  Future<({int width, int height})?> _imageSize(String path) async {
+    try {
+      return (await readFrameHeader(path)).imageSize;
+    } on SkotiqError {
+      return null;
+    }
+  }
+
+  /// The projection of a science [WcsSolution] over a frame, or null when the
+  /// inputs are not projectable (zero/negative pixel scale or dimensions).
   GnomonicProjection? _projectionFor(
     WcsSolution wcs, {
     required int imageWidth,
     required int imageHeight,
   }) {
-    final solved = SolvedWcs(
-      raHours: wcs.raHours,
-      decDegrees: wcs.decDegrees,
-      rotationDeg: wcs.rotationDegrees,
-      pixelScaleArcsec: wcs.pixelScaleArcsecPerPixel,
+    final solved = SolvedWcs.ofSolution(
+      wcs,
       imageWidth: imageWidth,
       imageHeight: imageHeight,
-      cd1_1: wcs.cd1_1,
-      cd1_2: wcs.cd1_2,
-      cd2_1: wcs.cd2_1,
-      cd2_2: wcs.cd2_2,
-      aOrder: wcs.aOrder,
-      bOrder: wcs.bOrder,
-      aCoeffs: wcs.aCoeffs,
-      bCoeffs: wcs.bCoeffs,
-      apOrder: wcs.apOrder,
-      bpOrder: wcs.bpOrder,
-      apCoeffs: wcs.apCoeffs,
-      bpCoeffs: wcs.bpCoeffs,
     );
     if (!solved.isValid) return null;
     return GnomonicProjection(solved);
